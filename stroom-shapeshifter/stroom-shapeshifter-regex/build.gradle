@@ -1,0 +1,56 @@
+/*
+ * Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+ext.moduleName = 'stroom.shapeshifter.regex'
+
+dependencies {
+
+    // JMH baseline benchmarks live in src/test/java, see stroom.shapeshifter.regex.bench.
+    testImplementation libs.jmh.core
+    testAnnotationProcessor libs.jmh.generator.annprocess
+
+    testImplementation libs.bundles.common.test.implementation
+    testRuntimeOnly libs.bundles.common.test.runtime
+}
+
+// Runs the JMH benchmarks. Pass JMH args through, e.g.
+//   ./gradlew :stroom-shapeshifter:stroom-shapeshifter-regex:jmh --args='-prof gc'
+//   ./gradlew :stroom-shapeshifter:stroom-shapeshifter-regex:jmh --args='.*PatternCorpus.*'
+//
+// Every run writes its full results to design/benchmarks as JSON, named by date and commit.
+// That is deliberate: a throughput figure that exists only in a terminal scrollback cannot be
+// compared with the next one, and comparing runs is the whole point — see decision D21, where a
+// single-fork harness was shown to move 25% between runs of the same binary. The markdown tables
+// in design/05-engine-benchmarks.md are rendered from these files by tools/render-benchmark.py
+// rather than transcribed by hand.
+tasks.register('jmh', JavaExec) {
+    group = 'verification'
+    description = 'Run the Shapeshifter benchmarks, recording results to design/benchmarks'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.openjdk.jmh.Main'
+    args = ['stroom.shapeshifter.regex..*Benchmark.*']
+
+    doFirst {
+        final def results = file("${project.projectDir}/../design/benchmarks")
+        results.mkdirs()
+        final def stamp = new java.text.SimpleDateFormat('yyyy-MM-dd-HHmm').format(new Date())
+        final def commit = providers.exec {
+            commandLine 'git', 'rev-parse', '--short', 'HEAD'
+        }.standardOutput.asText.get().trim()
+        args = args + ['-rf', 'json',
+                       '-rff', new File(results, "${stamp}-${commit}.json").path]
+    }
+}
