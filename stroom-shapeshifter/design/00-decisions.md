@@ -261,6 +261,11 @@ selects it must test for that.
 
 ## D18 — A lazy DFA is back on the table, with evidence
 
+> **Superseded by [D25](#d25--a-bounded-backtracker-rather-than-a-lazy-dfa), 2026-08-18.** The gap
+> this entry argues from was 25–70×; it is now 5–20×, and the mechanism it blames — many threads
+> advancing in lockstep — was removed by [D24](#d24--a-character-class-is-one-instruction-not-a-set-of-branches).
+> Kept for the reasoning, not the recommendation.
+
 *2026-08-17.* The design ruled out a lazy DFA as a v1 non-goal, "revisit with benchmark
 evidence". Measuring the same pattern through both engines produced it: tier 0 at 5379 ops/s
 against tier 1 at 55.7, a **91× engine-cost gap**, with roughly half the corpus on the slow side.
@@ -540,6 +545,40 @@ the state-cache machinery of D18.1. A DFA is also **no help for captures**, whic
 patterns exist to extract, so the remaining tier 1 cost is largely capture bookkeeping in the
 Pike VM. D18 should be re-argued from current numbers before any of it is built; a bounded
 backtracker, which D18 never considered, may suit short records and capture-heavy patterns better.
+
+---
+
+## D25 — A bounded backtracker rather than a lazy DFA
+
+*2026-08-18.* Supersedes [D18](#d18--a-lazy-dfa-is-back-on-the-table-with-evidence), which was
+argued from numbers that [D23](#d23--character-classes-compile-to-a-byte-range-trie-not-an-alternation)
+and [D24](#d24--a-character-class-is-one-instruction-not-a-set-of-branches) invalidated.
+
+Measurement, not reasoning, decided this — and the first two attempts at measuring it were both
+wrong, which is worth recording:
+
+1. **The sampling profiler pointed at capture-slot copying.** Removing the copy entirely, wrong
+   captures and all, bought 10%. Half its samples were unattributed and the rest misdirected.
+2. **Running the same pattern on both tiers is what worked.** Tier 1 costs a flat **21–27 ns per
+   input byte whatever the pattern**, against 1.5–9.5 for tier 0. The constancy is the point: it is
+   fixed cost per input *position* — outer loop, thread-list swap, closure indirection, slot
+   bookkeeping — not anything that scales with the pattern, and with the thread width now 1 there
+   is no multiplicity left to blame.
+
+**Why not the DFA.** Its inner loop would take 24 ns/byte to perhaps 4, a 5× gain on deciding
+*where* a match is. But a DFA cannot produce captures, and these patterns exist to extract fields.
+DFA-for-the-span then a capture engine over the span saves only in proportion to the input outside
+the match, which in per-record matching is almost none of it.
+
+**Why the backtracker.** One pass, captures directly, none of the per-position bookkeeping that was
+measured; a visited bitset over (instruction, position) preserves linear time at program × length
+bits — about 54 KB for a 2,152-instruction program over a 200-byte record — with the Pike VM as
+the fallback beyond a threshold. Short records with captures wanted is exactly the case Rust
+maintains one for, and it is a smaller change than a lazy DFA with the state cache of D18.1.
+
+**Consequences:** D18.1's cache design is shelved rather than deleted; if unanchored search over
+large buffers ever becomes the dominant shape, the DFA argument returns on its own merits. The
+Pike VM stays as the general fallback, so the linear-time guarantee is unaffected either way.
 
 ---
 

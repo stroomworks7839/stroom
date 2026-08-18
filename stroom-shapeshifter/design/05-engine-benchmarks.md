@@ -488,3 +488,52 @@ no Unicode class gained too — `.` is a class like any other, so `^(.+):(.+)$` 
 
 Instruction count fell fivefold as a side effect, but it was never the thing that mattered; the
 measurement in §7.5 is what pointed at the width, and the width is what moved.
+
+---
+
+## 8. Where tier 1's time actually goes
+
+Written to settle [D18](00-decisions.md), whose case for a lazy DFA rested on numbers that
+[D23](00-decisions.md) and [D24](00-decisions.md) had made obsolete.
+
+**The sampling profiler was misleading.** It attributed roughly half of the identified samples to
+`ThreadList.add`, which copies a thread's capture-slot row on every step. Removing that copy
+entirely — wrong captures, but a valid upper bound on what any copy-on-write scheme could buy —
+moved TIER1_GREEDY by 10.2% and TIER1_ALTERNATION by 10.5%. Half the samples were unattributed,
+and the attribution that remained pointed at the wrong thing. **Capture copying is not the cost.**
+
+**The same pattern on both tiers, same input, is the measurement that works:**
+
+| Pattern | Tier 0 | Tier 1 | Ratio | Tier 0 ns/byte | Tier 1 ns/byte |
+|---|---:|---:|---:|---:|---:|
+| `^([^,]+),([^,]+),([^,]+)$` | 54 ns | 957 ns | 17.7× | 1.54 | 27.34 |
+| `^(\S+) (\S+) (\S+)$` | 52 ns | 358 ns | 6.9× | 3.47 | 23.87 |
+| `^([0-9]{4})-([0-9]{2})-([0-9]{2})$` | 95 ns | 207 ns | 2.2× | 9.50 | 20.70 |
+| `^"([^"]*)","([^"]*)"$` | 35 ns | 554 ns | 15.8× | 1.52 | 24.09 |
+| `^(\w+)=(\w+) (\w+)=(\w+)$` | 68 ns | 673 ns | 9.9× | 2.72 | 26.92 |
+
+**Tier 1 costs a flat 21–27 ns per input byte whatever the pattern**, against 1.5–9.5 for tier 0.
+That constancy is the finding: it is fixed overhead per input *position* — the outer loop, the
+thread-list swap and generation stamp, the closure array indirections, the slot bookkeeping — and
+not anything that scales with the pattern. Since [D24](00-decisions.md) put the thread width at 1,
+there is no longer any thread multiplicity to blame. Mean penalty 10.5×.
+
+### 8.1 What this means for the DFA
+
+A lazy DFA's inner loop is one table lookup per byte, so it would plausibly take 24 ns/byte down
+to 4 or 5 — a **5× improvement on deciding where a match is**. But a DFA cannot produce capture
+groups, and every pattern in this engine's intended use exists to extract fields. The standard
+architecture — DFA for the span, then a capture-capable engine over that span — saves work only in
+proportion to the input *outside* the match, and in per-record matching the match is most of the
+record. So the realisable win is a fraction of that 5×.
+
+**A bounded backtracker addresses the cost that was actually measured.** It walks the program
+consuming input in a single pass, produces captures directly, and pays none of the per-position
+bookkeeping above; a visited bitset over (instruction, position) keeps the linear-time guarantee,
+at program × length bits — some 54 KB for a 2,152-instruction program over a 200-byte record,
+falling back to the Pike VM beyond a threshold. Short records with captures wanted is precisely
+the case Rust keeps one for.
+
+**Recommendation: a bounded backtracker, not a lazy DFA.** It targets the measured 24 ns/byte
+rather than a thread-width problem that no longer exists, it needs none of
+[D18.1](00-decisions.md)'s state-cache machinery, and it does the thing the DFA cannot.
