@@ -1,0 +1,23 @@
+test substring/unicode-word-start
+regex \\b[0-9]+\\b
+haystack β123
+bounds 2 5
+matches -
+
+test substring/unicode-word-end
+regex \\b[0-9]+\\b
+haystack 123β
+bounds 0 3
+matches -
+
+test substring/ascii-word-start
+regex (?-u)\\b[0-9]+\\b
+haystack β123
+bounds 2 5
+matches 2-5
+
+test substring/ascii-word-end
+regex (?-u)\\b[0-9]+\\b
+haystack 123β
+bounds 0 3
+matches 0-3

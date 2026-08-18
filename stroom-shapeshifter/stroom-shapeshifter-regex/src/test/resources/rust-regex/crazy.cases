@@ -1,0 +1,244 @@
+test crazy/ranges
+regex (?-u)\\b(?:[0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\b
+haystack num: 255
+matches 5-8
+
+test crazy/ranges-not
+regex (?-u)\\b(?:[0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\b
+haystack num: 256
+matches -
+
+test crazy/float1
+regex [-+]?[0-9]*\\.?[0-9]+
+haystack 0.1
+matches 0-3
+
+test crazy/float3
+regex [-+]?[0-9]*\\.?[0-9]+
+haystack a1.2
+matches 1-4
+
+test crazy/float4
+regex [-+]?[0-9]*\\.?[0-9]+
+haystack 1.a
+matches 0-1
+
+test crazy/float5
+regex ^[-+]?[0-9]*\\.?[0-9]+$
+haystack 1.a
+matches -
+
+test crazy/email
+regex (?i-u)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}\\b
+haystack mine is jam.slam@gmail.com 
+matches 8-26
+
+test crazy/email-not
+regex (?i-u)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}\\b
+haystack mine is jam.slam@gmail 
+matches -
+
+test crazy/email-big
+regex [a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?
+haystack mine is jam.slam@gmail.com 
+matches 8-26
+
+test crazy/date1
+regex (?-u)^(?:19|20)\\d\\d[- /.](?:0[1-9]|1[012])[- /.](?:0[1-9]|[12][0-9]|3[01])$
+haystack 1900-01-01
+matches 0-10
+
+test crazy/date2
+regex (?-u)^(?:19|20)\\d\\d[- /.](?:0[1-9]|1[012])[- /.](?:0[1-9]|[12][0-9]|3[01])$
+haystack 1900-00-01
+matches -
+
+test crazy/date3
+regex (?-u)^(?:19|20)\\d\\d[- /.](?:0[1-9]|1[012])[- /.](?:0[1-9]|[12][0-9]|3[01])$
+haystack 1900-13-01
+matches -
+
+test crazy/start-end-empty
+regex ^$
+haystack 
+matches 0-0
+
+test crazy/start-end-empty-rev
+regex $^
+haystack 
+matches 0-0
+
+test crazy/start-end-empty-many-1
+regex ^$^$^$
+haystack 
+matches 0-0
+
+test crazy/start-end-empty-many-2
+regex ^^^$$$
+haystack 
+matches 0-0
+
+test crazy/start-end-empty-rep
+regex (?:^$)*
+haystack a\nb\nc
+matches 0-0;1-1;2-2;3-3;4-4;5-5
+
+test crazy/start-end-empty-rep-rev
+regex (?:$^)*
+haystack a\nb\nc
+matches 0-0;1-1;2-2;3-3;4-4;5-5
+
+test crazy/neg-class-letter
+regex [^ac]
+haystack acx
+matches 2-3
+
+test crazy/neg-class-letter-comma
+regex [^a,]
+haystack a,x
+matches 2-3
+
+test crazy/neg-class-letter-space
+regex [^a[:space:]]
+haystack a x
+matches 2-3
+
+test crazy/neg-class-comma
+regex [^,]
+haystack ,,x
+matches 2-3
+
+test crazy/neg-class-space
+regex [^[:space:]]
+haystack  a
+matches 1-2
+
+test crazy/neg-class-space-comma
+regex [^,[:space:]]
+haystack , a
+matches 2-3
+
+test crazy/neg-class-comma-space
+regex [^[:space:],]
+haystack  ,a
+matches 2-3
+
+test crazy/neg-class-ascii
+regex [^[:alpha:]Z]
+haystack A1
+matches 1-2
+
+test crazy/lazy-many-many
+regex (?:(?:.*)*?)=
+haystack a=b
+matches 0-2
+
+test crazy/lazy-many-optional
+regex (?:(?:.?)*?)=
+haystack a=b
+matches 0-2
+
+test crazy/lazy-one-many-many
+regex (?:(?:.*)+?)=
+haystack a=b
+matches 0-2
+
+test crazy/lazy-one-many-optional
+regex (?:(?:.?)+?)=
+haystack a=b
+matches 0-2
+
+test crazy/lazy-range-min-many
+regex (?:(?:.*){1,}?)=
+haystack a=b
+matches 0-2
+
+test crazy/lazy-range-many
+regex (?:(?:.*){1,2}?)=
+haystack a=b
+matches 0-2
+
+test crazy/greedy-many-many
+regex (?:(?:.*)*)=
+haystack a=b
+matches 0-2
+
+test crazy/greedy-many-optional
+regex (?:(?:.?)*)=
+haystack a=b
+matches 0-2
+
+test crazy/greedy-one-many-many
+regex (?:(?:.*)+)=
+haystack a=b
+matches 0-2
+
+test crazy/greedy-one-many-optional
+regex (?:(?:.?)+)=
+haystack a=b
+matches 0-2
+
+test crazy/greedy-range-min-many
+regex (?:(?:.*){1,})=
+haystack a=b
+matches 0-2
+
+test crazy/greedy-range-many
+regex (?:(?:.*){1,2})=
+haystack a=b
+matches 0-2
+
+test crazy/empty1
+regex 
+haystack 
+matches 0-0
+
+test crazy/empty2
+regex 
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test crazy/empty3
+regex (?:)
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test crazy/empty4
+regex (?:)*
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test crazy/empty5
+regex (?:)+
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test crazy/empty6
+regex (?:)?
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test crazy/empty7
+regex (?:)(?:)
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test crazy/empty8
+regex (?:)+|z
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test crazy/empty9
+regex z|(?:)+
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test crazy/empty10
+regex (?:)+|b
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test crazy/empty11
+regex b|(?:)+
+haystack abc
+matches 0-0;1-2;3-3

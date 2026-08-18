@@ -1,0 +1,94 @@
+test empty/100
+regex |b
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/110
+regex b|
+haystack abc
+matches 0-0;1-2;3-3
+
+test empty/120
+regex |z
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/130
+regex z|
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/200
+regex |
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/210
+regex ||
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/220
+regex ||b
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/230
+regex b||
+haystack abc
+matches 0-0;1-2;3-3
+
+test empty/240
+regex ||z
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/300
+regex (?:)|b
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/310
+regex b|(?:)
+haystack abc
+matches 0-0;1-2;3-3
+
+test empty/320
+regex (?:|)
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/330
+regex (?:|)|z
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/400
+regex a(?:)|b
+haystack abc
+matches 0-1;1-2
+
+test empty/500
+regex 
+haystack 
+matches 0-0
+
+test empty/510
+regex 
+haystack a
+matches 0-0;1-1
+
+test empty/520
+regex 
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test empty/600
+regex (?:|a)*
+haystack aaa
+matches 0-0;1-1;2-2;3-3
+
+test empty/610
+regex (?:|a)+
+haystack aaa
+matches 0-0;1-1;2-2;3-3

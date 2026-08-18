@@ -1,0 +1,422 @@
+test unicode/literal1
+regex ☃
+haystack ☃
+matches 0-3
+
+test unicode/literal2
+regex ☃+
+haystack ☃
+matches 0-3
+
+test unicode/literal3
+regex ☃+
+haystack ☃
+caseless true
+matches 0-3
+
+test unicode/literal4
+regex Δ
+haystack δ
+caseless true
+matches 0-2
+
+test unicode/wb-100
+regex \\d\\b
+haystack 6δ
+matches -
+
+test unicode/wb-200
+regex \\d\\b
+haystack 6 
+matches 0-1
+
+test unicode/wb-300
+regex \\d\\B
+haystack 6δ
+matches 0-1
+
+test unicode/wb-400
+regex \\d\\B
+haystack 6 
+matches -
+
+test unicode/class1
+regex [☃Ⅰ]+
+haystack ☃
+matches 0-3
+
+test unicode/class2
+regex \\pN
+haystack Ⅰ
+matches 0-3
+
+test unicode/class3
+regex \\pN+
+haystack Ⅰ1Ⅱ2
+matches 0-8
+
+test unicode/class4
+regex \\PN+
+haystack abⅠ
+matches 0-2
+
+test unicode/class5
+regex [\\PN]+
+haystack abⅠ
+matches 0-2
+
+test unicode/class6
+regex [^\\PN]+
+haystack abⅠ
+matches 2-5
+
+test unicode/class7
+regex \\p{Lu}+
+haystack ΛΘΓΔα
+matches 0-8
+
+test unicode/class8
+regex \\p{Lu}+
+haystack ΛΘΓΔα
+caseless true
+matches 0-10
+
+test unicode/class9
+regex \\pL+
+haystack ΛΘΓΔα
+matches 0-10
+
+test unicode/class10
+regex \\p{Ll}+
+haystack ΛΘΓΔα
+matches 8-10
+
+test unicode/perl1
+regex \\w+
+haystack dδd
+matches 0-4
+
+test unicode/perl2
+regex \\w+
+haystack ⥡
+matches -
+
+test unicode/perl3
+regex \\W+
+haystack ⥡
+matches 0-3
+
+test unicode/perl4
+regex \\d+
+haystack 1२३9
+matches 0-8
+
+test unicode/perl5
+regex \\d+
+haystack Ⅱ
+matches -
+
+test unicode/perl6
+regex \\D+
+haystack Ⅱ
+matches 0-3
+
+test unicode/perl7
+regex \\s+
+haystack  
+matches 0-3
+
+test unicode/perl8
+regex \\s+
+haystack ☃
+matches -
+
+test unicode/perl9
+regex \\S+
+haystack ☃
+matches 0-3
+
+test unicode/class-gencat1
+regex \\p{Cased_Letter}
+haystack Ａ
+matches 0-3
+
+test unicode/class-gencat2
+regex \\p{Close_Punctuation}
+haystack ❯
+matches 0-3
+
+test unicode/class-gencat3
+regex \\p{Connector_Punctuation}
+haystack ⁀
+matches 0-3
+
+test unicode/class-gencat4
+regex \\p{Control}
+haystack 
+matches 0-2
+
+test unicode/class-gencat5
+regex \\p{Currency_Symbol}
+haystack ￡
+matches 0-3
+
+test unicode/class-gencat6
+regex \\p{Dash_Punctuation}
+haystack 〰
+matches 0-3
+
+test unicode/class-gencat7
+regex \\p{Decimal_Number}
+haystack 𑓙
+matches 0-4
+
+test unicode/class-gencat8
+regex \\p{Enclosing_Mark}
+haystack ꙲
+matches 0-3
+
+test unicode/class-gencat9
+regex \\p{Final_Punctuation}
+haystack ⸡
+matches 0-3
+
+test unicode/class-gencat10
+regex \\p{Format}
+haystack 󠁿
+matches 0-4
+
+test unicode/class-gencat11
+regex \\p{Initial_Punctuation}
+haystack ⸜
+matches 0-3
+
+test unicode/class-gencat12
+regex \\p{Letter}
+haystack Έ
+matches 0-2
+
+test unicode/class-gencat13
+regex \\p{Letter_Number}
+haystack ↂ
+matches 0-3
+
+test unicode/class-gencat14
+regex \\p{Line_Separator}
+haystack  
+matches 0-3
+
+test unicode/class-gencat15
+regex \\p{Lowercase_Letter}
+haystack ϛ
+matches 0-2
+
+test unicode/class-gencat16
+regex \\p{Mark}
+haystack 󠇯
+matches 0-4
+
+test unicode/class-gencat17
+regex \\p{Math}
+haystack ⋿
+matches 0-3
+
+test unicode/class-gencat18
+regex \\p{Modifier_Letter}
+haystack 𖭃
+matches 0-4
+
+test unicode/class-gencat19
+regex \\p{Modifier_Symbol}
+haystack 🏿
+matches 0-4
+
+test unicode/class-gencat20
+regex \\p{Nonspacing_Mark}
+haystack 𞥊
+matches 0-4
+
+test unicode/class-gencat21
+regex \\p{Number}
+haystack ⓿
+matches 0-3
+
+test unicode/class-gencat22
+regex \\p{Open_Punctuation}
+haystack ｟
+matches 0-3
+
+test unicode/class-gencat23
+regex \\p{Other}
+haystack ௉
+matches 0-3
+
+test unicode/class-gencat24
+regex \\p{Other_Letter}
+haystack ꓷ
+matches 0-3
+
+test unicode/class-gencat25
+regex \\p{Other_Number}
+haystack ㉏
+matches 0-3
+
+test unicode/class-gencat26
+regex \\p{Other_Punctuation}
+haystack 𞥞
+matches 0-4
+
+test unicode/class-gencat27
+regex \\p{Other_Symbol}
+haystack ⅌
+matches 0-3
+
+test unicode/class-gencat28
+regex \\p{Paragraph_Separator}
+haystack  
+matches 0-3
+
+test unicode/class-gencat29
+regex \\p{Private_Use}
+haystack 􏿽
+matches 0-4
+
+test unicode/class-gencat30
+regex \\p{Punctuation}
+haystack 𑁍
+matches 0-4
+
+test unicode/class-gencat31
+regex \\p{Separator}
+haystack 　
+matches 0-3
+
+test unicode/class-gencat32
+regex \\p{Space_Separator}
+haystack  
+matches 0-3
+
+test unicode/class-gencat33
+regex \\p{Spacing_Mark}
+haystack 𖽾
+matches 0-4
+
+test unicode/class-gencat34
+regex \\p{Symbol}
+haystack ⯈
+matches 0-3
+
+test unicode/class-gencat35
+regex \\p{Titlecase_Letter}
+haystack ῼ
+matches 0-3
+
+test unicode/class-gencat36
+regex \\p{Unassigned}
+haystack 􏿿
+matches 0-4
+
+test unicode/class-gencat37
+regex \\p{Uppercase_Letter}
+haystack Ꝋ
+matches 0-3
+
+test unicode/class-emoji1
+regex \\p{Emoji}
+haystack ⏩
+matches 0-3
+
+test unicode/class-emoji2
+regex \\p{emoji}
+haystack 🈚
+matches 0-4
+
+test unicode/class-emoji3
+regex \\p{extendedpictographic}
+haystack 🩮
+matches 0-4
+
+test unicode/class-emoji4
+regex \\p{extendedpictographic}
+haystack 🿽
+matches 0-4
+
+test unicode/class-gcb1
+regex \\p{grapheme_cluster_break=prepend}
+haystack 𑵆
+matches 0-4
+
+test unicode/class-gcb2
+regex \\p{gcb=regional_indicator}
+haystack 🇦
+matches 0-4
+
+test unicode/class-gcb3
+regex \\p{gcb=ri}
+haystack 🇧
+matches 0-4
+
+test unicode/class-gcb4
+regex \\p{regionalindicator}
+haystack 🇿
+matches 0-4
+
+test unicode/class-gcb5
+regex \\p{gcb=lvt}
+haystack 즉
+matches 0-3
+
+test unicode/class-gcb6
+regex \\p{gcb=zwj}
+haystack ‍
+matches 0-3
+
+test unicode/class-word-break1
+regex \\p{word_break=Hebrew_Letter}
+haystack צּ
+matches 0-3
+
+test unicode/class-word-break2
+regex \\p{wb=hebrewletter}
+haystack צּ
+matches 0-3
+
+test unicode/class-word-break3
+regex \\p{wb=ExtendNumLet}
+haystack ＿
+matches 0-3
+
+test unicode/class-word-break4
+regex \\p{wb=WSegSpace}
+haystack 　
+matches 0-3
+
+test unicode/class-word-break5
+regex \\p{wb=numeric}
+haystack 𞥐
+matches 0-4
+
+test unicode/class-sentence-break1
+regex \\p{sentence_break=Lower}
+haystack ѩ
+matches 0-2
+
+test unicode/class-sentence-break2
+regex \\p{sb=lower}
+haystack ѩ
+matches 0-2
+
+test unicode/class-sentence-break3
+regex \\p{sb=Close}
+haystack ｠
+matches 0-3
+
+test unicode/class-sentence-break4
+regex \\p{sb=Close}
+haystack 🙷
+matches 0-4
+
+test unicode/class-sentence-break5
+regex \\p{sb=SContinue}
+haystack ､
+matches 0-3

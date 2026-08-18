@@ -1,0 +1,22 @@
+test bytes/case-one-ascii
+regex (?-u)a
+haystack A
+caseless true
+matches 0-1
+
+test bytes/case-one-unicode
+regex a
+haystack A
+caseless true
+matches 0-1
+
+test bytes/case-class-simple-ascii
+regex (?-u)[a-z]+
+haystack AaAaA
+caseless true
+matches 0-5
+
+test bytes/null-bytes
+regex (?-u)(?P<cstr>[^\\x00]+)\\x00
+haystack foo\x00
+matches 0-4,0-3

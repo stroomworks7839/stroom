@@ -1,0 +1,44 @@
+test flags/1
+regex (?i)abc
+haystack ABC
+matches 0-3
+
+test flags/2
+regex (?i)a(?-i)bc
+haystack Abc
+matches 0-3
+
+test flags/3
+regex (?i)a(?-i)bc
+haystack ABC
+matches -
+
+test flags/4
+regex (?is)a.
+haystack A\n
+matches 0-2
+
+test flags/5
+regex (?is)a.(?-is)a.
+haystack A\nab
+matches 0-4
+
+test flags/6
+regex (?is)a.(?-is)a.
+haystack A\na\n
+matches -
+
+test flags/9
+regex (?U)a+?
+haystack aa
+matches 0-2
+
+test flags/10
+regex (?U)(?-U)a+
+haystack aa
+matches 0-2
+
+test flags/11
+regex (?-u)(?m)(?:^\\d+$\\n?)+
+haystack 123\n456\n789
+matches 0-11

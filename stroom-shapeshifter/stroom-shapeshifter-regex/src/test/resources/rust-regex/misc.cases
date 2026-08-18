@@ -1,0 +1,81 @@
+test misc/ascii-literal
+regex a
+haystack a
+matches 0-1
+
+test misc/ascii-literal-not
+regex a
+haystack z
+matches -
+
+test misc/ascii-literal-anchored
+regex a
+haystack a
+anchored true
+matches 0-1
+
+test misc/ascii-literal-anchored-not
+regex a
+haystack z
+anchored true
+matches -
+
+test misc/anchor-start-end-line
+regex (?m)^bar$
+haystack foo\nbar\nbaz
+matches 4-7
+
+test misc/prefix-literal-match
+regex ^abc
+haystack abc
+matches 0-3
+
+test misc/prefix-literal-match-ascii
+regex (?-u)^abc
+haystack abc
+matches 0-3
+
+test misc/prefix-literal-no-match
+regex ^abc
+haystack zabc
+matches -
+
+test misc/one-literal-edge
+regex abc
+haystack xxxxxab
+matches -
+
+test misc/terminates
+regex a$
+haystack a
+matches 0-1
+
+test misc/suffix-100
+regex .*abcd
+haystack abcd
+matches 0-4
+
+test misc/suffix-200
+regex .*(?:abcd)+
+haystack abcd
+matches 0-4
+
+test misc/suffix-300
+regex .*(?:abcd)+
+haystack abcdabcd
+matches 0-8
+
+test misc/suffix-400
+regex .*(?:abcd)+
+haystack abcdxabcd
+matches 0-9
+
+test misc/suffix-500
+regex .*x(?:abcd)+
+haystack abcdxabcd
+matches 0-9
+
+test misc/suffix-600
+regex [^abcd]*x(?:abcd)+
+haystack abcdxabcd
+matches 4-9

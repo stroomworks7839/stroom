@@ -1,0 +1,112 @@
+test iter/1
+regex a
+haystack aaa
+matches 0-1;1-2;2-3
+
+test iter/2
+regex a
+haystack aba
+matches 0-1;2-3
+
+test iter/empty1
+regex 
+haystack 
+matches 0-0
+
+test iter/empty2
+regex 
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test iter/empty3
+regex (?:)
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test iter/empty4
+regex (?:)*
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test iter/empty5
+regex (?:)+
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test iter/empty6
+regex (?:)?
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test iter/empty7
+regex (?:)(?:)
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test iter/empty8
+regex (?:)+|z
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test iter/empty9
+regex z|(?:)+
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test iter/empty10
+regex (?:)+|b
+haystack abc
+matches 0-0;1-1;2-2;3-3
+
+test iter/empty11
+regex b|(?:)+
+haystack abc
+matches 0-0;1-2;3-3
+
+test iter/start1
+regex ^a
+haystack a
+matches 0-1
+
+test iter/start2
+regex ^a
+haystack aa
+matches 0-1
+
+test iter/anchored1
+regex a
+haystack a
+anchored true
+matches 0-1
+
+test iter/anchored2
+regex a
+haystack aa
+anchored true
+matches 0-1;1-2
+
+test iter/anchored3
+regex a
+haystack aaba
+anchored true
+matches 0-1;1-2
+
+test iter/nonempty-followedby-empty
+regex abc|.*?
+haystack abczzz
+matches 0-3;4-4;5-5;6-6
+
+test iter/nonempty-followedby-oneempty
+regex abc|.*?
+haystack abcz
+matches 0-3;4-4
+
+test iter/nonempty-followedby-onemixed
+regex abc|.*?
+haystack abczabc
+matches 0-3;4-7
+
+test iter/nonempty-followedby-twomixed
+regex abc|.*?
+haystack abczzabc
+matches 0-3;4-4;5-8

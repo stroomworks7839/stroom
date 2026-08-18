@@ -1,0 +1,481 @@
+test word-boundary/wb1
+regex (?-u)\\b
+haystack 
+matches -
+
+test word-boundary/wb2
+regex (?-u)\\b
+haystack a
+matches 0-0;1-1
+
+test word-boundary/wb3
+regex (?-u)\\b
+haystack ab
+matches 0-0;2-2
+
+test word-boundary/wb4
+regex (?-u)^\\b
+haystack ab
+matches 0-0
+
+test word-boundary/wb5
+regex (?-u)\\b$
+haystack ab
+matches 2-2
+
+test word-boundary/wb6
+regex (?-u)^\\b$
+haystack ab
+matches -
+
+test word-boundary/wb7
+regex (?-u)\\bbar\\b
+haystack nobar bar foo bar
+matches 6-9;14-17
+
+test word-boundary/wb8
+regex (?-u)a\\b
+haystack faoa x
+matches 3-4
+
+test word-boundary/wb9
+regex (?-u)\\bbar
+haystack bar x
+matches 0-3
+
+test word-boundary/wb10
+regex (?-u)\\bbar
+haystack foo\nbar x
+matches 4-7
+
+test word-boundary/wb11
+regex (?-u)bar\\b
+haystack foobar
+matches 3-6
+
+test word-boundary/wb12
+regex (?-u)bar\\b
+haystack foobar\nxxx
+matches 3-6
+
+test word-boundary/wb13
+regex (?-u)(?:foo|bar|[A-Z])\\b
+haystack foo
+matches 0-3
+
+test word-boundary/wb14
+regex (?-u)(?:foo|bar|[A-Z])\\b
+haystack foo\n
+matches 0-3
+
+test word-boundary/wb15
+regex (?-u)\\b(?:foo|bar|[A-Z])
+haystack foo
+matches 0-3
+
+test word-boundary/wb16
+regex (?-u)\\b(?:foo|bar|[A-Z])\\b
+haystack X
+matches 0-1
+
+test word-boundary/wb17
+regex (?-u)\\b(?:foo|bar|[A-Z])\\b
+haystack XY
+matches -
+
+test word-boundary/wb18
+regex (?-u)\\b(?:foo|bar|[A-Z])\\b
+haystack bar
+matches 0-3
+
+test word-boundary/wb19
+regex (?-u)\\b(?:foo|bar|[A-Z])\\b
+haystack foo
+matches 0-3
+
+test word-boundary/wb20
+regex (?-u)\\b(?:foo|bar|[A-Z])\\b
+haystack foo\n
+matches 0-3
+
+test word-boundary/wb21
+regex (?-u)\\b(?:foo|bar|[A-Z])\\b
+haystack ffoo bbar N x
+matches 10-11
+
+test word-boundary/wb22
+regex (?-u)\\b(?:fo|foo)\\b
+haystack fo
+matches 0-2
+
+test word-boundary/wb23
+regex (?-u)\\b(?:fo|foo)\\b
+haystack foo
+matches 0-3
+
+test word-boundary/wb24
+regex (?-u)\\b\\b
+haystack 
+matches -
+
+test word-boundary/wb25
+regex (?-u)\\b\\b
+haystack a
+matches 0-0;1-1
+
+test word-boundary/wb26
+regex (?-u)\\b$
+haystack 
+matches -
+
+test word-boundary/wb27
+regex (?-u)\\b$
+haystack x
+matches 1-1
+
+test word-boundary/wb28
+regex (?-u)\\b$
+haystack y x
+matches 3-3
+
+test word-boundary/wb29
+regex (?-u:\\b).$
+haystack x
+matches 0-1
+
+test word-boundary/wb30
+regex (?-u)^\\b(?:fo|foo)\\b
+haystack fo
+matches 0-2
+
+test word-boundary/wb31
+regex (?-u)^\\b(?:fo|foo)\\b
+haystack foo
+matches 0-3
+
+test word-boundary/wb32
+regex (?-u)^\\b$
+haystack 
+matches -
+
+test word-boundary/wb33
+regex (?-u)^\\b$
+haystack x
+matches -
+
+test word-boundary/wb34
+regex ^(?-u:\\b).$
+haystack x
+matches 0-1
+
+test word-boundary/wb35
+regex ^(?-u:\\b).(?-u:\\b)$
+haystack x
+matches 0-1
+
+test word-boundary/wb36
+regex (?-u)^^^^^\\b$$$$$
+haystack 
+matches -
+
+test word-boundary/wb37
+regex ^^^^^(?-u:\\b).$$$$$
+haystack x
+matches 0-1
+
+test word-boundary/wb38
+regex (?-u)^^^^^\\b$$$$$
+haystack x
+matches -
+
+test word-boundary/wb39
+regex ^^^^^(?-u:\\b\\b\\b).(?-u:\\b\\b\\b)$$$$$
+haystack x
+matches 0-1
+
+test word-boundary/wb40
+regex (?-u:\\b).+(?-u:\\b)
+haystack $$abc$$
+matches 2-5
+
+test word-boundary/wb41
+regex (?-u)\\b
+haystack a b c
+matches 0-0;1-1;2-2;3-3;4-4;5-5
+
+test word-boundary/wb42
+regex (?-u)\\bfoo\\b
+haystack zzz foo zzz
+matches 4-7
+
+test word-boundary/wb43
+regex (?-u)\\b^
+haystack ab
+matches 0-0
+
+test word-boundary/wb44
+regex (?-u)$\\b
+haystack ab
+matches 2-2
+
+test word-boundary/nb1
+regex (?-u)\\Bfoo\\B
+haystack n foo xfoox that
+matches 7-10
+
+test word-boundary/nb2
+regex (?-u)a\\B
+haystack faoa x
+matches 1-2
+
+test word-boundary/nb3
+regex (?-u)\\Bbar
+haystack bar x
+matches -
+
+test word-boundary/nb4
+regex (?-u)\\Bbar
+haystack foo\nbar x
+matches -
+
+test word-boundary/nb5
+regex (?-u)bar\\B
+haystack foobar
+matches -
+
+test word-boundary/nb6
+regex (?-u)bar\\B
+haystack foobar\nxxx
+matches -
+
+test word-boundary/nb7
+regex (?-u)(?:foo|bar|[A-Z])\\B
+haystack foox
+matches 0-3
+
+test word-boundary/nb8
+regex (?-u)(?:foo|bar|[A-Z])\\B
+haystack foo\n
+matches -
+
+test word-boundary/nb9
+regex (?-u)\\B
+haystack 
+matches 0-0
+
+test word-boundary/nb10
+regex (?-u)\\B
+haystack x
+matches -
+
+test word-boundary/nb11
+regex (?-u)\\B(?:foo|bar|[A-Z])
+haystack foo
+matches -
+
+test word-boundary/nb12
+regex (?-u)\\B(?:foo|bar|[A-Z])\\B
+haystack xXy
+matches 1-2
+
+test word-boundary/nb13
+regex (?-u)\\B(?:foo|bar|[A-Z])\\B
+haystack XY
+matches -
+
+test word-boundary/nb14
+regex (?-u)\\B(?:foo|bar|[A-Z])\\B
+haystack XYZ
+matches 1-2
+
+test word-boundary/nb15
+regex (?-u)\\B(?:foo|bar|[A-Z])\\B
+haystack abara
+matches 1-4
+
+test word-boundary/nb16
+regex (?-u)\\B(?:foo|bar|[A-Z])\\B
+haystack xfoo_
+matches 1-4
+
+test word-boundary/nb17
+regex (?-u)\\B(?:foo|bar|[A-Z])\\B
+haystack xfoo\n
+matches -
+
+test word-boundary/nb18
+regex (?-u)\\B(?:foo|bar|[A-Z])\\B
+haystack foo bar vNX
+matches 9-10
+
+test word-boundary/nb19
+regex (?-u)\\B(?:fo|foo)\\B
+haystack xfoo
+matches 1-3
+
+test word-boundary/nb20
+regex (?-u)\\B(?:foo|fo)\\B
+haystack xfooo
+matches 1-4
+
+test word-boundary/nb21
+regex (?-u)\\B\\B
+haystack 
+matches 0-0
+
+test word-boundary/nb22
+regex (?-u)\\B\\B
+haystack x
+matches -
+
+test word-boundary/nb23
+regex (?-u)\\B$
+haystack 
+matches 0-0
+
+test word-boundary/nb24
+regex (?-u)\\B$
+haystack x
+matches -
+
+test word-boundary/nb25
+regex (?-u)\\B$
+haystack y x
+matches -
+
+test word-boundary/nb26
+regex (?-u)\\B.$
+haystack x
+matches -
+
+test word-boundary/nb27
+regex (?-u)^\\B(?:fo|foo)\\B
+haystack fo
+matches -
+
+test word-boundary/nb28
+regex (?-u)^\\B(?:fo|foo)\\B
+haystack fo
+matches -
+
+test word-boundary/nb29
+regex (?-u)^\\B
+haystack 
+matches 0-0
+
+test word-boundary/nb30
+regex (?-u)^\\B
+haystack x
+matches -
+
+test word-boundary/nb31
+regex (?-u)^\\B\\B
+haystack 
+matches 0-0
+
+test word-boundary/nb32
+regex (?-u)^\\B\\B
+haystack x
+matches -
+
+test word-boundary/nb33
+regex (?-u)^\\B$
+haystack 
+matches 0-0
+
+test word-boundary/nb34
+regex (?-u)^\\B$
+haystack x
+matches -
+
+test word-boundary/nb35
+regex (?-u)^\\B.$
+haystack x
+matches -
+
+test word-boundary/nb36
+regex (?-u)^\\B.\\B$
+haystack x
+matches -
+
+test word-boundary/nb37
+regex (?-u)^^^^^\\B$$$$$
+haystack 
+matches 0-0
+
+test word-boundary/nb38
+regex (?-u)^^^^^\\B.$$$$$
+haystack x
+matches -
+
+test word-boundary/nb39
+regex (?-u)^^^^^\\B$$$$$
+haystack x
+matches -
+
+test word-boundary/unicode1
+regex \\bx\\b
+haystack «x
+matches 2-3
+
+test word-boundary/unicode1-only-ascii
+regex (?-u)\\bx\\b
+haystack «x
+matches 2-3
+
+test word-boundary/unicode2
+regex \\bx\\b
+haystack x»
+matches 0-1
+
+test word-boundary/unicode2-only-ascii
+regex (?-u)\\bx\\b
+haystack x»
+matches 0-1
+
+test word-boundary/unicode3
+regex \\bx\\b
+haystack áxβ
+matches -
+
+test word-boundary/unicode3-only-ascii
+regex (?-u)\\bx\\b
+haystack áxβ
+matches 2-3
+
+test word-boundary/unicode4
+regex \\Bx\\B
+haystack áxβ
+matches 2-3
+
+test word-boundary/unicode5
+regex \\b
+haystack 0񾽞
+matches 0-0;1-1
+
+test word-boundary/unicode5-not
+regex \\B
+haystack 0񾽞
+matches 5-5
+
+test word-boundary/unicode6
+regex \\b[0-9]+\\b
+haystack foo 123 bar 456 quux 789
+matches 4-7;12-15;21-24
+
+test word-boundary/unicode7
+regex \\b[0-9]+\\b
+haystack foo 123 bar a456 quux 789
+matches 4-7;22-25
+
+test word-boundary/unicode8
+regex \\b[0-9]+\\b
+haystack foo 123 bar 456a quux 789
+matches 4-7;22-25
+
+test word-boundary/alt-with-assertion-repetition
+regex (?:\\b|%)+
+haystack z%
+anchored true
+bounds 1 2
+matches 1-1

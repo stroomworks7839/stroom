@@ -1,0 +1,74 @@
+test no-unicode/case1
+regex (?-u)a
+haystack A
+caseless true
+matches 0-1
+
+test no-unicode/case2
+regex (?-u)[a-z]+
+haystack AaAaA
+caseless true
+matches 0-5
+
+test no-unicode/case3
+regex [a-z]+
+haystack aAKaA
+caseless true
+matches 0-7
+
+test no-unicode/case4
+regex (?-u)[a-z]+
+haystack aAKaA
+caseless true
+matches 0-2;5-7
+
+test no-unicode/negate1
+regex [^a]
+haystack δ
+matches 0-2
+
+test no-unicode/null-bytes1
+regex (?-u)[^\\x00]+\\x00
+haystack foo\x00
+matches 0-4
+
+test no-unicode/word-ascii
+regex (?-u)\\w+
+haystack aδ
+matches 0-1
+
+test no-unicode/word-unicode
+regex \\w+
+haystack aδ
+matches 0-3
+
+test no-unicode/decimal-ascii
+regex (?-u)\\d+
+haystack 1२३9
+matches 0-1;7-8
+
+test no-unicode/decimal-unicode
+regex \\d+
+haystack 1२३9
+matches 0-8
+
+test no-unicode/space-ascii
+regex (?-u)\\s+
+haystack   
+matches 0-1
+
+test no-unicode/space-unicode
+regex \\s+
+haystack   
+matches 0-4
+
+test no-unicode/iter1-utf8
+regex 
+haystack ☃
+matches 0-0;3-3
+
+test no-unicode/anchored-iter-empty-utf8
+regex 
+haystack a☃z
+anchored true
+matches 0-0;1-1

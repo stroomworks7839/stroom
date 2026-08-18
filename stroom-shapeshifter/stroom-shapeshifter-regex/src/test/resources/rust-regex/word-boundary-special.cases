@@ -1,0 +1,459 @@
+test word-boundary-special/word-start-ascii-010
+regex (?-u)\\b{start}
+haystack a
+matches 0-0
+
+test word-boundary-special/word-start-ascii-020
+regex (?-u)\\b{start}
+haystack a 
+matches 0-0
+
+test word-boundary-special/word-start-ascii-030
+regex (?-u)\\b{start}
+haystack  a 
+matches 1-1
+
+test word-boundary-special/word-start-ascii-040
+regex (?-u)\\b{start}
+haystack 
+matches -
+
+test word-boundary-special/word-start-ascii-050
+regex (?-u)\\b{start}
+haystack ab
+matches 0-0
+
+test word-boundary-special/word-start-ascii-060
+regex (?-u)\\b{start}
+haystack 𝛃
+matches -
+
+test word-boundary-special/word-start-ascii-060-bounds
+regex (?-u)\\b{start}
+haystack 𝛃
+bounds 2 3
+matches -
+
+test word-boundary-special/word-start-ascii-070
+regex (?-u)\\b{start}
+haystack  𝛃 
+matches -
+
+test word-boundary-special/word-start-ascii-080
+regex (?-u)\\b{start}
+haystack 𝛃𐆀
+matches -
+
+test word-boundary-special/word-start-ascii-090
+regex (?-u)\\b{start}
+haystack 𝛃b
+matches 4-4
+
+test word-boundary-special/word-start-ascii-110
+regex (?-u)\\b{start}
+haystack b𝛃
+matches 0-0
+
+test word-boundary-special/word-end-ascii-010
+regex (?-u)\\b{end}
+haystack a
+matches 1-1
+
+test word-boundary-special/word-end-ascii-020
+regex (?-u)\\b{end}
+haystack a 
+matches 1-1
+
+test word-boundary-special/word-end-ascii-030
+regex (?-u)\\b{end}
+haystack  a 
+matches 2-2
+
+test word-boundary-special/word-end-ascii-040
+regex (?-u)\\b{end}
+haystack 
+matches -
+
+test word-boundary-special/word-end-ascii-050
+regex (?-u)\\b{end}
+haystack ab
+matches 2-2
+
+test word-boundary-special/word-end-ascii-060
+regex (?-u)\\b{end}
+haystack 𝛃
+matches -
+
+test word-boundary-special/word-end-ascii-060-bounds
+regex (?-u)\\b{end}
+haystack 𝛃
+bounds 2 3
+matches -
+
+test word-boundary-special/word-end-ascii-070
+regex (?-u)\\b{end}
+haystack  𝛃 
+matches -
+
+test word-boundary-special/word-end-ascii-080
+regex (?-u)\\b{end}
+haystack 𝛃𐆀
+matches -
+
+test word-boundary-special/word-end-ascii-090
+regex (?-u)\\b{end}
+haystack 𝛃b
+matches 5-5
+
+test word-boundary-special/word-end-ascii-110
+regex (?-u)\\b{end}
+haystack b𝛃
+matches 1-1
+
+test word-boundary-special/word-start-unicode-010
+regex \\b{start}
+haystack a
+matches 0-0
+
+test word-boundary-special/word-start-unicode-020
+regex \\b{start}
+haystack a 
+matches 0-0
+
+test word-boundary-special/word-start-unicode-030
+regex \\b{start}
+haystack  a 
+matches 1-1
+
+test word-boundary-special/word-start-unicode-040
+regex \\b{start}
+haystack 
+matches -
+
+test word-boundary-special/word-start-unicode-050
+regex \\b{start}
+haystack ab
+matches 0-0
+
+test word-boundary-special/word-start-unicode-060
+regex \\b{start}
+haystack 𝛃
+matches 0-0
+
+test word-boundary-special/word-start-unicode-060-bounds
+regex \\b{start}
+haystack 𝛃
+bounds 2 3
+matches -
+
+test word-boundary-special/word-start-unicode-070
+regex \\b{start}
+haystack  𝛃 
+matches 1-1
+
+test word-boundary-special/word-start-unicode-080
+regex \\b{start}
+haystack 𝛃𐆀
+matches 0-0
+
+test word-boundary-special/word-start-unicode-090
+regex \\b{start}
+haystack 𝛃b
+matches 0-0
+
+test word-boundary-special/word-start-unicode-110
+regex \\b{start}
+haystack b𝛃
+matches 0-0
+
+test word-boundary-special/word-end-unicode-010
+regex \\b{end}
+haystack a
+matches 1-1
+
+test word-boundary-special/word-end-unicode-020
+regex \\b{end}
+haystack a 
+matches 1-1
+
+test word-boundary-special/word-end-unicode-030
+regex \\b{end}
+haystack  a 
+matches 2-2
+
+test word-boundary-special/word-end-unicode-040
+regex \\b{end}
+haystack 
+matches -
+
+test word-boundary-special/word-end-unicode-050
+regex \\b{end}
+haystack ab
+matches 2-2
+
+test word-boundary-special/word-end-unicode-060
+regex \\b{end}
+haystack 𝛃
+matches 4-4
+
+test word-boundary-special/word-end-unicode-060-bounds
+regex \\b{end}
+haystack 𝛃
+bounds 2 3
+matches -
+
+test word-boundary-special/word-end-unicode-070
+regex \\b{end}
+haystack  𝛃 
+matches 5-5
+
+test word-boundary-special/word-end-unicode-080
+regex \\b{end}
+haystack 𝛃𐆀
+matches 4-4
+
+test word-boundary-special/word-end-unicode-090
+regex \\b{end}
+haystack 𝛃b
+matches 5-5
+
+test word-boundary-special/word-end-unicode-110
+regex \\b{end}
+haystack b𝛃
+matches 5-5
+
+test word-boundary-special/word-start-half-ascii-010
+regex (?-u)\\b{start-half}
+haystack a
+matches 0-0
+
+test word-boundary-special/word-start-half-ascii-020
+regex (?-u)\\b{start-half}
+haystack a 
+matches 0-0;2-2
+
+test word-boundary-special/word-start-half-ascii-030
+regex (?-u)\\b{start-half}
+haystack  a 
+matches 0-0;1-1;3-3
+
+test word-boundary-special/word-start-half-ascii-040
+regex (?-u)\\b{start-half}
+haystack 
+matches 0-0
+
+test word-boundary-special/word-start-half-ascii-050
+regex (?-u)\\b{start-half}
+haystack ab
+matches 0-0
+
+test word-boundary-special/word-start-half-ascii-060
+regex (?-u)\\b{start-half}
+haystack 𝛃
+matches 0-0;4-4
+
+test word-boundary-special/word-start-half-ascii-060-bounds
+regex (?-u)\\b{start-half}
+haystack 𝛃
+bounds 2 3
+matches -
+
+test word-boundary-special/word-start-half-ascii-070
+regex (?-u)\\b{start-half}
+haystack  𝛃 
+matches 0-0;1-1;5-5;6-6
+
+test word-boundary-special/word-start-half-ascii-080
+regex (?-u)\\b{start-half}
+haystack 𝛃𐆀
+matches 0-0;4-4;8-8
+
+test word-boundary-special/word-start-half-ascii-090
+regex (?-u)\\b{start-half}
+haystack 𝛃b
+matches 0-0;4-4
+
+test word-boundary-special/word-start-half-ascii-110
+regex (?-u)\\b{start-half}
+haystack b𝛃
+matches 0-0;5-5
+
+test word-boundary-special/word-end-half-ascii-010
+regex (?-u)\\b{end-half}
+haystack a
+matches 1-1
+
+test word-boundary-special/word-end-half-ascii-020
+regex (?-u)\\b{end-half}
+haystack a 
+matches 1-1;2-2
+
+test word-boundary-special/word-end-half-ascii-030
+regex (?-u)\\b{end-half}
+haystack  a 
+matches 0-0;2-2;3-3
+
+test word-boundary-special/word-end-half-ascii-040
+regex (?-u)\\b{end-half}
+haystack 
+matches 0-0
+
+test word-boundary-special/word-end-half-ascii-050
+regex (?-u)\\b{end-half}
+haystack ab
+matches 2-2
+
+test word-boundary-special/word-end-half-ascii-060
+regex (?-u)\\b{end-half}
+haystack 𝛃
+matches 0-0;4-4
+
+test word-boundary-special/word-end-half-ascii-060-bounds
+regex (?-u)\\b{end-half}
+haystack 𝛃
+bounds 2 3
+matches -
+
+test word-boundary-special/word-end-half-ascii-070
+regex (?-u)\\b{end-half}
+haystack  𝛃 
+matches 0-0;1-1;5-5;6-6
+
+test word-boundary-special/word-end-half-ascii-080
+regex (?-u)\\b{end-half}
+haystack 𝛃𐆀
+matches 0-0;4-4;8-8
+
+test word-boundary-special/word-end-half-ascii-090
+regex (?-u)\\b{end-half}
+haystack 𝛃b
+matches 0-0;5-5
+
+test word-boundary-special/word-end-half-ascii-110
+regex (?-u)\\b{end-half}
+haystack b𝛃
+matches 1-1;5-5
+
+test word-boundary-special/word-start-half-unicode-010
+regex \\b{start-half}
+haystack a
+matches 0-0
+
+test word-boundary-special/word-start-half-unicode-020
+regex \\b{start-half}
+haystack a 
+matches 0-0;2-2
+
+test word-boundary-special/word-start-half-unicode-030
+regex \\b{start-half}
+haystack  a 
+matches 0-0;1-1;3-3
+
+test word-boundary-special/word-start-half-unicode-040
+regex \\b{start-half}
+haystack 
+matches 0-0
+
+test word-boundary-special/word-start-half-unicode-050
+regex \\b{start-half}
+haystack ab
+matches 0-0
+
+test word-boundary-special/word-start-half-unicode-060
+regex \\b{start-half}
+haystack 𝛃
+matches 0-0
+
+test word-boundary-special/word-start-half-unicode-060-bounds
+regex \\b{start-half}
+haystack 𝛃
+bounds 2 3
+matches -
+
+test word-boundary-special/word-start-half-unicode-070
+regex \\b{start-half}
+haystack  𝛃 
+matches 0-0;1-1;6-6
+
+test word-boundary-special/word-start-half-unicode-080
+regex \\b{start-half}
+haystack 𝛃𐆀
+matches 0-0;8-8
+
+test word-boundary-special/word-start-half-unicode-090
+regex \\b{start-half}
+haystack 𝛃b
+matches 0-0
+
+test word-boundary-special/word-start-half-unicode-110
+regex \\b{start-half}
+haystack b𝛃
+matches 0-0
+
+test word-boundary-special/word-end-half-unicode-010
+regex \\b{end-half}
+haystack a
+matches 1-1
+
+test word-boundary-special/word-end-half-unicode-020
+regex \\b{end-half}
+haystack a 
+matches 1-1;2-2
+
+test word-boundary-special/word-end-half-unicode-030
+regex \\b{end-half}
+haystack  a 
+matches 0-0;2-2;3-3
+
+test word-boundary-special/word-end-half-unicode-040
+regex \\b{end-half}
+haystack 
+matches 0-0
+
+test word-boundary-special/word-end-half-unicode-050
+regex \\b{end-half}
+haystack ab
+matches 2-2
+
+test word-boundary-special/word-end-half-unicode-060
+regex \\b{end-half}
+haystack 𝛃
+matches 4-4
+
+test word-boundary-special/word-end-half-unicode-060-bounds
+regex \\b{end-half}
+haystack 𝛃
+bounds 2 3
+matches -
+
+test word-boundary-special/word-end-half-unicode-070
+regex \\b{end-half}
+haystack  𝛃 
+matches 0-0;5-5;6-6
+
+test word-boundary-special/word-end-half-unicode-080
+regex \\b{end-half}
+haystack 𝛃𐆀
+matches 4-4;8-8
+
+test word-boundary-special/word-end-half-unicode-090
+regex \\b{end-half}
+haystack 𝛃b
+matches 5-5
+
+test word-boundary-special/word-end-half-unicode-110
+regex \\b{end-half}
+haystack b𝛃
+matches 5-5
+
+test word-boundary-special/word-start-half-ascii-carriage
+regex \\b{start-half}[a-z]+
+haystack ABC\rabc
+bounds 4 7
+matches 4-7
+
+test word-boundary-special/word-start-half-ascii-linefeed
+regex \\b{start-half}[a-z]+
+haystack ABC\nabc
+bounds 4 7
+matches 4-7
