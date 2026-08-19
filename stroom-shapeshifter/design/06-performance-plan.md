@@ -16,7 +16,7 @@ four confident hypotheses on the way.
 | The same gate in the bounded backtracker and Pike VM | **Done** (this commit) | The two middle engines were still setting up per position for `^`-anchored patterns |
 | Minimum-length fail-fast | Open | JDK trick: compile the minimum byte length, stop attempting when fewer bytes remain. Cheap, broad, small |
 | Literal runs as one instruction | Open | `NfaCompiler` emits one `BYTE_RANGE` per literal byte — `ERROR` is five dispatches. Fancy-programs-only, the `CLASS_STAR` pattern |
-| Literal-prefix skip (Boyer–Moore-ish) | Open | Generalises `firstBytes`. Only pays on sparse scans — measure against the SPARSE workload first |
+| Literal-prefix skip (Boyer–Moore-ish) | **Deprioritised by evidence** | SPARSE measured 2.80× *ahead* of the JDK without it (`2026-08-19-1601`); revisit only if a sparse workload ever loses |
 
 ## 2. Diagnosis needed — measure before touching anything
 
@@ -25,6 +25,9 @@ four confident hypotheses on the way.
 | Per-match short-record gap, 0.5–0.9× vs the JDK | `2026-08-18-1948` per-match categories — **stale**: predates every optimisation of 2026-08-19 | Re-measure first; then per-`find` fixed costs across engines |
 | `NETWORK` at 0.79× on the buffer suite | Every full run | D19's residual Unicode-`\d` price on the scan plan |
 | `TIER1_ALTERNATION` on the tree engine at 0.69× | `2026-08-19-1409` | No visible sin in the audit; needs the §8 same-pattern-both-engines method |
+| Per-match `datetime` at 0.67× | `2026-08-19-1601` | The worst per-match category on either engine; undiagnosed |
+| **The scan plan on Unicode classes: ~5× off** | `2026-08-19-1601` — UNICODE workload: plan 501 ops/s, tree engine 2,714 | Found by the new workload on its first outing. The auto-selected tier is the slow one; suspects start at D19's per-character class path |
+| The tree engine on LONG_RECORD (78 ops/s vs plan 580) and fixedwidth (62k vs 348k) | `2026-08-19-1601` | Not deficits vs the JDK — the plan wins both — but the exact shapes where D30's guard rails belong: recursion depth and bounded-quantifier chains |
 
 ## 3. Architecture decisions — D30's gate, not fixes
 
@@ -35,6 +38,10 @@ four confident hypotheses on the way.
 | Oniguruma corpus through TREE; pollution at hundreds of patterns | The evidence D30 requires before the tier map is redrawn |
 
 ## 4. Benchmark blind spots — partially closed, the rest recorded
+
+**All three paid off on their first run** — see [05-engine-benchmarks.md §10.4](05-engine-benchmarks.md):
+SPARSE retired the Boyer–Moore item, LONG_RECORD turned the tree engine's depth risk into a
+number, and UNICODE found a 5× scan-plan gap nobody suspected.
 
 The 2026-08-19 audit observed that every workload was dense-match, short-record, pure-ASCII.
 Three workloads now close part of that: **SPARSE** (a never-matching pattern — pure scanning

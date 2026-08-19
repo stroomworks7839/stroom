@@ -846,3 +846,38 @@ non-fancy patterns a budgeted TREE with simulation fallback would keep the guara
 taking the speed — a design, not yet a decision); the Oniguruma corpus run against TREE; and
 a pollution test at hundreds of patterns rather than dozens.
 
+### 10.4 The scoreboard
+
+The full suite on clean commit `f2a6e7731b`, an idle machine, every engine and every workload
+in one run (`2026-08-19-1601`) — the per-variant answer to "do we beat the JDK", with the
+best available engine per variant against `javaRegexFromBytes` in the same run. Ahead means
+≥ 1.05×, parity within ±10%.
+
+**Buffer suite** (`CorpusBenchmark`): **10 ahead, 4 at parity, 2 behind.** Ahead by 1.1–5.1×
+across the scan-plan workloads — SPARSE at 2.80× and LONG_RECORD at 5.14× among them — plus
+FANCY_ATOMIC at 1.23× on the tree engine. Parity: TIER1_GREEDY, FANCY_BACKREF,
+FANCY_LOOKAHEAD, UNICODE (all tree). Behind: NETWORK 0.84× and TIER1_ALTERNATION 0.69×, both
+already on the plan.
+
+**Per-match suite** (`PatternCorpusBenchmark`): **10 ahead, 3 behind.** The tree engine sweeps
+here — syslog 1.31×, stress 1.41×, fancy 1.50× ahead of the JDK per match — which, with the
+buffer results, makes it the best engine on 18 of the 29 variants and materially strengthens
+[D30](00-decisions.md)'s case. Behind: datetime 0.67×, network 0.89×, fixedwidth 0.86×.
+
+**What the new workloads found on their first outing:**
+
+- **SPARSE, 2.80× ahead** — the byte-level anchored scan beats the JDK's Boyer–Moore prefix
+  search outright, so the literal-prefix-skip item in the plan is deprioritised by evidence.
+- **LONG_RECORD, 5.14× ahead on the scan plan — and the tree engine collapses to 78 ops/s**,
+  turning D30's recursion-depth concern from a theory into a measurement.
+- **UNICODE: the scan plan does 501 ops/s where the tree engine does 2,714** (0.97× of the
+  JDK). The auto-selected tier is ~5× off its own alternative on Unicode classes — a
+  diagnosis item nobody knew existed, now in the plan.
+- **fixedwidth per-match: the tree engine at 62k against the plan's 348k** — bounded
+  quantifier chains are its other weak shape, mapping exactly where D30's guard rails belong.
+
+The claim this section supports, stated with its boundary: with the right engine per pattern,
+this library is at or ahead of `java.util.regex` on 24 of 29 measured variants, on this
+machine, over this corpus — and each of the five remaining deficits is a named line in
+[06-performance-plan.md](06-performance-plan.md) rather than a mystery.
+
