@@ -29,8 +29,9 @@ import java.util.Arrays;
  *       merely unlikely, it is unrepresentable.</li>
  *   <li><b>No recursion.</b> The failure mode Stroom's current DS3 catches — a
  *       {@code StackOverflowError} from a deep backtracking search — cannot arise.</li>
- *   <li><b>Suspendable.</b> The thread list is the entire execution state, which is what will
- *       make streaming possible without restarting a match from the beginning.</li>
+ *   <li><b>Self-contained state.</b> The thread list is the entire execution state. Streaming
+ *       today re-runs a search when the window grows; if resuming mid-input is ever worth
+ *       building, this is the engine that can, and the property is why.</li>
  * </ul>
  * Threads are held in priority order and the first to reach {@code MATCH} wins, with all
  * lower-priority threads discarded. That produces leftmost-first (Perl) semantics, matching
@@ -58,7 +59,8 @@ public final class PikeVm {
     private ThreadList current;
     private ThreadList next;
 
-    /** All -1, and restored to that state by the closure, so it can be reused for every seed. */
+    /** All -1, forever: {@code add} copies it into a fresh row and writes there, so the same
+     * array seeds every new attempt. */
     private final int[] seed;
 
     /** Slots of the best match found so far, valid while {@link #hasMatch} is set. */
@@ -250,7 +252,9 @@ public final class PikeVm {
         }
     }
 
-    /** Shared with {@link Backtracker}: an assertion depends only on the data and the position. */
+    /** Shared with every backtracking engine: an assertion depends only on the data and the
+     * position, so one implementation serves them all — except {@code \G}, which depends on
+     * the search and is evaluated by the engines that support it before delegating here. */
     static boolean assertionHolds(final Hir.Kind kind,
                                   final byte[] data,
                                   final int regionFrom,
@@ -280,8 +284,6 @@ public final class PikeVm {
         };
     }
 
-
-
     /**
      * Threads in priority order, with a generation-stamped set for O(1) deduplication.
      * <p>
@@ -310,7 +312,14 @@ public final class PikeVm {
 
         void clear() {
             size = 0;
-            generation++;
+            if (++generation == Integer.MIN_VALUE) {
+                // Once per 2^32 clears — roughly four gigabytes of input through one matcher
+                // — the counter wraps, and stale stamps from a full cycle ago would read as
+                // current. The bounded backtracker lost real matches to exactly this disease
+                // at its 127-generation scale; the branch is one predictable compare.
+                Arrays.fill(seenAt, -1);
+                generation = 0;
+            }
         }
 
         boolean contains(final int pc) {
