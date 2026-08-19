@@ -48,12 +48,15 @@ import java.util.Set;
  *       structural fallback) and give up the linear-time guarantee for a step budget
  *       ({@link MatchLimitException}).</li>
  *   <li>Every execution tier. A <em>one-pass</em> pattern compiles to a straight-line scan
- *       plan; an ambiguous one compiles to an NFA run by bounded backtracking or a Pike VM; a
- *       pattern whose syntax asks for more runs on the unbounded backtracker. The choice is the
- *       compiler's and the results are identical wherever two engines can both run a pattern —
- *       {@link #explain()} reports which was chosen, and {@link #analyse} explains why a
- *       pattern was ambiguous, which is often an authoring mistake worth seeing.</li>
- *   <li>Complete inputs. Streaming, and the {@code NEED_MORE_INPUT} outcome, come later.</li>
+ *       plan; anything else runs the tree engine first, with the Pike VM preserving the
+ *       linear-time promise beneath it and the flat backtrackers as pinnable witnesses. The
+ *       choice is the compiler's and the results are identical wherever two engines can both
+ *       run a pattern — {@link #explain()} reports which was chosen, and {@link #analyse}
+ *       explains why a pattern was ambiguous, which is often an authoring mistake worth
+ *       seeing.</li>
+ *   <li>Complete and streaming input alike: matching a window that can still grow answers
+ *       {@code NEED_MORE_INPUT} whenever more bytes could change the result, and the caller
+ *       extends the window and asks again.</li>
  * </ul>
  *
  * <h2>Characters, not bytes</h2>

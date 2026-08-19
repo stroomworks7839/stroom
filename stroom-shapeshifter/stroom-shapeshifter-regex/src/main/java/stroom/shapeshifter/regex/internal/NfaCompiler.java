@@ -34,7 +34,7 @@ import java.util.Map;
  * leftmost-longest.
  * <p>
  * Character classes become alternations of byte-range chains, using the same UTF-8 sequences as
- * the scan plan ({@link Utf8}), so both tiers accept exactly the same characters.
+ * the scan plan ({@link Utf8}), so every engine accepts exactly the same characters.
  */
 public final class NfaCompiler {
 

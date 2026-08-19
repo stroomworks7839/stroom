@@ -31,8 +31,8 @@ import java.util.List;
  * scan plan instead of an NFA.
  * <p>
  * Alternations of literals sharing a prefix are common in real patterns — HTTP verbs, log
- * levels, month names, version numbers — so this converts a good number of them from tier 1
- * to tier 0 with no change in meaning.
+ * levels, month names, version numbers — so this converts a good number of them from the
+ * automaton tiers to the scan plan with no change in meaning.
  *
  * <h2>Why only adjacent branches</h2>
  * Alternation is ordered: earlier branches are preferred. Factoring adjacent branches keeps

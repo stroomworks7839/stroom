@@ -17,13 +17,15 @@
 package stroom.shapeshifter.regex.internal;
 
 /**
- * A Thompson NFA program over bytes — the tier 1 representation, used for patterns that are
- * ambiguous and so cannot compile to a scan plan.
+ * A Thompson NFA program over bytes — the shared representation for every pattern that cannot
+ * compile to a scan plan.
  * <p>
- * Executed by {@link PikeVm} as a simulation rather than a backtracking search, which is what
- * gives the linear-time guarantee and removes the {@code StackOverflowError} failure mode that
- * a recursive backtracker has. It is also why the design can support streaming later: the whole
- * execution state is the thread list, so it can be suspended at a chunk boundary.
+ * One program, several executors: the {@link PikeVm} simulates it in linear time, which is the
+ * guarantee everything else stands on; the {@link Backtracker} and {@link FancyBacktracker}
+ * walk it depth-first. That sharing is a correctness instrument — engines from different
+ * algorithm families agreeing on the same program is what the differential argument rests on —
+ * which is also why fancy-only instructions ({@code BACKREF}, {@code LOOK}, {@code ATOMIC},
+ * {@code CLASS_STAR}) are emitted only into programs the simulation never receives.
  */
 public final class Nfa {
 

@@ -666,6 +666,9 @@ public final class Parser {
                             : set);
                     return -1;
                 }
+                case 'Q', 'E' -> throw fail(Reason.UNSUPPORTED,
+                        "\\Q...\\E inside a character class is not supported; list the "
+                        + "characters, escaping each metacharacter", classStart);
                 default -> {
                     return c;
                 }

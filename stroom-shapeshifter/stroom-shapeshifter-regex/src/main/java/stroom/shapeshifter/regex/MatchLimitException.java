@@ -17,13 +17,15 @@
 package stroom.shapeshifter.regex;
 
 /**
- * A search on the {@link Engine#FANCY} tier exhausted its step budget.
+ * A backtracking search exhausted its step budget.
  * <p>
- * The fancy tier is the one place the linear-time guarantee does not hold — backreference
+ * The fancy constructs are where the linear-time guarantee does not hold — backreference
  * matching is NP-complete, so no engine could restore it — and this exception is the
  * containment: a pathological pattern-input pair costs a bounded amount of work and then fails
- * loudly, rather than hanging a pipeline thread. Every other tier is immune by construction and
- * never raises this.
+ * loudly, rather than hanging a pipeline thread. Both unbounded engines
+ * ({@link Engine#TREE} and {@link Engine#FANCY}) enforce the same budget; a pinned tree
+ * engine also reports its recursion-depth limit this way. Patterns without fancy constructs
+ * never surface it unpinned: their searches fall back to the linear simulation instead.
  * <p>
  * Raised per search, so a caller may catch it and treat the record as unmatched; the matcher
  * remains usable afterwards.

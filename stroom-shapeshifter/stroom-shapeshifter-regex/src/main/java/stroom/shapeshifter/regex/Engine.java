@@ -38,7 +38,9 @@ public enum Engine {
      * already tried so that it cannot take exponential time. Pays none of the simulation's
      * per-position cost and writes captures where they happen, so it is several times faster on
      * the short records this engine is meant for — at the price of memory proportional to program
-     * size × input length, which is why it is chosen per search rather than per pattern.
+     * size × input length. It was chosen per search from D26 until D32, when the tree engine
+     * measured faster on every corpus pattern; since then it runs only when pinned, as the
+     * differential suite's witness from a second algorithm family.
      */
     BACKTRACK("bounded backtracking"),
 

@@ -31,7 +31,7 @@ import java.util.Set;
  * engine exists to avoid.
  * <p>
  * So a composition is lowered into the same intermediate representation a regex produces, and
- * compiled by the same two tiers. A composition and an equivalent regex produce the
+ * compiled by the same engines. A composition and an equivalent regex produce the
  * <b>same plan</b>, and therefore identical behaviour and identical speed: the choice between
  * them is a readability decision with nothing else riding on it.
  *
