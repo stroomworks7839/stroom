@@ -89,7 +89,7 @@ public class PatternCorpusBenchmark {
      * fails loudly if one stops matching the corpus, so the two cannot drift apart silently.
      */
     @Param({"csv", "syslog", "weblog", "keyvalue", "datetime", "network", "quoted",
-            "numbers", "identifiers", "structured", "fixedwidth", "stress"})
+            "numbers", "identifiers", "structured", "fixedwidth", "stress", "fancy"})
     private String category;
 
     private List<BytePattern> ours;

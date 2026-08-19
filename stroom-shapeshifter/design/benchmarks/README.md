@@ -45,9 +45,12 @@ comparable even on the same machine:
 
 - **D27 (the fancy tier)** added the three `FANCY_*` workloads to `CorpusBenchmark`; runs
   recorded before it have no rows for them. The corpus's newly-accepted fancy patterns all
-  sit in the `unsupported` category, which `PatternCorpusBenchmark` does not measure, so the
-  measured categories are unchanged — first believed otherwise, corrected after checking the
-  per-category buckets in `CorpusDifferentialTest`'s report.
+  sat in the `unsupported` category, which `PatternCorpusBenchmark` did not measure, so the
+  measured categories were unchanged — first believed otherwise, corrected after checking the
+  per-category buckets in `CorpusDifferentialTest`'s report. That category has since been
+  renamed `fancy` and added to the benchmark, so files recorded after that commit carry a
+  thirteenth `PatternCorpusBenchmark` workload that every earlier file — including
+  `2026-08-19-1028` — lacks.
 - **2026-08-19-1028** ran on a non-idle machine: `javaRegexFromBytes` — code no commit
   touched — moved −5.0% against the previous run while `javaRegex` was flat. Cross-run
   comparisons against it measure the machine, not the engine; within-run ratios stand.

@@ -292,9 +292,11 @@ public final class PatternCorpus {
                         "café", "Привет", "Ωμέγα", "Hello", "12345",
                         "xyz", "2026-08-17")));
 
-        // Constructs the engine is expected to refuse. Present so the refusals are counted and
-        // visible: a corpus that omitted them would report a coverage figure that meant nothing.
-        categories.add(new Category("unsupported", List.of(
+        // The constructs beyond the RE2 subset, which run on the unbounded backtracker (D27).
+        // This category predates that tier: it existed so the then-expected refusals were
+        // counted and visible, and the same patterns now keep the fancy tier inside both the
+        // correctness corpus and the per-match benchmark.
+        categories.add(new Category("fancy", List.of(
                 "(\\w+)\\s+\\1",
                 "^(.)(.)\\2\\1$",
                 "foo(?=bar)",
