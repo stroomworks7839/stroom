@@ -22,7 +22,7 @@ import java.util.Arrays;
  * Depth-first matching over the same program the {@link PikeVm} simulates, bounded so that it
  * cannot take exponential time.
  *
- * <h2>Why a third engine</h2>
+ * <h2>Why this engine exists</h2>
  * The simulation advances every live thread in lockstep, which is what makes it linear whatever
  * the input — and what makes it cost a flat 21 to 27 nanoseconds per input byte regardless of the
  * pattern, against 1.5 to 9.5 for a scan plan. That cost is per input <em>position</em>: the outer
@@ -43,9 +43,11 @@ import java.util.Arrays;
  * less. Captures differ between the two arrivals, but only paths that <em>fail</em> are pruned,
  * and a failing path's captures are never used.
  * <p>
- * The bitset is why this engine is bounded in memory as well as time, and so why it is chosen per
- * search rather than per pattern: the cost is program × input, and the caller decides whether that
- * is affordable before asking.
+ * The bitset is why this engine is bounded in memory as well as time. It was the default for
+ * affordable searches from D26 until D32, when the tree engine measured faster on every corpus
+ * pattern; since then it runs only when pinned — which keeps it compiled, correct and under
+ * differential test, as the correctness argument's third witness from a second algorithm
+ * family.
  *
  * <h2>Streaming</h2>
  * On a window that can still grow, this engine reports {@link PlanRunner#NEED_MORE} whenever any
@@ -59,8 +61,9 @@ import java.util.Arrays;
  * A program containing the empty-iteration guard ({@link Nfa#MARK} and {@link Nfa#PROGRESS}).
  * Those make the future depend on where the current iteration began, not only on the instruction
  * and the position, so the bitset would prune a path whose outcome genuinely differs. Rather than
- * widen the key, such programs go to the simulation — they come from repetitions whose body can
- * match empty, which the compiler warns about anyway.
+ * widen the key, this engine refuses them ({@link #canRun}); unpinned they run elsewhere, and a
+ * pin meets the refusal as an error. They come from repetitions whose body can match empty,
+ * which the compiler warns about anyway.
  */
 public final class Backtracker {
 
@@ -255,8 +258,8 @@ public final class Backtracker {
                         }
                     }
                     case Nfa.MATCH -> {
-                        slots[0] = start;
-                        slots[1] = pos;
+                        // The match span was written by SAVE 0 and SAVE 1 on the way here,
+                        // exactly as in the other engines.
                         return true;
                     }
                     default -> {
@@ -301,8 +304,11 @@ public final class Backtracker {
         }
         generation++;
         if (generation > Byte.MAX_VALUE) {
-            // Only now does anything have to be zeroed, and only once every 127 searches.
-            Arrays.fill(visited, 0, cells, (byte) 0);
+            // Only now does anything have to be zeroed, and only once every 127 searches —
+            // and the WHOLE array, not this search's prefix. A partial clear once left stale
+            // generation marks above a small search's cells, and 126 searches later a
+            // different input met its own year-old marks and lost a real match to them.
+            Arrays.fill(visited, (byte) 0);
             generation = 1;
         }
     }

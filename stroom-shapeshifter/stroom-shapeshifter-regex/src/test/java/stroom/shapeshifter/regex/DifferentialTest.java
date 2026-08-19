@@ -430,6 +430,39 @@ class DifferentialTest {
     }
 
     /**
+     * The bounded backtracker's visited set survives its generation wrap.
+     * <p>
+     * The set is generation-stamped rather than cleared per search, and the wrap-time clear
+     * was once sized to the current search — so a small search's wrap left stale marks above
+     * its cells, and 126 searches later a different input met its own stale generation and
+     * lost a real match to a false "already visited". One matcher, hundreds of mixed-size
+     * searches: a pipeline's exact shape, and no other test's.
+     */
+    @Test
+    void visitedSetSurvivesItsGenerationWrap() {
+        final ByteMatcher matcher = BytePattern
+                .compileForcing(Engine.BACKTRACK, "^(.+):(.+)$", Set.of()).matcher();
+        final byte[] a = bytesOf("key:value with some padding to make it long");
+        final byte[] b = bytesOf("another_longer_key_here:and_its_value_xyzzy");
+        final byte[] tiny = bytesOf("a:b");
+
+        for (int i = 1; i <= 126; i++) {
+            assertThat(matcher.find(a)).as("warm search %d", i).isTrue();
+        }
+        assertThat(matcher.find(b)).isTrue();   // generation 127 marks B's cells
+        assertThat(matcher.find(tiny)).isTrue(); // the wrap
+        for (int g = 2; g <= 126; g++) {
+            assertThat(matcher.find(a)).as("post-wrap search at generation %d", g).isTrue();
+        }
+        // Generation 127 again: B's cells must not remember the last cycle.
+        assertThat(matcher.find(b)).as("the wrapped generation meets its stale marks").isTrue();
+    }
+
+    private static byte[] bytesOf(final String text) {
+        return text.getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
      * The scan plan against the automaton, kept from when there were only two engines. Narrower
      * than the test above, and retained because it is the one that pins the scan plan itself:
      * the plan is only ever an optimisation, so any disagreement is a bug in it rather than a
