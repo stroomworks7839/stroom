@@ -72,6 +72,35 @@ public final class NodeTree {
         int requireEnd;
         int end;
 
+        /**
+         * A depth-indexed pool of slot snapshots for lookaround and atomic groups, which break
+         * the recursion spine and so cannot rely on unwinding to restore captures. Pooled and
+         * depth-indexed because the same node can be live twice — a lookaround inside a loop —
+         * and because a clone per entry was an allocation on the hottest path.
+         */
+        private int[][] snapshots = new int[4][];
+        private int depth;
+
+        int[] saveSlots() {
+            if (depth == snapshots.length) {
+                snapshots = Arrays.copyOf(snapshots, depth * 2);
+            }
+            if (snapshots[depth] == null || snapshots[depth].length < slots.length) {
+                snapshots[depth] = new int[slots.length];
+            }
+            final int[] saved = snapshots[depth++];
+            System.arraycopy(slots, 0, saved, 0, slots.length);
+            return saved;
+        }
+
+        void restoreSlots(final int[] saved) {
+            System.arraycopy(saved, 0, slots, 0, slots.length);
+        }
+
+        void releaseSlots() {
+            depth--;
+        }
+
         void budget() {
             if (--steps < 0) {
                 throw new MatchLimitException(
@@ -266,11 +295,12 @@ public final class NodeTree {
                                 + "far back to try");
                     }
                     yield chain(new Look(sub, look.behind(), look.negated(),
-                            bounds[0], bounds[1]), next);
+                            capturesWithin(look.body()), bounds[0], bounds[1]), next);
                 }
 
-                case Hir.Atomic atomic ->
-                        chain(new Atomic(compile(atomic.body(), node(new Accept()))), next);
+                case Hir.Atomic atomic -> chain(new Atomic(
+                        compile(atomic.body(), node(new Accept())),
+                        capturesWithin(atomic.body())), next);
             };
         }
 
@@ -306,6 +336,20 @@ public final class NodeTree {
                 tail = compile(repeat.body(), tail);
             }
             return tail;
+        }
+
+        /** Whether the body contains a capturing group anywhere. */
+        private static boolean capturesWithin(final Hir node) {
+            return switch (node) {
+                case Hir.Group group -> group.capturing() || capturesWithin(group.body());
+                case Hir.Concat concat -> concat.items().stream()
+                        .anyMatch(Compiler::capturesWithin);
+                case Hir.Alt alt -> alt.branches().stream().anyMatch(Compiler::capturesWithin);
+                case Hir.Repeat repeat -> capturesWithin(repeat.body());
+                case Hir.Atomic atomic -> capturesWithin(atomic.body());
+                case Hir.Look look -> capturesWithin(look.body());
+                default -> false;
+            };
         }
 
         private Node chain(final Node head, final Node next) {
@@ -713,14 +757,16 @@ public final class NodeTree {
         private final Node sub;
         private final boolean behind;
         private final boolean negated;
+        private final boolean captures;
         private final int minLength;
         private final int maxLength;
 
         Look(final Node sub, final boolean behind, final boolean negated,
-             final int minLength, final int maxLength) {
+             final boolean captures, final int minLength, final int maxLength) {
             this.sub = sub;
             this.behind = behind;
             this.negated = negated;
+            this.captures = captures;
             this.minLength = minLength;
             this.maxLength = maxLength;
         }
@@ -728,22 +774,33 @@ public final class NodeTree {
         @Override
         boolean match(final Ctx ctx, final int pos) {
             ctx.budget();
-            final int[] saved = ctx.slots.clone();
-            final boolean matched = behind
-                    ? matchBehind(ctx, pos)
-                    : matchAhead(ctx, pos);
-            if (matched == negated) {
-                System.arraycopy(saved, 0, ctx.slots, 0, saved.length);
+            if (!captures) {
+                // The body cannot write a slot, so there is nothing to save or restore.
+                final boolean matched = behind
+                        ? matchBehind(ctx, pos)
+                        : matchAhead(ctx, pos);
+                return matched != negated && next.match(ctx, pos);
+            }
+            final int[] saved = ctx.saveSlots();
+            try {
+                final boolean matched = behind
+                        ? matchBehind(ctx, pos)
+                        : matchAhead(ctx, pos);
+                if (matched == negated) {
+                    ctx.restoreSlots(saved);
+                    return false;
+                }
+                if (negated) {
+                    ctx.restoreSlots(saved);
+                }
+                if (next.match(ctx, pos)) {
+                    return true;
+                }
+                ctx.restoreSlots(saved);
                 return false;
+            } finally {
+                ctx.releaseSlots();
             }
-            if (negated) {
-                System.arraycopy(saved, 0, ctx.slots, 0, saved.length);
-            }
-            if (next.match(ctx, pos)) {
-                return true;
-            }
-            System.arraycopy(saved, 0, ctx.slots, 0, saved.length);
-            return false;
         }
 
         /** A lookahead inside a lookbehind body must not inherit the pinned end position. */
@@ -787,29 +844,42 @@ public final class NodeTree {
     private static final class Atomic extends Node {
 
         private final Node sub;
+        private final boolean captures;
 
-        Atomic(final Node sub) {
+        Atomic(final Node sub, final boolean captures) {
             this.sub = sub;
+            this.captures = captures;
         }
 
         @Override
         boolean match(final Ctx ctx, final int pos) {
             ctx.budget();
-            final int[] saved = ctx.slots.clone();
-            final int savedRequire = ctx.requireEnd;
-            ctx.requireEnd = -1; // an atomic group ends where it ends, pinned context or not
-            final boolean subMatched = sub.match(ctx, pos);
-            ctx.requireEnd = savedRequire;
-            if (!subMatched) {
-                System.arraycopy(saved, 0, ctx.slots, 0, saved.length);
+            if (!captures) {
+                final int savedRequire = ctx.requireEnd;
+                ctx.requireEnd = -1;
+                final boolean subMatched = sub.match(ctx, pos);
+                ctx.requireEnd = savedRequire;
+                return subMatched && next.match(ctx, ctx.end);
+            }
+            final int[] saved = ctx.saveSlots();
+            try {
+                final int savedRequire = ctx.requireEnd;
+                ctx.requireEnd = -1; // an atomic group ends where it ends, pinned or not
+                final boolean subMatched = sub.match(ctx, pos);
+                ctx.requireEnd = savedRequire;
+                if (!subMatched) {
+                    ctx.restoreSlots(saved);
+                    return false;
+                }
+                final int end = ctx.end;
+                if (next.match(ctx, end)) {
+                    return true;
+                }
+                ctx.restoreSlots(saved);
                 return false;
+            } finally {
+                ctx.releaseSlots();
             }
-            final int end = ctx.end;
-            if (next.match(ctx, end)) {
-                return true;
-            }
-            System.arraycopy(saved, 0, ctx.slots, 0, saved.length);
-            return false;
         }
     }
 }

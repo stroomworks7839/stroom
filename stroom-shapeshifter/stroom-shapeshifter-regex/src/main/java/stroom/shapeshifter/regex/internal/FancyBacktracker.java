@@ -84,6 +84,13 @@ public final class FancyBacktracker {
     private final Context context;
     private final FancyBacktracker[] children;
 
+    /**
+     * Whether each sub-program contains a SAVE at all. Most lookaround and atomic bodies
+     * capture nothing, and journalling the slot array around a nested match that cannot write
+     * it was measured as pure per-entry overhead.
+     */
+    private final boolean[] childWritesCaptures;
+
     /** Iteration-start positions for the empty-iteration guard, indexed by mark id. */
     private final int[] markPos;
 
@@ -112,8 +119,15 @@ public final class FancyBacktracker {
         this.startAnchor = nfa.startAnchor();
         this.context = context;
         this.children = new FancyBacktracker[nfa.subs.length];
+        this.childWritesCaptures = new boolean[nfa.subs.length];
         for (int i = 0; i < nfa.subs.length; i++) {
             children[i] = new FancyBacktracker(nfa.subs[i], context);
+            for (int pc = 0; pc < nfa.subs[i].size(); pc++) {
+                if (nfa.subs[i].op[pc] == Nfa.SAVE) {
+                    childWritesCaptures[i] = true;
+                    break;
+                }
+            }
         }
         int marks = 0;
         for (int pc = 0; pc < nfa.size(); pc++) {
@@ -304,7 +318,9 @@ public final class FancyBacktracker {
                     final boolean negated = (nfa.b[pc] & Nfa.LOOK_NEGATED) != 0;
                     final boolean behind = (nfa.b[pc] & Nfa.LOOK_BEHIND) != 0;
                     final int mark = undoSize;
-                    logSlots(slots);
+                    if (childWritesCaptures[nfa.a[pc]]) {
+                        logSlots(slots);
+                    }
                     final boolean matched = behind
                             ? matchBehind(data, regionFrom, pos, nfa.a[pc], slots)
                             : children[nfa.a[pc]]
@@ -348,7 +364,9 @@ public final class FancyBacktracker {
                 }
                 case Nfa.ATOMIC -> {
                     final int mark = undoSize;
-                    logSlots(slots);
+                    if (childWritesCaptures[nfa.a[pc]]) {
+                        logSlots(slots);
+                    }
                     final int end = children[nfa.a[pc]]
                             .attempt(data, regionFrom, pos, to, -1, recordEdge, slots);
                     if (end >= 0) {
