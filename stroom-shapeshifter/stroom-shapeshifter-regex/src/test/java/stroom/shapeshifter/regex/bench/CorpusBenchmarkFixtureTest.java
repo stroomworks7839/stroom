@@ -40,6 +40,17 @@ class CorpusBenchmarkFixtureTest {
             final BytePattern ours = BytePattern.compile(workload.pattern(), Flag.MULTILINE);
             final Pattern theirs = Pattern.compile(workload.pattern(), Pattern.MULTILINE);
 
+            if (workload == CorpusBenchmark.Workload.SPARSE) {
+                // Never matching is this workload's whole point — but both engines must agree
+                // on that too, or it measures different scanning.
+                assertThat(ours.matcher().find(record.getBytes(StandardCharsets.UTF_8)))
+                        .as("%s must not match on this engine", workload)
+                        .isFalse();
+                assertThat(theirs.matcher(record).find())
+                        .as("%s must not match on the JDK", workload)
+                        .isFalse();
+                continue;
+            }
             assertThat(ours.matcher().find(record.getBytes(StandardCharsets.UTF_8)))
                     .as("%s: this engine should match %s", workload, record)
                     .isTrue();

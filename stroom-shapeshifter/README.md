@@ -71,6 +71,8 @@ The design drafts, the decisions and the measurements:
   engine code, confirming one design assumption and refuting two.
 - [04-corpus-analysis.md](design/04-corpus-analysis.md) — which execution tier real DS3
   patterns would land on, and why.
+- [06-performance-plan.md](design/06-performance-plan.md) — the open performance work,
+  prioritised, with the evidence for each item; future sessions start here.
 - [05-engine-benchmarks.md](design/05-engine-benchmarks.md) — the engine measured against
   `java.util.regex` on realistic patterns, what the pattern corpora cover, and every
   divergence found so far.

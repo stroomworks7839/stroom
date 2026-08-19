@@ -66,6 +66,7 @@ public final class Backtracker {
 
     private final Nfa nfa;
     private final byte[] firstBytes;
+    private final int startAnchor;
 
     /** Whether the program is one this engine may run at all; see the class comment. */
     private final boolean supported;
@@ -98,6 +99,7 @@ public final class Backtracker {
     public Backtracker(final Nfa nfa) {
         this.nfa = nfa;
         this.firstBytes = nfa.firstBytes();
+        this.startAnchor = nfa.startAnchor();
         boolean guards = false;
         for (int pc = 0; pc < nfa.size(); pc++) {
             if (nfa.op[pc] == Nfa.MARK || nfa.op[pc] == Nfa.PROGRESS) {
@@ -129,6 +131,15 @@ public final class Backtracker {
         hitEnd = false;
 
         for (int at = start; at <= to; at++) {
+            if (at < to && at > regionFrom && startAnchor != Nfa.ANCHOR_NONE
+                && (startAnchor == Nfa.ANCHOR_INPUT || data[at - 1] != '\n')) {
+                // See the fancy engine: the cheapest and, for anchored patterns, the most
+                // selective gate. The at == to iteration keeps its edge bookkeeping.
+                if (anchored) {
+                    break;
+                }
+                continue;
+            }
             if (at < to && Utf8.isContinuation(data[at])) {
                 continue; // a match may not begin inside a character
             }

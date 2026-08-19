@@ -53,6 +53,7 @@ public final class PikeVm {
     private final Nfa nfa;
     private final Closures closures;
     private final byte[] firstBytes;
+    private final int startAnchor;
 
     private ThreadList current;
     private ThreadList next;
@@ -68,6 +69,7 @@ public final class PikeVm {
         this.nfa = nfa;
         this.closures = nfa.closures();
         this.firstBytes = nfa.firstBytes();
+        this.startAnchor = nfa.startAnchor();
         this.current = new ThreadList(nfa.size(), nfa.slotCount());
         this.next = new ThreadList(nfa.size(), nfa.slotCount());
         this.seed = new int[nfa.slotCount()];
@@ -99,7 +101,8 @@ public final class PikeVm {
             if (current.size == 0 && hasMatch) {
                 break; // nothing live can beat the match already found
             }
-            if (!hasMatch && (!anchored || pos == start) && canStartAt(data, to, complete, pos)) {
+            if (!hasMatch && (!anchored || pos == start)
+                && canStartAt(data, regionFrom, to, complete, pos)) {
                 // A new attempt starting here, at lowest priority so earlier starts win.
                 addThread(current, 0, seed, data, regionFrom, to, pos);
             }
@@ -176,7 +179,18 @@ public final class PikeVm {
     }
 
     /** Whether a match could begin at this byte at all, per the program's first-byte table. */
-    private boolean canStartAt(final byte[] data, final int to, final boolean complete, final int pos) {
+    private boolean canStartAt(final byte[] data,
+                               final int regionFrom,
+                               final int to,
+                               final boolean complete,
+                               final int pos) {
+        if (startAnchor != Nfa.ANCHOR_NONE && pos > regionFrom
+            && (startAnchor == Nfa.ANCHOR_INPUT || pos > to || data[pos - 1] != '\n')) {
+            // An anchored pattern can only start where its anchor holds, and whether an
+            // interior position is a line start is already settled by the byte before it —
+            // the same class of determination as the first-byte table below.
+            return false;
+        }
         if ((pos < to || (complete && pos < data.length)) && Utf8.isContinuation(data[pos])) {
             // Never begin a match, not even an empty one, inside a character. A region can end
             // inside one, so the byte after it is consulted too — but only once the window is

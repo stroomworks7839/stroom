@@ -51,6 +51,10 @@ comparable even on the same machine:
   renamed `fancy` and added to the benchmark, so files recorded after that commit carry a
   thirteenth `PatternCorpusBenchmark` workload that every earlier file — including
   `2026-08-19-1028` — lacks.
+- **The 2026-08-19 audit** added the `shapeshifterTree` methods (`Engine.TREE`, forced) to
+  both corpus benchmarks, and the `SPARSE`, `LONG_RECORD` and `UNICODE` workloads to
+  `CorpusBenchmark` — closing the dense-match/short-record/ASCII-only blind spot recorded in
+  `06-performance-plan.md` §4. Earlier files lack all of those rows.
 - **2026-08-19-1028** ran on a non-idle machine: `javaRegexFromBytes` — code no commit
   touched — moved −5.0% against the previous run while `javaRegex` was flat. Cross-run
   comparisons against it measure the machine, not the engine; within-run ratios stand.

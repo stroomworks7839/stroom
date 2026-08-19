@@ -106,7 +106,25 @@ public class CorpusBenchmark {
                 "app%02d: failure error code %d"),
         /** Fancy — possessive classes, the harvested atomic-group field shape. */
         FANCY_ATOMIC("^([\\w ]++),(\\d++),(\\S+)$",
-                "alpha beta %02d,42%d,tail-data");
+                "alpha beta %02d,42%d,tail-data"),
+        /**
+         * Never matches — pure scanning cost, the blind spot the 2026-08-19 audit found: every
+         * other workload matches densely, so nothing measured the cost of looking. This is
+         * where the JDK's Boyer–Moore prefix search shines and where a literal-prefix skip
+         * (06-performance-plan.md) gets its fair test.
+         */
+        SPARSE("^FATAL: (.*)$",
+                "INFO %02d routine event %d"),
+        /** Two-kilobyte records — where scan throughput dominates and recursion depth bites. */
+        LONG_RECORD("^id=(\\w+) code=(\\d+) payload=(\\S+)$",
+                "id=host%02d code=%d payload=" + "abcdefgh".repeat(250)),
+        /**
+         * Accented text, spelt with {@code \p{L}} so both engines mean Unicode without flag
+         * translation — D19 priced the Unicode default at 10–20% and no workload had ever
+         * charged it.
+         */
+        UNICODE("^([\\p{L}0-9]+): (.*) (\\d+)$",
+                "caférésumé%02d: naïve τιμή value %d");
 
         private final String pattern;
         private final String template;
