@@ -15,7 +15,7 @@ four confident hypotheses on the way.
 | Line-anchor start gate in the fancy engine and scan plan | **Done** (§10.1 step 1) | +5.7% on dense matches; its real case is sparse scans |
 | The same gate in the bounded backtracker and Pike VM | **Done** (this commit) | The two middle engines were still setting up per position for `^`-anchored patterns |
 | Minimum-length fail-fast | **Done (D32)** | All five engines, complete windows only; share of the batch's gains unattributed |
-| Literal runs as one instruction | Open | `NfaCompiler` emits one `BYTE_RANGE` per literal byte — `ERROR` is five dispatches. Fancy-programs-only, the `CLASS_STAR` pattern |
+| Literal runs as one instruction | **Deprioritised by architecture (D31/D32)** | Was aimed at the flat fancy engine, now fallback-only; the tree engine's `ByteSeq` already compares runs whole. Revisit only if the fallback ever shows up in a measurement |
 | Literal-prefix skip (Boyer–Moore-ish) | **Deprioritised by evidence** | SPARSE measured 2.80× *ahead* of the JDK without it (`2026-08-19-1601`); revisit only if a sparse workload ever loses |
 
 **A method note from the NETWORK diagnosis (2026-08-19, late):** single-JVM interleaved
@@ -24,6 +24,9 @@ JDK's type profiles (the §10.2 asymmetry working in this library's favour) whil
 engines' interpreters are pollution-immune. Locators comparing against the JDK must fork per
 side, or their flattery must be discounted. The tree-vs-flat probes are unaffected: both
 sides pollute alike.
+
+| Lazy `StarClass` still walks per-character `accept()` | Open — the exact cost the greedy side paid 2× for (`2026-08-19-1947`), on the `.*?` shapes real patterns use (`keyvalue`'s `(.*?)\s*$`, the harvested splitter). Caveat before assuming: lazy iterations interleave a full downstream attempt per extension, so the per-char share may be small. Probe first |
+| `CountedClass` scans via `accept()` too | Open — same shape, bounded counts are small (`\S{1,10}` is ≤ 10 chars), so the ceiling on the win is low. Probe alongside the lazy item |
 
 ## 2. Diagnosis needed — measure before touching anything
 
