@@ -658,6 +658,36 @@ none of the observed gap. All three now compile natively.
 
 ---
 
+## D28 — Oniguruma's suite is the fancy tier's corpus
+
+*2026-08-19.* The Rust `regex` corpus ([D19](#d19--the-dialect-follows-rusts-regex-minus-its-warts))
+cannot test [D27](#d27--the-fancy-tier-backreferences-and-lookaround-run-natively)'s constructs
+— it contains no backreference or lookaround, by that engine's design. Oniguruma's
+`test_utf8.c` can: a backtracking engine's own suite, 1,011 cases dense in exactly those
+constructs, with expected spans as **byte offsets over UTF-8** — this engine's native
+coordinate system, needing no translation. It is the same corpus fancy-regex uses for the same
+architecture, taken from the same snapshot.
+
+**Standing: 794 of 1,011 convert, 622 execute, 122 on the fancy tier, zero disagreements.**
+The conversion (`tools/convert-oniguruma-corpus.py`) drops only what this parser would
+*silently misread* — Oniguruma-only escapes, class set operations, stacked quantifiers — with
+a printed tally; refusals stay in and are counted by reason in the test's report; and 14 cases
+that compile but ask a question the dialects answer differently (full case folding of ß,
+bare-inline-flag regrouping, unset backreferences matching empty) are listed in an `ignore`
+file, one reason per line, fancy-regex's own mechanism for the same corpus.
+
+It found one defect before it ever ran green: this parser accepted duplicate group names,
+which both reference dialects refuse and which made `\k<name>` silently bind to the first —
+now a compile error.
+
+**Consequences:** Ruby dialect cases compile under MULTILINE (`^`/`$` are always line anchors
+there) and `(?m)` is translated to this dialect's `(?s)`, both recorded in the corpus README.
+The three `FANCY_*` workloads added to `CorpusBenchmark` at the same time are the fancy tier's
+first performance measurement against the JDK; the accepted-set change they ride with is
+recorded as a comparability break in `design/benchmarks/README.md`.
+
+---
+
 ## D12 — The whole engine comes to Java eventually
 
 *2026-08-17.* Templates, transforms and the output/structure layer that replaces XSLT follow

@@ -1,0 +1,4763 @@
+test L0142
+pattern 
+input 
+group 0
+span 0-0
+
+test L0144
+pattern ^
+input 
+group 0
+span 0-0
+
+test L0145
+pattern ^a
+input \na
+group 0
+span 1-2
+
+test L0146
+pattern $
+input 
+group 0
+span 0-0
+
+test L0148
+pattern \\G
+input 
+group 0
+span 0-0
+
+test L0149
+pattern \\A
+input 
+group 0
+span 0-0
+
+test L0150
+pattern \\Z
+input 
+group 0
+span 0-0
+
+test L0151
+pattern \\z
+input 
+group 0
+span 0-0
+
+test L0152
+pattern ^$
+input 
+group 0
+span 0-0
+
+test L0157
+pattern 
+input a
+group 0
+span 0-0
+
+test L0158
+pattern a
+input a
+group 0
+span 0-1
+
+test L0159
+pattern \\x61
+input a
+group 0
+span 0-1
+
+test L0160
+pattern aa
+input aa
+group 0
+span 0-2
+
+test L0161
+pattern aaa
+input aaa
+group 0
+span 0-3
+
+test L0162
+pattern aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+input aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+group 0
+span 0-35
+
+test L0163
+pattern ab
+input ab
+group 0
+span 0-2
+
+test L0164
+pattern b
+input ab
+group 0
+span 1-2
+
+test L0165
+pattern bc
+input abc
+group 0
+span 1-3
+
+test L0166
+pattern (?i:#RET#)
+input #INS##RET#
+group 0
+span 5-10
+
+test L0167
+pattern \\17
+input \x0f
+group 0
+span 0-1
+
+test L0168
+pattern \\x1f
+input \x1f
+group 0
+span 0-1
+
+test L0169
+pattern a(?#....\\\\JJJJ)b
+input ab
+group 0
+span 0-2
+
+test L0170
+pattern (?x)  G (o O(?-x)oO) g L
+input GoOoOgLe
+group 0
+span 0-7
+
+test L0171
+pattern .
+input a
+group 0
+span 0-1
+
+test L0172
+pattern .
+input 
+group 0
+span none
+
+test L0173
+pattern ..
+input ab
+group 0
+span 0-2
+
+test L0174
+pattern \\w
+input e
+group 0
+span 0-1
+
+test L0175
+pattern \\W
+input e
+group 0
+span none
+
+test L0176
+pattern \\s
+input  
+group 0
+span 0-1
+
+test L0177
+pattern \\S
+input b
+group 0
+span 0-1
+
+test L0178
+pattern \\d
+input 4
+group 0
+span 0-1
+
+test L0179
+pattern \\D
+input 4
+group 0
+span none
+
+test L0180
+pattern \\b
+input z 
+group 0
+span 0-0
+
+test L0181
+pattern \\b
+input  z
+group 0
+span 1-1
+
+test L0182
+pattern \\b
+input   z 
+group 0
+span 2-2
+
+test L0183
+pattern \\B
+input zz 
+group 0
+span 1-1
+
+test L0184
+pattern \\B
+input z 
+group 0
+span 2-2
+
+test L0185
+pattern \\B
+input  z
+group 0
+span 0-0
+
+test L0186
+pattern [ab]
+input b
+group 0
+span 0-1
+
+test L0187
+pattern [ab]
+input c
+group 0
+span none
+
+test L0188
+pattern [a-z]
+input t
+group 0
+span 0-1
+
+test L0189
+pattern [^a]
+input a
+group 0
+span none
+
+test L0190
+pattern [^a]
+input \n
+group 0
+span 0-1
+
+test L0191
+pattern []]
+input ]
+group 0
+span 0-1
+
+test L0192
+pattern [^]]
+input ]
+group 0
+span none
+
+test L0193
+pattern [\\^]+
+input 0^^1
+group 0
+span 1-3
+
+test L0194
+pattern [b-]
+input b
+group 0
+span 0-1
+
+test L0195
+pattern [b-]
+input -
+group 0
+span 0-1
+
+test L0196
+pattern [\\w]
+input z
+group 0
+span 0-1
+
+test L0197
+pattern [\\w]
+input  
+group 0
+span none
+
+test L0198
+pattern [\\W]
+input b$
+group 0
+span 1-2
+
+test L0199
+pattern [\\d]
+input 5
+group 0
+span 0-1
+
+test L0200
+pattern [\\d]
+input e
+group 0
+span none
+
+test L0201
+pattern [\\D]
+input t
+group 0
+span 0-1
+
+test L0202
+pattern [\\D]
+input 3
+group 0
+span none
+
+test L0203
+pattern [\\s]
+input  
+group 0
+span 0-1
+
+test L0204
+pattern [\\s]
+input a
+group 0
+span none
+
+test L0205
+pattern [\\S]
+input b
+group 0
+span 0-1
+
+test L0206
+pattern [\\S]
+input  
+group 0
+span none
+
+test L0207
+pattern [\\w\\d]
+input 2
+group 0
+span 0-1
+
+test L0208
+pattern [\\w\\d]
+input  
+group 0
+span none
+
+test L0209
+pattern [[:upper:]]
+input B
+group 0
+span 0-1
+
+test L0210
+pattern [*[:xdigit:]+]
+input +
+group 0
+span 0-1
+
+test L0211
+pattern [*[:xdigit:]+]
+input GHIKK-9+*
+group 0
+span 6-7
+
+test L0212
+pattern [*[:xdigit:]+]
+input -@^+
+group 0
+span 3-4
+
+test L0213
+pattern [[:upper]]
+input A
+group 0
+span none
+
+test L0214
+pattern [[:upper]]
+input :
+group 0
+span 0-1
+
+test L0215
+pattern [\\044-\\047]
+input &
+group 0
+span 0-1
+
+test L0216
+pattern [\\x5a-\\x5c]
+input [
+group 0
+span 0-1
+
+test L0217
+pattern [\\x6A-\\x6D]
+input l
+group 0
+span 0-1
+
+test L0218
+pattern [\\x6A-\\x6D]
+input n
+group 0
+span none
+
+test L0219
+pattern ^[0-9A-F]+ 0+ UNDEF 
+input 75F 00000000 SECT14A notype ()    External    | _rb_apply
+group 0
+span none
+
+test L0220
+pattern [\\[]
+input [
+group 0
+span 0-1
+
+test L0221
+pattern [\\]]
+input ]
+group 0
+span 0-1
+
+test L0222
+pattern [&]
+input &
+group 0
+span 0-1
+
+test L0241
+pattern \\wabc
+input  abc
+group 0
+span none
+
+test L0242
+pattern a\\Wbc
+input a bc
+group 0
+span 0-4
+
+test L0243
+pattern a.b.c
+input aabbc
+group 0
+span 0-5
+
+test L0244
+pattern .\\wb\\W..c
+input abb bcc
+group 0
+span 0-7
+
+test L0245
+pattern \\s\\wzzz
+input  zzzz
+group 0
+span 0-5
+
+test L0246
+pattern aa.b
+input aabb
+group 0
+span 0-4
+
+test L0247
+pattern .a
+input ab
+group 0
+span none
+
+test L0248
+pattern .a
+input aa
+group 0
+span 0-2
+
+test L0249
+pattern ^a
+input a
+group 0
+span 0-1
+
+test L0250
+pattern ^a$
+input a
+group 0
+span 0-1
+
+test L0251
+pattern ^\\w$
+input a
+group 0
+span 0-1
+
+test L0252
+pattern ^\\w$
+input  
+group 0
+span none
+
+test L0253
+pattern ^\\wab$
+input zab
+group 0
+span 0-3
+
+test L0254
+pattern ^\\wabcdef$
+input zabcdef
+group 0
+span 0-7
+
+test L0255
+pattern ^\\w...def$
+input zabcdef
+group 0
+span 0-7
+
+test L0256
+pattern \\w\\w\\s\\Waaa\\d
+input aa  aaa4
+group 0
+span 0-8
+
+test L0257
+pattern \\A\\Z
+input 
+group 0
+span 0-0
+
+test L0258
+pattern \\Axyz
+input xyz
+group 0
+span 0-3
+
+test L0259
+pattern xyz\\Z
+input xyz
+group 0
+span 0-3
+
+test L0260
+pattern xyz\\z
+input xyz
+group 0
+span 0-3
+
+test L0261
+pattern a\\Z
+input a
+group 0
+span 0-1
+
+test L0262
+pattern \\Gaz
+input az
+group 0
+span 0-2
+
+test L0263
+pattern \\Gz
+input bza
+group 0
+span none
+
+test L0264
+pattern az\\G
+input az
+group 0
+span none
+
+test L0265
+pattern az\\A
+input az
+group 0
+span none
+
+test L0266
+pattern a\\Az
+input az
+group 0
+span none
+
+test L0267
+pattern \\^\\$
+input ^$
+group 0
+span 0-2
+
+test L0268
+pattern ^x?y
+input xy
+group 0
+span 0-2
+
+test L0269
+pattern ^(x?y)
+input xy
+group 0
+span 0-2
+
+test L0270
+pattern \\w
+input _
+group 0
+span 0-1
+
+test L0271
+pattern \\W
+input _
+group 0
+span none
+
+test L0272
+pattern (?=z)z
+input z
+group 0
+span 0-1
+
+test L0273
+pattern (?=z).
+input a
+group 0
+span none
+
+test L0274
+pattern (?!z)a
+input a
+group 0
+span 0-1
+
+test L0275
+pattern (?!z)a
+input z
+group 0
+span none
+
+test L0276
+pattern (?i:a)
+input a
+group 0
+span 0-1
+
+test L0277
+pattern (?i:a)
+input A
+group 0
+span 0-1
+
+test L0278
+pattern (?i:A)
+input a
+group 0
+span 0-1
+
+test L0279
+pattern (?i:i)
+input I
+group 0
+span 0-1
+
+test L0280
+pattern (?i:I)
+input i
+group 0
+span 0-1
+
+test L0281
+pattern (?i:[A-Z])
+input i
+group 0
+span 0-1
+
+test L0282
+pattern (?i:[a-z])
+input I
+group 0
+span 0-1
+
+test L0283
+pattern (?i:A)
+input b
+group 0
+span none
+
+test L0284
+pattern (?i:ss)
+input ss
+group 0
+span 0-2
+
+test L0285
+pattern (?i:ss)
+input Ss
+group 0
+span 0-2
+
+test L0286
+pattern (?i:ss)
+input SS
+group 0
+span 0-2
+
+test L0288
+pattern (?i:ss)
+input ſS
+group 0
+span 0-3
+
+test L0289
+pattern (?i:ss)
+input sſ
+group 0
+span 0-3
+
+test L0291
+pattern (?i:ss)
+input ß
+group 0
+span 0-2
+
+test L0293
+pattern (?i:ss)
+input ẞ
+group 0
+span 0-3
+
+test L0294
+pattern (?i:xssy)
+input xssy
+group 0
+span 0-4
+
+test L0295
+pattern (?i:xssy)
+input xSsy
+group 0
+span 0-4
+
+test L0296
+pattern (?i:xssy)
+input xSSy
+group 0
+span 0-4
+
+test L0297
+pattern (?i:xssy)
+input xſSy
+group 0
+span 0-5
+
+test L0298
+pattern (?i:xssy)
+input xsſy
+group 0
+span 0-5
+
+test L0299
+pattern (?i:xssy)
+input xßy
+group 0
+span 0-4
+
+test L0300
+pattern (?i:xssy)
+input xẞy
+group 0
+span 0-5
+
+test L0301
+pattern (?i:ß)
+input ss
+group 0
+span 0-2
+
+test L0302
+pattern (?i:ß)
+input SS
+group 0
+span 0-2
+
+test L0303
+pattern (?i:[ß])
+input ss
+group 0
+span 0-2
+
+test L0304
+pattern (?i:[ß])
+input SS
+group 0
+span 0-2
+
+test L0305
+pattern (?i)(?<!ss)z
+input qqz
+group 0
+span 2-3
+
+test L0306
+pattern (?i:[A-Z])
+input a
+group 0
+span 0-1
+
+test L0307
+pattern (?i:[f-m])
+input H
+group 0
+span 0-1
+
+test L0308
+pattern (?i:[f-m])
+input h
+group 0
+span 0-1
+
+test L0309
+pattern (?i:[f-m])
+input e
+group 0
+span none
+
+test L0310
+pattern (?i:[A-c])
+input D
+group 0
+span 0-1
+
+test L0311
+pattern (?i:[^a-z])
+input A
+group 0
+span none
+
+test L0312
+pattern (?i:[^a-z])
+input a
+group 0
+span none
+
+test L0313
+pattern (?i:[!-k])
+input Z
+group 0
+span 0-1
+
+test L0314
+pattern (?i:[!-k])
+input 7
+group 0
+span 0-1
+
+test L0315
+pattern (?i:[T-}])
+input b
+group 0
+span 0-1
+
+test L0316
+pattern (?i:[T-}])
+input {
+group 0
+span 0-1
+
+test L0317
+pattern (?i:\\?a)
+input ?A
+group 0
+span 0-2
+
+test L0318
+pattern (?i:\\*A)
+input *a
+group 0
+span 0-2
+
+test L0319
+pattern .
+input \n
+group 0
+span none
+
+test L0320
+pattern (?s:.)
+input \n
+group 0
+span 0-1
+
+test L0321
+pattern (?s:a.)
+input a\n
+group 0
+span 0-2
+
+test L0322
+pattern (?s:.b)
+input a\nb
+group 0
+span 1-3
+
+test L0323
+pattern .*abc
+input dddabdd\nddabc
+group 0
+span 8-13
+
+test L0324
+pattern .+abc
+input dddabdd\nddabcaa\naaaabc
+group 0
+span 8-13
+
+test L0325
+pattern (?s:.*abc)
+input dddabddabc
+group 0
+span 0-10
+
+test L0326
+pattern (?i)(?-i)a
+input A
+group 0
+span none
+
+test L0327
+pattern (?i)(?-i:a)
+input A
+group 0
+span none
+
+test L0328
+pattern a?
+input 
+group 0
+span 0-0
+
+test L0329
+pattern a?
+input b
+group 0
+span 0-0
+
+test L0330
+pattern a?
+input a
+group 0
+span 0-1
+
+test L0331
+pattern a*
+input 
+group 0
+span 0-0
+
+test L0332
+pattern a*
+input a
+group 0
+span 0-1
+
+test L0333
+pattern a*
+input aaa
+group 0
+span 0-3
+
+test L0334
+pattern a*
+input baaaa
+group 0
+span 0-0
+
+test L0335
+pattern a+
+input 
+group 0
+span none
+
+test L0336
+pattern a+
+input a
+group 0
+span 0-1
+
+test L0337
+pattern a+
+input aaaa
+group 0
+span 0-4
+
+test L0338
+pattern a+
+input aabbb
+group 0
+span 0-2
+
+test L0339
+pattern a+
+input baaaa
+group 0
+span 1-5
+
+test L0340
+pattern .?
+input 
+group 0
+span 0-0
+
+test L0341
+pattern .?
+input f
+group 0
+span 0-1
+
+test L0342
+pattern .?
+input \n
+group 0
+span 0-0
+
+test L0343
+pattern .*
+input 
+group 0
+span 0-0
+
+test L0344
+pattern .*
+input abcde
+group 0
+span 0-5
+
+test L0345
+pattern .+
+input z
+group 0
+span 0-1
+
+test L0346
+pattern .+
+input zdswer\n
+group 0
+span 0-6
+
+test L0347
+pattern (.*)a\\1f
+input babfbac
+group 0
+span 0-4
+
+test L0348
+pattern (.*)a\\1f
+input bacbabf
+group 0
+span 3-7
+
+test L0349
+pattern ((.*)a\\2f)
+input bacbabf
+group 0
+span 3-7
+
+test L0350
+pattern (.*)a\\1f
+input baczzzzzz\nbazz\nzzzzbabf
+group 0
+span 19-23
+
+test L0351
+pattern a|b
+input a
+group 0
+span 0-1
+
+test L0352
+pattern a|b
+input b
+group 0
+span 0-1
+
+test L0353
+pattern |a
+input a
+group 0
+span 0-0
+
+test L0354
+pattern (|a)
+input a
+group 0
+span 0-0
+
+test L0355
+pattern ab|bc
+input ab
+group 0
+span 0-2
+
+test L0356
+pattern ab|bc
+input bc
+group 0
+span 0-2
+
+test L0357
+pattern z(?:ab|bc)
+input zbc
+group 0
+span 0-3
+
+test L0358
+pattern a(?:ab|bc)c
+input aabc
+group 0
+span 0-4
+
+test L0359
+pattern ab|(?:ac|az)
+input az
+group 0
+span 0-2
+
+test L0360
+pattern a|b|c
+input dc
+group 0
+span 1-2
+
+test L0361
+pattern a|b|cd|efg|h|ijk|lmn|o|pq|rstuvwx|yz
+input pqr
+group 0
+span 0-2
+
+test L0362
+pattern a|b|cd|efg|h|ijk|lmn|o|pq|rstuvwx|yz
+input mn
+group 0
+span none
+
+test L0363
+pattern a|^z
+input ba
+group 0
+span 1-2
+
+test L0364
+pattern a|^z
+input za
+group 0
+span 0-1
+
+test L0365
+pattern a|\\Gz
+input bza
+group 0
+span 2-3
+
+test L0366
+pattern a|\\Gz
+input za
+group 0
+span 0-1
+
+test L0367
+pattern a|\\Az
+input bza
+group 0
+span 2-3
+
+test L0368
+pattern a|\\Az
+input za
+group 0
+span 0-1
+
+test L0369
+pattern a|b\\Z
+input ba
+group 0
+span 1-2
+
+test L0370
+pattern a|b\\Z
+input b
+group 0
+span 0-1
+
+test L0371
+pattern a|b\\z
+input ba
+group 0
+span 1-2
+
+test L0372
+pattern a|b\\z
+input b
+group 0
+span 0-1
+
+test L0373
+pattern \\w|\\s
+input  
+group 0
+span 0-1
+
+test L0374
+pattern \\w|\\w
+input  
+group 0
+span none
+
+test L0375
+pattern \\w|%
+input %
+group 0
+span 0-1
+
+test L0376
+pattern \\w|[&$]
+input &
+group 0
+span 0-1
+
+test L0377
+pattern [b-d]|[^e-z]
+input a
+group 0
+span 0-1
+
+test L0378
+pattern (?:a|[c-f])|bz
+input dz
+group 0
+span 0-1
+
+test L0379
+pattern (?:a|[c-f])|bz
+input bz
+group 0
+span 0-2
+
+test L0380
+pattern abc|(?=zz)..f
+input zzf
+group 0
+span 0-3
+
+test L0381
+pattern abc|(?!zz)..f
+input abf
+group 0
+span 0-3
+
+test L0382
+pattern (?=za)..a|(?=zz)..a
+input zza
+group 0
+span 0-3
+
+test L0383
+pattern (?>a|abd)c
+input abdc
+group 0
+span none
+
+test L0384
+pattern (?>abd|a)c
+input abdc
+group 0
+span 0-4
+
+test L0385
+pattern a?|b
+input a
+group 0
+span 0-1
+
+test L0386
+pattern a?|b
+input b
+group 0
+span 0-0
+
+test L0387
+pattern a?|b
+input 
+group 0
+span 0-0
+
+test L0388
+pattern a*|b
+input aa
+group 0
+span 0-2
+
+test L0389
+pattern a*|b*
+input ba
+group 0
+span 0-0
+
+test L0390
+pattern a*|b*
+input ab
+group 0
+span 0-1
+
+test L0391
+pattern a+|b*
+input 
+group 0
+span 0-0
+
+test L0392
+pattern a+|b*
+input bbb
+group 0
+span 0-3
+
+test L0393
+pattern a+|b*
+input abbb
+group 0
+span 0-1
+
+test L0394
+pattern a+|b+
+input 
+group 0
+span none
+
+test L0395
+pattern (a|b)?
+input b
+group 0
+span 0-1
+
+test L0396
+pattern (a|b)*
+input ba
+group 0
+span 0-2
+
+test L0397
+pattern (a|b)+
+input bab
+group 0
+span 0-3
+
+test L0398
+pattern (ab|ca)+
+input caabbc
+group 0
+span 0-4
+
+test L0399
+pattern (ab|ca)+
+input aabca
+group 0
+span 1-5
+
+test L0400
+pattern (ab|ca)+
+input abzca
+group 0
+span 0-2
+
+test L0401
+pattern (a|bab)+
+input ababa
+group 0
+span 0-5
+
+test L0402
+pattern (a|bab)+
+input ba
+group 0
+span 1-2
+
+test L0403
+pattern (a|bab)+
+input baaaba
+group 0
+span 1-4
+
+test L0404
+pattern (?:a|b)(?:a|b)
+input ab
+group 0
+span 0-2
+
+test L0405
+pattern (?:a*|b*)(?:a*|b*)
+input aaabbb
+group 0
+span 0-3
+
+test L0406
+pattern (?:a*|b*)(?:a+|b+)
+input aaabbb
+group 0
+span 0-6
+
+test L0407
+pattern (?:a+|b+){2}
+input aaabbb
+group 0
+span 0-6
+
+test L0408
+pattern h{0,}
+input hhhh
+group 0
+span 0-4
+
+test L0409
+pattern (?:a+|b+){1,2}
+input aaabbb
+group 0
+span 0-6
+
+test L0410
+pattern ax{2}*a
+input 0axxxa1
+group 0
+span none
+
+test L0411
+pattern a.{0,2}a
+input 0aXXXa0
+group 0
+span none
+
+test L0412
+pattern a.{0,2}?a
+input 0aXXXa0
+group 0
+span none
+
+test L0413
+pattern a.{0,2}?a
+input 0aXXXXa0
+group 0
+span none
+
+test L0414
+pattern ^a{2,}?a$
+input aaa
+group 0
+span 0-3
+
+test L0415
+pattern ^[a-z]{2,}?$
+input aaa
+group 0
+span 0-3
+
+test L0416
+pattern (?:a+|\\Ab*)cc
+input cc
+group 0
+span 0-2
+
+test L0417
+pattern (?:a+|\\Ab*)cc
+input abcc
+group 0
+span none
+
+test L0418
+pattern (?:^a+|b+)*c
+input aabbbabc
+group 0
+span 6-8
+
+test L0419
+pattern (?:^a+|b+)*c
+input aabbbbc
+group 0
+span 0-7
+
+test L0420
+pattern a|(?i)c
+input C
+group 0
+span 0-1
+
+test L0421
+pattern (?i)c|a
+input C
+group 0
+span 0-1
+
+test L0422
+pattern (?i)c|a
+input A
+group 0
+span 0-1
+
+test L0423
+pattern a(?i)b|c
+input aB
+group 0
+span 0-2
+
+test L0424
+pattern a(?i)b|c
+input aC
+group 0
+span 0-2
+
+test L0425
+pattern a(?i)b|c
+input AC
+group 0
+span none
+
+test L0426
+pattern a(?:(?i)b)|c
+input aC
+group 0
+span none
+
+test L0427
+pattern (?i:c)|a
+input C
+group 0
+span 0-1
+
+test L0428
+pattern (?i:c)|a
+input A
+group 0
+span none
+
+test L0429
+pattern [abc]?
+input abc
+group 0
+span 0-1
+
+test L0430
+pattern [abc]*
+input abc
+group 0
+span 0-3
+
+test L0431
+pattern [^abc]*
+input abc
+group 0
+span 0-0
+
+test L0432
+pattern [^abc]+
+input abc
+group 0
+span none
+
+test L0435
+pattern a*?
+input aaa
+group 0
+span 0-0
+
+test L0436
+pattern ba*?
+input baa
+group 0
+span 0-1
+
+test L0437
+pattern ba*?b
+input baab
+group 0
+span 0-4
+
+test L0438
+pattern a+?
+input aaa
+group 0
+span 0-1
+
+test L0439
+pattern ba+?
+input baa
+group 0
+span 0-2
+
+test L0440
+pattern ba+?b
+input baab
+group 0
+span 0-4
+
+test L0443
+pattern (?:a?)+?
+input aaa
+group 0
+span 0-1
+
+test L0449
+pattern (?:ab){3,}
+input abababab
+group 0
+span 0-8
+
+test L0450
+pattern (?:ab){3,}
+input abab
+group 0
+span none
+
+test L0451
+pattern (?:ab){2,4}
+input ababab
+group 0
+span 0-6
+
+test L0452
+pattern (?:ab){2,4}
+input ababababab
+group 0
+span 0-8
+
+test L0453
+pattern (?:ab){2,4}?
+input ababababab
+group 0
+span 0-4
+
+test L0454
+pattern (?:ab){,}
+input ab{,}
+group 0
+span 0-5
+
+test L0456
+pattern (?:X*)(?i:xa)
+input XXXa
+group 0
+span 0-4
+
+test L0457
+pattern (d+)([^abc]z)
+input dddz
+group 0
+span 0-4
+
+test L0458
+pattern ([^abc]*)([^abc]z)
+input dddz
+group 0
+span 0-4
+
+test L0459
+pattern (\\w+)(\\wz)
+input dddz
+group 0
+span 0-4
+
+test L0460
+pattern (a)
+input a
+group 1
+span 0-1
+
+test L0461
+pattern (ab)
+input ab
+group 1
+span 0-2
+
+test L0462
+pattern ((ab))
+input ab
+group 0
+span 0-2
+
+test L0463
+pattern ((ab))
+input ab
+group 1
+span 0-2
+
+test L0464
+pattern ((ab))
+input ab
+group 2
+span 0-2
+
+test L0465
+pattern ((((((((((((((((((((ab))))))))))))))))))))
+input ab
+group 20
+span 0-2
+
+test L0466
+pattern (ab)(cd)
+input abcd
+group 1
+span 0-2
+
+test L0467
+pattern (ab)(cd)
+input abcd
+group 2
+span 2-4
+
+test L0468
+pattern ()(a)bc(def)ghijk
+input abcdefghijk
+group 3
+span 3-6
+
+test L0469
+pattern (()(a)bc(def)ghijk)
+input abcdefghijk
+group 4
+span 3-6
+
+test L0470
+pattern (^a)
+input a
+group 0
+span 0-1
+
+test L0471
+pattern (a)|(a)
+input ba
+group 1
+span 1-2
+
+test L0472
+pattern (^a)|(a)
+input ba
+group 2
+span 1-2
+
+test L0473
+pattern (a?)
+input aaa
+group 1
+span 0-1
+
+test L0474
+pattern (a*)
+input aaa
+group 1
+span 0-3
+
+test L0475
+pattern (a*)
+input 
+group 1
+span 0-0
+
+test L0476
+pattern (a+)
+input aaaaaaa
+group 1
+span 0-7
+
+test L0477
+pattern (a+|b*)
+input bbbaa
+group 1
+span 0-3
+
+test L0478
+pattern (a+|b?)
+input bbbaa
+group 1
+span 0-1
+
+test L0479
+pattern (abc)?
+input abc
+group 1
+span 0-3
+
+test L0480
+pattern (abc)*
+input abc
+group 1
+span 0-3
+
+test L0481
+pattern (abc)+
+input abc
+group 1
+span 0-3
+
+test L0482
+pattern (xyz|abc)+
+input abc
+group 1
+span 0-3
+
+test L0483
+pattern ([xyz][abc]|abc)+
+input abc
+group 1
+span 0-3
+
+test L0484
+pattern ((?i:abc))
+input AbC
+group 1
+span 0-3
+
+test L0485
+pattern (abc)(?i:\\1)
+input abcABC
+group 0
+span 0-6
+
+test L0486
+pattern ((?s:a.c))
+input a\nc
+group 1
+span 0-3
+
+test L0487
+pattern ((?=az)a)
+input azb
+group 1
+span 0-1
+
+test L0488
+pattern abc|(.abd)
+input zabd
+group 1
+span 0-4
+
+test L0489
+pattern (?:abc)|(ABC)
+input abc
+group 0
+span 0-3
+
+test L0490
+pattern (?i:(abc))|(zzz)
+input ABC
+group 1
+span 0-3
+
+test L0491
+pattern a*(.)
+input aaaaz
+group 1
+span 4-5
+
+test L0492
+pattern a*?(.)
+input aaaaz
+group 1
+span 0-1
+
+test L0493
+pattern a*?(c)
+input aaaac
+group 1
+span 4-5
+
+test L0494
+pattern [bcd]a*(.)
+input caaaaz
+group 1
+span 5-6
+
+test L0495
+pattern (\\Abb)cc
+input bbcc
+group 1
+span 0-2
+
+test L0496
+pattern (\\Abb)cc
+input zbbcc
+group 0
+span none
+
+test L0497
+pattern (^bb)cc
+input bbcc
+group 1
+span 0-2
+
+test L0498
+pattern (^bb)cc
+input zbbcc
+group 0
+span none
+
+test L0499
+pattern cc(bb$)
+input ccbb
+group 1
+span 2-4
+
+test L0500
+pattern cc(bb$)
+input ccbbb
+group 0
+span none
+
+test L0501
+pattern (\\1)
+input 
+group 0
+span none
+
+test L0502
+pattern \\1(a)
+input aa
+group 0
+span none
+
+test L0503
+pattern (a(b)\\1)\\2+
+input ababb
+group 0
+span none
+
+test L0504
+pattern (?:(?:\\1|z)(a))+$
+input zaa
+group 0
+span none
+
+test L0505
+pattern (?:(?:\\1|z)(a))+$
+input zaaa
+group 0
+span 0-4
+
+test L0506
+pattern (a)(?=\\1)
+input aa
+group 0
+span 0-1
+
+test L0507
+pattern (a)$|\\1
+input az
+group 0
+span none
+
+test L0508
+pattern (a)\\1
+input aa
+group 0
+span 0-2
+
+test L0509
+pattern (a)\\1
+input ab
+group 0
+span none
+
+test L0510
+pattern (a?)\\1
+input aa
+group 0
+span 0-2
+
+test L0512
+pattern (a*)\\1
+input aaaaa
+group 0
+span 0-4
+
+test L0513
+pattern (a*)\\1
+input aaaaa
+group 1
+span 0-2
+
+test L0514
+pattern a(b*)\\1
+input abbbb
+group 0
+span 0-5
+
+test L0515
+pattern a(b*)\\1
+input ab
+group 0
+span 0-1
+
+test L0516
+pattern (a*)(b*)\\1\\2
+input aaabbaaabb
+group 0
+span 0-10
+
+test L0517
+pattern (a*)(b*)\\2
+input aaabbbb
+group 0
+span 0-7
+
+test L0518
+pattern (((((((a*)b))))))c\\7
+input aaabcaaa
+group 0
+span 0-8
+
+test L0519
+pattern (((((((a*)b))))))c\\7
+input aaabcaaa
+group 7
+span 0-3
+
+test L0520
+pattern (a)(b)(c)\\2\\1\\3
+input abcbac
+group 0
+span 0-6
+
+test L0521
+pattern ([a-d])\\1
+input cc
+group 0
+span 0-2
+
+test L0522
+pattern (\\w\\d\\s)\\1
+input f5 f5 
+group 0
+span 0-6
+
+test L0523
+pattern (\\w\\d\\s)\\1
+input f5 f5
+group 0
+span none
+
+test L0524
+pattern (who|[a-c]{3})\\1
+input whowho
+group 0
+span 0-6
+
+test L0525
+pattern ...(who|[a-c]{3})\\1
+input abcwhowho
+group 0
+span 0-9
+
+test L0526
+pattern (who|[a-c]{3})\\1
+input cbccbc
+group 0
+span 0-6
+
+test L0527
+pattern (^a)\\1
+input aa
+group 0
+span 0-2
+
+test L0528
+pattern (^a)\\1
+input baa
+group 0
+span none
+
+test L0529
+pattern (a$)\\1
+input aa
+group 0
+span none
+
+test L0530
+pattern (ab\\Z)\\1
+input ab
+group 0
+span none
+
+test L0531
+pattern (a*\\Z)\\1
+input a
+group 0
+span 1-1
+
+test L0532
+pattern .(a*\\Z)\\1
+input ba
+group 0
+span 1-2
+
+test L0533
+pattern (.(abc)\\2)
+input zabcabc
+group 1
+span 0-7
+
+test L0534
+pattern (.(..\\d.)\\2)
+input z12341234
+group 1
+span 0-9
+
+test L0535
+pattern ((?i:az))\\1
+input AzAz
+group 0
+span 0-4
+
+test L0536
+pattern ((?i:az))\\1
+input Azaz
+group 0
+span none
+
+test L0537
+pattern (?<=a)b
+input ab
+group 0
+span 1-2
+
+test L0538
+pattern (?<=a)b
+input bb
+group 0
+span none
+
+test L0539
+pattern (?<=a|b)b
+input bb
+group 0
+span 1-2
+
+test L0540
+pattern (?<=a|bc)b
+input bcb
+group 0
+span 2-3
+
+test L0541
+pattern (?<=a|bc)b
+input ab
+group 0
+span 1-2
+
+test L0542
+pattern (?<=a|bc||defghij|klmnopq|r)z
+input rz
+group 0
+span 1-2
+
+test L0543
+pattern (?<=(abc))d
+input abcd
+group 1
+span 0-3
+
+test L0544
+pattern (?<=(?i:abc))d
+input ABCd
+group 0
+span 3-4
+
+test L0546
+pattern (?<!a)b
+input cb
+group 0
+span 1-2
+
+test L0547
+pattern (?<!a)b
+input ab
+group 0
+span none
+
+test L0548
+pattern (?<!a|bc)b
+input bbb
+group 0
+span 0-1
+
+test L0549
+pattern (?<!a|bc)z
+input bcz
+group 0
+span none
+
+test L0550
+pattern (?<name1>a)
+input a
+group 0
+span 0-1
+
+test L0552
+pattern (?<name_3>.zv.)\\k<name_3>
+input azvbazvb
+group 0
+span 0-8
+
+test L0560
+pattern (?<name1240>\\w+\\sx)a+\\k<name1240>
+input   fg xaaaaaaaafg x
+group 0
+span 2-18
+
+test L0562
+pattern (.)(((?<_>a)))\\k<_>
+input zaa
+group 0
+span 0-3
+
+test L0563
+pattern ((?<name1>\\d)|(?<name2>\\w))(\\k<name1>|\\k<name2>)
+input ff
+group 0
+span 0-2
+
+test L0564
+pattern (?:(?<x>)|(?<x>efg))\\k<x>
+input 
+group 0
+span 0-0
+
+test L0565
+pattern (?:(?<x>abc)|(?<x>efg))\\k<x>
+input abcefgefg
+group 0
+span 3-9
+
+test L0566
+pattern (?:(?<x>abc)|(?<x>efg))\\k<x>
+input abcefg
+group 0
+span none
+
+test L0567
+pattern (?:(?<n1>.)|(?<n1>..)|(?<n1>...)|(?<n1>....)|(?<n1>.....)|(?<n1>......)|(?<n1>.......)|(?<n1>........)|(?<n1>.........)|(?<n1>..........)|(?<n1>...........)|(?<n1>............)|(?<n1>.............)|(?<n1>..............))\\k<n1>$
+input a-pyumpyum
+group 0
+span 2-10
+
+test L0568
+pattern (?:(?<n1>.)|(?<n1>..)|(?<n1>...)|(?<n1>....)|(?<n1>.....)|(?<n1>......)|(?<n1>.......)|(?<n1>........)|(?<n1>.........)|(?<n1>..........)|(?<n1>...........)|(?<n1>............)|(?<n1>.............)|(?<n1>..............))\\k<n1>$
+input xxxxabcdefghijklmnabcdefghijklmn
+group 14
+span 4-18
+
+test L0569
+pattern (?<name1>)(?<name2>)(?<name3>)(?<name4>)(?<name5>)(?<name6>)(?<name7>)(?<name8>)(?<name9>)(?<name10>)(?<name11>)(?<name12>)(?<name13>)(?<name14>)(?<name15>)(?<name16>aaa)(?<name17>)$
+input aaa
+group 16
+span 0-3
+
+test L0581
+pattern ()*\\1
+input 
+group 0
+span 0-0
+
+test L0582
+pattern (?:()|())*\\1\\2
+input 
+group 0
+span 0-0
+
+test L0583
+pattern (?:a*|b*)*c
+input abadc
+group 0
+span 4-5
+
+test L0584
+pattern (?:\\1a|())*
+input a
+group 1
+span 0-0
+
+test L0585
+pattern x((.)*)*x
+input 0x1x2x3
+group 0
+span 1-6
+
+test L0586
+pattern x((.)*)*x(?i:\\1)\\Z
+input 0x1x2x1X2
+group 0
+span 1-9
+
+test L0587
+pattern (?:()|()|()|()|()|())*\\2\\5
+input 
+group 0
+span 0-0
+
+test L0588
+pattern (?:()|()|()|(x)|()|())*\\2b\\5
+input b
+group 0
+span 0-1
+
+test L0589
+pattern [0-9-a]
+input -
+group 0
+span 0-1
+
+test L0590
+pattern [0-9-a]
+input :
+group 0
+span none
+
+test L0596
+pattern (?i)(?<X>aa)|(?<X>bb)\\k<X>
+input BBbb
+group 0
+span 0-4
+
+test L0597
+pattern (?:\\k'+1'B|(A)C)*
+input ACAB
+group 0
+span 0-4
+
+test L0601
+pattern (a*)(?(1))aa
+input aaaaa
+group 0
+span 0-5
+
+test L0602
+pattern (a*)(?(-1))aa
+input aaaaa
+group 0
+span 0-5
+
+test L0603
+pattern (?<name>aaa)(?('name'))aa
+input aaaaa
+group 0
+span 0-5
+
+test L0604
+pattern (a)(?(1)aa|bb)a
+input aaaaa
+group 0
+span 0-4
+
+test L0605
+pattern (?:aa|())(?(<1>)aa|bb)a
+input aabba
+group 0
+span 0-5
+
+test L0606
+pattern (?:aa|())(?('1')aa|bb|cc)a
+input aacca
+group 0
+span 0-5
+
+test L0607
+pattern (a*)(?(1)aa|a)b
+input aaab
+group 1
+span 0-1
+
+test L0608
+pattern (a)(?(1)a|b)c
+input abc
+group 0
+span none
+
+test L0609
+pattern (a)(?(1)|)c
+input ac
+group 0
+span 0-2
+
+test L0610
+pattern (?()aaa|bbb)
+input bbb
+group 0
+span none
+
+test L0611
+pattern (a)(?(1+0)b|c)d
+input abd
+group 0
+span 0-3
+
+test L0612
+pattern (?:(?'name'a)|(?'name'b))(?('name')c|d)e
+input ace
+group 0
+span 0-3
+
+test L0613
+pattern (?:(?'name'a)|(?'name'b))(?('name')c|d)e
+input bce
+group 0
+span 0-3
+
+test L0633
+pattern (?:()|())*\\1
+input abc
+group 0
+span 0-0
+
+test L0634
+pattern (?:()|())*\\2
+input abc
+group 0
+span 0-0
+
+test L0635
+pattern (?:()|()|())*\\3\\1
+input abc
+group 0
+span 0-0
+
+test L0637
+pattern ^("|)(.*)\\1$
+input XX
+group 0
+span 0-2
+
+test L0638
+pattern (abc|def|ghi|jkl|mno|pqr|stu){0,10}?\\z
+input admno
+group 0
+span 2-5
+
+test L0639
+pattern (abc|(def|ghi|jkl|mno|pqr){0,7}?){5}\\z
+input adpqrpqrpqr
+group 0
+span 2-11
+
+test L0640
+pattern (?!abc).*\\z
+input abcde
+group 0
+span 1-5
+
+test L0641
+pattern (.{2,})?
+input abcde
+group 0
+span 0-5
+
+test L0642
+pattern ((a|b|c|d|e|f|g|h|i|j|k|l|m|n)+)?
+input abcde
+group 0
+span 0-5
+
+test L0643
+pattern ((a|b|c|d|e|f|g|h|i|j|k|l|m|n){3,})?
+input abcde
+group 0
+span 0-5
+
+test L0644
+pattern ((?:a(?:b|c|d|e|f|g|h|i|j|k|l|m|n))+)?
+input abacadae
+group 0
+span 0-8
+
+test L0645
+pattern ((?:a(?:b|c|d|e|f|g|h|i|j|k|l|m|n))+?)?z
+input abacadaez
+group 0
+span 0-9
+
+test L0648
+pattern ((?(abc)true|false))+
+input false
+group 0
+span 0-5
+
+test L0649
+pattern ((?i:abc)d)+
+input abcdABCd
+group 0
+span 0-8
+
+test L0650
+pattern ((?<!abc)def)+
+input bcdef
+group 0
+span 2-5
+
+test L0651
+pattern (\\ba)+
+input aaa
+group 0
+span 0-1
+
+test L0652
+pattern ()(?<x>ab)(?(<x>)a|b)
+input aba
+group 0
+span 0-3
+
+test L0653
+pattern (?<=a.b)c
+input azbc
+group 0
+span 3-4
+
+test L0654
+pattern (?<=(?:abcde){30})z
+input abc
+group 0
+span none
+
+test L0655
+pattern (?<=(?(a)a|bb))z
+input aaz
+group 0
+span 2-3
+
+test L0656
+pattern [a]*\\W
+input aa@
+group 0
+span 0-3
+
+test L0657
+pattern [a]*[b]
+input aab
+group 0
+span 0-3
+
+test L0658
+pattern a*\\W
+input aaa
+group 0
+span none
+
+test L0659
+pattern (?W)a*\\W
+input aaa
+group 0
+span none
+
+test L0660
+pattern (?<=ab(?<=ab))
+input ab
+group 0
+span 2-2
+
+test L0661
+pattern (?<x>a)(?<x>b)(\\k<x>)+
+input abbaab
+group 0
+span 0-6
+
+test L0662
+pattern ()(\\1)(\\2)
+input abc
+group 0
+span 0-0
+
+test L0663
+pattern ((?(a)b|c))(\\1)
+input abab
+group 0
+span 0-4
+
+test L0666
+pattern (a)(?(1)a*|b*)+
+input aaaa
+group 0
+span 0-4
+
+test L0669
+pattern (?:a?)+
+input aa
+group 0
+span 0-2
+
+test L0670
+pattern (?:a?)*?
+input a
+group 0
+span 0-0
+
+test L0671
+pattern (?:a*)*?
+input a
+group 0
+span 0-0
+
+test L0672
+pattern (?:a+?)*
+input a
+group 0
+span 0-1
+
+test L0678
+pattern [\\u0041]
+input A
+group 0
+span 0-1
+
+test L0679
+pattern (?~)
+input 
+group 0
+span 0-0
+
+test L0681
+pattern (?~)
+input A
+group 0
+span 0-0
+
+test L0682
+pattern aaaaa(?~)
+input aaaaaaaaaa
+group 0
+span 0-5
+
+test L0683
+pattern (?~(?:|aaa))
+input aaa
+group 0
+span 0-0
+
+test L0684
+pattern (?~aaa|)
+input aaa
+group 0
+span 0-0
+
+test L0685
+pattern a(?~(?~)).
+input abcdefghijklmnopqrstuvwxyz
+group 0
+span 0-26
+
+test L0686
+pattern /\\*(?~\\*/)\\*/
+input /* */ */
+group 0
+span 0-5
+
+test L0687
+pattern (?~\\w+)zzzzz
+input zzzzz
+group 0
+span 0-5
+
+test L0688
+pattern (?~\\w*)zzzzz
+input zzzzz
+group 0
+span 0-5
+
+test L0689
+pattern (?~A.C|B)
+input ABC
+group 0
+span 0-0
+
+test L0690
+pattern (?~XYZ|ABC)a
+input ABCa
+group 0
+span 1-4
+
+test L0691
+pattern (?~XYZ|ABC)a
+input aABCa
+group 0
+span 0-1
+
+test L0692
+pattern <[^>]*>(?~[<>])</[^>]*>
+input <a>vvv</a>   <b>  </b>
+group 0
+span 0-10
+
+test L0693
+pattern (?~ab)
+input ccc\ndab
+group 0
+span 0-5
+
+test L0694
+pattern (?s:(?~ab))
+input ccc\ndab
+group 0
+span 0-5
+
+test L0695
+pattern (?-s:(?~ab))
+input ccc\ndab
+group 0
+span 0-5
+
+test L0696
+pattern (?~abc)xyz
+input xyz012345678901234567890123456789abc
+group 0
+span 0-3
+
+test L0699
+pattern (?~|78|\\d*)
+input 123456789
+group 0
+span 0-6
+
+test L0700
+pattern (?~|def|(?:abc|de|f){0,100})
+input abcdedeabcfdefabc
+group 0
+span 0-11
+
+test L0701
+pattern (?~|ab|.*)
+input ccc\nddd
+group 0
+span 0-3
+
+test L0709
+pattern (?~|aaa|)
+input aaa
+group 0
+span 0-0
+
+test L0710
+pattern (?~||a*)
+input aaaaaa
+group 0
+span 0-0
+
+test L0711
+pattern (?~||a*?)
+input aaaaaa
+group 0
+span 0-0
+
+test L0712
+pattern (a)(?~|b|\\1)
+input aaaaaa
+group 0
+span 0-2
+
+test L0713
+pattern (a)(?~|bb|(?:a\\1)*)
+input aaaaaa
+group 0
+span 0-5
+
+test L0714
+pattern (b|c)(?~|abac|(?:a\\1)*)
+input abababacabab
+group 0
+span 1-4
+
+test L0715
+pattern (?~|c|a*+)a
+input aaaaa
+group 0
+span none
+
+test L0716
+pattern (?~|aaaaa|a*+)
+input aaaaa
+group 0
+span 0-0
+
+test L0717
+pattern (?~|aaaaaa|a*+)b
+input aaaaaab
+group 0
+span 1-7
+
+test L0718
+pattern (?~|abcd|(?>))
+input zzzabcd
+group 0
+span 0-0
+
+test L0719
+pattern (?~|abc|a*?)
+input aaaabc
+group 0
+span 0-0
+
+test L0722
+pattern (?~|abc)a*
+input aaaaaabc
+group 0
+span 0-5
+
+test L0723
+pattern (?~|abc)a*z|aaaaaabc
+input aaaaaabc
+group 0
+span 0-8
+
+test L0724
+pattern (?~|aaaaaa)a*
+input aaaaaa
+group 0
+span 0-0
+
+test L0725
+pattern (?~|abc)aaaa|aaaabc
+input aaaabc
+group 0
+span 0-6
+
+test L0726
+pattern (?>(?~|abc))aaaa|aaaabc
+input aaaabc
+group 0
+span 0-6
+
+test L0727
+pattern (?~|)a
+input a
+group 0
+span 0-1
+
+test L0728
+pattern (?~|a)a
+input a
+group 0
+span none
+
+test L0729
+pattern (?~|a)(?~|)a
+input a
+group 0
+span 0-1
+
+test L0730
+pattern (?~|a).*(?~|)a
+input bbbbbbbbbbbbbbbbbbbba
+group 0
+span 0-21
+
+test L0731
+pattern (?~|abc).*(xyz|pqr)(?~|)abc
+input aaaaxyzaaapqrabc
+group 0
+span 0-16
+
+test L0732
+pattern (?~|abc).*(xyz|pqr)(?~|)abc
+input aaaaxyzaaaabcpqrabc
+group 0
+span 11-19
+
+test L0733
+pattern \\A(?~|abc).*(xyz|pqrabc)(?~|)abc
+input aaaaxyzaaaabcpqrabcabc
+group 0
+span none
+
+test L0734
+pattern 
+input あ
+group 0
+span 0-0
+
+test L0736
+pattern あ
+input あ
+group 0
+span 0-3
+
+test L0737
+pattern い
+input あ
+group 0
+span none
+
+test L0738
+pattern うう
+input うう
+group 0
+span 0-6
+
+test L0739
+pattern あいう
+input あいう
+group 0
+span 0-9
+
+test L0740
+pattern こここここここここここここここここここここここここここここここここここ
+input こここここここここここここここここここここここここここここここここここ
+group 0
+span 0-105
+
+test L0741
+pattern あ
+input いあ
+group 0
+span 3-6
+
+test L0742
+pattern いう
+input あいう
+group 0
+span 3-9
+
+test L0744
+pattern .
+input あ
+group 0
+span 0-3
+
+test L0745
+pattern ..
+input かき
+group 0
+span 0-6
+
+test L0746
+pattern \\w
+input お
+group 0
+span 0-3
+
+test L0747
+pattern \\W
+input あ
+group 0
+span none
+
+test L0748
+pattern [\\W]
+input う$
+group 0
+span 3-4
+
+test L0749
+pattern \\S
+input そ
+group 0
+span 0-3
+
+test L0750
+pattern \\S
+input 漢
+group 0
+span 0-3
+
+test L0751
+pattern \\b
+input 気 
+group 0
+span 0-0
+
+test L0752
+pattern \\b
+input  ほ
+group 0
+span 1-1
+
+test L0753
+pattern \\B
+input せそ 
+group 0
+span 3-3
+
+test L0754
+pattern \\B
+input う 
+group 0
+span 4-4
+
+test L0755
+pattern \\B
+input  い
+group 0
+span 0-0
+
+test L0756
+pattern [たち]
+input ち
+group 0
+span 0-3
+
+test L0757
+pattern [なに]
+input ぬ
+group 0
+span none
+
+test L0758
+pattern [う-お]
+input え
+group 0
+span 0-3
+
+test L0759
+pattern [^け]
+input け
+group 0
+span none
+
+test L0760
+pattern [\\w]
+input ね
+group 0
+span 0-3
+
+test L0761
+pattern [\\d]
+input ふ
+group 0
+span none
+
+test L0762
+pattern [\\D]
+input は
+group 0
+span 0-3
+
+test L0763
+pattern [\\s]
+input く
+group 0
+span none
+
+test L0764
+pattern [\\S]
+input へ
+group 0
+span 0-3
+
+test L0765
+pattern [\\w\\d]
+input よ
+group 0
+span 0-3
+
+test L0766
+pattern [\\w\\d]
+input    よ
+group 0
+span 3-6
+
+test L0767
+pattern \\w鬼車
+input  鬼車
+group 0
+span none
+
+test L0768
+pattern 鬼\\W車
+input 鬼 車
+group 0
+span 0-7
+
+test L0769
+pattern あ.い.う
+input ああいいう
+group 0
+span 0-15
+
+test L0770
+pattern .\\wう\\W..ぞ
+input えうう うぞぞ
+group 0
+span 0-19
+
+test L0771
+pattern \\s\\wこここ
+input  ここここ
+group 0
+span 0-13
+
+test L0772
+pattern ああ.け
+input ああけけ
+group 0
+span 0-12
+
+test L0773
+pattern .い
+input いえ
+group 0
+span none
+
+test L0774
+pattern .お
+input おお
+group 0
+span 0-6
+
+test L0775
+pattern ^あ
+input あ
+group 0
+span 0-3
+
+test L0776
+pattern ^む$
+input む
+group 0
+span 0-3
+
+test L0777
+pattern ^\\w$
+input に
+group 0
+span 0-3
+
+test L0778
+pattern ^\\wかきくけこ$
+input zかきくけこ
+group 0
+span 0-16
+
+test L0779
+pattern ^\\w...うえお$
+input zあいううえお
+group 0
+span 0-19
+
+test L0780
+pattern \\w\\w\\s\\Wおおお\\d
+input aお  おおお4
+group 0
+span 0-16
+
+test L0781
+pattern \\Aたちつ
+input たちつ
+group 0
+span 0-9
+
+test L0782
+pattern むめも\\Z
+input むめも
+group 0
+span 0-9
+
+test L0783
+pattern かきく\\z
+input かきく
+group 0
+span 0-9
+
+test L0784
+pattern かきく\\Z
+input かきく\n
+group 0
+span 0-9
+
+test L0785
+pattern \\Gぽぴ
+input ぽぴ
+group 0
+span 0-6
+
+test L0786
+pattern \\Gえ
+input うえお
+group 0
+span none
+
+test L0787
+pattern とて\\G
+input とて
+group 0
+span none
+
+test L0788
+pattern まみ\\A
+input まみ
+group 0
+span none
+
+test L0789
+pattern ま\\Aみ
+input まみ
+group 0
+span none
+
+test L0790
+pattern (?=せ)せ
+input せ
+group 0
+span 0-3
+
+test L0791
+pattern (?=う).
+input い
+group 0
+span none
+
+test L0792
+pattern (?!う)か
+input か
+group 0
+span 0-3
+
+test L0793
+pattern (?!と)あ
+input と
+group 0
+span none
+
+test L0794
+pattern (?i:あ)
+input あ
+group 0
+span 0-3
+
+test L0795
+pattern (?i:ぶべ)
+input ぶべ
+group 0
+span 0-6
+
+test L0796
+pattern (?i:い)
+input う
+group 0
+span none
+
+test L0797
+pattern (?s:よ.)
+input よ\n
+group 0
+span 0-4
+
+test L0798
+pattern (?s:.め)
+input ま\nめ
+group 0
+span 3-7
+
+test L0799
+pattern あ?
+input 
+group 0
+span 0-0
+
+test L0800
+pattern 変?
+input 化
+group 0
+span 0-0
+
+test L0801
+pattern 変?
+input 変
+group 0
+span 0-3
+
+test L0802
+pattern 量*
+input 
+group 0
+span 0-0
+
+test L0803
+pattern 量*
+input 量
+group 0
+span 0-3
+
+test L0804
+pattern 子*
+input 子子子
+group 0
+span 0-9
+
+test L0805
+pattern 馬*
+input 鹿馬馬馬馬
+group 0
+span 0-0
+
+test L0806
+pattern 山+
+input 
+group 0
+span none
+
+test L0807
+pattern 河+
+input 河
+group 0
+span 0-3
+
+test L0808
+pattern 時+
+input 時時時時
+group 0
+span 0-12
+
+test L0809
+pattern え+
+input ええううう
+group 0
+span 0-6
+
+test L0810
+pattern う+
+input おうううう
+group 0
+span 3-15
+
+test L0811
+pattern .?
+input た
+group 0
+span 0-3
+
+test L0812
+pattern .*
+input ぱぴぷぺ
+group 0
+span 0-12
+
+test L0813
+pattern .+
+input ろ
+group 0
+span 0-3
+
+test L0814
+pattern .+
+input いうえか\n
+group 0
+span 0-12
+
+test L0815
+pattern あ|い
+input あ
+group 0
+span 0-3
+
+test L0816
+pattern あ|い
+input い
+group 0
+span 0-3
+
+test L0817
+pattern あい|いう
+input あい
+group 0
+span 0-6
+
+test L0818
+pattern あい|いう
+input いう
+group 0
+span 0-6
+
+test L0819
+pattern を(?:かき|きく)
+input をかき
+group 0
+span 0-9
+
+test L0820
+pattern を(?:かき|きく)け
+input をきくけ
+group 0
+span 0-12
+
+test L0821
+pattern あい|(?:あう|あを)
+input あを
+group 0
+span 0-6
+
+test L0822
+pattern あ|い|う
+input えう
+group 0
+span 3-6
+
+test L0823
+pattern あ|い|うえ|おかき|く|けこさ|しすせ|そ|たち|つてとなに|ぬね
+input しすせ
+group 0
+span 0-9
+
+test L0824
+pattern あ|い|うえ|おかき|く|けこさ|しすせ|そ|たち|つてとなに|ぬね
+input すせ
+group 0
+span none
+
+test L0825
+pattern あ|^わ
+input ぶあ
+group 0
+span 3-6
+
+test L0826
+pattern あ|^を
+input をあ
+group 0
+span 0-3
+
+test L0827
+pattern 鬼|\\G車
+input け車鬼
+group 0
+span 6-9
+
+test L0828
+pattern 鬼|\\G車
+input 車鬼
+group 0
+span 0-3
+
+test L0829
+pattern 鬼|\\A車
+input b車鬼
+group 0
+span 4-7
+
+test L0830
+pattern 鬼|\\A車
+input 車
+group 0
+span 0-3
+
+test L0831
+pattern 鬼|車\\Z
+input 車鬼
+group 0
+span 3-6
+
+test L0832
+pattern 鬼|車\\Z
+input 車
+group 0
+span 0-3
+
+test L0833
+pattern 鬼|車\\Z
+input 車\n
+group 0
+span 0-3
+
+test L0834
+pattern 鬼|車\\z
+input 車鬼
+group 0
+span 3-6
+
+test L0835
+pattern 鬼|車\\z
+input 車
+group 0
+span 0-3
+
+test L0836
+pattern \\w|\\s
+input お
+group 0
+span 0-3
+
+test L0837
+pattern \\w|%
+input %お
+group 0
+span 0-1
+
+test L0838
+pattern \\w|[&$]
+input う&
+group 0
+span 0-3
+
+test L0839
+pattern [い-け]
+input う
+group 0
+span 0-3
+
+test L0840
+pattern [い-け]|[^か-こ]
+input あ
+group 0
+span 0-3
+
+test L0841
+pattern [い-け]|[^か-こ]
+input か
+group 0
+span 0-3
+
+test L0842
+pattern [^あ]
+input \n
+group 0
+span 0-1
+
+test L0843
+pattern (?:あ|[う-き])|いを
+input うを
+group 0
+span 0-3
+
+test L0844
+pattern (?:あ|[う-き])|いを
+input いを
+group 0
+span 0-6
+
+test L0845
+pattern あいう|(?=けけ)..ほ
+input けけほ
+group 0
+span 0-9
+
+test L0846
+pattern あいう|(?!けけ)..ほ
+input あいほ
+group 0
+span 0-9
+
+test L0847
+pattern (?=をあ)..あ|(?=をを)..あ
+input ををあ
+group 0
+span 0-9
+
+test L0848
+pattern (?<=あ|いう)い
+input いうい
+group 0
+span 6-9
+
+test L0849
+pattern (?>あ|あいえ)う
+input あいえう
+group 0
+span none
+
+test L0850
+pattern (?>あいえ|あ)う
+input あいえう
+group 0
+span 0-12
+
+test L0851
+pattern あ?|い
+input あ
+group 0
+span 0-3
+
+test L0852
+pattern あ?|い
+input い
+group 0
+span 0-0
+
+test L0853
+pattern あ?|い
+input 
+group 0
+span 0-0
+
+test L0854
+pattern あ*|い
+input ああ
+group 0
+span 0-6
+
+test L0855
+pattern あ*|い*
+input いあ
+group 0
+span 0-0
+
+test L0856
+pattern あ*|い*
+input あい
+group 0
+span 0-3
+
+test L0857
+pattern [aあ]*|い*
+input aあいいい
+group 0
+span 0-4
+
+test L0858
+pattern あ+|い*
+input 
+group 0
+span 0-0
+
+test L0859
+pattern あ+|い*
+input いいい
+group 0
+span 0-9
+
+test L0860
+pattern あ+|い*
+input あいいい
+group 0
+span 0-3
+
+test L0861
+pattern あ+|い*
+input aあいいい
+group 0
+span 0-0
+
+test L0862
+pattern あ+|い+
+input 
+group 0
+span none
+
+test L0863
+pattern (あ|い)?
+input い
+group 0
+span 0-3
+
+test L0864
+pattern (あ|い)*
+input いあ
+group 0
+span 0-6
+
+test L0865
+pattern (あ|い)+
+input いあい
+group 0
+span 0-9
+
+test L0866
+pattern (あい|うあ)+
+input うああいうえ
+group 0
+span 0-12
+
+test L0867
+pattern (あい|うえ)+
+input うああいうえ
+group 0
+span 6-18
+
+test L0868
+pattern (あい|うあ)+
+input ああいうあ
+group 0
+span 3-15
+
+test L0869
+pattern (あい|うあ)+
+input あいをうあ
+group 0
+span 0-6
+
+test L0870
+pattern (あい|うあ)+
+input $$zzzzあいをうあ
+group 0
+span 6-12
+
+test L0871
+pattern (あ|いあい)+
+input あいあいあ
+group 0
+span 0-15
+
+test L0872
+pattern (あ|いあい)+
+input いあ
+group 0
+span 3-6
+
+test L0873
+pattern (あ|いあい)+
+input いあああいあ
+group 0
+span 3-12
+
+test L0874
+pattern (?:あ|い)(?:あ|い)
+input あい
+group 0
+span 0-6
+
+test L0875
+pattern (?:あ*|い*)(?:あ*|い*)
+input あああいいい
+group 0
+span 0-9
+
+test L0876
+pattern (?:あ*|い*)(?:あ+|い+)
+input あああいいい
+group 0
+span 0-18
+
+test L0877
+pattern (?:あ+|い+){2}
+input あああいいい
+group 0
+span 0-18
+
+test L0878
+pattern (?:あ+|い+){1,2}
+input あああいいい
+group 0
+span 0-18
+
+test L0879
+pattern (?:あ+|\\Aい*)うう
+input うう
+group 0
+span 0-6
+
+test L0880
+pattern (?:あ+|\\Aい*)うう
+input あいうう
+group 0
+span none
+
+test L0881
+pattern (?:^あ+|い+)*う
+input ああいいいあいう
+group 0
+span 18-24
+
+test L0882
+pattern (?:^あ+|い+)*う
+input ああいいいいう
+group 0
+span 0-21
+
+test L0883
+pattern う{0,}
+input うううう
+group 0
+span 0-12
+
+test L0884
+pattern あ|(?i)c
+input C
+group 0
+span 0-1
+
+test L0885
+pattern (?i)c|あ
+input C
+group 0
+span 0-1
+
+test L0886
+pattern (?i:あ)|a
+input a
+group 0
+span 0-1
+
+test L0887
+pattern (?i:あ)|a
+input A
+group 0
+span none
+
+test L0888
+pattern [あいう]?
+input あいう
+group 0
+span 0-3
+
+test L0889
+pattern [あいう]*
+input あいう
+group 0
+span 0-9
+
+test L0890
+pattern [^あいう]*
+input あいう
+group 0
+span 0-0
+
+test L0891
+pattern [^あいう]+
+input あいう
+group 0
+span none
+
+test L0894
+pattern あ*?
+input あああ
+group 0
+span 0-0
+
+test L0895
+pattern いあ*?
+input いああ
+group 0
+span 0-3
+
+test L0896
+pattern いあ*?い
+input いああい
+group 0
+span 0-12
+
+test L0897
+pattern あ+?
+input あああ
+group 0
+span 0-3
+
+test L0898
+pattern いあ+?
+input いああ
+group 0
+span 0-6
+
+test L0899
+pattern いあ+?い
+input いああい
+group 0
+span 0-12
+
+test L0902
+pattern (?:夢?)+?
+input 夢夢夢
+group 0
+span 0-3
+
+test L0908
+pattern (?:鬼車){3,}
+input 鬼車鬼車鬼車鬼車
+group 0
+span 0-24
+
+test L0909
+pattern (?:鬼車){3,}
+input 鬼車鬼車
+group 0
+span none
+
+test L0910
+pattern (?:鬼車){2,4}
+input 鬼車鬼車鬼車
+group 0
+span 0-18
+
+test L0911
+pattern (?:鬼車){2,4}
+input 鬼車鬼車鬼車鬼車鬼車
+group 0
+span 0-24
+
+test L0912
+pattern (?:鬼車){2,4}?
+input 鬼車鬼車鬼車鬼車鬼車
+group 0
+span 0-12
+
+test L0913
+pattern (?:鬼車){,}
+input 鬼車{,}
+group 0
+span 0-9
+
+test L0915
+pattern (火)
+input 火
+group 1
+span 0-3
+
+test L0916
+pattern (火水)
+input 火水
+group 1
+span 0-6
+
+test L0917
+pattern ((時間))
+input 時間
+group 0
+span 0-6
+
+test L0918
+pattern ((風水))
+input 風水
+group 1
+span 0-6
+
+test L0919
+pattern ((昨日))
+input 昨日
+group 2
+span 0-6
+
+test L0920
+pattern ((((((((((((((((((((量子))))))))))))))))))))
+input 量子
+group 20
+span 0-6
+
+test L0921
+pattern (あい)(うえ)
+input あいうえ
+group 1
+span 0-6
+
+test L0922
+pattern (あい)(うえ)
+input あいうえ
+group 2
+span 6-12
+
+test L0923
+pattern ()(あ)いう(えおか)きくけこ
+input あいうえおかきくけこ
+group 3
+span 9-18
+
+test L0924
+pattern (()(あ)いう(えおか)きくけこ)
+input あいうえおかきくけこ
+group 4
+span 9-18
+
+test L0925
+pattern .*(フォ)ン・マ(ン()シュタ)イン
+input フォン・マンシュタイン
+group 2
+span 15-27
+
+test L0926
+pattern (^あ)
+input あ
+group 0
+span 0-3
+
+test L0927
+pattern (あ)|(あ)
+input いあ
+group 1
+span 3-6
+
+test L0928
+pattern (^あ)|(あ)
+input いあ
+group 2
+span 3-6
+
+test L0929
+pattern (あ?)
+input あああ
+group 1
+span 0-3
+
+test L0930
+pattern (ま*)
+input ままま
+group 1
+span 0-9
+
+test L0931
+pattern (と*)
+input 
+group 1
+span 0-0
+
+test L0932
+pattern (る+)
+input るるるるるるる
+group 1
+span 0-21
+
+test L0933
+pattern (ふ+|へ*)
+input ふふふへへ
+group 1
+span 0-9
+
+test L0934
+pattern (あ+|い?)
+input いいいああ
+group 1
+span 0-3
+
+test L0935
+pattern (あいう)?
+input あいう
+group 1
+span 0-9
+
+test L0936
+pattern (あいう)*
+input あいう
+group 1
+span 0-9
+
+test L0937
+pattern (あいう)+
+input あいう
+group 1
+span 0-9
+
+test L0938
+pattern (さしす|あいう)+
+input あいう
+group 1
+span 0-9
+
+test L0939
+pattern ([なにぬ][かきく]|かきく)+
+input かきく
+group 1
+span 0-9
+
+test L0940
+pattern ((?i:あいう))
+input あいう
+group 1
+span 0-9
+
+test L0941
+pattern ((?s:あ.う))
+input あ\nう
+group 1
+span 0-7
+
+test L0942
+pattern ((?=あん)あ)
+input あんい
+group 1
+span 0-3
+
+test L0943
+pattern あいう|(.あいえ)
+input んあいえ
+group 1
+span 0-12
+
+test L0944
+pattern あ*(.)
+input ああああん
+group 1
+span 12-15
+
+test L0945
+pattern あ*?(.)
+input ああああん
+group 1
+span 0-3
+
+test L0946
+pattern あ*?(ん)
+input ああああん
+group 1
+span 12-15
+
+test L0947
+pattern [いうえ]あ*(.)
+input えああああん
+group 1
+span 15-18
+
+test L0948
+pattern (\\Aいい)うう
+input いいうう
+group 1
+span 0-6
+
+test L0949
+pattern (\\Aいい)うう
+input んいいうう
+group 0
+span none
+
+test L0950
+pattern (^いい)うう
+input いいうう
+group 1
+span 0-6
+
+test L0951
+pattern (^いい)うう
+input んいいうう
+group 0
+span none
+
+test L0952
+pattern ろろ(るる$)
+input ろろるる
+group 1
+span 6-12
+
+test L0953
+pattern ろろ(るる$)
+input ろろるるる
+group 0
+span none
+
+test L0954
+pattern (無)\\1
+input 無無
+group 0
+span 0-6
+
+test L0955
+pattern (無)\\1
+input 無武
+group 0
+span none
+
+test L0956
+pattern (空?)\\1
+input 空空
+group 0
+span 0-6
+
+test L0958
+pattern (空*)\\1
+input 空空空空空
+group 0
+span 0-12
+
+test L0959
+pattern (空*)\\1
+input 空空空空空
+group 1
+span 0-6
+
+test L0960
+pattern あ(い*)\\1
+input あいいいい
+group 0
+span 0-15
+
+test L0961
+pattern あ(い*)\\1
+input あい
+group 0
+span 0-3
+
+test L0962
+pattern (あ*)(い*)\\1\\2
+input あああいいあああいい
+group 0
+span 0-30
+
+test L0963
+pattern (あ*)(い*)\\2
+input あああいいいい
+group 0
+span 0-21
+
+test L0964
+pattern (あ*)(い*)\\2
+input あああいいいい
+group 2
+span 9-15
+
+test L0965
+pattern (((((((ぽ*)ぺ))))))ぴ\\7
+input ぽぽぽぺぴぽぽぽ
+group 0
+span 0-24
+
+test L0966
+pattern (((((((ぽ*)ぺ))))))ぴ\\7
+input ぽぽぽぺぴぽぽぽ
+group 7
+span 0-9
+
+test L0967
+pattern (は)(ひ)(ふ)\\2\\1\\3
+input はひふひはふ
+group 0
+span 0-18
+
+test L0968
+pattern ([き-け])\\1
+input くく
+group 0
+span 0-6
+
+test L0969
+pattern (\\w\\d\\s)\\1
+input あ5 あ5 
+group 0
+span 0-10
+
+test L0970
+pattern (\\w\\d\\s)\\1
+input あ5 あ5
+group 0
+span none
+
+test L0971
+pattern (誰？|[あ-う]{3})\\1
+input 誰？誰？
+group 0
+span 0-12
+
+test L0972
+pattern ...(誰？|[あ-う]{3})\\1
+input あaあ誰？誰？
+group 0
+span 0-19
+
+test L0973
+pattern (誰？|[あ-う]{3})\\1
+input ういうういう
+group 0
+span 0-18
+
+test L0974
+pattern (^こ)\\1
+input ここ
+group 0
+span 0-6
+
+test L0975
+pattern (^む)\\1
+input めむむ
+group 0
+span none
+
+test L0976
+pattern (あ$)\\1
+input ああ
+group 0
+span none
+
+test L0977
+pattern (あい\\Z)\\1
+input あい
+group 0
+span none
+
+test L0978
+pattern (あ*\\Z)\\1
+input あ
+group 0
+span 3-3
+
+test L0979
+pattern .(あ*\\Z)\\1
+input いあ
+group 0
+span 3-6
+
+test L0980
+pattern (.(やいゆ)\\2)
+input zやいゆやいゆ
+group 1
+span 0-19
+
+test L0981
+pattern (.(..\\d.)\\2)
+input あ12341234
+group 1
+span 0-11
+
+test L0982
+pattern ((?i:あvず))\\1
+input あvずあvず
+group 0
+span 0-14
+
+test L1007
+pattern a<b>バージョンのダウンロード<\\/b>
+input a<b>バージョンのダウンロード</b>
+group 0
+span 0-44
+
+test L1008
+pattern .<b>バージョンのダウンロード<\\/b>
+input a<b>バージョンのダウンロード</b>
+group 0
+span 0-44
+
+test L1009
+pattern \\n?\\z
+input こんにちは
+group 0
+span 15-15
+
+test L1010
+pattern (?s).*
+input 青赤黄
+group 0
+span 0-9
+
+test L1011
+pattern (?s).*a
+input 青赤黄a
+group 0
+span 0-10
+
+test L1012
+pattern \\p{Hiragana}
+input ぴ
+group 0
+span 0-3
+
+test L1014
+pattern \\P{Hiragana}
+input ぴ
+group 0
+span none
+
+test L1015
+pattern \\p{Emoji}
+input ⭐
+group 0
+span 0-3
+
+test L1016
+pattern \\p{^Emoji}
+input ３
+group 0
+span 0-3
+
+test L1017
+pattern \\p{Extended_Pictographic}
+input ⚡
+group 0
+span 0-3
+
+test L1018
+pattern \\p{Extended_Pictographic}
+input あ
+group 0
+span none
+
+test L1019
+pattern \\p{Word}
+input こ
+group 0
+span 0-3
+
+test L1021
+pattern \\p{^Word}
+input こ
+group 0
+span none
+
+test L1022
+pattern [\\p{Word}]
+input こ
+group 0
+span 0-3
+
+test L1023
+pattern [\\p{^Word}]
+input こ
+group 0
+span none
+
+test L1024
+pattern [^\\p{Word}]
+input こ
+group 0
+span none
+
+test L1025
+pattern [^\\p{^Word}]
+input こ
+group 0
+span 0-3
+
+test L1033
+pattern [^\\x{104a}]
+input こ
+group 0
+span 0-3
+
+test L1037
+pattern \\p{^Cntrl}
+input こ
+group 0
+span 0-3
+
+test L1039
+pattern \\p{Cntrl}
+input こ
+group 0
+span none
+
+test L1040
+pattern [\\p{^Cntrl}]
+input こ
+group 0
+span 0-3
+
+test L1041
+pattern [\\p{Cntrl}]
+input こ
+group 0
+span none
+
+test L1042
+pattern [^\\p{^Cntrl}]
+input こ
+group 0
+span none
+
+test L1043
+pattern [^\\p{Cntrl}]
+input こ
+group 0
+span 0-3
+
+test L1054
+pattern (?-W:\\p{Word})
+input こ
+group 0
+span 0-3
+
+test L1056
+pattern (?W:\\p{Word})
+input こ
+group 0
+span none
+
+test L1057
+pattern (?W:\\p{Word})
+input k
+group 0
+span 0-1
+
+test L1058
+pattern (?-W:[[:word:]])
+input こ
+group 0
+span 0-3
+
+test L1059
+pattern (?W:[[:word:]])
+input こ
+group 0
+span none
+
+test L1060
+pattern (?-D:\\p{Digit})
+input ３
+group 0
+span 0-3
+
+test L1061
+pattern (?D:\\p{Digit})
+input ３
+group 0
+span none
+
+test L1062
+pattern (?-S:\\p{Space})
+input 
+group 0
+span 0-2
+
+test L1063
+pattern (?S:\\p{Space})
+input 
+group 0
+span none
+
+test L1064
+pattern (?-P:\\p{Word})
+input こ
+group 0
+span 0-3
+
+test L1065
+pattern (?P:\\p{Word})
+input こ
+group 0
+span none
+
+test L1066
+pattern (?-W:\\w)
+input こ
+group 0
+span 0-3
+
+test L1067
+pattern (?W:\\w)
+input こ
+group 0
+span none
+
+test L1068
+pattern (?-W:\\w)
+input k
+group 0
+span 0-1
+
+test L1069
+pattern (?W:\\w)
+input k
+group 0
+span 0-1
+
+test L1070
+pattern (?-W:\\W)
+input こ
+group 0
+span none
+
+test L1071
+pattern (?W:\\W)
+input こ
+group 0
+span 0-3
+
+test L1072
+pattern (?-W:\\W)
+input k
+group 0
+span none
+
+test L1073
+pattern (?W:\\W)
+input k
+group 0
+span none
+
+test L1074
+pattern (?-W:\\b)
+input こ
+group 0
+span 0-0
+
+test L1076
+pattern (?W:\\b)
+input こ
+group 0
+span none
+
+test L1077
+pattern (?-W:\\b)
+input h
+group 0
+span 0-0
+
+test L1078
+pattern (?W:\\b)
+input h
+group 0
+span 0-0
+
+test L1079
+pattern (?-W:\\B)
+input こ
+group 0
+span none
+
+test L1080
+pattern (?W:\\B)
+input こ
+group 0
+span 0-0
+
+test L1081
+pattern (?-W:\\B)
+input h
+group 0
+span none
+
+test L1082
+pattern (?W:\\B)
+input h
+group 0
+span none
+
+test L1083
+pattern (?-P:\\b)
+input こ
+group 0
+span 0-0
+
+test L1084
+pattern (?P:\\b)
+input こ
+group 0
+span none
+
+test L1085
+pattern (?-P:\\b)
+input h
+group 0
+span 0-0
+
+test L1086
+pattern (?P:\\b)
+input h
+group 0
+span 0-0
+
+test L1087
+pattern (?-P:\\B)
+input こ
+group 0
+span none
+
+test L1088
+pattern (?P:\\B)
+input こ
+group 0
+span 0-0
+
+test L1089
+pattern (?-P:\\B)
+input h
+group 0
+span none
+
+test L1090
+pattern (?P:\\B)
+input h
+group 0
+span none
+
+test L1091
+pattern \\p{InBasicLatin}
+input A
+group 0
+span 0-1
+
+test L1174
+pattern \\x40
+input @
+group 0
+span 0-1
+
+test L1176
+pattern \\x1
+input \x01
+group 0
+span 0-1
+
+test L1177
+pattern \\x{1}
+input \x01
+group 0
+span 0-1
+
+test L1178
+pattern \\x{4E38}
+input 丸
+group 0
+span 0-3
+
+test L1179
+pattern \\u4E38
+input 丸
+group 0
+span 0-3
+
+test L1180
+pattern \\u0040
+input @
+group 0
+span 0-1
+
+test L1181
+pattern c.*\\b
+input abc
+group 0
+span 2-3
+
+test L1183
+pattern \\b.*abc.*\\b
+input abc
+group 0
+span 0-3
+
+test L1185
+pattern (*FAIL)
+input abcdefg
+group 0
+span none
+
+test L1187
+pattern abcd(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)
+input abcdefg
+group 0
+span none
+
+test L1188
+pattern (?:[ab]|(*MAX{2}).)*
+input abcbaaccaaa
+group 0
+span 0-7
+
+test L1189
+pattern (?:(*COUNT[AB]{X})[ab]|(*COUNT[CD]{X})[cd])*(*CMP{AB,<,CD})
+input abababcdab
+group 0
+span 5-8
+
+test L1191
+pattern (?(?{....})123|456)
+input 123
+group 0
+span 0-3
+
+test L1192
+pattern (?(*FAIL)123|456)
+input 456
+group 0
+span 0-3
+
+test L1201
+pattern \\p{Common}
+input ㋿
+group 0
+span 0-3
+
+test L1204
+pattern \\p{In_Enclosed_CJK_Letters_and_Months}
+input ㋿
+group 0
+span 0-3

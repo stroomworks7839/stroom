@@ -45,7 +45,9 @@ The dialect follows Rust's `regex` rather than Perl's inheritance: `$` is the en
 `\w \d \s \b` are Unicode unless `(?-u)` says otherwise, `\p{...}` means Unicode properties
 and the ASCII POSIX classes are spelt `[[:alpha:]]`. Rust's own warts are declined, and both the
 choices and the refusals are listed in [design/01-regex-language.md](design/01-regex-language.md)
-§2.4. Rust's test corpus runs as part of the suite.
+§2.4. Rust's test corpus runs as part of the suite, and Oniguruma's UTF-8 suite covers the
+fancy tier — a backtracking engine's own corpus, dense in exactly the constructs the Rust one
+deliberately has none of.
 
 Also built: streaming (`StreamMatcher`, and a three-way `MATCH`/`NO_MATCH`/`NEED_MORE_INPUT`
 outcome so a partial window is never mistaken for a decided one) and the combinator layer

@@ -294,6 +294,11 @@ public final class Parser {
                 }
                 name = pattern.substring(pos + 2, close);
                 pos = close + 1;
+                // Both reference dialects refuse a reused name, and \k<name> would silently
+                // bind to the first occurrence here if this did not.
+                if (groupNames.contains(name)) {
+                    throw fail(Reason.SYNTAX, "duplicate group name '" + name + "'", start);
+                }
                 index = ++groupCount;
                 groupNames.add(name);
             } else {

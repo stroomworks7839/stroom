@@ -323,6 +323,7 @@ outside the searched span, while this engine's region start *is* the start of th
 | `BytePatternTest` | 35 | Matching, rejection reasons, plan specialisation, the dialect's Unicode defaults |
 | `CombinatorTest` | 15 | Compositions compile to the same plan as the equivalent regex |
 | `RustCorpusTest` | 1 | 409 cases from the Rust `regex` corpus |
+| `OnigurumaCorpusTest` | 1 | 622 cases from Oniguruma's UTF-8 suite, 122 of them on the fancy tier |
 | `CorpusAnalysisTest` | 1 | Classifies this repository's own DS3 fixtures by tier |
 | `KnownDivergenceTest` | 4 | The remaining divergence, and the two fixed ones, pinned |
 | `ScannersTest` | 3 | The hand-written scanners the baseline benchmarks measure |

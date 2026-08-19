@@ -93,7 +93,20 @@ public class CorpusBenchmark {
                 "key%02d:value with spaces %02d"),
         /** Ambiguous — overlapping alternation, the quoted-or-unquoted field problem. */
         TIER1_ALTERNATION("^(\"[^\"]*\"|[^ ]+) (\"[^\"]*\"|[^ ]+) (.*)$",
-                "\"quoted %02d\" unquoted%02d the rest of the record");
+                "\"quoted %02d\" unquoted%02d the rest of the record"),
+        /**
+         * Fancy — a backreference, so this runs on the unbounded backtracker against the JDK's
+         * own backtracker: the one comparison where the JDK plays at home and the only edge
+         * available is byte-level execution against a decoded String.
+         */
+        FANCY_BACKREF("^(\\w+)=(\\w+);\\1=(\\w+)$",
+                "host%02d=alpha;host%02d=beta"),
+        /** Fancy — the lookahead shape of the harvested log-splitter patterns. */
+        FANCY_LOOKAHEAD("^(\\w+): (?=.*\\berror\\b)(.*)$",
+                "app%02d: failure error code %d"),
+        /** Fancy — possessive classes, the harvested atomic-group field shape. */
+        FANCY_ATOMIC("^([\\w ]++),(\\d++),(\\S+)$",
+                "alpha beta %02d,42%d,tail-data");
 
         private final String pattern;
         private final String template;
@@ -101,6 +114,14 @@ public class CorpusBenchmark {
         Workload(final String pattern, final String template) {
             this.pattern = pattern;
             this.template = template;
+        }
+
+        String pattern() {
+            return pattern;
+        }
+
+        String template() {
+            return template;
         }
     }
 

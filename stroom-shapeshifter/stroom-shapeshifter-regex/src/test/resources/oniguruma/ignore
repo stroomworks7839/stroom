@@ -1,0 +1,27 @@
+# Cases that compile here but ask a question the two dialects answer differently.
+# One line per case: <name><tab><reason>. Names are source lines in test_utf8.c.
+#
+# Full case folding: Oniguruma folds across expansions, so (?i)ss matches ß and (?i)ß
+# matches SS. This dialect folds simply — one code point to one code point — as Rust's
+# regex and the JDK both do.
+L0291	Oniguruma full case folding: (?i)ss matches ß
+L0293	Oniguruma full case folding: (?i)ss matches ẞ
+L0299	Oniguruma full case folding: (?i)ss matches ß
+L0300	Oniguruma full case folding: (?i)ss matches ẞ
+L0301	Oniguruma full case folding: (?i)ß matches ss
+L0302	Oniguruma full case folding: (?i)ß matches SS
+L0303	Oniguruma full case folding: (?i)[ß] matches ss
+L0304	Oniguruma full case folding: (?i)[ß] matches SS
+#
+# Bare inline flags: Oniguruma scopes a(?i)b|c as a(?i:b|c) — the flag opens a group that
+# swallows the rest of the alternation, changing which branch the 'a' belongs to. Here, as
+# in Perl and the JDK, the flag runs to the end of the enclosing group without regrouping.
+L0424	Oniguruma regroups a bare inline flag: a(?i)b|c is a(?i:b|c)
+L0425	Oniguruma regroups a bare inline flag: a(?i)b|c is a(?i:b|c)
+#
+# A backreference to a group that did not participate matches empty in Oniguruma. Here it
+# fails to match, as in the JDK and fancy-regex.
+L0582	Oniguruma matches an unset backreference as empty
+L0587	Oniguruma matches an unset backreference as empty
+L0588	Oniguruma matches an unset backreference as empty
+L0635	Oniguruma matches an unset backreference as empty

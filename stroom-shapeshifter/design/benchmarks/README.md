@@ -37,3 +37,13 @@ is the check that would have caught the false 7% result described in
 | `BranchOrderBenchmark` | Alternation branch ordering | Whether branch order is worth optimising |
 
 Runs are machine-specific. Compare files from the same machine, or not at all.
+
+## Comparability breaks
+
+Changes that alter what a benchmark measures, so scores from either side of them are not
+comparable even on the same machine:
+
+- **D27 (the fancy tier)** grew `PatternCorpusBenchmark`'s accepted set from 106 to 109
+  patterns — the three formerly-rejected corpus patterns now compile and run inside their
+  categories — and added the three `FANCY_*` workloads to `CorpusBenchmark`. Runs recorded
+  before that commit measure a smaller corpus under the same names.
