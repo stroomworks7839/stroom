@@ -111,6 +111,45 @@ public final class Utf8 {
         return 0;
     }
 
+    /**
+     * Decodes the code point starting at {@code pos}, or -1 if the sequence is malformed or runs
+     * past {@code limit}. For the backreference comparison, which is the one place the engine
+     * reads characters back out of the input rather than matching bytes forward.
+     */
+    public static int decode(final byte[] data, final int pos, final int limit) {
+        final int lead = data[pos] & 0xFF;
+        if (lead < 0x80) {
+            return lead;
+        }
+        final int length = sequenceLength(lead);
+        if (length == 0 || pos + length > limit) {
+            return -1;
+        }
+        int codePoint = lead & (0x3F >> (length - 1));
+        for (int i = 1; i < length; i++) {
+            final int next = data[pos + i] & 0xFF;
+            if ((next & 0xC0) != 0x80) {
+                return -1;
+            }
+            codePoint = (codePoint << 6) | (next & 0x3F);
+        }
+        return codePoint;
+    }
+
+    /** How many bytes {@link #decode} consumed for this code point. */
+    public static int encodedLength(final int codePoint) {
+        if (codePoint < 0x80) {
+            return 1;
+        }
+        if (codePoint < 0x800) {
+            return 2;
+        }
+        if (codePoint < 0x10000) {
+            return 3;
+        }
+        return 4;
+    }
+
     public static byte[] encode(final int codePoint) {
         return new String(Character.toChars(codePoint)).getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }

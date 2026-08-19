@@ -311,9 +311,10 @@ class DifferentialTest {
     }
 
     /**
-     * The invariant the whole design rests on, over three engines rather than two.
+     * The invariant the whole design rests on, over every engine that can run a pattern.
      * <p>
-     * A scan plan, a bounded backtracker and an NFA simulation must produce identical results —
+     * A scan plan, a bounded backtracker, an NFA simulation and the unbounded backtracker must
+     * produce identical results —
      * same match, same span, same groups, same non-participation — on every input. Two of them
      * are from different algorithm families entirely, depth-first with backtracking against
      * breadth-first in lockstep, so a bug that produced the same wrong answer in both would have
@@ -332,6 +333,8 @@ class DifferentialTest {
                     BytePattern.compileForcing(Engine.BACKTRACK, pattern, Set.of());
             final BytePattern simulate =
                     BytePattern.compileForcing(Engine.SIMULATE, pattern, Set.of());
+            final BytePattern fancy =
+                    BytePattern.compileForcing(Engine.FANCY, pattern, Set.of());
             final Pattern javaPattern = JdkOracle.compile(pattern);
             final BytePattern scanPlan = BytePattern.compile(pattern);
 
@@ -340,6 +343,7 @@ class DifferentialTest {
                 assertAgree(backtrack, javaPattern, pattern, input);
                 assertAgree(simulate, javaPattern, pattern, input);
                 assertSameResult(backtrack, simulate, pattern, input);
+                assertSameResult(simulate, fancy, pattern, input);
                 if (scanPlan.tier() == Engine.SCAN_PLAN.ordinal()) {
                     assertSameResult(scanPlan, backtrack, pattern, input);
                 }
@@ -368,6 +372,52 @@ class DifferentialTest {
                 final String input = randomAscii(random);
                 assertAgree(backtrack, javaPattern, pattern, input);
                 assertSameResult(backtrack, simulate, pattern, input);
+            }
+        }
+    }
+
+    /**
+     * The constructs beyond the RE2 subset, against the JDK — which supports every one of them
+     * natively, so it is a true oracle here rather than a translation. This is where the fancy
+     * tier's semantics are established: backreference participation, lookbehind lengths, atomic
+     * commitment, the folding rules — all as the JDK means them.
+     */
+    @ParameterizedTest
+    @ValueSource(ints = {51, 52, 53})
+    void fancyConstructsAgreeWithJavaRegex(final int seed) {
+        final List<String> patterns = List.of(
+                "(\\w+) \\1",
+                "^(a+)\\1$",
+                "(a|b)\\1",
+                "(?:(a)|b)\\1",
+                "^(\\2two|(one))+$",
+                "(x+)(x+)\\2",
+                "(?i)(\\w+) \\1",
+                "(a)(?i:\\1)",
+                "foo(?=bar)",
+                "foo(?!bar)",
+                "(?=(a+))a*b",
+                "(?<=a)b",
+                "(?<!a)b",
+                "(?<=ab|x)c",
+                "(?<=(a{1,3}))b",
+                "(?>a|ab)c",
+                "(?>a+)ab",
+                "a*+b",
+                "a?+ab",
+                "([\\w ]+)((?>,|$))",
+                "\\Qa.b\\E.");
+        final Random random = new Random(seed);
+        for (final String pattern : patterns) {
+            final BytePattern bytePattern = BytePattern.compile(pattern);
+            if (!pattern.contains("\\Q")) { // quoting alone is not fancy
+                assertThat(bytePattern.engine())
+                        .as("%s should need the fancy tier", pattern)
+                        .isEqualTo(Engine.FANCY);
+            }
+            final Pattern javaPattern = JdkOracle.compile(pattern);
+            for (int i = 0; i < 300; i++) {
+                assertAgree(bytePattern, javaPattern, pattern, randomAscii(random));
             }
         }
     }

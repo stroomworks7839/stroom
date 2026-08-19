@@ -29,6 +29,14 @@ catastrophic backtracking is unrepresentable rather than merely unlikely. Result
 whichever engine runs — `explain()` reports the engine, and `ambiguities()` says why a pattern
 needed an automaton, which is often an authoring mistake worth seeing.
 
+Beyond the subset, the constructs that are not regular — backreferences, lookaround, atomic
+groups and possessive quantifiers — run on a fourth engine, an unbounded backtracker that only
+patterns containing one of them ever reach. Writing `\1` is the opt-in, and the linear-time
+guarantee is exchanged for a step budget: a pathological pattern raises `MatchLimitException`
+after bounded work instead of hanging a pipeline. This closes the capability gap with
+`java.util.regex` without a delegated second dialect, and with the same Rust-style spellings
+throughout.
+
 Character classes are compiled through UTF-8, so `.` and `[a-zé]` match whole characters and a
 span never splits one, while ASCII-only classes and unbounded scans keep a byte-level fast path.
 A match never begins inside a character, not even an empty one.

@@ -70,6 +70,9 @@ public final class Normalise {
                     normalise(group.body()), group.index(), group.name());
             case Hir.Repeat repeat -> new Hir.Repeat(
                     normalise(repeat.body()), repeat.min(), repeat.max(), repeat.greedy());
+            case Hir.Look look -> new Hir.Look(
+                    normalise(look.body()), look.behind(), look.negated());
+            case Hir.Atomic atomic -> new Hir.Atomic(normalise(atomic.body()));
             default -> node;
         };
     }

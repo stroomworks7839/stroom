@@ -283,6 +283,10 @@ public final class PlanRunner {
             case NOT_WORD_BOUNDARY -> !Words.atBoundary(data, regionFrom, to, cursor, true);
             case WORD_BOUNDARY_ASCII -> Words.atBoundary(data, regionFrom, to, cursor, false);
             case NOT_WORD_BOUNDARY_ASCII -> !Words.atBoundary(data, regionFrom, to, cursor, false);
+            // \G makes a pattern fancy, and a fancy pattern is never one-pass, so it cannot
+            // reach a scan plan.
+            case PREVIOUS_MATCH_END -> throw new IllegalStateException(
+                    "\\G reached an engine that cannot evaluate it");
         };
     }
 }

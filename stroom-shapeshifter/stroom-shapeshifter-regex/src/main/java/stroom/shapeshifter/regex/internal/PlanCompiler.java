@@ -139,6 +139,15 @@ public final class PlanCompiler {
             case Hir.Alt alt -> emitAlternation(alt);
 
             case Hir.Repeat repeat -> emitRepeat(repeat);
+
+            // Fancy constructs are never one-pass — Analysis reports a violation for each — so
+            // they cannot reach the plan compiler.
+            case Hir.Backref ignored -> throw new IllegalStateException(
+                    "a backreference cannot compile to a scan plan");
+            case Hir.Look ignored -> throw new IllegalStateException(
+                    "lookaround cannot compile to a scan plan");
+            case Hir.Atomic ignored -> throw new IllegalStateException(
+                    "an atomic group cannot compile to a scan plan");
         }
     }
 

@@ -81,6 +81,10 @@ containment via a `charAt`-counting budget plus catching `StackOverflowError`. *
 selected automatically** — a distinct element type, gated by a deployment capability, with a
 compiler warning when a pattern did not need it. See [01-regex-language.md §8](01-regex-language.md).
 
+Superseded by [D27](#d27--the-fancy-tier-backreferences-and-lookaround-run-natively): once D25
+had built a bounded backtracker, building the unbounded one stopped being the largest item on
+the books, and the delegation lost its reason to exist.
+
 ---
 
 ## D8 — Compose at authoring time, flatten at compile time
@@ -606,6 +610,51 @@ would otherwise never run the simulation on short inputs; the three-way agreemen
 correctness argument. Programs with the empty-iteration guard always simulate. The residual
 syslog −7.5% and fixedwidth −1.7% are accepted and recorded rather than mitigated with a
 compile-time heuristic.
+
+---
+
+## D27 — The fancy tier: backreferences and lookaround run natively
+
+*2026-08-19.* Supersedes [D7](#d7--javautilregex-is-a-supported-second-dialect). The constructs
+outside the RE2 subset — backreferences (`\1`, `\k<name>`), lookahead, bounded lookbehind,
+atomic groups and possessive quantifiers, plus `\Q...\E` and `\G` — compile and run natively
+on a fourth engine, `Engine.FANCY`: unbounded backtracking over the same NFA program the other
+automaton engines share. The architecture is fancy-regex's — a backtracker layered on an
+RE2-style core, taking only the patterns whose syntax asks for it — which is also the answer to
+"whose spelling?", since Rust's `regex` deliberately has no backreferences at all.
+
+D7's reasoning was sound when it was made: an unbounded backtracker was the largest item it was
+possible to delete. [D25](#d25--a-bounded-backtracker-rather-than-a-lazy-dfa) changed the
+arithmetic — with a bounded backtracker built, the unbounded variant is the same interpreter
+loop minus the visited set, plus nested sub-matching. The visited set *cannot* survive
+backreferences (two arrivals at one (instruction, position) genuinely differ by capture state;
+the problem is NP-complete), which is why this is a separate engine rather than a mode of D25's:
+the bound is replaced by a step budget, and a pathological pattern-input pair raises
+`MatchLimitException` after bounded work. That is D7's §8.3 containment, kept, without the
+decode boundary, the `hitEnd()` conservatism or the `StackOverflowError` catching.
+
+What decided the shape, empirically: the harvested corpus's three `java dialect` patterns use
+atomic groups and lookahead — **zero backreferences** — so a backref-only tier would have closed
+none of the observed gap. All three now compile natively.
+
+**Consequences:**
+
+- One dialect. The `javaRegex` element, its decoding boundary and its capability gate are no
+  longer needed; [01-regex-language.md §8](01-regex-language.md) is kept as the record of the
+  superseded design.
+- Entry to the tier is the pattern's own syntax, never a fallback: no cost model, no surprise.
+  `explain()` names it, and the linear-time guarantee now reads "every pattern without a fancy
+  construct".
+- The streaming contract survives unchanged — conservative `NEED_MORE_INPUT` whenever any
+  explored path touched a growable window's edge — except that a lookbehind's sub-match, which
+  ends at the cursor by definition, does not record edge contact.
+- Lookbehind is bounded-length only, backrefs inside lookbehind are refused (no static length),
+  and case-insensitive backrefs compare by the JDK's folding rule so the oracle stays usable on
+  that corner.
+- The four-engine differential (`compileForcing` pins `FANCY` onto any NFA pattern) extends the
+  correctness argument; the JDK is a true oracle here since it supports every one of these
+  constructs natively.
+- `Reason.NOT_RE2` is deleted: nothing is refused for being outside RE2 any more.
 
 ---
 

@@ -29,9 +29,9 @@ import java.util.Set;
 /**
  * Parses a pattern into {@link Hir}.
  * <p>
- * Accepts the whole surface syntax so that constructs outside the RE2 subset are reported
- * precisely — {@code Reason.NOT_RE2} naming the construct — rather than surfacing as a syntax
- * error. Anything valid but not yet implemented is {@code Reason.UNSUPPORTED}, never a silent
+ * Accepts the whole surface syntax, including the constructs beyond the RE2 subset —
+ * backreferences, lookaround, atomic groups — which compile to the fancy tier rather than being
+ * refused. Anything valid but not yet implemented is {@code Reason.UNSUPPORTED}, never a silent
  * approximation.
  */
 public final class Parser {
@@ -45,6 +45,10 @@ public final class Parser {
     private int pos;
     private int groupCount;
     private final List<String> groupNames = new ArrayList<>();
+
+    /** Numeric backreferences seen, as (group, position) pairs — validated after the whole
+     * pattern is parsed, because a reference ahead of its group is legal: {@code (\2two|(one))+}. */
+    private final List<int[]> backrefs = new ArrayList<>();
 
     private Parser(final String pattern, final Set<Flag> flags) {
         this.pattern = pattern;
@@ -60,6 +64,7 @@ public final class Parser {
         if (parser.pos < pattern.length()) {
             throw parser.fail(Reason.SYNTAX, "unbalanced ')'");
         }
+        parser.validateBackrefs();
         return new Result(root, parser.groupCount, parser.groupNames);
     }
 
@@ -75,6 +80,7 @@ public final class Parser {
         if (parser.pos < pattern.length()) {
             throw parser.fail(Reason.SYNTAX, "unbalanced ')'");
         }
+        parser.validateBackrefs();
         return new Result(root, parser.groupCount, parser.groupNames);
     }
 
@@ -178,18 +184,24 @@ public final class Parser {
         }
 
         boolean greedy = true;
+        boolean possessive = false;
         if (pos < pattern.length()) {
             if (peek() == '?') {
                 greedy = false;
                 pos++;
             } else if (peek() == '+') {
-                throw fail(Reason.NOT_RE2, "possessive quantifier — use the java dialect");
+                // a*+ is (?>a*): match greedily, then never give anything back.
+                possessive = true;
+                pos++;
             }
         }
         if (max != Hir.Repeat.UNBOUNDED && max < min) {
             throw fail(Reason.SYNTAX, "repetition maximum is below its minimum", atomStart);
         }
-        return new Hir.Repeat(atom, min, max, greedy);
+        final Hir repeat = new Hir.Repeat(atom, min, max, greedy);
+        return possessive
+                ? new Hir.Atomic(repeat)
+                : repeat;
     }
 
     /** Returns {min, max}, or null if this is not a bounds expression and '{' is a literal. */
@@ -259,11 +271,22 @@ public final class Parser {
             if (pattern.startsWith("(?:", start)) {
                 pos += 2;
             } else if (pattern.startsWith("(?=", start) || pattern.startsWith("(?!", start)) {
-                throw fail(Reason.NOT_RE2, "lookahead — use peek()/not() or the java dialect", start);
+                final boolean negated = pattern.charAt(start + 2) == '!';
+                pos += 2;
+                final Hir body = parseAlternation();
+                expect(')', start);
+                return new Hir.Look(body, false, negated);
             } else if (pattern.startsWith("(?<=", start) || pattern.startsWith("(?<!", start)) {
-                throw fail(Reason.NOT_RE2, "lookbehind — use the java dialect", start);
+                final boolean negated = pattern.charAt(start + 3) == '!';
+                pos += 3;
+                final Hir body = parseAlternation();
+                expect(')', start);
+                return new Hir.Look(body, true, negated);
             } else if (pattern.startsWith("(?>", start)) {
-                throw fail(Reason.NOT_RE2, "atomic group — use the java dialect", start);
+                pos += 2;
+                final Hir body = parseAlternation();
+                expect(')', start);
+                return new Hir.Atomic(body);
             } else if (pattern.startsWith("(?<", start)) {
                 final int close = pattern.indexOf('>', pos);
                 if (close < 0) {
@@ -394,10 +417,29 @@ public final class Parser {
                 return literal(parseUnicode(start));
             }
             case 'Q' -> {
-                throw fail(Reason.UNSUPPORTED, "\\Q...\\E is not implemented yet", start);
+                return parseQuoted(start);
             }
             case 'G' -> {
-                throw fail(Reason.UNSUPPORTED, "\\G is not implemented yet", start);
+                return new Hir.Assertion(Hir.Kind.PREVIOUS_MATCH_END);
+            }
+            case 'k' -> {
+                if (peek() != '<') {
+                    throw fail(Reason.SYNTAX, "\\k must be followed by <name>", start);
+                }
+                final int close = pattern.indexOf('>', pos);
+                if (close < 0) {
+                    throw fail(Reason.SYNTAX, "unterminated \\k<name>", start);
+                }
+                final String name = pattern.substring(pos + 1, close);
+                pos = close + 1;
+                // A named group must already exist — the JDK's rule too. Numeric references may
+                // point ahead, but a name that has not been seen is far more likely a typo.
+                final int index = groupNames.indexOf(name);
+                if (index <= 0) {
+                    throw fail(Reason.SYNTAX,
+                            "there is no group named '" + name + "' before this reference", start);
+                }
+                return backref(index);
             }
             case 'p', 'P' -> {
                 final CodePointSet set = fold(parseUnicodeClass(start));
@@ -407,7 +449,17 @@ public final class Parser {
             }
             default -> {
                 if (c >= '1' && c <= '9') {
-                    throw fail(Reason.NOT_RE2, "backreference — use the java dialect", start);
+                    // Greedy, like the JDK: \12 is group 12 if the pattern has one, else
+                    // group 1 followed by a literal '2'. Validated against the total group
+                    // count after the parse, since a reference may run ahead of its group.
+                    int index = c - '0';
+                    while (pos < pattern.length() && Character.isDigit(peek())
+                           && index * 10 + (peek() - '0') <= countGroups()) {
+                        index = index * 10 + (peek() - '0');
+                        pos++;
+                    }
+                    backrefs.add(new int[]{index, start});
+                    return backref(index);
                 }
                 return literal(c); // escaped metacharacter
             }
@@ -599,6 +651,68 @@ public final class Parser {
     // -----------------------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------------------
+
+    private Hir backref(final int index) {
+        return new Hir.Backref(index,
+                flags.contains(Flag.CASE_INSENSITIVE),
+                flags.contains(Flag.UNICODE));
+    }
+
+    /** Capturing groups in the whole pattern, counted without disturbing the parse position. */
+    private int countGroups() {
+        int count = 0;
+        boolean escaped = false;
+        boolean inClass = false;
+        for (int i = 0; i < pattern.length(); i++) {
+            final char c = pattern.charAt(i);
+            if (escaped) {
+                escaped = false;
+            } else if (c == '\\') {
+                escaped = true;
+            } else if (inClass) {
+                inClass = c != ']';
+            } else if (c == '[') {
+                inClass = true;
+            } else if (c == '(' && (i + 1 >= pattern.length() || pattern.charAt(i + 1) != '?')) {
+                count++;
+            } else if (pattern.startsWith("(?<", i) && i + 3 < pattern.length()
+                       && pattern.charAt(i + 3) != '=' && pattern.charAt(i + 3) != '!') {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private void validateBackrefs() {
+        for (final int[] ref : backrefs) {
+            if (ref[0] > groupCount) {
+                throw fail(Reason.SYNTAX, "there is no group " + ref[0], ref[1]);
+            }
+        }
+    }
+
+    /** {@code \Q...\E} — everything up to {@code \E} (or the end) matches literally. */
+    private Hir parseQuoted(final int start) {
+        int end = pattern.indexOf("\\E", pos);
+        if (end < 0) {
+            end = pattern.length();
+        }
+        final List<Hir> items = new ArrayList<>();
+        int at = pos;
+        while (at < end) {
+            final int codePoint = pattern.codePointAt(at);
+            at += Character.charCount(codePoint);
+            items.add(literal(codePoint));
+        }
+        pos = end < pattern.length()
+                ? end + 2
+                : end;
+        return switch (items.size()) {
+            case 0 -> new Hir.Empty();
+            case 1 -> items.getFirst();
+            default -> new Hir.Concat(items);
+        };
+    }
 
     private void expect(final char c, final int start) {
         if (pos >= pattern.length() || pattern.charAt(pos) != c) {

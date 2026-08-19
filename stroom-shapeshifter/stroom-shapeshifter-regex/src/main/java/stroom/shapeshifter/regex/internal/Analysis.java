@@ -130,6 +130,16 @@ public final class Analysis {
             }
             case Hir.Assertion ignored -> {
             }
+            case Hir.Backref ignored ->
+                    out.add(new Violation("backreference", "what it matches depends on what was "
+                            + "captured, which no forward-only scan can know"));
+            case Hir.Look ignored ->
+                    out.add(new Violation("lookaround", "requires a nested match"));
+            case Hir.Atomic atomic -> {
+                out.add(new Violation("atomic group", "backtracking control, and a scan plan "
+                        + "does not backtrack"));
+                check(atomic.body(), follow, canEnd, boundaryFollows, out);
+            }
             case Hir.Group group -> check(group.body(), follow, canEnd, boundaryFollows, out);
 
             case Hir.Concat concat -> {
@@ -314,6 +324,10 @@ public final class Analysis {
                 }
             }
             case Hir.CharClass charClass -> result.or(charClass.leadBytes());
+            case Hir.Backref ignored -> result.set(0, 256); // could match anything it captured
+            case Hir.Look ignored -> {
+            }
+            case Hir.Atomic atomic -> result.or(first(atomic.body()));
             case Hir.Group group -> result.or(first(group.body()));
             case Hir.Repeat repeat -> result.or(first(repeat.body()));
             case Hir.Alt alt -> alt.branches().forEach(branch -> result.or(first(branch)));
@@ -335,10 +349,103 @@ public final class Analysis {
             case Hir.Assertion ignored -> true;
             case Hir.Bytes bytes -> bytes.value().length == 0;
             case Hir.CharClass ignored -> false;
+            case Hir.Backref ignored -> true; // the group may have captured the empty string
+            case Hir.Look ignored -> true;
+            case Hir.Atomic atomic -> nullable(atomic.body());
             case Hir.Group group -> nullable(group.body());
             case Hir.Repeat repeat -> repeat.min() == 0 || nullable(repeat.body());
             case Hir.Alt alt -> alt.branches().stream().anyMatch(Analysis::nullable);
             case Hir.Concat concat -> concat.items().stream().allMatch(Analysis::nullable);
+        };
+    }
+
+    /**
+     * True if the pattern contains a construct only the unbounded backtracker can run: a
+     * backreference, lookaround, an atomic group, or {@code \G}. Decided on the HIR rather
+     * than the compiled program so that {@code BytePattern} can pick the engine before deciding
+     * how to compile.
+     */
+    public static boolean fancy(final Hir node) {
+        return switch (node) {
+            case Hir.Backref ignored -> true;
+            case Hir.Look ignored -> true;
+            case Hir.Atomic ignored -> true;
+            case Hir.Assertion assertion -> assertion.kind() == Hir.Kind.PREVIOUS_MATCH_END;
+            case Hir.Group group -> fancy(group.body());
+            case Hir.Repeat repeat -> fancy(repeat.body());
+            case Hir.Concat concat -> concat.items().stream().anyMatch(Analysis::fancy);
+            case Hir.Alt alt -> alt.branches().stream().anyMatch(Analysis::fancy);
+            default -> false;
+        };
+    }
+
+    /** Sentinel for {@link #byteLength}: no finite upper bound. */
+    public static final int UNBOUNDED_LENGTH = Integer.MAX_VALUE;
+
+    /**
+     * The minimum and maximum number of bytes a match of this node can span, with
+     * {@link #UNBOUNDED_LENGTH} for "no maximum". What makes bounded lookbehind implementable:
+     * the candidate start positions for a match ending at the cursor are exactly
+     * {@code [cursor - max, cursor - min]}.
+     * <p>
+     * A backreference has no static length at all, which is why a lookbehind containing one is
+     * refused at compile time — the same rule, for the same reason, as the JDK's "obvious
+     * maximum length" restriction.
+     */
+    public static int[] byteLength(final Hir node) {
+        return switch (node) {
+            case Hir.Empty ignored -> new int[]{0, 0};
+            case Hir.Assertion ignored -> new int[]{0, 0};
+            case Hir.Look ignored -> new int[]{0, 0};
+            case Hir.Bytes bytes -> new int[]{bytes.value().length, bytes.value().length};
+            case Hir.CharClass charClass -> {
+                int min = 4;
+                int max = 1;
+                for (final int[] sequence : Utf8.sequences(charClass.set())) {
+                    min = Math.min(min, sequence.length / 2);
+                    max = Math.max(max, sequence.length / 2);
+                }
+                yield new int[]{Math.min(min, max), max};
+            }
+            case Hir.Backref ignored -> new int[]{0, UNBOUNDED_LENGTH};
+            case Hir.Group group -> byteLength(group.body());
+            case Hir.Atomic atomic -> byteLength(atomic.body());
+            case Hir.Concat concat -> {
+                int min = 0;
+                int max = 0;
+                for (final Hir item : concat.items()) {
+                    final int[] bounds = byteLength(item);
+                    min += bounds[0];
+                    max = max == UNBOUNDED_LENGTH || bounds[1] == UNBOUNDED_LENGTH
+                            ? UNBOUNDED_LENGTH
+                            : max + bounds[1];
+                }
+                yield new int[]{min, max};
+            }
+            case Hir.Alt alt -> {
+                int min = UNBOUNDED_LENGTH;
+                int max = 0;
+                for (final Hir branch : alt.branches()) {
+                    final int[] bounds = byteLength(branch);
+                    min = Math.min(min, bounds[0]);
+                    max = Math.max(max, bounds[1]);
+                }
+                yield new int[]{min, max};
+            }
+            case Hir.Repeat repeat -> {
+                final int[] body = byteLength(repeat.body());
+                final int min = body[0] * repeat.min();
+                if (body[1] == 0) {
+                    yield new int[]{0, 0}; // only empty iterations, however many
+                }
+                if (repeat.isUnbounded() || body[1] == UNBOUNDED_LENGTH) {
+                    yield new int[]{min, UNBOUNDED_LENGTH};
+                }
+                final long max = (long) body[1] * repeat.max();
+                yield new int[]{min, max > Integer.MAX_VALUE
+                        ? UNBOUNDED_LENGTH
+                        : (int) max};
+            }
         };
     }
 

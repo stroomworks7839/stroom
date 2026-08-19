@@ -96,14 +96,18 @@ class CorpusAnalysisTest {
     private static Classification classify(final String pattern, final int occurrences) {
         try {
             final BytePattern compiled = BytePattern.compile(pattern);
-            return compiled.tier() == 0
-                    ? new Classification(pattern, occurrences, "tier 0",
-                    compiled.groupCount() + " groups")
-                    : new Classification(pattern, occurrences, "tier 1",
-                            compiled.ambiguities().getFirst().toString());
+            return switch (compiled.engine()) {
+                case SCAN_PLAN -> new Classification(pattern, occurrences, "scan plan",
+                        compiled.groupCount() + " groups");
+                // The patterns 04-corpus-analysis.md called "java dialect" land here now: the
+                // constructs compile natively instead of delegating to the JDK.
+                case FANCY -> new Classification(pattern, occurrences, "fancy",
+                        "backreference, lookaround or atomic group");
+                default -> new Classification(pattern, occurrences, "automaton",
+                        compiled.ambiguities().getFirst().toString());
+            };
         } catch (final PatternCompileException e) {
             final String verdict = switch (e.getReason()) {
-                case NOT_RE2 -> "java dialect";
                 case UNSUPPORTED -> "unsupported";
                 case SYNTAX -> "syntax error";
             };

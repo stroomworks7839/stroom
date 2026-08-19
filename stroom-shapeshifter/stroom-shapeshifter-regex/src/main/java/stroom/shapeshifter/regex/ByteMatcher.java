@@ -17,6 +17,7 @@
 package stroom.shapeshifter.regex;
 
 import stroom.shapeshifter.regex.internal.Backtracker;
+import stroom.shapeshifter.regex.internal.FancyBacktracker;
 import stroom.shapeshifter.regex.internal.PikeVm;
 import stroom.shapeshifter.regex.internal.Plan;
 import stroom.shapeshifter.regex.internal.PlanRunner;
@@ -42,6 +43,13 @@ public final class ByteMatcher {
     private final Backtracker backtracker;
 
     /**
+     * The unbounded backtracker, present when the pattern needs it — its constructs run on no
+     * other engine — or when a test pinned it. Never chosen by cost: the pattern's syntax is
+     * the only way in.
+     */
+    private final FancyBacktracker fancy;
+
+    /**
      * How much the backtracker's (instruction, position) bitset may occupy before a search goes to
      * the simulation instead. 128 KB covers a 2,000-instruction program over a 500-byte record,
      * which is the shape this engine is built for; beyond it the simulation's fixed cost per
@@ -60,10 +68,15 @@ public final class ByteMatcher {
     ByteMatcher(final BytePattern pattern) {
         this.pattern = pattern;
         this.plan = pattern.plan();
-        this.vm = plan == null
+        final boolean needsFancy = plan == null
+                                   && (pattern.nfa().fancy() || pattern.forced() == Engine.FANCY);
+        this.fancy = needsFancy
+                ? new FancyBacktracker(pattern.nfa())
+                : null;
+        this.vm = plan == null && !needsFancy
                 ? new PikeVm(pattern.nfa())
                 : null;
-        this.backtracker = plan == null
+        this.backtracker = plan == null && !needsFancy
                 ? new Backtracker(pattern.nfa())
                 : null;
         this.groupCount = pattern.groupCount();
@@ -130,6 +143,13 @@ public final class ByteMatcher {
     }
 
     private MatchOutcome run(final int from, final Anchoring anchoring) {
+        if (fancy != null) {
+            Arrays.fill(slots, -1);
+            final int end = fancy.search(data, regionFrom, from, regionTo,
+                    anchoring == Anchoring.ANCHORED, complete, slots);
+            matched = end >= 0;
+            return outcome(end);
+        }
         if (vm != null) {
             Arrays.fill(slots, -1);
             final boolean anchored = anchoring == Anchoring.ANCHORED;

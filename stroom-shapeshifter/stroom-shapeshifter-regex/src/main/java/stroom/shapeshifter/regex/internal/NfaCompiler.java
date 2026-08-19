@@ -49,6 +49,15 @@ public final class NfaCompiler {
     private final List<byte[]> classes = new ArrayList<>();
     private final List<int[]> dispatchTables = new ArrayList<>();
 
+    /** Sub-programs compiled for lookaround and atomic groups, with lookbehind length bounds. */
+    private final List<Nfa> subs = new ArrayList<>();
+    private final List<int[]> subBounds = new ArrayList<>();
+
+    /** Slot space shared with sub-programs, so a capture inside a lookahead lands where the
+     * matcher expects it. */
+    private int groupCount;
+    private boolean multiline;
+
     /** Dispatch tables holding the "continues past the class" sentinel, patched once it is known. */
     private final List<Integer> tablesToPatch = new ArrayList<>();
 
@@ -64,18 +73,37 @@ public final class NfaCompiler {
                               final boolean multiline,
                               final String pattern) {
         final NfaCompiler compiler = new NfaCompiler(pattern);
+        compiler.groupCount = groupCount;
+        compiler.multiline = multiline;
         compiler.emit(Nfa.SAVE, 0, 0);
         compiler.emitNode(root);
         compiler.emit(Nfa.SAVE, 1, 0);
         compiler.emit(Nfa.MATCH, 0, 0);
+        return compiler.build(groupCount, multiline);
+    }
 
-        final int count = compiler.instructions.size();
+    /**
+     * Compiles a lookaround or atomic-group body. The program shares the parent's slot space —
+     * a capture inside a lookahead is a capture like any other — and has no {@code SAVE 0} /
+     * {@code SAVE 1} wrapper, because a sub-match must not disturb the overall match span.
+     */
+    private Nfa compileSub(final Hir body) {
+        final NfaCompiler compiler = new NfaCompiler(pattern);
+        compiler.groupCount = groupCount;
+        compiler.multiline = multiline;
+        compiler.emitNode(body);
+        compiler.emit(Nfa.MATCH, 0, 0);
+        return compiler.build(groupCount, multiline);
+    }
+
+    private Nfa build(final int groups, final boolean multiline) {
+        final int count = instructions.size();
         final int[] op = new int[count];
         final int[] a = new int[count];
         final int[] b = new int[count];
         final int[] next = new int[count];
         for (int i = 0; i < count; i++) {
-            final int[] instruction = compiler.instructions.get(i);
+            final int[] instruction = instructions.get(i);
             op[i] = instruction[0];
             a[i] = instruction[1];
             b[i] = instruction[2];
@@ -83,9 +111,16 @@ public final class NfaCompiler {
                     ? i + 1
                     : instruction[3];
         }
-        return new Nfa(op, a, b, next, compiler.classes.toArray(new byte[0][]),
-                compiler.dispatchTables.toArray(new int[0][]),
-                2 * (groupCount + 1), groupCount, multiline);
+        final int[] mins = new int[subs.size()];
+        final int[] maxes = new int[subs.size()];
+        for (int i = 0; i < subs.size(); i++) {
+            mins[i] = subBounds.get(i)[0];
+            maxes[i] = subBounds.get(i)[1];
+        }
+        return new Nfa(op, a, b, next, classes.toArray(new byte[0][]),
+                dispatchTables.toArray(new int[0][]),
+                subs.toArray(new Nfa[0]), mins, maxes,
+                2 * (groups + 1), groups, multiline);
     }
 
     private void emitNode(final Hir node) {
@@ -118,6 +153,40 @@ public final class NfaCompiler {
             case Hir.Alt alt -> emitAlternatives(alt.branches());
 
             case Hir.Repeat repeat -> emitRepeat(repeat);
+
+            case Hir.Backref backref -> emit(Nfa.BACKREF, backref.index(),
+                    (backref.caseInsensitive()
+                            ? Nfa.BACKREF_FOLD
+                            : 0)
+                    | (backref.unicode()
+                            ? Nfa.BACKREF_UNICODE
+                            : 0));
+
+            case Hir.Look look -> {
+                final int[] bounds = Analysis.byteLength(look.body());
+                if (look.behind() && bounds[1] == Analysis.UNBOUNDED_LENGTH) {
+                    throw new PatternCompileException(Reason.UNSUPPORTED, pattern, -1,
+                            "lookbehind has no maximum length, so there is no bound on how far "
+                            + "back to try");
+                }
+                subs.add(compileSub(look.body()));
+                subBounds.add(look.behind()
+                        ? bounds
+                        : new int[]{0, 0});
+                emit(Nfa.LOOK, subs.size() - 1,
+                        (look.negated()
+                                ? Nfa.LOOK_NEGATED
+                                : 0)
+                        | (look.behind()
+                                ? Nfa.LOOK_BEHIND
+                                : 0));
+            }
+
+            case Hir.Atomic atomic -> {
+                subs.add(compileSub(atomic.body()));
+                subBounds.add(new int[]{0, 0});
+                emit(Nfa.ATOMIC, subs.size() - 1, 0);
+            }
         }
     }
 

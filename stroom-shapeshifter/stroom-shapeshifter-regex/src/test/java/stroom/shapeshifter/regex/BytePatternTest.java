@@ -252,13 +252,11 @@ class BytePatternTest {
 
     @ParameterizedTest
     @CsvSource({
-            "'(a)\\1',                 NOT_RE2",
-            "'a(?=b)',                 NOT_RE2",
-            "'a(?<=b)',                NOT_RE2",
-            "'(?>a|b)',                NOT_RE2",
-            "'a*+',                    NOT_RE2",
             "'(unclosed',              SYNTAX",
             "'[unclosed',              SYNTAX",
+            "'(a)\\2',                 SYNTAX",
+            "'\\Z',                    UNSUPPORTED",
+            "'(?<=a*)b',                UNSUPPORTED",
             "'*',                      SYNTAX"})
     void rejectsWithTheRightReason(final String pattern,
                                    final PatternCompileException.Reason reason) {

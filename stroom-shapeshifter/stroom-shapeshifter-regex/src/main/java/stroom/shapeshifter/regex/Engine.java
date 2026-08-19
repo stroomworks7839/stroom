@@ -48,7 +48,19 @@ public enum Engine {
      * but it pays a fixed cost at every input position: around 21 to 27 nanoseconds per byte
      * regardless of the pattern.
      */
-    SIMULATE("NFA simulation");
+    SIMULATE("NFA simulation"),
+
+    /**
+     * Unbounded backtracking, for the constructs that are not regular: backreferences,
+     * lookaround, atomic groups and possessive quantifiers, and {@code \G}. No other engine can
+     * run them — a backreference's future depends on capture state, which is exactly what a
+     * simulation's state cannot carry and what invalidates {@link #BACKTRACK}'s visited-set
+     * bound — so this tier trades the linear-time guarantee for the capability, and contains
+     * the loss with a step budget: a pathological pattern-input pair raises
+     * {@link MatchLimitException} rather than hanging. Chosen only when the pattern itself asks
+     * for it, by containing one of these constructs; writing {@code \1} is the opt-in.
+     */
+    FANCY("unbounded backtracking");
 
     private final String description;
 

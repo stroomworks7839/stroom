@@ -83,6 +83,37 @@ public sealed interface Hir {
 
     }
 
+    /**
+     * A backreference — match again whatever group {@code index} captured.
+     * <p>
+     * Not regular: whether it matches depends on capture state, which is why any pattern
+     * containing one runs on the unbounded backtracker and no other engine
+     * ({@link stroom.shapeshifter.regex.Engine#FANCY}). Case sensitivity is settled here, at the
+     * site of the reference, because {@code (?i)} is lexical: {@code (a)(?i:\1)} compares
+     * folded where {@code (a)\1} compares exactly.
+     */
+    record Backref(int index, boolean caseInsensitive, boolean unicode) implements Hir {
+
+    }
+
+    /**
+     * Lookaround — {@code (?=)}, {@code (?!)}, {@code (?<=)}, {@code (?<!)}. Zero-width; the
+     * body runs as a nested match at the current position (or ending at it, when
+     * {@code behind}).
+     */
+    record Look(Hir body, boolean behind, boolean negated) implements Hir {
+
+    }
+
+    /**
+     * An atomic group {@code (?>...)}, which also spells possessive quantifiers: {@code a*+} is
+     * {@code (?>a*)}. The body matches as it normally would, and then its choice points are
+     * discarded — what it consumed is never given back.
+     */
+    record Atomic(Hir body) implements Hir {
+
+    }
+
     enum Kind {
         /** {@code \A} — start of the match window. */
         START_INPUT,
@@ -99,7 +130,14 @@ public sealed interface Hir {
         /** {@code \b} under {@code (?-u)}, over ASCII word characters. */
         WORD_BOUNDARY_ASCII,
         /** {@code \B} under {@code (?-u)}. */
-        NOT_WORD_BOUNDARY_ASCII;
+        NOT_WORD_BOUNDARY_ASCII,
+        /**
+         * {@code \G} — the end of the previous match, which is where this search started, since
+         * {@link stroom.shapeshifter.regex.ByteMatcher} resumes each find there. Depends on the
+         * search rather than only on the data, so only the unbounded backtracker evaluates it;
+         * a pattern containing it is fancy.
+         */
+        PREVIOUS_MATCH_END;
 
         /**
          * Cached because {@link #values()} clones its array on every call, and assertions are

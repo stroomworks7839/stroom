@@ -30,9 +30,7 @@ public class PatternCompileException extends RuntimeException {
     public enum Reason {
         /** The pattern is not valid regex syntax. */
         SYNTAX,
-        /** Uses a construct outside the RE2 subset — needs the delegated java dialect. */
-        NOT_RE2,
-        /** Valid RE2, but uses something this engine does not yet implement. */
+        /** Valid syntax, but uses something this engine does not yet implement. */
         UNSUPPORTED
     }
 

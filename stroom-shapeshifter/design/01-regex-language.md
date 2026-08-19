@@ -75,21 +75,25 @@ Full `java.util.regex` compatibility is explicitly future work (§8).
 | `u` | unicode classes | **on** | `\w \d \s \b` use their Unicode definitions, and `i` folds across Unicode; `(?-u)` gives all of them their ASCII meanings |
 | `x` | free spacing | off | Ignore unescaped whitespace and `#` comments in the pattern |
 
-### 2.3 Excluded — and why
+### 2.3 Beyond the RE2 subset: the fancy tier
 
-Excluded from *this* dialect — all of them available via the `java` dialect (§8):
+The constructs that are not regular compile and run natively, on the unbounded backtracker
+([D27](00-decisions.md)) — a fourth engine that only patterns containing one of these
+constructs ever reach. Writing the construct is the opt-in; `explain()` names the engine; and
+the price is stated in §8: the linear-time guarantee becomes a step budget, so a pathological
+pattern-input pair raises `MatchLimitException` instead of hanging.
 
-| Excluded | Reason | Alternative |
-|---|---|---|
-| Backreferences `\1` | Not regular; forces backtracking; NP-hard in general | `java` dialect |
-| Lookahead `(?=)`, `(?!)` | Requires nested matching; breaks the single-pass streaming model | `peek`/`not` (§6.2), or `java` dialect |
-| Lookbehind `(?<=)`, `(?<!)` | As above, plus unbounded left context conflicts with a streaming window | `java` dialect |
-| Atomic groups `(?>...)`, possessive `a*+` | Only meaningful as backtracking control; a linear engine has nothing to control | `java` dialect |
-| Conditionals, recursion, `\G`, `\Q...\E` | Rarely used in data-splitter patterns | `java` dialect where it supports them |
+| Construct | Note |
+|---|---|
+| Backreferences `\1`, `\k<name>` | NP-complete in general, which is *why* this is its own tier: no visited set can bound it. Numeric references may run ahead of their group; named ones must follow it |
+| Lookahead `(?=)`, `(?!)` | Also available at the composition layer as `peek`/`not` (§6.2), which stays on the linear tiers |
+| Lookbehind `(?<=)`, `(?<!)` | Bounded length only — the body's byte-length range is what bounds the candidate starts, the JDK's rule for the JDK's reason |
+| Atomic groups `(?>...)`, possessive `a*+` | Meaningful now that there is backtracking to control, and present in the harvested corpus |
+| `\G` | The end of the previous match — holds where the search started |
+| `\Q...\E` | Pure syntax, not fancy: quoting compiles to the same literals the escaped spelling would, on whatever tier the pattern earns |
 
-Note `(?=...)` and `(?!...)` *are* available at the composition layer as `peek` and `not`
-(§6), which covers the common "assert then consume" use without putting lookaround inside
-the regex engine.
+Still excluded: conditionals and recursion (PCRE constructs `java.util.regex` does not have
+either), and the warts declined in §2.4.
 
 ### 2.4 What is taken from Rust, and what is not
 
@@ -544,6 +548,14 @@ The invariant that matters, and that the test suite exists to defend:
 ---
 
 ## 8. The second dialect: delegating to `java.util.regex`
+
+> **Superseded by [D27](00-decisions.md).** The constructs this section delegates —
+> backreferences, lookaround, atomic groups — now compile natively to the fancy tier (§2.3):
+> once [D25](00-decisions.md) had built a bounded backtracker, the unbounded one stopped being
+> "the single largest item it is possible to remove" and became a few hundred lines over the
+> same program representation. One dialect, no decode boundary, and the containment this
+> section designs (§8.3) survives as the step budget. The section is kept as the record of
+> why delegation was once the right call.
 
 Some patterns genuinely need backreferences or lookaround. Rather than *build* a backtracking
 engine for them — which was the original plan here, and is the single largest item it is

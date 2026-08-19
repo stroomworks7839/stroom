@@ -62,6 +62,36 @@ public final class Nfa {
      */
     public static final int BYTE_DISPATCH = 9;
 
+    /**
+     * Match again whatever group {@code a} captured; {@code b} carries the case-comparison bits
+     * ({@link #BACKREF_FOLD} and {@link #BACKREF_UNICODE}). Run by the unbounded backtracker
+     * only: whether it matches depends on capture state, which is precisely what a simulation's
+     * (instruction, position) state cannot carry, and what breaks the bounded backtracker's
+     * visited-set argument.
+     */
+    public static final int BACKREF = 10;
+
+    /**
+     * Lookaround: run sub-program {@code a} as a nested match at (or, looking behind, ending at)
+     * the current position, consuming nothing. {@code b} carries {@link #LOOK_NEGATED} and
+     * {@link #LOOK_BEHIND}.
+     */
+    public static final int LOOK = 11;
+
+    /**
+     * Atomic group: run sub-program {@code a} as a nested match at the current position, keep
+     * what it consumed and captured, and never revisit its choices.
+     */
+    public static final int ATOMIC = 12;
+
+    /** {@link #BACKREF} b-bits: compare case-folded, and fold across Unicode rather than ASCII. */
+    public static final int BACKREF_FOLD = 1;
+    public static final int BACKREF_UNICODE = 2;
+
+    /** {@link #LOOK} b-bits. */
+    public static final int LOOK_NEGATED = 1;
+    public static final int LOOK_BEHIND = 2;
+
     final int[] op;
     final int[] a;
     final int[] b;
@@ -77,9 +107,28 @@ public final class Nfa {
 
     /** Successor tables for {@link #BYTE_DISPATCH}, 256 entries each. */
     final int[][] dispatch;
+
+    /** Sub-programs for {@link #LOOK} and {@link #ATOMIC}, sharing this program's slot space. */
+    final Nfa[] subs;
+
+    /**
+     * For a lookbehind sub-program, the fewest and most bytes it can span — which bounds the
+     * candidate start positions for a match ending at the cursor. Parallel to {@link #subs};
+     * zero for anything else.
+     */
+    final int[] subMin;
+    final int[] subMax;
+
     final int slotCount;
     final int groupCount;
     final boolean multiline;
+
+    /**
+     * Whether this program contains an instruction only the unbounded backtracker can run.
+     * Settled here, from the instructions, so the engine choice and the program can never
+     * disagree about it.
+     */
+    private final boolean fancy;
 
     /** Built once with the program, since it is a pure function of it. */
     private final Closures closures;
@@ -100,17 +149,47 @@ public final class Nfa {
         final int slotCount,
         final int groupCount,
         final boolean multiline) {
+        this(op, a, b, next, classes, dispatch, new Nfa[0], new int[0], new int[0],
+                slotCount, groupCount, multiline);
+    }
+
+    Nfa(final int[] op,
+        final int[] a,
+        final int[] b,
+        final int[] next,
+        final byte[][] classes,
+        final int[][] dispatch,
+        final Nfa[] subs,
+        final int[] subMin,
+        final int[] subMax,
+        final int slotCount,
+        final int groupCount,
+        final boolean multiline) {
         this.op = op;
         this.a = a;
         this.b = b;
         this.next = next;
         this.classes = classes;
         this.dispatch = dispatch;
+        this.subs = subs;
+        this.subMin = subMin;
+        this.subMax = subMax;
         this.slotCount = slotCount;
         this.groupCount = groupCount;
         this.multiline = multiline;
+        boolean needsFancy = subs.length > 0;
+        for (int pc = 0; pc < op.length && !needsFancy; pc++) {
+            needsFancy = op[pc] == BACKREF
+                         || (op[pc] == ASSERT && a[pc] == Hir.Kind.PREVIOUS_MATCH_END.ordinal());
+        }
+        this.fancy = needsFancy;
         this.closures = new Closures(this);
         this.firstBytes = computeFirstBytes();
+    }
+
+    /** Whether only the unbounded backtracker can run this program. */
+    public boolean fancy() {
+        return fancy;
     }
 
     private byte[] computeFirstBytes() {
@@ -200,6 +279,18 @@ public final class Nfa {
                     sb.append("DISPATCH    #").append(a[pc]).append(" (").append(count)
                             .append(" bytes)");
                 }
+                case BACKREF -> sb.append("BACKREF     group ").append(a[pc])
+                        .append((b[pc] & BACKREF_FOLD) != 0
+                                ? " (folded)"
+                                : "");
+                case LOOK -> sb.append("LOOK        sub ").append(a[pc])
+                        .append((b[pc] & LOOK_BEHIND) != 0
+                                ? ", behind"
+                                : ", ahead")
+                        .append((b[pc] & LOOK_NEGATED) != 0
+                                ? ", negated"
+                                : "");
+                case ATOMIC -> sb.append("ATOMIC      sub ").append(a[pc]);
                 case MATCH -> sb.append("MATCH");
                 default -> sb.append("?? ").append(op[pc]);
             }

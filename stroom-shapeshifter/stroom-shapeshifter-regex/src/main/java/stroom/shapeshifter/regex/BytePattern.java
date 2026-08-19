@@ -41,13 +41,16 @@ import java.util.Set;
  * <ul>
  *   <li>UTF-8 and ASCII input. Other encodings, and the {@code transcode} stage, are not built
  *       yet.</li>
- *   <li>The RE2 subset — no backreferences, lookaround, atomic groups or possessive
- *       quantifiers. Those are reported as {@link PatternCompileException.Reason#NOT_RE2}.</li>
- *   <li>Both execution tiers. A <em>one-pass</em> pattern compiles to a straight-line scan
- *       plan; an ambiguous one compiles to an NFA run by a Pike VM. The choice is the
- *       compiler's and the results are identical either way — {@link #explain()} reports which
- *       was used, and {@link #analyse} explains why a pattern was ambiguous, which is often an
- *       authoring mistake worth seeing.</li>
+ *   <li>The RE2 subset, plus the constructs beyond it — backreferences, lookaround, atomic
+ *       groups and possessive quantifiers, {@code \Q...\E} and {@code \G} — which run on the
+ *       unbounded backtracker ({@link Engine#FANCY}) and give up the linear-time guarantee for
+ *       a step budget ({@link MatchLimitException}).</li>
+ *   <li>Every execution tier. A <em>one-pass</em> pattern compiles to a straight-line scan
+ *       plan; an ambiguous one compiles to an NFA run by bounded backtracking or a Pike VM; a
+ *       pattern whose syntax asks for more runs on the unbounded backtracker. The choice is the
+ *       compiler's and the results are identical wherever two engines can both run a pattern —
+ *       {@link #explain()} reports which was chosen, and {@link #analyse} explains why a
+ *       pattern was ambiguous, which is often an authoring mistake worth seeing.</li>
  *   <li>Complete inputs. Streaming, and the {@code NEED_MORE_INPUT} outcome, come later.</li>
  * </ul>
  *
@@ -147,6 +150,16 @@ public final class BytePattern {
                 ? EnumSet.noneOf(Flag.class)
                 : flags);
 
+        // A pattern using a construct outside the regular subset — a backreference, lookaround,
+        // an atomic group, \G — can only run on the unbounded backtracker, so neither the
+        // one-pass analysis nor the tier choice below applies to it. The construct itself is the
+        // author's opt-in; explain() names the engine.
+        if (Analysis.fancy(root)) {
+            final Nfa nfa = NfaCompiler.compile(root, groupCount, multiline, description);
+            return new BytePattern(description, copy, null, nfa,
+                    List.of(), Analysis.warnings(root), groupNames);
+        }
+
         // A one-pass pattern can be decided by looking at one upcoming byte, so it compiles to a
         // scan plan with no automaton. Anything else needs the NFA simulation.
         final List<String> warnings = Analysis.warnings(root);
@@ -202,6 +215,11 @@ public final class BytePattern {
             return compiled;
         }
         final BytePattern compiled = compileForcingNfa(pattern, flags);
+        if (engine != Engine.FANCY && compiled.nfa.fancy()) {
+            throw new IllegalArgumentException(
+                    "the pattern needs the unbounded backtracker, which cannot be overridden: "
+                    + pattern);
+        }
         return new BytePattern(compiled.pattern, compiled.flags, null, compiled.nfa,
                 compiled.ambiguities, compiled.warnings, compiled.groupNames, engine);
     }
@@ -273,8 +291,11 @@ public final class BytePattern {
      * depends on the input length, so it is settled per search rather than here.
      */
     public Engine engine() {
-        return plan != null
-                ? Engine.SCAN_PLAN
+        if (plan != null) {
+            return Engine.SCAN_PLAN;
+        }
+        return nfa.fancy()
+                ? Engine.FANCY
                 : Engine.SIMULATE;
     }
 

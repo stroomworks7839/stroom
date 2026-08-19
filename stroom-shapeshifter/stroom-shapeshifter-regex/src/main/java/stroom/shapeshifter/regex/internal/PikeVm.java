@@ -252,6 +252,10 @@ public final class PikeVm {
             case NOT_WORD_BOUNDARY -> !Words.atBoundary(data, regionFrom, to, pos, true);
             case WORD_BOUNDARY_ASCII -> Words.atBoundary(data, regionFrom, to, pos, false);
             case NOT_WORD_BOUNDARY_ASCII -> !Words.atBoundary(data, regionFrom, to, pos, false);
+            // Depends on the search, not only the data; the fancy engine evaluates it before
+            // delegating here, and a program containing it never runs on any other engine.
+            case PREVIOUS_MATCH_END -> throw new IllegalStateException(
+                    "\\G reached an engine that cannot evaluate it");
         };
     }
 

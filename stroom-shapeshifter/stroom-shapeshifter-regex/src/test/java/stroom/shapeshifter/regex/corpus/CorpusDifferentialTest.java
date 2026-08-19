@@ -61,7 +61,7 @@ class CorpusDifferentialTest {
         int comparisons = 0;
 
         for (final PatternCorpus.Category category : PatternCorpus.categories()) {
-            final int[] counts = byCategory.computeIfAbsent(category.name(), name -> new int[3]);
+            final int[] counts = byCategory.computeIfAbsent(category.name(), name -> new int[4]);
             for (final String pattern : category.patterns()) {
                 final BytePattern compiled;
                 try {
@@ -70,12 +70,17 @@ class CorpusDifferentialTest {
                     byVerdict.merge(e.getReason().name(), 1, Integer::sum);
                     rejected.computeIfAbsent(e.getReason().name(), reason -> new ArrayList<>())
                             .add(pattern);
-                    counts[2]++;
+                    counts[3]++;
                     continue;
                 }
 
-                byVerdict.merge("tier " + compiled.tier(), 1, Integer::sum);
-                counts[compiled.tier()]++;
+                byVerdict.merge(compiled.engine().description(), 1, Integer::sum);
+                final int bucket = switch (compiled.engine()) {
+                    case SCAN_PLAN -> 0;
+                    case FANCY -> 2;
+                    default -> 1;
+                };
+                counts[bucket]++;
 
                 final Pattern reference = JdkOracle.compile(pattern);
                 for (final String input : category.inputs()) {
@@ -177,9 +182,10 @@ class CorpusDifferentialTest {
         byVerdict.forEach((verdict, count) -> sb.append(String.format(
                 "%-14s %8d %5d%%%n", verdict, count, Math.round(count * 100f / total))));
 
-        sb.append(String.format("%n%-14s %7s %7s %9s%n", "category", "tier 0", "tier 1", "rejected"));
+        sb.append(String.format("%n%-14s %7s %10s %7s %9s%n",
+                "category", "plan", "automaton", "fancy", "rejected"));
         byCategory.forEach((name, counts) -> sb.append(String.format(
-                "%-14s %7d %7d %9d%n", name, counts[0], counts[1], counts[2])));
+                "%-14s %7d %10d %7d %9d%n", name, counts[0], counts[1], counts[2], counts[3])));
 
         if (!rejected.isEmpty()) {
             sb.append("\nRejected, by reason:\n");
