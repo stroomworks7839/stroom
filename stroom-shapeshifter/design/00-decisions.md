@@ -690,8 +690,8 @@ a reference dialect gives meaning to, and each now a refusal instead:
 **Consequences:** Ruby dialect cases compile under MULTILINE (`^`/`$` are always line anchors
 there) and `(?m)` is translated to this dialect's `(?s)`, both recorded in the corpus README.
 The three `FANCY_*` workloads added to `CorpusBenchmark` at the same time are the fancy tier's
-first performance measurement against the JDK; the accepted-set change they ride with is
-recorded as a comparability break in `design/benchmarks/README.md`.
+first performance measurement against the JDK — results in
+[05-engine-benchmarks.md §10](05-engine-benchmarks.md).
 
 ---
 

@@ -43,7 +43,11 @@ Runs are machine-specific. Compare files from the same machine, or not at all.
 Changes that alter what a benchmark measures, so scores from either side of them are not
 comparable even on the same machine:
 
-- **D27 (the fancy tier)** grew `PatternCorpusBenchmark`'s accepted set from 106 to 109
-  patterns — the three formerly-rejected corpus patterns now compile and run inside their
-  categories — and added the three `FANCY_*` workloads to `CorpusBenchmark`. Runs recorded
-  before that commit measure a smaller corpus under the same names.
+- **D27 (the fancy tier)** added the three `FANCY_*` workloads to `CorpusBenchmark`; runs
+  recorded before it have no rows for them. The corpus's newly-accepted fancy patterns all
+  sit in the `unsupported` category, which `PatternCorpusBenchmark` does not measure, so the
+  measured categories are unchanged — first believed otherwise, corrected after checking the
+  per-category buckets in `CorpusDifferentialTest`'s report.
+- **2026-08-19-1028** ran on a non-idle machine: `javaRegexFromBytes` — code no commit
+  touched — moved −5.0% against the previous run while `javaRegex` was flat. Cross-run
+  comparisons against it measure the machine, not the engine; within-run ratios stand.

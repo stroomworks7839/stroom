@@ -667,3 +667,39 @@ where the pattern is one-pass, backtracking a few ns/byte typical on short recor
 budget admits it, simulation at 21–27 ns/byte as the floor under everything — and all three
 provably agreeing, which is what `compileForcing` and the three-way differential exist to keep
 true.
+
+---
+
+## 10. The fancy tier, measured
+
+The first numbers for [D27](00-decisions.md)'s engine, from
+`benchmarks/2026-08-19-1028-ba6a94e719.json` — three workloads in `CorpusBenchmark`, each a
+construct only the fancy tier and the JDK can run. This is the one comparison in this document
+where the JDK plays at home: both engines backtrack, so there is no algorithm-family advantage
+to collect, and the only edges available are byte-level execution against a decoded `String`
+and whatever the implementations are worth.
+
+| Workload | Construct | Ours | JDK (bytes) | Ratio |
+|---|---|---:|---:|---:|
+| FANCY_BACKREF | `^(\w+)=(\w+);\1=(\w+)$` | 2362 ± 250 | 5234 ± 235 | **0.45×** |
+| FANCY_ATOMIC | `^([\w ]++),(\d++),(\S+)$` | 1240 ± 19 | 3171 ± 80 | **0.39×** |
+| FANCY_LOOKAHEAD | `^(\w+): (?=.*\berror\b)(.*)$` | 296 ± 15 | 1993 ± 132 | **0.15×** |
+
+**Two to seven times slower than the JDK's backtracker, and recorded as the starting point
+rather than the verdict** — this is a first implementation with no optimisation attempted, in
+a document whose every prior chapter began the same way — the whole-corpus "Originally"
+column in §7 spans 0.003× to 0.83×. Where the time plausibly goes, unverified by measurement and flagged as such:
+the JDK compiles a pattern to a specialised node tree while this engine interprets the shared
+NFA instruction stream; every lookaround or atomic entry journals the whole capture-slot array
+to the undo log; and a nested call re-enters the interpreter rather than inlining. The
+lookahead workload compounds this with the pattern's own shape — the body scans the line and
+the match scans it again — which is also why it is the slowest of the three. The §8 method
+(same pattern, both engines, cost per byte) applies here as it did there, and is the next step
+if this tier's cost ever matters; per-record matching of fancy patterns was 7% of the corpus,
+so it has not yet.
+
+One cross-run caveat, in the D21 tradition: this run's machine was not idle.
+`javaRegexFromBytes` — code no commit touched — moved −5.0% against the `1948` baseline while
+`javaRegex` was flat, so the small negative drift on this run's other shapeshifter rows
+measures the machine, not the engine. The ratios above are within-run and unaffected; the
+comparability note is in `benchmarks/README.md`.
