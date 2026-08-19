@@ -77,9 +77,11 @@ guarded by JMH after every change.
 SPARSE retired the Boyer–Moore item, LONG_RECORD turned the tree engine's depth risk into a
 number, and UNICODE found a 5× scan-plan gap nobody suspected.
 
-**Standing after the closing full-suite run (`2026-08-19-2144` + the gate restoration):
-28 of 30 measured variants ahead outright, and the only sub-parity line on either suite is
-buffer NETWORK — the diagnosed JMH-conditions artifact that measures at raw parity.**
+**Standing after the closing runs (`2026-08-19-2144` buffer, `2026-08-19-2320` per-match,
+post-restoration): 29 of 30 measured variants ahead outright — all fourteen per-match
+categories among them, 1.23× to 2.29× — and the only sub-parity line anywhere is buffer
+NETWORK, the diagnosed JMH-conditions artifact that measures at raw parity. The README's
+charts render from these two runs via `tools/render-scoreboard.py`.**
 
 **Standing after the 2026-08-20 round: no engine deficit remains anywhere.** NETWORK — the
 scoreboard's last behind-line — measures at parity under controlled fork-per-side comparison;

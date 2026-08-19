@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="446" viewBox="0 0 760 446" font-family="system-ui, sans-serif">
+<rect width="760" height="446" fill="#fcfcfb" rx="6"/>
+<text x="16" y="26" font-size="15" font-weight="600" fill="#0b0b0b">Per-match — throughput vs java.util.regex</text>
+<text x="16" y="44" font-size="11" fill="#52514e">the whole accepted corpus, short records &#183; run 2026-08-19-2320-721df51951 &#183; higher is better</text>
+<line x1="170.0" y1="72" x2="170.0" y2="420" stroke="#f0efec" stroke-width="1"/>
+<text x="170.0" y="434" font-size="10" fill="#52514e" text-anchor="middle">0&#215;</text>
+<line x1="388.6" y1="72" x2="388.6" y2="420" stroke="#f0efec" stroke-width="1"/>
+<text x="388.6" y="434" font-size="10" fill="#52514e" text-anchor="middle">1&#215;</text>
+<line x1="607.2" y1="72" x2="607.2" y2="420" stroke="#f0efec" stroke-width="1"/>
+<text x="607.2" y="434" font-size="10" fill="#52514e" text-anchor="middle">2&#215;</text>
+<line x1="388.6" y1="70" x2="388.6" y2="420" stroke="#52514e" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="388.6" y="65" font-size="10" fill="#52514e" text-anchor="middle">java.util.regex</text>
+<path d="M 170 80 h 496.0 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -496.0 Z" fill="#2a78d6"/>
+<text x="162" y="91" font-size="11" fill="#0b0b0b" text-anchor="end">weblog</text>
+<text x="676.0" y="91" font-size="11" fill="#52514e">2.29&#215;</text>
+<path d="M 170 104 h 494.0 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -494.0 Z" fill="#2a78d6"/>
+<text x="162" y="115" font-size="11" fill="#0b0b0b" text-anchor="end">csv</text>
+<text x="674.0" y="115" font-size="11" fill="#52514e">2.28&#215;</text>
+<path d="M 170 128 h 467.3 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -467.3 Z" fill="#2a78d6"/>
+<text x="162" y="139" font-size="11" fill="#0b0b0b" text-anchor="end">syslog</text>
+<text x="647.3" y="139" font-size="11" fill="#52514e">2.16&#215;</text>
+<path d="M 170 152 h 450.3 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -450.3 Z" fill="#2a78d6"/>
+<text x="162" y="163" font-size="11" fill="#0b0b0b" text-anchor="end">fixedwidth</text>
+<text x="630.3" y="163" font-size="11" fill="#52514e">2.08&#215;</text>
+<path d="M 170 176 h 420.5 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -420.5 Z" fill="#2a78d6"/>
+<text x="162" y="187" font-size="11" fill="#0b0b0b" text-anchor="end">stress</text>
+<text x="600.5" y="187" font-size="11" fill="#52514e">1.94&#215;</text>
+<path d="M 170 200 h 400.3 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -400.3 Z" fill="#2a78d6"/>
+<text x="162" y="211" font-size="11" fill="#0b0b0b" text-anchor="end">structured</text>
+<text x="580.3" y="211" font-size="11" fill="#52514e">1.85&#215;</text>
+<path d="M 170 224 h 393.9 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -393.9 Z" fill="#2a78d6"/>
+<text x="162" y="235" font-size="11" fill="#0b0b0b" text-anchor="end">fancy</text>
+<text x="573.9" y="235" font-size="11" fill="#52514e">1.82&#215;</text>
+<path d="M 170 248 h 381.2 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -381.2 Z" fill="#2a78d6"/>
+<text x="162" y="259" font-size="11" fill="#0b0b0b" text-anchor="end">everything</text>
+<text x="561.2" y="259" font-size="11" fill="#52514e">1.76&#215;</text>
+<path d="M 170 272 h 359.4 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -359.4 Z" fill="#2a78d6"/>
+<text x="162" y="283" font-size="11" fill="#0b0b0b" text-anchor="end">keyvalue</text>
+<text x="539.4" y="283" font-size="11" fill="#52514e">1.66&#215;</text>
+<path d="M 170 296 h 353.4 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -353.4 Z" fill="#2a78d6"/>
+<text x="162" y="307" font-size="11" fill="#0b0b0b" text-anchor="end">identifiers</text>
+<text x="533.4" y="307" font-size="11" fill="#52514e">1.64&#215;</text>
+<path d="M 170 320 h 330.2 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -330.2 Z" fill="#2a78d6"/>
+<text x="162" y="331" font-size="11" fill="#0b0b0b" text-anchor="end">numbers</text>
+<text x="510.2" y="331" font-size="11" fill="#52514e">1.53&#215;</text>
+<path d="M 170 344 h 325.7 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -325.7 Z" fill="#2a78d6"/>
+<text x="162" y="355" font-size="11" fill="#0b0b0b" text-anchor="end">quoted</text>
+<text x="505.7" y="355" font-size="11" fill="#52514e">1.51&#215;</text>
+<path d="M 170 368 h 316.8 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -316.8 Z" fill="#2a78d6"/>
+<text x="162" y="379" font-size="11" fill="#0b0b0b" text-anchor="end">network</text>
+<text x="496.8" y="379" font-size="11" fill="#52514e">1.47&#215;</text>
+<path d="M 170 392 h 263.9 a 4.0 4.0 0 0 1 4.0 4.0 v 6.0 a 4.0 4.0 0 0 1 -4.0 4.0 h -263.9 Z" fill="#2a78d6"/>
+<text x="162" y="403" font-size="11" fill="#0b0b0b" text-anchor="end">datetime</text>
+<text x="443.9" y="403" font-size="11" fill="#52514e">1.23&#215;</text>
+</svg>
