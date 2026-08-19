@@ -21,9 +21,12 @@ import stroom.shapeshifter.regex.MatchLimitException;
 import java.util.Arrays;
 
 /**
- * Unbounded backtracking, for the constructs that are not regular: backreferences, lookaround,
- * atomic groups, and {@code \G}. The architecture is fancy-regex's — a backtracker layered over
- * an RE2-style core, taking only the patterns whose syntax asks for it — hence the name.
+ * Unbounded backtracking over the flat program, for the constructs that are not regular:
+ * backreferences, lookaround, atomic groups, and {@code \G}. The architecture is fancy-regex's
+ * — a backtracker layered over an RE2-style core — hence the name. Since D31 the tree engine is
+ * the fancy tier's primary and this is its structural fallback: an explicit stack cannot run
+ * out of call-stack depth, so what bails out of the tree finishes here. It also stays pinnable,
+ * as a differential witness from a second implementation family.
  *
  * <h2>Why the {@link Backtracker}'s bound cannot apply</h2>
  * The bounded engine abandons any second arrival at an (instruction, position) pair, because the
@@ -47,10 +50,11 @@ import java.util.Arrays;
  * cursor.
  * <p>
  * Capture writes from a nested match must survive it (a capture inside a lookahead is a capture)
- * yet still be restored when the parent backtracks past it, so before every nested call the
- * parent logs the whole slot array to its undo log. Where the outcome means nothing may persist
- * — the nested match failed, or a negative lookaround — the parent unwinds to that point at
- * once.
+ * yet still be restored when the parent backtracks past it — so before a nested call whose
+ * sub-program can write a capture at all, the parent logs the slot array to its undo log. Most
+ * lookaround and atomic bodies capture nothing, and for those the journalling is skipped
+ * entirely; where the outcome means nothing may persist — the nested match failed, or a
+ * negative lookaround — the parent unwinds to the logged point at once.
  *
  * <h2>Streaming</h2>
  * The same conservative contract as the bounded engine: {@link PlanRunner#NEED_MORE} whenever
@@ -444,16 +448,22 @@ public final class FancyBacktracker {
                 while (grown < to && Utf8.isContinuation(data[grown])) {
                     grown++;
                 }
-                if (grown < to || (grown == to && !Utf8.isContinuation(data[grown - 1]))
-                    || grown - cur == Utf8.sequenceLength(data[cur] & 0xFF)) {
-                    context.steps--;
-                    pushStar(starPc, grown, floor);
-                    pc = starPc + 1;
-                    pos = grown;
-                    break;
+                // Refuse only a character truncated by the window edge; on malformed input,
+                // byte granularity matches what the greedy scan does. A whole character ends
+                // before the window does, ends on a non-continuation byte, or spans exactly
+                // its lead byte's announced length.
+                final boolean truncatedByEdge = grown == to
+                        && Utf8.isContinuation(data[grown - 1])
+                        && grown - cur != Utf8.sequenceLength(data[cur] & 0xFF);
+                if (truncatedByEdge) {
+                    edge(recordEdge);
+                    continue resume;
                 }
-                edge(recordEdge); // a character truncated by the window edge
-                continue resume;
+                context.steps--;
+                pushStar(starPc, grown, floor);
+                pc = starPc + 1;
+                pos = grown;
+                break;
             }
         }
     }
@@ -486,7 +496,8 @@ public final class FancyBacktracker {
     }
 
     /**
-     * Matches the bytes group {@code a[pc]} captured against the input at {@code pos}.
+     * Matches the bytes group {@code a[pc]} captured against the input at {@code pos}, via the
+     * shared {@link Backrefs} comparison.
      *
      * @return how many input bytes were consumed, or -1 for no match. A reference to a group
      * that did not participate fails, as in the JDK and fancy-regex.
@@ -503,74 +514,17 @@ public final class FancyBacktracker {
         if (from < 0 || until < 0) {
             return -1;
         }
-        if ((nfa.b[pc] & Nfa.BACKREF_FOLD) == 0) {
-            final int length = until - from;
-            final int available = to - pos;
-            final int compare = Math.min(length, available);
-            for (int i = 0; i < compare; i++) {
-                if (data[from + i] != data[pos + i]) {
-                    return -1;
-                }
-            }
-            if (length > available) {
-                edge(recordEdge); // every byte in hand agreed; more input could complete it
-                return -1;
-            }
-            context.steps -= length;
-            return length;
-        }
-        return matchBackrefFolded(data, pos, to, from, until, recordEdge,
+        final int consumed = Backrefs.compare(data, pos, to, from, until,
+                (nfa.b[pc] & Nfa.BACKREF_FOLD) != 0,
                 (nfa.b[pc] & Nfa.BACKREF_UNICODE) != 0);
-    }
-
-    /**
-     * The case-insensitive comparison walks both spans a code point at a time, so the consumed
-     * length can differ from the captured length when folding crosses byte-length boundaries.
-     * The folding is the JDK's — upper case equal, or lower case equal — which keeps the oracle
-     * usable on exactly this corner.
-     */
-    private int matchBackrefFolded(final byte[] data,
-                                   final int pos,
-                                   final int to,
-                                   final int from,
-                                   final int until,
-                                   final boolean recordEdge,
-                                   final boolean unicode) {
-        int captured = from;
-        int input = pos;
-        while (captured < until) {
-            if (input >= to) {
-                edge(recordEdge);
-                return -1;
-            }
-            final int wanted = Utf8.decode(data, captured, until);
-            if (wanted < 0) {
-                return -1; // the captured span is not whole characters; nothing can fold-match it
-            }
-            final int have = Utf8.decode(data, input, to);
-            if (have < 0) {
-                edge(recordEdge); // a character truncated by the window edge
-                return -1;
-            }
-            if (wanted != have && !foldedEqual(wanted, have, unicode)) {
-                return -1;
-            }
-            captured += Utf8.encodedLength(wanted);
-            input += Utf8.encodedLength(have);
-            context.steps--;
+        if (consumed == Backrefs.TRUNCATED) {
+            edge(recordEdge); // every byte in hand agreed; more input could complete it
+            return -1;
         }
-        return input - pos;
-    }
-
-    private static boolean foldedEqual(final int a, final int b, final boolean unicode) {
-        if (!unicode) {
-            // (?i-u): ASCII letters fold, nothing else does.
-            return (a | 0x20) == (b | 0x20)
-                   && (a | 0x20) >= 'a' && (a | 0x20) <= 'z'
-                   && a <= 0x7F && b <= 0x7F;
+        if (consumed >= 0) {
+            context.steps -= consumed;
         }
-        return Character.toUpperCase(a) == Character.toUpperCase(b)
-               || Character.toLowerCase(a) == Character.toLowerCase(b);
+        return consumed;
     }
 
     private void edge(final boolean recordEdge) {

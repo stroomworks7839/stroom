@@ -846,54 +846,13 @@ public final class NodeTree {
             if (from < 0 || until < 0) {
                 return false; // a reference to a group that did not participate fails
             }
-            if (!fold) {
-                final int length = until - from;
-                final int available = ctx.to - pos;
-                final int compare = Math.min(length, available);
-                for (int i = 0; i < compare; i++) {
-                    if (ctx.data[from + i] != ctx.data[pos + i]) {
-                        return false;
-                    }
-                }
-                if (length > available) {
-                    ctx.edge();
-                    return false;
-                }
-                return next.match(ctx, pos + length);
+            final int consumed = Backrefs.compare(ctx.data, pos, ctx.to, from, until,
+                    fold, unicode);
+            if (consumed == Backrefs.TRUNCATED) {
+                ctx.edge();
+                return false;
             }
-            int captured = from;
-            int input = pos;
-            while (captured < until) {
-                if (input >= ctx.to) {
-                    ctx.edge();
-                    return false;
-                }
-                final int wanted = Utf8.decode(ctx.data, captured, until);
-                if (wanted < 0) {
-                    return false;
-                }
-                final int have = Utf8.decode(ctx.data, input, ctx.to);
-                if (have < 0) {
-                    ctx.edge();
-                    return false;
-                }
-                if (wanted != have && !foldedEqual(wanted, have)) {
-                    return false;
-                }
-                captured += Utf8.encodedLength(wanted);
-                input += Utf8.encodedLength(have);
-            }
-            return next.match(ctx, input);
-        }
-
-        private boolean foldedEqual(final int a, final int b) {
-            if (!unicode) {
-                return (a | 0x20) == (b | 0x20)
-                       && (a | 0x20) >= 'a' && (a | 0x20) <= 'z'
-                       && a <= 0x7F && b <= 0x7F;
-            }
-            return Character.toUpperCase(a) == Character.toUpperCase(b)
-                   || Character.toLowerCase(a) == Character.toLowerCase(b);
+            return consumed >= 0 && next.match(ctx, pos + consumed);
         }
     }
 
