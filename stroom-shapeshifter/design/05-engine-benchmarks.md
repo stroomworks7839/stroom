@@ -881,3 +881,23 @@ this library is at or ahead of `java.util.regex` on 24 of 29 measured variants, 
 machine, over this corpus — and each of the five remaining deficits is a named line in
 [06-performance-plan.md](06-performance-plan.md) rather than a mystery.
 
+### 10.5 Correction: there was no scan-plan Unicode gap
+
+§10.4 reported the UNICODE workload's auto-selected engine at 501 ops/s against the tree
+engine's 2,714 and called it a scan-plan defect. Wrong twice, and the diagnosis step of the
+next session caught both before any code was "fixed". The workload's first spelling —
+`^([\p{L}0-9]+): (.*) (\d+)$` — is ambiguous (`.*` and the space after it overlap), so it
+never reached the scan plan at all: 501 ops/s over that buffer is ~22 ns/byte, the
+simulation's §8 flat cost to the nanosecond, with nothing Unicode about it. That data point
+folds into [D30](00-decisions.md)'s existing case, where the tree engine already answers it.
+
+The workload now says what its javadoc always claimed — one-pass, so the bill lands on the
+scan plan — and the corrected measurement (`2026-08-19-1735`) reads: **scan plan 3,531 ± 61,
+tree engine 3,123 ± 29, JDK-from-bytes 2,838 ± 71 — the plan 1.24× ahead of the JDK on
+accented text.** D19's Unicode price is real relative to an ASCII byte table, and it still
+leaves the plan ahead of an engine that pays a `String` decode first. UNICODE moves from
+"parity, tree" to "ahead, auto" on the scoreboard; the at-or-ahead count stays 24 of 29,
+with one variant promoted from parity to ahead. The wrong-hypothesis series gains its sixth
+entry, and this one was self-inflicted twice over: a workload that did not test what it
+claimed, read as evidence of a defect that did not exist.
+

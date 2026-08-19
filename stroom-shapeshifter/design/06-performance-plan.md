@@ -26,7 +26,7 @@ four confident hypotheses on the way.
 | `NETWORK` at 0.79× on the buffer suite | Every full run | D19's residual Unicode-`\d` price on the scan plan |
 | `TIER1_ALTERNATION` on the tree engine at 0.69× | `2026-08-19-1409` | No visible sin in the audit; needs the §8 same-pattern-both-engines method |
 | Per-match `datetime` at 0.67× | `2026-08-19-1601` | The worst per-match category on either engine; undiagnosed |
-| **The scan plan on Unicode classes: ~5× off** | `2026-08-19-1601` — UNICODE workload: plan 501 ops/s, tree engine 2,714 | Found by the new workload on its first outing. The auto-selected tier is the slow one; suspects start at D19's per-character class path |
+| ~~The scan plan on Unicode classes: ~5× off~~ | **Resolved as a misdiagnosis** ([05 §10.5](05-engine-benchmarks.md)) | The workload's pattern was ambiguous and measured the simulation, not the plan. Corrected and re-measured (`2026-08-19-1735`): the plan is **1.24× ahead** of the JDK on accented text. No work to do |
 | The tree engine on LONG_RECORD (78 ops/s vs plan 580) and fixedwidth (62k vs 348k) | `2026-08-19-1601` | Not deficits vs the JDK — the plan wins both — but the exact shapes where D30's guard rails belong: recursion depth and bounded-quantifier chains |
 
 ## 3. Architecture decisions — D30's gate, not fixes

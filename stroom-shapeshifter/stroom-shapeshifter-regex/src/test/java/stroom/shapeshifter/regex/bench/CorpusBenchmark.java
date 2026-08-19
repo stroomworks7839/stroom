@@ -121,10 +121,12 @@ public class CorpusBenchmark {
         /**
          * Accented text, spelt with {@code \p{L}} so both engines mean Unicode without flag
          * translation — D19 priced the Unicode default at 10–20% and no workload had ever
-         * charged it.
+         * charged it. Deliberately <em>one-pass</em>, so the bill lands on the scan plan: the
+         * first spelling used {@code (.*) (\d+)}, which is ambiguous, and measured only the
+         * simulation's flat per-byte cost — a misdiagnosis §10.4 had to correct.
          */
-        UNICODE("^([\\p{L}0-9]+): (.*) (\\d+)$",
-                "caférésumé%02d: naïve τιμή value %d");
+        UNICODE("^([\\p{L}0-9]+): (\\S+) (\\d+)$",
+                "caférésumé%02d: naïve-τιμή-résumé %d");
 
         private final String pattern;
         private final String template;
