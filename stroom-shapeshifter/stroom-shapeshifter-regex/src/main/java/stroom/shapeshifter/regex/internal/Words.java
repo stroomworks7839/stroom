@@ -69,6 +69,19 @@ public final class Words {
         }
     }
 
+    /**
+     * Word membership for ASCII bytes, on which the Unicode and ASCII definitions agree —
+     * {@code [a-zA-Z0-9_]} both ways. Indexed by byte value below 0x80.
+     */
+    private static final boolean[] ASCII_WORD = new boolean[0x80];
+
+    static {
+        for (int b = 0; b < 0x80; b++) {
+            ASCII_WORD[b] = (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+                            || (b >= '0' && b <= '9') || b == '_';
+        }
+    }
+
     private Words() {
     }
 
@@ -90,6 +103,28 @@ public final class Words {
                                      final int to,
                                      final int cursor,
                                      final boolean unicode) {
+        // The ASCII fast path. A backtracker evaluates \b at every position it backs off
+        // through, and over log data both neighbours are almost always ASCII — where the two
+        // word definitions agree and a table lookup answers what two UTF-8 decodes and two
+        // binary searches over the Unicode set would. Measured under FANCY_LOOKAHEAD, whose
+        // lookahead body re-evaluates \b per backed-off byte.
+        final int before = cursor > regionFrom
+                ? data[cursor - 1] & 0xFF
+                : -1;
+        final int at = cursor < to
+                ? data[cursor] & 0xFF
+                : -1;
+        if (before < 0x80 && at < 0x80) {
+            return (before >= 0 && ASCII_WORD[before]) != (at >= 0 && ASCII_WORD[at]);
+        }
+        return atBoundarySlow(data, regionFrom, to, cursor, unicode);
+    }
+
+    private static boolean atBoundarySlow(final byte[] data,
+                                          final int regionFrom,
+                                          final int to,
+                                          final int cursor,
+                                          final boolean unicode) {
         final CodePointSet words = unicode
                 ? Unicode.SET
                 : ASCII;

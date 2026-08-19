@@ -58,6 +58,10 @@ public final class NfaCompiler {
     private int groupCount;
     private boolean multiline;
 
+    /** Whether this program will run only on the unbounded backtracker, which is what makes
+     * {@link Nfa#CLASS_STAR} safe to emit. */
+    private boolean fancy;
+
     /** Dispatch tables holding the "continues past the class" sentinel, patched once it is known. */
     private final List<Integer> tablesToPatch = new ArrayList<>();
 
@@ -72,9 +76,29 @@ public final class NfaCompiler {
                               final int groupCount,
                               final boolean multiline,
                               final String pattern) {
+        return compile(root, groupCount, multiline, pattern, false);
+    }
+
+    /**
+     * As {@link #compile}, for a pattern that will run only on the unbounded backtracker —
+     * which unlocks the {@link Nfa#CLASS_STAR} form no other engine can execute.
+     */
+    public static Nfa compileFancy(final Hir root,
+                                   final int groupCount,
+                                   final boolean multiline,
+                                   final String pattern) {
+        return compile(root, groupCount, multiline, pattern, true);
+    }
+
+    private static Nfa compile(final Hir root,
+                               final int groupCount,
+                               final boolean multiline,
+                               final String pattern,
+                               final boolean fancy) {
         final NfaCompiler compiler = new NfaCompiler(pattern);
         compiler.groupCount = groupCount;
         compiler.multiline = multiline;
+        compiler.fancy = fancy;
         compiler.emit(Nfa.SAVE, 0, 0);
         compiler.emitNode(root);
         compiler.emit(Nfa.SAVE, 1, 0);
@@ -91,6 +115,7 @@ public final class NfaCompiler {
         final NfaCompiler compiler = new NfaCompiler(pattern);
         compiler.groupCount = groupCount;
         compiler.multiline = multiline;
+        compiler.fancy = fancy;
         compiler.emitNode(body);
         compiler.emit(Nfa.MATCH, 0, 0);
         return compiler.build(groupCount, multiline);
@@ -502,6 +527,35 @@ public final class NfaCompiler {
             checkSize();
         }
 
+        if (max == Hir.Repeat.UNBOUNDED && fancy && byteSafe(body)) {
+            // One instruction instead of a choice point per iteration; see Nfa.CLASS_STAR.
+            // The min copies above were emitted as ordinary classes, so this covers the rest.
+            classes.add(byteTable(((Hir.CharClass) body).set()));
+            emit(Nfa.CLASS_STAR, classes.size() - 1, repeat.greedy()
+                    ? 0
+                    : 1);
+            return;
+        }
+
+        if (max == Hir.Repeat.UNBOUNDED && fancy && repeat.greedy()
+            && body instanceof Hir.CharClass charClass
+            && !charClass.set().nonAscii().isEmpty()
+            && hasAsciiMember(charClass.set())) {
+            // The hybrid, for a class like \w whose non-ASCII members are a subset: ASCII runs
+            // go through CLASS_STAR, and each multi-byte member goes through a trie holding
+            // only the non-ASCII part, looping back for the next run. On ASCII input the trie
+            // arm fails in one dispatch, so the backtracking order stays exactly longest-first
+            // and no continuation position is tried twice.
+            classes.add(byteTable(charClass.set()));
+            final int star = emit(Nfa.CLASS_STAR, classes.size() - 1, 0);
+            final int split = emit(Nfa.SPLIT, 0, 0);
+            instructions.get(split)[1] = nextPc();
+            emitClass(Hir.CharClass.of(charClass.set().nonAscii(), charClass.label() + " non-ASCII"));
+            emit(Nfa.JUMP, star, 0);
+            instructions.get(split)[2] = nextPc();
+            return;
+        }
+
         if (max == Hir.Repeat.UNBOUNDED) {
             // L: SPLIT(body, exit); body; JUMP L; exit:   — swapped for a lazy repetition, which
             // prefers leaving the loop over entering it.
@@ -562,6 +616,41 @@ public final class NfaCompiler {
                         : 1] = exit;
             }
         }
+    }
+
+    /**
+     * Whether an unbounded repeat of this node can be measured in bytes: a class that is
+     * ASCII-only, or that contains every non-ASCII code point, accepts multi-byte characters
+     * exactly when it accepts each of their bytes.
+     */
+    private static boolean byteSafe(final Hir body) {
+        return body instanceof Hir.CharClass charClass
+               && (charClass.set().isAsciiOnly() || charClass.set().containsAllNonAscii());
+    }
+
+    private static boolean hasAsciiMember(final CodePointSet set) {
+        for (int b = 0; b < 0x80; b++) {
+            if (set.contains(b)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The byte-level acceptance table for a byte-safe class. */
+    private static byte[] byteTable(final CodePointSet set) {
+        final byte[] table = new byte[256];
+        for (int b = 0; b < 0x80; b++) {
+            if (set.contains(b)) {
+                table[b] = 1;
+            }
+        }
+        if (set.containsAllNonAscii()) {
+            for (int b = 0x80; b < 256; b++) {
+                table[b] = 1;
+            }
+        }
+        return table;
     }
 
     private int emit(final int op, final int a, final int b) {

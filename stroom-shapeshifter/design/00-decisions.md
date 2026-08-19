@@ -695,6 +695,34 @@ first performance measurement against the JDK — results in
 
 ---
 
+## D29 — The fancy tier reaches the JDK by structure, not by shedding semantics
+
+*2026-08-19.* Five measured steps took FANCY_LOOKAHEAD from 0.15× of the JDK's backtracker to
+statistical parity (0.94×, CI crossing 1.0), with FANCY_BACKREF and FANCY_ATOMIC at ~0.7×.
+The ledger is [05-engine-benchmarks.md §10.1](05-engine-benchmarks.md); the wins were an ASCII
+fast path in the word-boundary test, `CLASS_STAR` (an unbounded byte-safe class repeat as one
+instruction with an O(1) backoff frame, fancy programs only), and its mostly-ASCII hybrid for
+classes like `\w`.
+
+Two things this settles beyond the numbers:
+
+- **Streaming support costs nothing measurable.** Dropping conservative `NEED_MORE_INPUT` in
+  favour of an outer controller was considered as a possible price of performance before the
+  work began; every step landed without touching it. The option stays available; the reason to
+  take it is gone.
+- The first hypothesis was wrong again — the line-anchor start gate bought 5.7% where a
+  multiple was predicted, because this workload's matches are dense. Kept for sparse scans;
+  logged as the fourth entry in the confident-diagnosis-refuted series (§8's profiler, D26's
+  clearing, D28's "one defect").
+
+**Consequences:** `CLASS_STAR` widens the gap between what fancy programs and shared programs
+may contain — the Pike VM cannot see through it, which is fine while entry remains per-pattern
+and the bounded engines never receive fancy programs, and a constraint to remember if that
+ever changes. The remaining ~1.4× on backref/atomic workloads is future work with the method
+on record.
+
+---
+
 ## D12 — The whole engine comes to Java eventually
 
 *2026-08-17.* Templates, transforms and the output/structure layer that replaces XSLT follow

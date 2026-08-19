@@ -80,6 +80,7 @@ public final class FancyBacktracker {
 
     private final Nfa nfa;
     private final byte[] firstBytes;
+    private final int startAnchor;
     private final Context context;
     private final FancyBacktracker[] children;
 
@@ -87,9 +88,12 @@ public final class FancyBacktracker {
     private final int[] markPos;
 
     // The choice points still to try, as an explicit stack — same shape as the bounded engine.
+    // A CLASS_STAR backoff frame is marked by a complemented pc (always negative), with the
+    // run's floor in stackAux; an ordinary frame leaves stackAux unused.
     private int[] stackPc = new int[64];
     private int[] stackPos = new int[64];
     private int[] stackUndo = new int[64];
+    private int[] stackAux = new int[64];
     private int stackSize;
 
     // Writes to undo when a choice point is resumed. Indices below the slot count are capture
@@ -105,6 +109,7 @@ public final class FancyBacktracker {
     private FancyBacktracker(final Nfa nfa, final Context context) {
         this.nfa = nfa;
         this.firstBytes = nfa.firstBytes();
+        this.startAnchor = nfa.startAnchor();
         this.context = context;
         this.children = new FancyBacktracker[nfa.subs.length];
         for (int i = 0; i < nfa.subs.length; i++) {
@@ -137,6 +142,17 @@ public final class FancyBacktracker {
         context.searchStart = start;
 
         for (int at = start; at <= to; at++) {
+            // The anchor gate first, because it is the cheapest test and, for the patterns it
+            // applies to, the most selective: a line-anchored pattern over record data skips
+            // from one newline to the next instead of attempting at every byte. The at == to
+            // iteration is exempt so the window-edge bookkeeping below still happens.
+            if (at < to && at > regionFrom && startAnchor != Nfa.ANCHOR_NONE
+                && (startAnchor == Nfa.ANCHOR_INPUT || data[at - 1] != '\n')) {
+                if (anchored) {
+                    break;
+                }
+                continue;
+            }
             if (at < to && Utf8.isContinuation(data[at])) {
                 continue; // a match may not begin inside a character
             }
@@ -189,19 +205,26 @@ public final class FancyBacktracker {
         int pc = 0;
         int pos = start;
 
+        // Local copies of the program arrays: the interpreter loop reads them at every
+        // dispatch, and a local lets the JIT keep them in registers where an instance field
+        // of another object might be reloaded.
+        final int[] op = nfa.op;
+        final int[] a = nfa.a;
+        final int[] b = nfa.b;
+        final int[] next = nfa.next;
+        final byte[][] classes = nfa.classes;
+
         for (;;) {
-            if (--context.steps < 0) {
-                throw new MatchLimitException(
-                        "the search took more than " + STEP_BUDGET + " steps, which only a "
-                        + "pathological combination of pattern and input does; the pattern "
-                        + "backtracks catastrophically and needs restructuring");
-            }
-            switch (nfa.op[pc]) {
+            // The budget is charged where work is provably done — bytes consumed, choice
+            // points pushed or resumed, sub-matches entered — rather than at every dispatch:
+            // every loop in a program either consumes or pushes, so the count still bounds
+            // the work, and the shared field stays off the hottest path.
+            switch (op[pc]) {
                 case Nfa.BYTE_RANGE -> {
                     if (pos >= to) {
                         edge(recordEdge);
-                    } else if ((data[pos] & 0xFF) >= nfa.a[pc] && (data[pos] & 0xFF) <= nfa.b[pc]) {
-                        pc = nfa.next[pc];
+                    } else if ((data[pos] & 0xFF) >= a[pc] && (data[pos] & 0xFF) <= b[pc]) {
+                        pc = next[pc];
                         pos++;
                         continue;
                     }
@@ -209,8 +232,8 @@ public final class FancyBacktracker {
                 case Nfa.BYTE_CLASS -> {
                     if (pos >= to) {
                         edge(recordEdge);
-                    } else if (nfa.classes[nfa.a[pc]][data[pos] & 0xFF] != 0) {
-                        pc = nfa.next[pc];
+                    } else if (classes[a[pc]][data[pos] & 0xFF] != 0) {
+                        pc = next[pc];
                         pos++;
                         continue;
                     }
@@ -219,7 +242,7 @@ public final class FancyBacktracker {
                     if (pos >= to) {
                         edge(recordEdge);
                     } else {
-                        final int successor = nfa.dispatch[nfa.a[pc]][data[pos] & 0xFF];
+                        final int successor = nfa.dispatch[a[pc]][data[pos] & 0xFF];
                         if (successor >= 0) {
                             pc = successor;
                             pos++;
@@ -228,32 +251,32 @@ public final class FancyBacktracker {
                     }
                 }
                 case Nfa.SPLIT -> {
-                    push(nfa.b[pc], pos);
-                    pc = nfa.a[pc];
+                    push(b[pc], pos);
+                    pc = a[pc];
                     continue;
                 }
                 case Nfa.JUMP -> {
-                    pc = nfa.a[pc];
+                    pc = a[pc];
                     continue;
                 }
                 case Nfa.SAVE -> {
-                    undo(nfa.a[pc], slots[nfa.a[pc]]);
-                    slots[nfa.a[pc]] = pos;
+                    undo(a[pc], slots[a[pc]]);
+                    slots[a[pc]] = pos;
                     pc++;
                     continue;
                 }
                 case Nfa.MARK -> {
-                    undo(slots.length + nfa.a[pc], markPos[nfa.a[pc]]);
-                    markPos[nfa.a[pc]] = pos;
+                    undo(slots.length + a[pc], markPos[a[pc]]);
+                    markPos[a[pc]] = pos;
                     pc++;
                     continue;
                 }
                 case Nfa.PROGRESS -> {
                     // An iteration that consumed nothing leaves the loop instead of repeating;
                     // taking the exit rather than dying is what lets the empty match win.
-                    pc = pos > markPos[nfa.a[pc]]
+                    pc = pos > markPos[a[pc]]
                             ? pc + 1
-                            : nfa.b[pc];
+                            : b[pc];
                     continue;
                 }
                 case Nfa.ASSERT -> {
@@ -297,6 +320,32 @@ public final class FancyBacktracker {
                     }
                     unwind(mark, slots);
                 }
+                case Nfa.CLASS_STAR -> {
+                    final byte[] table = nfa.classes[nfa.a[pc]];
+                    if (nfa.b[pc] == 0) {
+                        // Greedy: measure the whole run in one tight loop, keep one backoff
+                        // frame, and try the continuation from the far end first.
+                        int end = pos;
+                        while (end < to && table[data[end] & 0xFF] != 0) {
+                            end++;
+                        }
+                        if (end >= to) {
+                            edge(recordEdge); // the run touched the window edge
+                        }
+                        context.steps -= end - pos;
+                        if (end > pos) {
+                            pushStar(pc, end, pos);
+                        }
+                        pos = end;
+                    } else if (pos < to && table[data[pos] & 0xFF] != 0) {
+                        // Lazy: prefer the continuation here; the frame extends on resume.
+                        pushStar(pc, pos, pos);
+                    } else if (pos >= to) {
+                        edge(recordEdge); // more input could have allowed an extension
+                    }
+                    pc++;
+                    continue;
+                }
                 case Nfa.ATOMIC -> {
                     final int mark = undoSize;
                     logSlots(slots);
@@ -324,14 +373,67 @@ public final class FancyBacktracker {
             }
 
             // This path is done. Resume the most recent choice point, undoing what it wrote.
-            if (stackSize == 0) {
-                unwind(0, slots); // leave shared state as it was found: this may be a sub-match
-                return -1;
+            // A CLASS_STAR frame may itself be exhausted, so resuming is a loop.
+            resume:
+            for (;;) {
+                if (stackSize == 0) {
+                    unwind(0, slots); // leave shared state as found: this may be a sub-match
+                    return -1;
+                }
+                stackSize--;
+                if (--context.steps < 0) {
+                    throw new MatchLimitException(
+                            "the search took more than " + STEP_BUDGET + " steps, which only a "
+                            + "pathological combination of pattern and input does; the pattern "
+                            + "backtracks catastrophically and needs restructuring");
+                }
+                unwind(stackUndo[stackSize], slots);
+                final int frame = stackPc[stackSize];
+                if (frame >= 0) {
+                    pc = frame;
+                    pos = stackPos[stackSize];
+                    break;
+                }
+                final int starPc = ~frame;
+                final byte[] table = nfa.classes[nfa.a[starPc]];
+                final int floor = stackAux[stackSize];
+                if (nfa.b[starPc] == 0) {
+                    // Greedy backoff: one whole character shorter, continuation next.
+                    int cur = stackPos[stackSize] - 1;
+                    while (cur > floor && Utf8.isContinuation(data[cur])) {
+                        cur--;
+                    }
+                    if (cur > floor) {
+                        pushStar(starPc, cur, floor);
+                    }
+                    pc = starPc + 1;
+                    pos = cur;
+                    break;
+                }
+                // Lazy extension: one whole character longer, if the class allows it.
+                final int cur = stackPos[stackSize];
+                if (cur >= to) {
+                    edge(recordEdge);
+                    continue resume;
+                }
+                if (table[data[cur] & 0xFF] == 0) {
+                    continue resume; // the run cannot grow; this frame is spent
+                }
+                int grown = cur + 1;
+                while (grown < to && Utf8.isContinuation(data[grown])) {
+                    grown++;
+                }
+                if (grown < to || (grown == to && !Utf8.isContinuation(data[grown - 1]))
+                    || grown - cur == Utf8.sequenceLength(data[cur] & 0xFF)) {
+                    context.steps--;
+                    pushStar(starPc, grown, floor);
+                    pc = starPc + 1;
+                    pos = grown;
+                    break;
+                }
+                edge(recordEdge); // a character truncated by the window edge
+                continue resume;
             }
-            stackSize--;
-            unwind(stackUndo[stackSize], slots);
-            pc = stackPc[stackSize];
-            pos = stackPos[stackSize];
         }
     }
 
@@ -464,15 +566,28 @@ public final class FancyBacktracker {
     }
 
     private void push(final int pc, final int pos) {
+        if (--context.steps < 0) {
+            throw new MatchLimitException(
+                    "the search took more than " + STEP_BUDGET + " steps, which only a "
+                    + "pathological combination of pattern and input does; the pattern "
+                    + "backtracks catastrophically and needs restructuring");
+        }
         if (stackSize == stackPc.length) {
             stackPc = Arrays.copyOf(stackPc, stackSize * 2);
             stackPos = Arrays.copyOf(stackPos, stackSize * 2);
             stackUndo = Arrays.copyOf(stackUndo, stackSize * 2);
+            stackAux = Arrays.copyOf(stackAux, stackSize * 2);
         }
         stackPc[stackSize] = pc;
         stackPos[stackSize] = pos;
         stackUndo[stackSize] = undoSize;
         stackSize++;
+    }
+
+    /** A {@link Nfa#CLASS_STAR} frame: the run's current extent, and its floor in aux. */
+    private void pushStar(final int pc, final int extent, final int floor) {
+        push(~pc, extent);
+        stackAux[stackSize - 1] = floor;
     }
 
     private void undo(final int index, final int previous) {

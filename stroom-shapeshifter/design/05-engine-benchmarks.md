@@ -703,3 +703,42 @@ One cross-run caveat, in the D21 tradition: this run's machine was not idle.
 `javaRegex` was flat, so the small negative drift on this run's other shapeshifter rows
 measures the machine, not the engine. The ratios above are within-run and unaffected; the
 comparability note is in `benchmarks/README.md`.
+
+### 10.1 The fancy tier, optimised
+
+One workload, five steps, a measurement after each — the §8 discipline applied to the gap §10
+recorded. FANCY_LOOKAHEAD was chosen as the focus for having the worst ratio and the most
+machinery in one pattern; every score below is the `shapeshifter` method alone, single-workload
+runs on an otherwise idle machine, files `2026-08-19-1143` through `-1324`.
+
+| Step | Change | ops/s | Verdict |
+|---|---|---:|---|
+| — | baseline | 300 ± 16 | 0.15× against the JDK |
+| 1 | Line-anchor start gate: a `^`-anchored program only attempts at line starts, decided from the entry closure the way `firstBytes` is | 317 ± 2 | +5.7% — the confident hypothesis, mostly wrong: this workload's matches are dense, so there were no long scans to prune. Kept; it is what sparse scans want |
+| 2 | ASCII fast path in the word-boundary test: one table lookup where both neighbours are ASCII, instead of two UTF-8 decodes and two binary searches over the Unicode word set | 568 ± 60 | **+79%** |
+| 3 | `CLASS_STAR`: an unbounded byte-safe class repeat becomes one instruction — scan the run in a tight loop, keep one O(1) backoff frame — instead of a choice point pushed per byte. The JDK's `Curly` structure, for fancy programs only, which no other engine runs | 1321 ± 24 | **+133%** |
+| 4 | Interpreter mechanics: program arrays as locals, the step budget charged at pushes and resumes instead of every dispatch | 1364 ± 76 | indistinguishable; kept for the sounder budget placement |
+| 5 | The mostly-ASCII hybrid: `\w+`, `[\w ]++`, `\d++` — classes whose non-ASCII members are a subset — run their ASCII spans through `CLASS_STAR` and each multi-byte member through a trie of only the non-ASCII part. On ASCII input the trie arm fails in one dispatch, so backtracking order stays exactly longest-first | 1780 ± 40 | **+31%**, and the first step to move the other two workloads: FANCY_BACKREF +54%, FANCY_ATOMIC +49% against their baselines |
+
+**The confirmation run** (`2026-08-19-1327`, all three engines, same run, same conditions):
+
+| Workload | Ours | JDK (bytes) | Ratio |
+|---|---:|---:|---:|
+| FANCY_LOOKAHEAD | 1739 ± 21 | 1848 ± 179 | **0.94×** (0.85–1.05) |
+| FANCY_BACKREF | 4024 ± 28 | 5850 ± 302 | **0.69×** |
+| FANCY_ATOMIC | 2051 ± 51 | 3011 ± 109 | **0.68×** |
+
+The focus workload went from 0.15× to statistical parity with the JDK's backtracker on its
+home turf — a 5.9× improvement, all of it structural: no semantics were shed, and in
+particular **the streaming support never appeared in any measurement**. Dropping conservative
+`NEED_MORE_INPUT` in favour of an outer controller had been on the table as a possible price
+of performance; the ledger says there is nothing left to buy with it. The `pos >= to` branch
+the bookkeeping rides on has to exist for bounds checking regardless.
+
+What §10 guessed at, the ledger settled: the interpreter-versus-node-tree framing was really
+the choice-point-per-byte structure (step 3) plus two per-evaluation costs (steps 2 and 5),
+and the two smallest-looking steps were worth eleven of the twelve missing multiples. Step 1
+stands as the session's obligatory wrong hypothesis, kept because it is right for the shape it
+was designed for. The remaining ~1.4× on the backref and atomic workloads is unexplored;
+nested-entry slot journaling is the obvious next suspect, and the method is on record.
+

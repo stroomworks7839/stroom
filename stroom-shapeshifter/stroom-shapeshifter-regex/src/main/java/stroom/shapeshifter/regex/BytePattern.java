@@ -155,7 +155,7 @@ public final class BytePattern {
         // one-pass analysis nor the tier choice below applies to it. The construct itself is the
         // author's opt-in; explain() names the engine.
         if (Analysis.fancy(root)) {
-            final Nfa nfa = NfaCompiler.compile(root, groupCount, multiline, description);
+            final Nfa nfa = NfaCompiler.compileFancy(root, groupCount, multiline, description);
             return new BytePattern(description, copy, null, nfa,
                     List.of(), Analysis.warnings(root), groupNames);
         }

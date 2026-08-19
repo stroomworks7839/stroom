@@ -90,6 +90,17 @@ public final class CodePointSet {
         return false;
     }
 
+    /** The members above ASCII, kept for the multi-byte arm of a hybrid class loop. */
+    public CodePointSet nonAscii() {
+        final Builder builder = new Builder();
+        for (int i = 0; i < ranges.length; i += 2) {
+            if (ranges[i + 1] >= 0x80) {
+                builder.add(Math.max(ranges[i], 0x80), ranges[i + 1]);
+            }
+        }
+        return builder.build();
+    }
+
     /** True if every member is ASCII, so the class is exactly a set of single bytes. */
     public boolean isAsciiOnly() {
         return ranges.length == 0 || ranges[ranges.length - 1] <= 0x7F;

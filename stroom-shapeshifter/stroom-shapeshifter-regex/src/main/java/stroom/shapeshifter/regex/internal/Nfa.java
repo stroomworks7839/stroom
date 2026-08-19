@@ -92,6 +92,19 @@ public final class Nfa {
     public static final int LOOK_NEGATED = 1;
     public static final int LOOK_BEHIND = 2;
 
+    /**
+     * An unbounded repetition of a byte-safe class in one instruction: {@code a} indexes the
+     * byte table, {@code b} is 1 for lazy. Greedy execution scans the whole run in a tight
+     * loop and keeps one O(1) backoff frame, instead of a choice point per byte — the same
+     * structural trick as the JDK's {@code Curly} node, and worth the same kind of factor.
+     * <p>
+     * Only emitted into fancy programs, which no other engine runs: the Pike VM's closures
+     * cannot see through it. A class is byte-safe when it is ASCII-only or contains every
+     * non-ASCII code point (as {@code .} and negated ASCII classes do), so the run can be
+     * measured in bytes while backoff steps whole characters and spans never split one.
+     */
+    public static final int CLASS_STAR = 13;
+
     final int[] op;
     final int[] a;
     final int[] b;
@@ -132,6 +145,22 @@ public final class Nfa {
 
     /** Built once with the program, since it is a pure function of it. */
     private final Closures closures;
+
+    /** No start-position constraint: a match could begin anywhere. */
+    static final int ANCHOR_NONE = 0;
+    /** Every match begins at a line start — the region start, or just after a newline. */
+    static final int ANCHOR_LINE = 1;
+    /** Every match begins at the region start. */
+    static final int ANCHOR_INPUT = 2;
+
+    /**
+     * The strongest start-position constraint every entry path agrees on. The same idea as
+     * {@link #firstBytes}, for assertions instead of bytes: a pattern anchored with {@code ^}
+     * can only match at a line start, so a search that attempts everywhere pays a full
+     * attempt's setup per input byte to discover what one byte compare already knew. The JDK
+     * skips to line starts for such patterns, and this is what lets these engines do the same.
+     */
+    private final int startAnchor;
 
     /**
      * Bytes a match can begin with, or null if it can match empty. Lets an unanchored search skip
@@ -185,6 +214,30 @@ public final class Nfa {
         this.fancy = needsFancy;
         this.closures = new Closures(this);
         this.firstBytes = computeFirstBytes();
+        this.startAnchor = computeStartAnchor();
+    }
+
+    private int computeStartAnchor() {
+        int anchor = ANCHOR_INPUT;
+        final int[] targets = closures.targets(0);
+        for (int i = 0; i < targets.length && anchor != ANCHOR_NONE; i++) {
+            int strength = ANCHOR_NONE;
+            for (final int kind : closures.asserts(0, i)) {
+                if (kind == Hir.Kind.START_INPUT.ordinal()) {
+                    strength = ANCHOR_INPUT;
+                    break;
+                }
+                if (kind == Hir.Kind.START_LINE.ordinal()) {
+                    strength = ANCHOR_LINE;
+                }
+            }
+            anchor = Math.min(anchor, strength);
+        }
+        return anchor;
+    }
+
+    int startAnchor() {
+        return startAnchor;
     }
 
     /** Whether only the unbounded backtracker can run this program. */
@@ -291,6 +344,10 @@ public final class Nfa {
                                 ? ", negated"
                                 : "");
                 case ATOMIC -> sb.append("ATOMIC      sub ").append(a[pc]);
+                case CLASS_STAR -> sb.append("CLASS_STAR  #").append(a[pc])
+                        .append(b[pc] != 0
+                                ? " (lazy)"
+                                : "");
                 case MATCH -> sb.append("MATCH");
                 default -> sb.append("?? ").append(op[pc]);
             }
