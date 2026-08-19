@@ -14,7 +14,7 @@ four confident hypotheses on the way.
 |---|---|---|
 | Line-anchor start gate in the fancy engine and scan plan | **Done** (§10.1 step 1) | +5.7% on dense matches; its real case is sparse scans |
 | The same gate in the bounded backtracker and Pike VM | **Done** (this commit) | The two middle engines were still setting up per position for `^`-anchored patterns |
-| Minimum-length fail-fast | **Done in the four automaton engines; removed from the scan plan (tier 0 audit)** | On the plan path the gate's presence cost CSV ~14% in compiled-loop shape while its saving never rose above noise — bisected, root-caused to a JIT inlining cliff in the grown `run()`, fixed by splitting the dispatcher into per-engine methods (which also lifted FANCY_BACKREF +46%) |
+| Minimum-length fail-fast | **Done, everywhere — restored to the scan plan after its removal proved a mistake** | The full saga, kept as a cautionary tale: shipped unattributed in D32's bundle; removed from the plan path on buffer-CSV evidence (its presence had tipped the grown `run()` over an inlining cliff — the real fix was the dispatcher split); and the removal then cost per-match datetime 43%, caught by the closing full-suite run because the removal itself was guarded on one suite only. Restored on top of the split: datetime 1.22× ahead, per-match network 1.43× ahead (its best ever), buffer CSV a wash. Two lessons, both now method notes: attribute bundles, and guard *both* suites |
 | Literal runs as one instruction | **Deprioritised by architecture (D31/D32)** | Was aimed at the flat fancy engine, now fallback-only; the tree engine's `ByteSeq` already compares runs whole. Revisit only if the fallback ever shows up in a measurement |
 | Literal-prefix skip (Boyer–Moore-ish) | **Deprioritised by evidence** | SPARSE measured 2.80× *ahead* of the JDK without it (`2026-08-19-1601`); revisit only if a sparse workload ever loses |
 
@@ -76,6 +76,10 @@ guarded by JMH after every change.
 **All three paid off on their first run** — see [05-engine-benchmarks.md §10.4](05-engine-benchmarks.md):
 SPARSE retired the Boyer–Moore item, LONG_RECORD turned the tree engine's depth risk into a
 number, and UNICODE found a 5× scan-plan gap nobody suspected.
+
+**Standing after the closing full-suite run (`2026-08-19-2144` + the gate restoration):
+28 of 30 measured variants ahead outright, and the only sub-parity line on either suite is
+buffer NETWORK — the diagnosed JMH-conditions artifact that measures at raw parity.**
 
 **Standing after the 2026-08-20 round: no engine deficit remains anywhere.** NETWORK — the
 scoreboard's last behind-line — measures at parity under controlled fork-per-side comparison;

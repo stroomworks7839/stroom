@@ -268,11 +268,14 @@ public final class ByteMatcher {
     private MatchOutcome searchPlan(final int from) {
         final byte[] firstBytes = plan.firstBytes();
         final var leadingAnchor = plan.leadingAnchor();
-        // Deliberately NOT gated by the pattern's minimum length, unlike the automaton
-        // engines: measured on CSV, the gate's presence cost ~14% in compiled-loop shape
-        // while its saving — a handful of doomed attempts at the buffer's very end — never
-        // rose above noise. The tier 0 audit's bisect is the evidence; see the plan document.
-        for (int start = from; start <= regionTo; start++) {
+        // The minimum-length gate earns its keep on short unanchored searches — per-match
+        // datetime fell 43% the day it was removed on buffer-CSV evidence alone, a lesson in
+        // guarding both suites — and since the dispatcher split it no longer costs CSV its
+        // inlining cliff. Complete windows only, or NEED_MORE would be lost.
+        final int lastStart = complete
+                ? regionTo - plan.minLength()
+                : regionTo;
+        for (int start = from; start <= lastStart; start++) {
             if (leadingAnchor != null && !isAnchorPosition(leadingAnchor, start)) {
                 // A start-anchored pattern can only match where the anchor holds, which for a
                 // typical ^-anchored pattern rules out all but the line starts. Testing that here
