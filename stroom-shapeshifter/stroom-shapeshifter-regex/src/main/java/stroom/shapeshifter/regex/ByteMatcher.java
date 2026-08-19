@@ -18,6 +18,7 @@ package stroom.shapeshifter.regex;
 
 import stroom.shapeshifter.regex.internal.Backtracker;
 import stroom.shapeshifter.regex.internal.FancyBacktracker;
+import stroom.shapeshifter.regex.internal.NodeTree;
 import stroom.shapeshifter.regex.internal.PikeVm;
 import stroom.shapeshifter.regex.internal.Plan;
 import stroom.shapeshifter.regex.internal.PlanRunner;
@@ -49,6 +50,9 @@ public final class ByteMatcher {
      */
     private final FancyBacktracker fancy;
 
+    /** The experimental tree-walking engine, present only when {@link Engine#TREE} was forced. */
+    private final NodeTree.Machine tree;
+
     /**
      * How much the backtracker's (instruction, position) bitset may occupy before a search goes to
      * the simulation instead. 128 KB covers a 2,000-instruction program over a 500-byte record,
@@ -68,19 +72,24 @@ public final class ByteMatcher {
     ByteMatcher(final BytePattern pattern) {
         this.pattern = pattern;
         this.plan = pattern.plan();
-        final boolean needsFancy = plan == null
+        this.tree = pattern.tree() != null
+                ? new NodeTree.Machine(pattern.tree())
+                : null;
+        final boolean needsFancy = tree == null && plan == null
                                    && (pattern.nfa().fancy() || pattern.forced() == Engine.FANCY);
         this.fancy = needsFancy
                 ? new FancyBacktracker(pattern.nfa())
                 : null;
-        this.vm = plan == null && !needsFancy
+        this.vm = tree == null && plan == null && !needsFancy
                 ? new PikeVm(pattern.nfa())
                 : null;
-        this.backtracker = plan == null && !needsFancy
+        this.backtracker = tree == null && plan == null && !needsFancy
                 ? new Backtracker(pattern.nfa())
                 : null;
         this.groupCount = pattern.groupCount();
-        this.slots = new int[plan != null
+        this.slots = new int[tree != null
+                ? pattern.tree().slotCount()
+                : plan != null
                 ? plan.slotCount()
                 : pattern.nfa().slotCount()];
     }
@@ -143,6 +152,13 @@ public final class ByteMatcher {
     }
 
     private MatchOutcome run(final int from, final Anchoring anchoring) {
+        if (tree != null) {
+            Arrays.fill(slots, -1);
+            final int end = tree.search(data, regionFrom, from, regionTo,
+                    anchoring == Anchoring.ANCHORED, complete, slots);
+            matched = end >= 0;
+            return outcome(end);
+        }
         if (fancy != null) {
             Arrays.fill(slots, -1);
             final int end = fancy.search(data, regionFrom, from, regionTo,

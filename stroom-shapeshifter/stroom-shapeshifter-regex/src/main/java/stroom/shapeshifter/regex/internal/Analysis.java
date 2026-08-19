@@ -379,6 +379,47 @@ public final class Analysis {
         };
     }
 
+    /**
+     * The start-position constraint every match obeys: 0 for none, 1 when every match begins
+     * at a line start, 2 when every match begins at the region start. The HIR twin of the
+     * {@code Nfa} entry-closure analysis, for engines that execute the tree rather than the
+     * program.
+     */
+    public static int startAnchor(final Hir node) {
+        return switch (node) {
+            case Hir.Assertion assertion -> switch (assertion.kind()) {
+                case START_INPUT -> 2;
+                case START_LINE -> 1;
+                default -> 0;
+            };
+            case Hir.Group group -> startAnchor(group.body());
+            case Hir.Atomic atomic -> startAnchor(atomic.body());
+            case Hir.Repeat repeat -> repeat.min() >= 1
+                    ? startAnchor(repeat.body())
+                    : 0;
+            case Hir.Alt alt -> {
+                int weakest = 2;
+                for (final Hir branch : alt.branches()) {
+                    weakest = Math.min(weakest, startAnchor(branch));
+                }
+                yield weakest;
+            }
+            case Hir.Concat concat -> {
+                for (final Hir item : concat.items()) {
+                    final int anchor = startAnchor(item);
+                    if (anchor > 0) {
+                        yield anchor;
+                    }
+                    if (!nullable(item)) {
+                        yield 0;
+                    }
+                }
+                yield 0;
+            }
+            default -> 0;
+        };
+    }
+
     /** Sentinel for {@link #byteLength}: no finite upper bound. */
     public static final int UNBOUNDED_LENGTH = Integer.MAX_VALUE;
 

@@ -742,3 +742,107 @@ stands as the session's obligatory wrong hypothesis, kept because it is right fo
 was designed for. The remaining ~1.4× on the backref and atomic workloads is unexplored;
 nested-entry slot journaling is the obvious next suspect, and the method is on record.
 
+### 10.2 What the JDK's engine has that this one does not
+
+Written after §10.1 reached parity on one workload, to record what remains structurally
+different — so the next round of performance work starts from analysis rather than folklore.
+
+**Not the VM.** There are no regex-specific HotSpot intrinsics; `java.util.regex` is plain
+Java in front of the same JIT this engine faces. Its one VM-adjacent advantage is compact
+strings — a Latin-1 `String` is a `byte[]` inside, so its "char" engine secretly runs over
+bytes — and that advantage is fragile: [03-baseline-results.md](03-baseline-results.md)
+measured the JDK 9–15% slower the moment text arrives as a `CharSequence` and `charAt` stops
+inlining. This engine's byte path has no such cliff.
+
+**The library, hand-tuned.** Three decades of specifics: Boyer–Moore search for literal
+prefixes (`BnM`), a compile-time minimum match length that lets `find` stop attempting near
+the end of input, and a specialised node type per shape — `Curly` (which §10.1's `CLASS_STAR`
+copies), `GroupCurly`, `BitClass`. Two of these are portable here and cheap: the minimum-length
+fail-fast, and a literal-prefix skip generalising `firstBytes`. Neither should move the current
+fancy workloads (dense, line-anchored matches), so they wait for a workload that wants them.
+
+**The structural difference: a pattern-shaped compilation unit.** Not the existence of a
+tree — this engine parses to the same tree (the HIR: atoms, alternation, groups), and the
+composition layer is a second one. The difference is its fate: here the tree is an
+intermediate representation that [D8](00-decisions.md) deliberately compiles away, and a flat
+program executes; in the JDK the tree *is* the runtime, walked through virtual `match()`
+calls. That is only possible because backtracking is the one algorithm whose execution
+structure is a tree walk — a breadth-first simulation has no call shape, a suspendable
+streaming state cannot be a Java call stack, and the three-engine correctness argument
+([D27](00-decisions.md)) needs one shared program that no engine owns. The flattening is
+load-bearing here, not a missed trick.
+
+`Pattern.compile` builds a
+tree of node objects, one per construct, each with a virtual `match()`. The tree is data, but
+it is *constant* data reached through *type-dispatched* calls — so when the JIT compiles the
+hot path from the root, profiling lets it inline the concrete chain
+`Start → Slice → Curly → BitClass…` into one blob of machine code with that pattern's
+constants folded in. Inlining performs partial evaluation: the JDK gets per-pattern machine
+code without ever writing a compiler. This engine's `attempt()` loop is the opposite shape —
+one generic interpreter compiled once for every pattern, `op[pc]` never a constant, no
+cross-instruction folding. That is the interpreter tax, and §10.1 bounds it: ≤ ~1.4× on these
+shapes, ~0 where the structural gaps are closed.
+
+**The tax has a counterparty.** The JDK's specialisation leans on clean type profiles, and
+profiles are per call site, shared across every pattern in the JVM. One hot pattern profiles
+beautifully — which is exactly what a single-workload benchmark measures. A process running
+many patterns pollutes the `node.match()` sites into megamorphic dispatch, and the JDK's
+advantage decays; the interpreter's cost is pattern-count-independent. A Stroom node runs many
+patterns. `PatternCorpusBenchmark`, with a hundred-odd patterns in one JVM, is the fairer
+proxy for that — worth remembering when reading single-workload ratios.
+
+**If the tax ever needs paying off**, the options in ascending order of commitment:
+1. More superinstructions — `CLASS_STAR` and the byte-dispatch tables are this, and there is
+   room left (fused literal runs, SAVE-pair elision).
+2. Per-pattern code generation: emit a class per compiled pattern via `java.lang.classfile`,
+   turning the program into real Java control flow — the JDK's advantage without the virtual
+   dispatch, at the price of metaspace per pattern, warmup, and a much larger testing surface.
+3. MethodHandle composition — partial evaluation on the cheap, historically fragile at depth.
+None is justified by current numbers; this section exists so that if one ever is, the
+reasoning starts here.
+
+### 10.3 The tree-walking experiment: `Engine.TREE`
+
+§10.2's analysis was a hypothesis until an engine existed to measure it, so one was built: the
+JDK's architecture — the HIR compiled to a tree of node objects, one `match()` per construct,
+recursion as the undo log — over this dialect and byte input. Never chosen by the compiler;
+reached only through `compileForcing`; held to the same results as every other engine by the
+differential suite, which pins it against the unbounded backtracker and the JDK.
+
+**Single pattern per JVM** (`2026-08-19-1409`, TREE's best case by §10.2's own analysis):
+
+| Workload | JDK (bytes) | Flat engines | TREE | TREE/JDK |
+|---|---:|---:|---:|---:|
+| FANCY_LOOKAHEAD | 1916 ± 96 | 1763 ± 23 | 1847 ± 43 | 0.96× |
+| FANCY_BACKREF | 5760 ± 241 | 4067 ± 31 | 5511 ± 294 | 0.96× |
+| FANCY_ATOMIC | 3168 ± 135 | 1988 ± 29 | 3792 ± 50 | **1.20×** |
+| TIER1_GREEDY | 2193 ± 16 | 413 ± 5 | 2273 ± 15 | **1.04×** |
+| TIER1_ALTERNATION | 4057 ± 93 | 225 ± 1 | 2809 ± 14 | 0.69× |
+
+The §10.2 hypothesis is confirmed and priced: per-pattern JIT specialisation plus
+recursion-as-undo is worth 1.05–1.9× over the flat fancy engine, erases the backref gap,
+overtakes the JDK on atomic groups — and, unasked, transforms the two ambiguous workloads
+this document's worst numbers belong to: 5.5× and 12.5× over the simulation, to JDK level.
+
+**Many patterns per JVM** (`2026-08-19-1422`, the profile-pollution rebuttal §10.2 predicted):
+
+| Category | Flat engines | TREE | TREE advantage |
+|---|---:|---:|---:|
+| fancy | 56781 ± 593 | 214847 ± 4497 | 3.78× |
+| stress | 19406 ± 196 | 31633 ± 562 | 1.63× |
+| identifiers | 95653 ± 1714 | 212020 ± 2563 | 2.22× |
+| csv | 122763 ± 1063 | 103835 ± 868 | **0.85×** |
+
+The predicted decay did not materialise at corpus scale — a couple of dozen patterns sharing
+one JVM's type profiles leave TREE far ahead wherever an automaton or the flat backtracker
+runs today. §10.2's pollution paragraph joins the wrong-hypothesis series, with the caveat
+that hundreds of patterns remain unmeasured. The one loss is the right one: csv is scan-plan
+country, and a straight-line plan at 1.5–9.5 ns/byte is what tier 0 exists to be.
+
+**What stands between this experiment and any change of defaults**, recorded in D30: a
+recursion-depth guard (the call-stack-as-undo-log design meets `StackOverflowError` on long
+records with stateful loops, the JDK's own known failure mode); the linear-time question (for
+non-fancy patterns a budgeted TREE with simulation fallback would keep the guarantee while
+taking the speed — a design, not yet a decision); the Oniguruma corpus run against TREE; and
+a pollution test at hundreds of patterns rather than dozens.
+

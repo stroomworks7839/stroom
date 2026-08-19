@@ -46,6 +46,12 @@ class CorpusBenchmarkFixtureTest {
             assertThat(theirs.matcher(record).find())
                     .as("%s: the JDK should match %s", workload, record)
                     .isTrue();
+            assertThat(BytePattern.compileForcing(stroom.shapeshifter.regex.Engine.TREE,
+                            workload.pattern(),
+                            java.util.EnumSet.of(Flag.MULTILINE))
+                    .matcher().find(record.getBytes(StandardCharsets.UTF_8)))
+                    .as("%s: the tree engine should match %s", workload, record)
+                    .isTrue();
         }
     }
 }

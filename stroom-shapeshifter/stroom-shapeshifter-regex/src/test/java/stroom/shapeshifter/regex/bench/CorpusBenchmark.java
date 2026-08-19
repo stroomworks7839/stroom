@@ -131,6 +131,7 @@ public class CorpusBenchmark {
     private byte[] bytes;
     private String text;
     private BytePattern ours;
+    private BytePattern oursTree;
     private Pattern theirs;
     private int groups;
 
@@ -144,6 +145,9 @@ public class CorpusBenchmark {
         bytes = text.getBytes(StandardCharsets.UTF_8);
 
         ours = BytePattern.compile(workload.pattern, stroom.shapeshifter.regex.Flag.MULTILINE);
+        oursTree = BytePattern.compileForcing(stroom.shapeshifter.regex.Engine.TREE,
+                workload.pattern,
+                java.util.EnumSet.of(stroom.shapeshifter.regex.Flag.MULTILINE));
         theirs = Pattern.compile(workload.pattern, Pattern.MULTILINE);
         groups = theirs.matcher("").groupCount();
     }
@@ -160,6 +164,26 @@ public class CorpusBenchmark {
     @Benchmark
     public long shapeshifter() {
         final ByteMatcher matcher = ours.matcher();
+        long hash = 1L;
+        int pos = 0;
+        while (pos < bytes.length && matcher.match(
+                bytes, pos, bytes.length, stroom.shapeshifter.regex.Anchoring.UNANCHORED)) {
+            for (int group = 1; group <= groups; group++) {
+                hash = hash * 31L + (matcher.matchedGroup(group)
+                        ? matcher.end(group) - matcher.start(group)
+                        : -1);
+            }
+            pos = matcher.end() == matcher.start()
+                    ? matcher.end() + 1
+                    : matcher.end();
+        }
+        return hash;
+    }
+
+    /** The experimental tree-walking engine (Engine.TREE), pinned; see D30. */
+    @Benchmark
+    public long shapeshifterTree() {
+        final ByteMatcher matcher = oursTree.matcher();
         long hash = 1L;
         int pos = 0;
         while (pos < bytes.length && matcher.match(

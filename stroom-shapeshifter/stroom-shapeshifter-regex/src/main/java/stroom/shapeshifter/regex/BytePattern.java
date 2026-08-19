@@ -79,6 +79,9 @@ public final class BytePattern {
      */
     private final Engine forced;
 
+    /** The node-tree compilation, present only when {@link Engine#TREE} was forced. */
+    private final stroom.shapeshifter.regex.internal.NodeTree.Compiled tree;
+
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
                         final Plan plan,
@@ -97,6 +100,19 @@ public final class BytePattern {
                         final List<String> warnings,
                         final List<String> groupNames,
                         final Engine forced) {
+        this(pattern, flags, plan, nfa, ambiguities, warnings, groupNames, forced, null);
+    }
+
+    private BytePattern(final String pattern,
+                        final Set<Flag> flags,
+                        final Plan plan,
+                        final Nfa nfa,
+                        final List<Analysis.Violation> ambiguities,
+                        final List<String> warnings,
+                        final List<String> groupNames,
+                        final Engine forced,
+                        final stroom.shapeshifter.regex.internal.NodeTree.Compiled tree) {
+        this.tree = tree;
         this.forced = forced;
         this.pattern = pattern;
         this.flags = flags;
@@ -214,8 +230,19 @@ public final class BytePattern {
             }
             return compiled;
         }
+        if (engine == Engine.TREE) {
+            final Parser.Result parsed = Parser.parse(pattern, flags);
+            final Hir root = Normalise.normalise(parsed.root());
+            final stroom.shapeshifter.regex.internal.NodeTree.Compiled tree =
+                    stroom.shapeshifter.regex.internal.NodeTree.compile(
+                            root, parsed.groupCount(), pattern);
+            return new BytePattern(pattern, EnumSet.copyOf(flags.isEmpty()
+                    ? EnumSet.noneOf(Flag.class)
+                    : flags), null, null,
+                    List.of(), Analysis.warnings(root), parsed.groupNames(), engine, tree);
+        }
         final BytePattern compiled = compileForcingNfa(pattern, flags);
-        if (engine != Engine.FANCY && compiled.nfa.fancy()) {
+        if (engine != Engine.FANCY && engine != Engine.TREE && compiled.nfa.fancy()) {
             throw new IllegalArgumentException(
                     "the pattern needs the unbounded backtracker, which cannot be overridden: "
                     + pattern);
@@ -227,6 +254,11 @@ public final class BytePattern {
     /** The engine every search must use, or null to choose per search. */
     Engine forced() {
         return forced;
+    }
+
+    /** The node-tree compilation, or null unless {@link Engine#TREE} was forced. */
+    stroom.shapeshifter.regex.internal.NodeTree.Compiled tree() {
+        return tree;
     }
 
     /**
@@ -280,6 +312,9 @@ public final class BytePattern {
     }
 
     public int groupCount() {
+        if (tree != null) {
+            return tree.groupCount();
+        }
         return plan != null
                 ? plan.groupCount()
                 : nfa.groupCount();
@@ -291,6 +326,9 @@ public final class BytePattern {
      * depends on the input length, so it is settled per search rather than here.
      */
     public Engine engine() {
+        if (tree != null) {
+            return Engine.TREE;
+        }
         if (plan != null) {
             return Engine.SCAN_PLAN;
         }
@@ -337,6 +375,11 @@ public final class BytePattern {
         final StringBuilder sb = new StringBuilder()
                 .append("pattern: ").append(pattern).append('\n')
                 .append("flags:   ").append(flags).append('\n');
+        if (tree != null) {
+            sb.append("tier:    ").append(tier()).append(" (").append(engine().description())
+                    .append(", ").append(tree.nodeCount()).append(" nodes)\n");
+            return sb.toString();
+        }
         if (plan != null) {
             sb.append("tier:    ").append(tier()).append(" (").append(engine().description())
                     .append(", ").append(plan.size()).append(" ops)\n")

@@ -335,6 +335,8 @@ class DifferentialTest {
                     BytePattern.compileForcing(Engine.SIMULATE, pattern, Set.of());
             final BytePattern fancy =
                     BytePattern.compileForcing(Engine.FANCY, pattern, Set.of());
+            final BytePattern treeWalk =
+                    BytePattern.compileForcing(Engine.TREE, pattern, Set.of());
             final Pattern javaPattern = JdkOracle.compile(pattern);
             final BytePattern scanPlan = BytePattern.compile(pattern);
 
@@ -344,6 +346,7 @@ class DifferentialTest {
                 assertAgree(simulate, javaPattern, pattern, input);
                 assertSameResult(backtrack, simulate, pattern, input);
                 assertSameResult(simulate, fancy, pattern, input);
+                assertSameResult(fancy, treeWalk, pattern, input);
                 if (scanPlan.tier() == Engine.SCAN_PLAN.ordinal()) {
                     assertSameResult(scanPlan, backtrack, pattern, input);
                 }
@@ -415,9 +418,13 @@ class DifferentialTest {
                         .as("%s should need the fancy tier", pattern)
                         .isEqualTo(Engine.FANCY);
             }
+            final BytePattern treeWalk =
+                    BytePattern.compileForcing(Engine.TREE, pattern, Set.of());
             final Pattern javaPattern = JdkOracle.compile(pattern);
             for (int i = 0; i < 300; i++) {
-                assertAgree(bytePattern, javaPattern, pattern, randomAscii(random));
+                final String input = randomAscii(random);
+                assertAgree(bytePattern, javaPattern, pattern, input);
+                assertAgree(treeWalk, javaPattern, pattern, input);
             }
         }
     }

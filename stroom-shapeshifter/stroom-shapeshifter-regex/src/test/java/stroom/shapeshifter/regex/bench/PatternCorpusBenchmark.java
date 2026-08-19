@@ -93,7 +93,9 @@ public class PatternCorpusBenchmark {
     private String category;
 
     private List<BytePattern> ours;
+    private List<BytePattern> oursTree;
     private List<ByteMatcher> ourMatchers;
+    private List<ByteMatcher> treeMatchers;
     private List<Matcher> theirMatchers;
     private List<byte[]> inputBytes;
     private List<String> inputText;
@@ -108,7 +110,9 @@ public class PatternCorpusBenchmark {
                         + "drifted from PatternCorpus"));
 
         ours = new ArrayList<>();
+        oursTree = new ArrayList<>();
         ourMatchers = new ArrayList<>();
+        treeMatchers = new ArrayList<>();
         theirMatchers = new ArrayList<>();
         for (final String pattern : found.patterns()) {
             final BytePattern compiled;
@@ -119,6 +123,10 @@ public class PatternCorpusBenchmark {
             }
             ours.add(compiled);
             ourMatchers.add(compiled.matcher());
+            final BytePattern treeForced = BytePattern.compileForcing(
+                    stroom.shapeshifter.regex.Engine.TREE, pattern, java.util.Set.of());
+            oursTree.add(treeForced);
+            treeMatchers.add(treeForced.matcher());
             theirMatchers.add(JdkOracle.compile(pattern).matcher(""));
         }
 
@@ -131,6 +139,32 @@ public class PatternCorpusBenchmark {
     /** Patterns actually measured, reported so a category's weight is visible. */
     public int patterns() {
         return ours.size();
+    }
+
+    /**
+     * Every pattern in the category through the tree-walking engine, in one JVM alongside a
+     * hundred-odd other patterns — the profile-pollution case 05-engine-benchmarks.md §10.2
+     * predicts should erode its single-pattern advantage. See D30.
+     */
+    @Benchmark
+    public long shapeshifterTree() {
+        long hash = 1L;
+        for (int i = 0; i < oursTree.size(); i++) {
+            final BytePattern pattern = oursTree.get(i);
+            final ByteMatcher matcher = treeMatchers.get(i);
+            for (final byte[] input : inputBytes) {
+                if (matcher.find(input)) {
+                    for (int group = 0; group <= pattern.groupCount(); group++) {
+                        hash = hash * 31L + (matcher.matchedGroup(group)
+                                ? matcher.end(group) - matcher.start(group)
+                                : -1);
+                    }
+                } else {
+                    hash = hash * 31L - 7L;
+                }
+            }
+        }
+        return hash;
     }
 
     @Benchmark

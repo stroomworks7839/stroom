@@ -723,6 +723,36 @@ on record.
 
 ---
 
+## D30 — `Engine.TREE`: the JDK's architecture, built to be measured
+
+*2026-08-19.* [05-engine-benchmarks.md §10.2](05-engine-benchmarks.md) analysed why
+`java.util.regex` can be fast — the JIT specialises a per-pattern node tree, which a
+shared-program interpreter structurally cannot have — and the analysis stayed a hypothesis
+until an engine existed to test it. So one was built as a fifth, deliberately exploratory
+tier: the HIR compiled to node objects with recursion as the undo log, over this dialect and
+byte input, **never selected by the compiler**, reached only through `compileForcing`, and
+held to identical results by the differential suite.
+
+Both halves of the hypothesis got their answer ([§10.3](05-engine-benchmarks.md)):
+
+- **The specialisation is real and priced**: 1.05–1.9× over the flat fancy engine, parity to
+  1.2× against the JDK on its home turf — and 5.5×/12.5× over the simulation on the two
+  ambiguous workloads that were this project's worst numbers.
+- **The predicted profile-pollution decay did not materialise at corpus scale.** Dozens of
+  patterns in one JVM leave the tree engine far ahead everywhere an automaton runs today;
+  only the scan plan beats it, which is what the scan plan is for. Another confident
+  paragraph joins the refuted list.
+
+**Consequences:** the experiment stays an experiment until three things exist — a
+recursion-depth guard (call-stack-as-undo meets `StackOverflowError` on long records, the
+JDK's own failure mode, which D7 §8.3 planned to contain rather than fix); a decision on the
+linear-time guarantee for non-fancy patterns (a budgeted TREE with simulation fallback would
+keep the promise while taking the speed); and wider evidence (Oniguruma corpus through TREE,
+pollution at hundreds of patterns). If those land, the tier map gets redrawn; until then,
+`compileForcing(Engine.TREE, …)` is how anyone asks the question again.
+
+---
+
 ## D12 — The whole engine comes to Java eventually
 
 *2026-08-17.* Templates, transforms and the output/structure layer that replaces XSLT follow

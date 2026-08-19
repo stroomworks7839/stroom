@@ -60,7 +60,19 @@ public enum Engine {
      * {@link MatchLimitException} rather than hanging. Chosen only when the pattern itself asks
      * for it, by containing one of these constructs; writing {@code \1} is the opt-in.
      */
-    FANCY("unbounded backtracking");
+    FANCY("unbounded backtracking"),
+
+    /**
+     * The JDK's architecture, transplanted: the pattern compiles to a tree of node objects,
+     * each construct with its own {@code match()}, recursion serving as the undo log — over
+     * this dialect and byte input. <b>Never chosen by the compiler.</b> It exists to measure
+     * the question 05-engine-benchmarks.md §10.2 records: how much of
+     * {@code java.util.regex}'s speed is the JIT specialising a per-pattern node tree, an
+     * advantage a shared-program interpreter structurally cannot have. Reached only through
+     * {@link BytePattern#compileForcing}, and held to the same results as every other engine
+     * by the differential suite.
+     */
+    TREE("node-tree backtracking");
 
     private final String description;
 
