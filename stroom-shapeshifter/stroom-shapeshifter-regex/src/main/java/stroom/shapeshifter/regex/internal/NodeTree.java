@@ -24,8 +24,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * The experimental tree-walking engine: {@code java.util.regex}'s architecture over this
- * dialect and byte input.
+ * The tree-walking engine: {@code java.util.regex}'s architecture over this dialect and byte
+ * input.
  * <p>
  * The HIR is not lowered to a flat program. Each construct compiles to a node object with its
  * own {@code match()}, wired to its continuation, and matching is a chain of virtual calls —
@@ -36,10 +36,12 @@ import java.util.List;
  * The exceptions are lookaround and atomic groups, which break the single recursion spine and
  * save the slot array around their sub-match instead.
  * <p>
- * Never selected by the compiler ({@code Engine.TREE}); reached only through
- * {@code compileForcing}, for differential testing and for measuring the architecture
- * question. Same dialect, same byte offsets, same streaming conservatism, same step budget
- * ({@link MatchLimitException}) as the unbounded backtracker.
+ * Built as an experiment ({@code Engine.TREE}, D30), promoted on the evidence: since D31 the
+ * compiler's primary for every fancy pattern, since D32 the first try for every ambiguous
+ * search — with the flat engines as fallback where its one structural limit, recursion depth,
+ * gives out ({@code Bailout}), and the simulation preserving the linear-time promise beneath
+ * it. Same dialect, same byte offsets, same streaming conservatism, same step budget
+ * ({@link MatchLimitException}) as the flat unbounded backtracker.
  */
 public final class NodeTree {
 
@@ -667,18 +669,15 @@ public final class NodeTree {
 
         private final OneChar item;
         private final boolean greedy;
+
+        /** The item's own ASCII table, borrowed rather than built twice. */
         private final byte[] ascii;
         private final boolean allNonAscii;
 
         StarClass(final CodePointSet set, final boolean greedy) {
             this.item = new OneChar(set);
             this.greedy = greedy;
-            this.ascii = new byte[0x80];
-            for (int b = 0; b < 0x80; b++) {
-                ascii[b] = set.contains(b)
-                        ? (byte) 1
-                        : 0;
-            }
+            this.ascii = item.ascii;
             this.allNonAscii = set.containsAllNonAscii();
         }
 
