@@ -416,7 +416,7 @@ class DifferentialTest {
             if (!pattern.contains("\\Q")) { // quoting alone is not fancy
                 assertThat(bytePattern.engine())
                         .as("%s should need the fancy tier", pattern)
-                        .isEqualTo(Engine.FANCY);
+                        .isEqualTo(Engine.TREE); // the fancy tier's primary engine since D31
             }
             final BytePattern treeWalk =
                     BytePattern.compileForcing(Engine.TREE, pattern, Set.of());

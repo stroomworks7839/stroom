@@ -55,6 +55,10 @@ comparable even on the same machine:
   both corpus benchmarks, and the `SPARSE`, `LONG_RECORD` and `UNICODE` workloads to
   `CorpusBenchmark` — closing the dense-match/short-record/ASCII-only blind spot recorded in
   `06-performance-plan.md` §4. Earlier files lack all of those rows.
+- **D31 redrew the default engine selection** (2026-08-19): the `shapeshifter` methods'
+  scores on fancy and TIER1 workloads are not comparable across that commit — the default
+  path changed engines, which was the point. A 14th per-match workload, `everything`, runs
+  the whole corpus in one JVM.
 - **The UNICODE workload was redefined on 2026-08-19** (ambiguous first spelling measured
   the simulation, not the scan plan — 05 §10.5): its rows in `2026-08-19-1601` and earlier
   are not comparable with `2026-08-19-1735` onward.

@@ -29,13 +29,13 @@ four confident hypotheses on the way.
 | ~~The scan plan on Unicode classes: ~5× off~~ | **Resolved as a misdiagnosis** ([05 §10.5](05-engine-benchmarks.md)) | The workload's pattern was ambiguous and measured the simulation, not the plan. Corrected and re-measured (`2026-08-19-1735`): the plan is **1.24× ahead** of the JDK on accented text. No work to do |
 | The tree engine on LONG_RECORD (78 ops/s vs plan 580) and fixedwidth (62k vs 348k) | `2026-08-19-1601` | Not deficits vs the JDK — the plan wins both — but the exact shapes where D30's guard rails belong: recursion depth and bounded-quantifier chains |
 
-## 3. Architecture decisions — D30's gate, not fixes
+## 3. Architecture decisions — D30's gate, closed by D31
 
-| Item | What it unlocks |
+| Item | Status |
 |---|---|
-| Recursion-depth guard for `Engine.TREE` | Long records without `StackOverflowError` — precondition for everything below |
-| Budgeted TREE with simulation fallback for ambiguous patterns | The 5.5×/12.5× TIER1 wins in the default path, linear-time promise kept |
-| Oniguruma corpus through TREE; pollution at hundreds of patterns | The evidence D30 requires before the tier map is redrawn |
+| Recursion-depth guard for `Engine.TREE` | **Done** — loop-depth limit 1,024 + `StackOverflowError` backstop; structural bailout falls back, pinned use contains |
+| Budgeted TREE with simulation fallback for ambiguous patterns | **Done (D31)** — default path measured at 3.9×/7.7× on the TIER1 workloads, linear-time promise kept |
+| Oniguruma corpus through TREE; pollution at hundreds of patterns | **Done** — 622/622 identical; per-category stable at full sweep; `everything` (114 patterns, one JVM) showed the mixed policy beating pinned-tree 617 vs 354, settling the larger point |
 
 ## 4. Benchmark blind spots — partially closed, the rest recorded
 

@@ -51,26 +51,29 @@ public enum Engine {
     SIMULATE("NFA simulation"),
 
     /**
-     * Unbounded backtracking, for the constructs that are not regular: backreferences,
-     * lookaround, atomic groups and possessive quantifiers, and {@code \G}. No other engine can
-     * run them — a backreference's future depends on capture state, which is exactly what a
-     * simulation's state cannot carry and what invalidates {@link #BACKTRACK}'s visited-set
-     * bound — so this tier trades the linear-time guarantee for the capability, and contains
-     * the loss with a step budget: a pathological pattern-input pair raises
-     * {@link MatchLimitException} rather than hanging. Chosen only when the pattern itself asks
-     * for it, by containing one of these constructs; writing {@code \1} is the opt-in.
+     * Unbounded backtracking over the flat program, for the constructs that are not regular:
+     * backreferences, lookaround, atomic groups and possessive quantifiers, and {@code \G}.
+     * A backreference's future depends on capture state, which is exactly what a simulation's
+     * state cannot carry and what invalidates {@link #BACKTRACK}'s visited-set bound — so this
+     * tier trades the linear-time guarantee for the capability, and contains the loss with a
+     * step budget: a pathological pattern-input pair raises {@link MatchLimitException} rather
+     * than hanging. Since D31 the fancy tier's <em>primary</em> engine is {@link #TREE}; this
+     * one is its structural fallback — an explicit stack cannot run out of call-stack depth —
+     * and remains pinnable for the differential suite.
      */
     FANCY("unbounded backtracking"),
 
     /**
      * The JDK's architecture, transplanted: the pattern compiles to a tree of node objects,
      * each construct with its own {@code match()}, recursion serving as the undo log — over
-     * this dialect and byte input. <b>Never chosen by the compiler.</b> It exists to measure
-     * the question 05-engine-benchmarks.md §10.2 records: how much of
-     * {@code java.util.regex}'s speed is the JIT specialising a per-pattern node tree, an
-     * advantage a shared-program interpreter structurally cannot have. Reached only through
-     * {@link BytePattern#compileForcing}, and held to the same results as every other engine
-     * by the differential suite.
+     * this dialect and byte input. Built to measure the question 05-engine-benchmarks.md
+     * §10.2 records, it measured at or ahead of the JDK across the board (§10.3–10.4), and
+     * since D31 the compiler chooses it: the primary engine for every fancy pattern (with
+     * {@link #FANCY} as structural fallback), and the first try for ambiguous searches too
+     * large for {@link #BACKTRACK}'s budget (with {@link #SIMULATE} as the fallback that
+     * keeps the linear-time promise). Its one structural limit is recursion depth on long
+     * records with stateful loops, contained by a loop-depth guard that hands the search to
+     * the fallback instead of meeting {@code StackOverflowError}.
      */
     TREE("node-tree backtracking");
 

@@ -18,6 +18,7 @@ package stroom.shapeshifter.regex.corpus;
 
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
+import stroom.shapeshifter.regex.Engine;
 import stroom.shapeshifter.regex.Flag;
 import stroom.shapeshifter.regex.PatternCompileException;
 
@@ -96,6 +97,16 @@ class OnigurumaCorpusTest {
             final String failure = check(pattern, testCase);
             if (failure != null) {
                 failures.add(failure);
+            }
+
+            // The same case through the tree engine, which D30 requires proven against this
+            // corpus before the tier map is redrawn. Every case the flat engines execute, the
+            // tree engine must answer identically.
+            final BytePattern treeForced = BytePattern.compileForcing(
+                    Engine.TREE, testCase.pattern(), java.util.EnumSet.of(Flag.MULTILINE));
+            final String treeFailure = check(treeForced, testCase);
+            if (treeFailure != null) {
+                failures.add("[tree] " + treeFailure);
             }
         }
 

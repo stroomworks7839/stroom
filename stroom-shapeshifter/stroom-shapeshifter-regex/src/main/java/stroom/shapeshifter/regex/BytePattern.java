@@ -43,8 +43,9 @@ import java.util.Set;
  *       yet.</li>
  *   <li>The RE2 subset, plus the constructs beyond it — backreferences, lookaround, atomic
  *       groups and possessive quantifiers, {@code \Q...\E} and {@code \G} — which run on the
- *       unbounded backtracker ({@link Engine#FANCY}) and give up the linear-time guarantee for
- *       a step budget ({@link MatchLimitException}).</li>
+ *       tree-walking backtracker ({@link Engine#TREE}, with {@link Engine#FANCY} as its
+ *       structural fallback) and give up the linear-time guarantee for a step budget
+ *       ({@link MatchLimitException}).</li>
  *   <li>Every execution tier. A <em>one-pass</em> pattern compiles to a straight-line scan
  *       plan; an ambiguous one compiles to an NFA run by bounded backtracking or a Pike VM; a
  *       pattern whose syntax asks for more runs on the unbounded backtracker. The choice is the
@@ -172,8 +173,12 @@ public final class BytePattern {
         // author's opt-in; explain() names the engine.
         if (Analysis.fancy(root)) {
             final Nfa nfa = NfaCompiler.compileFancy(root, groupCount, multiline, description);
+            // The tree engine is the primary for fancy patterns (D31); the flat engine stays
+            // as the structural fallback when recursion depth gives out.
             return new BytePattern(description, copy, null, nfa,
-                    List.of(), Analysis.warnings(root), groupNames);
+                    List.of(), Analysis.warnings(root), groupNames, null,
+                    stroom.shapeshifter.regex.internal.NodeTree.compile(
+                            root, groupCount, description));
         }
 
         // A one-pass pattern can be decided by looking at one upcoming byte, so it compiles to a
@@ -185,7 +190,11 @@ public final class BytePattern {
             return new BytePattern(description, copy, plan, null, violations, warnings, groupNames);
         }
         final Nfa nfa = NfaCompiler.compile(root, groupCount, multiline, description);
-        return new BytePattern(description, copy, null, nfa, violations, warnings, groupNames);
+        // Ambiguous patterns carry the tree too: it takes the searches the bounded
+        // backtracker's budget refuses, with the simulation as the linear-time fallback (D31).
+        return new BytePattern(description, copy, null, nfa, violations, warnings, groupNames,
+                null, stroom.shapeshifter.regex.internal.NodeTree.compile(
+                        root, groupCount, description));
     }
 
     /** A short rendering of a composition, for {@link #explain()} and error messages. */
@@ -312,7 +321,7 @@ public final class BytePattern {
     }
 
     public int groupCount() {
-        if (tree != null) {
+        if (plan == null && nfa == null) {
             return tree.groupCount();
         }
         return plan != null
@@ -326,14 +335,17 @@ public final class BytePattern {
      * depends on the input length, so it is settled per search rather than here.
      */
     public Engine engine() {
-        if (tree != null) {
-            return Engine.TREE;
-        }
         if (plan != null) {
             return Engine.SCAN_PLAN;
         }
+        if (nfa == null) {
+            return Engine.TREE; // pinned by compileForcing: the tree alone
+        }
+        // Fancy patterns run the tree first with the flat backtracker as structural fallback;
+        // ambiguous ones report the simulation, which remains both the guarantee and the
+        // fallback whatever runs first (D31).
         return nfa.fancy()
-                ? Engine.FANCY
+                ? Engine.TREE
                 : Engine.SIMULATE;
     }
 
@@ -375,7 +387,7 @@ public final class BytePattern {
         final StringBuilder sb = new StringBuilder()
                 .append("pattern: ").append(pattern).append('\n')
                 .append("flags:   ").append(flags).append('\n');
-        if (tree != null) {
+        if (nfa == null && tree != null) {
             sb.append("tier:    ").append(tier()).append(" (").append(engine().description())
                     .append(", ").append(tree.nodeCount()).append(" nodes)\n");
             return sb.toString();

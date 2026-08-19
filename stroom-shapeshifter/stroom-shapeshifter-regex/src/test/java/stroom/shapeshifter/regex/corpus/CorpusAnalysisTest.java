@@ -101,7 +101,7 @@ class CorpusAnalysisTest {
                         compiled.groupCount() + " groups");
                 // The patterns 04-corpus-analysis.md called "java dialect" land here now: the
                 // constructs compile natively instead of delegating to the JDK.
-                case FANCY -> new Classification(pattern, occurrences, "fancy",
+                case TREE, FANCY -> new Classification(pattern, occurrences, "fancy",
                         "backreference, lookaround or atomic group");
                 default -> new Classification(pattern, occurrences, "automaton",
                         compiled.ambiguities().getFirst().toString());

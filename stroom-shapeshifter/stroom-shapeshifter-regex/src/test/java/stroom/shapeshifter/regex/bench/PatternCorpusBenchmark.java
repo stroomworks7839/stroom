@@ -89,7 +89,8 @@ public class PatternCorpusBenchmark {
      * fails loudly if one stops matching the corpus, so the two cannot drift apart silently.
      */
     @Param({"csv", "syslog", "weblog", "keyvalue", "datetime", "network", "quoted",
-            "numbers", "identifiers", "structured", "fixedwidth", "stress", "fancy"})
+            "numbers", "identifiers", "structured", "fixedwidth", "stress", "fancy",
+            "everything"})
     private String category;
 
     private List<BytePattern> ours;
@@ -102,12 +103,21 @@ public class PatternCorpusBenchmark {
 
     @Setup
     public void setup() {
-        final PatternCorpus.Category found = PatternCorpus.categories().stream()
-                .filter(c -> c.name().equals(category))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(
-                        "no corpus category named '" + category + "' — the @Param list has "
-                        + "drifted from PatternCorpus"));
+        // "everything" runs the whole corpus in one JVM — the profile-pollution case D30
+        // asked to see at full scale before trusting the tree engine's call-site inlining.
+        final PatternCorpus.Category found = "everything".equals(category)
+                ? new PatternCorpus.Category("everything",
+                        PatternCorpus.allPatterns(),
+                        PatternCorpus.categories().stream()
+                                .flatMap(c -> c.inputs().stream())
+                                .distinct()
+                                .toList())
+                : PatternCorpus.categories().stream()
+                        .filter(c -> c.name().equals(category))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "no corpus category named '" + category + "' — the @Param list "
+                                + "has drifted from PatternCorpus"));
 
         ours = new ArrayList<>();
         oursTree = new ArrayList<>();

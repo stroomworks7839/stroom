@@ -31,15 +31,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class NodeTreeTest {
 
     @Test
-    void reachedOnlyByForcing() {
+    void chosenForFancyPatternsAndPinnable() {
+        // Since D31 the compiler chooses the tree engine for fancy patterns; pinning still
+        // works and still isolates it — a pinned matcher has no fallback.
+        assertThat(BytePattern.compile("(\\w+) \\1").engine()).isEqualTo(Engine.TREE);
+
         final BytePattern forced =
                 BytePattern.compileForcing(Engine.TREE, "(\\w+) \\1", java.util.Set.of());
         assertThat(forced.engine()).isEqualTo(Engine.TREE);
         assertThat(forced.tier()).isEqualTo(Engine.TREE.ordinal());
         assertThat(forced.explain()).contains("node-tree backtracking");
 
-        // The compiler never chooses it.
-        assertThat(BytePattern.compile("(\\w+) \\1").engine()).isEqualTo(Engine.FANCY);
+        // Ambiguous patterns still report the simulation: the guarantee is the ceiling, and
+        // the tree runs opportunistically underneath it.
+        assertThat(BytePattern.compile("^(.+):(.+)$").engine()).isEqualTo(Engine.SIMULATE);
     }
 
     @Test
@@ -79,6 +84,41 @@ class NodeTreeTest {
                 .isEqualTo(MatchOutcome.MATCH);
         assertThat(matcher.match(ByteWindow.partial(bytes("aa-b"), 0, 4), 0, Anchoring.ANCHORED))
                 .isEqualTo(MatchOutcome.NO_MATCH);
+    }
+
+    @Test
+    void deepLoopsBailOutToTheSimulation() {
+        // Ambiguous (the repeated part and what follows both start with 'a'), a region too
+        // large for the bounded backtracker, and more loop iterations than the tree engine's
+        // depth limit: the tree bails out structurally and the simulation answers — the
+        // linear-time promise doing its job as the fallback (D31).
+        final BytePattern pattern = BytePattern.compile("(?:ab)+a");
+        assertThat(pattern.engine()).isEqualTo(Engine.SIMULATE);
+        final String input = "ab".repeat(70_000) + "a";
+        final ByteMatcher matcher = pattern.matcher();
+        assertThat(matcher.find(bytes(input))).isTrue();
+        assertThat(matcher.end()).isEqualTo(input.length());
+    }
+
+    @Test
+    void deepLoopsBailOutToTheFlatFancyEngine() {
+        // A fancy pattern with a stateful loop deeper than the call stack tolerates: the tree
+        // gives up structurally and the flat backtracker, whose stack is an array, answers.
+        final BytePattern pattern = BytePattern.compile("(?:ab)+(?=x)");
+        assertThat(pattern.engine()).isEqualTo(Engine.TREE);
+        final String input = "ab".repeat(1_300) + "x";
+        final ByteMatcher matcher = pattern.matcher();
+        assertThat(matcher.find(bytes(input))).isTrue();
+        assertThat(matcher.end()).isEqualTo(input.length() - 1);
+    }
+
+    @Test
+    void pinnedTreeHasNoFallbackAndSaysSo() {
+        final ByteMatcher pinned = BytePattern
+                .compileForcing(Engine.TREE, "(?:ab)+a", java.util.Set.of()).matcher();
+        assertThatThrownBy(() -> pinned.find(bytes("ab".repeat(2_000) + "a")))
+                .isInstanceOf(MatchLimitException.class)
+                .hasMessageContaining("pinned");
     }
 
     private static ByteMatcher matcher(final String pattern) {

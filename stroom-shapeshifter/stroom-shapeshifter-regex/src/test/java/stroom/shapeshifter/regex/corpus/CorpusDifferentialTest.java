@@ -77,7 +77,7 @@ class CorpusDifferentialTest {
                 byVerdict.merge(compiled.engine().description(), 1, Integer::sum);
                 final int bucket = switch (compiled.engine()) {
                     case SCAN_PLAN -> 0;
-                    case FANCY -> 2;
+                    case TREE, FANCY -> 2;
                     default -> 1;
                 };
                 counts[bucket]++;

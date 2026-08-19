@@ -753,6 +753,45 @@ pollution at hundreds of patterns). If those land, the tier map gets redrawn; un
 
 ---
 
+## D31 — The tier map, redrawn: the tree engine takes the searches it wins
+
+*2026-08-19.* [D30](#d30--enginetree-the-jdks-architecture-built-to-be-measured)'s three
+preconditions landed the same day it set them, so the decision followed. The policy:
+
+- **One-pass patterns**: the scan plan, untouched — it beats every other engine including
+  the tree, which is what it is for.
+- **Fancy patterns**: the tree engine is the primary, having measured at or ahead of the JDK
+  on every fancy workload. The flat unbounded backtracker becomes its structural fallback —
+  an explicit stack cannot run out of call-stack depth — and stays pinnable.
+- **Ambiguous patterns**: the bounded backtracker keeps every search its bitset can afford,
+  unchanged. Beyond the budget — the whole-buffer searches that previously fell to the
+  simulation — the tree engine runs first, and the simulation remains both fallback and
+  guarantee: whatever the engines give up on, one machine finishes in linear time.
+
+The preconditions, each with its evidence: a **loop-depth guard** (1,024 stacked iterations,
+plus a `StackOverflowError` backstop in the D7 §8.3 containment tradition) turns the tree
+engine's structural limit into a `Bailout` signal the selection catches — pinned use converts
+it to `MatchLimitException` instead of falling anywhere. The **Oniguruma corpus** runs every
+executed case through the tree engine, identically, 622 for 622. And the **pollution question**
+closed at full corpus scale: per-category tree numbers are stable across a fourteen-category
+sweep, and the new `everything` workload (114 patterns, one JVM) showed pinned-tree at 354
+ops/s against the mixed policy's 617 — the decay §10.2 predicted never arrived, but the
+corpus's own composition settled the larger point: **no single engine is the product; the
+selection is.**
+
+Measured on the default path (`2026-08-19-1748`, `-1752`): TIER1_ALTERNATION 7.7× and
+TIER1_GREEDY 3.9× over the pre-redraw default; the fancy workloads at their pinned-tree
+numbers (FANCY_ATOMIC 1.23× ahead of the JDK); the per-match fancy category 3.7× to 1.56×
+ahead of the JDK; short-record searches unchanged, still the bounded backtracker's.
+
+**Consequences:** `engine()` reports the tree for fancy patterns and the simulation for
+ambiguous ones — the primary and the promise respectively; `Engine.FANCY` remains the fancy
+fallback and a differential witness; every automaton pattern now compiles both a flat program
+and a node tree, a compile-time and footprint cost accepted knowingly; and the linear-time
+guarantee's wording is unchanged, because the fallback structure preserves it exactly.
+
+---
+
 ## D12 — The whole engine comes to Java eventually
 
 *2026-08-17.* Templates, transforms and the output/structure layer that replaces XSLT follow

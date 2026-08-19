@@ -45,6 +45,28 @@ public final class NodeTree {
 
     private static final long STEP_BUDGET = 1_000_000;
 
+    /**
+     * Loop iterations a single attempt may stack before the engine gives up structurally.
+     * Every iteration of a stateful loop adds the body's frames to the call stack — the price
+     * of recursion-as-undo-log — so a long record under {@code (?:ab)+} would eventually meet
+     * {@link StackOverflowError}, the JDK engine's own famous failure mode. This engine
+     * declines the fight instead: past the limit it raises {@link Bailout}, and the caller
+     * falls back to a flat engine that answers the same question in linear space.
+     */
+    private static final int LOOP_DEPTH_LIMIT = 1024;
+
+    /**
+     * The tree engine giving up structurally — too deep for the call stack, as opposed to
+     * {@link MatchLimitException}'s "pathological however you execute it". Callers treat it
+     * as "use another engine", never as an answer.
+     */
+    public static final class Bailout extends RuntimeException {
+
+        Bailout() {
+            super(null, null, false, false); // no message, no stack trace: it is a signal
+        }
+    }
+
     /** A compiled pattern: the entry node plus what the search loop needs around it. */
     public record Compiled(Node root,
                            int groupCount,
@@ -65,6 +87,7 @@ public final class NodeTree {
         int[] slots;
         int[] groupStart;
         int[] locals;
+        int loopDepth;
         boolean hitEnd;
         boolean recordEdge;
         long steps;
@@ -188,7 +211,18 @@ public final class NodeTree {
                     continue;
                 }
                 Arrays.fill(slots, -1);
-                if (compiled.root().match(ctx, at)) {
+                ctx.loopDepth = 0;
+                final boolean matchedHere;
+                try {
+                    matchedHere = compiled.root().match(ctx, at);
+                } catch (final StackOverflowError e) {
+                    // The stack is already unwound by the time this is catchable, and the
+                    // engine holds no state a failed attempt needs. The loop-depth limit
+                    // should fire long before this; the catch is the backstop for shapes the
+                    // counter does not model, in the D7 containment tradition.
+                    throw new Bailout();
+                }
+                if (matchedHere) {
                     slots[0] = at;
                     slots[1] = ctx.end;
                     return !complete && (ctx.hitEnd || ctx.end == to)
@@ -562,12 +596,16 @@ public final class NodeTree {
 
         private boolean matchInit(final Ctx ctx, final int pos) {
             ctx.budget();
+            if (++ctx.loopDepth > LOOP_DEPTH_LIMIT) {
+                throw new Bailout();
+            }
             final int saved = ctx.locals[local];
             ctx.locals[local] = pos;
             final boolean matched = greedy
                     ? body.match(ctx, pos) || next.match(ctx, pos)
                     : next.match(ctx, pos) || body.match(ctx, pos);
             ctx.locals[local] = saved;
+            ctx.loopDepth--;
             return matched;
         }
 
@@ -580,12 +618,16 @@ public final class NodeTree {
                 return next.match(ctx, pos);
             }
             ctx.budget();
+            if (++ctx.loopDepth > LOOP_DEPTH_LIMIT) {
+                throw new Bailout();
+            }
             final int saved = ctx.locals[local];
             ctx.locals[local] = pos;
             final boolean matched = greedy
                     ? body.match(ctx, pos) || restoreAndNext(ctx, pos, saved)
                     : next.match(ctx, pos) || anotherIteration(ctx, pos, saved);
             ctx.locals[local] = saved;
+            ctx.loopDepth--;
             return matched;
         }
 

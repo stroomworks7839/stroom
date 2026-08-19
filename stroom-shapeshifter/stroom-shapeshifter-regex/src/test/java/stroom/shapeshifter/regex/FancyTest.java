@@ -39,19 +39,20 @@ class FancyTest {
 
     @Test
     void backrefSelectsTheFancyTier() {
+        // Since D31 the fancy tier's primary engine is the tree walker, with the flat
+        // backtracker as its structural fallback; engine() names what runs first.
         final BytePattern pattern = BytePattern.compile("(\\w+) \\1");
-        assertThat(pattern.engine()).isEqualTo(Engine.FANCY);
-        assertThat(pattern.tier()).isEqualTo(Engine.FANCY.ordinal());
-        assertThat(pattern.explain()).contains("unbounded backtracking");
+        assertThat(pattern.engine()).isEqualTo(Engine.TREE);
+        assertThat(pattern.tier()).isEqualTo(Engine.TREE.ordinal());
     }
 
     @Test
     void everyFancyConstructSelectsTheFancyTier() {
-        assertThat(BytePattern.compile("foo(?=bar)").engine()).isEqualTo(Engine.FANCY);
-        assertThat(BytePattern.compile("(?<=foo)bar").engine()).isEqualTo(Engine.FANCY);
-        assertThat(BytePattern.compile("(?>a|ab)c").engine()).isEqualTo(Engine.FANCY);
-        assertThat(BytePattern.compile("a*+b").engine()).isEqualTo(Engine.FANCY);
-        assertThat(BytePattern.compile("\\Gab").engine()).isEqualTo(Engine.FANCY);
+        assertThat(BytePattern.compile("foo(?=bar)").engine()).isEqualTo(Engine.TREE);
+        assertThat(BytePattern.compile("(?<=foo)bar").engine()).isEqualTo(Engine.TREE);
+        assertThat(BytePattern.compile("(?>a|ab)c").engine()).isEqualTo(Engine.TREE);
+        assertThat(BytePattern.compile("a*+b").engine()).isEqualTo(Engine.TREE);
+        assertThat(BytePattern.compile("\\Gab").engine()).isEqualTo(Engine.TREE);
     }
 
     @Test
@@ -264,10 +265,10 @@ class FancyTest {
         // backreference; the gap in the wild was atomic groups and lookahead.
         final BytePattern blocks = BytePattern.compile(
                 "((?>\\n*|^)(?>.*\\n)+?)\\n((?>\\n*|^)(?>.*\\n)+?(?>\\n|$))", Flag.MULTILINE);
-        assertThat(blocks.engine()).isEqualTo(Engine.FANCY);
+        assertThat(blocks.engine()).isEqualTo(Engine.TREE);
 
         final BytePattern fields = BytePattern.compile("([\\w ]+)((?>,|$))");
-        assertThat(fields.engine()).isEqualTo(Engine.FANCY);
+        assertThat(fields.engine()).isEqualTo(Engine.TREE);
         final ByteMatcher matcher = fields.matcher();
         assertThat(matcher.find(bytes("alpha beta,gamma"))).isTrue();
         assertThat(matcher.groupString(1)).isEqualTo("alpha beta");
@@ -275,7 +276,7 @@ class FancyTest {
         final BytePattern records = BytePattern.compile(
                 "^(?:INFO|DEBUG|WARN|ERROR|TRACE) +.*?"
                 + "(?=(?:(?:INFO|DEBUG|WARN|ERROR|TRACE) +)|\\z)", Flag.DOT_ALL);
-        assertThat(records.engine()).isEqualTo(Engine.FANCY);
+        assertThat(records.engine()).isEqualTo(Engine.TREE);
         final ByteMatcher splitter = records.matcher();
         assertThat(splitter.find(bytes("INFO first thing WARN second thing"))).isTrue();
         assertThat(splitter.groupString(0)).isEqualTo("INFO first thing ");

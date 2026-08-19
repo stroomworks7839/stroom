@@ -72,18 +72,27 @@ public final class ByteMatcher {
     ByteMatcher(final BytePattern pattern) {
         this.pattern = pattern;
         this.plan = pattern.plan();
-        this.tree = pattern.tree() != null
+        // Which machines this matcher may need (D31). A pinned engine builds only itself;
+        // otherwise a fancy pattern carries the tree plus its flat fallback, and an ambiguous
+        // one carries the tree plus both linear engines.
+        final Engine pinned = pattern.forced();
+        final boolean fancyProgram = plan == null && pattern.nfa() != null
+                                     && pattern.nfa().fancy();
+        this.tree = pattern.tree() != null && (pinned == null || pinned == Engine.TREE)
                 ? new NodeTree.Machine(pattern.tree())
                 : null;
-        final boolean needsFancy = tree == null && plan == null
-                                   && (pattern.nfa().fancy() || pattern.forced() == Engine.FANCY);
+        final boolean needsFancy = plan == null && pattern.nfa() != null
+                                   && (fancyProgram || pinned == Engine.FANCY)
+                                   && pinned != Engine.TREE;
         this.fancy = needsFancy
                 ? new FancyBacktracker(pattern.nfa())
                 : null;
-        this.vm = tree == null && plan == null && !needsFancy
+        final boolean needsLinear = plan == null && pattern.nfa() != null && !fancyProgram
+                                    && pinned != Engine.FANCY && pinned != Engine.TREE;
+        this.vm = needsLinear
                 ? new PikeVm(pattern.nfa())
                 : null;
-        this.backtracker = tree == null && plan == null && !needsFancy
+        this.backtracker = needsLinear
                 ? new Backtracker(pattern.nfa())
                 : null;
         this.groupCount = pattern.groupCount();
@@ -152,33 +161,69 @@ public final class ByteMatcher {
     }
 
     private MatchOutcome run(final int from, final Anchoring anchoring) {
-        if (tree != null) {
+        final boolean anchored = anchoring == Anchoring.ANCHORED;
+        if (tree != null && fancy == null && vm == null) {
+            // Pinned to the tree engine: a structural bailout is contained, not fallen from.
             Arrays.fill(slots, -1);
-            final int end = tree.search(data, regionFrom, from, regionTo,
-                    anchoring == Anchoring.ANCHORED, complete, slots);
-            matched = end >= 0;
-            return outcome(end);
+            try {
+                final int end = tree.search(data, regionFrom, from, regionTo,
+                        anchored, complete, slots);
+                matched = end >= 0;
+                return outcome(end);
+            } catch (final NodeTree.Bailout e) {
+                throw new MatchLimitException(
+                        "the tree engine was pinned but the input stacks more loop iterations "
+                        + "than the call stack tolerates; unpin it, or restructure the pattern");
+            }
         }
         if (fancy != null) {
+            // A fancy pattern: the tree engine first — it measured at or ahead of the JDK on
+            // every fancy workload — with the flat backtracker as the structural fallback
+            // when recursion depth gives out (D31). Both share the step budget's contract.
             Arrays.fill(slots, -1);
+            if (tree != null) {
+                try {
+                    final int end = tree.search(data, regionFrom, from, regionTo,
+                            anchored, complete, slots);
+                    matched = end >= 0;
+                    return outcome(end);
+                } catch (final NodeTree.Bailout e) {
+                    Arrays.fill(slots, -1); // a clean rerun, not a resume
+                }
+            }
             final int end = fancy.search(data, regionFrom, from, regionTo,
-                    anchoring == Anchoring.ANCHORED, complete, slots);
+                    anchored, complete, slots);
             matched = end >= 0;
             return outcome(end);
         }
         if (vm != null) {
             Arrays.fill(slots, -1);
-            final boolean anchored = anchoring == Anchoring.ANCHORED;
-            // Backtracking is cheaper per input position, so it is preferred wherever its bitset
-            // is affordable — which depends on the input length, and so is decided here rather
-            // than at compile time. The simulation is the fallback, and the guarantee: whatever
-            // the pattern, one of the two runs in linear time.
-            final int end = useBacktracker()
-                    ? backtracker.search(
-                            data, regionFrom, from, regionTo, anchored, complete, slots)
-                    // The VM searches for the leftmost match itself, advancing every live thread
-                    // together, rather than restarting an attempt at each offset.
-                    : vm.search(data, regionFrom, from, regionTo, anchored, complete, slots);
+            // Backtracking is cheaper per input position, so the bounded backtracker takes
+            // every search its bitset can afford. Beyond the budget — the whole-buffer
+            // searches — the tree engine runs first, having measured 5.5× to 12.5× over the
+            // simulation there, and the simulation remains both fallback and guarantee:
+            // whatever the pattern, whatever the engines give up on, one machine finishes in
+            // linear time (D31).
+            if (useBacktracker()) {
+                final int end = backtracker.search(
+                        data, regionFrom, from, regionTo, anchored, complete, slots);
+                matched = end >= 0;
+                return outcome(end);
+            }
+            if (tree != null && pattern.forced() != Engine.SIMULATE) {
+                try {
+                    final int end = tree.search(data, regionFrom, from, regionTo,
+                            anchored, complete, slots);
+                    matched = end >= 0;
+                    return outcome(end);
+                } catch (final NodeTree.Bailout | MatchLimitException e) {
+                    Arrays.fill(slots, -1); // the linear engine answers instead
+                }
+            }
+            // The VM searches for the leftmost match itself, advancing every live thread
+            // together, rather than restarting an attempt at each offset.
+            final int end = vm.search(data, regionFrom, from, regionTo,
+                    anchored, complete, slots);
             matched = end >= 0;
             return outcome(end);
         }
