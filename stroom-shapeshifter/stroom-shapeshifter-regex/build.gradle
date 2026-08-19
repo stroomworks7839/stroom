@@ -26,6 +26,29 @@ dependencies {
     testRuntimeOnly libs.bundles.common.test.runtime
 }
 
+// The library promise, enforced rather than hoped: this module is usable standalone, so it
+// has no runtime dependencies — only the JDK. Test scope (JUnit, JMH) is exempt. If a
+// dependency ever appears, the build fails here with its name, and adding one becomes a
+// decision somebody has to record rather than a transitive accident.
+tasks.register('verifyZeroDependencies') {
+    group = 'verification'
+    description = 'Fails if stroom-shapeshifter-regex acquires any runtime dependency'
+    // Resolved artifacts, not declared dependencies: the root build imposes BOM platforms on
+    // every subproject, which constrain versions but carry no classes. The promise is about
+    // classes — an empty runtime classpath — and this is the check that means exactly that.
+    final def artifacts = provider {
+        configurations.runtimeClasspath.files.collect { it.name }
+    }
+    doLast {
+        if (!artifacts.get().isEmpty()) {
+            throw new GradleException(
+                    "stroom-shapeshifter-regex must have an empty runtime classpath; found: "
+                    + artifacts.get())
+        }
+    }
+}
+tasks.named('check') { dependsOn 'verifyZeroDependencies' }
+
 // Runs the JMH benchmarks. Pass JMH args through, e.g.
 //   ./gradlew :stroom-shapeshifter:stroom-shapeshifter-regex:jmh --args='-prof gc'
 //   ./gradlew :stroom-shapeshifter:stroom-shapeshifter-regex:jmh --args='.*PatternCorpus.*'

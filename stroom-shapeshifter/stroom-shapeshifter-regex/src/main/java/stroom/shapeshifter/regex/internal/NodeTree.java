@@ -667,23 +667,55 @@ public final class NodeTree {
 
         private final OneChar item;
         private final boolean greedy;
+        private final byte[] ascii;
+        private final boolean allNonAscii;
 
         StarClass(final CodePointSet set, final boolean greedy) {
             this.item = new OneChar(set);
             this.greedy = greedy;
+            this.ascii = new byte[0x80];
+            for (int b = 0; b < 0x80; b++) {
+                ascii[b] = set.contains(b)
+                        ? (byte) 1
+                        : 0;
+            }
+            this.allNonAscii = set.containsAllNonAscii();
+        }
+
+        /**
+         * The run's end, scanned byte-at-a-time where the class allows it. The per-character
+         * {@code accept} call measured ~4 ns/char against ~1 for a table loop, and it was the
+         * whole of TIER1_ALTERNATION's deficit — the alternation itself cost nothing.
+         */
+        private int scan(final Ctx ctx, final int pos) {
+            final byte[] data = ctx.data;
+            final int to = ctx.to;
+            int end = pos;
+            while (end < to) {
+                final int b = data[end] & 0xFF;
+                if (b < 0x80) {
+                    if (ascii[b] == 0) {
+                        return end;
+                    }
+                    end++;
+                } else if (allNonAscii) {
+                    end++; // lead and continuation bytes alike: the class takes every character
+                } else {
+                    final int advanced = item.accept(ctx, end);
+                    if (advanced == 0) {
+                        return end;
+                    }
+                    end += advanced;
+                }
+            }
+            ctx.edge(); // the run reached the window's end
+            return end;
         }
 
         @Override
         boolean match(final Ctx ctx, final int pos) {
             if (greedy) {
-                int end = pos;
-                for (;;) {
-                    final int advanced = item.accept(ctx, end);
-                    if (advanced == 0) {
-                        break;
-                    }
-                    end += advanced;
-                }
+                final int end = scan(ctx, pos);
                 ctx.steps -= end - pos;
                 for (int at = end; at >= pos; at--) {
                     if (at < end && Utf8.isContinuation(ctx.data[at])) {

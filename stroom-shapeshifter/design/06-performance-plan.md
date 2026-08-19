@@ -18,13 +18,20 @@ four confident hypotheses on the way.
 | Literal runs as one instruction | Open | `NfaCompiler` emits one `BYTE_RANGE` per literal byte — `ERROR` is five dispatches. Fancy-programs-only, the `CLASS_STAR` pattern |
 | Literal-prefix skip (Boyer–Moore-ish) | **Deprioritised by evidence** | SPARSE measured 2.80× *ahead* of the JDK without it (`2026-08-19-1601`); revisit only if a sparse workload ever loses |
 
+**A method note from the NETWORK diagnosis (2026-08-19, late):** single-JVM interleaved
+probes systematically *understate the JDK* — warming both engines in one process poisons the
+JDK's type profiles (the §10.2 asymmetry working in this library's favour) while these
+engines' interpreters are pollution-immune. Locators comparing against the JDK must fork per
+side, or their flattery must be discounted. The tree-vs-flat probes are unaffected: both
+sides pollute alike.
+
 ## 2. Diagnosis needed — measure before touching anything
 
 | Item | Evidence | Suspects (unverified) |
 |---|---|---|
 | ~~Per-match short-record gap~~ | **Resolved (D32)** — tree-first per-match: datetime 1.20× and fixedwidth 2.0× *ahead*, csv/syslog ~2.1× | The gap was the engine choice, not a fixed cost |
-| `NETWORK` at 0.79× on the buffer suite | Every full run | D19's residual Unicode-`\d` price on the scan plan |
-| `TIER1_ALTERNATION` on the tree engine at 0.69× | `2026-08-19-1409` | No visible sin in the audit; needs the §8 same-pattern-both-engines method |
+| `NETWORK` at ~0.84× on the buffer suite | **Diagnosed (2026-08-19, late)** | Distributed, not a single sin: ~13% is D19's Unicode-`\d` residual (152 vs 134 ns/record with `[0-9]`), the rest per-op dispatch across eight class-run/literal alternations per record against the JDK's fused nodes. Candidate fix if ever needed: a fused scan-class-then-byte plan op. Per-match network is finer still: every pattern individually measured at-or-ahead; the residual ~4 ns/find is fixed per-`find` cost |
+| ~~`TIER1_ALTERNATION` on the tree engine at 0.69×~~ | **Resolved (2026-08-19, late — `2026-08-19-1947`)** | Fork-per-side decomposition proved the alternation innocent: the gap was constant down to `^(.*)$` alone — `StarClass`'s per-character `accept()` call, ~4 ns/char against a table loop's ~1. A byte-safe fast scan (CLASS_STAR's trick) took the workload from 0.65× to **1.68× ahead**, and roughly doubled every star-bearing tree workload with it: TIER1_GREEDY 2.16×, FANCY_ATOMIC 1.99×, FANCY_LOOKAHEAD 1.53× |
 | ~~Per-match `datetime` at 0.67×~~ | **Resolved (D32)** — one pattern carried the category; tree-first took it to 1.20× ahead | |
 | ~~The scan plan on Unicode classes: ~5× off~~ | **Resolved as a misdiagnosis** ([05 §10.5](05-engine-benchmarks.md)) | The workload's pattern was ambiguous and measured the simulation, not the plan. Corrected and re-measured (`2026-08-19-1735`): the plan is **1.24× ahead** of the JDK on accented text. No work to do |
 | ~~The tree engine on fixedwidth~~ | **Fixed (D32)** — `CountedClass` compiles bounded class repeats to one node; 2,841 → 99 ns on `\S{1,10}`, category now 2.0× ahead | LONG_RECORD stays the plan's (one-pass), and the depth guard covers the tree's remaining long-record shape |
@@ -42,6 +49,10 @@ four confident hypotheses on the way.
 **All three paid off on their first run** — see [05-engine-benchmarks.md §10.4](05-engine-benchmarks.md):
 SPARSE retired the Boyer–Moore item, LONG_RECORD turned the tree engine's depth risk into a
 number, and UNICODE found a 5× scan-plan gap nobody suspected.
+
+**Standing after 2026-08-19's final round: one measured variant remains behind the JDK** —
+NETWORK on the buffer suite at ~0.84×, diagnosed above as distributed cost with a named
+candidate fix. Everything else is at parity or ahead, most of it well ahead.
 
 The 2026-08-19 audit observed that every workload was dense-match, short-record, pure-ASCII.
 Three workloads now close part of that: **SPARSE** (a never-matching pattern — pure scanning
