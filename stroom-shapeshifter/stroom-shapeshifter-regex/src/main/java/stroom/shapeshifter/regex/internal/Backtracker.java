@@ -130,7 +130,12 @@ public final class Backtracker {
         prepare(regionFrom, to);
         hitEnd = false;
 
-        for (int at = start; at <= to; at++) {
+        // A complete window can stop attempting once fewer bytes remain than the shortest
+        // match spans; a growing one keeps the edge iterations for their NEED_MORE bookkeeping.
+        final int lastStart = complete
+                ? to - nfa.minLength
+                : to;
+        for (int at = start; at <= lastStart; at++) {
             if (at < to && at > regionFrom && startAnchor != Nfa.ANCHOR_NONE
                 && (startAnchor == Nfa.ANCHOR_INPUT || data[at - 1] != '\n')) {
                 // See the fancy engine: the cheapest and, for anchored patterns, the most

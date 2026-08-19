@@ -92,7 +92,10 @@ public final class ByteMatcher {
         this.vm = needsLinear
                 ? new PikeVm(pattern.nfa())
                 : null;
-        this.backtracker = needsLinear
+        // The bounded backtracker retired from the default path (D32): every corpus pattern
+        // measured faster on the tree engine once bounded class repeats compiled to one node.
+        // It remains a pinnable engine, and the differential suite's third witness.
+        this.backtracker = needsLinear && pinned == Engine.BACKTRACK
                 ? new Backtracker(pattern.nfa())
                 : null;
         this.groupCount = pattern.groupCount();
@@ -198,18 +201,24 @@ public final class ByteMatcher {
         }
         if (vm != null) {
             Arrays.fill(slots, -1);
-            // Backtracking is cheaper per input position, so the bounded backtracker takes
-            // every search its bitset can afford. Beyond the budget — the whole-buffer
-            // searches — the tree engine runs first, having measured 5.5× to 12.5× over the
-            // simulation there, and the simulation remains both fallback and guarantee:
-            // whatever the pattern, whatever the engines give up on, one machine finishes in
-            // linear time (D31).
-            if (useBacktracker()) {
+            if (backtracker != null) {
+                // Pinned: the bounded backtracker no longer runs unpinned (D32), but pinning
+                // keeps it under differential test, which is what the correctness argument
+                // needs from it.
+                if (!backtracker.canRun(regionTo - regionFrom, BACKTRACK_BUDGET_BYTES)) {
+                    throw new IllegalStateException(
+                            "backtracking was pinned but cannot run this pattern over "
+                            + (regionTo - regionFrom) + " bytes");
+                }
                 final int end = backtracker.search(
                         data, regionFrom, from, regionTo, anchored, complete, slots);
                 matched = end >= 0;
                 return outcome(end);
             }
+            // The tree engine first at every region size — it measured faster than every
+            // flat engine on all 36 automaton corpus patterns (D32) — and the simulation
+            // remains both fallback and guarantee: whatever the engines give up on, one
+            // machine finishes in linear time.
             if (tree != null && pattern.forced() != Engine.SIMULATE) {
                 try {
                     final int end = tree.search(data, regionFrom, from, regionTo,
@@ -236,7 +245,12 @@ public final class ByteMatcher {
 
         final byte[] firstBytes = plan.firstBytes();
         final var leadingAnchor = plan.leadingAnchor();
-        for (int start = from; start <= regionTo; start++) {
+        // No attempt can succeed with fewer bytes remaining than the shortest match spans —
+        // but only a complete window may stop early, or NEED_MORE would be lost.
+        final int lastStart = complete
+                ? regionTo - plan.minLength()
+                : regionTo;
+        for (int start = from; start <= lastStart; start++) {
             if (leadingAnchor != null && !isAnchorPosition(leadingAnchor, start)) {
                 // A start-anchored pattern can only match where the anchor holds, which for a
                 // typical ^-anchored pattern rules out all but the line starts. Testing that here
@@ -285,27 +299,6 @@ public final class ByteMatcher {
     private boolean splitsCharacter(final int at) {
         return (at < regionTo || (complete && at < data.length))
                && Utf8.isContinuation(data[at]);
-    }
-
-    /**
-     * Backtracking is preferred wherever it is affordable, unless a caller has pinned an engine.
-     * Pinning exists so that each engine can be run against the others over the whole corpus:
-     * agreement between three implementations, two of them from different algorithm families, is
-     * what the correctness argument rests on.
-     */
-    private boolean useBacktracker() {
-        final Engine pinned = pattern.forced();
-        if (pinned == Engine.SIMULATE) {
-            return false;
-        }
-        final boolean affordable =
-                backtracker.canRun(regionTo - regionFrom, BACKTRACK_BUDGET_BYTES);
-        if (pinned == Engine.BACKTRACK && !affordable) {
-            throw new IllegalStateException(
-                    "backtracking was pinned but cannot run this pattern over "
-                    + (regionTo - regionFrom) + " bytes");
-        }
-        return affordable;
     }
 
     private MatchOutcome outcome(final int end) {

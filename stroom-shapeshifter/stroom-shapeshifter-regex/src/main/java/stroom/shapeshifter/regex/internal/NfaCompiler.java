@@ -103,7 +103,7 @@ public final class NfaCompiler {
         compiler.emitNode(root);
         compiler.emit(Nfa.SAVE, 1, 0);
         compiler.emit(Nfa.MATCH, 0, 0);
-        return compiler.build(groupCount, multiline);
+        return compiler.build(groupCount, multiline, Analysis.byteLength(root)[0]);
     }
 
     /**
@@ -118,10 +118,10 @@ public final class NfaCompiler {
         compiler.fancy = fancy;
         compiler.emitNode(body);
         compiler.emit(Nfa.MATCH, 0, 0);
-        return compiler.build(groupCount, multiline);
+        return compiler.build(groupCount, multiline, 0); // sub-programs never gate a search
     }
 
-    private Nfa build(final int groups, final boolean multiline) {
+    private Nfa build(final int groups, final boolean multiline, final int minLength) {
         final int count = instructions.size();
         final int[] op = new int[count];
         final int[] a = new int[count];
@@ -145,7 +145,7 @@ public final class NfaCompiler {
         return new Nfa(op, a, b, next, classes.toArray(new byte[0][]),
                 dispatchTables.toArray(new int[0][]),
                 subs.toArray(new Nfa[0]), mins, maxes,
-                2 * (groups + 1), groups, multiline);
+                2 * (groups + 1), groups, multiline, minLength);
     }
 
     private void emitNode(final Hir node) {

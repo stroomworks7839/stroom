@@ -66,6 +66,9 @@ public final class Plan {
      */
     final byte[] firstBytes;
 
+    /** The fewest bytes any match spans; no attempt can succeed with fewer remaining. */
+    final int minLength;
+
     Plan(final int[] op,
          final int[] a,
          final int[] b,
@@ -77,7 +80,8 @@ public final class Plan {
          final int slotCount,
          final int groupCount,
          final boolean multiline,
-         final byte[] firstBytes) {
+         final byte[] firstBytes,
+         final int minLength) {
         this.op = op;
         this.a = a;
         this.b = b;
@@ -90,6 +94,7 @@ public final class Plan {
         this.groupCount = groupCount;
         this.multiline = multiline;
         this.firstBytes = firstBytes;
+        this.minLength = minLength;
     }
 
     public int groupCount() {
@@ -100,6 +105,10 @@ public final class Plan {
      * Bytes any match can begin with, as a 256-entry table, or null if the pattern can match
      * empty and so could begin anywhere.
      */
+    public int minLength() {
+        return minLength;
+    }
+
     public byte[] firstBytes() {
         return firstBytes;
     }

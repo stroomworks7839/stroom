@@ -74,6 +74,7 @@ public final class NodeTree {
                            int localCount,
                            byte[] firstBytes,
                            int startAnchor,
+                           int minLength,
                            int nodeCount) {
 
     }
@@ -189,8 +190,11 @@ public final class NodeTree {
 
             final byte[] firstBytes = compiled.firstBytes();
             final int anchor = compiled.startAnchor();
+            final int lastStart = complete
+                    ? to - compiled.minLength()
+                    : to;
 
-            for (int at = start; at <= to; at++) {
+            for (int at = start; at <= lastStart; at++) {
                 if (at < to && at > regionFrom && anchor != 0
                     && (anchor == 2 || data[at - 1] != '\n')) {
                     if (anchored) {
@@ -257,7 +261,8 @@ public final class NodeTree {
             }
         }
         return new Compiled(head, groupCount, 2 * (groupCount + 1), compiler.locals,
-                firstBytes, Analysis.startAnchor(root), compiler.nodes);
+                firstBytes, Analysis.startAnchor(root), Analysis.byteLength(root)[0],
+                compiler.nodes);
     }
 
     private static final class Compiler {
@@ -357,12 +362,21 @@ public final class NodeTree {
                     tail = loop.entry();
                 }
             } else if (repeat.max() > repeat.min()) {
-                // Bounded: (max - min) nested optionals, preference by greediness.
-                for (int i = repeat.max() - repeat.min(); i > 0; i--) {
-                    final Ques ques = node(new Ques(repeat.greedy()));
-                    ques.next = tail;
-                    ques.body = compile(repeat.body(), tail);
-                    tail = ques;
+                if (repeat.body() instanceof Hir.CharClass charClass) {
+                    // A bounded class repeat is StarClass with a ceiling: scan up to the
+                    // excess in one loop, back off a character at a time. The nested-optional
+                    // spelling below cost a frame per level and measured 9× slower on
+                    // \S{1,10} than the flat engines; this is the shape's real fix.
+                    tail = chain(new CountedClass(charClass.set(),
+                            repeat.max() - repeat.min(), repeat.greedy()), next);
+                } else {
+                    // Bounded, stateful body: (max - min) nested optionals, by greediness.
+                    for (int i = repeat.max() - repeat.min(); i > 0; i--) {
+                        final Ques ques = node(new Ques(repeat.greedy()));
+                        ques.next = tail;
+                        ques.body = compile(repeat.body(), tail);
+                        tail = ques;
+                    }
                 }
             }
 
@@ -693,6 +707,67 @@ public final class NodeTree {
                     return false;
                 }
                 at += advanced;
+            }
+        }
+    }
+
+    /**
+     * A bounded repetition of a class — {@code \S{1,10}} past its required minimum — scanned
+     * like {@link StarClass} but stopping at the ceiling. One frame however wide the bound.
+     */
+    private static final class CountedClass extends Node {
+
+        private final OneChar item;
+        private final int most;
+        private final boolean greedy;
+
+        CountedClass(final CodePointSet set, final int most, final boolean greedy) {
+            this.item = new OneChar(set);
+            this.most = most;
+            this.greedy = greedy;
+        }
+
+        @Override
+        boolean match(final Ctx ctx, final int pos) {
+            if (greedy) {
+                int end = pos;
+                int taken = 0;
+                while (taken < most) {
+                    final int advanced = item.accept(ctx, end);
+                    if (advanced == 0) {
+                        break;
+                    }
+                    end += advanced;
+                    taken++;
+                }
+                ctx.steps -= taken;
+                for (int at = end; at >= pos; at--) {
+                    if (at < end && Utf8.isContinuation(ctx.data[at])) {
+                        continue;
+                    }
+                    ctx.budget();
+                    if (next.match(ctx, at)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            int at = pos;
+            int taken = 0;
+            for (;;) {
+                ctx.budget();
+                if (next.match(ctx, at)) {
+                    return true;
+                }
+                if (taken >= most) {
+                    return false;
+                }
+                final int advanced = item.accept(ctx, at);
+                if (advanced == 0) {
+                    return false;
+                }
+                at += advanced;
+                taken++;
             }
         }
     }

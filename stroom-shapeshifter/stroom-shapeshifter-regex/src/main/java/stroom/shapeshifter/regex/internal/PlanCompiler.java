@@ -86,7 +86,8 @@ public final class PlanCompiler {
                 multiline,
                 Analysis.nullable(root)
                         ? null
-                        : toTable(Analysis.first(root)));
+                        : toTable(Analysis.first(root)),
+                Analysis.byteLength(root)[0]);
     }
 
     // -----------------------------------------------------------------------------------

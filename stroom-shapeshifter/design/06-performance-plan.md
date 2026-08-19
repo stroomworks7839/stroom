@@ -14,7 +14,7 @@ four confident hypotheses on the way.
 |---|---|---|
 | Line-anchor start gate in the fancy engine and scan plan | **Done** (§10.1 step 1) | +5.7% on dense matches; its real case is sparse scans |
 | The same gate in the bounded backtracker and Pike VM | **Done** (this commit) | The two middle engines were still setting up per position for `^`-anchored patterns |
-| Minimum-length fail-fast | Open | JDK trick: compile the minimum byte length, stop attempting when fewer bytes remain. Cheap, broad, small |
+| Minimum-length fail-fast | **Done (D32)** | All five engines, complete windows only; share of the batch's gains unattributed |
 | Literal runs as one instruction | Open | `NfaCompiler` emits one `BYTE_RANGE` per literal byte — `ERROR` is five dispatches. Fancy-programs-only, the `CLASS_STAR` pattern |
 | Literal-prefix skip (Boyer–Moore-ish) | **Deprioritised by evidence** | SPARSE measured 2.80× *ahead* of the JDK without it (`2026-08-19-1601`); revisit only if a sparse workload ever loses |
 
@@ -22,12 +22,12 @@ four confident hypotheses on the way.
 
 | Item | Evidence | Suspects (unverified) |
 |---|---|---|
-| Per-match short-record gap, 0.5–0.9× vs the JDK | `2026-08-18-1948` per-match categories — **stale**: predates every optimisation of 2026-08-19 | Re-measure first; then per-`find` fixed costs across engines |
+| ~~Per-match short-record gap~~ | **Resolved (D32)** — tree-first per-match: datetime 1.20× and fixedwidth 2.0× *ahead*, csv/syslog ~2.1× | The gap was the engine choice, not a fixed cost |
 | `NETWORK` at 0.79× on the buffer suite | Every full run | D19's residual Unicode-`\d` price on the scan plan |
 | `TIER1_ALTERNATION` on the tree engine at 0.69× | `2026-08-19-1409` | No visible sin in the audit; needs the §8 same-pattern-both-engines method |
-| Per-match `datetime` at 0.67× | `2026-08-19-1601` | The worst per-match category on either engine; undiagnosed |
+| ~~Per-match `datetime` at 0.67×~~ | **Resolved (D32)** — one pattern carried the category; tree-first took it to 1.20× ahead | |
 | ~~The scan plan on Unicode classes: ~5× off~~ | **Resolved as a misdiagnosis** ([05 §10.5](05-engine-benchmarks.md)) | The workload's pattern was ambiguous and measured the simulation, not the plan. Corrected and re-measured (`2026-08-19-1735`): the plan is **1.24× ahead** of the JDK on accented text. No work to do |
-| The tree engine on LONG_RECORD (78 ops/s vs plan 580) and fixedwidth (62k vs 348k) | `2026-08-19-1601` | Not deficits vs the JDK — the plan wins both — but the exact shapes where D30's guard rails belong: recursion depth and bounded-quantifier chains |
+| ~~The tree engine on fixedwidth~~ | **Fixed (D32)** — `CountedClass` compiles bounded class repeats to one node; 2,841 → 99 ns on `\S{1,10}`, category now 2.0× ahead | LONG_RECORD stays the plan's (one-pass), and the depth guard covers the tree's remaining long-record shape |
 
 ## 3. Architecture decisions — D30's gate, closed by D31
 

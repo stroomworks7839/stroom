@@ -155,7 +155,10 @@ public final class FancyBacktracker {
         context.hitEnd = false;
         context.searchStart = start;
 
-        for (int at = start; at <= to; at++) {
+        final int lastStart = complete
+                ? to - nfa.minLength
+                : to;
+        for (int at = start; at <= lastStart; at++) {
             // The anchor gate first, because it is the cheapest test and, for the patterns it
             // applies to, the most selective: a line-anchored pattern over record data skips
             // from one newline to the next instead of attempting at every byte. The at == to

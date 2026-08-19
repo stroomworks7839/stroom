@@ -97,16 +97,23 @@ public final class PikeVm {
         next.clear();
         hasMatch = false;
 
+        // On a complete window, no thread seeded where fewer bytes remain than the shortest
+        // match spans can reach MATCH, so seeding — and the loop, once nothing is live —
+        // stops there.
+        final int lastSeed = complete
+                ? to - nfa.minLength
+                : to;
+
         for (int pos = start; ; pos++) {
             if (current.size == 0 && hasMatch) {
                 break; // nothing live can beat the match already found
             }
-            if (!hasMatch && (!anchored || pos == start)
+            if (!hasMatch && (!anchored || pos == start) && pos <= lastSeed
                 && canStartAt(data, regionFrom, to, complete, pos)) {
                 // A new attempt starting here, at lowest priority so earlier starts win.
                 addThread(current, 0, seed, data, regionFrom, to, pos);
             }
-            if (current.size == 0 && (anchored || pos > to)) {
+            if (current.size == 0 && (anchored || pos > to || pos > lastSeed)) {
                 break;
             }
 

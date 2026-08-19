@@ -588,6 +588,9 @@ Pike VM stays as the general fallback, so the linear-time guarantee is unaffecte
 
 ## D26 — The backtracker is the default automaton engine, chosen per search
 
+*Superseded in part by [D32](#d32--the-bounded-backtracker-retires-from-the-default-path): the
+engine remains, pinnable and under differential test, but no longer runs unpinned.*
+
 *2026-08-19.* Closes out [D25](#d25--a-bounded-backtracker-rather-than-a-lazy-dfa): built,
 measured twice, and enabled.
 
@@ -789,6 +792,44 @@ ambiguous ones — the primary and the promise respectively; `Engine.FANCY` rema
 fallback and a differential witness; every automaton pattern now compiles both a flat program
 and a node tree, a compile-time and footprint cost accepted knowingly; and the linear-time
 guarantee's wording is unchanged, because the fallback structure preserves it exactly.
+
+---
+
+## D32 — The bounded backtracker retires from the default path
+
+*2026-08-19, evening.* Supersedes [D26](#d26--the-backtracker-is-the-default-automaton-engine-chosen-per-search)'s
+default, six commits after [D31](#d31--the-tier-map-redrawn-the-tree-engine-takes-the-searches-it-wins)
+gave the tree engine the searches the budget refused. The question D31 left open — which
+engine should take the searches the budget *accepts* — was answered by a per-pattern probe of
+every automaton pattern in the corpus: the tree engine won 35 of 36, typically 2–4×, and the
+single loss (`\S{1,10}`, nine nested optionals costing a frame per level) was a missing node
+type, not a verdict. With bounded class repeats compiled to one `CountedClass` node — the
+`StarClass` treatment with a ceiling — the score is 36 of 36, the former loss now 3× a win.
+
+So the ambiguous path simplifies: the tree engine first at every region size, the simulation
+as fallback and guarantee, and the bounded backtracker pinnable only — still compiled, still
+the differential suite's third witness, which is what the correctness argument ever needed
+from it. The minimum-length fail-fast (the last quick win from the plan) landed in the same
+batch: no engine attempts a start with fewer bytes remaining than the shortest match spans,
+on complete windows only, so the streaming contract is untouched.
+
+**Confirmed by JMH** (`2026-08-19-1916`, `-1920`): per-match datetime 2.3× to **1.20× ahead
+of the JDK** (was 0.67× behind — a scoreboard deficit erased), fixedwidth 2.3× to **2.0×
+ahead** (was 0.86× — erased), identifiers 2.4×, csv 1.9×, syslog 1.6×; and TIER1_GREEDY at
+2,288 against pinned-tree's 2,285 — [D31](00-decisions.md)'s recorded selection seam closed
+exactly, the backtracker's tail searches having been the missing 19%. The all-plan NETWORK
+control did not move.
+
+**A method note, recorded because the method is the asset:** this batch bundled three changes
+— the fail-fast, `CountedClass`, and the retirement — into one confirmation run, so the
+aggregate numbers do not attribute between them. The retirement's own evidence is the
+36-pattern probe table; the fail-fast's share is unattributed and stays that way unless a
+future question needs it separated.
+
+**Consequences:** three engines run unpinned — plan, tree, simulation — with the flat fancy
+engine and the bounded backtracker as pinnable witnesses and fallbacks. D26's memory-budget
+selection logic is gone from the hot path. The scoreboard's remaining deficits are
+TIER1_ALTERNATION (0.65×) and NETWORK (0.84× buffer / 0.89× per-match).
 
 ---
 

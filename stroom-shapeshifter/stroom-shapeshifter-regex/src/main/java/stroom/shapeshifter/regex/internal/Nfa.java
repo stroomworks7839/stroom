@@ -136,6 +136,9 @@ public final class Nfa {
     final int groupCount;
     final boolean multiline;
 
+    /** The fewest bytes any match spans; no attempt can succeed with fewer remaining. */
+    final int minLength;
+
     /**
      * Whether this program contains an instruction only the unbounded backtracker can run.
      * Settled here, from the instructions, so the engine choice and the program can never
@@ -179,7 +182,7 @@ public final class Nfa {
         final int groupCount,
         final boolean multiline) {
         this(op, a, b, next, classes, dispatch, new Nfa[0], new int[0], new int[0],
-                slotCount, groupCount, multiline);
+                slotCount, groupCount, multiline, 0);
     }
 
     Nfa(final int[] op,
@@ -193,7 +196,9 @@ public final class Nfa {
         final int[] subMax,
         final int slotCount,
         final int groupCount,
-        final boolean multiline) {
+        final boolean multiline,
+        final int minLength) {
+        this.minLength = minLength;
         this.op = op;
         this.a = a;
         this.b = b;
