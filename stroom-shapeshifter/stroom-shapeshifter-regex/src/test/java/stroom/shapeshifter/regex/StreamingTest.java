@@ -72,6 +72,20 @@ class StreamingTest {
     // -----------------------------------------------------------------------------------
 
     @Test
+    void asciiWordBoundaryAtTheEdgeIsUndetermined() {
+        // (?-u)\b at the window edge depends on the byte that has not arrived, exactly like
+        // its Unicode sibling. It once decided instead — "foo" matched, "food" then arrived.
+        final ByteMatcher matcher = BytePattern.compile("(?-u)foo\\b").matcher();
+        assertThat(matcher.match(ByteWindow.partial("food".getBytes(StandardCharsets.UTF_8), 0, 3),
+                0, Anchoring.ANCHORED))
+                .isEqualTo(MatchOutcome.NEED_MORE_INPUT);
+        assertThat(matcher.match(ByteWindow.of("foo!"), 0, Anchoring.ANCHORED))
+                .isEqualTo(MatchOutcome.MATCH);
+        assertThat(matcher.match(ByteWindow.of("food"), 0, Anchoring.ANCHORED))
+                .isEqualTo(MatchOutcome.NO_MATCH);
+    }
+
+    @Test
     void asksForMoreRatherThanReturningAShortMatch() {
         // The delimiter has not arrived yet. Reporting "one" here would truncate the field.
         final ByteMatcher matcher = BytePattern.compile("^([^,]+),").matcher();

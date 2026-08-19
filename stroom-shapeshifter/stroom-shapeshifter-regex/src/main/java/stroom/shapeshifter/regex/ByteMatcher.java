@@ -18,6 +18,7 @@ package stroom.shapeshifter.regex;
 
 import stroom.shapeshifter.regex.internal.Backtracker;
 import stroom.shapeshifter.regex.internal.FancyBacktracker;
+import stroom.shapeshifter.regex.internal.Hir;
 import stroom.shapeshifter.regex.internal.NodeTree;
 import stroom.shapeshifter.regex.internal.PikeVm;
 import stroom.shapeshifter.regex.internal.Plan;
@@ -164,93 +165,114 @@ public final class ByteMatcher {
     }
 
     private MatchOutcome run(final int from, final Anchoring anchoring) {
+        // One small dispatcher, one method per engine. Kept deliberately tiny: this method and
+        // the search loops it calls are the hottest call sites in the library, and letting
+        // them grow into one another once cost the CSV workload 24% to a JIT inlining cliff —
+        // found by the tier 0 audit's performance guard, bisected to a semantically trivial
+        // edit whose only crime was method size.
         final boolean anchored = anchoring == Anchoring.ANCHORED;
         if (tree != null && fancy == null && vm == null) {
-            // Pinned to the tree engine: a structural bailout is contained, not fallen from.
-            Arrays.fill(slots, -1);
+            return runPinnedTree(from, anchored);
+        }
+        if (fancy != null) {
+            return runFancy(from, anchored);
+        }
+        if (vm != null) {
+            return runLinear(from, anchored);
+        }
+        if (anchored) {
+            return splitsCharacter(from)
+                    ? MatchOutcome.NO_MATCH
+                    : outcome(attempt(from));
+        }
+        return searchPlan(from);
+    }
+
+    /** Pinned to the tree engine: a structural bailout is contained, not fallen from. */
+    private MatchOutcome runPinnedTree(final int from, final boolean anchored) {
+        Arrays.fill(slots, -1);
+        try {
+            final int end = tree.search(data, regionFrom, from, regionTo,
+                    anchored, complete, slots);
+            matched = end >= 0;
+            return outcome(end);
+        } catch (final NodeTree.Bailout e) {
+            throw new MatchLimitException(
+                    "the tree engine was pinned but the input stacks more loop iterations "
+                    + "than the call stack tolerates; unpin it, or restructure the pattern");
+        }
+    }
+
+    /**
+     * A fancy pattern: the tree engine first — it measured at or ahead of the JDK on every
+     * fancy workload — with the flat backtracker as the structural fallback when recursion
+     * depth gives out (D31). Both share the step budget's contract.
+     */
+    private MatchOutcome runFancy(final int from, final boolean anchored) {
+        Arrays.fill(slots, -1);
+        if (tree != null) {
             try {
                 final int end = tree.search(data, regionFrom, from, regionTo,
                         anchored, complete, slots);
                 matched = end >= 0;
                 return outcome(end);
             } catch (final NodeTree.Bailout e) {
-                throw new MatchLimitException(
-                        "the tree engine was pinned but the input stacks more loop iterations "
-                        + "than the call stack tolerates; unpin it, or restructure the pattern");
+                Arrays.fill(slots, -1); // a clean rerun, not a resume
             }
         }
-        if (fancy != null) {
-            // A fancy pattern: the tree engine first — it measured at or ahead of the JDK on
-            // every fancy workload — with the flat backtracker as the structural fallback
-            // when recursion depth gives out (D31). Both share the step budget's contract.
-            Arrays.fill(slots, -1);
-            if (tree != null) {
-                try {
-                    final int end = tree.search(data, regionFrom, from, regionTo,
-                            anchored, complete, slots);
-                    matched = end >= 0;
-                    return outcome(end);
-                } catch (final NodeTree.Bailout e) {
-                    Arrays.fill(slots, -1); // a clean rerun, not a resume
-                }
+        final int end = fancy.search(data, regionFrom, from, regionTo,
+                anchored, complete, slots);
+        matched = end >= 0;
+        return outcome(end);
+    }
+
+    /**
+     * An ambiguous pattern. The tree engine first at every region size — it measured faster
+     * than every flat engine on all 36 automaton corpus patterns (D32) — and the simulation
+     * remains both fallback and guarantee: whatever the engines give up on, one machine
+     * finishes in linear time. A pinned bounded backtracker still runs here, which is what
+     * keeps it under differential test.
+     */
+    private MatchOutcome runLinear(final int from, final boolean anchored) {
+        Arrays.fill(slots, -1);
+        if (backtracker != null) {
+            if (!backtracker.canRun(regionTo - regionFrom, BACKTRACK_BUDGET_BYTES)) {
+                throw new IllegalStateException(
+                        "backtracking was pinned but cannot run this pattern over "
+                        + (regionTo - regionFrom) + " bytes");
             }
-            final int end = fancy.search(data, regionFrom, from, regionTo,
-                    anchored, complete, slots);
+            final int end = backtracker.search(
+                    data, regionFrom, from, regionTo, anchored, complete, slots);
             matched = end >= 0;
             return outcome(end);
         }
-        if (vm != null) {
-            Arrays.fill(slots, -1);
-            if (backtracker != null) {
-                // Pinned: the bounded backtracker no longer runs unpinned (D32), but pinning
-                // keeps it under differential test, which is what the correctness argument
-                // needs from it.
-                if (!backtracker.canRun(regionTo - regionFrom, BACKTRACK_BUDGET_BYTES)) {
-                    throw new IllegalStateException(
-                            "backtracking was pinned but cannot run this pattern over "
-                            + (regionTo - regionFrom) + " bytes");
-                }
-                final int end = backtracker.search(
-                        data, regionFrom, from, regionTo, anchored, complete, slots);
+        if (tree != null && pattern.forced() != Engine.SIMULATE) {
+            try {
+                final int end = tree.search(data, regionFrom, from, regionTo,
+                        anchored, complete, slots);
                 matched = end >= 0;
                 return outcome(end);
+            } catch (final NodeTree.Bailout | MatchLimitException e) {
+                Arrays.fill(slots, -1); // the linear engine answers instead
             }
-            // The tree engine first at every region size — it measured faster than every
-            // flat engine on all 36 automaton corpus patterns (D32) — and the simulation
-            // remains both fallback and guarantee: whatever the engines give up on, one
-            // machine finishes in linear time.
-            if (tree != null && pattern.forced() != Engine.SIMULATE) {
-                try {
-                    final int end = tree.search(data, regionFrom, from, regionTo,
-                            anchored, complete, slots);
-                    matched = end >= 0;
-                    return outcome(end);
-                } catch (final NodeTree.Bailout | MatchLimitException e) {
-                    Arrays.fill(slots, -1); // the linear engine answers instead
-                }
-            }
-            // The VM searches for the leftmost match itself, advancing every live thread
-            // together, rather than restarting an attempt at each offset.
-            final int end = vm.search(data, regionFrom, from, regionTo,
-                    anchored, complete, slots);
-            matched = end >= 0;
-            return outcome(end);
         }
+        // The VM searches for the leftmost match itself, advancing every live thread
+        // together, rather than restarting an attempt at each offset.
+        final int end = vm.search(data, regionFrom, from, regionTo,
+                anchored, complete, slots);
+        matched = end >= 0;
+        return outcome(end);
+    }
 
-        if (anchoring == Anchoring.ANCHORED) {
-            return splitsCharacter(from)
-                    ? MatchOutcome.NO_MATCH
-                    : outcome(attempt(from));
-        }
-
+    /** The scan plan's unanchored search: the leftmost start whose attempt succeeds. */
+    private MatchOutcome searchPlan(final int from) {
         final byte[] firstBytes = plan.firstBytes();
         final var leadingAnchor = plan.leadingAnchor();
-        // No attempt can succeed with fewer bytes remaining than the shortest match spans —
-        // but only a complete window may stop early, or NEED_MORE would be lost.
-        final int lastStart = complete
-                ? regionTo - plan.minLength()
-                : regionTo;
-        for (int start = from; start <= lastStart; start++) {
+        // Deliberately NOT gated by the pattern's minimum length, unlike the automaton
+        // engines: measured on CSV, the gate's presence cost ~14% in compiled-loop shape
+        // while its saving — a handful of doomed attempts at the buffer's very end — never
+        // rose above noise. The tier 0 audit's bisect is the evidence; see the plan document.
+        for (int start = from; start <= regionTo; start++) {
             if (leadingAnchor != null && !isAnchorPosition(leadingAnchor, start)) {
                 // A start-anchored pattern can only match where the anchor holds, which for a
                 // typical ^-anchored pattern rules out all but the line starts. Testing that here
@@ -278,12 +300,12 @@ public final class ByteMatcher {
                 : MatchOutcome.NO_MATCH;
     }
 
-    private boolean isAnchorPosition(final stroom.shapeshifter.regex.internal.Hir.Kind anchor,
+    private boolean isAnchorPosition(final Hir.Kind anchor,
                                      final int start) {
         if (start == regionFrom) {
             return true;
         }
-        return anchor == stroom.shapeshifter.regex.internal.Hir.Kind.START_LINE
+        return anchor == Hir.Kind.START_LINE
                && data[start - 1] == '\n';
     }
 

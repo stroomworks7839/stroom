@@ -260,14 +260,17 @@ public final class PlanRunner {
 
     private static boolean endRelated(final Hir.Kind kind) {
         // A word boundary depends on the byte after the cursor as much as the one before, so at
-        // the edge of a growing window it is just as undetermined as an end anchor.
+        // the edge of a growing window it is just as undetermined as an end anchor. The ASCII
+        // spellings were missing from this list once, and (?-u)foo\b reported a match on a
+        // window that "food" would have contradicted — the exact truncation this exists to
+        // prevent.
         return kind == Hir.Kind.END_INPUT
                || kind == Hir.Kind.END_LINE
                || kind == Hir.Kind.WORD_BOUNDARY
-               || kind == Hir.Kind.NOT_WORD_BOUNDARY;
+               || kind == Hir.Kind.NOT_WORD_BOUNDARY
+               || kind == Hir.Kind.WORD_BOUNDARY_ASCII
+               || kind == Hir.Kind.NOT_WORD_BOUNDARY_ASCII;
     }
-
-
 
     private static boolean holds(final Hir.Kind kind,
                                  final byte[] data,

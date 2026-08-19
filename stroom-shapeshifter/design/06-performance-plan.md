@@ -14,9 +14,15 @@ four confident hypotheses on the way.
 |---|---|---|
 | Line-anchor start gate in the fancy engine and scan plan | **Done** (§10.1 step 1) | +5.7% on dense matches; its real case is sparse scans |
 | The same gate in the bounded backtracker and Pike VM | **Done** (this commit) | The two middle engines were still setting up per position for `^`-anchored patterns |
-| Minimum-length fail-fast | **Done (D32)** | All five engines, complete windows only; share of the batch's gains unattributed |
+| Minimum-length fail-fast | **Done in the four automaton engines; removed from the scan plan (tier 0 audit)** | On the plan path the gate's presence cost CSV ~14% in compiled-loop shape while its saving never rose above noise — bisected, root-caused to a JIT inlining cliff in the grown `run()`, fixed by splitting the dispatcher into per-engine methods (which also lifted FANCY_BACKREF +46%) |
 | Literal runs as one instruction | **Deprioritised by architecture (D31/D32)** | Was aimed at the flat fancy engine, now fallback-only; the tree engine's `ByteSeq` already compares runs whole. Revisit only if the fallback ever shows up in a measurement |
 | Literal-prefix skip (Boyer–Moore-ish) | **Deprioritised by evidence** | SPARSE measured 2.80× *ahead* of the JDK without it (`2026-08-19-1601`); revisit only if a sparse workload ever loses |
+
+**A third method note, from the tier 0 audit:** a batch's confirmation run must re-measure
+the tiers it *touched*, not only the workloads it targeted. D32's confirmation measured its
+target categories and shipped a silent 24% regression on buffer CSV — an inlining cliff from
+`ByteMatcher.run()`'s accumulated growth — caught only when the audit's guard re-ran
+plan-owned workloads. Guards per touched tier, every batch.
 
 **A second method note (2026-08-20):** never compare a probe number against a JMH number —
 the NETWORK "distributed cost" diagnosis made exactly that error and had to be retracted.
@@ -51,7 +57,21 @@ sides pollute alike.
 | Budgeted TREE with simulation fallback for ambiguous patterns | **Done (D31)** — default path measured at 3.9×/7.7× on the TIER1 workloads, linear-time promise kept |
 | Oniguruma corpus through TREE; pollution at hundreds of patterns | **Done** — 622/622 identical; per-category stable at full sweep; `everything` (114 patterns, one JVM) showed the mixed policy beating pinned-tree 617 vs 354, settling the larger point |
 
-## 4. Benchmark blind spots — partially closed, the rest recorded
+## 4. Tier audits (2026-08-19/20)
+
+Adversarial per-tier review: hygiene, correctness, javadoc truth, structure — performance
+guarded by JMH after every change.
+
+| Tier | Status | Findings |
+|---|---|---|
+| 0 — scan plan | **Done** | Two correctness-grade: the ASCII word-boundary streaming truncation (`endRelated` omitted the `(?-u)` kinds; `(?-u)foo\b` matched a window "food" contradicted — fixed, regression-tested) and D32's silent 24% CSV regression (above). Plus the `run()` split, a swapped javadoc pair in `Plan`, and FQN/blank-line hygiene |
+| 1 — bounded backtracker | Pending | Known already: class javadoc still speaks D26's "chosen per search" language, made false by D32 |
+| 2 — simulation | Pending | |
+| 3 — flat fancy | Pending | |
+| 4 — tree | Pending | |
+| shared (parser, analysis, API) | Pending | |
+
+## 5. Benchmark blind spots — partially closed, the rest recorded
 
 **All three paid off on their first run** — see [05-engine-benchmarks.md §10.4](05-engine-benchmarks.md):
 SPARSE retired the Boyer–Moore item, LONG_RECORD turned the tree engine's depth risk into a

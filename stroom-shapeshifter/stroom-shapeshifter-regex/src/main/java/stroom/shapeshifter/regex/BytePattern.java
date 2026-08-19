@@ -22,6 +22,7 @@ import stroom.shapeshifter.regex.internal.Hir;
 import stroom.shapeshifter.regex.internal.Lowering;
 import stroom.shapeshifter.regex.internal.Nfa;
 import stroom.shapeshifter.regex.internal.NfaCompiler;
+import stroom.shapeshifter.regex.internal.NodeTree;
 import stroom.shapeshifter.regex.internal.Normalise;
 import stroom.shapeshifter.regex.internal.Parser;
 import stroom.shapeshifter.regex.internal.Plan;
@@ -81,7 +82,7 @@ public final class BytePattern {
     private final Engine forced;
 
     /** The node-tree compilation, present only when {@link Engine#TREE} was forced. */
-    private final stroom.shapeshifter.regex.internal.NodeTree.Compiled tree;
+    private final NodeTree.Compiled tree;
 
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
@@ -112,7 +113,7 @@ public final class BytePattern {
                         final List<String> warnings,
                         final List<String> groupNames,
                         final Engine forced,
-                        final stroom.shapeshifter.regex.internal.NodeTree.Compiled tree) {
+                        final NodeTree.Compiled tree) {
         this.tree = tree;
         this.forced = forced;
         this.pattern = pattern;
@@ -177,7 +178,7 @@ public final class BytePattern {
             // as the structural fallback when recursion depth gives out.
             return new BytePattern(description, copy, null, nfa,
                     List.of(), Analysis.warnings(root), groupNames, null,
-                    stroom.shapeshifter.regex.internal.NodeTree.compile(
+                    NodeTree.compile(
                             root, groupCount, description));
         }
 
@@ -193,7 +194,7 @@ public final class BytePattern {
         // Ambiguous patterns carry the tree too: it takes the searches the bounded
         // backtracker's budget refuses, with the simulation as the linear-time fallback (D31).
         return new BytePattern(description, copy, null, nfa, violations, warnings, groupNames,
-                null, stroom.shapeshifter.regex.internal.NodeTree.compile(
+                null, NodeTree.compile(
                         root, groupCount, description));
     }
 
@@ -242,8 +243,8 @@ public final class BytePattern {
         if (engine == Engine.TREE) {
             final Parser.Result parsed = Parser.parse(pattern, flags);
             final Hir root = Normalise.normalise(parsed.root());
-            final stroom.shapeshifter.regex.internal.NodeTree.Compiled tree =
-                    stroom.shapeshifter.regex.internal.NodeTree.compile(
+            final NodeTree.Compiled tree =
+                    NodeTree.compile(
                             root, parsed.groupCount(), pattern);
             return new BytePattern(pattern, EnumSet.copyOf(flags.isEmpty()
                     ? EnumSet.noneOf(Flag.class)
@@ -266,7 +267,7 @@ public final class BytePattern {
     }
 
     /** The node-tree compilation, or null unless {@link Engine#TREE} was forced. */
-    stroom.shapeshifter.regex.internal.NodeTree.Compiled tree() {
+    NodeTree.Compiled tree() {
         return tree;
     }
 

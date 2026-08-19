@@ -101,14 +101,15 @@ public final class Plan {
         return groupCount;
     }
 
-    /**
-     * Bytes any match can begin with, as a 256-entry table, or null if the pattern can match
-     * empty and so could begin anywhere.
-     */
+    /** The fewest bytes any match spans; no attempt can succeed with fewer remaining. */
     public int minLength() {
         return minLength;
     }
 
+    /**
+     * Bytes any match can begin with, as a 256-entry table, or null if the pattern can match
+     * empty and so could begin anywhere.
+     */
     public byte[] firstBytes() {
         return firstBytes;
     }
