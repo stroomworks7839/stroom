@@ -198,6 +198,14 @@ public final class Parser {
         if (max != Hir.Repeat.UNBOUNDED && max < min) {
             throw fail(Reason.SYNTAX, "repetition maximum is below its minimum", atomStart);
         }
+        if (peek() == '{' && tryParseBounds() != null) {
+            // a*{2} would otherwise read as a* followed by a literal {2}, which is a silent
+            // approximation of something Rust and the JDK both refuse. (Oniguruma multiplies
+            // stacked quantifiers, so silence here would also quietly disagree with it.)
+            throw fail(Reason.SYNTAX,
+                    "a quantifier cannot be applied to a quantifier; group the repetition, or "
+                    + "escape the brace to match it literally", atomStart);
+        }
         final Hir repeat = new Hir.Repeat(atom, min, max, greedy);
         return possessive
                 ? new Hir.Atomic(repeat)
@@ -576,6 +584,19 @@ public final class Parser {
             if (pattern.startsWith("[:", pos)) {
                 builder.add(parsePosixClass(start));
                 continue;
+            }
+            // Rust reads an unescaped '[' inside a class as a nested class and '&&' as an
+            // intersection. Neither is implemented here, and reading them as literals would be
+            // a silent approximation of both — so they are refused until they are built.
+            if (pattern.charAt(pos) == '[') {
+                throw fail(Reason.UNSUPPORTED,
+                        "character class set operations (nested classes) are not implemented; "
+                        + "escape the '[' to match a literal bracket", start);
+            }
+            if (pattern.startsWith("&&", pos)) {
+                throw fail(Reason.UNSUPPORTED,
+                        "character class set operations ('&&' intersection) are not "
+                        + "implemented; escape the ampersands to match them literally", start);
             }
             final int lo = classChar(builder, start);
             if (lo < 0) {

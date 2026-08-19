@@ -668,17 +668,24 @@ constructs, with expected spans as **byte offsets over UTF-8** — this engine's
 coordinate system, needing no translation. It is the same corpus fancy-regex uses for the same
 architecture, taken from the same snapshot.
 
-**Standing: 794 of 1,011 convert, 622 execute, 122 on the fancy tier, zero disagreements.**
+**Standing: 864 of 1,011 convert, 622 execute, 122 on the fancy tier, zero disagreements.**
 The conversion (`tools/convert-oniguruma-corpus.py`) drops only what this parser would
-*silently misread* — Oniguruma-only escapes, class set operations, stacked quantifiers — with
-a printed tally; refusals stay in and are counted by reason in the test's report; and 14 cases
-that compile but ask a question the dialects answer differently (full case folding of ß,
-bare-inline-flag regrouping, unset backreferences matching empty) are listed in an `ignore`
-file, one reason per line, fancy-regex's own mechanism for the same corpus.
+*silently misread* — Oniguruma-only escapes such as `\g<...>` and `\X`, and `\xHH` above
+0x7F, which is a raw byte there and a code point here — with a printed tally; refusals stay in
+and are counted by reason in the test's report; and 14 cases that compile but ask a question
+the dialects answer differently (full case folding of ß, bare-inline-flag regrouping, unset
+backreferences matching empty) are listed in an `ignore` file, one reason per line,
+fancy-regex's own mechanism for the same corpus.
 
-It found one defect before it ever ran green: this parser accepted duplicate group names,
-which both reference dialects refuse and which made `\k<name>` silently bind to the first —
-now a compile error.
+It found three parser defects before it ever ran green, each a silent approximation of syntax
+a reference dialect gives meaning to, and each now a refusal instead:
+
+1. **Duplicate group names were accepted**, making `\k<name>` silently bind to the first
+   occurrence; both reference dialects refuse them.
+2. **`[` and `&&` inside a character class read as literals**, where Rust reads a nested class
+   and an intersection. Refused until class set operations are built.
+3. **A quantifier stacked on a quantifier read the brace as a literal** — `a*{2}` matched
+   `a*` then `{2}` — where Rust and the JDK refuse, and Oniguruma multiplies.
 
 **Consequences:** Ruby dialect cases compile under MULTILINE (`^`/`$` are always line anchors
 there) and `(?m)` is translated to this dialect's `(?s)`, both recorded in the corpus README.

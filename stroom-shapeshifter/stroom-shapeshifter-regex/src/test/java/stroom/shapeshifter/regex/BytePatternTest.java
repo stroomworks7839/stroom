@@ -256,6 +256,9 @@ class BytePatternTest {
             "'[unclosed',              SYNTAX",
             "'(a)\\2',                 SYNTAX",
             "'(?<a>x)(?<a>y)',         SYNTAX",
+            "'a*{2}',                  SYNTAX",
+            "'[a[b]]',                 UNSUPPORTED",
+            "'[a&&b]',                 UNSUPPORTED",
             "'\\Z',                    UNSUPPORTED",
             "'(?<=a*)b',                UNSUPPORTED",
             "'*',                      SYNTAX"})

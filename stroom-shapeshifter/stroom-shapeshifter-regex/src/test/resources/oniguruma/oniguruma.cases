@@ -448,6 +448,114 @@ input &
 group 0
 span 0-1
 
+test L0223
+pattern [[ab]]
+input b
+group 0
+span 0-1
+
+test L0224
+pattern [[ab]c]
+input c
+group 0
+span 0-1
+
+test L0225
+pattern [[^a]]
+input a
+group 0
+span none
+
+test L0226
+pattern [^[a]]
+input a
+group 0
+span none
+
+test L0227
+pattern [[ab]&&bc]
+input b
+group 0
+span 0-1
+
+test L0228
+pattern [[ab]&&bc]
+input a
+group 0
+span none
+
+test L0229
+pattern [[ab]&&bc]
+input c
+group 0
+span none
+
+test L0230
+pattern [a-z&&b-y&&c-x]
+input w
+group 0
+span 0-1
+
+test L0231
+pattern [^a-z&&b-y&&c-x]
+input w
+group 0
+span none
+
+test L0232
+pattern [[^a&&a]&&a-z]
+input b
+group 0
+span 0-1
+
+test L0233
+pattern [[^a&&a]&&a-z]
+input a
+group 0
+span none
+
+test L0234
+pattern [[^a-z&&bcdef]&&[^c-g]]
+input h
+group 0
+span 0-1
+
+test L0235
+pattern [[^a-z&&bcdef]&&[^c-g]]
+input c
+group 0
+span none
+
+test L0236
+pattern [^[^abc]&&[^cde]]
+input c
+group 0
+span 0-1
+
+test L0237
+pattern [^[^abc]&&[^cde]]
+input e
+group 0
+span 0-1
+
+test L0238
+pattern [^[^abc]&&[^cde]]
+input f
+group 0
+span none
+
+test L0239
+pattern [a-&&-a]
+input -
+group 0
+span 0-1
+
+test L0240
+pattern [a\\-&&\\-a]
+input &
+group 0
+span none
+
 test L0241
 pattern \\wabc
 input  abc
@@ -1624,6 +1732,24 @@ input aaa
 group 0
 span 0-1
 
+test L0446
+pattern (?:ab)?{2}
+input 
+group 0
+span 0-0
+
+test L0447
+pattern (?:ab)?{2}
+input ababa
+group 0
+span 0-4
+
+test L0448
+pattern (?:ab)*{0}
+input ababa
+group 0
+span 0-0
+
 test L0449
 pattern (?:ab){3,}
 input abababab
@@ -1659,6 +1785,12 @@ pattern (?:ab){,}
 input ab{,}
 group 0
 span 0-5
+
+test L0455
+pattern (?:abc)+?{2}
+input abcabcabc
+group 0
+span 0-6
 
 test L0456
 pattern (?:X*)(?i:xa)
@@ -2601,6 +2733,18 @@ pattern (a)(?(1)a*|b*)+
 input aaaa
 group 0
 span 0-4
+
+test L0667
+pattern [[^abc]&&cde]*
+input de
+group 0
+span 0-2
+
+test L0668
+pattern (a){10}{10}
+input aa
+group 0
+span none
 
 test L0669
 pattern (?:a?)+
@@ -3868,6 +4012,24 @@ input 夢夢夢
 group 0
 span 0-3
 
+test L0905
+pattern (?:あい)?{2}
+input 
+group 0
+span 0-0
+
+test L0906
+pattern (?:鬼車)?{2}
+input 鬼車鬼車鬼
+group 0
+span 0-12
+
+test L0907
+pattern (?:鬼車)*{0}
+input 鬼車鬼車鬼
+group 0
+span 0-0
+
 test L0908
 pattern (?:鬼車){3,}
 input 鬼車鬼車鬼車鬼車
@@ -3903,6 +4065,12 @@ pattern (?:鬼車){,}
 input 鬼車{,}
 group 0
 span 0-9
+
+test L0914
+pattern (?:かきく)+?{2}
+input かきくかきくかきく
+group 0
+span 0-18
 
 test L0915
 pattern (火)
@@ -4306,6 +4474,138 @@ input あvずあvず
 group 0
 span 0-14
 
+test L0985
+pattern [[ひふ]]
+input ふ
+group 0
+span 0-3
+
+test L0986
+pattern [[いおう]か]
+input か
+group 0
+span 0-3
+
+test L0987
+pattern [[^あ]]
+input あ
+group 0
+span none
+
+test L0988
+pattern [^[あ]]
+input あ
+group 0
+span none
+
+test L0989
+pattern [^[^あ]]
+input あ
+group 0
+span 0-3
+
+test L0990
+pattern [[かきく]&&きく]
+input く
+group 0
+span 0-3
+
+test L0991
+pattern [[かきく]&&きく]
+input か
+group 0
+span none
+
+test L0992
+pattern [[かきく]&&きく]
+input け
+group 0
+span none
+
+test L0993
+pattern [あ-ん&&い-を&&う-ゑ]
+input ゑ
+group 0
+span 0-3
+
+test L0994
+pattern [^あ-ん&&い-を&&う-ゑ]
+input ゑ
+group 0
+span none
+
+test L0995
+pattern [[^あ&&あ]&&あ-ん]
+input い
+group 0
+span 0-3
+
+test L0996
+pattern [[^あ&&あ]&&あ-ん]
+input あ
+group 0
+span none
+
+test L0997
+pattern [[^あ-ん&&いうえお]&&[^う-か]]
+input き
+group 0
+span 0-3
+
+test L0998
+pattern [[^あ-ん&&いうえお]&&[^う-か]]
+input い
+group 0
+span none
+
+test L0999
+pattern [^[^あいう]&&[^うえお]]
+input う
+group 0
+span 0-3
+
+test L1000
+pattern [^[^あいう]&&[^うえお]]
+input え
+group 0
+span 0-3
+
+test L1001
+pattern [^[^あいう]&&[^うえお]]
+input か
+group 0
+span none
+
+test L1002
+pattern [あ-&&-あ]
+input -
+group 0
+span 0-1
+
+test L1003
+pattern [^[^a-zあいう]&&[^bcdefgうえお]q-w]
+input え
+group 0
+span 0-3
+
+test L1004
+pattern [^[^a-zあいう]&&[^bcdefgうえお]g-w]
+input f
+group 0
+span 0-1
+
+test L1005
+pattern [^[^a-zあいう]&&[^bcdefgうえお]g-w]
+input g
+group 0
+span 0-1
+
+test L1006
+pattern [^[^a-zあいう]&&[^bcdefgうえお]g-w]
+input 2
+group 0
+span none
+
 test L1007
 pattern a<b>バージョンのダウンロード<\\/b>
 input a<b>バージョンのダウンロード</b>
@@ -4408,11 +4708,71 @@ input こ
 group 0
 span 0-3
 
+test L1026
+pattern [^\\p{^Word}&&\\p{ASCII}]
+input こ
+group 0
+span 0-3
+
+test L1027
+pattern [^\\p{^Word}&&\\p{ASCII}]
+input a
+group 0
+span 0-1
+
+test L1028
+pattern [^\\p{^Word}&&\\p{ASCII}]
+input #
+group 0
+span none
+
+test L1029
+pattern [^[\\p{^Word}]&&[\\p{ASCII}]]
+input こ
+group 0
+span 0-3
+
+test L1030
+pattern [^[\\p{ASCII}]&&[^\\p{Word}]]
+input こ
+group 0
+span 0-3
+
+test L1031
+pattern [[\\p{ASCII}]&&[^\\p{Word}]]
+input こ
+group 0
+span none
+
+test L1032
+pattern [^[\\p{^Word}]&&[^\\p{ASCII}]]
+input こ
+group 0
+span 0-3
+
 test L1033
 pattern [^\\x{104a}]
 input こ
 group 0
 span 0-3
+
+test L1034
+pattern [^\\p{^Word}&&[^\\x{104a}]]
+input こ
+group 0
+span 0-3
+
+test L1035
+pattern [^[\\p{^Word}]&&[^\\x{104a}]]
+input こ
+group 0
+span 0-3
+
+test L1036
+pattern [^\\p{Word}||[^\\x{104a}]]
+input こ
+group 0
+span none
 
 test L1037
 pattern \\p{^Cntrl}
@@ -4449,6 +4809,66 @@ pattern [^\\p{Cntrl}]
 input こ
 group 0
 span 0-3
+
+test L1044
+pattern [^\\p{Cntrl}&&\\p{ASCII}]
+input こ
+group 0
+span 0-3
+
+test L1045
+pattern [^\\p{Cntrl}&&\\p{ASCII}]
+input a
+group 0
+span 0-1
+
+test L1046
+pattern [^\\p{^Cntrl}&&\\p{ASCII}]
+input #
+group 0
+span none
+
+test L1047
+pattern [^[\\p{^Cntrl}]&&[\\p{ASCII}]]
+input こ
+group 0
+span 0-3
+
+test L1048
+pattern [^[\\p{ASCII}]&&[^\\p{Cntrl}]]
+input こ
+group 0
+span 0-3
+
+test L1049
+pattern [[\\p{ASCII}]&&[^\\p{Cntrl}]]
+input こ
+group 0
+span none
+
+test L1050
+pattern [^[\\p{^Cntrl}]&&[^\\p{ASCII}]]
+input こ
+group 0
+span none
+
+test L1051
+pattern [^\\p{^Cntrl}&&[^\\x{104a}]]
+input こ
+group 0
+span none
+
+test L1052
+pattern [^[\\p{^Cntrl}]&&[^\\x{104a}]]
+input こ
+group 0
+span none
+
+test L1053
+pattern [^\\p{Cntrl}||[^\\x{104a}]]
+input こ
+group 0
+span none
 
 test L1054
 pattern (?-W:\\p{Word})

@@ -97,30 +97,9 @@ def translate_flags(pattern: str):
 
 
 def more_silent_differences(pattern: str):
-    """Constructs both dialects accept with different meanings — the dangerous kind."""
-    in_class = False
-    escaped = False
-    previous = ""
-    for i, ch in enumerate(pattern):
-        if escaped:
-            escaped = False
-            previous = ""
-            continue
-        if ch == "\\":
-            escaped = True
-            continue
-        if in_class:
-            if ch == "[" and not pattern.startswith("[:", i):
-                return "character-class set operations (nesting, &&)"
-            if ch == "&" and previous == "&":
-                return "character-class set operations (nesting, &&)"
-            if ch == "]":
-                in_class = False
-        elif ch == "[":
-            in_class = True
-        previous = ch
-    if re.search(r"[?*+}]\{\d+(,\d*)?\}", pattern):
-        return "a quantifier stacked on a quantifier, which Oniguruma multiplies"
+    """Constructs both dialects accept with different meanings — the dangerous kind. Class
+    set operations and stacked quantifiers are NOT dropped here: the parser refuses both, so
+    they flow through as refusals the Java test counts by reason."""
     if re.search(r"\\x[89a-fA-F][0-9a-fA-F]", pattern):
         return "\\xHH above 0x7F is a raw byte in Oniguruma, a code point here (as in Rust)"
     return None
