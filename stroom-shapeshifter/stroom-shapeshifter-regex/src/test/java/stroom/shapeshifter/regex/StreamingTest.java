@@ -128,7 +128,7 @@ class StreamingTest {
     @Test
     void tierOneAlsoReportsUndetermined() {
         final BytePattern pattern = BytePattern.compile("^(.+):(.+)$");
-        assertThat(pattern.tier()).isEqualTo(1);
+        assertThat(pattern.tier()).isEqualTo(Engine.SIMULATE.ordinal());
         final ByteMatcher matcher = pattern.matcher();
 
         assertThat(matcher.match(partial("a:b"), 0, Anchoring.ANCHORED))

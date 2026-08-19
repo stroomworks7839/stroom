@@ -135,8 +135,8 @@ class NestedChoiceTest {
         assertThat(BytePattern.compile("^(INFO|WARN|ERROR|DEBUG|TRACE): (.*)$").tier()).isZero();
 
         // Genuinely overlapping branches still need tier 1, however shallow.
-        assertThat(BytePattern.compile("^((a|ab)(c|bc))$").tier()).isEqualTo(1);
-        assertThat(BytePattern.compile(APACHE_LOG).tier()).isEqualTo(1);
+        assertThat(BytePattern.compile("^((a|ab)(c|bc))$").tier()).isEqualTo(Engine.SIMULATE.ordinal());
+        assertThat(BytePattern.compile(APACHE_LOG).tier()).isEqualTo(Engine.SIMULATE.ordinal());
     }
 
     @Test
@@ -157,7 +157,7 @@ class NestedChoiceTest {
 
         // (a|ab) is the case that exposed the preference rule: a preferred empty branch after
         // factoring competes with what follows, so this must not reach the scan plan.
-        assertThat(BytePattern.compile("^(a|ab)").tier()).isEqualTo(1);
+        assertThat(BytePattern.compile("^(a|ab)").tier()).isEqualTo(Engine.SIMULATE.ordinal());
     }
 
     private static String randomInput(final Random random) {

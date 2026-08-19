@@ -21,12 +21,13 @@ if (matcher.find(bytes)) {
 }
 ```
 
-Supported now: the whole RE2 subset over UTF-8 input, complete or streaming, on two execution
-tiers the compiler chooses between. An unambiguous pattern becomes a straight-line scan plan with no
-automaton; an ambiguous one becomes an NFA run by a Pike VM in linear time, so catastrophic
-backtracking is unrepresentable rather than merely unlikely. Results are identical either way —
-`explain()` reports the tier, and `ambiguities()` says why a pattern needed tier 1, which is
-often an authoring mistake worth seeing.
+Supported now: the whole RE2 subset over UTF-8 input, complete or streaming, on three engines
+chosen automatically. An unambiguous pattern becomes a straight-line scan plan with no automaton;
+an ambiguous one becomes an NFA, run by a bounded backtracker where its memory budget allows and
+simulated by a Pike VM otherwise. Both automaton engines have the same linear-time bound, so
+catastrophic backtracking is unrepresentable rather than merely unlikely. Results are identical
+whichever engine runs — `explain()` reports the engine, and `ambiguities()` says why a pattern
+needed an automaton, which is often an authoring mistake worth seeing.
 
 Character classes are compiled through UTF-8, so `.` and `[a-zé]` match whole characters and a
 span never splits one, while ASCII-only classes and unbounded scans keep a byte-level fast path.

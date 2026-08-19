@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.regex;
 
+import stroom.shapeshifter.regex.internal.Backtracker;
 import stroom.shapeshifter.regex.internal.PikeVm;
 import stroom.shapeshifter.regex.internal.Plan;
 import stroom.shapeshifter.regex.internal.PlanRunner;
@@ -38,6 +39,15 @@ public final class ByteMatcher {
     private final BytePattern pattern;
     private final Plan plan;
     private final PikeVm vm;
+    private final Backtracker backtracker;
+
+    /**
+     * How much the backtracker's (instruction, position) bitset may occupy before a search goes to
+     * the simulation instead. 128 KB covers a 2,000-instruction program over a 500-byte record,
+     * which is the shape this engine is built for; beyond it the simulation's fixed cost per
+     * position is the better trade.
+     */
+    private static final int BACKTRACK_BUDGET_BYTES = 128 * 1024;
     private final int groupCount;
     private final int[] slots;
 
@@ -52,6 +62,9 @@ public final class ByteMatcher {
         this.plan = pattern.plan();
         this.vm = plan == null
                 ? new PikeVm(pattern.nfa())
+                : null;
+        this.backtracker = plan == null
+                ? new Backtracker(pattern.nfa())
                 : null;
         this.groupCount = pattern.groupCount();
         this.slots = new int[plan != null
@@ -118,11 +131,18 @@ public final class ByteMatcher {
 
     private MatchOutcome run(final int from, final Anchoring anchoring) {
         if (vm != null) {
-            // The VM searches for the leftmost match itself, advancing every live thread
-            // together, rather than restarting an attempt at each offset.
             Arrays.fill(slots, -1);
-            final int end = vm.search(
-                    data, regionFrom, from, regionTo, anchoring == Anchoring.ANCHORED, complete, slots);
+            final boolean anchored = anchoring == Anchoring.ANCHORED;
+            // Backtracking is cheaper per input position, so it is preferred wherever its bitset
+            // is affordable — which depends on the input length, and so is decided here rather
+            // than at compile time. The simulation is the fallback, and the guarantee: whatever
+            // the pattern, one of the two runs in linear time.
+            final int end = useBacktracker()
+                    ? backtracker.search(
+                            data, regionFrom, from, regionTo, anchored, complete, slots)
+                    // The VM searches for the leftmost match itself, advancing every live thread
+                    // together, rather than restarting an attempt at each offset.
+                    : vm.search(data, regionFrom, from, regionTo, anchored, complete, slots);
             matched = end >= 0;
             return outcome(end);
         }
@@ -184,6 +204,27 @@ public final class ByteMatcher {
     private boolean splitsCharacter(final int at) {
         return (at < regionTo || (complete && at < data.length))
                && Utf8.isContinuation(data[at]);
+    }
+
+    /**
+     * Backtracking is preferred wherever it is affordable, unless a caller has pinned an engine.
+     * Pinning exists so that each engine can be run against the others over the whole corpus:
+     * agreement between three implementations, two of them from different algorithm families, is
+     * what the correctness argument rests on.
+     */
+    private boolean useBacktracker() {
+        final Engine pinned = pattern.forced();
+        if (pinned == Engine.SIMULATE) {
+            return false;
+        }
+        final boolean affordable =
+                backtracker.canRun(regionTo - regionFrom, BACKTRACK_BUDGET_BYTES);
+        if (pinned == Engine.BACKTRACK && !affordable) {
+            throw new IllegalStateException(
+                    "backtracking was pinned but cannot run this pattern over "
+                    + (regionTo - regionFrom) + " bytes");
+        }
+        return affordable;
     }
 
     private MatchOutcome outcome(final int end) {

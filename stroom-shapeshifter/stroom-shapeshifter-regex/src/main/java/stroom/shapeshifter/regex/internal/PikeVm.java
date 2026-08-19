@@ -229,6 +229,15 @@ public final class PikeVm {
         }
     }
 
+    /** Shared with {@link Backtracker}: an assertion depends only on the data and the position. */
+    static boolean assertionHolds(final Hir.Kind kind,
+                                  final byte[] data,
+                                  final int regionFrom,
+                                  final int to,
+                                  final int pos) {
+        return holds(kind, data, regionFrom, to, pos);
+    }
+
     private static boolean holds(final Hir.Kind kind,
                                  final byte[] data,
                                  final int regionFrom,

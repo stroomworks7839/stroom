@@ -301,8 +301,8 @@ class DifferentialTest {
         for (final String pattern : ambiguous) {
             final BytePattern bytePattern = BytePattern.compile(pattern);
             assertThat(bytePattern.tier())
-                    .as("%s should need tier 1", pattern)
-                    .isEqualTo(1);
+                    .as("%s should need an automaton", pattern)
+                    .isEqualTo(Engine.SIMULATE.ordinal());
             final Pattern javaPattern = JdkOracle.compile(pattern);
             for (final String input : inputs) {
                 assertAgree(bytePattern, javaPattern, pattern, input);
@@ -311,12 +311,72 @@ class DifferentialTest {
     }
 
     /**
-     * The invariant the whole two-tier design rests on: where both tiers can run a pattern, they
-     * must produce identical results. The scan plan is only ever an optimisation, so any
-     * disagreement is a bug in it rather than a difference of opinion.
+     * The invariant the whole design rests on, over three engines rather than two.
      * <p>
-     * Checked directly, by forcing the same pattern through both engines and comparing them to
-     * each other and to the JDK — not merely inferred from each agreeing with the JDK separately.
+     * A scan plan, a bounded backtracker and an NFA simulation must produce identical results —
+     * same match, same span, same groups, same non-participation — on every input. Two of them
+     * are from different algorithm families entirely, depth-first with backtracking against
+     * breadth-first in lockstep, so a bug that produced the same wrong answer in both would have
+     * to be a mistake in the shared program rather than in either engine. That is what makes
+     * agreement evidence rather than coincidence.
+     * <p>
+     * Each engine is pinned rather than chosen, because the compiler would otherwise never run
+     * the simulation on inputs this short and it would go untested.
+     */
+    @ParameterizedTest
+    @ValueSource(ints = {31, 32, 33})
+    void allThreeEnginesAgreeWithEachOther(final int seed) {
+        final Random random = new Random(seed);
+        for (final String pattern : SHARED_PATTERNS) {
+            final BytePattern backtrack =
+                    BytePattern.compileForcing(Engine.BACKTRACK, pattern, Set.of());
+            final BytePattern simulate =
+                    BytePattern.compileForcing(Engine.SIMULATE, pattern, Set.of());
+            final Pattern javaPattern = JdkOracle.compile(pattern);
+            final BytePattern scanPlan = BytePattern.compile(pattern);
+
+            for (int i = 0; i < 150; i++) {
+                final String input = randomAscii(random);
+                assertAgree(backtrack, javaPattern, pattern, input);
+                assertAgree(simulate, javaPattern, pattern, input);
+                assertSameResult(backtrack, simulate, pattern, input);
+                if (scanPlan.tier() == Engine.SCAN_PLAN.ordinal()) {
+                    assertSameResult(scanPlan, backtrack, pattern, input);
+                }
+            }
+        }
+    }
+
+    /** The same, over the deliberately ambiguous patterns, which no scan plan can run. */
+    @Test
+    void bothAutomatonEnginesAgreeOnAmbiguousPatterns() {
+        final List<String> ambiguous = List.of(
+                "^(.+):(.+)$",
+                "^(.*),(.*)$",
+                "^([^ ]+) (\"([^\"]*)\"|[^ ]+) (.*)$",
+                "^(a|ab|abc)(.*)$",
+                "(x+)(x+)$",
+                "^(\\S+)(?:\\s+(\\S+))?$");
+        final Random random = new Random(77);
+        for (final String pattern : ambiguous) {
+            final BytePattern backtrack =
+                    BytePattern.compileForcing(Engine.BACKTRACK, pattern, Set.of());
+            final BytePattern simulate =
+                    BytePattern.compileForcing(Engine.SIMULATE, pattern, Set.of());
+            final Pattern javaPattern = JdkOracle.compile(pattern);
+            for (int i = 0; i < 400; i++) {
+                final String input = randomAscii(random);
+                assertAgree(backtrack, javaPattern, pattern, input);
+                assertSameResult(backtrack, simulate, pattern, input);
+            }
+        }
+    }
+
+    /**
+     * The scan plan against the automaton, kept from when there were only two engines. Narrower
+     * than the test above, and retained because it is the one that pins the scan plan itself:
+     * the plan is only ever an optimisation, so any disagreement is a bug in it rather than a
+     * difference of opinion.
      */
     @ParameterizedTest
     @ValueSource(ints = {21, 22, 23})
@@ -328,7 +388,7 @@ class DifferentialTest {
                 continue;
             }
             final BytePattern tierOne = BytePattern.compileForcingNfa(pattern, Set.of());
-            assertThat(tierOne.tier()).isEqualTo(1);
+            assertThat(tierOne.tier()).isEqualTo(Engine.SIMULATE.ordinal());
             final Pattern javaPattern = JdkOracle.compile(pattern);
 
             for (int i = 0; i < 150; i++) {

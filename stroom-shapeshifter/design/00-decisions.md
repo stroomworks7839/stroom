@@ -582,6 +582,33 @@ Pike VM stays as the general fallback, so the linear-time guarantee is unaffecte
 
 ---
 
+## D26 — The backtracker is the default automaton engine, chosen per search
+
+*2026-08-19.* Closes out [D25](#d25--a-bounded-backtracker-rather-than-a-lazy-dfa): built,
+measured twice, and enabled.
+
+The first measurement was mixed — csv +54.7% but syslog −12.5% and TIER1_GREEDY −11.4% — and
+under the rule set at the time it would have reverted the default. The cause was the visited
+set being zeroed on every search: sized program × input, it made the engine pay a per-search
+cost proportional to the *program* to save per-position costs proportional to the *input*,
+and on short inputs the program is the larger. Generation stamping (a byte per cell, stamped
+rather than cleared, zeroed once every 127 searches) fixed it: nine of twelve corpus
+categories improved, up to +62%, with csv reaching parity with the JDK. TIER1_GREEDY's
+regression — diagnosed at the time as *inherent* to depth-first greedy repetition — was also
+the clearing, and recovered to +2.6%. One more entry for the list of confident diagnoses that
+measurement overturned. See [05-engine-benchmarks.md §9](05-engine-benchmarks.md).
+
+**Consequences:** selection is per search, not per pattern — backtracking where its visited
+set fits a 128 KB budget, simulation otherwise — so the linear-time guarantee and the
+simulation's exact streaming answers are unaffected. `compileForcing` pins an engine through
+to the matcher, which is what keeps all three under differential test now that the default
+would otherwise never run the simulation on short inputs; the three-way agreement test is the
+correctness argument. Programs with the empty-iteration guard always simulate. The residual
+syslog −7.5% and fixedwidth −1.7% are accepted and recorded rather than mitigated with a
+compile-time heuristic.
+
+---
+
 ## D12 — The whole engine comes to Java eventually
 
 *2026-08-17.* Templates, transforms and the output/structure layer that replaces XSLT follow

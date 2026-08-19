@@ -273,7 +273,7 @@ class BytePatternTest {
         // An ambiguous pattern still compiles — it just needs tier 1. The diagnostic is the
         // point: this pattern's author wanted a literal dot and wrote "any character".
         final BytePattern sloppy = BytePattern.compile("(\\d+.\\d+)");
-        assertThat(sloppy.tier()).isEqualTo(1);
+        assertThat(sloppy.tier()).isEqualTo(Engine.SIMULATE.ordinal());
         assertThat(sloppy.ambiguities()).isNotEmpty();
         assertThat(sloppy.ambiguities().getFirst().toString()).contains("can both start with");
 
@@ -288,7 +288,7 @@ class BytePatternTest {
     void runsAmbiguousPatternsOnTierOne() {
         // Greedy .+ must take the last colon, which is exactly what a scan plan cannot decide.
         final BytePattern pattern = BytePattern.compile("^(.+):(.+)$");
-        assertThat(pattern.tier()).isEqualTo(1);
+        assertThat(pattern.tier()).isEqualTo(Engine.SIMULATE.ordinal());
 
         final ByteMatcher matcher = pattern.matcher();
         assertThat(matcher.find(bytes("a:b:c"))).isTrue();
@@ -310,7 +310,7 @@ class BytePatternTest {
         // (a+)+b against a long run of 'a' is the classic catastrophic-backtracking case. A
         // backtracking engine takes exponential time; the simulation must simply not match.
         final BytePattern pattern = BytePattern.compile("^(a+)+b$");
-        assertThat(pattern.tier()).isEqualTo(1);
+        assertThat(pattern.tier()).isEqualTo(Engine.SIMULATE.ordinal());
         final ByteMatcher matcher = pattern.matcher();
         final byte[] data = "a".repeat(2000).getBytes(java.nio.charset.StandardCharsets.UTF_8);
 

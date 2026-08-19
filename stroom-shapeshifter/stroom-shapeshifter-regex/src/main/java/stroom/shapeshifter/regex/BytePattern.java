@@ -69,6 +69,13 @@ public final class BytePattern {
     private final List<String> warnings;
     private final List<String> groupNames;
 
+    /**
+     * The engine every search must use, or null to let each search pick. Only set by
+     * {@link #compileForcing}, and only for testing and diagnostics — the choice between
+     * backtracking and simulation is otherwise made per search, since it depends on the input.
+     */
+    private final Engine forced;
+
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
                         final Plan plan,
@@ -76,6 +83,18 @@ public final class BytePattern {
                         final List<Analysis.Violation> ambiguities,
                         final List<String> warnings,
                         final List<String> groupNames) {
+        this(pattern, flags, plan, nfa, ambiguities, warnings, groupNames, null);
+    }
+
+    private BytePattern(final String pattern,
+                        final Set<Flag> flags,
+                        final Plan plan,
+                        final Nfa nfa,
+                        final List<Analysis.Violation> ambiguities,
+                        final List<String> warnings,
+                        final List<String> groupNames,
+                        final Engine forced) {
+        this.forced = forced;
         this.pattern = pattern;
         this.flags = flags;
         this.plan = plan;
@@ -160,12 +179,44 @@ public final class BytePattern {
     }
 
     /**
-     * Compiles to the tier 1 NFA even when the pattern would qualify for a scan plan.
+     * Compiles for a named engine, whether or not the compiler would have chosen it.
      * <p>
-     * For testing and diagnostics. The two tiers must produce identical results, so being able to
-     * run the same pattern through both is how that invariant is checked — and how the cost of
-     * each is compared on equal terms.
+     * For testing and diagnostics, and the mechanism the correctness argument rests on: every
+     * engine must produce identical results, so running one pattern through all of them and
+     * comparing is how that is established, rather than inferring it from each agreeing with
+     * {@code java.util.regex} separately. It is also how their costs are compared on equal terms.
+     *
+     * @throws IllegalArgumentException if the engine cannot run the pattern — only
+     *                                  {@link Engine#SCAN_PLAN} can refuse, and only for a pattern
+     *                                  that is not one-pass.
      */
+    public static BytePattern compileForcing(final Engine engine,
+                                             final String pattern,
+                                             final Set<Flag> flags) {
+        if (engine == Engine.SCAN_PLAN) {
+            final BytePattern compiled = compile(pattern, flags);
+            if (compiled.engine() != Engine.SCAN_PLAN) {
+                throw new IllegalArgumentException(
+                        "pattern is not one-pass, so it cannot run as a scan plan: " + pattern);
+            }
+            return compiled;
+        }
+        final BytePattern compiled = compileForcingNfa(pattern, flags);
+        return new BytePattern(compiled.pattern, compiled.flags, null, compiled.nfa,
+                compiled.ambiguities, compiled.warnings, compiled.groupNames, engine);
+    }
+
+    /** The engine every search must use, or null to choose per search. */
+    Engine forced() {
+        return forced;
+    }
+
+    /**
+     * Compiles to the NFA simulation even when the pattern would qualify for a scan plan.
+     *
+     * @deprecated use {@link #compileForcing(Engine, String, Set)}, which names the engine.
+     */
+    @Deprecated
     public static BytePattern compileForcingNfa(final String pattern, final Set<Flag> flags) {
         final Parser.Result parsed = Parser.parse(pattern, flags);
         final Hir root = Normalise.normalise(parsed.root());
@@ -216,11 +267,20 @@ public final class BytePattern {
                 : nfa.groupCount();
     }
 
-    /** The execution tier the compiler chose: 0 for a scan plan, 1 for the NFA simulation. */
-    public int tier() {
+    /**
+     * The engine the compiler chose, which for a pattern needing an automaton is the most
+     * expensive one that might be used: whether {@link Engine#BACKTRACK} can run a given search
+     * depends on the input length, so it is settled per search rather than here.
+     */
+    public Engine engine() {
         return plan != null
-                ? 0
-                : 1;
+                ? Engine.SCAN_PLAN
+                : Engine.SIMULATE;
+    }
+
+    /** The execution tier, which is {@link #engine()}'s ordinal: higher means more machinery. */
+    public int tier() {
+        return engine().ordinal();
     }
 
     /**
@@ -257,10 +317,12 @@ public final class BytePattern {
                 .append("pattern: ").append(pattern).append('\n')
                 .append("flags:   ").append(flags).append('\n');
         if (plan != null) {
-            sb.append("tier:    0 (scan plan, ").append(plan.size()).append(" ops)\n")
+            sb.append("tier:    ").append(tier()).append(" (").append(engine().description())
+                    .append(", ").append(plan.size()).append(" ops)\n")
                     .append(plan.explain());
         } else {
-            sb.append("tier:    1 (NFA, ").append(nfa.size()).append(" instructions)\n");
+            sb.append("tier:    ").append(tier()).append(" (").append(engine().description())
+                    .append(", ").append(nfa.size()).append(" instructions)\n");
             ambiguities.forEach(v -> sb.append("         ambiguous — ").append(v).append('\n'));
             sb.append(nfa.explain());
         }

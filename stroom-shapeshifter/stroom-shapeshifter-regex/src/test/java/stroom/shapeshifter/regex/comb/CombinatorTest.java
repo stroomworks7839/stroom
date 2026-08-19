@@ -18,6 +18,7 @@ package stroom.shapeshifter.regex.comb;
 
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
+import stroom.shapeshifter.regex.Engine;
 import stroom.shapeshifter.regex.PatternCompileException;
 
 import org.junit.jupiter.api.Test;
@@ -75,7 +76,8 @@ class CombinatorTest {
                 .isZero();
 
         // Overlapping alternatives — needs the simulation, exactly as the regex would.
-        assertThat(library.compile(Matchers.choice(Matchers.tag("a"), Matchers.tag("ab"))).tier()).isEqualTo(1);
+        assertThat(library.compile(Matchers.choice(Matchers.tag("a"), Matchers.tag("ab"))).tier())
+                .isEqualTo(Engine.SIMULATE.ordinal());
     }
 
     /** Strips the header so only the compiled instructions are compared. */

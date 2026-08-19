@@ -537,3 +537,132 @@ the case Rust keeps one for.
 **Recommendation: a bounded backtracker, not a lazy DFA.** It targets the measured 24 ns/byte
 rather than a thread-width problem that no longer exists, it needs none of
 [D18.1](00-decisions.md)'s state-cache machinery, and it does the thing the DFA cannot.
+
+---
+
+## 9. The backtracker, measured
+
+Written to close [D25](00-decisions.md): the recommendation at the end of §8 was built, and this
+section records what it actually bought. A note on numbering, since the engine count changed
+under this document: §§1–8 say "tier 1" for the NFA simulation, because there were two tiers when
+they were written. With the backtracker between the scan plan and the simulation, the simulation
+is now tier 2, and `explain()` names engines rather than leaving numbers to be decoded. The
+sections above are left as written.
+
+What was built, briefly. Depth-first execution of the same NFA program the simulation runs: an
+explicit choice-point stack (a program can nest deeper than the Java stack tolerates), captures
+written where they happen with an undo log, and a visited set over (instruction, position) that
+abandons any second arrival — a pair reached twice has the same program and the same input left,
+so the second visit cannot find a match the first missed. That caps the work at program × input,
+which is the simulation's bound. Programs containing the empty-iteration guard (`MARK`/`PROGRESS`)
+are refused and go to the simulation: the guard makes the future depend on where the iteration
+began, so the visited key would prune paths whose outcomes genuinely differ. Selection is per
+search rather than per pattern, because the visited set's size depends on the input: backtracking
+runs where it fits a 128 KB budget, the simulation everywhere else. The linear-time guarantee is
+therefore untouched — whatever the pattern, whichever engine runs, the bound is the same.
+
+On streaming the backtracker is deliberately conservative: it reports `NEED_MORE_INPUT` whenever
+any explored path reached the edge of a window that can still grow — including an assertion
+*evaluated* at the edge, whichever way it came out, which a test caught when `$` held on a prefix
+that the full input then contradicted. The simulation knows precisely whether more input could
+change the answer, because live threads carry that information; a depth-first search discards it
+as it backtracks, and undetermined-too-often costs a caller another chunk where
+determined-wrongly would silently truncate a match.
+
+### 9.1 The first measurement was mixed, and the prediction wrong
+
+§8 predicted "several times faster on the short records this engine is meant for". The first run
+(`benchmarks/2026-08-18-1900-a7d06f2236.json` against the `1255` baseline) said otherwise: csv
++54.7%, weblog +37.4%, structured +19.0% — but syslog **−12.5%**, TIER1_GREEDY **−11.4%**, quoted
+−4.7%, fixedwidth −4.6%. A wash with large variance by workload is not a win, and it was not
+committed as one.
+
+The diagnosis: **the visited set was being zeroed on every search.** It is sized program × input —
+hundreds to thousands of instructions against tens of bytes of record — so for exactly the short
+inputs the engine targets, clearing the set cost more than the matching it bounded. The engine
+was paying a per-search cost proportional to the *program* in order to save per-position costs
+proportional to the *input*, and on short inputs the program is the larger of the two.
+
+### 9.2 Generation stamping, and the re-measurement
+
+The fix: one byte per cell instead of one bit, stamped with the search's generation rather than
+cleared between searches. Zeroing now happens once every 127 searches, and an eightfold size
+increase buys its removal from the per-search path. Re-measured
+(`benchmarks/2026-08-18-1948-a7d06f2236.json` against the same baseline), the whole-corpus suite
+on short records reads:
+
+| Category | Before | After | Change | Verdict |
+|---|---:|---:|---:|---|
+| csv | 78129 ± 950 | 126560 ± 918 | +62.0% | better |
+| weblog | 76740 ± 641 | 114719 ± 1740 | +49.5% | better |
+| structured | 112338 ± 352 | 145921 ± 1486 | +29.9% | better |
+| numbers | 164054 ± 1042 | 204948 ± 4757 | +24.9% | better |
+| identifiers | 85585 ± 466 | 105989 ± 1440 | +23.8% | better |
+| keyvalue | 57071 ± 1872 | 69903 ± 220 | +22.5% | better |
+| stress | 17943 ± 113 | 21041 ± 170 | +17.3% | better |
+| quoted | 135552 ± 510 | 146291 ± 1143 | +7.9% | better |
+| datetime | 82465 ± 827 | 87759 ± 1276 | +6.4% | better |
+| network | 254476 ± 1349 | 252894 ± 1828 | −0.6% | indistinguishable |
+| fixedwidth | 267291 ± 1442 | 262750 ± 2955 | −1.7% | worse |
+| syslog | 62164 ± 482 | 57511 ± 597 | −7.5% | worse |
+
+Nine of twelve categories better, one unchanged, two worse. And the second diagnosis from §9.1
+did not survive: TIER1_GREEDY's regression had been read as *inherent* — greedy `.+` consuming to
+the end and backtracking byte by byte, depth-first doing quadratically what breadth-first does in
+one pass. With the stamping fix it recovered from −11.4% to +2.6%: the regression was the
+clearing all along, paid in the tail of searches near a buffer's end that the budget admits. The
+inherent-cost story may yet be true at some record length, but it was not what this measurement
+was showing, and §8's record of the profiler pointing at the wrong thing now has a sequel in
+which the author does the same.
+
+The buffer-scale suite (`CorpusBenchmark`, 2,000-record buffers) is structurally unaffected:
+its searches pass the whole remaining buffer as the region, the budget arithmetic sends those to
+the simulation, and the backtracker runs only in the last kilobyte or so. Its scores moved most
+on the two workloads with the largest recorded fork spread (QUOTED's baseline error bar is ±10%;
+see §2.0 and [D21](00-decisions.md)), which is spread, not effect.
+
+### 9.3 Where this leaves the engine against the JDK
+
+The §7 table, re-rendered from the `1948` run — ratios against `javaRegexFromBytes`, the honest
+comparison for a byte pipeline:
+
+| Category | Ours | `java.util.regex` (bytes) | Ratio | Was ([§7](#7-the-whole-corpus-and-the-defect-it-exposed)) |
+|---|---:|---:|---:|---:|
+| csv | 126560 ± 918 | 120151 ± 794 | **1.05×** | 0.66× |
+| stress | 21041 ± 170 | 22365 ± 268 | **0.94×** | 0.81× |
+| weblog | 114719 ± 1740 | 127341 ± 1450 | **0.90×** | 0.61× |
+| keyvalue | 69903 ± 220 | 77909 ± 841 | **0.90×** | 0.74× |
+| numbers | 204948 ± 4757 | 231191 ± 4016 | **0.89×** | 0.70× |
+| network | 252894 ± 1828 | 309270 ± 2181 | **0.82×** | 0.82× |
+| syslog | 57511 ± 597 | 75554 ± 533 | **0.76×** | 0.83× |
+| fixedwidth | 262750 ± 2955 | 408848 ± 3880 | **0.64×** | 0.66× |
+| structured | 145921 ± 1486 | 257819 ± 2052 | **0.57×** | 0.44× |
+| quoted | 146291 ± 1143 | 263040 ± 6052 | **0.56×** | 0.52× |
+| datetime | 87759 ± 1276 | 164798 ± 2015 | **0.53×** | 0.50× |
+| identifiers | 105989 ± 1440 | 203086 ± 4404 | **0.52×** | 0.42× |
+
+A category at parity did not exist before this change. The whole-corpus mean has moved from
+"half the JDK's speed on our worst categories, two-thirds on typical ones" to "parity on the
+best, three-quarters typical, half on the worst" — per match, over 106 patterns, with every
+capture group extracted.
+
+### 9.4 What remains slower, and why it stays
+
+Syslog (−7.5%) and fixedwidth (−1.7%) are real, reproduced in both runs, and understood in shape:
+syslog patterns are chains of greedy permissive classes — `^(\S+) (\S+) (\S+) (.*)$` — where
+depth-first consumes to the end of the record and backs off once per class, work the simulation
+never does. The visited set bounds it; it does not remove it. Three options were considered:
+
+- **Per-pattern heuristics** (send greedy-tail patterns to the simulation) — rejected for now.
+  A compile-time guess about a runtime cost was exactly the kind of reasoning §8 was written to
+  replace with measurement, and −7.5% on one category against +62% on another does not justify a
+  second selection mechanism.
+- **Accept it** — chosen. The backtracker stays the default where its budget admits it.
+- **Revert the default** — the position §9.1 would have taken had the re-measurement stayed
+  mixed. It did not.
+
+Recorded as [D26](00-decisions.md). The engine's cost model is now: scan plan 1.5–9.5 ns/byte
+where the pattern is one-pass, backtracking a few ns/byte typical on short records where the
+budget admits it, simulation at 21–27 ns/byte as the floor under everything — and all three
+provably agreeing, which is what `compileForcing` and the three-way differential exist to keep
+true.
