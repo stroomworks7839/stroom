@@ -10,25 +10,25 @@
 # See ../../../../design/07-engine-port-plan.md.
 
 # --- legacy: DS3 XML configs, with golden output from Java Stroom's own DS3 ---
-legacy/001_csv_with_header                    PENDING
-legacy/002_csv_without_header                 PENDING
-legacy/003_multiline_regex                    PENDING
-legacy/004_simple_regex                       PENDING
-legacy/005_unmatched_content_FAIL             PENDING
-legacy/006_single_line_delimited              PENDING
-legacy/007_regex_dotall                       PENDING
-legacy/008_invalid_xml_FAIL                   PENDING   config must be rejected; there is no golden output
-legacy/009_multiline_regex_2                  PENDING
-legacy/010_single_field_all                   PENDING
-legacy/011_ignore_group_errors                PENDING
-legacy/012_ignore_root_errors                 PENDING
-legacy/013_simple_regex_case_insens           PENDING
-legacy/014_simple_regex_min_match_FAIL        PENDING
-legacy/015_regex_only_match                   PENDING
-legacy/016_regex_max_match                    PENDING
-legacy/017_split_max_match                    PENDING
-legacy/018_split_only_match                   PENDING
-legacy/019_single_line_split                  PENDING
+legacy/001_csv_with_header                    PASS
+legacy/002_csv_without_header                 PASS
+legacy/003_multiline_regex                    PASS
+legacy/004_simple_regex                       PASS
+legacy/005_unmatched_content_FAIL             PASS
+legacy/006_single_line_delimited              PASS
+legacy/007_regex_dotall                       PASS
+legacy/008_invalid_xml_FAIL                   PASS   config must be rejected; there is no golden output
+legacy/009_multiline_regex_2                  PASS
+legacy/010_single_field_all                   PASS
+legacy/011_ignore_group_errors                PASS
+legacy/012_ignore_root_errors                 PASS
+legacy/013_simple_regex_case_insens           PASS
+legacy/014_simple_regex_min_match_FAIL        PASS
+legacy/015_regex_only_match                   PASS
+legacy/016_regex_max_match                    PASS
+legacy/017_split_max_match                    PASS
+legacy/018_split_only_match                   PASS
+legacy/019_single_line_split                  PASS
 
 # --- native: hand-written project.json over the legacy inputs and goldens ---
 native/001_csv_with_header                    PASS

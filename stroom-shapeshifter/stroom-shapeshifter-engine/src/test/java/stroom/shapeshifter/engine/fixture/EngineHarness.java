@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine.fixture;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.ds3.Ds3Migration;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -80,7 +81,12 @@ public final class EngineHarness {
 
     /** Import a DS3 XML configuration and run it over streamed input. */
     public static Outcome runDs3(final String ds3Xml, final byte[] input) {
-        throw new PortPendingException("DS3 XML import is not ported yet");
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        final List<stroom.shapeshifter.engine.Message> messages = Shapeshifter.run(
+                Shapeshifter.compile(Ds3Migration.importXml(ds3Xml)),
+                new ByteArrayInputStream(input),
+                OutputSink.of(output));
+        return outcome(output, messages);
     }
 
     /**
@@ -88,7 +94,7 @@ public final class EngineHarness {
      * is that the config is rejected, so there is nothing to run.
      */
     public static void importDs3(final String ds3Xml) {
-        throw new PortPendingException("DS3 XML import is not ported yet");
+        Ds3Migration.importXml(ds3Xml);
     }
 
     private static Outcome outcome(final ByteArrayOutputStream output,

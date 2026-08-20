@@ -1,0 +1,586 @@
+/*
+ * Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.shapeshifter.engine.ds3;
+
+import stroom.shapeshifter.engine.config.CaptureBinding;
+import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
+import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.engine.config.MatchExpression;
+import stroom.shapeshifter.engine.config.OutputNode;
+import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
+import stroom.shapeshifter.engine.config.Project;
+import stroom.shapeshifter.engine.config.Project.SourceConfig;
+import stroom.shapeshifter.engine.config.RefExpression;
+import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
+import stroom.shapeshifter.engine.config.RefExpression.RefPart;
+import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.engine.config.Template.MatchLimits;
+import stroom.shapeshifter.engine.config.Template.RegexFlags;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Turns a DS3 configuration into a template configuration.
+ *
+ * <p>The two models disagree about what a configuration <i>is</i>. DS3 nests: an expression
+ * contains groups, a group contains expressions and data, and the nesting is the control flow.
+ * The template model dispatches: templates are flat, and a body hands content to whichever
+ * templates carry the right mode. So converting is mostly flattening — every nested expression
+ * becomes a template of its own with a generated mode, and its parent gets an
+ * {@code apply-templates} naming that mode.
+ *
+ * <p>The other half is that DS3 has a fixed output format. It always produces {@code records:2}
+ * XML with {@code <data>} elements, so the conversion also has to <i>write the XML</i>: the
+ * envelope, the indentation, the attribute escaping, and the rule that a record only appears
+ * when it has content. All of that becomes ordinary output instructions, which is why the result
+ * runs on the same engine as everything else rather than needing a DS3 mode.
+ *
+ * <p>No configuration has to be migrated — D4 kept DS3 running untouched — but its fixtures are
+ * the only external oracle this port has, so the conversion has to be exact.
+ */
+public final class Ds3Migration {
+
+    private static final String RECORDS_HEADER = """
+            <?xml version="1.1" encoding="UTF-8"?>
+            <records xmlns="records:2"
+                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     xsi:schemaLocation="records:2 file://records-v2.0.xsd"
+                     version="2.0">""";
+
+    private static final String RECORDS_FOOTER = "\n</records>\n";
+
+    /** The mode the envelope dispatches to, and therefore the one root expressions carry. */
+    private static final String ROOT_MODE = "__root";
+
+    /** Where a record's buffered body is held while deciding whether to emit a record at all. */
+    private static final String RECORD_BODY = "__record_body__";
+
+    /** The characters that cannot appear raw in an XML attribute, and what they become. */
+    private static final List<String> ESCAPE_FROM = List.of("&", "\"", "<", ">", "\n", "\r");
+    private static final List<String> ESCAPE_TO =
+            List.of("&amp;", "&#34;", "&lt;", "&gt;", "&#xA;", "&#xD;");
+
+    private final List<Template> templates = new ArrayList<>();
+    private int modeCounter;
+    private int escapeCounter;
+
+    private Ds3Migration() {
+    }
+
+    /** Read a DS3 XML configuration and convert it. */
+    public static Project importXml(final String xml) {
+        return convert(Ds3Parser.parse(xml));
+    }
+
+    /** Convert a parsed DS3 configuration. */
+    public static Project convert(final Ds3Config root) {
+        final Ds3Migration migration = new Ds3Migration();
+        return migration.run(root);
+    }
+
+    private Project run(final Ds3Config root) {
+        final SourceConfig source = root instanceof Ds3Config.Root document
+                ? new SourceConfig(document.bufferSize(), document.ignoreErrors(), SourceConfig.AUTO)
+                : SourceConfig.defaults();
+
+        for (final Ds3Config child : root.children()) {
+            if (child.isExpression()) {
+                expression(child, null, true, 0);
+            }
+        }
+
+        // Every root expression shares one mode, so the engine dispatches them in order against a
+        // shared cursor — which is DS3's own semantics, where a header split consumes the first
+        // line and leaves the rest to the split after it.
+        final List<Template> withModes = templates.stream()
+                .map(template -> template.mode() != null
+                        ? template
+                        : new Template(template.id(), template.name(), ROOT_MODE, template.guard(),
+                        template.param(), template.match(), template.matchLimits(), template.captures(),
+                        template.body(), template.encoding(), template.ignoreErrors()))
+                .toList();
+
+        final List<Template> all = new ArrayList<>();
+        all.add(envelope());
+        all.addAll(withModes);
+        return new Project("", 3, source, all, List.of());
+    }
+
+    /** The document template: the {@code records:2} wrapper, written once around everything. */
+    private static Template envelope() {
+        return new Template(
+                UUID.randomUUID(),
+                "envelope",
+                null,
+                null,
+                List.of(),
+                new MatchExpression.Source(),
+                MatchLimits.unlimited(),
+                List.of(),
+                List.of(
+                        new OutputNode.Text(RECORDS_HEADER),
+                        new OutputNode.ApplyTemplates(new ApplyDirective(
+                                RefExpression.group(0), ROOT_MODE, List.of(),
+                                ApplyDirective.DEFAULT_MAX_DEPTH, null)),
+                        new OutputNode.Text(RECORDS_FOOTER)),
+                null,
+                false);
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Expressions become templates
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * Convert one expression, and everything under it, into templates.
+     *
+     * @param mode        the mode this template answers to, or null for a root expression
+     * @param recordWrap  whether a match here is a record, and so needs the {@code <record>}
+     *                    wrapper. True at the root and false below it — records do not nest
+     * @param dataDepth   how far down the {@code <data>} nesting is, which sets the indentation
+     */
+    private void expression(final Ds3Config node,
+                            final String mode,
+                            final boolean recordWrap,
+                            final int dataDepth) {
+        final List<CaptureBinding> captures = new ArrayList<>();
+        final List<OutputNode> body = new ArrayList<>();
+
+        // A single unnamed group under an expression adds nothing but a level of nesting, so its
+        // contents are treated as the expression's own.
+        List<Ds3Config> children = node.children();
+        if (children.size() == 1
+            && children.getFirst() instanceof Ds3Config.Group group
+            && group.value() == null) {
+            children = group.children();
+        }
+
+        // The expression owns the record wrapper when it has one, so its children never add a
+        // second: a group inside a wrapped expression is part of the record, not another record.
+        children(children, captures, body, false, dataDepth);
+
+        if (recordWrap) {
+            wrapAsRecord(body);
+        }
+
+        // A DS3 <var> stores the container-stripped content, which is group 1 of a split rather
+        // than group 0 — group 0 still carries the quotes.
+        final List<CaptureBinding> adjusted = captures.stream()
+                .map(capture -> capture.select() instanceof CaptureSource.Group group && group.group() == 0
+                        ? new CaptureBinding(capture.name(), new CaptureSource.Group(1))
+                        : capture)
+                .toList();
+
+        templates.add(new Template(
+                identifier(node),
+                name(node),
+                mode,
+                onlyMatchGuard(node),
+                List.of(),
+                matchExpression(node),
+                matchLimits(node),
+                adjusted,
+                body,
+                null,
+                false));
+    }
+
+    /**
+     * Wrap a body so that it emits a {@code <record>} only when it produced something.
+     *
+     * <p>Java's DS3 does not write an empty record, and a line that matched but yielded no data
+     * must therefore leave no trace. The only way to know is to run the body first, so it goes
+     * into a variable and the wrapper is written around the result if there is one.
+     */
+    private static void wrapAsRecord(final List<OutputNode> body) {
+        final List<OutputNode> inner = List.copyOf(body);
+        body.clear();
+        body.add(new OutputNode.Variable(RECORD_BODY, inner));
+        body.add(new OutputNode.If(
+                new Condition.Exists(currentMatchOf(RECORD_BODY)),
+                List.of(
+                        new OutputNode.Text("\n   <record>"),
+                        new OutputNode.ValueOf(currentMatchOf(RECORD_BODY)),
+                        new OutputNode.Text("\n   </record>"))));
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Children become captures and output
+    // -----------------------------------------------------------------------------------
+
+    private void children(final List<Ds3Config> children,
+                          final List<CaptureBinding> captures,
+                          final List<OutputNode> body,
+                          final boolean recordWrap,
+                          final int dataDepth) {
+        for (final Ds3Config child : children) {
+            switch (child) {
+                case Ds3Config.Var var -> variable(var, captures, body);
+                case Ds3Config.Data data -> data(data, captures, body, dataDepth);
+                case Ds3Config.Group group -> group(group, captures, body, recordWrap, dataDepth);
+                default -> {
+                    if (child.isExpression()) {
+                        // A nested expression becomes a template of its own, reached by a mode
+                        // nobody else uses.
+                        final String subMode = nextMode();
+                        expression(child, subMode, false, dataDepth);
+                        body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
+                                RefExpression.group(0), subMode, List.of(),
+                                ApplyDirective.DEFAULT_MAX_DEPTH, null)));
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * A {@code <var>}: a capture when it names a group, an output instruction when it computes.
+     *
+     * <p>The distinction is whether the value can be answered from the match alone. If it can,
+     * it is a capture, and captures are bound before the body runs — which is what lets a later
+     * template read it. If it needs another variable's value, it has to run in order, so it
+     * becomes an instruction.
+     */
+    private static void variable(final Ds3Config.Var var,
+                                 final List<CaptureBinding> captures,
+                                 final List<OutputNode> body) {
+        if (var.value() == null) {
+            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0)));
+            return;
+        }
+        final RefExpression reference = LegacyRefs.parse(var.value());
+        final boolean localOnly = reference.parts().stream().allMatch(part ->
+                part instanceof RefPart.Text
+                || (part instanceof RefPart.Capture capture && capture.varId() == null));
+        if (localOnly) {
+            captures.add(new CaptureBinding(var.id(), new CaptureSource.Select(reference)));
+        } else {
+            body.add(new OutputNode.Variable(var.id(), List.of(new OutputNode.ValueOf(reference))));
+        }
+    }
+
+    /** A {@code <group>}: a record boundary, a scope, or just a level of nesting. */
+    private void group(final Ds3Config.Group group,
+                       final List<CaptureBinding> captures,
+                       final List<OutputNode> body,
+                       final boolean recordWrap,
+                       final int dataDepth) {
+        final boolean hasExpression = group.children().stream().anyMatch(Ds3Config::isExpression);
+        if (!hasExpression) {
+            if (recordWrap) {
+                body.add(new OutputNode.Text("\n   <record>"));
+            }
+            children(group.children(), captures, body, false, dataDepth);
+            if (recordWrap) {
+                body.add(new OutputNode.Text("\n   </record>"));
+            }
+            return;
+        }
+
+        final String subMode = nextMode();
+        for (final Ds3Config child : group.children()) {
+            if (child.isExpression()) {
+                expression(child, subMode, false, dataDepth);
+            }
+        }
+
+        if (recordWrap) {
+            body.add(new OutputNode.Text("\n   <record>"));
+        }
+        body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
+                group.value() == null ? RefExpression.group(0) : LegacyRefs.parse(group.value()),
+                subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, null)));
+        for (final Ds3Config child : group.children()) {
+            if (!child.isExpression()) {
+                switch (child) {
+                    case Ds3Config.Var var -> {
+                        if (var.value() == null) {
+                            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0)));
+                        } else {
+                            body.add(new OutputNode.Variable(var.id(),
+                                    List.of(new OutputNode.ValueOf(LegacyRefs.parse(var.value())))));
+                        }
+                    }
+                    case Ds3Config.Data data -> data(data, captures, body, dataDepth);
+                    case Ds3Config.Group nested ->
+                            children(nested.children(), captures, body, false, dataDepth);
+                    default -> {
+                        // Nothing else can appear here.
+                    }
+                }
+            }
+        }
+        if (recordWrap) {
+            body.add(new OutputNode.Text("\n   </record>"));
+        }
+    }
+
+    /**
+     * A {@code <data>}: one element of the output.
+     *
+     * <p>A leaf is one instruction. One with children is three, because whether the element is
+     * self-closing depends on whether its children write anything, and that is only knowable
+     * after running them.
+     */
+    private void data(final Ds3Config.Data data,
+                      final List<CaptureBinding> captures,
+                      final List<OutputNode> body,
+                      final int dataDepth) {
+        final String indent = " ".repeat(6 + dataDepth * 3);
+
+        if (!data.hasChildren()) {
+            emitDataTag(dataReference(data, indent, false), body);
+            return;
+        }
+
+        final List<OutputNode> openTag = new ArrayList<>();
+        emitDataTag(dataReference(data, indent, true), openTag);
+
+        final String childVar = "__data_children_" + modeCounter++ + "__";
+        final List<OutputNode> childBody = new ArrayList<>();
+        children(data.children(), captures, childBody, false, dataDepth + 1);
+
+        body.add(new OutputNode.Variable(childVar, childBody));
+
+        final List<OutputNode> withChildren = new ArrayList<>(openTag);
+        withChildren.add(new OutputNode.ValueOf(currentMatchOf(childVar)));
+        withChildren.add(new OutputNode.Text("\n" + indent + "</data>"));
+        body.add(new OutputNode.If(new Condition.Exists(currentMatchOf(childVar)), withChildren));
+
+        final List<OutputNode> withoutChildren = new ArrayList<>();
+        emitDataTag(dataReference(data, indent, false), withoutChildren);
+        body.add(new OutputNode.If(
+                new Condition.Not(new Condition.Exists(currentMatchOf(childVar))), withoutChildren));
+    }
+
+    /** Write a data tag, escaping any captured value on the way into the attribute. */
+    private void emitDataTag(final RefExpression reference, final List<OutputNode> body) {
+        if (reference != null) {
+            body.addAll(escapeCaptures(reference));
+        }
+    }
+
+    /**
+     * Build the whole {@code <data …>} tag as one expression.
+     *
+     * <p>Fusing the markup and the values into a single expression rather than a sequence of
+     * instructions is what keeps a tag from being half-written: either the expression produces
+     * the element or it produces nothing.
+     */
+    private static RefExpression dataReference(final Ds3Config.Data data,
+                                               final String indent,
+                                               final boolean hasChildren) {
+        final String closing = hasChildren ? "\">" : "\"/>";
+        final String name = data.name();
+        final String value = data.value();
+        final List<RefPart> parts = new ArrayList<>();
+
+        if (name != null && value != null) {
+            if (isReference(name)) {
+                parts.add(new RefPart.Text("\n" + indent + "<data name=\""));
+                parts.addAll(LegacyRefs.parse(name).parts());
+                parts.add(new RefPart.Text("\" value=\""));
+            } else {
+                parts.add(new RefPart.Text(
+                        "\n" + indent + "<data name=\"" + escapeAttribute(name) + "\" value=\""));
+            }
+            if (isReference(value)) {
+                parts.addAll(LegacyRefs.parse(value).parts());
+            } else {
+                parts.add(new RefPart.Text(escapeAttribute(value)));
+            }
+            parts.add(new RefPart.Text(closing));
+        } else if (name != null) {
+            if (isReference(name)) {
+                parts.add(new RefPart.Text("\n" + indent + "<data name=\""));
+                parts.addAll(LegacyRefs.parse(name).parts());
+                parts.add(new RefPart.Text(closing));
+            } else {
+                parts.add(new RefPart.Text(
+                        "\n" + indent + "<data name=\"" + escapeAttribute(name) + closing));
+            }
+        } else if (value != null) {
+            parts.add(new RefPart.Text("\n" + indent + "<data value=\""));
+            if (isReference(value)) {
+                parts.addAll(LegacyRefs.parse(value).parts());
+            } else {
+                parts.add(new RefPart.Text(escapeAttribute(value)));
+            }
+            parts.add(new RefPart.Text(closing));
+        } else {
+            return null;
+        }
+
+        return new RefExpression(parts.stream().map(Ds3Migration::indexVarReads).toList());
+    }
+
+    /**
+     * Make a variable read pick the value belonging to the current match.
+     *
+     * <p>{@code $heading$1} means "the heading for this column", and columns are counted by the
+     * parent's match number — so the read has to be indexed by it rather than taking whatever was
+     * stored last, which would give every column the final heading. The group is forced to 0
+     * because the {@code $1} in {@code $heading$1} chose which group to <i>store</i>, not which
+     * to read back.
+     */
+    private static RefPart indexVarReads(final RefPart part) {
+        if (part instanceof RefPart.Capture capture && capture.varId() != null) {
+            return new RefPart.Capture(
+                    capture.varId(),
+                    0,
+                    capture.matchIndex() != null
+                            ? capture.matchIndex()
+                            : new MatchIndex(0, false, false, "__match_count"));
+        }
+        return part;
+    }
+
+    /**
+     * Route every captured value in an expression through XML escaping.
+     *
+     * <p>A captured value is data, and it is about to be written into an attribute, so it has to
+     * be escaped — but only the captured parts. The surrounding markup this conversion generated
+     * is markup and must stay as it is. So each capture becomes a {@code translate} bound to a
+     * generated variable, and the expression is rewritten to read those instead.
+     */
+    private List<OutputNode> escapeCaptures(final RefExpression expression) {
+        final boolean anyCapture = expression.parts().stream().anyMatch(RefPart.Capture.class::isInstance);
+        if (!anyCapture) {
+            return List.of(new OutputNode.ValueOf(expression));
+        }
+
+        final List<OutputNode> result = new ArrayList<>();
+        final List<RefPart> rewritten = new ArrayList<>(expression.parts().size());
+        for (final RefPart part : expression.parts()) {
+            if (part instanceof RefPart.Capture) {
+                final String escaped = "__esc_" + escapeCounter++;
+                result.add(new OutputNode.Translate(
+                        List.of(new RefExpression(List.of(part))), ESCAPE_FROM, ESCAPE_TO, escaped));
+                rewritten.add(new RefPart.Capture(escaped, 0, new MatchIndex(0, true, false, null)));
+            } else {
+                rewritten.add(part);
+            }
+        }
+        result.add(new OutputNode.ValueOf(new RefExpression(rewritten)));
+        return result;
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Small pieces
+    // -----------------------------------------------------------------------------------
+
+    /** A read of a variable at the current match, rather than whatever was stored last. */
+    private static RefExpression currentMatchOf(final String name) {
+        return new RefExpression(List.of(
+                new RefPart.Capture(name, 0, new MatchIndex(0, true, false, null))));
+    }
+
+    private static boolean isReference(final String text) {
+        return text.startsWith("$") || text.startsWith("'");
+    }
+
+    private static String escapeAttribute(final String text) {
+        return text.replace("&", "&amp;")
+                .replace("\"", "&quot;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
+    }
+
+    private String nextMode() {
+        return "__auto_" + modeCounter++;
+    }
+
+    private static MatchExpression matchExpression(final Ds3Config node) {
+        return switch (node) {
+            case Ds3Config.Split split -> new MatchExpression.Delimiter(
+                    split.delimiter(), split.escape(), split.containerStart(), split.containerEnd());
+            case Ds3Config.Regex regex -> new MatchExpression.Regex(
+                    regex.pattern(), new RegexFlags(regex.caseInsensitive(), regex.dotAll()), 0);
+            default -> new MatchExpression.All();
+        };
+    }
+
+    private static MatchLimits matchLimits(final Ds3Config node) {
+        return switch (node) {
+            // onlyMatch is deliberately not a limit here — see onlyMatchGuard.
+            case Ds3Config.Split split -> new MatchLimits(split.minMatch(), split.maxMatch(), null);
+            case Ds3Config.Regex regex -> new MatchLimits(regex.minMatch(), regex.maxMatch(), null);
+            default -> MatchLimits.unlimited();
+        };
+    }
+
+    /**
+     * Turn {@code onlyMatch} into a guard rather than a match limit.
+     *
+     * <p>They sound like the same thing and are not. A match limit counts <i>this</i> template's
+     * matches; DS3's {@code onlyMatch} counts the <i>parent's</i>. So "only the second one" means
+     * "only when my parent is on its second match", which is a condition on the enclosing
+     * counter — a guard.
+     */
+    private static Condition onlyMatchGuard(final Ds3Config node) {
+        final java.util.Set<Integer> onlyMatch = switch (node) {
+            case Ds3Config.Split split -> split.onlyMatch();
+            case Ds3Config.Regex regex -> regex.onlyMatch();
+            default -> null;
+        };
+        if (onlyMatch == null || onlyMatch.isEmpty()) {
+            return null;
+        }
+        final List<Condition> conditions = onlyMatch.stream()
+                .map(index -> (Condition) new Condition.Equals(
+                        new RefExpression(List.of(new RefPart.Capture("__match_idx", 0, null))),
+                        Integer.toString(index - 1)))
+                .toList();
+        return conditions.size() == 1 ? conditions.getFirst() : new Condition.Or(conditions);
+    }
+
+    private static String name(final Ds3Config node) {
+        final String id = identifierText(node);
+        return id == null ? "unnamed" : id;
+    }
+
+    /**
+     * An identifier for a template.
+     *
+     * <p>DS3 ids are names, not identifiers, so they are hashed into one deterministically —
+     * the same configuration produces the same ids every time, which matters for anything that
+     * records what a template did.
+     */
+    private static UUID identifier(final Ds3Config node) {
+        final String id = identifierText(node);
+        if (id == null) {
+            return UUID.randomUUID();
+        }
+        try {
+            return UUID.fromString(id);
+        } catch (final IllegalArgumentException e) {
+            return UUID.nameUUIDFromBytes(id.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    private static String identifierText(final Ds3Config node) {
+        return switch (node) {
+            case Ds3Config.Split split -> split.id();
+            case Ds3Config.Regex regex -> regex.id();
+            case Ds3Config.All all -> all.id();
+            default -> null;
+        };
+    }
+}
