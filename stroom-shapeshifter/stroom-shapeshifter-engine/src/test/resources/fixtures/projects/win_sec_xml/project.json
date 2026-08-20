@@ -2847,7 +2847,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Provider Name=\"([^\"]+)",
+          "pattern": "^\\s*<Provider Name=\"([^\"]+)",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -2885,7 +2885,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<EventID[^>]*>(\\d+)</EventID>",
+          "pattern": "^\\s*<EventID[^>]*>(\\d+)</EventID>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -2923,7 +2923,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "SystemTime=\"([^\"]+)\"",
+          "pattern": "^\\s*<TimeCreated SystemTime=\"([^\"]+)\"",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -2961,7 +2961,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<EventRecordID>(\\d+)</EventRecordID>",
+          "pattern": "^\\s*<EventRecordID>(\\d+)</EventRecordID>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -2999,7 +2999,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Computer>([^<]+)</Computer>",
+          "pattern": "^\\s*<Computer>([^<]+)</Computer>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3037,7 +3037,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"SubjectUserSid\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"SubjectUserSid\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3075,7 +3075,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"SubjectUserName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"SubjectUserName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3113,7 +3113,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"SubjectDomainName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"SubjectDomainName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3151,7 +3151,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"SubjectLogonId\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"SubjectLogonId\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3189,7 +3189,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"TargetUserSid\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"TargetUserSid\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3227,7 +3227,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"TargetUserName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"TargetUserName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3265,7 +3265,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"TargetDomainName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"TargetDomainName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3303,7 +3303,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"TargetLogonId\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"TargetLogonId\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3341,7 +3341,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"TargetSid\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"TargetSid\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3379,7 +3379,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"LogonType\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"LogonType\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3417,7 +3417,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"LogonProcessName\">\\s*(.*?)\\s*</Data>",
+          "pattern": "^\\s*<Data Name=\"LogonProcessName\">\\s*(.*?)\\s*</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3455,7 +3455,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"AuthenticationPackageName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"AuthenticationPackageName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3493,7 +3493,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"WorkstationName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"WorkstationName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3531,7 +3531,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"IpAddress\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"IpAddress\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3569,7 +3569,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"IpPort\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"IpPort\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3607,7 +3607,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"ElevatedToken\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"ElevatedToken\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3645,7 +3645,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"TargetLinkedLogonId\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"TargetLinkedLogonId\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3683,7 +3683,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"ProcessId\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"ProcessId\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3721,7 +3721,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"ProcessName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"ProcessName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3759,7 +3759,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"PrivilegeList\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"PrivilegeList\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3797,7 +3797,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"NewProcessId\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"NewProcessId\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3835,7 +3835,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"NewProcessName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"NewProcessName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3873,7 +3873,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"CommandLine\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"CommandLine\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3911,7 +3911,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"TokenElevationType\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"TokenElevationType\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3949,7 +3949,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"ParentProcessName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"ParentProcessName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -3987,7 +3987,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"MandatoryLabel\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"MandatoryLabel\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4025,7 +4025,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"Status\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"Status\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4063,7 +4063,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"SubStatus\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"SubStatus\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4101,7 +4101,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"FailureReason\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"FailureReason\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4139,7 +4139,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"SamAccountName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"SamAccountName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4177,7 +4177,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"DisplayName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"DisplayName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4215,7 +4215,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"UserPrincipalName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"UserPrincipalName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4253,7 +4253,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"PasswordLastSet\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"PasswordLastSet\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4291,7 +4291,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"AccountExpires\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"AccountExpires\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4329,7 +4329,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"PrimaryGroupId\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"PrimaryGroupId\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4367,7 +4367,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"OldUacValue\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"OldUacValue\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4405,7 +4405,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"NewUacValue\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"NewUacValue\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4443,7 +4443,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"UserAccountControl\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"UserAccountControl\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4481,7 +4481,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"MemberName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"MemberName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4519,7 +4519,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"MemberSid\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"MemberSid\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4557,7 +4557,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"ObjectServer\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"ObjectServer\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4595,7 +4595,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"ObjectType\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"ObjectType\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4633,7 +4633,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"ObjectName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"ObjectName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4671,7 +4671,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"HandleId\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"HandleId\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4709,7 +4709,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"AccessList\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"AccessList\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4747,7 +4747,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"AccessMask\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"AccessMask\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4785,7 +4785,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"RestrictedSidCount\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"RestrictedSidCount\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4823,7 +4823,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"TargetLogonGuid\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"TargetLogonGuid\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4861,7 +4861,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"TargetServerName\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"TargetServerName\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -4899,7 +4899,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "<Data Name=\"TargetInfo\">(.*?)</Data>",
+          "pattern": "^\\s*<Data Name=\"TargetInfo\">(.*?)</Data>",
           "flags": {
             "case_insensitive": false,
             "dot_all": true
@@ -5081,6 +5081,17 @@
           }
         }
       ],
+      "body": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-0000000000dd",
+      "name": "unclaimed_line",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "^[^\\n]*\\n?"
+        }
+      },
       "body": []
     }
   ]

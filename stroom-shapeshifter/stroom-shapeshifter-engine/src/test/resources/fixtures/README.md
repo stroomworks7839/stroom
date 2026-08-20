@@ -54,8 +54,9 @@ eleven true errors in place of nineteen false warnings. The bullets stand as wha
 messages found, which is what justified recording them.
 
 **Quarantine.** The phase 0 audit found four `projects` goldens wrong — they were generated
-from ds-rs's own output and never checked. They are vendored, marked `QUARANTINED` in
-`status.txt` against their issue ids, and cannot be promoted until a corrected golden replaces
+from ds-rs's own output and never checked. Two (`win_sec`, `win_sec_xml`) have since been fixed
+at the configuration and re-frozen under review (E6, E16); two (`apache_httpd`, `xml_to_json`)
+remain `QUARANTINED` in `status.txt` against their issue ids until corrected goldens replace
 them. The evidence is in [08-fixture-audit.md](../../../../design/08-fixture-audit.md) and the
 entries are E6 to E8 in [ISSUES.md](../../../../ISSUES.md).
 

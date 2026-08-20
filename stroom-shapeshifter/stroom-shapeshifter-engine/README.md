@@ -83,8 +83,9 @@ until it is promoted, so progress is recorded on purpose and regressions cannot 
 
 Everything the fixtures cannot reach is tested directly, and that is most of the interesting
 surface: chunking, `call-template`, regex replacement, every combinator, both seeks, non-UTF-8
-input, and the instrumentation seam. Three of the corpus's goldens are **quarantined** — the
-phase 0 audit found four wrong and one has since been fixed (E6) — with the findings in
+input, and the instrumentation seam. Two of the corpus's goldens are **quarantined** — the
+phase 0 audit found four wrong, and the two `win_sec` variants have since been fixed at the
+configuration (E6, E16) — with the findings in
 [08-fixture-audit.md](../design/08-fixture-audit.md).
 
 `docs/` holds the Rust project's own design documents, vendored unedited, with an index saying

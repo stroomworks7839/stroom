@@ -109,8 +109,8 @@ fields. Promoted to `PASS`.
 it.*
 
 ### E16 — `win_sec`'s templates were listed out of data order
-**`resolved` for `win_sec` 2026-08-20. Still `open` for `win_sec_xml` — re-diagnose under E17's
-dispatch before any further fix.**
+**`resolved` 2026-08-20, both halves: `win_sec` by reordering, `win_sec_xml` by anchoring —
+the two fixes D34's dispatch offers, each matched to its configuration's shape.**
 
 *Reframed by [D34](../design/00-decisions.md), then corrected: an earlier version of this note
 claimed real DS3's `(A|B|C)*` "cannot strand content across a pass". Overstated. A pass is won
@@ -150,20 +150,22 @@ the average position of their field across records. It moved 48 of them and fixe
 averaging across event types blurs exactly the section order that makes a single ordering
 possible. The targeted moves are both smaller and correct.*
 
-**`win_sec_xml` remains quarantined, but is now diagnosed** — by the engine itself, using E17's
-skip reports with the configuration's (previously unenforced) `ignore_errors` gate opened. Same
-disease, third instance: `SubjectUserSid` is listed early because Subject fields lead every
-*text-format* event, but the XML format puts them *last* in `EventData` — so it matches deep
-into the 4732 record and consumes the group fields on the way, and the report quotes them:
+**`win_sec_xml` resolved 2026-08-20, by anchoring rather than reordering.** Its record types
+disagree about field order — 4624 puts Subject before Target, 4720 and 4732 the reverse — so no
+single unanchored order can serve them all, which is exactly the case D34's decision 2
+anticipated. All 55 field patterns are now start-anchored (`^\s*<Data Name="X">…`), so a
+template only matches when its field is at the cursor, with a listed-last `unclaimed_line`
+template consuming any line the specific templates did not claim. Dispatch then picks whichever
+field is next in the data regardless of list position: order-independent, skip-free, and the
+cheap path — an anchored failure costs a prefix comparison, not a scan.
 
-```
-Expression 'SubjectUserSid' failed to match from the start of the content.
-Skipped: [… <Data Name="TargetUserName">… <Data Name="TargetSid">S-1-5-21-…]
-```
-
-Those are exactly the fields that come out empty. The fix is E16's again — reorder the XML
-variant's templates to its own format's field order (or anchor them) and regenerate under
-review. Config work, not engine work.
+The regenerated golden fixed more than the eleven empties. **The old golden also contained
+plausible-looking wrong values leaked from other records**: `administrator` (from the 4625
+records) sat in the 4720 and 4732 outputs where `svc_backup` and `Backup Operators` belong, and
+a stale `CORP` where the group domain `Builtin` belongs. Emptiness is detectable by an audit;
+wrongness of this kind was only visible by diffing a corrected implementation's output — see
+E19, which the discovery raises. Every corrected value was verified against its own record in
+the input; the config diff is anchor-prefixes only, order preserved, one template added.
 
 ### E7 — `apache_httpd`'s golden is not well-formed XML
 **`open`. Two problems in one file.**
@@ -294,3 +296,18 @@ fixes must stay, because excision cannot rescue a swallow that happens *inside* 
 config strands, with reports (E17's test). One config, both modes pinned. No commit ever held
 exactly this combination — the third flag fix landed with the reorder — so it is reconstructed,
 not restored.
+
+### E19 — A capture not re-matched keeps the previous record's value
+**`open`. Raised by the win_sec_xml golden's stale values.**
+
+A variable is stored at its template's match index, and the index restarts for every record —
+so when a field is absent from record N, the store still holds record N−1's value at the same
+index, and any reference for record N reads it. That is how `administrator` from the 4625
+records ended up in the 4720 and 4732 outputs of the old `win_sec_xml` golden: not empty,
+*wrong*, with values from a different record. Ported behaviour — ds-rs does the same — and the
+kind of defect no output audit catches, because the values look plausible.
+
+Anchored configurations reduce the exposure (a present field always matches) but a field absent
+from one record type can still leak a value from another. Resolving it means deciding when a
+level's captures should be cleared — per dispatch invocation is the obvious candidate — and
+checking what real DS3 does with its stores between iterations before choosing.

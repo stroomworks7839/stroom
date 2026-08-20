@@ -50,9 +50,9 @@
         <Data Name="WorkstationName" Value="WORKSTATION01"/>
         <Data Name="IpAddress" Value="127.0.0.1"/>
         <Data Name="IpPort" Value="0"/>
-        <Data Name="ProcessName" Value=""/>
-        <Data Name="ProcessId" Value=""/>
-        <Data Name="LinkedLogonId" Value=""/>
+        <Data Name="ProcessName" Value="C:\Windows\System32\svchost.exe"/>
+        <Data Name="ProcessId" Value="0x3f0"/>
+        <Data Name="LinkedLogonId" Value="0x4a8f05"/>
         <Data Name="EventRecordID" Value="108451"/>
       </Authenticate>
     </EventDetail>
@@ -134,18 +134,18 @@
       <Create>
         <Object>
           <Type>Process</Type>
-          <Id></Id>
+          <Id>0x1a2c</Id>
           <Name>cmd.exe</Name>
         </Object>
         <Outcome>
           <Success>true</Success>
         </Outcome>
-        <Data Name="NewProcessId" Value=""/>
-        <Data Name="NewProcessName" Value=""/>
-        <Data Name="CommandLine" Value=""/>
-        <Data Name="ParentProcessId" Value=""/>
+        <Data Name="NewProcessId" Value="0x1a2c"/>
+        <Data Name="NewProcessName" Value="C:\Windows\System32\cmd.exe"/>
+        <Data Name="CommandLine" Value="cmd.exe /c whoami /all"/>
+        <Data Name="ParentProcessId" Value="0x1234"/>
         <Data Name="ParentProcessName" Value="C:\Windows\explorer.exe"/>
-        <Data Name="TokenElevationType" Value=""/>
+        <Data Name="TokenElevationType" Value="%%1936"/>
         <Data Name="MandatoryLabel" Value="S-1-16-12288"/>
         <Data Name="SubjectLogonId" Value="0x4a8f12"/>
         <Data Name="EventRecordID" Value="108460"/>
@@ -182,12 +182,12 @@
         </User>
         <Outcome>
           <Success>false</Success>
-          <Description>Unknown user name or bad password (Status: , SubStatus: )</Description>
+          <Description>Unknown user name or bad password (Status: 0xc000006d, SubStatus: 0xc000006a)</Description>
         </Outcome>
         <Data Name="LogonType" Value="3"/>
-        <Data Name="FailureReason" Value=""/>
-        <Data Name="Status" Value=""/>
-        <Data Name="SubStatus" Value=""/>
+        <Data Name="FailureReason" Value="%%2313"/>
+        <Data Name="Status" Value="0xc000006d"/>
+        <Data Name="SubStatus" Value="0xc000006a"/>
         <Data Name="WorkstationName" Value="ATTACKER-PC"/>
         <Data Name="IpAddress" Value="10.0.0.99"/>
         <Data Name="IpPort" Value="49823"/>
@@ -227,12 +227,12 @@
         </User>
         <Outcome>
           <Success>false</Success>
-          <Description>Unknown user name or bad password (Status: , SubStatus: )</Description>
+          <Description>Unknown user name or bad password (Status: 0xc000006d, SubStatus: 0xc000006a)</Description>
         </Outcome>
         <Data Name="LogonType" Value="3"/>
-        <Data Name="FailureReason" Value=""/>
-        <Data Name="Status" Value=""/>
-        <Data Name="SubStatus" Value=""/>
+        <Data Name="FailureReason" Value="%%2313"/>
+        <Data Name="Status" Value="0xc000006d"/>
+        <Data Name="SubStatus" Value="0xc000006a"/>
         <Data Name="WorkstationName" Value="ATTACKER-PC"/>
         <Data Name="IpAddress" Value="10.0.0.99"/>
         <Data Name="IpPort" Value="49824"/>
@@ -270,8 +270,8 @@
       <Create>
         <Object>
           <Type>UserAccount</Type>
-          <Id></Id>
-          <Name>administrator</Name>
+          <Id>S-1-5-21-3623811015-3361044348-3011020102-1120</Id>
+          <Name>svc_backup</Name>
           <Description>Backup Service Account</Description>
         </Object>
         <Outcome>
@@ -281,7 +281,7 @@
         <Data Name="DisplayName" Value="Backup Service Account"/>
         <Data Name="UserPrincipalName" Value="svc_backup@corp.example.com"/>
         <Data Name="TargetDomainName" Value="CORP"/>
-        <Data Name="TargetSid" Value=""/>
+        <Data Name="TargetSid" Value="S-1-5-21-3623811015-3361044348-3011020102-1120"/>
         <Data Name="PrimaryGroupId" Value="513"/>
         <Data Name="OldUacValue" Value="0x0"/>
         <Data Name="NewUacValue" Value="0x15"/>
@@ -321,23 +321,23 @@
       <Authorise>
         <Object>
           <Type>UserAccount</Type>
-          <Id></Id>
-          <Name></Name>
+          <Id>S-1-5-21-3623811015-3361044348-3011020102-1120</Id>
+          <Name>svc_backup</Name>
         </Object>
         <Action>Modify</Action>
         <AddGroups>
           <Group>
-            <Id></Id>
-            <Name>administrator</Name>
+            <Id>S-1-5-32-551</Id>
+            <Name>Backup Operators</Name>
           </Group>
         </AddGroups>
         <Outcome>
           <Success>true</Success>
         </Outcome>
-        <Data Name="MemberName" Value=""/>
-        <Data Name="MemberSid" Value=""/>
-        <Data Name="TargetDomainName" Value="CORP"/>
-        <Data Name="TargetSid" Value=""/>
+        <Data Name="MemberName" Value="CN=svc_backup,CN=Users,DC=corp,DC=example,DC=com"/>
+        <Data Name="MemberSid" Value="S-1-5-21-3623811015-3361044348-3011020102-1120"/>
+        <Data Name="TargetDomainName" Value="Builtin"/>
+        <Data Name="TargetSid" Value="S-1-5-32-551"/>
         <Data Name="SubjectLogonId" Value="0x3b2f1"/>
         <Data Name="EventRecordID" Value="208915"/>
       </Authorise>
@@ -370,19 +370,20 @@
       <Description>An attempt was made to access an object</Description>
       <View>
         <Object>
-          <Type></Type>
-          <Id></Id>
-          <Name></Name>
+          <Type>File</Type>
+          <Id>D:\Shares\Finance\Q1_2026_Results.xlsx</Id>
+          <Name>Q1_2026_Results.xlsx</Name>
         </Object>
         <Outcome>
           <Success>true</Success>
         </Outcome>
-        <Data Name="ObjectServer" Value=""/>
-        <Data Name="ObjectType" Value=""/>
-        <Data Name="ObjectName" Value=""/>
-        <Data Name="HandleId" Value=""/>
-        <Data Name="AccessList" Value=""/>
-        <Data Name="AccessMask" Value=""/>
+        <Data Name="ObjectServer" Value="Security"/>
+        <Data Name="ObjectType" Value="File"/>
+        <Data Name="ObjectName" Value="D:\Shares\Finance\Q1_2026_Results.xlsx"/>
+        <Data Name="HandleId" Value="0x4a8"/>
+        <Data Name="AccessList" Value="%%4416
+			%%4417"/>
+        <Data Name="AccessMask" Value="0x3"/>
         <Data Name="SubjectLogonId" Value="0x5c2a01"/>
         <Data Name="EventRecordID" Value="508123"/>
       </View>
@@ -415,20 +416,20 @@
       <Description>A handle to an object was requested - access denied</Description>
       <View>
         <Object>
-          <Type></Type>
-          <Id></Id>
-          <Name></Name>
+          <Type>File</Type>
+          <Id>D:\Shares\HR\Salary_Data_2026.csv</Id>
+          <Name>Salary_Data_2026.csv</Name>
         </Object>
         <Outcome>
           <Success>false</Success>
           <Permitted>false</Permitted>
           <Description>Access denied to HR salary data</Description>
         </Outcome>
-        <Data Name="ObjectServer" Value=""/>
-        <Data Name="ObjectType" Value=""/>
-        <Data Name="ObjectName" Value=""/>
-        <Data Name="AccessList" Value=""/>
-        <Data Name="AccessMask" Value=""/>
+        <Data Name="ObjectServer" Value="Security"/>
+        <Data Name="ObjectType" Value="File"/>
+        <Data Name="ObjectName" Value="D:\Shares\HR\Salary_Data_2026.csv"/>
+        <Data Name="AccessList" Value="%%4416"/>
+        <Data Name="AccessMask" Value="0x1"/>
         <Data Name="SubjectLogonId" Value="0x6d3b02"/>
         <Data Name="RestrictedSidCount" Value="0"/>
         <Data Name="EventRecordID" Value="508130"/>
@@ -476,11 +477,11 @@
         <Data Name="SubjectLogonId" Value="0x4a8f12"/>
         <Data Name="TargetUserName" Value="admin_jsmith"/>
         <Data Name="TargetDomainName" Value="CORP"/>
-        <Data Name="TargetLogonGuid" Value=""/>
-        <Data Name="TargetServerName" Value=""/>
-        <Data Name="TargetInfo" Value=""/>
-        <Data Name="ProcessName" Value=""/>
-        <Data Name="ProcessId" Value="0x4"/>
+        <Data Name="TargetLogonGuid" Value="{F14D5E73-2A91-4B44-9C7B-06E4D8C9A1F2}"/>
+        <Data Name="TargetServerName" Value="DC01.corp.example.com"/>
+        <Data Name="TargetInfo" Value="cifs/DC01.corp.example.com"/>
+        <Data Name="ProcessName" Value="C:\Windows\System32\mmc.exe"/>
+        <Data Name="ProcessId" Value="0x2a4c"/>
         <Data Name="IpAddress" Value="192.168.1.10"/>
         <Data Name="IpPort" Value="445"/>
         <Data Name="EventRecordID" Value="108480"/>

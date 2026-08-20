@@ -70,12 +70,15 @@ the engine can express this correctly; this config does not.
 
 ### `win_sec` and `win_sec_xml` — the goldens drop group identity
 
-*Diagnosed and fixed 2026-08-20 — see E6 in [the issue list](../stroom-shapeshifter-engine/ISSUES.md).
-A configuration defect, not an engine one: two patterns ended in a greedy dot under `(?ms)`, so
-`Member` swallowed the Group block before `Group` was tried and `Group` swallowed the record's
-tail into `GroupDomain`. Both are now `(?m)`, the golden is regenerated and verified, and the
-fixture is promoted. `win_sec_xml` is untouched and stays quarantined under E16. The paragraphs
-below stand as the audit recorded them.*
+*Diagnosed and fixed 2026-08-20 — see E6 and E16 in
+[the issue list](../stroom-shapeshifter-engine/ISSUES.md). Configuration defects, not engine
+ones: `win_sec` had dot-all flags and a template order at odds with its data, `win_sec_xml` had
+record types whose field orders disagree and needed anchoring instead. Both goldens are
+regenerated, verified and promoted — and `win_sec_xml`'s taught the audit a lesson its checks
+could not: beyond the empties, the old golden held plausible-looking values leaked from other
+records (`administrator` where `Backup Operators` belongs), which only a corrected
+implementation's diff could expose (E19). The paragraphs below stand as the audit recorded
+them.*
 
 Eleven elements come out empty across each file — `Id`, `Name`, `Type`, `Domain`. Tracing one
 back to the input shows data that plainly exists being lost:

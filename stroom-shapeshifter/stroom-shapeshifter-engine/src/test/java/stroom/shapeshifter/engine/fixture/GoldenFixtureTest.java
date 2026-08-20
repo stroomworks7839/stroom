@@ -40,10 +40,10 @@ import static org.assertj.core.api.Assertions.fail;
  * starts passing <b>fails</b>, with a message telling you to promote it. Every phase of the
  * port therefore has to move a number on purpose, and no phase can quietly lose one.
  *
- * <p>The Rust implementation passes 51 of these — 18 legacy, 18 native, 15 projects — plus one
- * config-rejection case. Three are skipped for deferred binary formats, and four are
- * quarantined because the phase 0 audit found their goldens wrong (D33,
- * {@code design/08-fixture-audit.md}).
+ * <p>The Rust implementation passed 51 of these — 18 legacy, 18 native, 15 projects — plus one
+ * config-rejection case. Three are skipped for deferred binary formats; the phase 0 audit
+ * quarantined four whose goldens were wrong (D33, {@code design/08-fixture-audit.md}), of which
+ * two have since been fixed at the configuration and re-frozen (E6, E16).
  */
 class GoldenFixtureTest {
 
