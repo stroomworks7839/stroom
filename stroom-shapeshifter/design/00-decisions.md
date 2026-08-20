@@ -842,3 +842,43 @@ in later modules; this module is the matching layer.
 to carry a transform layer later — the ds-rs `TypedValue` and `CaptureBinding` model is worth
 mirroring rather than simplifying away. Sibling modules under `stroom-shapeshifter` are
 expected, so the module naming and package layout should leave room.
+
+---
+
+## D33 — The engine port is a port: ds-rs's behaviour is the specification
+
+*2026-08-20.* `stroom-shapeshifter-engine` is filled by porting the `shapeshifter` crate from
+`ds-rs` — 9.7k lines of source, 5.0k of test, and 56 fixture sets — rather than by designing
+a Java engine afresh against the same requirements. The fixtures are golden files, several of
+them produced by Java Stroom's own DS3 in the first place, so they are the only cheap
+oracle available for a layer this large. Redesigning first would have thrown that away.
+The plan is [07-engine-port-plan.md](07-engine-port-plan.md).
+
+Three sub-decisions were taken with it:
+
+- **Jackson binds the config.** `project.json` is a serde document with ~40 externally-tagged
+  variants; Jackson 3 is in the catalogue and is Stroom's standard. The engine module
+  therefore does *not* inherit the regex module's zero-dependency promise, which remains the
+  matching layer's alone and stays enforced by `verifyZeroDependencies`. Reading sits behind
+  a `ProjectReader` seam so a JDK-only reader is still reachable.
+- **The binary formats are deferred, visibly.** Avro, Parquet, Protobuf and the
+  snappy/zstd/lz4 codecs each need a large third-party library; the match variants are
+  modelled and rejected at compile time with a clear message, and their 3 fixtures stay
+  vendored and are reported as skipped. Base64, hex, URL-encoding, gzip and deflate are JDK
+  built-ins and are in scope.
+- **The chunk-boundary limitation is ported too.** ds-rs never lets a match span a buffer
+  boundary. Our matching layer's `NEED_MORE_INPUT` outcome could lift that, but reproducing
+  the limitation is what keeps golden parity a clean pass/fail across all 53 in-scope
+  fixtures. Real streaming is the first follow-up decision after the port is green, not a
+  change smuggled into it.
+
+**Evidence that the dialect gamble paid off:** all 208 distinct `pattern` values in the
+corpus were compiled through `BytePattern` before the plan was written. 207 compile — 77
+`SCAN_PLAN`, 121 `SIMULATE`, 9 `TREE`, atomic groups and `\z` included — and the one failure
+is `"+"`, a literal `replace` pattern that Rust rejects as a regex too. D19's choice to
+follow Rust's dialect is what makes this a port rather than a rewrite of 247 patterns.
+
+**Consequences:** behaviour that looks wrong in ds-rs gets ported, recorded, and decided
+separately rather than fixed in flight; no performance work happens during the port, because
+change-then-measure needs the semantics to hold still; and the engine gets its own benchmark
+set and plan only once the suite is green.

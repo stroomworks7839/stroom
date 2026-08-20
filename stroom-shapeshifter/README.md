@@ -93,6 +93,8 @@ The design drafts, the decisions and the measurements:
   divergence found so far.
 - [06-performance-plan.md](design/06-performance-plan.md) — the performance work and its
   standing, the per-tier audit record, and the method notes; future sessions start here.
+- [07-engine-port-plan.md](design/07-engine-port-plan.md) — the plan for porting the ds-rs
+  template engine into `stroom-shapeshifter-engine`: inventory, phases, and what is deferred.
 
 Prior art for both: the Rust `ds-rs`/shapeshifter prototype, and Stroom's existing DS3
 implementation at `stroom-pipeline/src/main/java/stroom/pipeline/xml/converter/ds3/`.
