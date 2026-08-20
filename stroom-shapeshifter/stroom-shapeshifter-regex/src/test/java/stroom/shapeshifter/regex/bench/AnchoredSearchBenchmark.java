@@ -77,10 +77,13 @@ public class AnchoredSearchBenchmark {
     private static final int TARGET_SIZE = 256 * 1024;
 
     /**
-     * The four engines that can be forced. The fancy tier is not separately measurable — it
-     * delegates to the tree engine with the flat backtracker as fallback, both measured here.
+     * The engines that can be forced and can take the workload. The fancy tier is not
+     * separately measurable — it delegates to the tree engine with the flat backtracker as
+     * fallback. The bounded backtracker is absent by its own design: its memory bound refuses
+     * 256 KiB inputs outright, so it cannot exhibit the walk; its loop carries the same gate
+     * and exit, pinned by {@code AnchoredSearchTest} at the sizes it accepts.
      */
-    @Param({"tree", "scan_plan", "backtrack", "simulate"})
+    @Param({"tree", "scan_plan", "simulate"})
     public String engine;
 
     @Param({"anchored_miss", "anchored_hit", "line_miss", "floating_miss"})
@@ -109,7 +112,6 @@ public class AnchoredSearchBenchmark {
         final Engine forced = switch (engine) {
             case "tree" -> Engine.TREE;
             case "scan_plan" -> Engine.SCAN_PLAN;
-            case "backtrack" -> Engine.BACKTRACK;
             default -> Engine.SIMULATE;
         };
         matcher = BytePattern.compileForcing(forced, pattern, EnumSet.noneOf(Flag.class)).matcher();
