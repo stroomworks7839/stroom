@@ -207,3 +207,42 @@ spent.
 dispatch bookkeeping. **Next: change 3 — reference strategies and pre-encoded literals** (the
 `String.getBytes`-per-write class), aimed at `apache_httpd`'s heavy bodies, and the first step
 of the compiled-body direction.
+
+## 8. Change 3, measured: bodies compile
+
+One structural change (`08879108ae`): `CompiledRef` and `CompiledOp` — pre-encoded literals,
+classified references, transforms closed over their parameters, regex replaces holding their
+`BytePattern`, applies knowing their whole-parent-content answer. Correctness gate unchanged
+(52/52, 242 tests). Measurement
+([benchmarks/2026-08-20-1853-08879108ae-engine.json](benchmarks/2026-08-20-1853-08879108ae-engine.json)):
+
+| Workload | before MiB/s | after MiB/s | ratio | cumulative vs baseline |
+|---|---:|---:|---:|---:|
+| `regex_lines` | 85.1 | **111.8** | 1.31× | 1.65× |
+| `progressive` | 48.7 | 56.9 | 1.17× | 1.19× |
+| `csv_header` | 31.3 | 36.3 | 1.16× | 1.20× |
+| `apache_httpd` | 31.7 | 35.5 | 1.12× | 1.67× |
+| `ausearch` | 40.0 | 41.5 | 1.04× | 3.97× |
+| `win_sec` | 5.7 | 5.8 | 1.02× | 1.06× |
+| `win_sec_xml` | 17.2 | 16.8 | 0.98× | 10.97× |
+
+Two honest corrections to the prediction. First, `apache_httpd` was named the biggest mover and
+was not: its cost sits inside the transform *functions* — string-level replaces — not in
+literal writes around them, so it gained 12% while literal-write-dominated `regex_lines` gained
+31%. Second, `progressive` was named the control and moved 17%: its body writes literals too,
+so it was never a control for this change. The workloads that genuinely could not benefit —
+the two scan-dominated `win_sec` variants — sat at 0.98–1.02×, and serve as the quiet-box
+evidence instead. `win_sec_xml`'s −2% is just outside its error bar and is recorded as noise
+unless it recurs.
+
+Compile: the millisecond rows are flat (0.96–1.00×); the sub-microsecond rows halve again
+(`csv_header` now 0.28× of baseline — ~630ns absolute) because compilation now also builds the
+ops. Cumulative compile cost for trivial configurations has tripled in nanoseconds; the budget
+is milliseconds and remains untouched.
+
+**The scoreboard after three changes:** every workload but one is at 35–112 MiB/s. The outlier
+is `win_sec` at 5.8 — the unanchored `(?m)` pattern style scanning per dispatch — and the
+remaining gap-list rows (step `Tag` pre-encoding, compiled conditions, capture copies) are
+small next to it. The next decision is strategic rather than incremental: attack the
+unanchored-scan cost itself, or price E13's buffer-spanning matches against this now-solid
+baseline.

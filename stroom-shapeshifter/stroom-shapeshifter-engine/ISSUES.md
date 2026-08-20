@@ -234,9 +234,13 @@ landed 2026-08-20 (`6582e96cd9`): `win_sec_xml` moved 1.5 → 16.2 MiB/s, the pr
 magnitude, with `ausearch` 3.25× and `apache_httpd` 1.38× as unpredicted bonuses from the same
 mechanism and the controls flat. Change 2 (`d4935f1ddc`, dispatch
 indexes owned by the graph) added 2–18% everywhere — cumulative vs baseline: `win_sec_xml`
-11.2×, `ausearch` 3.8×, `apache_httpd` 1.5×. The loop continues —
-[10-engine-compilation.md §7](../design/10-engine-compilation.md) names reference strategies
-and pre-encoded literals as change 3.** `EngineBenchmark` runs seven
+11.2×, `ausearch` 3.8×, `apache_httpd` 1.5×. Change 3 (`08879108ae`, compiled
+bodies: pre-encoded literals, classified references, transforms closed over their parameters)
+added 12–31% on body-heavy workloads. Cumulative vs baseline after three changes:
+`win_sec_xml` 11.0×, `ausearch` 4.0×, `apache_httpd` 1.67×, `regex_lines` 1.65× (112 MiB/s).
+The outlier is `win_sec` at 5.8 MiB/s — unanchored `(?m)` scans — and
+[10-engine-compilation.md §8](../design/10-engine-compilation.md) frames the next choice:
+attack that scan cost, or price E13 buffer-spanning against this baseline.** `EngineBenchmark` runs seven
 whole configurations over 256 KiB of repeated real records, five forks, results to
 `design/benchmarks/` — the regex module's discipline. The status it measures against, and the
 gap list of what is interpreted rather than compiled, is
