@@ -124,3 +124,11 @@ The corpus today contains no pattern that would move: win_sec's `(.+)$` fields a
 `(?m)` line-ends, and `filename_extract`'s `([^\\]+)$` is end-anchored but unbounded, cold,
 and would need the reverse tier. That is why these are §6 and not §1 — the general-purpose
 argument earns them a row; only a measurement earns them a change.
+
+**Planned (2026-08-20, queued behind the early-exit cycle):** `EndAnchoredSearchBenchmark`,
+the failure-shaped twin of `AnchoredSearchBenchmark`, mined from the benchmark corpus's own
+pattern shapes rather than invented: a bounded end-anchored tail (WEBLOG's `(\d{3}) (\d+)$`
+shape) run miss- and late-match-shaped over a large region to put a number on the tail-window
+row, and an unbounded `(.*)$` shape to put a number on what only the reverse tier could fix.
+Landing the benchmark is the decision point — the rows above graduate to work only if its
+numbers say so.
