@@ -141,10 +141,10 @@
         <Data Name="NewProcessId" Value="0x1a2c"/>
         <Data Name="NewProcessName" Value="C:\Windows\System32\cmd.exe"/>
         <Data Name="CommandLine" Value="cmd.exe /c whoami /all"/>
-        <Data Name="CreatorProcessId" Value=""/>
-        <Data Name="CreatorProcessName" Value=""/>
-        <Data Name="TokenElevationType" Value=""/>
-        <Data Name="MandatoryLabel" Value=""/>
+        <Data Name="CreatorProcessId" Value="0x1234"/>
+        <Data Name="CreatorProcessName" Value="C:\Windows\explorer.exe"/>
+        <Data Name="TokenElevationType" Value="%%1936"/>
+        <Data Name="MandatoryLabel" Value="S-1-16-12288"/>
         <Data Name="LogonId" Value="0x4A8F12"/>
         <Data Name="RecordNumber" Value="108460"/>
       </Create>
@@ -281,8 +281,8 @@
         <Data Name="AccountDomain" Value="CORP"/>
         <Data Name="PrimaryGroupId" Value="513"/>
         <Data Name="NewUACValue" Value="0x15"/>
-        <Data Name="PasswordLastSet" Value=""/>
-        <Data Name="AccountExpires" Value=""/>
+        <Data Name="PasswordLastSet" Value="3/23/2026 9:25:10 AM"/>
+        <Data Name="AccountExpires" Value="Never"/>
         <Data Name="SubjectLogonId" Value="0x3B2F1"/>
         <Data Name="RecordNumber" Value="208910"/>
       </Create>
@@ -363,17 +363,17 @@
       <Description>An attempt was made to access an object</Description>
       <View>
         <Object>
-          <Type></Type>
-          <Id></Id>
-          <Name></Name>
+          <Type>File</Type>
+          <Id>D:\Shares\Finance\Q1_2026_Results.xlsx</Id>
+          <Name>Q1_2026_Results.xlsx</Name>
         </Object>
         <Outcome>
           <Success>true</Success>
         </Outcome>
-        <Data Name="ObjectServer" Value=""/>
-        <Data Name="ObjectType" Value=""/>
-        <Data Name="ObjectName" Value=""/>
-        <Data Name="HandleId" Value=""/>
+        <Data Name="ObjectServer" Value="Security"/>
+        <Data Name="ObjectType" Value="File"/>
+        <Data Name="ObjectName" Value="D:\Shares\Finance\Q1_2026_Results.xlsx"/>
+        <Data Name="HandleId" Value="0x4a8"/>
         <Data Name="Accesses" Value="ReadData (or ListDirectory)
 				WriteData (or AddFile)"/>
         <Data Name="AccessMask" Value="0x3"/>
@@ -409,18 +409,18 @@
       <Description>A handle to an object was requested - access denied</Description>
       <View>
         <Object>
-          <Type></Type>
-          <Id></Id>
-          <Name></Name>
+          <Type>File</Type>
+          <Id>D:\Shares\HR\Salary_Data_2026.csv</Id>
+          <Name>Salary_Data_2026.csv</Name>
         </Object>
         <Outcome>
           <Success>false</Success>
           <Permitted>false</Permitted>
           <Description>Access denied to HR salary data</Description>
         </Outcome>
-        <Data Name="ObjectServer" Value=""/>
-        <Data Name="ObjectType" Value=""/>
-        <Data Name="ObjectName" Value=""/>
+        <Data Name="ObjectServer" Value="Security"/>
+        <Data Name="ObjectType" Value="File"/>
+        <Data Name="ObjectName" Value="D:\Shares\HR\Salary_Data_2026.csv"/>
         <Data Name="Accesses" Value="ReadData (or ListDirectory)"/>
         <Data Name="AccessMask" Value="0x1"/>
         <Data Name="LogonId" Value="0x6D3B02"/>
@@ -456,10 +456,10 @@
       <Authenticate>
         <Action>Logon</Action>
         <User>
-          <Id></Id>
+          <Id>admin_jsmith</Id>
           <UserDetails>
-            <Id></Id>
-            <Domain></Domain>
+            <Id>admin_jsmith</Id>
+            <Domain>CORP</Domain>
           </UserDetails>
         </User>
         <Outcome>
@@ -467,15 +467,15 @@
         </Outcome>
         <Data Name="SubjectAccountName" Value="jsmith"/>
         <Data Name="SubjectLogonId" Value="0x4A8F12"/>
-        <Data Name="TargetAccountName" Value=""/>
-        <Data Name="TargetAccountDomain" Value=""/>
-        <Data Name="TargetServerName" Value=""/>
-        <Data Name="TargetInfo" Value=""/>
+        <Data Name="TargetAccountName" Value="admin_jsmith"/>
+        <Data Name="TargetAccountDomain" Value="CORP"/>
+        <Data Name="TargetServerName" Value="DC01.corp.example.com"/>
+        <Data Name="TargetInfo" Value="cifs/DC01.corp.example.com"/>
         <Data Name="ProcessName" Value="C:\Windows\System32\mmc.exe"/>
         <Data Name="ProcessId" Value="0x2a4c"/>
         <Data Name="NetworkAddress" Value="192.168.1.10"/>
         <Data Name="NetworkPort" Value="445"/>
-        <Data Name="LogonGUID" Value=""/>
+        <Data Name="LogonGUID" Value="{F14D5E73-2A91-4B44-9C7B-06E4D8C9A1F2}"/>
         <Data Name="RecordNumber" Value="108480"/>
       </Authenticate>
     </EventDetail>

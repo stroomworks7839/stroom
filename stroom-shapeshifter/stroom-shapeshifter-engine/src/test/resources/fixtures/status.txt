@@ -64,7 +64,7 @@ projects/progressive_varint_zigzag            PASS
 projects/protobuf_events                      SKIPPED   Protobuf decoding deferred (D33)
 projects/win_app                              PASS
 projects/win_app_xml                          PASS
-projects/win_sec                              PASS      config fixed under E6; still 9 empty elements from E16
+projects/win_sec                              PASS      config fixed under E6 and E16
 projects/win_sec_xml                          QUARANTINED  [E16] golden drops Group Id/Name/Type — see design/08-fixture-audit.md
 projects/xml_to_json                          QUARANTINED  [E8] golden is not valid JSON — see design/08-fixture-audit.md
 projects/xml_to_json_attrs                    PASS

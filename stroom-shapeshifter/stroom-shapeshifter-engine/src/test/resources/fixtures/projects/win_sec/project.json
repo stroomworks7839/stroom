@@ -4599,6 +4599,304 @@
       "body": []
     },
     {
+      "id": "10331841-767f-442e-9b8a-b7b81da75abf",
+      "name": "ObjectServer",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "(?m)\\tObject Server:\\t+(\\S+)",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "ObjectServer",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": []
+    },
+    {
+      "id": "86b9a995-80ad-46dd-9f3a-ccb2fed83e39",
+      "name": "ObjectType",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "(?m)\\tObject Type:\\t+(\\S+)",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "ObjectType",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": []
+    },
+    {
+      "id": "facd1048-9c47-48de-9d0e-b3092c9db472",
+      "name": "ObjectName",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "(?m)\\tObject Name:\\t+(.+)$",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "ObjectName",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": []
+    },
+    {
+      "id": "86e97697-50f3-45b5-acfe-7330f389682e",
+      "name": "HandleID",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "(?m)\\tHandle ID:\\t+(\\S+)",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "HandleID",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": []
+    },
+    {
+      "id": "248d690a-9616-4720-b42f-e901d9b034e9",
+      "name": "AccountWhoseCredentialsWereUsed",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "(?m)Account Whose Credentials Were Used:\\n\\tAccount Name:\\t+(\\S+)\\n\\tAccount Domain:\\t+(\\S+)\\n\\tLogon GUID:\\t+(.+)$",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "AccountWhoseCredentialsWereUsed_1",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "AccountWhoseCredentialsWereUsed_2",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 2,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "AccountWhoseCredentialsWereUsed_3",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 3,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": []
+    },
+    {
+      "id": "755764d6-5a40-4fd9-bbbe-aa97b1a93beb",
+      "name": "TargetServerName",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "(?m)\\tTarget Server Name:\\t(.+)$",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "TargetServerName",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": []
+    },
+    {
+      "id": "ecdaff10-f1b5-4e37-97be-bedadd637597",
+      "name": "AdditionalInformation",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "(?m)\\tAdditional Information:\\t(.+)$",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "AdditionalInformation",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": []
+    },
+    {
       "id": "2c10b74a-4658-4841-a655-aa53f39f5417",
       "name": "ProcessID",
       "mode": "event_fields",
@@ -4751,44 +5049,6 @@
       "body": []
     },
     {
-      "id": "8053b60a-e78d-4ef6-8977-84bc597df942",
-      "name": "ProcessCommandLine",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "(?m)\\tProcess Command Line:\\t(.+)$",
-          "flags": {
-            "case_insensitive": false,
-            "dot_all": false
-          },
-          "advance": 0
-        }
-      },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": 1
-      },
-      "captures": [
-        {
-          "name": "ProcessCommandLine",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "body": []
-    },
-    {
       "id": "ab466981-d5e3-4915-b008-5db4abf17dbc",
       "name": "TokenElevationType",
       "mode": "event_fields",
@@ -4923,6 +5183,44 @@
       "captures": [
         {
           "name": "CreatorProcessName",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": []
+    },
+    {
+      "id": "8053b60a-e78d-4ef6-8977-84bc597df942",
+      "name": "ProcessCommandLine",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "(?m)\\tProcess Command Line:\\t(.+)$",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "ProcessCommandLine",
           "select": {
             "select": {
               "parts": [
@@ -5353,82 +5651,6 @@
       "body": []
     },
     {
-      "id": "6f9102c1-6d16-4925-847d-611e83f7a839",
-      "name": "PrimaryGroupID",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "(?m)\\tPrimary Group ID:\\t(\\d+)",
-          "flags": {
-            "case_insensitive": false,
-            "dot_all": false
-          },
-          "advance": 0
-        }
-      },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": 1
-      },
-      "captures": [
-        {
-          "name": "PrimaryGroupID",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "body": []
-    },
-    {
-      "id": "4bafa6df-ca7c-4036-badb-3959f52371f9",
-      "name": "NewUACValue",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "(?m)\\tNew UAC Value:\\t+(\\S+)",
-          "flags": {
-            "case_insensitive": false,
-            "dot_all": false
-          },
-          "advance": 0
-        }
-      },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": 1
-      },
-      "captures": [
-        {
-          "name": "NewUACValue",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "body": []
-    },
-    {
       "id": "46de04d0-d4ba-4dbf-9c0a-d879ad4bd1fb",
       "name": "PasswordLastSet",
       "mode": "event_fields",
@@ -5487,6 +5709,82 @@
       "captures": [
         {
           "name": "AccountExpires",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": []
+    },
+    {
+      "id": "6f9102c1-6d16-4925-847d-611e83f7a839",
+      "name": "PrimaryGroupID",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "(?m)\\tPrimary Group ID:\\t(\\d+)",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "PrimaryGroupID",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": []
+    },
+    {
+      "id": "4bafa6df-ca7c-4036-badb-3959f52371f9",
+      "name": "NewUACValue",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "(?m)\\tNew UAC Value:\\t+(\\S+)",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "NewUACValue",
           "select": {
             "select": {
               "parts": [
@@ -5629,158 +5927,6 @@
       "body": []
     },
     {
-      "id": "10331841-767f-442e-9b8a-b7b81da75abf",
-      "name": "ObjectServer",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "(?m)\\tObject Server:\\t+(\\S+)",
-          "flags": {
-            "case_insensitive": false,
-            "dot_all": false
-          },
-          "advance": 0
-        }
-      },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": 1
-      },
-      "captures": [
-        {
-          "name": "ObjectServer",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "body": []
-    },
-    {
-      "id": "86b9a995-80ad-46dd-9f3a-ccb2fed83e39",
-      "name": "ObjectType",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "(?m)\\tObject Type:\\t+(\\S+)",
-          "flags": {
-            "case_insensitive": false,
-            "dot_all": false
-          },
-          "advance": 0
-        }
-      },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": 1
-      },
-      "captures": [
-        {
-          "name": "ObjectType",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "body": []
-    },
-    {
-      "id": "facd1048-9c47-48de-9d0e-b3092c9db472",
-      "name": "ObjectName",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "(?m)\\tObject Name:\\t+(.+)$",
-          "flags": {
-            "case_insensitive": false,
-            "dot_all": false
-          },
-          "advance": 0
-        }
-      },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": 1
-      },
-      "captures": [
-        {
-          "name": "ObjectName",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "body": []
-    },
-    {
-      "id": "86e97697-50f3-45b5-acfe-7330f389682e",
-      "name": "HandleID",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "(?m)\\tHandle ID:\\t+(\\S+)",
-          "flags": {
-            "case_insensitive": false,
-            "dot_all": false
-          },
-          "advance": 0
-        }
-      },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": 1
-      },
-      "captures": [
-        {
-          "name": "HandleID",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "body": []
-    },
-    {
       "id": "26090f29-f157-44fe-8bac-de1a0798d6a9",
       "name": "Accesses",
       "mode": "event_fields",
@@ -5877,152 +6023,6 @@
       "captures": [
         {
           "name": "RestrictedSIDCount",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "body": []
-    },
-    {
-      "id": "248d690a-9616-4720-b42f-e901d9b034e9",
-      "name": "AccountWhoseCredentialsWereUsed",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "(?ms)Account Whose Credentials Were Used:\\n\\tAccount Name:\\t+(\\S+)\\n\\tAccount Domain:\\t+(\\S+)\\n\\tLogon GUID:\\t+(.+)$",
-          "flags": {
-            "case_insensitive": false,
-            "dot_all": false
-          },
-          "advance": 0
-        }
-      },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": 1
-      },
-      "captures": [
-        {
-          "name": "AccountWhoseCredentialsWereUsed_1",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "AccountWhoseCredentialsWereUsed_2",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 2,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "AccountWhoseCredentialsWereUsed_3",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 3,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "body": []
-    },
-    {
-      "id": "755764d6-5a40-4fd9-bbbe-aa97b1a93beb",
-      "name": "TargetServerName",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "(?m)\\tTarget Server Name:\\t(.+)$",
-          "flags": {
-            "case_insensitive": false,
-            "dot_all": false
-          },
-          "advance": 0
-        }
-      },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": 1
-      },
-      "captures": [
-        {
-          "name": "TargetServerName",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "body": []
-    },
-    {
-      "id": "ecdaff10-f1b5-4e37-97be-bedadd637597",
-      "name": "AdditionalInformation",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "(?m)\\tAdditional Information:\\t(.+)$",
-          "flags": {
-            "case_insensitive": false,
-            "dot_all": false
-          },
-          "advance": 0
-        }
-      },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": 1
-      },
-      "captures": [
-        {
-          "name": "AdditionalInformation",
           "select": {
             "select": {
               "parts": [

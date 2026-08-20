@@ -117,21 +117,41 @@ fields. Promoted to `PASS`.
 `Member` alone looked right and produced a newline inside an attribute; only the diff showed
 it.*
 
-### E16 — `win_sec`'s remaining empty elements, and `win_sec_xml`'s
-**`open`. Split out of E6 so that fixing one did not look like fixing both.**
+### E16 — `win_sec`'s templates were listed out of data order
+**`resolved` for `win_sec` 2026-08-20. Still `open` for `win_sec_xml`.**
 
-With E6 fixed, `win_sec` still emits nine empty elements — `<Object><Type/><Id/><Name/></Object>`
-twice and `<User><Id/><Domain/></User>` once — in records E6 did not touch. It passes anyway:
-the golden is now a correct record of what that configuration does, and these are the same
-configuration still being imperfect. `win_sec_xml` emits eleven of `Id`, `Name` and `Type` from a
-differently shaped configuration and stays quarantined.
+With E6 fixed, nine empty elements and eighteen empty values remained. The cause is not dot-all
+this time but something more structural, and worth understanding because it will recur in any
+configuration of this shape.
 
-**One lead, already found.** `AccountWhoseCredentialsWereUsed` has exactly E6's shape — `(?ms)`
-ending in `(.+)$` — and was left alone because it is a different field and not what E6 was about.
-It is the obvious place to start.
+**Sibling templates share a cursor, and an unanchored match consumes the prefix it skipped.** A
+template matching at byte 616 when the cursor is at 441 consumes 441–616 as well, so everything
+between is gone before any later template is tried. The list order therefore has to match the
+order the fields appear in the data.
 
-E6's method is the one to reuse: run the failing template's pattern against the record on its
-own, and if it matches, look at what ran before it.
+It did not. `ProcessID` was listed 20th but appears at byte 616; `ObjectServer` was listed 45th
+but appears at byte 451 — so the entire Object block was consumed by a template looking for
+something after it. The same happened three more times: the credentials block in event 4648, the
+elevation and creator fields in 4688, and the password and expiry fields in 4720.
+
+**Fixed by reordering, not rewriting.** Thirteen templates moved so that each block precedes the
+one that follows it in the data. The section order is identical in all eleven records — `Subject`,
+then the event-specific block, then `Process Information`, then the rest — so one order serves
+them all. One further `(?ms)` had to go at the same time: `AccountWhoseCredentialsWereUsed` was
+E6's defect a third time, invisible until reordering let it match at all.
+
+Verified: 61 templates before and after, exactly one whose *content* changed, everything else
+byte-identical and merely moved. The golden goes from 11 empty elements and 19 empty values to
+**none of either**, is well-formed, keeps its 11 records, and every value in it is traceable to
+the input.
+
+*An approach that did not work, recorded so it is not retried: sorting all 57 field templates by
+the average position of their field across records. It moved 48 of them and fixed nothing —
+averaging across event types blurs exactly the section order that makes a single ordering
+possible. The targeted moves are both smaller and correct.*
+
+**`win_sec_xml` remains.** It has no `(?ms)` patterns at all, so its eleven empty elements have a
+third cause and it stays quarantined.
 
 ### E7 — `apache_httpd`'s golden is not well-formed XML
 **`open`. Two problems in one file.**
