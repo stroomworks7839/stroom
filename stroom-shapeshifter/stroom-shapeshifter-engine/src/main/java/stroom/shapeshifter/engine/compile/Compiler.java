@@ -17,12 +17,16 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
+import stroom.shapeshifter.engine.config.Codec;
+import stroom.shapeshifter.engine.config.CombinatorPattern;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.MatchExpression;
+import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.engine.exec.Codecs;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.Flag;
 import stroom.shapeshifter.regex.PatternCompileException;
@@ -61,11 +65,14 @@ public final class Compiler {
         final Map<String, BytePattern> patterns = new HashMap<>();
 
         for (final Template template : project.templates()) {
-            templates.add(new CompiledTemplate(template, compileMatch(template, charset)));
+            templates.add(new CompiledTemplate(template, compileMatch(template, charset, project)));
             if (template.guard() != null) {
                 collect(template.guard(), template, patterns);
             }
             collect(template.body(), template, patterns);
+            if (template.match() instanceof MatchExpression.Progressive progressive) {
+                steps(progressive.steps(), template, patterns);
+            }
         }
         return new CompiledProject(project, templates, patterns, warnings);
     }
@@ -144,7 +151,77 @@ public final class Compiler {
         });
     }
 
-    private static CompiledMatch compileMatch(final Template template, final Charset charset) {
+    /**
+     * Walk a step sequence for the patterns it uses and the codecs it needs.
+     *
+     * <p>A codec this build cannot apply is refused here rather than returning nothing at match
+     * time, because "no match" and "cannot do that" are different answers and only one of them
+     * is the configuration's fault.
+     */
+    private static void steps(final List<MatchStep> steps,
+                              final Template template,
+                              final Map<String, BytePattern> patterns) {
+        for (final MatchStep step : steps) {
+            switch (step) {
+                case MatchStep.Regex regex -> intern(regex.pattern(), template, patterns);
+                case MatchStep.Decode decode -> requireCodec(decode.codec(), template);
+                case MatchStep.Encode encode -> requireCodec(encode.codec(), template);
+                case MatchStep.Choice choice ->
+                        choice.alternatives().forEach(alternative -> steps(alternative, template, patterns));
+                case MatchStep.Optional optional -> steps(optional.steps(), template, patterns);
+                case MatchStep.Repeat repeat -> steps(repeat.steps(), template, patterns);
+                case MatchStep.Sequence sequence -> steps(sequence.steps(), template, patterns);
+                case MatchStep.Peek peek -> steps(peek.steps(), template, patterns);
+                case MatchStep.Not not -> steps(not.steps(), template, patterns);
+                default -> {
+                    // The remaining atoms need nothing compiled.
+                }
+            }
+        }
+    }
+
+    private static void requireCodec(final Codec codec, final Template template) {
+        if (!Codecs.isSupported(codec)) {
+            throw notYet(template, codec.name().toLowerCase(java.util.Locale.ROOT) + " coding");
+        }
+    }
+
+    /**
+     * Inline the named patterns a sequence refers to.
+     *
+     * <p>Composition is an authoring convenience; by the time anything runs there are no
+     * references left, only the steps they stood for (D8).
+     */
+    private static List<MatchStep> resolve(final List<MatchStep> steps, final Project project) {
+        final List<MatchStep> resolved = new ArrayList<>(steps.size());
+        for (final MatchStep step : steps) {
+            final MatchStep inlined = switch (step) {
+                case MatchStep.PatternRef reference -> {
+                    final CombinatorPattern named = project.patterns().stream()
+                            .filter(candidate -> candidate.id().equals(reference.pattern()))
+                            .findFirst()
+                            .orElseThrow(() -> new ConfigException(
+                                    "No pattern with id " + reference.pattern()));
+                    yield new MatchStep.Sequence(resolve(named.steps(), project));
+                }
+                case MatchStep.Choice choice -> new MatchStep.Choice(
+                        choice.alternatives().stream().map(a -> resolve(a, project)).toList());
+                case MatchStep.Optional optional -> new MatchStep.Optional(resolve(optional.steps(), project));
+                case MatchStep.Repeat repeat ->
+                        new MatchStep.Repeat(resolve(repeat.steps(), project), repeat.min(), repeat.max());
+                case MatchStep.Sequence sequence -> new MatchStep.Sequence(resolve(sequence.steps(), project));
+                case MatchStep.Peek peek -> new MatchStep.Peek(resolve(peek.steps(), project));
+                case MatchStep.Not not -> new MatchStep.Not(resolve(not.steps(), project));
+                default -> step;
+            };
+            resolved.add(inlined);
+        }
+        return resolved;
+    }
+
+    private static CompiledMatch compileMatch(final Template template,
+                                              final Charset charset,
+                                              final Project project) {
         return switch (template.match()) {
             case MatchExpression.Regex regex -> {
                 final Set<Flag> flags = EnumSet.noneOf(Flag.class);
@@ -170,7 +247,8 @@ public final class Compiler {
             case MatchExpression.All ignored -> new CompiledMatch.All();
             case MatchExpression.Source ignored -> new CompiledMatch.Source();
             case MatchExpression.Named ignored -> new CompiledMatch.Named();
-            case MatchExpression.Progressive ignored -> throw notYet(template, "progressive matching");
+            case MatchExpression.Progressive progressive ->
+                    new CompiledMatch.Progressive(resolve(progressive.steps(), project));
             case MatchExpression.Avro ignored -> throw notYet(template, "Avro decoding");
             case MatchExpression.Parquet ignored -> throw notYet(template, "Parquet decoding");
             case MatchExpression.Protobuf ignored -> throw notYet(template, "Protobuf decoding");

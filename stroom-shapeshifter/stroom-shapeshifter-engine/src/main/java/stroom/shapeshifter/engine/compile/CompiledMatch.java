@@ -16,7 +16,10 @@
 
 package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.regex.BytePattern;
+
+import java.util.List;
 
 /**
  * A match expression with everything it needs already worked out.
@@ -42,6 +45,18 @@ public sealed interface CompiledMatch {
                      byte[] escape,
                      byte[] containerStart,
                      byte[] containerEnd) implements CompiledMatch {
+
+    }
+
+    /**
+     * A sequence of steps, with pattern references already resolved.
+     *
+     * <p>The steps are the authored ones: unlike a pattern, there is nothing to compile them
+     * into. What compilation does is resolve {@code PatternRef}s against the project's library
+     * and intern the patterns the regex steps use, so the interpreter has no lookups to do
+     * beyond the one it cannot avoid.
+     */
+    record Progressive(List<MatchStep> steps) implements CompiledMatch {
 
     }
 

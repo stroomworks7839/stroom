@@ -57,10 +57,10 @@ projects/avro_users                           SKIPPED   Avro decoding deferred (
 projects/identity_transform                   PASS
 projects/json_to_xml                          PASS
 projects/parquet_cities                       SKIPPED   Parquet decoding deferred (D33)
-projects/progressive_embedded_codec           PENDING
-projects/progressive_len_records              PENDING
-projects/progressive_mixed_endian             PENDING
-projects/progressive_varint_zigzag            PENDING
+projects/progressive_embedded_codec           PASS
+projects/progressive_len_records              PASS
+projects/progressive_mixed_endian             PASS
+projects/progressive_varint_zigzag            PASS
 projects/protobuf_events                      SKIPPED   Protobuf decoding deferred (D33)
 projects/win_app                              PASS
 projects/win_app_xml                          PASS

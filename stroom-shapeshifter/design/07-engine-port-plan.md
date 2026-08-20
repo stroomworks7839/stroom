@@ -160,7 +160,7 @@ built first and report `n/48` from the start, so every phase moves a number.
 | 2 | **Vertical slice — done.** UTF-8 only; the output sink and its byte implementation; `TypedValue`, `Store`, `VarRegistry`, `Refs`, `Splitter`; compile and run `Regex`, `Delimiter`, `Source`, `All`; body limited to `Text`, `ValueOf`, `ApplyTemplates` | `6/48` — native 004, 006, 010, 012, 013 and `projects/json_to_xml`, which is every fixture the slice can reach |
 | 3 | **The rest of the body — done.** All fourteen conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, the twelve transform functions, and template guards | `25/48` — all 18 `native` and all 7 non-progressive `projects` fixtures |
 | 4 | **DS3 import — done.** `ds3_config`, `migration` and the legacy `$`-syntax reference parser, including `records:2` output shaping | `44/48` — all 19 `legacy` entries, output *and* message goldens, rejection case included |
-| 5 | **Progressive matching.** The `MatchStep` atoms and combinators, `StepRef` resolution, the JDK codecs | The 4 progressive fixtures green — `48/48` |
+| 5 | **Progressive matching — done.** All 24 `MatchStep` kinds, `StepRef` resolution, pattern-reference inlining, and the JDK codecs | `48/48` — every in-scope fixture |
 | 6 | **Encodings.** Full charset resolution, BOM detection, inheritance | The 17 encoding integration tests and 22 `encoding.rs` unit tests ported and green |
 | 7 | **Unit test port.** The remaining ~160 unit and integration tests, `refs` (33) and `store` (13) and `compiled` (14) and `exec_tests` (55) foremost | Whole suite green; coverage of the ported surface no worse than the Rust crate's |
 | 8 | **Instrumentation seam.** `Instrument` + no-op, and `regex_info` | Engine compiles against the seam with no production cost |
@@ -168,6 +168,25 @@ built first and report `n/48` from the start, so every phase moves a number.
 Phases 5 and 6 are ordered after 4 deliberately: a full ledger is the milestone that
 proves the architecture, and progressive matching and exotic encodings are each self-contained
 enough to follow it without re-opening anything.
+
+**What phase 5 settled: the combinator layer is the wrong home, for a reason worth writing
+down.** `stroom.shapeshifter.regex.comb` has almost exactly the progressive vocabulary — `Tag`,
+`Sequence`, `Choice`, `Repeat`, `Ref`, and `Characters` covering `takeWhile`/`takeN`/`anyChar` —
+and D8 says compose at authoring time and flatten at compile time, which is what lowering these
+steps onto it would do. It would also be faster, since they would reach the tiered engines
+instead of an interpreter.
+
+It would also change the language. The step interpreter is greedy and **does not backtrack**: a
+`Choice` takes the first alternative that matches and never reconsiders, a `Repeat` never gives
+anything back. A compiled pattern does both. So `Repeat(Tag("ab")) Tag("ab")` against `abab`
+fails as steps and matches as a pattern — same configuration, different answer. Lowering is a
+decision about semantics, not an optimisation, and it is recorded here rather than taken.
+
+What the regex library *is* used for here is the `Regex` step itself, compiled and interned like
+any other pattern. The predicates deliberately are not: ds-rs takes its byte path for every
+byte-oriented encoding including UTF-8, so its predicates are ASCII in practice, and the
+Unicode-aware classes the regex library would bring would have been an improvement rather than a
+port.
 
 **What phase 4 found: nothing.** All nineteen legacy entries went green on the first run,
 output and messages both — which is worth stating because it is the only phase that did. The

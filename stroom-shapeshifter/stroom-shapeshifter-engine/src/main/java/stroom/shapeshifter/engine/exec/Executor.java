@@ -308,6 +308,8 @@ public final class Executor {
                     delimiter.delimiter(), delimiter.escape(),
                     delimiter.containerStart(), delimiter.containerEnd());
             case CompiledMatch.Regex regex -> regexMatch(regex, data, from, to);
+            case CompiledMatch.Progressive progressive ->
+                    Steps.match(progressive.steps(), data, from, to, compiled.patterns());
             case CompiledMatch.All ignored -> new MatchResult(
                     new TypedValue[]{TypedValue.of(Arrays.copyOfRange(data, from, to))}, to - from, 0);
             case CompiledMatch.Source ignored -> null;
