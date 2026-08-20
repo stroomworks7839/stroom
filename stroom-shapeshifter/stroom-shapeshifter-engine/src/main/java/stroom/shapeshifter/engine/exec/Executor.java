@@ -21,13 +21,14 @@ import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.compile.CompiledMatch;
+import stroom.shapeshifter.engine.compile.CompiledOp;
 import stroom.shapeshifter.engine.compile.CompiledProject;
+import stroom.shapeshifter.engine.compile.CompiledRef;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
-import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.ByteMatcher;
@@ -128,10 +129,10 @@ public final class Executor {
                 || (streamDirective != null && streamDirective.ignoreErrors());
 
         final MatchResult nothing = MatchResult.empty();
-        List<OutputNode> prologue = List.of();
-        List<OutputNode> epilogue = List.of();
+        List<CompiledOp> prologue = List.of();
+        List<CompiledOp> epilogue = List.of();
         if (source != null) {
-            final List<OutputNode> body = source.template().body();
+            final List<CompiledOp> body = source.body();
             final int apply = indexOfApply(body);
             prologue = apply < 0 ? body : body.subList(0, apply);
             epilogue = apply < 0 ? List.of() : body.subList(apply + 1, body.size());
@@ -192,9 +193,9 @@ public final class Executor {
         return null;
     }
 
-    private static int indexOfApply(final List<OutputNode> body) {
+    private static int indexOfApply(final List<CompiledOp> body) {
         for (int i = 0; i < body.size(); i++) {
-            if (body.get(i) instanceof OutputNode.ApplyTemplates) {
+            if (body.get(i) instanceof CompiledOp.Apply) {
                 return i;
             }
         }
@@ -321,7 +322,7 @@ public final class Executor {
                         bindCaptures(candidate, match, matchCount);
 
                         final long before = sink.position();
-                        body(template.body(), match, matchCount, content.asBytes(), sink,
+                        body(candidate.body(), match, matchCount, content.asBytes(), sink,
                                 inputBase, ignoreErrors, depth);
                         instrument.onOutput(template.id(), matchCount, before,
                                 sink.position() - before);
@@ -483,7 +484,7 @@ public final class Executor {
         return TypedValue.of(Refs.bytes(value, encoding));
     }
 
-    private void body(final List<OutputNode> nodes,
+    private void body(final List<CompiledOp> ops,
                       final MatchResult match,
                       final int matchCount,
                       final byte[] content,
@@ -491,26 +492,26 @@ public final class Executor {
                       final long inputBase,
                       final boolean ignoreErrors,
                       final int depth) {
-        for (final OutputNode node : nodes) {
-            switch (node) {
-                case OutputNode.Text text -> sink.write(text.value());
-                case OutputNode.ValueOf valueOf ->
-                        Refs.write(valueOf.select(), match, matchCount, vars, encoding, sink);
-                case OutputNode.ApplyTemplates apply -> {
+        for (final CompiledOp op : ops) {
+            switch (op) {
+                case CompiledOp.Text text -> sink.write(text.bytes());
+                case CompiledOp.ValueOf valueOf ->
+                        CompiledRefs.write(valueOf.ref(), match, matchCount, vars, encoding, sink);
+                case CompiledOp.Apply apply -> {
                     // A directive naming a template is the recursive form, which the compiler
                     // has already inlined; running it here would recurse for ever.
                     if (apply.directive().templateRef() == null) {
-                        apply(apply.directive(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
+                        apply(apply, match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                     }
                 }
-                case OutputNode.If value -> {
+                case CompiledOp.If value -> {
                     if (test(value.test(), match, matchCount)) {
                         body(value.then(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                     }
                 }
-                case OutputNode.Choose value -> {
+                case CompiledOp.Choose value -> {
                     boolean taken = false;
-                    for (final OutputNode.WhenBranch branch : value.when()) {
+                    for (final CompiledOp.When branch : value.when()) {
                         if (test(branch.test(), match, matchCount)) {
                             body(branch.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                             taken = true;
@@ -521,10 +522,10 @@ public final class Executor {
                         body(value.otherwise(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                     }
                 }
-                case OutputNode.Switch value -> {
+                case CompiledOp.Switch value -> {
                     final String selected = textOf(value.select(), match, matchCount);
                     boolean taken = false;
-                    for (final OutputNode.SwitchCase switchCase : value.cases()) {
+                    for (final CompiledOp.Case switchCase : value.cases()) {
                         if (switchCase.value().equals(selected)) {
                             body(switchCase.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                             taken = true;
@@ -535,11 +536,11 @@ public final class Executor {
                         body(value.defaultBody(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                     }
                 }
-                case OutputNode.Variable value ->
+                case CompiledOp.Variable value ->
                         variable(value, match, matchCount, content, inputBase, ignoreErrors, depth);
-                case OutputNode.CallTemplate value ->
+                case CompiledOp.Call value ->
                         call(value, match, matchCount, content, sink, inputBase, ignoreErrors, depth);
-                case OutputNode.ValueMap value -> {
+                case CompiledOp.ValueMap value -> {
                     final String selected = textOf(value.select(), match, matchCount);
                     String mapped = null;
                     for (final OutputNode.Entry entry : value.entries()) {
@@ -553,34 +554,8 @@ public final class Executor {
                     }
                     emit(mapped == null ? "" : mapped, value.name(), matchCount, sink);
                 }
-                case OutputNode.Translate value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, inputs -> Transforms.translate(inputs, value.from(), value.to()));
-                case OutputNode.StringJoin value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, inputs -> Transforms.stringJoin(inputs, value.separator()));
-                case OutputNode.Replace value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, inputs -> {
-                            if (inputs.isEmpty()) {
-                                return null;
-                            }
-                            return value.isRegex()
-                                    ? Transforms.replaceRegex(pattern(value.pattern()), inputs.getFirst(),
-                                    value.replacement())
-                                    : Transforms.replaceLiteral(inputs, value.pattern(), value.replacement());
-                        });
-                case OutputNode.LowerCase value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, Transforms::lowerCase);
-                case OutputNode.UpperCase value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, Transforms::upperCase);
-                case OutputNode.NormalizeSpace value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, Transforms::normalizeSpace);
-                case OutputNode.Trim value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, Transforms::trim);
-                case OutputNode.Substring value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, inputs -> Transforms.substring(inputs, value.start(), value.length()));
-                case OutputNode.Tokenize value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, inputs -> Transforms.tokenize(inputs, value.delimiter()));
-                case OutputNode.Number value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, Transforms::number);
+                case CompiledOp.Transform value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, value.function());
             }
         }
     }
@@ -591,17 +566,9 @@ public final class Executor {
         return Conditions.evaluate(condition, match, matchCount, vars, encoding, compiled.patterns());
     }
 
-    private String textOf(final RefExpression expression, final MatchResult match, final int matchCount) {
-        final String resolved = Refs.resolveText(expression, match, matchCount, vars, encoding);
+    private String textOf(final CompiledRef ref, final MatchResult match, final int matchCount) {
+        final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars, encoding);
         return resolved == null ? "" : resolved;
-    }
-
-    private stroom.shapeshifter.regex.BytePattern pattern(final String text) {
-        final stroom.shapeshifter.regex.BytePattern pattern = compiled.patterns().get(text);
-        if (pattern == null) {
-            throw new IllegalStateException("Pattern was not compiled: " + text);
-        }
-        return pattern;
     }
 
     /**
@@ -612,15 +579,15 @@ public final class Executor {
      * two of which one is blank. And a function returning nothing writes nothing — which is what
      * makes a join of no values disappear instead of leaving a stray separator.
      */
-    private void transform(final List<RefExpression> select,
+    private void transform(final List<CompiledRef> select,
                            final String name,
                            final MatchResult match,
                            final int matchCount,
                            final OutputSink sink,
                            final java.util.function.Function<List<String>, String> function) {
         final List<String> inputs = new ArrayList<>(select.size());
-        for (final RefExpression expression : select) {
-            final String resolved = Refs.resolveText(expression, match, matchCount, vars, encoding);
+        for (final CompiledRef ref : select) {
+            final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars, encoding);
             if (resolved != null) {
                 inputs.add(resolved);
             }
@@ -650,7 +617,7 @@ public final class Executor {
      * the text it wrote becomes the value. If it did neither, the variable is cleared rather
      * than left holding the previous record's value.
      */
-    private void variable(final OutputNode.Variable value,
+    private void variable(final CompiledOp.Variable value,
                           final MatchResult match,
                           final int matchCount,
                           final byte[] content,
@@ -687,7 +654,7 @@ public final class Executor {
      * <p>Parameters live in their own scope, so a call cannot leave its arguments behind for the
      * next one. Declared parameters the caller did not supply take their defaults.
      */
-    private void call(final OutputNode.CallTemplate value,
+    private void call(final CompiledOp.Call value,
                       final MatchResult match,
                       final int matchCount,
                       final byte[] content,
@@ -701,21 +668,21 @@ public final class Executor {
         }
 
         vars.push();
-        for (final OutputNode.Param param : value.withParam()) {
-            final byte[] resolved = Refs.resolve(param.value(), match, matchCount, vars, encoding);
+        for (final CompiledOp.Arg arg : value.args()) {
+            final byte[] resolved = CompiledRefs.resolve(arg.value(), match, matchCount, vars, encoding);
             if (resolved != null) {
-                vars.store(param.name()).set(1, TypedValue.of(resolved));
+                vars.store(arg.name()).set(1, TypedValue.of(resolved));
             }
         }
         for (final Template.ParamDecl declared : target.template().param()) {
-            final boolean supplied = value.withParam().stream()
-                    .anyMatch(param -> param.name().equals(declared.name()));
+            final boolean supplied = value.args().stream()
+                    .anyMatch(arg -> arg.name().equals(declared.name()));
             if (!supplied && declared.defaultValue() != null) {
                 vars.store(declared.name())
                         .set(1, TypedValue.of(declared.defaultValue().getBytes(StandardCharsets.UTF_8)));
             }
         }
-        body(target.template().body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
+        body(target.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
         vars.pop();
     }
 
@@ -727,7 +694,7 @@ public final class Executor {
      * level of the named mode, dispatched as ordered choice, with the directive's
      * {@code ignoreErrors} as the level's reporting gate.
      */
-    private void apply(final ApplyDirective directive,
+    private void apply(final CompiledOp.Apply op,
                        final MatchResult match,
                        final int matchCount,
                        final byte[] parentContent,
@@ -735,6 +702,7 @@ public final class Executor {
                        final long parentBase,
                        final boolean inheritedIgnoreErrors,
                        final int depth) {
+        final ApplyDirective directive = op.directive();
         if (depth >= directive.maxDepth()) {
             return;
         }
@@ -743,19 +711,18 @@ public final class Executor {
         // of its match: a delimiter template's content is the field, and its group 0 carries the
         // delimiter too. Resolving group 0 here would hand the trailing separator down to the
         // child templates, which is what turns a CSV header's last column name into "what\n".
-        // So the content the parent already selected is passed straight through.
-        final byte[] content = isWholeParentContent(directive.select())
+        // So the content the parent already selected is passed straight through — and whether
+        // that is what the select means was decided at compile time.
+        final byte[] content = op.wholeParentContent()
                 ? parentContent
-                : Refs.resolve(directive.select(), match, matchCount, vars, encoding);
+                : CompiledRefs.resolve(op.select(), match, matchCount, vars, encoding);
         if (content == null || content.length == 0) {
             return;
         }
 
         // Content taken straight from the parent, or from one of its groups, is still part of
         // the input and can be pointed at. Content built from a variable cannot be.
-        final long childBase = isWholeParentContent(directive.select()) || isLocalGroup(directive.select())
-                ? parentBase
-                : Instrument.UNLOCATABLE;
+        final long childBase = op.locatable() ? parentBase : Instrument.UNLOCATABLE;
         if (childBase == Instrument.UNLOCATABLE) {
             instrument.onMatchContent(null, content);
         }
@@ -789,23 +756,6 @@ public final class Executor {
     /** An absolute input offset, unless the base says the content cannot be located. */
     private static long locate(final long base, final int offset) {
         return base >= Instrument.UNLOCATABLE ? Instrument.UNLOCATABLE : base + offset;
-    }
-
-    /** True if an expression is one group of this match, wherever that group came from. */
-    private static boolean isLocalGroup(final RefExpression expression) {
-        return expression.parts().size() == 1
-               && expression.parts().getFirst() instanceof RefExpression.RefPart.Capture capture
-               && capture.varId() == null
-               && capture.matchIndex() == null;
-    }
-
-    /** True if an expression is exactly "group 0 of this match, whichever one that is". */
-    private static boolean isWholeParentContent(final RefExpression expression) {
-        return expression.parts().size() == 1
-               && expression.parts().getFirst() instanceof RefExpression.RefPart.Capture capture
-               && capture.varId() == null
-               && capture.group() == 0
-               && capture.matchIndex() == null;
     }
 
     // -----------------------------------------------------------------------------------

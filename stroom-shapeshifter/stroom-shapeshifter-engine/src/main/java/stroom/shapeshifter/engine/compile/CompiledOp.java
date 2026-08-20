@@ -1,0 +1,241 @@
+/*
+ * Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.shapeshifter.engine.compile;
+
+import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.engine.config.OutputNode;
+import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
+import stroom.shapeshifter.engine.config.RefExpression;
+import stroom.shapeshifter.engine.config.RefExpression.RefPart;
+import stroom.shapeshifter.engine.exec.Transforms;
+import stroom.shapeshifter.regex.BytePattern;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+
+/**
+ * One instruction of a compiled body.
+ *
+ * <p>The authored {@link OutputNode} says what to do; this is the same instruction with every
+ * decision that does not depend on a match already taken (D35). Literal text is bytes. A
+ * reference is a {@link CompiledRef} that knows its strategy. A regex replace holds its
+ * {@link BytePattern} instead of the text to look one up by. An apply knows whether its select
+ * is the parent's whole content. The twelve transform functions collapse to one instruction
+ * holding its function, parameters already bound.
+ *
+ * <p>Conditions stay authored and are evaluated by {@code Conditions} as before — their
+ * patterns are already interned, and compiling them further is a later change if the numbers
+ * ask for it.
+ */
+public sealed interface CompiledOp {
+
+    /** Write literal bytes, encoded once. */
+    record Text(byte[] bytes) implements CompiledOp {
+
+    }
+
+    /** Write the value of a reference. */
+    record ValueOf(CompiledRef ref) implements CompiledOp {
+
+    }
+
+    /** Run a body if a condition holds. */
+    record If(Condition test, List<CompiledOp> then) implements CompiledOp {
+
+    }
+
+    /** Run the first branch whose condition holds. */
+    record Choose(List<When> when, List<CompiledOp> otherwise) implements CompiledOp {
+
+    }
+
+    /** One branch of a {@link Choose}. */
+    record When(Condition test, List<CompiledOp> body) {
+
+    }
+
+    /** Run the branch whose value matches. */
+    record Switch(CompiledRef select, List<Case> cases, List<CompiledOp> defaultBody) implements CompiledOp {
+
+    }
+
+    /** One case of a {@link Switch}. */
+    record Case(String value, List<CompiledOp> body) {
+
+    }
+
+    /**
+     * Match templates against some content.
+     *
+     * @param directive          the authored directive — mode, limits, gates
+     * @param select             the content reference, compiled
+     * @param wholeParentContent whether the select means "the content this template is working
+     *                           on", which is passed straight through rather than re-resolved
+     * @param locatable          whether the dispatched content is still part of the input, and
+     *                           can therefore be pointed at
+     */
+    record Apply(ApplyDirective directive,
+                 CompiledRef select,
+                 boolean wholeParentContent,
+                 boolean locatable) implements CompiledOp {
+
+    }
+
+    /** Invoke a template by name. The target is a field read at run time, not a search. */
+    record Call(String name, List<Arg> args) implements CompiledOp {
+
+    }
+
+    /** One argument of a {@link Call}. */
+    record Arg(String name, CompiledRef value) {
+
+    }
+
+    /** Bind a variable to what a nested body writes. */
+    record Variable(String name, List<CompiledOp> body) implements CompiledOp {
+
+    }
+
+    /** Map a value through a lookup table. */
+    record ValueMap(CompiledRef select,
+                    List<OutputNode.Entry> entries,
+                    String defaultValue,
+                    String name) implements CompiledOp {
+
+    }
+
+    /**
+     * Run a transform function over resolved inputs — every {@code translate}, {@code replace},
+     * {@code substring} and the rest, as one instruction with its parameters already closed
+     * over. What kind it was matters at authoring time; at run time there is only "resolve the
+     * selects, apply the function, write or bind the result".
+     */
+    record Transform(List<CompiledRef> select,
+                     String name,
+                     Function<List<String>, String> function) implements CompiledOp {
+
+    }
+
+    /**
+     * Compile a body.
+     *
+     * @param patterns the project's interned patterns, already collected — a regex replace
+     *                 resolves its {@link BytePattern} here, once
+     */
+    static List<CompiledOp> compile(final List<OutputNode> body, final Map<String, BytePattern> patterns) {
+        final List<CompiledOp> ops = new ArrayList<>(body.size());
+        for (final OutputNode node : body) {
+            final CompiledOp op = switch (node) {
+                case OutputNode.Text text ->
+                        new Text(text.value().getBytes(StandardCharsets.UTF_8));
+                case OutputNode.ValueOf valueOf -> new ValueOf(CompiledRef.of(valueOf.select()));
+                case OutputNode.If value ->
+                        new If(value.test(), compile(value.then(), patterns));
+                case OutputNode.Choose value -> new Choose(
+                        value.when().stream()
+                                .map(branch -> new When(branch.test(), compile(branch.body(), patterns)))
+                                .toList(),
+                        compile(value.otherwise(), patterns));
+                case OutputNode.Switch value -> new Switch(
+                        CompiledRef.of(value.select()),
+                        value.cases().stream()
+                                .map(c -> new Case(c.value(), compile(c.body(), patterns)))
+                                .toList(),
+                        compile(value.defaultBody(), patterns));
+                case OutputNode.ApplyTemplates apply -> new Apply(
+                        apply.directive(),
+                        CompiledRef.of(apply.directive().select()),
+                        isWholeParentContent(apply.directive().select()),
+                        isWholeParentContent(apply.directive().select())
+                        || isLocalGroup(apply.directive().select()));
+                case OutputNode.CallTemplate value -> new Call(
+                        value.name(),
+                        value.withParam().stream()
+                                .map(param -> new Arg(param.name(), CompiledRef.of(param.value())))
+                                .toList());
+                case OutputNode.Variable value ->
+                        new Variable(value.name(), compile(value.body(), patterns));
+                case OutputNode.ValueMap value -> new ValueMap(
+                        CompiledRef.of(value.select()), value.entries(), value.defaultValue(), value.name());
+                case OutputNode.Translate value -> transform(value.select(), value.name(),
+                        inputs -> Transforms.translate(inputs, value.from(), value.to()));
+                case OutputNode.StringJoin value -> transform(value.select(), value.name(),
+                        inputs -> Transforms.stringJoin(inputs, value.separator()));
+                case OutputNode.Replace value -> replace(value, patterns);
+                case OutputNode.LowerCase value ->
+                        transform(value.select(), value.name(), Transforms::lowerCase);
+                case OutputNode.UpperCase value ->
+                        transform(value.select(), value.name(), Transforms::upperCase);
+                case OutputNode.NormalizeSpace value ->
+                        transform(value.select(), value.name(), Transforms::normalizeSpace);
+                case OutputNode.Trim value ->
+                        transform(value.select(), value.name(), Transforms::trim);
+                case OutputNode.Substring value -> transform(value.select(), value.name(),
+                        inputs -> Transforms.substring(inputs, value.start(), value.length()));
+                case OutputNode.Tokenize value -> transform(value.select(), value.name(),
+                        inputs -> Transforms.tokenize(inputs, value.delimiter()));
+                case OutputNode.Number value ->
+                        transform(value.select(), value.name(), Transforms::number);
+            };
+            ops.add(op);
+        }
+        return List.copyOf(ops);
+    }
+
+    private static Transform transform(final List<RefExpression> select,
+                                       final String name,
+                                       final Function<List<String>, String> function) {
+        return new Transform(select.stream().map(CompiledRef::of).toList(), name, function);
+    }
+
+    /** A regex replace closes over its compiled pattern; a literal one over its text. */
+    private static Transform replace(final OutputNode.Replace value,
+                                     final Map<String, BytePattern> patterns) {
+        if (!value.isRegex()) {
+            return transform(value.select(), value.name(),
+                    inputs -> Transforms.replaceLiteral(inputs, value.pattern(), value.replacement()));
+        }
+        final BytePattern pattern = patterns.get(value.pattern());
+        if (pattern == null) {
+            throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
+        }
+        return transform(value.select(), value.name(),
+                inputs -> inputs.isEmpty()
+                        ? null
+                        : Transforms.replaceRegex(pattern, inputs.getFirst(), value.replacement()));
+    }
+
+    /** True if an expression is exactly "group 0 of this match, whichever one that is". */
+    private static boolean isWholeParentContent(final RefExpression expression) {
+        return expression.parts().size() == 1
+               && expression.parts().getFirst() instanceof RefPart.Capture capture
+               && capture.varId() == null
+               && capture.group() == 0
+               && capture.matchIndex() == null;
+    }
+
+    /** True if an expression is one group of this match, wherever that group came from. */
+    private static boolean isLocalGroup(final RefExpression expression) {
+        return expression.parts().size() == 1
+               && expression.parts().getFirst() instanceof RefPart.Capture capture
+               && capture.varId() == null
+               && capture.matchIndex() == null;
+    }
+}

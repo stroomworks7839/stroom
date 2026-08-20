@@ -71,7 +71,7 @@ public final class Compiler {
         final Map<String, BytePattern> patterns = new HashMap<>();
 
         for (final Template template : project.templates()) {
-            templates.add(new CompiledTemplate(template, compileMatch(template, charset, project)));
+            // Patterns first: a body's compiled form resolves its regex replaces against them.
             if (template.guard() != null) {
                 collect(template.guard(), template, patterns);
             }
@@ -79,6 +79,9 @@ public final class Compiler {
             if (template.match() instanceof MatchExpression.Progressive progressive) {
                 steps(progressive.steps(), template, patterns);
             }
+            templates.add(new CompiledTemplate(template,
+                    compileMatch(template, charset, project),
+                    CompiledOp.compile(template.body(), patterns)));
         }
         return new CompiledProject(project, templates, patterns, encoding, warnings);
     }

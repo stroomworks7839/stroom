@@ -18,15 +18,23 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.Template;
 
-/**
- * A template and its compiled match, together.
- *
- * <p>The pair is inlined rather than looked up because the match loop touches it once per
- * candidate per position, which is the hottest thing the engine does.
- *
- * @param template the authored template, still the source of truth for everything but matching
- * @param match    its compiled match expression
- */
-public record CompiledTemplate(Template template, CompiledMatch match) {
+import java.util.List;
 
+/**
+ * A template, its compiled match, and its compiled body, together.
+ *
+ * <p>Inlined rather than looked up because the match loop touches this once per candidate per
+ * position, which is the hottest thing the engine does — and what a match runs next is its
+ * body, already compiled.
+ *
+ * @param template the authored template, still the source of truth for limits, guards and
+ *                 captures
+ * @param match    its compiled match expression
+ * @param body     its compiled body
+ */
+public record CompiledTemplate(Template template, CompiledMatch match, List<CompiledOp> body) {
+
+    public CompiledTemplate {
+        body = List.copyOf(body);
+    }
 }

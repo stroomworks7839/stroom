@@ -154,12 +154,21 @@ public final class Refs {
         if (capture.varId() == null) {
             return match.group(capture.group());
         }
-        final List<Store> stores = vars.get(capture.varId());
-        if (stores == null || capture.group() >= stores.size()) {
+        return lookup(capture.varId(), capture.group(), capture.matchIndex(), matchCount, vars);
+    }
+
+    /** A group of a named variable, under a reference's index rule. Shared with the compiled form. */
+    static TypedValue lookup(final String varId,
+                             final int group,
+                             final MatchIndex matchIndex,
+                             final int matchCount,
+                             final VarRegistry vars) {
+        final List<Store> stores = vars.get(varId);
+        if (stores == null || group >= stores.size()) {
             return null;
         }
-        final Store store = stores.get(capture.group());
-        final Integer index = index(capture.matchIndex(), store, matchCount, vars);
+        final Store store = stores.get(group);
+        final Integer index = index(matchIndex, store, matchCount, vars);
         return index == null ? store.latest() : store.get(index);
     }
 
