@@ -17,6 +17,8 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.MatchStep;
+import stroom.shapeshifter.regex.Anchoring;
+import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.util.List;
@@ -31,13 +33,64 @@ import java.util.List;
 public sealed interface CompiledMatch {
 
     /**
-     * A compiled pattern.
+     * A compiled pattern, holding its own matcher.
      *
-     * @param pattern the compiled pattern
-     * @param advance which group's end the cursor lands on, or 0 for the end of the whole match
+     * <p>The matcher is a field, not a lookup — the graph owns its state (D35). Holding one per
+     * node is safe against re-entrant dispatch because a match's groups are copied out before
+     * any body runs; it is also what makes the graph one-execution-at-a-time, which is the
+     * graph's contract.
+     *
+     * <p>Anchoring is decided here, at compile time. A pattern that can only match at the start
+     * of its region — it opens with {@code ^} or {@code \A}, has no alternation to smuggle in
+     * an unanchored branch, and no {@code (?m)} to turn {@code ^} into a line anchor — is
+     * dispatched {@code ANCHORED}: one attempt at the cursor, instead of a search of the whole
+     * remaining region to prove what that one attempt would have proved. The baseline measured
+     * that difference at 3.6× on {@code win_sec_xml} (10-engine-compilation.md §5). The
+     * detection is conservative: a pattern it cannot prove anchored costs a search, never a
+     * wrong answer.
      */
-    record Regex(BytePattern pattern, int advance) implements CompiledMatch {
+    final class Regex implements CompiledMatch {
 
+        private final BytePattern pattern;
+        private final int advance;
+        private final Anchoring anchoring;
+        private final ByteMatcher matcher;
+
+        public Regex(final BytePattern pattern, final int advance) {
+            this.pattern = pattern;
+            this.advance = advance;
+            this.anchoring = startAnchored(pattern.pattern())
+                    ? Anchoring.ANCHORED
+                    : Anchoring.UNANCHORED;
+            this.matcher = pattern.matcher();
+        }
+
+        /** The compiled pattern. */
+        public BytePattern pattern() {
+            return pattern;
+        }
+
+        /** Which group's end the cursor lands on, or 0 for the end of the whole match. */
+        public int advance() {
+            return advance;
+        }
+
+        /** How this pattern is dispatched — decided once, above. */
+        public Anchoring anchoring() {
+            return anchoring;
+        }
+
+        /** This node's matcher. */
+        public ByteMatcher matcher() {
+            return matcher;
+        }
+
+        /** Provably start-anchored, conservatively: a miss costs a search, never a wrong match. */
+        private static boolean startAnchored(final String pattern) {
+            return (pattern.startsWith("^") || pattern.startsWith("\\A"))
+                   && pattern.indexOf('|') < 0
+                   && !pattern.contains("(?m");
+        }
     }
 
     /** A delimiter and its friends, encoded to bytes once. */

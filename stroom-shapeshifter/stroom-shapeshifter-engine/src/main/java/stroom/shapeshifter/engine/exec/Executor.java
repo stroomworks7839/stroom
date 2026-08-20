@@ -30,7 +30,6 @@ import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.text.Encoding;
-import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 
 import java.io.IOException;
@@ -406,8 +405,10 @@ public final class Executor {
                                           final byte[] data,
                                           final int from,
                                           final int to) {
-        final ByteMatcher matcher = regex.pattern().matcher();
-        if (!matcher.match(data, from, to, Anchoring.UNANCHORED)) {
+        // The node owns its matcher and knows its anchoring (D35): an anchored dispatch is one
+        // attempt at the cursor, not a search of everything after it.
+        final ByteMatcher matcher = regex.matcher();
+        if (!matcher.match(data, from, to, regex.anchoring())) {
             return null;
         }
         final int groupCount = regex.pattern().groupCount() + 1;

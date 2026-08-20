@@ -359,6 +359,33 @@ class EngineBehaviourTest {
                 && message.text().contains("Object"));
     }
 
+    @Test
+    void multilineAnchorsAreNotMistakenForStartAnchors() {
+        // Compile-time anchoring detection (D35's first optimisation) dispatches provably
+        // start-anchored patterns as one attempt at the cursor. (?m) turns ^ into a line
+        // anchor, so this pattern can legitimately match past the cursor — the detection must
+        // leave it on the search path, and the skip must be reported as ever.
+        final Run result = run("""
+                {
+                  "name": "multiline", "version": 3,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "x", "mode": "row",
+                     "match": {"regex": {"pattern": "(?m)^x=([0-9])"}},
+                     "body": [{"value-of": {"parts": [{"text": "[X:"}, {"capture": {"group": 1}},
+                                                      {"text": "]"}]}}]}
+                  ]
+                }
+                """, "skip\nx=7");
+
+        assertThat(result.output()).isEqualTo("[X:7]");
+        assertThat(result.messages()).anyMatch(message ->
+                message.text().contains("failed to match from the start of the content"));
+    }
+
     // -----------------------------------------------------------------------------------
     // Capture lifecycle (E19)
     // -----------------------------------------------------------------------------------

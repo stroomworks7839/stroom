@@ -25,7 +25,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A configuration ready to run.
+ * A configuration ready to run — the executable graph, and the second of the only two layers
+ * there are (D35).
+ *
+ * <p>Its nodes own their state, so the graph executes <b>one run at a time</b> and is reused
+ * sequentially — a {@code ByteMatcher}'s contract, one level up. Concurrency is one compiled
+ * graph per instance, which compilation prices at milliseconds.
  *
  * @param project   the authored configuration
  * @param templates its templates, compiled, in their authored order
