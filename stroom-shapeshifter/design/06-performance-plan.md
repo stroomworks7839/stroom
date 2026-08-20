@@ -19,6 +19,14 @@ four confident hypotheses on the way.
 | Literal runs as one instruction | **Deprioritised by architecture (D31/D32)** | Was aimed at the flat fancy engine, now fallback-only; the tree engine's `ByteSeq` already compares runs whole. Revisit only if the fallback ever shows up in a measurement |
 | Literal-prefix skip (Boyer–Moore-ish) | **Deprioritised by evidence** | SPARSE measured 2.80× *ahead* of the JDK without it (`2026-08-19-1601`); revisit only if a sparse workload ever loses |
 
+**A method note from the early-exit miss (2026-08-20):** benchmark the failure path, not
+only the success path. Every corpus workload measures searches that mostly match, so a search
+that is guaranteed to fail over a large region — the shape a *dispatching caller* produces
+dozens of times per record — was never on the board, and the gates shipped without their exit.
+The miss surfaced two layers up, as a 3.6× inversion in the template engine's baseline, and
+took a why-chain across both projects to trace home. `AnchoredSearchBenchmark` now keeps the
+failure shape measured permanently.
+
 **A third method note, from the tier 0 audit:** a batch's confirmation run must re-measure
 the tiers it *touched*, not only the workloads it targeted. D32's confirmation measured its
 target categories and shipped a silent 24% regression on buffer CSV — an inlining cliff from
@@ -98,3 +106,21 @@ becomes measurable), and **UNICODE** (accented text — where D19 priced the Uni
 10–20% and no benchmark had ever charged it). Still missing: a many-hundreds-of-patterns
 pollution workload (§3 above), and any workload with catastrophically ambiguous input, which
 only the budget tests exercise today.
+
+## 6. General-purpose candidates — learned from other engines, awaiting a workload
+
+The library is general-purpose, so ideas with solid prior art belong on the plan even before a
+corpus workload demands them — recorded here so they are not rediscovered, and deliberately
+*not* in §1, because no measurement yet says they matter. Each enters the usual way when its
+time comes: a failure-shaped benchmark first (the 2026-08-20 method note — both of these live
+on paths the success-path suites never exercise), then one change with JMH either side.
+
+| Item | Mechanism | Prior art | Ingredients already here |
+|---|---|---|---|
+| **End-anchored tail window** ("end sampling") | An `END_INPUT`-anchored pattern with a finite maximum length can only *start* inside `[to − maxLen, to − minLen]` — an unanchored search jumps straight to that window instead of scanning forward from the cursor. `(?m)$` earns nothing (line ends are everywhere): the exact mirror of the leading gate's INPUT/LINE split | The dual of every engine's prefix reasoning; §1's minimum-length fail-fast is the same argument one anchor weaker | The parser already distinguishes `END_INPUT` from `END_LINE`; `Analysis.byteLength` already returns `[min, max]` with an unbounded sentinel. Missing: a trailing-anchor analysis (the mirror of `Nfa.startAnchor()`) and the jump itself |
+| **Reverse matching for end-heavy patterns** | For *unbounded* end-anchored patterns (`.*foo\z`), run a reverse-compiled program backwards from the region end — one attempt, no forward scan at all. The cousin covers patterns whose most distinguishing part is their *suffix*: scan for the suffix literal, verify backwards from each hit | rust regex-automata's `ReverseAnchored` and `ReverseSuffix` strategies; .NET's `RightToLeft` matching; Hyperscan's suffix acceleration; GNU grep's backward tricks | None — this needs reverse compilation of the HIR, an architecture piece on the scale of a new engine mode. Recorded as an idea with named prior art; costed only when a workload asks |
+
+The corpus today contains no pattern that would move: win_sec's `(.+)$` fields are all
+`(?m)` line-ends, and `filename_extract`'s `([^\\]+)$` is end-anchored but unbounded, cold,
+and would need the reverse tier. That is why these are §6 and not §1 — the general-purpose
+argument earns them a row; only a measurement earns them a change.
