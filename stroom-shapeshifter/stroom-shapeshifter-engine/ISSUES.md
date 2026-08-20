@@ -229,7 +229,12 @@ grows will want its own shape rather than that one.
 3.6× *slower* than its unanchored sibling, because `^`-anchored patterns are dispatched as
 unanchored searches and every attempt allocates a matcher. The two fixes are the named first
 optimisation: anchored patterns dispatched `ANCHORED`, and the matcher held as a field of the
-compiled node — the `CompiledProject` *is* the per-run executable graph. The change-then-measure loop starts there.** `EngineBenchmark` runs seven
+compiled node — the `CompiledProject` *is* the per-run executable graph. That first change
+landed 2026-08-20 (`6582e96cd9`): `win_sec_xml` moved 1.5 → 16.2 MiB/s, the predicted order of
+magnitude, with `ausearch` 3.25× and `apache_httpd` 1.38× as unpredicted bonuses from the same
+mechanism and the controls flat. The loop continues —
+[10-engine-compilation.md §6](../design/10-engine-compilation.md) names `win_sec`'s dispatch
+costs as the next candidates.** `EngineBenchmark` runs seven
 whole configurations over 256 KiB of repeated real records, five forks, results to
 `design/benchmarks/` — the regex module's discipline. The status it measures against, and the
 gap list of what is interpreted rather than compiled, is

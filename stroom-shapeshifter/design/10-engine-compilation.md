@@ -139,3 +139,38 @@ D34 pushes authors toward.
 Elsewhere: the step interpreter is *not* the first-order problem (47.8 MiB/s without any of
 E14's lowering), and compile costs are milliseconds at worst (`win_sec_xml`, 55 patterns,
 ~8.5 ms) — compile-once-run-many holds with room to spare.
+
+## 6. Change 1, measured: the node owns its matcher and knows its anchoring
+
+One structural change (`6582e96cd9`): `CompiledMatch.Regex` holds its `ByteMatcher` as a field
+and decides its anchoring at compile time — provably start-anchored patterns dispatch
+`ANCHORED`, one attempt at the cursor. Correctness gate first: all 52 fixtures and 242 tests
+unchanged, plus a new pin that `(?m)^` is never claimed. Then the measurement
+([benchmarks/2026-08-20-1736-6582e96cd9-engine.json](benchmarks/2026-08-20-1736-6582e96cd9-engine.json)):
+
+| Workload | before MiB/s | after MiB/s | ratio |
+|---|---:|---:|---:|
+| `win_sec_xml` | 1.5 | **16.2** | **10.5×** |
+| `ausearch` | 10.5 | 34.0 | 3.25× |
+| `apache_httpd` | 21.2 | 29.4 | 1.38× |
+| `regex_lines` | 67.6 | 74.6 | 1.10× |
+| `csv_header` | 30.2 | 30.6 | 1.01× |
+| `win_sec` | 5.5 | 5.5 | 0.99× |
+| `progressive` | 47.8 | 46.1 | 0.96× |
+
+The predicted order of magnitude arrived where it was predicted: `win_sec_xml` at 10.5×, and
+the A/B now points the way D34 said it should — the anchored configuration beats its unanchored
+sibling threefold instead of trailing it. Two bonuses were not predicted but are the same
+mechanism: `ausearch` and `apache_httpd` carry provably start-anchored patterns of their own.
+
+The controls behaved: `csv_header` (delimiter path, untouched) is flat at 1.01×, `win_sec`
+(all `(?m)` patterns, correctly left unanchored) at 0.99×. `progressive` at 0.96× sits just
+outside its error bar and is recorded as probable noise, with the flat csv row as evidence the
+box was quiet. Compile cost is unchanged where it is measured meaningfully (the ms-scale rows,
+0.98–1.08×); the two sub-microsecond compile rows moved but their baseline error bars were
+30–40% and no claim rests on them.
+
+**Next, from §2, in evidence order:** `win_sec` is now the slowest workload and its costs are
+the ones this change could not touch — the 57-template pass over unanchored `(?m)` patterns,
+and per-dispatch template filtering. Mode dispatch tables and reference strategies are the next
+candidates, one measured change at a time.
