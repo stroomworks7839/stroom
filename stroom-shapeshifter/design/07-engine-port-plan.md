@@ -162,12 +162,23 @@ built first and report `n/48` from the start, so every phase moves a number.
 | 4 | **DS3 import — done.** `ds3_config`, `migration` and the legacy `$`-syntax reference parser, including `records:2` output shaping | `44/48` — all 19 `legacy` entries, output *and* message goldens, rejection case included |
 | 5 | **Progressive matching — done.** All 24 `MatchStep` kinds, `StepRef` resolution, pattern-reference inlining, and the JDK codecs | `48/48` — every in-scope fixture |
 | 6 | **Encodings — done.** All 29 named encodings, byte-order-mark detection, inheritance, and conversion at the two boundaries that need it | The Rust suite's encoding assertions ported (18 tests), plus 6 that run non-UTF-8 input end to end |
-| 7 | **Unit test port.** The remaining ~160 unit and integration tests, `refs` (33) and `store` (13) and `compiled` (14) and `exec_tests` (55) foremost | Whole suite green; coverage of the ported surface no worse than the Rust crate's |
+| 7 | **Unit test port — done.** The Rust suite's assertions for `refs`, `store`, the compiler and the parts of `exec_tests` the fixtures cannot reach | 184 tests green, and a cycle-detection defect found and fixed |
 | 8 | **Instrumentation seam.** `Instrument` + no-op, and `regex_info` | Engine compiles against the seam with no production cost |
 
 Phases 5 and 6 are ordered after 4 deliberately: a full ledger is the milestone that
 proves the architecture, and progressive matching and exotic encodings are each self-contained
 enough to follow it without re-opening anything.
+
+**What phase 7 found: a missing guard.** Porting `compiled.rs`'s tests turned up that pattern
+reference inlining had no cycle detection — a pattern referring to itself would have inlined
+until the stack ran out. ds-rs carries a visited set through the recursion and unwinds it on the
+way back, so a pattern used twice in different branches is fine and only one reached from inside
+itself is a cycle. Fixed, with tests for both halves of that distinction.
+
+Also settled: `ds-rs`'s compile-time optimiser — unused-capture elimination and dead-branch
+pruning — is **not** ported. It changes no output, only work, and D33 rules out performance work
+during a port. Its fourteen tests are therefore not ported either, and the omission is recorded
+here rather than left to be noticed.
 
 **What phase 6 found: a field nobody reads.** `Template.encoding` is in the model, is written
 by the format, and is never looked at by the Rust engine — an encoding override per template
