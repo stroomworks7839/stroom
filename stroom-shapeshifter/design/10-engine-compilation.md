@@ -43,22 +43,29 @@ candidate, and none may be acted on before a benchmark says which matter (§4):
 | Conditions and guards | config-tree walk per evaluation | compiled once |
 | Captures | every group copied out of the buffer whether or not anything reads it | unused-capture elimination + dead-branch pruning (the E10 optimiser, deliberately unported during the port) |
 | `^`-anchored patterns dispatched as **unanchored searches** | a failing anchored template scans the whole remaining region instead of testing one position — ~55 times per element in `win_sec_xml` | detect start-anchored patterns at compile time and dispatch them `Anchoring.ANCHORED` *(added from the baseline, §5)* |
-| `ByteMatcher` allocated per match attempt | allocation on the hottest call the engine makes | a matcher held as a *field* of the per-run graph — structure, not a cache *(added from the baseline, §5)* |
+| `ByteMatcher` allocated per match attempt | allocation on the hottest call the engine makes | a matcher held as a *field* of the compiled node — structure, not a cache *(added from the baseline, §5)* |
 
 The regex library already proves the end state on its own layer; the engine's job is the same
-move for dispatch, references, bodies and steps. And DS3 settles a point of shape worth stating
-plainly, because "cache" is the wrong instinct for it: DS3 has **three layers**, not two. The
-config is compiled into a shared, immutable factory tree (`RegexFactory` holds the compiled
-`Pattern`), and each parser then instantiates a **per-run node graph** from it
-(`factory.newInstance(varMap)`) whose `Regex` node holds its `Matcher` as a plain field — with
-the stores living on the nodes too. Nothing is cached, because nothing is looked up; state has
-an owner. That is the regex module's own `BytePattern` → `matcher()` split, one level up, and it
-is the engine's target: `CompiledProject` stays the shared immutable layer, and a per-run
-executable graph instantiated from it owns the matchers and stores as fields. `Executor`, which
-already holds the per-run state, is the seed of that layer. Within that shape,
-`CompiledTemplate` grows per-mode dispatch tables, references become classified strategies with
-pre-encoded literals, and bodies become a compiled instruction list rather than a walked model —
-but shape follows measurement, not the other way round.
+move for dispatch, references, bodies and steps. And the shape is **two layers, not three** —
+settled 2026-08-20 after a false start that imported `BytePattern`'s shared-immutable contract
+up a level where nothing needs it. The `Project` is the model the user edits; the
+`CompiledProject` **is the executable graph**, and matchers and stores are *fields of its
+nodes* — structure, not a cache, because nothing is looked up when state has an owner. The
+sharing that actually matters, pattern compilation, already lives in the immutable
+`BytePattern` values the graph holds; DS3's factory tree is an instantiation convenience, not
+an architectural layer; and the baseline (§5) prices the consequence at milliseconds —
+concurrency is "compile one per instance", exactly as Stroom gives each pipeline element its
+own parser.
+
+Two contracts follow. A `CompiledProject` executes one run at a time and is reusable
+sequentially — a `ByteMatcher`'s contract, one level up — which means it needs a defined reset
+between streams: DS3's `Node.clear()`, and the same lifecycle E19 already settled for capture
+stores. And `Executor` is transitional: as bodies and dispatch become compiled structures, it
+dissolves into the graph, because "performs the execution" is the compiled object's job
+description. Within that shape, `CompiledTemplate` grows per-mode dispatch tables, references
+become classified strategies with pre-encoded literals, and bodies become a compiled
+instruction list rather than a walked model — but shape follows measurement, not the other way
+round.
 
 ## 3. Decoration: measurement and IO capture as a compile-time choice
 
