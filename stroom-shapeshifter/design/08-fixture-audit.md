@@ -5,8 +5,9 @@ Eleven of the eighteen `projects` goldens were produced by ds-rs from its own ou
 point, not a warrant: each of those eleven is checked once, here, and thereafter is a frozen
 golden like any other. This is that check, run on 2026-08-20 during phase 0 of the port.
 
-**Four of the eleven are wrong.** They are quarantined in `fixtures/status.txt` — vendored,
-never run, and not promotable until a corrected golden replaces them. The other seven pass
+**Four of the eleven are wrong.** They were quarantined in `fixtures/status.txt` — vendored,
+never run, and not promotable until a corrected golden replaced them. One, `win_sec`, has since
+been fixed and promoted; three remain. The other seven pass
 every check applied and are now ordinary goldens.
 
 The `legacy` goldens are not in scope here. They came from Java Stroom's own DS3 and are an
@@ -69,11 +70,12 @@ the engine can express this correctly; this config does not.
 
 ### `win_sec` and `win_sec_xml` — the goldens drop group identity
 
-*Diagnosed 2026-08-20; see E6 in [the issue list](../stroom-shapeshifter-engine/ISSUES.md). It is
-a configuration defect, not an engine one — the template before `Group` uses `(?ms)` where it
-means `(?m)`, and dot-all makes its trailing capture swallow the Group block. The text is not
-lost; it is inside the `MemberDN` attribute. The paragraphs below stand as the audit recorded
-them.*
+*Diagnosed and fixed 2026-08-20 — see E6 in [the issue list](../stroom-shapeshifter-engine/ISSUES.md).
+A configuration defect, not an engine one: two patterns ended in a greedy dot under `(?ms)`, so
+`Member` swallowed the Group block before `Group` was tried and `Group` swallowed the record's
+tail into `GroupDomain`. Both are now `(?m)`, the golden is regenerated and verified, and the
+fixture is promoted. `win_sec_xml` is untouched and stays quarantined under E16. The paragraphs
+below stand as the audit recorded them.*
 
 Eleven elements come out empty across each file — `Id`, `Name`, `Type`, `Domain`. Tracing one
 back to the input shows data that plainly exists being lost:
@@ -113,7 +115,8 @@ fixed config run through a working engine, or Java Stroom where an equivalent co
 Until then the ledger records the defect next to the fixture, which is the point: a fixture
 that cannot be trusted should say so where it lives, not in someone's memory.
 
-**All four turned out to be configuration defects rather than engine defects.** `apache_httpd`'s
+**All four turned out to be configuration defects rather than engine defects**, which is the
+audit's most useful single result: the corpus was hiding bad configurations, not a bad engine. `apache_httpd`'s
 escaping and literal newlines and `xml_to_json`'s missing braces were evident at the time;
 `win_sec` was the one that might have been an engine bug, and the re-examination this section
 called for was done once the port was complete. It is not: both engines produce the same output

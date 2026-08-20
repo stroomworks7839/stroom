@@ -241,16 +241,16 @@ rather than guessed, and all six of them are green.
 
 ## 6. The port is complete
 
-All eight phases are done. 48 of 48 in-scope fixtures pass, output and — for the legacy family —
+All eight phases are done. 49 of 49 in-scope fixtures pass, output and — for the legacy family —
 messages; 198 tests run in the module; both it and the matching layer check clean.
 
 What is deliberately not here, each with its reason recorded above: the three binary formats and
-their heavy dependencies (D33); the four goldens the phase 0 audit found wrong, quarantined until
-somebody produces corrected ones; ds-rs's compile-time optimiser, which changes work rather than
+their heavy dependencies (D33); three of the four goldens the phase 0 audit found wrong, quarantined
+until somebody produces corrected ones — the fourth has since been fixed (E6); ds-rs's compile-time optimiser, which changes work rather than
 output; and `RecordingInstrument`, whose only consumer was an editor that is not being ported —
 the seam it needed is here, the implementation is not.
 
-**What the port turned up is tracked, not buried here.** Sixteen open items — the behaviour
+**What the port turned up is tracked, not buried here.** Sixteen items — the behaviour
 worth deciding about, the four wrong goldens, the scope deliberately left out, and the decisions
 the port enables — live in [the module's issue list](../stroom-shapeshifter-engine/ISSUES.md)
 with the evidence for each. None were fixed in flight, because a port that improves things as it

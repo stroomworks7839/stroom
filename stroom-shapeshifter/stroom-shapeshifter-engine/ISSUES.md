@@ -84,56 +84,54 @@ Pinned by `StepsTest`. The matching layer already has correct Unicode classes
 ## Fixtures whose goldens are wrong
 
 Found by the phase 0 audit; the evidence is in
-[08-fixture-audit.md](../design/08-fixture-audit.md). All four are vendored and quarantined in
-`fixtures/status.txt`, and cannot be promoted until corrected goldens exist.
+[08-fixture-audit.md](../design/08-fixture-audit.md). One (E6) has been diagnosed, fixed and
+promoted; the rest are vendored and quarantined in `fixtures/status.txt`, and cannot be promoted
+until corrected goldens exist.
 
-### E6 — `win_sec` loses group identity to a one-character configuration mistake
-**`open`, but diagnosed. Not an engine defect — the configuration is wrong, and the fix is
-known.**
+### E6 — `win_sec` lost group identity to two dot-all flags
+**`resolved` 2026-08-20. Not an engine defect; the fixture's configuration was wrong.**
 
-The input says `Security ID: S-1-5-32-551` and `Group Name: Backup Operators`; the golden says
-`<Id></Id><Name></Name>`. The record count is right and the XML is well-formed, which is exactly
-why byte-equality never noticed.
+The golden said `<Id></Id><Name></Name>` where the input plainly says `S-1-5-32-551` and
+`Backup Operators`. The Java engine reproduced that golden byte for byte, so both
+implementations agreed and neither was at fault; the `Group` template's pattern extracted all
+three groups when run against the record on its own, so the pattern was not at fault either.
 
-**Investigated 2026-08-20.** The Java engine reproduces the golden byte for byte, so the two
-implementations agree and neither is at fault. The `Group` template's pattern matches the input
-perfectly in isolation — all three groups extract — so the pattern is not at fault either. The
-cause is the template *before* it:
+The templates *around* it were. Templates of a mode share one cursor, each consuming from where
+the last stopped, and two patterns ended in a greedy dot under `(?ms)`:
 
-```
-Member  (?ms)Member:\n\tSecurity ID:\t+(\S+)\n\tAccount Name:\t+(.+)$
-                ^^ dot-all
-```
+| Template | Effect of dot-all |
+|---|---|
+| `Member` | `(.+)$` ran to the end of the record, consuming the Group block before `Group` was tried — and filing its text inside the `MemberDN` attribute, where the old golden preserved all of it |
+| `Group` | `(.+)$` swallowed the record's tail into `GroupDomain`, which is why the second flag had to go too — the first fix alone produced `Value="Builtin\n"` |
 
-Templates of a mode share one cursor, each consuming from where the last stopped. With dot-all
-on, `(.+)$` runs to the end of the record rather than the end of its line, so `Member` consumes
-the Group block before `Group` is ever tried — and the block's text ends up inside the
-`MemberDN` attribute, where the golden preserves it in full:
+Both are now `(?m)`. Neither pattern needs `.` to cross a newline: they spell their newlines out.
 
-```
-Value="CN=svc_backup,…\n\nGroup:\n\tSecurity ID:\t\tS-1-5-32-551\n\tGroup Name:…"
-```
+**Fixed and frozen.** The regenerated golden differs from the old one in exactly three places, all
+corrections, each traceable to the input: the group id and name now appear, `MemberDN` no longer
+carries the Group block, and `GroupDomain` is `Builtin` rather than empty. It is well-formed, has
+the same 11 records, no raw ampersands, and its two remaining multi-line attribute values
+(`Privileges`, `Accesses`) were in the old golden too and are genuine multi-valued Windows
+fields. Promoted to `PASS`.
 
-So nothing is lost; it is filed under the wrong name. Changing that one pattern from `(?ms)` to
-`(?m)` makes the fields extract — `<Id>S-1-5-32-551</Id><Name>Backup Operators</Name>` — and
-takes the file's empty elements from eleven to nine.
-
-**What remains.** Resolving it means editing a vendored fixture's configuration and producing a
-corrected golden, which is a change to the acceptance corpus rather than to the engine, and needs
-a decision. The nine surviving empty elements are different records — see E16 — and `win_sec_xml`
-has the same symptom but a different configuration, so its cause is assumed, not shown.
+*The second flag is the reason this needed regenerating rather than reasoning about. Fixing
+`Member` alone looked right and produced a newline inside an attribute; only the diff showed
+it.*
 
 ### E16 — `win_sec`'s remaining empty elements, and `win_sec_xml`'s
-**`open`. Split out of E6 so that fixing one does not look like fixing both.**
+**`open`. Split out of E6 so that fixing one did not look like fixing both.**
 
-With E6's pattern corrected, `win_sec` still emits nine empty elements —
-`<Object><Type/><Id/><Name/></Object>` twice and `<User><Id/><Domain/></User>` once — in records
-E6 does not touch. `win_sec_xml` emits eleven of `Id`, `Name` and `Type` from a differently
-shaped configuration.
+With E6 fixed, `win_sec` still emits nine empty elements — `<Object><Type/><Id/><Name/></Object>`
+twice and `<User><Id/><Domain/></User>` once — in records E6 did not touch. It passes anyway:
+the golden is now a correct record of what that configuration does, and these are the same
+configuration still being imperfect. `win_sec_xml` emits eleven of `Id`, `Name` and `Type` from a
+differently shaped configuration and stays quarantined.
 
-Whether these are the same class of mistake, a different one, or input that genuinely lacks the
-fields is not established. E6's method applies: run the template's pattern against the record in
-isolation, and if it matches, look at what the template before it consumed.
+**One lead, already found.** `AccountWhoseCredentialsWereUsed` has exactly E6's shape — `(?ms)`
+ending in `(.+)$` — and was left alone because it is a different field and not what E6 was about.
+It is the obvious place to start.
+
+E6's method is the one to reuse: run the failing template's pattern against the record on its
+own, and if it matches, look at what ran before it.
 
 ### E7 — `apache_httpd`'s golden is not well-formed XML
 **`open`. Two problems in one file.**

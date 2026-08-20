@@ -322,21 +322,15 @@
         <Action>Modify</Action>
         <AddGroups>
           <Group>
-            <Id></Id>
-            <Name></Name>
+            <Id>S-1-5-32-551</Id>
+            <Name>Backup Operators</Name>
           </Group>
         </AddGroups>
         <Outcome>
           <Success>true</Success>
         </Outcome>
-        <Data Name="MemberDN" Value="CN=svc_backup,CN=Users,DC=corp,DC=example,DC=com
-
-Group:
-	Security ID:		S-1-5-32-551
-	Group Name:		Backup Operators
-	Group Domain:		Builtin
-"/>
-        <Data Name="GroupDomain" Value=""/>
+        <Data Name="MemberDN" Value="CN=svc_backup,CN=Users,DC=corp,DC=example,DC=com"/>
+        <Data Name="GroupDomain" Value="Builtin"/>
         <Data Name="SubjectLogonId" Value="0x3B2F1"/>
         <Data Name="RecordNumber" Value="208915"/>
       </Authorise>

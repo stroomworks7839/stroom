@@ -5510,7 +5510,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "(?ms)Member:\\n\\tSecurity ID:\\t+(\\S+)\\n\\tAccount Name:\\t+(.+)$",
+          "pattern": "(?m)Member:\\n\\tSecurity ID:\\t+(\\S+)\\n\\tAccount Name:\\t+(.+)$",
           "flags": {
             "case_insensitive": false,
             "dot_all": false
@@ -5564,7 +5564,7 @@
       "mode": "event_fields",
       "match": {
         "regex": {
-          "pattern": "(?ms)Group:\\n\\tSecurity ID:\\t+(\\S+)\\n\\tGroup Name:\\t+(.+)\\n\\tGroup Domain:\\t+(.+)$",
+          "pattern": "(?m)Group:\\n\\tSecurity ID:\\t+(\\S+)\\n\\tGroup Name:\\t+(.+)\\n\\tGroup Domain:\\t+(.+)$",
           "flags": {
             "case_insensitive": false,
             "dot_all": false
