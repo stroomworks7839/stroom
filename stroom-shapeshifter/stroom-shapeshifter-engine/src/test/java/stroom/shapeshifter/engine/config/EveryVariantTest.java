@@ -190,7 +190,7 @@ class EveryVariantTest {
                         List.of(new SwitchCase("a", List.of(new OutputNode.Text("case")))),
                         List.of(new OutputNode.Text("default"))),
                 new OutputNode.ApplyTemplates(new ApplyDirective(
-                        ref(), "row", List.of(new Param("depth", ref())), 32, "named")),
+                        ref(), "row", List.of(new Param("depth", ref())), 32, "named", true)),
                 new OutputNode.CallTemplate("named", List.of(new Param("depth", ref()))),
                 new OutputNode.Variable("bound", List.of(new OutputNode.Text("value"))),
                 new OutputNode.ValueMap(ref(), List.of(new Entry("1", "one")), "unknown", "mapped"),

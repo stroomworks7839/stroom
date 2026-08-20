@@ -154,3 +154,20 @@ The change is confined to the executor's dispatch loop and its reporting:
 This is the first deliberate behavioural departure from ds-rs since the port completed, which
 is exactly the sequence D33 prescribed: port faithfully first, so that every departure after it
 is a decision with a diff, not a drift.
+
+**Implemented 2026-08-20.** Every output golden survived the dispatch change, as predicted —
+with one exception the ratchet caught immediately: fixture `018` depends on a DS3 subtlety the
+first cut got wrong. Its onlyMatch guard reads the *parent's* match counter, and a guard
+re-evaluated mid-level reads the last winner's counter instead; DS3 avoids this by passing the
+parent's count down as a parameter, so guards are now evaluated once at level entry, while the
+scope still describes the parent. Regenerating the message goldens taught two refinements, both
+read off Stroom's own `.err` evidence: the level's unmatched-content report stands down when a
+minimum-match error already explains the same failure (005 reports, 014 does not — exactly
+Stroom's record for each), and `ignoreErrors` *inherits* down the dispatch tree, which is how
+the root flag silences an inner group's report (012). The new goldens: `001`, `011`, `012`
+empty; `003` down from nineteen false warnings to eleven true errors naming genuinely unparsed
+audit lines; `005` and `014` matching Stroom's messages in count, severity and substance. E1
+and E2 close with this. The pre-fix `win_sec` configuration runs as the skip-report acceptance
+test, and one more of its defects surfaced on the way: it set `ignore_errors` at the source — a
+flag ds-rs never enforced, so the author asked for silence and got it by accident. Under D34
+the flag works.

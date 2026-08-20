@@ -50,8 +50,8 @@ public record Project(String name,
      *
      * @param bufferSize   how many bytes are read at a time. A match never spans two buffers, so
      *                     this is also the largest record the configuration can handle
-     * @param ignoreErrors continue when errors occur. Recorded but not yet enforced: the engine
-     *                     currently propagates errors regardless
+     * @param ignoreErrors suppress the root level's skip and unmatched-content reports — DS3's
+     *                     {@code ignoreErrors} on the {@code dataSplitter} element itself
      * @param encoding     the input encoding, or {@code auto} to detect it from a byte-order mark
      */
     public record SourceConfig(int bufferSize, boolean ignoreErrors, String encoding) {

@@ -186,11 +186,15 @@ class EngineBehaviourTest {
                 """;
         final Run result = run(config, "a\nb\n");
 
-        // Nothing is written, and — this is the part worth pinning — nothing is warned about
-        // either. A guard that says "not mine" is a template declining to apply, not a template
-        // failing to consume, so the check for unconsumed content never runs.
+        // Nothing is written, and the report that follows accuses nobody in particular: a guard
+        // that says "not mine" is a template declining, so what gets reported is the level's
+        // failure to match the content — DS3's own message — not the template's failure to
+        // consume it (D34).
         assertThat(result.output()).isEmpty();
-        assertThat(result.messages()).isEmpty();
+        assertThat(result.messages()).hasSize(1);
+        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.ERROR);
+        assertThat(result.messages().getFirst().text())
+                .contains("Expressions failed to match all of the content");
     }
 
     // -----------------------------------------------------------------------------------
@@ -198,23 +202,42 @@ class EngineBehaviourTest {
     // -----------------------------------------------------------------------------------
 
     @Test
-    void ignoreErrorsSilencesTheUnconsumedWarning() {
+    void unmatchedContentIsReportedOncePerLevelAndGatedByTheContainer() {
+        // A template matches the first line and nothing can match the rest. The report belongs
+        // to the level, fires once, and is gated the way DS3 gates it: by the container — the
+        // source configuration at the root, or the dispatching directive below it — never by
+        // the templates inside.
         final String config = """
                 {
-                  "name": "ignore", "version": 3,
-                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "name": "leftover", "version": 3,
+                  "source": {"buffer_size": 2000, "ignore_errors": SOURCE_IGNORE, "encoding": "utf-8"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
-                                                   "mode": "row"}}]},
+                                                   "mode": "row"DIRECTIVE_IGNORE}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
-                     "match": {"regex": {"pattern": "^nomatch$"}}, "ignore_errors": IGNORE,
-                     "body": [{"text": "x"}]}
+                     "match": {"regex": {"pattern": "^a\\n"}},
+                     "body": [{"text": "[a]"}]}
                   ]
                 }
                 """;
-        assertThat(run(config.replace("IGNORE", "false"), "abc").messages()).isNotEmpty();
-        assertThat(run(config.replace("IGNORE", "true"), "abc").messages()).isEmpty();
+        final String plain = config.replace("SOURCE_IGNORE", "false").replace("DIRECTIVE_IGNORE", "");
+
+        final Run reported = run(plain, "a\nBAD");
+        assertThat(reported.output()).isEqualTo("[a]");
+        assertThat(reported.messages()).hasSize(1);
+        assertThat(reported.messages().getFirst().severity()).isEqualTo(Severity.ERROR);
+        assertThat(reported.messages().getFirst().text())
+                .contains("Expressions failed to match all of the content")
+                .contains("[BAD]");
+
+        // The root gate: DS3's ignoreErrors on the dataSplitter element itself.
+        assertThat(run(config.replace("SOURCE_IGNORE", "true").replace("DIRECTIVE_IGNORE", ""),
+                "a\nBAD").messages()).isEmpty();
+
+        // The directive gate: DS3's ignoreErrors on the group whose content is dispatched.
+        assertThat(run(plain.replace("\"mode\": \"row\"", "\"mode\": \"row\", \"ignore_errors\": true"),
+                "a\nBAD").messages()).isEmpty();
     }
 
     @Test
@@ -235,9 +258,105 @@ class EngineBehaviourTest {
                 }
                 """, "abc");
 
+        // One message, not two: the minimum-match error already explains the unmatched
+        // content, so the level's own report stands down — which is exactly the shape of
+        // Stroom's record for fixture 014.
+        assertThat(result.messages()).hasSize(1);
+        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.ERROR);
+        assertThat(result.messages().getFirst().text())
+                .contains("did not match the required number of times (match count: 0)");
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Dispatch (D34 / E17)
+    // -----------------------------------------------------------------------------------
+
+    @Test
+    void dispatchReopensTheChoiceAfterEveryMatch() {
+        // Interleaved record kinds, each with its own anchored template. Under per-template
+        // exhaustion this cannot work — A finishes, B finishes, and the third line is stranded.
+        // Under (A|B|C)* each pass re-opens the choice from the first template, which is DS3's
+        // model and the whole point of E17.
+        final Run result = run("""
+                {
+                  "name": "interleave", "version": 3,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "a", "mode": "row",
+                     "match": {"regex": {"pattern": "^a=([0-9]+)[|]"}},
+                     "body": [{"value-of": {"parts": [{"text": "[A:"}, {"capture": {"group": 1}},
+                                                      {"text": "]"}]}}]},
+                    {"id": "00000000-0000-0000-0000-000000000003", "name": "b", "mode": "row",
+                     "match": {"regex": {"pattern": "^b=([0-9]+)[|]"}},
+                     "body": [{"value-of": {"parts": [{"text": "[B:"}, {"capture": {"group": 1}},
+                                                      {"text": "]"}]}}]}
+                  ]
+                }
+                """, "a=1|b=2|a=3|");
+
+        assertThat(result.output()).isEqualTo("[A:1][B:2][A:3]");
+        assertThat(result.messages()).isEmpty();
+    }
+
+    @Test
+    void passIsWonByListOrderAndTheSkipIsReported() {
+        // The sharp edge D34 keeps, said out loud instead of silently: an earlier-listed
+        // unanchored template matching later still beats a later-listed one matching earlier,
+        // and the content it jumped over is consumed — with a report naming it.
+        final Run result = run("""
+                {
+                  "name": "skip", "version": 3,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "late", "mode": "row",
+                     "match": {"regex": {"pattern": "ZZ"}},
+                     "body": [{"text": "[late]"}]},
+                    {"id": "00000000-0000-0000-0000-000000000003", "name": "early", "mode": "row",
+                     "match": {"regex": {"pattern": "^head"}},
+                     "body": [{"text": "[early]"}]}
+                  ]
+                }
+                """, "headZZ");
+
+        // 'late' is listed first and wins by list order, so 'early' never sees the head it was
+        // named for — and the skip says exactly what was lost.
+        assertThat(result.output()).isEqualTo("[late]");
         assertThat(result.messages()).anyMatch(message ->
                 message.severity() == Severity.ERROR
-                && message.text().contains("Expected at least 2 matches but got 0"));
+                && message.text().contains("failed to match from the start of the content")
+                && message.text().contains("[head]"));
+    }
+
+    @Test
+    void theOriginalWinSecConfigurationStrandsLoudlyNow() throws Exception {
+        // The configuration E6 and E16 fixed, exactly as it was before the fixes (git,
+        // 6907ad310c^). Under D34's dispatch it still strands the Object block — a pass is won
+        // by list order, not buffer position — but the loss is now reported with the stranded
+        // content in it. This is the fixture that would have made the original defect
+        // impossible to miss, run as the acceptance test for the reports that make it so.
+        final String config;
+        try (var in = EngineBehaviourTest.class.getResourceAsStream("/e17/win_sec-original.project.json")) {
+            config = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        // A finding of its own: the original configuration set ignore_errors at the source, a
+        // flag ds-rs never enforced — the author asked for silence and got it by accident
+        // instead. Under D34 the flag works and would gate these reports, so the test opens the
+        // gate to see them.
+        final String gated = config.replace("\"ignore_errors\": true", "\"ignore_errors\": false");
+        final Run result = run(gated, new String(
+                stroom.shapeshifter.engine.fixture.FixtureLedger.bytes("projects/win_sec/input.txt"),
+                StandardCharsets.UTF_8));
+
+        assertThat(result.messages()).anyMatch(message ->
+                message.severity() == Severity.ERROR
+                && message.text().contains("failed to match from the start of the content")
+                && message.text().contains("Object"));
     }
 
     // -----------------------------------------------------------------------------------

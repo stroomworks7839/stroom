@@ -1047,13 +1047,15 @@ public final class ProjectJson {
     }
 
     private static ApplyDirective readApply(final JsonNode node) {
-        checkFields(node, "apply-templates", "select", "mode", "with-param", "max_depth", "template_ref");
+        checkFields(node, "apply-templates", "select", "mode", "with-param", "max_depth", "template_ref",
+                "ignore_errors");
         return new ApplyDirective(
                 readRef(required(node, "select", "apply-templates")),
                 optionalText(node, "mode"),
                 list(node.get("with-param"), ProjectJson::readParam),
                 node.path("max_depth").asInt(ApplyDirective.DEFAULT_MAX_DEPTH),
-                optionalText(node, "template_ref"));
+                optionalText(node, "template_ref"),
+                node.path("ignore_errors").asBoolean(false));
     }
 
     private static ObjectNode writeApply(final ApplyDirective directive) {
@@ -1065,6 +1067,9 @@ public final class ProjectJson {
         }
         node.put("max_depth", directive.maxDepth());
         putIfPresent(node, "template_ref", directive.templateRef());
+        if (directive.ignoreErrors()) {
+            node.put("ignore_errors", true);
+        }
         return node;
     }
 

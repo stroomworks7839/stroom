@@ -18,33 +18,24 @@ and revisitable; `blocked` — needs something that does not exist.
 These are things the Rust engine does that look wrong. They are reproduced exactly, and the
 fixtures encode them, so changing any of them means changing a golden and saying why.
 
-### E1 — A `maxMatch` template warns about everything it was told not to consume
-**`blocked` on E17 — decided under [D34](../design/00-decisions.md). Root cause reframed.**
+### E1 — A `maxMatch` template warned about everything it was told not to consume
+**`resolved` 2026-08-20, by E17.**
 
-A template with `max_match` stops after its limit, as instructed, and then the unconsumed-content
-check reports everything after it as unmatched — most visibly a CSV header, which is *supposed*
-to consume one line. Seen in `fixtures/legacy/001_csv_with_header.messages` (one warning quoting
-the whole body) and behind the nineteen warnings in `003_multiline_regex.messages`.
+An artifact of the inherited `A*B*C*` dispatch plus per-template reporting: the header stopped
+at its limit, as instructed, and was then accused of failing to consume the rest of the file.
+Under D34's `(A|B|C)*` dispatch the pass after the limit lets the next template consume, and
+unmatched content is reported once per level. `001`'s message golden is now empty and `003`'s
+went from nineteen false warnings to eleven true errors naming genuinely unparsed audit lines.
 
-**The cause is not the check but the dispatch model** ([09-engine-semantics.md](../design/09-engine-semantics.md)):
-real DS3 dispatches a level as `(A|B|C)*`, where the pass after a header hits its limit simply
-lets the next expression consume, and the only report is per-level. The engine's inherited
-`A*B*C*` dispatch plus per-template reporting is what manufactures the false positive. Closes
-when E17 lands, taking its message goldens with it.
+### E2 — Both `ignoreErrors` fixtures warned anyway
+**`resolved` 2026-08-20, by E17.**
 
-### E2 — Both `ignoreErrors` fixtures warn anyway
-**`open`. Related to E1 but not the same.**
-
-`011_ignore_group_errors` and `012_ignore_root_errors` exist to test that errors are suppressed,
-and both emit a warning. In each the `ignoreErrors` is on a `<group>` while the warning comes
-from the enclosing `<split>`, which carries no such attribute — so it is arguably correct and
-certainly not what the fixtures were written to demonstrate. Java Stroom emits nothing for
-either, and neither ships an `.err` file.
-
-Seen in `fixtures/legacy/011_ignore_group_errors.messages` and `012_...messages`.
-
-Resolving it means deciding whether `ignoreErrors` on a group covers the expression that contains
-it.
+The question this asked — does `ignoreErrors` on a group cover the expression that contains it
+— turned out to be the wrong shape. In DS3 the flag belongs to the *container* and gates the
+level it dispatches, inheriting downward; the ported engine had it on templates and gated
+nothing an author would expect. Now the group's flag rides the `ApplyDirective` it generates,
+the root's rides the source configuration, and both inherit down the dispatch tree. `011`
+(group flag) and `012` (root flag) are both silent, matching Stroom.
 
 ### E3 — `Template.encoding` is never read
 **`open`. A field that does nothing.**
@@ -159,8 +150,20 @@ the average position of their field across records. It moved 48 of them and fixe
 averaging across event types blurs exactly the section order that makes a single ordering
 possible. The targeted moves are both smaller and correct.*
 
-**`win_sec_xml` remains.** It has no `(?ms)` patterns at all, so its eleven empty elements have a
-third cause and it stays quarantined.
+**`win_sec_xml` remains quarantined, but is now diagnosed** — by the engine itself, using E17's
+skip reports with the configuration's (previously unenforced) `ignore_errors` gate opened. Same
+disease, third instance: `SubjectUserSid` is listed early because Subject fields lead every
+*text-format* event, but the XML format puts them *last* in `EventData` — so it matches deep
+into the 4732 record and consumes the group fields on the way, and the report quotes them:
+
+```
+Expression 'SubjectUserSid' failed to match from the start of the content.
+Skipped: [… <Data Name="TargetUserName">… <Data Name="TargetSid">S-1-5-21-…]
+```
+
+Those are exactly the fields that come out empty. The fix is E16's again — reorder the XML
+variant's templates to its own format's field order (or anchor them) and regenerate under
+review. Config work, not engine work.
 
 ### E7 — `apache_httpd`'s golden is not well-formed XML
 **`open`. Two problems in one file.**
@@ -261,22 +264,18 @@ twenty, but the question itself belongs to the pipeline module that does not exi
 ## From the semantics discussion (D34)
 
 ### E17 — Implement `(A|B|C)*` dispatch and DS3-shaped reporting
-**`open`. The first deliberate behavioural departure from ds-rs; the write-up is
-[09-engine-semantics.md](../design/09-engine-semantics.md).**
+**`resolved` 2026-08-20.** The write-up is [09-engine-semantics.md](../design/09-engine-semantics.md),
+including what landing it taught.
 
-The executor's dispatch loop changes from per-template exhaustion to per-pass ordered choice;
-unconsumed reporting moves from per-template to per-level; a skipped-prefix report is added per
-match; all gated on `ignoreErrors`. Match limits and `onlyMatch` keep their meanings.
-
-The message goldens encoding the false-positive class (`001`, `003`, `011`, `012`, and the
-`005`/`014` severities) are regenerated **with review** and compared against Stroom's `.err`
-files, which should then agree in shape as well as substance. Output goldens are expected to
-survive; the ratchet names any configuration that depended on `A*B*C*`. E1 closes with this.
-
-The pre-fix `win_sec` configuration (git, `6907ad310c^`) is a ready-made acceptance input for
-the skip reports: under D34's dispatch it must *still* strand the Object block — a pass is won
-by list order, not buffer position — and the new reports must name exactly the stranded
-content. A test that runs it and asserts the reports would pin decision 2 with real data.
+The executor dispatches each level as iterated ordered choice; skips and unmatched content are
+reported in DS3's shape, gated by the container's `ignoreErrors` (directive or source), which
+now inherits down the tree. Every output golden survived — the ratchet caught one dependency
+(`018`), which exposed that guards must be evaluated at level entry, while the scope still
+describes the parent, exactly as DS3's parent-count parameter implies. Message goldens
+regenerated under review: `005` and `014` now match Stroom's own record in count, severity and
+substance. E1 and E2 closed with it. Three new tests pin the semantics: interleaved records
+dispatch `[A:1][B:2][A:3]`, a pass is won by list order with the skip reported, and the
+original `win_sec` configuration strands loudly — with real data.
 
 ### E18 — `matchOrder="any"` (excision) is not modelled
 **`deferred`.**

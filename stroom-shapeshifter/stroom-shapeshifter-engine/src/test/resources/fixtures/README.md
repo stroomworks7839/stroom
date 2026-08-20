@@ -34,9 +34,9 @@ is test-side: it cannot change output parity, only add signal.
 The `.err` files stay vendored beside them as external evidence, but they are *not* the
 expectation. They are Stroom's format — `DS3Parser [2:1] ERROR:` with element paths and the
 original XML — which the ported engine does not produce and is not being asked to. Where they
-can be compared, they agree on substance: `005`'s unmatched content is character-for-character
-the same in both, and `014`'s three `minMatch` failures are three errors in both. They differ
-on severity, Stroom calling `005` an ERROR where the engine warns.
+can be compared they now agree in count, severity and substance: `005`'s unmatched content is
+character-for-character the same in both at ERROR, and `014` is exactly Stroom's three errors —
+the alignment D34/E17 was for.
 
 Recording those messages immediately turned up behaviour worth knowing about, none of it
 visible to output comparison:
@@ -48,9 +48,10 @@ visible to output comparison:
   to test that errors are ignored — both still emit a warning.
 - **[E1]** `003_multiline_regex` raises 19 warnings on a fixture whose output is correct.
 
-These are recorded, not endorsed. The goldens capture what the Rust engine does, because that
-is what a port is faithful to; each is tracked in [ISSUES.md](../../../../ISSUES.md) by the id
-shown, so a decision about one has somewhere to land.
+All three were artifacts of the ported dispatch model, and were resolved by D34/E17: the
+goldens now record the DS3-shaped reporting — `001`, `011` and `012` are empty, and `003` holds
+eleven true errors in place of nineteen false warnings. The bullets stand as what recording the
+messages found, which is what justified recording them.
 
 **Quarantine.** The phase 0 audit found four `projects` goldens wrong — they were generated
 from ds-rs's own output and never checked. They are vendored, marked `QUARANTINED` in

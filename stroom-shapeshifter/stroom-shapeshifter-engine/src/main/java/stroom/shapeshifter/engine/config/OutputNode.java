@@ -256,12 +256,16 @@ public sealed interface OutputNode {
      * @param maxDepth    how deep recursion may go before it is an error
      * @param templateRef invoke this named template rather than dispatching, while still
      *                    matching content — a hybrid of apply and call
+     * @param ignoreErrors suppress the dispatched level's skip and unmatched-content reports.
+     *                     This is DS3's {@code ignoreErrors} on the group whose content is being
+     *                     dispatched: the container owns the gate, not the templates inside it
      */
     record ApplyDirective(RefExpression select,
                           String mode,
                           List<Param> withParam,
                           int maxDepth,
-                          String templateRef) {
+                          String templateRef,
+                          boolean ignoreErrors) {
 
         /** How deep recursion goes before the engine calls it a runaway. */
         public static final int DEFAULT_MAX_DEPTH = 64;

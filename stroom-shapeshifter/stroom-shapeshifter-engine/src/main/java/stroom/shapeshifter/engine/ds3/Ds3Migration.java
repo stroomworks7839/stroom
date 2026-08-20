@@ -138,7 +138,7 @@ public final class Ds3Migration {
                         new OutputNode.Text(RECORDS_HEADER),
                         new OutputNode.ApplyTemplates(new ApplyDirective(
                                 RefExpression.group(0), ROOT_MODE, List.of(),
-                                ApplyDirective.DEFAULT_MAX_DEPTH, null)),
+                                ApplyDirective.DEFAULT_MAX_DEPTH, null, false)),
                         new OutputNode.Text(RECORDS_FOOTER)),
                 null,
                 false);
@@ -243,7 +243,7 @@ public final class Ds3Migration {
                         expression(child, subMode, false, dataDepth);
                         body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
                                 RefExpression.group(0), subMode, List.of(),
-                                ApplyDirective.DEFAULT_MAX_DEPTH, null)));
+                                ApplyDirective.DEFAULT_MAX_DEPTH, null, false)));
                     }
                 }
             }
@@ -304,9 +304,12 @@ public final class Ds3Migration {
         if (recordWrap) {
             body.add(new OutputNode.Text("\n   <record>"));
         }
+        // The group's ignoreErrors gates the level its content is dispatched to — the container
+        // owns the gate in DS3, and the directive is where the container's intent survives
+        // flattening.
         body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
                 group.value() == null ? RefExpression.group(0) : LegacyRefs.parse(group.value()),
-                subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, null)));
+                subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, null, group.ignoreErrors())));
         for (final Ds3Config child : group.children()) {
             if (!child.isExpression()) {
                 switch (child) {

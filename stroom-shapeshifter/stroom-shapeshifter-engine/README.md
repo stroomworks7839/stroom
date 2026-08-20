@@ -31,7 +31,11 @@ instructions can hand a captured group down to another set of templates, which i
 becomes fields and a field becomes parts.
 
 Dispatch is three stages, cheapest first: the **mode** decides whether a template is a candidate
-at all, the **guard** is a condition over what is already known, and only then is the match tried.
+at all, the **guard** is a condition over what is already known, and only then is the match
+tried. The templates of a mode are dispatched as iterated ordered choice — `(A|B|C)*`, DS3's own
+model ([D34](../design/00-decisions.md)): each pass the first template that matches wins one
+match, and the choice re-opens. Content a match skips, and content nothing can match, is
+reported rather than lost, gated by the dispatching container's `ignore_errors`.
 
 ```
 config/     the authored model — plain records, no framework annotations

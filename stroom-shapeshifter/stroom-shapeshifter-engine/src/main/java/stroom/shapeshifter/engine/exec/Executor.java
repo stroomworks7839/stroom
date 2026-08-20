@@ -52,9 +52,10 @@ import java.util.List;
  *
  * <p>Within a buffer the shape is simple and recursive. The document template writes its prologue,
  * hands the buffer to the templates of its mode, and writes its epilogue at the end of the stream.
- * Each template matches repeatedly from where the last match ended, and each match runs a body
- * that can hand a captured group down to another set of templates. The cursor is shared between
- * sibling templates, so one consuming a header leaves the rest to the next.
+ * A level's templates are dispatched as <b>iterated ordered choice</b> — {@code (A|B|C)*}, DS3's
+ * own model (D34): each pass, the first template that matches wins one match, and the choice
+ * re-opens from the first template. A match's body can hand a captured group down to another
+ * level, which is how a record becomes fields and a field becomes parts.
  */
 public final class Executor {
 
@@ -115,11 +116,17 @@ public final class Executor {
         // written once at the start, what comes after once at the end, and the apply-templates
         // itself is the loop over the input. Everything the loop dispatches to is the templates
         // of the mode it names.
-        final String streamMode = source == null ? null : applyMode(source.template());
+        final ApplyDirective streamDirective = source == null ? null : applyDirective(source.template());
+        final String streamMode = streamDirective == null ? null : streamDirective.mode();
         final List<CompiledTemplate> roots = compiled.templates().stream()
                 .filter(t -> !(t.match() instanceof CompiledMatch.Source))
                 .filter(t -> java.util.Objects.equals(t.template().mode(), streamMode))
                 .toList();
+
+        // The root level's gate is the configuration's own ignoreErrors — DS3's flag on the
+        // dataSplitter element itself — or the document template's directive saying so.
+        final boolean rootIgnoreErrors = compiled.project().source().ignoreErrors()
+                || (streamDirective != null && streamDirective.ignoreErrors());
 
         final MatchResult nothing = MatchResult.empty();
         List<OutputNode> prologue = List.of();
@@ -138,7 +145,7 @@ public final class Executor {
         }
 
         if (!prologue.isEmpty()) {
-            body(prologue, nothing, 0, new byte[0], output, 0L, 0);
+            body(prologue, nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0);
         }
 
         final int bufferSize = wholeBuffer
@@ -160,34 +167,27 @@ public final class Executor {
                 continue;
             }
 
-            int cursor = from;
-            for (final CompiledTemplate root : roots) {
-                if (cursor >= chunk.length) {
-                    break;
-                }
-                final int consumed = template(root, chunk, cursor, chunk.length, output, read, 0);
-                if (!wholeBuffer && consumed > 0 && cursor + consumed == chunk.length
-                    && chunk.length - from == bufferSize) {
-                    messages.add(new Message(Severity.WARNING, "Template '" + root.template().name()
-                                                               + "' consumed entire buffer (" + consumed
-                                                               + " bytes). If data is truncated, increase source "
-                                                               + "buffer_size (currently " + bufferSize + ")."));
-                }
-                cursor += consumed;
+            final int consumed = level(roots, chunk, from, chunk.length, output, read, rootIgnoreErrors, 0);
+            if (!wholeBuffer && consumed > 0 && from + consumed == chunk.length
+                && chunk.length - from == bufferSize) {
+                messages.add(new Message(Severity.WARNING, "Expressions consumed entire buffer ("
+                                                           + consumed
+                                                           + " bytes). If data is truncated, increase source "
+                                                           + "buffer_size (currently " + bufferSize + ")."));
             }
             read += chunk.length - from;
         }
 
         if (!epilogue.isEmpty()) {
-            body(epilogue, nothing, 0, new byte[0], output, 0L, 0);
+            body(epilogue, nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0);
         }
         return List.copyOf(messages);
     }
 
-    private static String applyMode(final Template template) {
+    private static ApplyDirective applyDirective(final Template template) {
         for (final OutputNode node : template.body()) {
             if (node instanceof OutputNode.ApplyTemplates apply) {
-                return apply.directive().mode();
+                return apply.directive();
             }
         }
         return null;
@@ -203,125 +203,167 @@ public final class Executor {
     }
 
     // -----------------------------------------------------------------------------------
-    // One template against one region
+    // One level against one region
     // -----------------------------------------------------------------------------------
 
     /**
-     * Match a template repeatedly over a region, running its body for each match.
+     * Dispatch one level — the templates of a mode — against one region of content.
      *
-     * @return how many bytes it consumed, which is where its sibling starts
+     * <p>Each pass tries the level's templates in order from the first; the first that matches
+     * consumes one match, and the next pass starts again from the first template. A template that
+     * fails, is past its {@code maxMatch}, or whose guard declines eats nothing and the next is
+     * tried. Order therefore expresses priority, and a template can never be starved by an
+     * earlier sibling being "finished" — there is no finished, only not-matching-here.
+     *
+     * <p>Skipping is reported, never silent (D34). An unanchored match that starts past the
+     * cursor consumes the skipped prefix — that is what consuming to the match end means — and
+     * says so; content no pass could match at all is reported once, for the level. Both reports
+     * are DS3's, kept for its reasons: no data loss without a message, and steady pressure toward
+     * start-anchored expressions, which are also the cheap ones.
+     *
+     * @param ignoreErrors the level's gate, from the directive that dispatched it — DS3's group
+     *                     flag — or from the source configuration at the root
+     * @return how many bytes the level consumed
      */
-    private int template(final CompiledTemplate compiledTemplate,
-                         final byte[] data,
-                         final int from,
-                         final int to,
-                         final OutputSink sink,
-                         final long inputBase,
-                         final int depth) {
-        final Template template = compiledTemplate.template();
+    private int level(final List<CompiledTemplate> templates,
+                      final byte[] data,
+                      final int from,
+                      final int to,
+                      final OutputSink sink,
+                      final long inputBase,
+                      final boolean ignoreErrors,
+                      final int depth) {
+        final int[] counts = new int[templates.size()];
 
-        // The guard runs before any matching, so it sees scope and nothing else — no captures
-        // exist yet. A template whose guard fails consumes nothing and leaves the content to
-        // whichever sibling comes next.
-        if (template.guard() != null
-            && !Conditions.evaluate(
-                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns())) {
-            return 0;
+        // Guards are evaluated once, on the way in — not per pass. The distinction is
+        // load-bearing: a guard reads scope, and scope includes the parent's match counter,
+        // which DS3-style onlyMatch guards compare against. Once matching starts, each winner
+        // overwrites that counter with its own count, so a guard re-read mid-level would compare
+        // a template against itself. DS3 gets this for free by passing the parent's count down
+        // as a parameter; evaluating here, while the scope still describes the parent, is the
+        // same thing said with variables.
+        final boolean[] allowed = new boolean[templates.size()];
+        for (int i = 0; i < templates.size(); i++) {
+            final Template template = templates.get(i).template();
+            allowed[i] = template.guard() == null
+                         || Conditions.evaluate(
+                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns());
         }
 
-        final int minMatch = template.matchLimits().minMatch();
-        final int maxMatch = template.matchLimits().maxMatch();
+        int cursor = from;
+        boolean matched = true;
 
-        int matchCount = 0;
-        int offset = from;
-
-        while (offset < to) {
-            if (maxMatch >= 0 && matchCount >= maxMatch) {
-                break;
-            }
-            final long timing = instrument.startTiming();
-            final MatchResult match = match(compiledTemplate, data, offset, to);
-            instrument.stopTiming(template.id(), timing, match != null);
-            if (match == null) {
-                break;
-            }
-            matchCount++;
-
-            // The engine's own variables, readable by any reference: how many times this
-            // template has matched. A child template's reference to a parent's multi-valued
-            // capture uses this to pick the right one, which is how a header column lines up
-            // with the data column beneath it.
-            vars.store(MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
-            vars.store(MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
-
-            final boolean wanted = template.matchLimits().onlyMatch() == null
-                                   || template.matchLimits().onlyMatch().contains(matchCount);
-            if (wanted) {
-                // A delimiter match's content is the field, not the field plus its delimiter;
-                // every other kind of match means the whole of what it matched.
-                final int contentGroup = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
-                final TypedValue content = match.group(contentGroup) != null
-                        ? match.group(contentGroup)
-                        : match.group(0);
-
-                if (content == null || content.isEmpty()) {
-                    if (match.advance() <= 0) {
-                        break;
-                    }
-                    offset += match.advance();
+        while (cursor < to && matched) {
+            matched = false;
+            for (int i = 0; i < templates.size(); i++) {
+                if (!allowed[i]) {
                     continue;
                 }
-                instrument.onMatch(template.id(), template.name(),
-                        locate(inputBase, offset - from + match.matchStart()),
-                        match.advance(), matchCount, depth);
-                bindCaptures(compiledTemplate, match, matchCount);
+                final CompiledTemplate candidate = templates.get(i);
+                final Template template = candidate.template();
+                final int maxMatch = template.matchLimits().maxMatch();
+                if (maxMatch >= 0 && counts[i] >= maxMatch) {
+                    continue;
+                }
+                final long timing = instrument.startTiming();
+                final MatchResult match = match(candidate, data, cursor, to);
+                instrument.stopTiming(template.id(), timing, match != null);
+                if (match == null) {
+                    continue;
+                }
 
-                final long before = sink.position();
-                body(template.body(), match, matchCount, content.asBytes(), sink, inputBase, depth);
-                instrument.onOutput(template.id(), matchCount, before, sink.position() - before);
-            }
+                counts[i]++;
+                final int matchCount = counts[i];
 
-            if (match.advance() <= 0) {
+                if (match.matchStart() > 0 && !ignoreErrors && !template.ignoreErrors()) {
+                    messages.add(new Message(Severity.ERROR,
+                            "Expression '" + template.name()
+                            + "' failed to match from the start of the content. Skipped: ["
+                            + preview(data, cursor, cursor + match.matchStart()) + "]"));
+                }
+
+                // The engine's own variables, readable by any reference: how many times this
+                // template has matched. A child template's reference to a parent's multi-valued
+                // capture uses this to pick the right one, which is how a header column lines up
+                // with the data column beneath it.
+                vars.store(MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
+                vars.store(MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
+
+                final boolean wanted = template.matchLimits().onlyMatch() == null
+                                       || template.matchLimits().onlyMatch().contains(matchCount);
+                if (wanted) {
+                    // A delimiter match's content is the field, not the field plus its
+                    // delimiter; every other kind of match means the whole of what it matched.
+                    final int contentGroup =
+                            template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
+                    final TypedValue content = match.group(contentGroup) != null
+                            ? match.group(contentGroup)
+                            : match.group(0);
+
+                    if (content != null && !content.isEmpty()) {
+                        instrument.onMatch(template.id(), template.name(),
+                                locate(inputBase, cursor - from + match.matchStart()),
+                                match.advance(), matchCount, depth);
+                        bindCaptures(candidate, match, matchCount);
+
+                        final long before = sink.position();
+                        body(template.body(), match, matchCount, content.asBytes(), sink,
+                                inputBase, ignoreErrors, depth);
+                        instrument.onOutput(template.id(), matchCount, before,
+                                sink.position() - before);
+                    }
+                }
+
+                if (match.advance() > 0) {
+                    cursor += match.advance();
+                    matched = true;
+                }
+                // First match wins the pass; the choice re-opens from the first template.
                 break;
             }
-            offset += match.advance();
         }
 
-        if (minMatch > 0 && matchCount < minMatch) {
-            messages.add(new Message(Severity.ERROR,
-                    "Expected at least " + minMatch + " matches but got " + matchCount));
+        boolean minMatchFailed = false;
+        for (int i = 0; i < templates.size(); i++) {
+            final Template template = templates.get(i).template();
+            final int minMatch = template.matchLimits().minMatch();
+            if (minMatch > 0 && counts[i] < minMatch) {
+                minMatchFailed = true;
+                messages.add(new Message(Severity.ERROR,
+                        "Expression '" + template.name()
+                        + "' did not match the required number of times (match count: "
+                        + counts[i] + ")"));
+            }
         }
-        reportUnconsumed(template, data, offset, to);
-        return offset - from;
+
+        // Content no pass could match, reported once for the level — unless a minimum-match
+        // error already explained the same failure. Stroom's own record fixes both halves of
+        // this rule: 005's fully-unmatched line is reported even though nothing matched, and
+        // 014's is not, because its three minMatch errors already said what was wrong.
+        if (!minMatchFailed && !ignoreErrors && hasContent(data, cursor, to)) {
+            messages.add(new Message(Severity.ERROR,
+                    "Expressions failed to match all of the content. Unmatched: ["
+                    + preview(data, cursor, to) + "]"));
+        }
+        return cursor - from;
     }
 
-    /**
-     * Say so when a template leaves content behind.
-     *
-     * <p>Blank remainders are not worth mentioning; anything else usually means the configuration
-     * and the data have diverged, which is exactly the thing a person wants told about.
-     */
-    private void reportUnconsumed(final Template template, final byte[] data, final int offset, final int to) {
-        if (template.ignoreErrors() || offset >= to) {
-            return;
-        }
-        boolean anyContent = false;
-        for (int i = offset; i < to; i++) {
+    /** True if a region holds anything but whitespace. Blank remainders are not worth a message. */
+    private static boolean hasContent(final byte[] data, final int from, final int to) {
+        for (int i = from; i < to; i++) {
             final byte b = data[i];
             if (b != ' ' && b != '\t' && b != '\n' && b != '\r' && b != '\f' && b != 0x0B) {
-                anyContent = true;
-                break;
+                return true;
             }
         }
-        if (!anyContent) {
-            return;
-        }
-        final int previewLength = Math.min(200, to - offset);
-        final String preview = new String(data, offset, previewLength, StandardCharsets.UTF_8)
-                .replace("\n", "\\n");
-        messages.add(new Message(Severity.WARNING,
-                "Template '" + template.name() + "' did not consume all content. Unmatched: ["
-                + preview + (to - offset > 200 ? "...TRUNCATED..." : "") + "]"));
+        return false;
+    }
+
+    /** The start of a region, as text fit for a message: newlines escaped, capped at 200 bytes. */
+    private static String preview(final byte[] data, final int from, final int to) {
+        final int length = Math.min(200, to - from);
+        return new String(data, from, length, StandardCharsets.UTF_8).replace("\n", "\\n")
+               + (to - from > 200 ? "...TRUNCATED..." : "");
     }
 
     private MatchResult match(final CompiledTemplate compiledTemplate,
@@ -431,6 +473,7 @@ public final class Executor {
                       final byte[] content,
                       final OutputSink sink,
                       final long inputBase,
+                      final boolean ignoreErrors,
                       final int depth) {
         for (final OutputNode node : nodes) {
             switch (node) {
@@ -441,25 +484,25 @@ public final class Executor {
                     // A directive naming a template is the recursive form, which the compiler
                     // has already inlined; running it here would recurse for ever.
                     if (apply.directive().templateRef() == null) {
-                        apply(apply.directive(), match, matchCount, content, sink, inputBase, depth);
+                        apply(apply.directive(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                     }
                 }
                 case OutputNode.If value -> {
                     if (test(value.test(), match, matchCount)) {
-                        body(value.then(), match, matchCount, content, sink, inputBase, depth);
+                        body(value.then(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                     }
                 }
                 case OutputNode.Choose value -> {
                     boolean taken = false;
                     for (final OutputNode.WhenBranch branch : value.when()) {
                         if (test(branch.test(), match, matchCount)) {
-                            body(branch.body(), match, matchCount, content, sink, inputBase, depth);
+                            body(branch.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                             taken = true;
                             break;
                         }
                     }
                     if (!taken) {
-                        body(value.otherwise(), match, matchCount, content, sink, inputBase, depth);
+                        body(value.otherwise(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                     }
                 }
                 case OutputNode.Switch value -> {
@@ -467,17 +510,19 @@ public final class Executor {
                     boolean taken = false;
                     for (final OutputNode.SwitchCase switchCase : value.cases()) {
                         if (switchCase.value().equals(selected)) {
-                            body(switchCase.body(), match, matchCount, content, sink, inputBase, depth);
+                            body(switchCase.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                             taken = true;
                             break;
                         }
                     }
                     if (!taken) {
-                        body(value.defaultBody(), match, matchCount, content, sink, inputBase, depth);
+                        body(value.defaultBody(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                     }
                 }
-                case OutputNode.Variable value -> variable(value, match, matchCount, content, inputBase, depth);
-                case OutputNode.CallTemplate value -> call(value, match, matchCount, content, sink, inputBase, depth);
+                case OutputNode.Variable value ->
+                        variable(value, match, matchCount, content, inputBase, ignoreErrors, depth);
+                case OutputNode.CallTemplate value ->
+                        call(value, match, matchCount, content, sink, inputBase, ignoreErrors, depth);
                 case OutputNode.ValueMap value -> {
                     final String selected = textOf(value.select(), match, matchCount);
                     String mapped = null;
@@ -594,12 +639,13 @@ public final class Executor {
                           final int matchCount,
                           final byte[] content,
                           final long inputBase,
+                          final boolean ignoreErrors,
                           final int depth) {
         vars.push();
         vars.shadow(value.name());
 
         final java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
-        body(value.body(), match, matchCount, content, OutputSink.of(buffer), inputBase, depth);
+        body(value.body(), match, matchCount, content, OutputSink.of(buffer), inputBase, ignoreErrors, depth);
 
         List<Store> captured = vars.fromCurrentScope(value.name());
         if (captured != null && captured.stream().noneMatch(store -> store.lastIndex() >= 0)) {
@@ -631,6 +677,7 @@ public final class Executor {
                       final byte[] content,
                       final OutputSink sink,
                       final long inputBase,
+                      final boolean ignoreErrors,
                       final int depth) {
         final CompiledTemplate target = compiled.templates().stream()
                 .filter(candidate -> candidate.template().name().equals(value.name()))
@@ -655,7 +702,7 @@ public final class Executor {
                         .set(1, TypedValue.of(declared.defaultValue().getBytes(StandardCharsets.UTF_8)));
             }
         }
-        body(target.template().body(), match, matchCount, content, sink, inputBase, depth);
+        body(target.template().body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
         vars.pop();
     }
 
@@ -663,9 +710,9 @@ public final class Executor {
      * Hand some content to another set of templates.
      *
      * <p>Which content is a reference, and it is usually a group of the match just made — that is
-     * how a row is broken into fields, and a field into parts. The templates that get it are
-     * those of the named mode, tried in order against a shared cursor, so one template consuming
-     * a header leaves the remainder to the next.
+     * how a row is broken into fields, and a field into parts. The templates that get it are the
+     * level of the named mode, dispatched as ordered choice, with the directive's
+     * {@code ignoreErrors} as the level's reporting gate.
      */
     private void apply(final ApplyDirective directive,
                        final MatchResult match,
@@ -673,6 +720,7 @@ public final class Executor {
                        final byte[] parentContent,
                        final OutputSink sink,
                        final long parentBase,
+                       final boolean inheritedIgnoreErrors,
                        final int depth) {
         if (depth >= directive.maxDepth()) {
             return;
@@ -716,13 +764,10 @@ public final class Executor {
                     .forEach(capture -> vars.shadow(capture.name())));
         }
 
-        int cursor = 0;
-        for (final CompiledTemplate candidate : candidates) {
-            if (cursor >= content.length) {
-                break;
-            }
-            cursor += template(candidate, content, cursor, content.length, sink, childBase, depth + 1);
-        }
+        // DS3 inherits ignoreErrors down the tree: a level inside an ignoring container is
+        // gated even when its own directive says nothing.
+        level(candidates, content, 0, content.length, sink, childBase,
+                inheritedIgnoreErrors || directive.ignoreErrors(), depth + 1);
 
         if (recursive) {
             vars.pop();
