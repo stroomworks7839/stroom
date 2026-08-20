@@ -283,6 +283,7 @@ include 'stroom-security:stroom-security-openid-api'
 include 'stroom-security:stroom-security-user-api'
 
 // Shapeshifter
+include 'stroom-shapeshifter:stroom-shapeshifter-engine'
 include 'stroom-shapeshifter:stroom-shapeshifter-regex'
 
 // SSL Tests

@@ -64,6 +64,16 @@ Not yet built: encodings other than UTF-8 and the `transcode` stage. (A delegate
 `java.util.regex` dialect was once planned and is deliberately gone — D27 made it unnecessary.)
 A pattern outside the dialect is rejected with the reason — never matched approximately.
 
+## Modules
+
+- `stroom-shapeshifter-regex` — the matching library: everything described above.
+  Zero dependencies, enforced; usable standalone.
+- `stroom-shapeshifter-engine` — the layers above matching (D12): the record/structure
+  walker, transforms, and the output side. Depends on the regex module; the reverse is
+  forbidden by the zero-dependency check. Currently a skeleton.
+- `stroom-shapeshifter-pipeline` — planned (D10): the thin adapter that puts the engine
+  into a Stroom pipeline, keeping Stroom's types out of both library modules.
+
 ## Design
 
 The design drafts, the decisions and the measurements:
