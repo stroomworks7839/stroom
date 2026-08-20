@@ -695,10 +695,7 @@ public final class Executor {
                       final long inputBase,
                       final boolean ignoreErrors,
                       final int depth) {
-        final CompiledTemplate target = compiled.templates().stream()
-                .filter(candidate -> candidate.template().name().equals(value.name()))
-                .findFirst()
-                .orElse(null);
+        final CompiledTemplate target = compiled.template(value.name());
         if (target == null) {
             return;
         }
@@ -766,9 +763,8 @@ public final class Executor {
         final String mode = directive.templateRef() != null
                 ? "__rec_" + directive.templateRef()
                 : directive.mode();
-        final List<CompiledTemplate> candidates = compiled.templates().stream()
-                .filter(t -> java.util.Objects.equals(t.template().mode(), mode))
-                .toList();
+        // A compile-time fact read as a field — nothing filters the template list per call.
+        final List<CompiledTemplate> candidates = compiled.templates(mode);
 
         // A recursive apply gets its own scope, so that a nested level's captures cannot leak
         // back into the level that invoked it — and so that they are released on the way out.

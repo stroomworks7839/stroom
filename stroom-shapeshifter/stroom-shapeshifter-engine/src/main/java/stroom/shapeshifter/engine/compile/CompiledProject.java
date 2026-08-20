@@ -21,6 +21,8 @@ import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,28 +34,87 @@ import java.util.Map;
  * sequentially — a {@code ByteMatcher}'s contract, one level up. Concurrency is one compiled
  * graph per instance, which compilation prices at milliseconds.
  *
- * @param project   the authored configuration
- * @param templates its templates, compiled, in their authored order
- * @param patterns  every pattern used somewhere other than a template's own match — in a
- *                  condition, or in a regex replacement — compiled once and keyed by its text.
- *                  Interning by text rather than by position means the same pattern written in
- *                  three places is compiled once, and means a pattern that will not compile is
- *                  an error before any input is read
- * @param encoding  the encoding its input is declared to be in, which a byte-order mark on the
- *                  input may still override
- * @param warnings  anything worth saying that did not stop compilation; these are reported at
- *                  the start of a run, so that a configuration's problems reach the same place
- *                  its data's problems do
+ * <p>The graph also owns its <b>dispatch indexes</b>: which templates answer to a mode, and
+ * which template a name means, are compile-time facts computed once at construction. Dispatch
+ * reads a field; nothing filters the template list per call.
  */
-public record CompiledProject(Project project,
-                              List<CompiledTemplate> templates,
-                              Map<String, BytePattern> patterns,
-                              Encoding encoding,
-                              List<Message> warnings) {
+public final class CompiledProject {
 
-    public CompiledProject {
-        templates = List.copyOf(templates);
-        patterns = Map.copyOf(patterns);
-        warnings = List.copyOf(warnings);
+    private final Project project;
+    private final List<CompiledTemplate> templates;
+    private final Map<String, BytePattern> patterns;
+    private final Encoding encoding;
+    private final List<Message> warnings;
+
+    /** Templates per mode, in authored order. The no-mode templates sit under the null key. */
+    private final Map<String, List<CompiledTemplate>> templatesByMode = new HashMap<>();
+
+    /** The first template of each name — {@code call-template}'s meaning of a name. */
+    private final Map<String, CompiledTemplate> templatesByName = new HashMap<>();
+
+    /**
+     * Build the graph.
+     *
+     * @param project   the authored configuration
+     * @param templates its templates, compiled, in their authored order
+     * @param patterns  every pattern used outside a template's own match, compiled once and
+     *                  keyed by its text
+     * @param encoding  the encoding its input is declared to be in, which a byte-order mark on
+     *                  the input may still override
+     * @param warnings  anything worth saying that did not stop compilation
+     */
+    public CompiledProject(final Project project,
+                           final List<CompiledTemplate> templates,
+                           final Map<String, BytePattern> patterns,
+                           final Encoding encoding,
+                           final List<Message> warnings) {
+        this.project = project;
+        this.templates = List.copyOf(templates);
+        this.patterns = Map.copyOf(patterns);
+        this.encoding = encoding;
+        this.warnings = List.copyOf(warnings);
+
+        for (final CompiledTemplate template : this.templates) {
+            templatesByMode
+                    .computeIfAbsent(template.template().mode(), mode -> new ArrayList<>())
+                    .add(template);
+            templatesByName.putIfAbsent(template.template().name(), template);
+        }
+        templatesByMode.replaceAll((mode, list) -> List.copyOf(list));
+    }
+
+    /** The authored configuration. */
+    public Project project() {
+        return project;
+    }
+
+    /** The templates, compiled, in authored order. */
+    public List<CompiledTemplate> templates() {
+        return templates;
+    }
+
+    /** The templates answering to a mode, in authored order — or none. */
+    public List<CompiledTemplate> templates(final String mode) {
+        return templatesByMode.getOrDefault(mode, List.of());
+    }
+
+    /** The template a name means, or null. A duplicated name means its first bearer. */
+    public CompiledTemplate template(final String name) {
+        return templatesByName.get(name);
+    }
+
+    /** The interned patterns, keyed by their text. */
+    public Map<String, BytePattern> patterns() {
+        return patterns;
+    }
+
+    /** The declared input encoding. */
+    public Encoding encoding() {
+        return encoding;
+    }
+
+    /** Compilation's messages, reported at the start of every run. */
+    public List<Message> warnings() {
+        return warnings;
     }
 }
