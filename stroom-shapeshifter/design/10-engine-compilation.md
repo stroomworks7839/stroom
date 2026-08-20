@@ -44,6 +44,15 @@ candidate, and none may be acted on before a benchmark says which matter (§4):
 | Captures | every group copied out of the buffer whether or not anything reads it | unused-capture elimination + dead-branch pruning (the E10 optimiser, deliberately unported during the port) |
 | `^`-anchored patterns dispatched as **unanchored searches** | a failing anchored template scans the whole remaining region instead of testing one position — ~55 times per element in `win_sec_xml` | detect start-anchored patterns at compile time and dispatch them `Anchoring.ANCHORED` *(added from the baseline, §5)* |
 | `ByteMatcher` allocated per match attempt | allocation on the hottest call the engine makes | a matcher held as a *field* of the compiled node — structure, not a cache *(added from the baseline, §5)* |
+| Unanchored `(?m)^` patterns each scan the region per dispatch pass | a level of N multiline templates scans the same bytes up to N times per pass — `win_sec`'s whole 5.8 MiB/s story (§8) | none — ds-rs had the same cost. A compiled dispatch could know these patterns only match at line starts and find the next `\n` once for the level *(added after change 3)* |
+| Transform functions work in `String` | every transform resolves bytes → `String`, transforms, re-encodes — `apache_httpd` runs 209 string-level replaces per record, and this is why change 3 moved it only 12% (§8) | none — ds-rs transformed strings too. Byte-level transforms, or at least single-conversion pipelines, would be new ground *(added after change 3)* |
+
+**Resolved so far** — change 1 (§6): anchored dispatch, matcher as field. Change 2 (§7): mode
+dispatch tables, `call-template` resolution. Change 3 (§8): reference strategies, pre-encoded
+literals and `Text` bytes, and pattern-by-text for regex `replace` — though a `matches`
+condition still looks its pattern up by text, so that row stays half-open with conditions.
+Still open: step `Tag`/`TakeUntil` pre-encoding, `TakeWhile` byte tables, compiled
+conditions/guards, capture elimination, and the two rows above.
 
 The regex library already proves the end state on its own layer; the engine's job is the same
 move for dispatch, references, bodies and steps. And the shape is **two layers, never three**
