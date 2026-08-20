@@ -32,10 +32,20 @@ The `shapeshifter` crate, at 9,704 lines of source and 4,986 of test:
 | `engine/instrument.rs` | 492 | `engine` (interface only) | The zero-cost instrumentation seam |
 | `regex_info.rs` | 72 | `engine` | Capture-group introspection for authoring tools |
 
-And the tests: **158 unit tests** inside `src`, **43 integration tests** in `tests/`, and
-**56 fixture sets** (136 files) driven by three golden runners —
-19 `legacy` (DS3 XML + input + Java-Stroom golden output), 18 `native` (project.json), and
-18 `projects` (project.json + input + expected output).
+And the tests: **158 unit tests** inside `src`, **43 integration tests** in `tests/`, 3 doc
+tests, and **56 fixture sets** (136 files) driven by three golden runners — `legacy` (DS3 XML
++ input + golden output), `native` (project.json over the legacy inputs), and `projects`
+(project.json + input + expected output).
+
+**The baseline, measured rather than assumed** (`cargo test --offline`, 2026-08-20, default
+features): **200 passing, 0 failing, 4 ignored**. The four ignored tests are fixture
+*regenerators*, not failures. The fixture runners report `18/18` legacy, `18/18` native and
+15 of 18 projects — the other three are the binary-format fixtures, which ds-rs's own
+default-features run already skips for exactly the reason we are deferring them. **51 fixture
+sets are in scope, and all 51 are green in Rust today.**
+
+A nineteenth legacy fixture, `008_invalid_xml_FAIL`, has no `.out.xml` golden — only a
+`.out.tmp.xml` — so the Rust runner skips it and so will ours.
 
 ## 2. What is not being ported, and why
 
@@ -68,7 +78,7 @@ enforced by `verifyZeroDependencies`, and stays true. Reading stays behind one
 match span a chunk boundary; it emits a "consumed entire buffer" warning instead. Our
 matching layer can do better — `StreamMatcher`'s three-way outcome exists precisely for this
 — but porting the limitation first is what makes golden-output parity a clean pass/fail
-signal on all 53 in-scope fixtures. Real streaming becomes a decision of its own once the
+signal on all 51 in-scope fixtures. Real streaming becomes a decision of its own once the
 port is green and the semantics are pinned by tests. It is the single most valuable
 follow-up this port sets up, and it should not be smuggled in during the port.
 
@@ -89,6 +99,13 @@ and inline flags. The single failure is `"+"`, which is a literal `replace` patt
 `is_regex` false, so it is not a regex at all and Rust rejects it too. This probe becomes a
 permanent test in phase 0, not a one-off.
 
+**Open — the goldens are not all the same kind of evidence.** The `legacy` `.out.xml` files
+came from Java Stroom's DS3 and are a genuine external oracle. But `gen_native_fixture_outputs`,
+one of the four ignored regenerators, regenerates the goldens for eleven of the eighteen
+`projects` fixtures *from ds-rs's own output*. For those, parity asserts "same as ds-rs" —
+which is precisely what a port wants, and precisely why they cannot catch a bug ds-rs already
+has. Worth knowing which fixtures are which when one of them disagrees.
+
 **Open — the API shapes differ in three places** that will need real work rather than
 transliteration:
 
@@ -107,21 +124,21 @@ transliteration:
 ## 5. Phases
 
 Each phase has an acceptance test that is a count, not an opinion. The fixture runners are
-built first and report `n/53` from the start, so every phase moves a number.
+built first and report `n/51` from the start, so every phase moves a number.
 
 | # | Phase | Acceptance |
 |---|---|---|
-| 0 | **Harness first.** Vendor all 136 fixture files with their provenance; build the three golden runners (legacy, native, projects) so they run red and report a count; make the 208-pattern compile probe a test | Runners execute and report `0/53`; pattern probe green |
+| 0 | **Harness first.** Vendor all 136 fixture files with their provenance; build the three golden runners (legacy, native, projects) so they run red and report a count; make the 208-pattern compile probe a test | Runners execute and report `0/51`; pattern probe green |
 | 1 | **Model and binding.** `config` package, `error`, `Predicate`, `RefExpression`; Jackson binding behind `ProjectReader` | All 36 `project.json` files parse, and round-trip parse→write→parse structurally equal |
 | 2 | **Vertical slice.** UTF-8 only; `Store`/`TypedValue`; ref resolution; compile and run `Regex`, `Delimiter`, `Source`, `All`; body limited to `Text`, `ValueOf`, `ApplyTemplates` | First green fixtures: `native/004_simple_regex`, `native/001_csv_with_header` |
-| 3 | **The rest of the body.** Conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, and the twelve transform functions; match limits, guards, modes, `ignore_errors` and the message/warning paths | The 18 `native` and 15 in-scope `projects` fixtures green |
-| 4 | **DS3 import.** `ds3_config` and `migration`, including `records:2` output shaping | The 19 `legacy` golden fixtures green — `53/53` overall |
+| 3 | **The rest of the body.** Conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, and the twelve transform functions; match limits, guards, modes, `ignore_errors` and the message/warning paths | The 18 `native` and 15 in-scope `projects` fixtures green — `33/51` |
+| 4 | **DS3 import.** `ds3_config` and `migration`, including `records:2` output shaping | The 18 `legacy` golden fixtures green — `51/51` overall |
 | 5 | **Progressive matching.** The `MatchStep` atoms and combinators, `StepRef` resolution, the JDK codecs | The 4 progressive fixtures green; `progressive_embedded_codec` included |
 | 6 | **Encodings.** Full charset resolution, BOM detection, inheritance | The 17 encoding integration tests and 22 `encoding.rs` unit tests ported and green |
 | 7 | **Unit test port.** The remaining ~160 unit and integration tests, `refs` (33) and `store` (13) and `compiled` (14) and `exec_tests` (55) foremost | Whole suite green; coverage of the ported surface no worse than the Rust crate's |
 | 8 | **Instrumentation seam.** `Instrument` + no-op, and `regex_info` | Engine compiles against the seam with no production cost |
 
-Phases 5 and 6 are ordered after 4 deliberately: 53 green fixtures is the milestone that
+Phases 5 and 6 are ordered after 4 deliberately: 51 green fixtures is the milestone that
 proves the architecture, and progressive matching and exotic encodings are each self-contained
 enough to follow it without re-opening anything.
 

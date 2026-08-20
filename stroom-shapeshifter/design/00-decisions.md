@@ -864,11 +864,12 @@ Three sub-decisions were taken with it:
 - **The binary formats are deferred, visibly.** Avro, Parquet, Protobuf and the
   snappy/zstd/lz4 codecs each need a large third-party library; the match variants are
   modelled and rejected at compile time with a clear message, and their 3 fixtures stay
-  vendored and are reported as skipped. Base64, hex, URL-encoding, gzip and deflate are JDK
+  vendored and are reported as skipped. ds-rs's own default-features run already skips the
+  same three, for the same reason. Base64, hex, URL-encoding, gzip and deflate are JDK
   built-ins and are in scope.
 - **The chunk-boundary limitation is ported too.** ds-rs never lets a match span a buffer
   boundary. Our matching layer's `NEED_MORE_INPUT` outcome could lift that, but reproducing
-  the limitation is what keeps golden parity a clean pass/fail across all 53 in-scope
+  the limitation is what keeps golden parity a clean pass/fail across all 51 in-scope
   fixtures. Real streaming is the first follow-up decision after the port is green, not a
   change smuggled into it.
 
@@ -877,6 +878,14 @@ corpus were compiled through `BytePattern` before the plan was written. 207 comp
 `SCAN_PLAN`, 121 `SIMULATE`, 9 `TREE`, atomic groups and `\z` included — and the one failure
 is `"+"`, a literal `replace` pattern that Rust rejects as a regex too. D19's choice to
 follow Rust's dialect is what makes this a port rather than a rewrite of 247 patterns.
+
+**The baseline is green and measured:** `cargo test --offline` on 2026-08-20 gives 200
+passing, 0 failing, 4 ignored — the four being fixture regenerators. 51 fixture sets are in
+scope (18 legacy, 18 native, 15 projects) and all 51 pass in Rust today, so any red in the
+Java port is the port's, not inherited. One caveat found while establishing this: eleven of
+the eighteen `projects` goldens are regenerated from ds-rs's own output by one of those
+regenerators, so for those fixtures parity means "same as ds-rs" and cannot catch a bug ds-rs
+already has. The `legacy` goldens came from Java Stroom's DS3 and are a real external oracle.
 
 **Consequences:** behaviour that looks wrong in ds-rs gets ported, recorded, and decided
 separately rather than fixed in flight; no performance work happens during the port, because
