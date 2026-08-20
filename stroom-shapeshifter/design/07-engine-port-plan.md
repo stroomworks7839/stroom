@@ -156,7 +156,7 @@ built first and report `n/48` from the start, so every phase moves a number.
 | # | Phase | Acceptance |
 |---|---|---|
 | 0 | **Harness first — done.** 132 fixture files vendored with provenance; the ledger, the three golden runners and the message goldens built; the eleven generated goldens audited and four quarantined; the pattern probe made a test | `0/48`, 3 skipped, 4 quarantined; 204 corpus patterns compiling |
-| 1 | **Model and binding.** `config` package, `error`, `Predicate`, `RefExpression`; Jackson binding behind `ProjectReader` | All 36 `project.json` files parse, and round-trip parse→write→parse structurally equal |
+| 1 | **Model and binding — done.** The `config` package as records and sealed interfaces; the whole wire format in one `ProjectJson`, behind `ProjectReader` | All 36 configurations round-trip; every variant of all 8 sum types round-trips, checked against the sealed permits list |
 | 2 | **Vertical slice.** UTF-8 only; the output sink interface and its byte implementation; `Store`/`TypedValue`; ref resolution; compile and run `Regex`, `Delimiter`, `Source`, `All`; body limited to `Text`, `ValueOf`, `ApplyTemplates` | First green fixtures: `native/004_simple_regex`, `native/001_csv_with_header` |
 | 3 | **The rest of the body.** Conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, and the twelve transform functions; match limits, guards, modes, `ignore_errors` and the message/warning paths | The 18 `native` and 7 non-progressive `projects` fixtures green — `25/48` |
 | 4 | **DS3 import.** `ds3_config` and `migration`, including `records:2` output shaping | The 19 `legacy` entries green, rejection case included — `44/48` |
