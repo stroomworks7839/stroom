@@ -1,0 +1,124 @@
+/*
+ * Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.shapeshifter.engine.exec;
+
+import java.nio.charset.StandardCharsets;
+
+/**
+ * A value captured during matching.
+ *
+ * <p>Bytes are the default and the common case: a capture is a slice of the input, and turning
+ * it into text costs a decode that most captures never need — they are written straight back
+ * out. The numeric variants exist so that binary match steps, which have already done the work
+ * of decoding an integer, do not have to render it to a string and parse it again at the other
+ * end. Formatting is deferred to the output boundary in every case.
+ */
+public sealed interface TypedValue {
+
+    /** Raw bytes from the input. */
+    record Bytes(byte[] value) implements TypedValue {
+
+        @Override
+        public boolean equals(final Object other) {
+            return other instanceof Bytes bytes && java.util.Arrays.equals(value, bytes.value);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Arrays.hashCode(value);
+        }
+
+        @Override
+        public String toString() {
+            return new String(value, StandardCharsets.UTF_8);
+        }
+    }
+
+    /** A whole number. */
+    record Int(long value) implements TypedValue {
+
+    }
+
+    /** A number with a fractional part. */
+    record Float(double value) implements TypedValue {
+
+    }
+
+    /** True or false. */
+    record Bool(boolean value) implements TypedValue {
+
+    }
+
+    /** Wrap bytes. */
+    static TypedValue of(final byte[] value) {
+        return new Bytes(value);
+    }
+
+    /** True if this value has no content. Empty captures are treated as absent by references. */
+    default boolean isEmpty() {
+        return this instanceof Bytes bytes && bytes.value().length == 0;
+    }
+
+    /**
+     * The value as bytes, ready to write.
+     *
+     * <p>Numbers render as ASCII, which is safe in every encoding the engine supports, so this
+     * is also the encoding-independent form.
+     */
+    default byte[] asBytes() {
+        return switch (this) {
+            case Bytes bytes -> bytes.value();
+            case Int value -> Long.toString(value.value()).getBytes(StandardCharsets.US_ASCII);
+            case Float value -> format(value.value()).getBytes(StandardCharsets.US_ASCII);
+            case Bool value -> Boolean.toString(value.value()).getBytes(StandardCharsets.US_ASCII);
+        };
+    }
+
+    /** The value as text, decoding bytes as UTF-8. */
+    default String asString() {
+        return switch (this) {
+            case Bytes bytes -> new String(bytes.value(), StandardCharsets.UTF_8);
+            case Int value -> Long.toString(value.value());
+            case Float value -> format(value.value());
+            case Bool value -> Boolean.toString(value.value());
+        };
+    }
+
+    /** The value as a number, parsing bytes if that is what it holds. */
+    default Double asNumber() {
+        return switch (this) {
+            case Int value -> (double) value.value();
+            case Float value -> value.value();
+            case Bool value -> value.value() ? 1.0 : 0.0;
+            case Bytes bytes -> {
+                try {
+                    yield Double.valueOf(new String(bytes.value(), StandardCharsets.UTF_8).trim());
+                } catch (final NumberFormatException e) {
+                    yield null;
+                }
+            }
+        };
+    }
+
+    /** Render a double the way Rust does: whole numbers without a trailing {@code .0}. */
+    private static String format(final double value) {
+        if (value == Math.rint(value) && !java.lang.Double.isInfinite(value)) {
+            return Long.toString((long) value);
+        }
+        return java.lang.Double.toString(value);
+    }
+}

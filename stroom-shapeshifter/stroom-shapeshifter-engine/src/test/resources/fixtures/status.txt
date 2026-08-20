@@ -34,15 +34,15 @@ legacy/019_single_line_split                  PENDING
 native/001_csv_with_header                    PENDING
 native/002_csv_without_header                 PENDING
 native/003_multiline_regex                    PENDING
-native/004_simple_regex                       PENDING
+native/004_simple_regex                       PASS
 native/005_unmatched_content_FAIL             PENDING
-native/006_single_line_delimited              PENDING
+native/006_single_line_delimited              PASS
 native/007_regex_dotall                       PENDING
 native/009_multiline_regex_2                  PENDING
-native/010_single_field_all                   PENDING
+native/010_single_field_all                   PASS
 native/011_ignore_group_errors                PENDING
-native/012_ignore_root_errors                 PENDING
-native/013_simple_regex_case_insens           PENDING
+native/012_ignore_root_errors                 PASS
+native/013_simple_regex_case_insens           PASS
 native/014_simple_regex_min_match_FAIL        PENDING
 native/015_regex_only_match                   PENDING
 native/016_regex_max_match                    PENDING
@@ -55,7 +55,7 @@ projects/apache_httpd                         QUARANTINED  golden is not well-fo
 projects/ausearch                             PENDING
 projects/avro_users                           SKIPPED   Avro decoding deferred (D33)
 projects/identity_transform                   PENDING
-projects/json_to_xml                          PENDING
+projects/json_to_xml                          PASS
 projects/parquet_cities                       SKIPPED   Parquet decoding deferred (D33)
 projects/progressive_embedded_codec           PENDING
 projects/progressive_len_records              PENDING

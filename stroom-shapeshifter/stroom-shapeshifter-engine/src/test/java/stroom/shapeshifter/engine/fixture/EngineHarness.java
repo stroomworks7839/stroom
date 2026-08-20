@@ -16,15 +16,21 @@
 
 package stroom.shapeshifter.engine.fixture;
 
+import stroom.shapeshifter.engine.OutputSink;
+import stroom.shapeshifter.engine.Shapeshifter;
+import stroom.shapeshifter.engine.config.ProjectReader;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 
 /**
  * The single place the fixture suites touch the engine.
  *
  * <p>Every golden runner goes through these four methods, so the production API can take
- * whatever shape each phase of the port decides without the corpus tests moving. Right now all
- * four throw {@link PortPendingException}: the harness exists before the engine does, which is
- * the point — the suites run, report {@code 0/51}, and start ratcheting from there.
+ * whatever shape each phase of the port decides without the corpus tests moving. The ones the
+ * port has not reached yet throw {@link PortPendingException}, so that "not written" and
+ * "written and wrong" stay different words.
  *
  * <p>Filling these in is what each phase of the port does. See
  * {@code design/07-engine-port-plan.md}.
@@ -52,7 +58,12 @@ public final class EngineHarness {
      * pipeline: fixed-size chunks, matches never spanning a chunk boundary (D33).
      */
     public static Outcome runProject(final String projectJson, final byte[] input) {
-        throw new PortPendingException("project.json execution is not ported yet");
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        final List<stroom.shapeshifter.engine.Message> messages = Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(projectJson)),
+                new ByteArrayInputStream(input),
+                OutputSink.of(output));
+        return outcome(output, messages);
     }
 
     /**
@@ -61,7 +72,10 @@ public final class EngineHarness {
      * whole input is addressable.
      */
     public static Outcome runProjectWholeBuffer(final String projectJson, final byte[] input) {
-        throw new PortPendingException("whole-buffer execution is not ported yet");
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        final List<stroom.shapeshifter.engine.Message> messages = Shapeshifter.runWhole(
+                Shapeshifter.compile(ProjectReader.read(projectJson)), input, OutputSink.of(output));
+        return outcome(output, messages);
     }
 
     /** Import a DS3 XML configuration and run it over streamed input. */
@@ -75,5 +89,20 @@ public final class EngineHarness {
      */
     public static void importDs3(final String ds3Xml) {
         throw new PortPendingException("DS3 XML import is not ported yet");
+    }
+
+    private static Outcome outcome(final ByteArrayOutputStream output,
+                                   final List<stroom.shapeshifter.engine.Message> messages) {
+        return new Outcome(
+                output.toByteArray(),
+                messages.stream()
+                        .map(m -> new Message(name(m.severity()), m.text()))
+                        .toList());
+    }
+
+    /** The goldens spell severities the way the Rust engine's message dump does. */
+    private static String name(final stroom.shapeshifter.engine.Severity severity) {
+        final String name = severity.name();
+        return name.charAt(0) + name.substring(1).toLowerCase(java.util.Locale.ROOT);
     }
 }

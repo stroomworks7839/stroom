@@ -157,8 +157,8 @@ built first and report `n/48` from the start, so every phase moves a number.
 |---|---|---|
 | 0 | **Harness first — done.** 132 fixture files vendored with provenance; the ledger, the three golden runners and the message goldens built; the eleven generated goldens audited and four quarantined; the pattern probe made a test | `0/48`, 3 skipped, 4 quarantined; 204 corpus patterns compiling |
 | 1 | **Model and binding — done.** The `config` package as records and sealed interfaces; the whole wire format in one `ProjectJson`, behind `ProjectReader` | All 36 configurations round-trip; every variant of all 8 sum types round-trips, checked against the sealed permits list |
-| 2 | **Vertical slice.** UTF-8 only; the output sink interface and its byte implementation; `Store`/`TypedValue`; ref resolution; compile and run `Regex`, `Delimiter`, `Source`, `All`; body limited to `Text`, `ValueOf`, `ApplyTemplates` | First green fixtures: `native/004_simple_regex`, `native/001_csv_with_header` |
-| 3 | **The rest of the body.** Conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, and the twelve transform functions; match limits, guards, modes, `ignore_errors` and the message/warning paths | The 18 `native` and 7 non-progressive `projects` fixtures green — `25/48` |
+| 2 | **Vertical slice — done.** UTF-8 only; the output sink and its byte implementation; `TypedValue`, `Store`, `VarRegistry`, `Refs`, `Splitter`; compile and run `Regex`, `Delimiter`, `Source`, `All`; body limited to `Text`, `ValueOf`, `ApplyTemplates` | `6/48` — native 004, 006, 010, 012, 013 and `projects/json_to_xml`, which is every fixture the slice can reach |
+| 3 | **The rest of the body.** Conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, and the twelve transform functions; guards, `call-template`, and the rest of the message paths | The 18 `native` and 7 non-progressive `projects` fixtures green — `25/48` |
 | 4 | **DS3 import.** `ds3_config` and `migration`, including `records:2` output shaping | The 19 `legacy` entries green, rejection case included — `44/48` |
 | 5 | **Progressive matching.** The `MatchStep` atoms and combinators, `StepRef` resolution, the JDK codecs | The 4 progressive fixtures green — `48/48` |
 | 6 | **Encodings.** Full charset resolution, BOM detection, inheritance | The 17 encoding integration tests and 22 `encoding.rs` unit tests ported and green |
@@ -168,6 +168,13 @@ built first and report `n/48` from the start, so every phase moves a number.
 Phases 5 and 6 are ordered after 4 deliberately: a full ledger is the milestone that
 proves the architecture, and progressive matching and exotic encodings are each self-contained
 enough to follow it without re-opening anything.
+
+**A correction from phase 2.** This table originally named `native/001_csv_with_header` as the
+slice's second green fixture. It is not reachable by a slice: it needs `Variable` for scope
+collection, `If` with an `Exists` condition, and the relative match-index machinery that lines a
+header column up with the data column beneath it — all phase 3. The fixtures a
+`Text`/`ValueOf`/`ApplyTemplates` body can actually reach were then derived from the corpus
+rather than guessed, and all six of them are green.
 
 ## 6. Method
 
