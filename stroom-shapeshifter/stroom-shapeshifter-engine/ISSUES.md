@@ -285,3 +285,13 @@ Real DS3 has a second dispatch mode in which the matched span is *excised* from 
 the skipped prefix survives for other expressions. The ds-rs importer silently dropped the
 attribute, no corpus configuration uses it, and D34 defers it until a real configuration needs
 it. If it arrives, it is a dispatch variant, not a new engine.
+
+**The acceptance fixture already half-exists.** `win_sec`'s original template order — the one
+E16 replaced — reads like it was authored *assuming* order-insensitive dispatch, which is
+exactly what excision provides. So when this is implemented: take the current patterns in the
+original order (`git show 6907ad310c:…/win_sec/project.json` for the order; the three dot-all
+fixes must stay, because excision cannot rescue a swallow that happens *inside* a match). Under
+`matchOrder="any"` that config must extract everything; under D34's sequence dispatch the same
+config strands, with reports (E17's test). One config, both modes pinned. No commit ever held
+exactly this combination — the third flag fix landed with the reorder — so it is reconstructed,
+not restored.
