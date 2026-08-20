@@ -3,7 +3,7 @@
 #   PASS     the fixture must run and match its golden output (and messages, for legacy)
 #   PENDING  the fixture is not yet ported; the suite expects it to fail
 #   SKIPPED  out of scope, with the reason; never run
-#   QUARANTINED  in scope, but the golden itself is wrong — see design/08-fixture-audit.md
+#   QUARANTINED  in scope, but the golden itself is wrong — see ../../../../ISSUES.md
 #
 # The ledger is a ratchet. A PENDING fixture that starts passing fails the build until
 # it is promoted here, so every phase of the port has to move a number on purpose.
@@ -51,7 +51,7 @@ native/018_split_only_match                   PASS
 native/019_single_line_split                  PASS
 
 # --- projects: end-to-end project.json fixtures ---
-projects/apache_httpd                         QUARANTINED  golden is not well-formed XML — see design/08-fixture-audit.md
+projects/apache_httpd                         QUARANTINED  [E7] golden is not well-formed XML — see design/08-fixture-audit.md
 projects/ausearch                             PASS
 projects/avro_users                           SKIPPED   Avro decoding deferred (D33)
 projects/identity_transform                   PASS
@@ -64,8 +64,8 @@ projects/progressive_varint_zigzag            PASS
 projects/protobuf_events                      SKIPPED   Protobuf decoding deferred (D33)
 projects/win_app                              PASS
 projects/win_app_xml                          PASS
-projects/win_sec                              QUARANTINED  golden drops Group Id/Name/Type — see design/08-fixture-audit.md
-projects/win_sec_xml                          QUARANTINED  golden drops Group Id/Name/Type — see design/08-fixture-audit.md
-projects/xml_to_json                          QUARANTINED  golden is not valid JSON — see design/08-fixture-audit.md
+projects/win_sec                              QUARANTINED  [E6] golden drops Group Id/Name/Type — see design/08-fixture-audit.md
+projects/win_sec_xml                          QUARANTINED  [E6] golden drops Group Id/Name/Type — see design/08-fixture-audit.md
+projects/xml_to_json                          QUARANTINED  [E8] golden is not valid JSON — see design/08-fixture-audit.md
 projects/xml_to_json_attrs                    PASS
 projects/xml_to_json_unified                  PASS

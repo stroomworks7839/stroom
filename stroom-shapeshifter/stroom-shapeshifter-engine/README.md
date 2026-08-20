@@ -55,6 +55,12 @@ configurations describe their output as text that happens to be XML. A Stroom pi
 will want something else, and that choice is still open ([D10](../design/00-decisions.md)) — the
 interface is one place to answer it rather than twenty.
 
+## Open issues
+
+[ISSUES.md](ISSUES.md) tracks everything the port left open, with the evidence for each: the
+ported behaviour worth deciding about, the four fixture goldens the audit found wrong, the scope
+deliberately left out, and the decisions the port enables. Refer to them by id.
+
 ## What is not here
 
 - **Avro, Parquet and Protobuf.** Modelled, and refused at compile time with a clear message.

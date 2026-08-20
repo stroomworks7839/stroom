@@ -250,23 +250,11 @@ somebody produces corrected ones; ds-rs's compile-time optimiser, which changes 
 output; and `RecordingInstrument`, whose only consumer was an editor that is not being ported —
 the seam it needed is here, the implementation is not.
 
-**What the port turned up, for deciding separately.** None of these were fixed in flight, because
-a port that improves things as it goes cannot be checked against the thing it is porting:
-
-| Finding | Where |
-|---|---|
-| A `maxMatch` template raises a false "did not consume all content" warning against everything after the line it was told to stop at | fixtures README, `001` |
-| Both fixtures that exist to test `ignoreErrors` emit a warning anyway | fixtures README, `011`/`012` |
-| `Template.encoding` is modelled, written by the format, and never read — a per-template encoding override does not work | phase 6 |
-| `win_sec` and `win_sec_xml` drop group identity that is plainly in their input | [08-fixture-audit.md](08-fixture-audit.md) |
-| `apache_httpd`'s golden is not well-formed XML; `xml_to_json`'s is not valid JSON | [08-fixture-audit.md](08-fixture-audit.md) |
-| A `Regex` step searches forward but consumes only its own match, leaving the skipped bytes unread | `StepsTest` |
-| `TakeWhile`'s predicates are ASCII even on UTF-8 input | `StepsTest` |
-
-**The decisions the port sets up**, in the order they are likely to matter: whether matches may
-span buffers now that the limitation is pinned by tests; whether the progressive steps should be
-lowered onto the combinator layer and gain backtracking; and what the output sink's other
-implementation is — which is D10's question, still open, with one place to answer it.
+**What the port turned up is tracked, not buried here.** Fifteen open items — the behaviour
+worth deciding about, the four wrong goldens, the scope deliberately left out, and the decisions
+the port enables — live in [the module's issue list](../stroom-shapeshifter-engine/ISSUES.md)
+with the evidence for each. None were fixed in flight, because a port that improves things as it
+goes cannot be checked against the thing it is porting.
 
 ## 7. Method
 

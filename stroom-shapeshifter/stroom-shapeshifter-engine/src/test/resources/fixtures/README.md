@@ -41,20 +41,22 @@ on severity, Stroom calling `005` an ERROR where the engine warns.
 Recording those messages immediately turned up behaviour worth knowing about, none of it
 visible to output comparison:
 
-- `001_csv_with_header` warns that the whole body is unconsumed. Its first `<split maxMatch="1">`
+- **[E1]** `001_csv_with_header` warns that the whole body is unconsumed. Its first `<split maxMatch="1">`
   is a header template that is *supposed* to stop after one line, so any `maxMatch` template
   will trigger this. A false positive by construction.
-- `011_ignore_group_errors` and `012_ignore_root_errors` — the two fixtures that exist to test
-  that errors are ignored — both still emit a warning.
-- `003_multiline_regex` raises 19 warnings on a fixture whose output is correct.
+- **[E2]** `011_ignore_group_errors` and `012_ignore_root_errors` — the two fixtures that exist
+  to test that errors are ignored — both still emit a warning.
+- **[E1]** `003_multiline_regex` raises 19 warnings on a fixture whose output is correct.
 
 These are recorded, not endorsed. The goldens capture what the Rust engine does, because that
-is what a port is faithful to; they are also the top candidates for a decision after the port.
+is what a port is faithful to; each is tracked in [ISSUES.md](../../../../ISSUES.md) by the id
+shown, so a decision about one has somewhere to land.
 
 **Quarantine.** The phase 0 audit found four `projects` goldens wrong — they were generated
 from ds-rs's own output and never checked. They are vendored, marked `QUARANTINED` in
-`status.txt`, and cannot be promoted until a corrected golden replaces them. The findings are
-in [08-fixture-audit.md](../../../../design/08-fixture-audit.md).
+`status.txt` against their issue ids, and cannot be promoted until a corrected golden replaces
+them. The evidence is in [08-fixture-audit.md](../../../../design/08-fixture-audit.md) and the
+entries are E6 to E8 in [ISSUES.md](../../../../ISSUES.md).
 
 ## What was left behind
 
