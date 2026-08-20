@@ -121,10 +121,13 @@ it.*
 **`resolved` for `win_sec` 2026-08-20. Still `open` for `win_sec_xml` — re-diagnose under E17's
 dispatch before any further fix.**
 
-*Reframed by [D34](../design/00-decisions.md): the deeper cause is the engine's `A*B*C*`
-dispatch, inherited from ds-rs — real DS3's `(A|B|C)*` cannot strand content across a pass, and
-this configuration was written for that model. The reorder below stays valid (order expresses
-priority under both models), but "the config was wrong" was the shallow reading.*
+*Reframed by [D34](../design/00-decisions.md), then corrected: an earlier version of this note
+claimed real DS3's `(A|B|C)*` "cannot strand content across a pass". Overstated. A pass is won
+by list order, not buffer position, and the skip is consumed — so real DS3 SEQUENCE strands the
+same blocks and merely* reports *them. The configuration was wrong under both models, the fixes
+below are correct under both, and the engine's contribution was the silence that let the defect
+fossilise into a generated golden. The fixes therefore stay. True order-insensitivity exists
+only as `matchOrder="any"` excision (E18).*
 
 With E6 fixed, nine empty elements and eighteen empty values remained. The cause is not dot-all
 this time but something more structural, and worth understanding because it will recur in any
@@ -269,6 +272,11 @@ The message goldens encoding the false-positive class (`001`, `003`, `011`, `012
 `005`/`014` severities) are regenerated **with review** and compared against Stroom's `.err`
 files, which should then agree in shape as well as substance. Output goldens are expected to
 survive; the ratchet names any configuration that depended on `A*B*C*`. E1 closes with this.
+
+The pre-fix `win_sec` configuration (git, `6907ad310c^`) is a ready-made acceptance input for
+the skip reports: under D34's dispatch it must *still* strand the Object block — a pass is won
+by list order, not buffer position — and the new reports must name exactly the stranded
+content. A test that runs it and asserts the reports would pin decision 2 with real data.
 
 ### E18 — `matchOrder="any"` (excision) is not modelled
 **`deferred`.**

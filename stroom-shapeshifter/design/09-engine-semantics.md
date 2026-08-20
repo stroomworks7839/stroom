@@ -91,10 +91,14 @@ The observed symptoms, previously treated as separate issues, are all this one s
   after the header hits its limit skips it and the body split consumes; the only report is
   per-level, when nothing matched at all. The warning is an artifact of `A*B*C*` plus
   per-template reporting.
-- **E16** — `win_sec`'s "wrong" template order. The configuration was written for a model in
-  which order across a pass cannot strand content. Under `A*B*C*` with silent prefix
-  consumption, it did. The reorder stays valid — order still expresses priority under
-  `(A|B|C)*` — but the config was not the root cause.
+- **E16** — `win_sec`'s template order. First reframed as "written for a model in which order
+  cannot strand content" — and that reframe was itself overstated, caught when the fixture
+  fixes were questioned. Under `(A|B|C)*` a pass is won by *list* order, not buffer position:
+  an earlier-listed unanchored expression matching later still beats a later-listed one
+  matching earlier, and the skip is consumed. Real DS3 strands the same blocks — it just
+  *reports* them, loudly, at authoring time. So the configuration was wrong under both models,
+  the reorder is the fix under both, and the engine's contribution was the silence. True
+  order-insensitivity exists only as `matchOrder="any"` excision (E18, deferred).
 - **The `005`/`014` `.err` divergences** — Stroom reports per level at ERROR where this engine
   reports per template at WARNING. Same substitution, message-shaped.
 
