@@ -192,21 +192,20 @@ public final class NodeTree {
 
             final byte[] firstBytes = compiled.firstBytes();
             final int anchor = compiled.startAnchor();
-            final int lastStart = complete
+            int lastStart = complete
                     ? to - compiled.minLength()
                     : to;
+            // An input-anchored pattern cannot start past the region start, so on a window
+            // that cannot grow the walk ends there. Decided once, out here, so the
+            // line-anchored walk pays nothing for it.
+            if (complete && anchor == 2) {
+                lastStart = Math.min(lastStart, regionFrom);
+            }
 
             for (int at = start; at <= lastStart; at++) {
                 if (at < to && at > regionFrom && anchor != 0
                     && (anchor == 2 || data[at - 1] != '\n')) {
                     if (anchored) {
-                        break;
-                    }
-                    if (complete && anchor == 2) {
-                        // The one position where an input anchor can hold has already been
-                        // tried; every later iteration fails this same test, so on a window
-                        // that cannot grow the search is over. A growing window keeps the
-                        // walk for its window-edge bookkeeping.
                         break;
                     }
                     continue;

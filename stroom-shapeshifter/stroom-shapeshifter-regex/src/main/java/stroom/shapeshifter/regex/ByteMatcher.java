@@ -272,20 +272,20 @@ public final class ByteMatcher {
         // datetime fell 43% the day it was removed on buffer-CSV evidence alone, a lesson in
         // guarding both suites — and since the dispatcher split it no longer costs CSV its
         // inlining cliff. Complete windows only, or NEED_MORE would be lost.
-        final int lastStart = complete
+        int lastStart = complete
                 ? regionTo - plan.minLength()
                 : regionTo;
+        // An input-anchored pattern cannot start past the region start, so on a window that
+        // cannot grow the scan ends there. Decided once, out here, so the line-anchored scan
+        // pays nothing for it; a growing window keeps its edge iterations.
+        if (complete && leadingAnchor != null && leadingAnchor != Hir.Kind.START_LINE) {
+            lastStart = Math.min(lastStart, regionFrom);
+        }
         for (int start = from; start <= lastStart; start++) {
             if (leadingAnchor != null && !isAnchorPosition(leadingAnchor, start)) {
                 // A start-anchored pattern can only match where the anchor holds, which for a
                 // typical ^-anchored pattern rules out all but the line starts. Testing that here
                 // avoids setting up an attempt that the first instruction would reject anyway.
-                if (complete && leadingAnchor != Hir.Kind.START_LINE) {
-                    // And an input anchor holds nowhere past the region start at all: the one
-                    // viable attempt has happened, so on a window that cannot grow the search
-                    // is over. A growing window keeps the walk for its edge bookkeeping.
-                    break;
-                }
                 continue;
             }
             if (splitsCharacter(start)) {

@@ -102,9 +102,15 @@ public final class PikeVm {
         // On a complete window, no thread seeded where fewer bytes remain than the shortest
         // match spans can reach MATCH, so seeding — and the loop, once nothing is live —
         // stops there.
-        final int lastSeed = complete
+        int lastSeed = complete
                 ? to - nfa.minLength
                 : to;
+        // An input-anchored pattern cannot start past the region start, so on a window that
+        // cannot grow the seeding ends there. Decided once, out here, so the line-anchored scan
+        // pays nothing for it; a growing window keeps its edge iterations.
+        if (complete && startAnchor == Nfa.ANCHOR_INPUT) {
+            lastSeed = Math.min(lastSeed, regionFrom);
+        }
 
         for (int pos = start; ; pos++) {
             if (current.size == 0 && hasMatch) {
@@ -115,12 +121,7 @@ public final class PikeVm {
                 // A new attempt starting here, at lowest priority so earlier starts win.
                 addThread(current, 0, seed, data, regionFrom, to, pos);
             }
-            if (current.size == 0
-                && (anchored || pos > to || pos > lastSeed
-                    // An input-anchored pattern past the region start can never seed again,
-                    // so once nothing is live the simulation's answer is final. Complete
-                    // windows only: a growing window's edge iterations stay.
-                    || (complete && startAnchor == Nfa.ANCHOR_INPUT && pos > regionFrom))) {
+            if (current.size == 0 && (anchored || pos > to || pos > lastSeed)) {
                 break;
             }
 

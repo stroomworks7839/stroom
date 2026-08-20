@@ -135,22 +135,21 @@ public final class Backtracker {
 
         // A complete window can stop attempting once fewer bytes remain than the shortest
         // match spans; a growing one keeps the edge iterations for their NEED_MORE bookkeeping.
-        final int lastStart = complete
+        int lastStart = complete
                 ? to - nfa.minLength
                 : to;
+        // An input-anchored pattern cannot start past the region start, so on a window that
+        // cannot grow the walk ends there. Decided once, out here, so the line-anchored walk
+        // pays nothing for it; a growing window keeps its edge iterations.
+        if (complete && startAnchor == Nfa.ANCHOR_INPUT) {
+            lastStart = Math.min(lastStart, regionFrom);
+        }
         for (int at = start; at <= lastStart; at++) {
             if (at < to && at > regionFrom && startAnchor != Nfa.ANCHOR_NONE
                 && (startAnchor == Nfa.ANCHOR_INPUT || data[at - 1] != '\n')) {
                 // See the fancy engine: the cheapest and, for anchored patterns, the most
                 // selective gate. The at == to iteration keeps its edge bookkeeping.
                 if (anchored) {
-                    break;
-                }
-                if (complete && startAnchor == Nfa.ANCHOR_INPUT) {
-                    // The one position where an input anchor can hold has already been tried;
-                    // every later iteration fails this same test, so on a window that cannot
-                    // grow the search is over. A growing window keeps the walk for its
-                    // window-edge bookkeeping.
                     break;
                 }
                 continue;

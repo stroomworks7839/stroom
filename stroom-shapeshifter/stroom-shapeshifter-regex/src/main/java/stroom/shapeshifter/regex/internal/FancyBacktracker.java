@@ -159,9 +159,15 @@ public final class FancyBacktracker {
         context.hitEnd = false;
         context.searchStart = start;
 
-        final int lastStart = complete
+        int lastStart = complete
                 ? to - nfa.minLength
                 : to;
+        // An input-anchored pattern cannot start past the region start, so on a window that
+        // cannot grow the walk ends there. Decided once, out here, so the line-anchored walk
+        // pays nothing for it; a growing window keeps its edge iterations.
+        if (complete && startAnchor == Nfa.ANCHOR_INPUT) {
+            lastStart = Math.min(lastStart, regionFrom);
+        }
         for (int at = start; at <= lastStart; at++) {
             // The anchor gate first, because it is the cheapest test and, for the patterns it
             // applies to, the most selective: a line-anchored pattern over record data skips
@@ -170,13 +176,6 @@ public final class FancyBacktracker {
             if (at < to && at > regionFrom && startAnchor != Nfa.ANCHOR_NONE
                 && (startAnchor == Nfa.ANCHOR_INPUT || data[at - 1] != '\n')) {
                 if (anchored) {
-                    break;
-                }
-                if (complete && startAnchor == Nfa.ANCHOR_INPUT) {
-                    // The one position where an input anchor can hold has already been tried;
-                    // every later iteration fails this same test, so on a window that cannot
-                    // grow the search is over. A growing window keeps the walk for its
-                    // window-edge bookkeeping.
                     break;
                 }
                 continue;
