@@ -64,8 +64,8 @@ projects/progressive_varint_zigzag            PASS
 projects/protobuf_events                      SKIPPED   Protobuf decoding deferred (D33)
 projects/win_app                              PASS
 projects/win_app_xml                          PASS
-projects/win_sec                              QUARANTINED  [E6] golden drops Group Id/Name/Type — see design/08-fixture-audit.md
-projects/win_sec_xml                          QUARANTINED  [E6] golden drops Group Id/Name/Type — see design/08-fixture-audit.md
+projects/win_sec                              QUARANTINED  [E6] config's Member pattern swallows the Group block — see design/08-fixture-audit.md
+projects/win_sec_xml                          QUARANTINED  [E16] golden drops Group Id/Name/Type — see design/08-fixture-audit.md
 projects/xml_to_json                          QUARANTINED  [E8] golden is not valid JSON — see design/08-fixture-audit.md
 projects/xml_to_json_attrs                    PASS
 projects/xml_to_json_unified                  PASS

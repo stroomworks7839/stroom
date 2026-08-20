@@ -87,16 +87,53 @@ Found by the phase 0 audit; the evidence is in
 [08-fixture-audit.md](../design/08-fixture-audit.md). All four are vendored and quarantined in
 `fixtures/status.txt`, and cannot be promoted until corrected goldens exist.
 
-### E6 — `win_sec` and `win_sec_xml` lose group identity
-**`open`. The one most likely to be a real ds-rs defect.**
+### E6 — `win_sec` loses group identity to a one-character configuration mistake
+**`open`, but diagnosed. Not an engine defect — the configuration is wrong, and the fix is
+known.**
 
 The input says `Security ID: S-1-5-32-551` and `Group Name: Backup Operators`; the golden says
-`<Id></Id><Name></Name>`. Eleven empty elements in each file. The record count is right and the
-XML is well-formed, which is exactly why byte-equality never noticed.
+`<Id></Id><Name></Name>`. The record count is right and the XML is well-formed, which is exactly
+why byte-equality never noticed.
 
-Worth re-running now that a second engine can execute the same configuration: if the Java engine
-extracts those fields, ds-rs has a bug the corpus has been hiding. If it does not, the
-configuration is wrong.
+**Investigated 2026-08-20.** The Java engine reproduces the golden byte for byte, so the two
+implementations agree and neither is at fault. The `Group` template's pattern matches the input
+perfectly in isolation — all three groups extract — so the pattern is not at fault either. The
+cause is the template *before* it:
+
+```
+Member  (?ms)Member:\n\tSecurity ID:\t+(\S+)\n\tAccount Name:\t+(.+)$
+                ^^ dot-all
+```
+
+Templates of a mode share one cursor, each consuming from where the last stopped. With dot-all
+on, `(.+)$` runs to the end of the record rather than the end of its line, so `Member` consumes
+the Group block before `Group` is ever tried — and the block's text ends up inside the
+`MemberDN` attribute, where the golden preserves it in full:
+
+```
+Value="CN=svc_backup,…\n\nGroup:\n\tSecurity ID:\t\tS-1-5-32-551\n\tGroup Name:…"
+```
+
+So nothing is lost; it is filed under the wrong name. Changing that one pattern from `(?ms)` to
+`(?m)` makes the fields extract — `<Id>S-1-5-32-551</Id><Name>Backup Operators</Name>` — and
+takes the file's empty elements from eleven to nine.
+
+**What remains.** Resolving it means editing a vendored fixture's configuration and producing a
+corrected golden, which is a change to the acceptance corpus rather than to the engine, and needs
+a decision. The nine surviving empty elements are different records — see E16 — and `win_sec_xml`
+has the same symptom but a different configuration, so its cause is assumed, not shown.
+
+### E16 — `win_sec`'s remaining empty elements, and `win_sec_xml`'s
+**`open`. Split out of E6 so that fixing one does not look like fixing both.**
+
+With E6's pattern corrected, `win_sec` still emits nine empty elements —
+`<Object><Type/><Id/><Name/></Object>` twice and `<User><Id/><Domain/></User>` once — in records
+E6 does not touch. `win_sec_xml` emits eleven of `Id`, `Name` and `Type` from a differently
+shaped configuration.
+
+Whether these are the same class of mistake, a different one, or input that genuinely lacks the
+fields is not established. E6's method applies: run the template's pattern against the record in
+isolation, and if it matches, look at what the template before it consumed.
 
 ### E7 — `apache_httpd`'s golden is not well-formed XML
 **`open`. Two problems in one file.**

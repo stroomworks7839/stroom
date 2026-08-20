@@ -69,6 +69,12 @@ the engine can express this correctly; this config does not.
 
 ### `win_sec` and `win_sec_xml` — the goldens drop group identity
 
+*Diagnosed 2026-08-20; see E6 in [the issue list](../stroom-shapeshifter-engine/ISSUES.md). It is
+a configuration defect, not an engine one — the template before `Group` uses `(?ms)` where it
+means `(?m)`, and dot-all makes its trailing capture swallow the Group block. The text is not
+lost; it is inside the `MemberDN` attribute. The paragraphs below stand as the audit recorded
+them.*
+
 Eleven elements come out empty across each file — `Id`, `Name`, `Type`, `Domain`. Tracing one
 back to the input shows data that plainly exists being lost:
 
@@ -107,8 +113,10 @@ fixed config run through a working engine, or Java Stroom where an equivalent co
 Until then the ledger records the defect next to the fixture, which is the point: a fixture
 that cannot be trusted should say so where it lives, not in someone's memory.
 
-Three of the four are config defects rather than engine defects (`apache_httpd`'s escaping and
-literal newlines, `xml_to_json`'s missing braces). `win_sec` is the one that may be an engine
-defect, and it is the one worth re-examining once the progressive and regex paths are ported —
-if the Java engine extracts those fields correctly from the same config, the Rust engine has a
-bug that this corpus has been hiding.
+**All four turned out to be configuration defects rather than engine defects.** `apache_httpd`'s
+escaping and literal newlines and `xml_to_json`'s missing braces were evident at the time;
+`win_sec` was the one that might have been an engine bug, and the re-examination this section
+called for was done once the port was complete. It is not: both engines produce the same output
+from the same configuration, and the configuration is wrong. The method that settled it — run the
+failing template's pattern against the record on its own, and if it matches, look at what the
+template before it consumed — is worth reusing on E16.

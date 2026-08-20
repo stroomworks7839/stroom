@@ -250,7 +250,7 @@ somebody produces corrected ones; ds-rs's compile-time optimiser, which changes 
 output; and `RecordingInstrument`, whose only consumer was an editor that is not being ported —
 the seam it needed is here, the implementation is not.
 
-**What the port turned up is tracked, not buried here.** Fifteen open items — the behaviour
+**What the port turned up is tracked, not buried here.** Sixteen open items — the behaviour
 worth deciding about, the four wrong goldens, the scope deliberately left out, and the decisions
 the port enables — live in [the module's issue list](../stroom-shapeshifter-engine/ISSUES.md)
 with the evidence for each. None were fixed in flight, because a port that improves things as it
