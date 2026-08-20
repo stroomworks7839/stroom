@@ -227,8 +227,9 @@ grows will want its own shape rather than that one.
 **`open` — baseline recorded 2026-08-20** ([10-engine-compilation.md §5](../design/10-engine-compilation.md)):
 1.5–67.6 MiB/s across the seven workloads, and one inversion — the anchored `win_sec_xml` is
 3.6× *slower* than its unanchored sibling, because `^`-anchored patterns are dispatched as
-unanchored searches and every attempt allocates a matcher. Those two compile-time fixes are the
-named first optimisation; the change-then-measure loop starts there.** `EngineBenchmark` runs seven
+unanchored searches and every attempt allocates a matcher. The two fixes are the named first
+optimisation: anchored patterns dispatched `ANCHORED`, and the matcher held as a field of the
+per-run graph — structure, not a cache. The change-then-measure loop starts there.** `EngineBenchmark` runs seven
 whole configurations over 256 KiB of repeated real records, five forks, results to
 `design/benchmarks/` — the regex module's discipline. The status it measures against, and the
 gap list of what is interpreted rather than compiled, is

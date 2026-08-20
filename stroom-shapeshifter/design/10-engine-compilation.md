@@ -43,10 +43,19 @@ candidate, and none may be acted on before a benchmark says which matter (§4):
 | Conditions and guards | config-tree walk per evaluation | compiled once |
 | Captures | every group copied out of the buffer whether or not anything reads it | unused-capture elimination + dead-branch pruning (the E10 optimiser, deliberately unported during the port) |
 | `^`-anchored patterns dispatched as **unanchored searches** | a failing anchored template scans the whole remaining region instead of testing one position — ~55 times per element in `win_sec_xml` | detect start-anchored patterns at compile time and dispatch them `Anchoring.ANCHORED` *(added from the baseline, §5)* |
-| `ByteMatcher` allocated per match attempt | allocation on the hottest call the engine makes | cache one matcher per compiled template per executor *(added from the baseline, §5)* |
+| `ByteMatcher` allocated per match attempt | allocation on the hottest call the engine makes | a matcher held as a *field* of the per-run graph — structure, not a cache *(added from the baseline, §5)* |
 
 The regex library already proves the end state on its own layer; the engine's job is the same
-move for dispatch, references, bodies and steps. The likely shape is what D34 already implies:
+move for dispatch, references, bodies and steps. And DS3 settles a point of shape worth stating
+plainly, because "cache" is the wrong instinct for it: DS3 has **three layers**, not two. The
+config is compiled into a shared, immutable factory tree (`RegexFactory` holds the compiled
+`Pattern`), and each parser then instantiates a **per-run node graph** from it
+(`factory.newInstance(varMap)`) whose `Regex` node holds its `Matcher` as a plain field — with
+the stores living on the nodes too. Nothing is cached, because nothing is looked up; state has
+an owner. That is the regex module's own `BytePattern` → `matcher()` split, one level up, and it
+is the engine's target: `CompiledProject` stays the shared immutable layer, and a per-run
+executable graph instantiated from it owns the matchers and stores as fields. `Executor`, which
+already holds the per-run state, is the seed of that layer. Within that shape,
 `CompiledTemplate` grows per-mode dispatch tables, references become classified strategies with
 pre-encoded literals, and bodies become a compiled instruction list rather than a walked model —
 but shape follows measurement, not the other way round.
