@@ -163,11 +163,17 @@ built first and report `n/48` from the start, so every phase moves a number.
 | 5 | **Progressive matching — done.** All 24 `MatchStep` kinds, `StepRef` resolution, pattern-reference inlining, and the JDK codecs | `48/48` — every in-scope fixture |
 | 6 | **Encodings — done.** All 29 named encodings, byte-order-mark detection, inheritance, and conversion at the two boundaries that need it | The Rust suite's encoding assertions ported (18 tests), plus 6 that run non-UTF-8 input end to end |
 | 7 | **Unit test port — done.** The Rust suite's assertions for `refs`, `store`, the compiler and the parts of `exec_tests` the fixtures cannot reach | 184 tests green, and a cycle-detection defect found and fixed |
-| 8 | **Instrumentation seam.** `Instrument` + no-op, and `regex_info` | Engine compiles against the seam with no production cost |
+| 8 | **Instrumentation seam — done.** `Instrument` with a do-nothing default, wired through matching, capture and output; `PatternInfo` for authoring | 198 tests green; a recorder checks the reported offsets really point at the bytes |
 
 Phases 5 and 6 are ordered after 4 deliberately: a full ledger is the milestone that
 proves the architecture, and progressive matching and exotic encodings are each self-contained
 enough to follow it without re-opening anything.
+
+**What phase 8 found: two more of my own expectations wrong, and neither the engine's.** A
+root template runs at depth 0, not 1 — the document template's `apply-templates` *is* the
+streaming loop rather than a dispatch into one. And the match loop stops when the input is
+exhausted rather than making one more attempt that fails, so a failing attempt has to be
+provoked by a template that cannot match rather than by running out of input.
 
 **What phase 7 found: a missing guard.** Porting `compiled.rs`'s tests turned up that pattern
 reference inlining had no cycle detection — a pattern referring to itself would have inlined
@@ -233,7 +239,36 @@ header column up with the data column beneath it — all phase 3. The fixtures a
 `Text`/`ValueOf`/`ApplyTemplates` body can actually reach were then derived from the corpus
 rather than guessed, and all six of them are green.
 
-## 6. Method
+## 6. The port is complete
+
+All eight phases are done. 48 of 48 in-scope fixtures pass, output and — for the legacy family —
+messages; 198 tests run in the module; both it and the matching layer check clean.
+
+What is deliberately not here, each with its reason recorded above: the three binary formats and
+their heavy dependencies (D33); the four goldens the phase 0 audit found wrong, quarantined until
+somebody produces corrected ones; ds-rs's compile-time optimiser, which changes work rather than
+output; and `RecordingInstrument`, whose only consumer was an editor that is not being ported —
+the seam it needed is here, the implementation is not.
+
+**What the port turned up, for deciding separately.** None of these were fixed in flight, because
+a port that improves things as it goes cannot be checked against the thing it is porting:
+
+| Finding | Where |
+|---|---|
+| A `maxMatch` template raises a false "did not consume all content" warning against everything after the line it was told to stop at | fixtures README, `001` |
+| Both fixtures that exist to test `ignoreErrors` emit a warning anyway | fixtures README, `011`/`012` |
+| `Template.encoding` is modelled, written by the format, and never read — a per-template encoding override does not work | phase 6 |
+| `win_sec` and `win_sec_xml` drop group identity that is plainly in their input | [08-fixture-audit.md](08-fixture-audit.md) |
+| `apache_httpd`'s golden is not well-formed XML; `xml_to_json`'s is not valid JSON | [08-fixture-audit.md](08-fixture-audit.md) |
+| A `Regex` step searches forward but consumes only its own match, leaving the skipped bytes unread | `StepsTest` |
+| `TakeWhile`'s predicates are ASCII even on UTF-8 input | `StepsTest` |
+
+**The decisions the port sets up**, in the order they are likely to matter: whether matches may
+span buffers now that the limitation is pinned by tests; whether the progressive steps should be
+lowered onto the combinator layer and gain backtracking; and what the output sink's other
+implementation is — which is D10's question, still open, with one place to answer it.
+
+## 7. Method
 
 The same discipline as the matching layer, adapted:
 

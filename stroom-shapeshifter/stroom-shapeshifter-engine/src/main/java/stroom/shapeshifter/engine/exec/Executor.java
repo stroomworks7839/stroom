@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
@@ -65,6 +66,7 @@ public final class Executor {
 
     private final CompiledProject compiled;
     private final OutputSink output;
+    private final Instrument instrument;
     private final List<Message> messages = new ArrayList<>();
     private final VarRegistry vars = new VarRegistry();
 
@@ -74,9 +76,10 @@ public final class Executor {
      */
     private Encoding encoding;
 
-    private Executor(final CompiledProject compiled, final OutputSink sink) {
+    private Executor(final CompiledProject compiled, final OutputSink sink, final Instrument instrument) {
         this.compiled = compiled;
         this.output = sink;
+        this.instrument = instrument;
         this.encoding = compiled.encoding();
         this.messages.addAll(compiled.warnings());
     }
@@ -93,8 +96,9 @@ public final class Executor {
     public static List<Message> run(final CompiledProject compiled,
                                     final InputStream input,
                                     final OutputSink sink,
+                                    final Instrument instrument,
                                     final boolean wholeBuffer) {
-        return new Executor(compiled, sink).execute(input, wholeBuffer);
+        return new Executor(compiled, sink, instrument).execute(input, wholeBuffer);
     }
 
     // -----------------------------------------------------------------------------------
@@ -134,13 +138,14 @@ public final class Executor {
         }
 
         if (!prologue.isEmpty()) {
-            body(prologue, nothing, 0, new byte[0], output, 0);
+            body(prologue, nothing, 0, new byte[0], output, 0L, 0);
         }
 
         final int bufferSize = wholeBuffer
                 ? Integer.MAX_VALUE
                 : Math.max(1, compiled.project().source().bufferSize());
         boolean first = true;
+        long read = 0;
         for (byte[] chunk = read(input, bufferSize); chunk != null; chunk = read(input, bufferSize)) {
             int from = 0;
             if (first) {
@@ -160,7 +165,7 @@ public final class Executor {
                 if (cursor >= chunk.length) {
                     break;
                 }
-                final int consumed = template(root, chunk, cursor, chunk.length, output, 0);
+                final int consumed = template(root, chunk, cursor, chunk.length, output, read, 0);
                 if (!wholeBuffer && consumed > 0 && cursor + consumed == chunk.length
                     && chunk.length - from == bufferSize) {
                     messages.add(new Message(Severity.WARNING, "Template '" + root.template().name()
@@ -170,10 +175,11 @@ public final class Executor {
                 }
                 cursor += consumed;
             }
+            read += chunk.length - from;
         }
 
         if (!epilogue.isEmpty()) {
-            body(epilogue, nothing, 0, new byte[0], output, 0);
+            body(epilogue, nothing, 0, new byte[0], output, 0L, 0);
         }
         return List.copyOf(messages);
     }
@@ -210,6 +216,7 @@ public final class Executor {
                          final int from,
                          final int to,
                          final OutputSink sink,
+                         final long inputBase,
                          final int depth) {
         final Template template = compiledTemplate.template();
 
@@ -232,7 +239,9 @@ public final class Executor {
             if (maxMatch >= 0 && matchCount >= maxMatch) {
                 break;
             }
+            final long timing = instrument.startTiming();
             final MatchResult match = match(compiledTemplate, data, offset, to);
+            instrument.stopTiming(template.id(), timing, match != null);
             if (match == null) {
                 break;
             }
@@ -262,8 +271,14 @@ public final class Executor {
                     offset += match.advance();
                     continue;
                 }
+                instrument.onMatch(template.id(), template.name(),
+                        locate(inputBase, offset - from + match.matchStart()),
+                        match.advance(), matchCount, depth);
                 bindCaptures(compiledTemplate, match, matchCount);
-                body(template.body(), match, matchCount, content.asBytes(), sink, depth);
+
+                final long before = sink.position();
+                body(template.body(), match, matchCount, content.asBytes(), sink, inputBase, depth);
+                instrument.onOutput(template.id(), matchCount, before, sink.position() - before);
             }
 
             if (match.advance() <= 0) {
@@ -388,6 +403,10 @@ public final class Executor {
                 continue;
             }
             final Store store = vars.store(capture.name());
+            if (value != null) {
+                instrument.onCapture(compiledTemplate.template().id(), capture.name(),
+                        value.asBytes(), matchCount);
+            }
             if (value == null) {
                 // An unmatched capture must read as empty, not as whatever the previous record
                 // left there.
@@ -411,6 +430,7 @@ public final class Executor {
                       final int matchCount,
                       final byte[] content,
                       final OutputSink sink,
+                      final long inputBase,
                       final int depth) {
         for (final OutputNode node : nodes) {
             switch (node) {
@@ -421,25 +441,25 @@ public final class Executor {
                     // A directive naming a template is the recursive form, which the compiler
                     // has already inlined; running it here would recurse for ever.
                     if (apply.directive().templateRef() == null) {
-                        apply(apply.directive(), match, matchCount, content, sink, depth);
+                        apply(apply.directive(), match, matchCount, content, sink, inputBase, depth);
                     }
                 }
                 case OutputNode.If value -> {
                     if (test(value.test(), match, matchCount)) {
-                        body(value.then(), match, matchCount, content, sink, depth);
+                        body(value.then(), match, matchCount, content, sink, inputBase, depth);
                     }
                 }
                 case OutputNode.Choose value -> {
                     boolean taken = false;
                     for (final OutputNode.WhenBranch branch : value.when()) {
                         if (test(branch.test(), match, matchCount)) {
-                            body(branch.body(), match, matchCount, content, sink, depth);
+                            body(branch.body(), match, matchCount, content, sink, inputBase, depth);
                             taken = true;
                             break;
                         }
                     }
                     if (!taken) {
-                        body(value.otherwise(), match, matchCount, content, sink, depth);
+                        body(value.otherwise(), match, matchCount, content, sink, inputBase, depth);
                     }
                 }
                 case OutputNode.Switch value -> {
@@ -447,17 +467,17 @@ public final class Executor {
                     boolean taken = false;
                     for (final OutputNode.SwitchCase switchCase : value.cases()) {
                         if (switchCase.value().equals(selected)) {
-                            body(switchCase.body(), match, matchCount, content, sink, depth);
+                            body(switchCase.body(), match, matchCount, content, sink, inputBase, depth);
                             taken = true;
                             break;
                         }
                     }
                     if (!taken) {
-                        body(value.defaultBody(), match, matchCount, content, sink, depth);
+                        body(value.defaultBody(), match, matchCount, content, sink, inputBase, depth);
                     }
                 }
-                case OutputNode.Variable value -> variable(value, match, matchCount, content, depth);
-                case OutputNode.CallTemplate value -> call(value, match, matchCount, content, sink, depth);
+                case OutputNode.Variable value -> variable(value, match, matchCount, content, inputBase, depth);
+                case OutputNode.CallTemplate value -> call(value, match, matchCount, content, sink, inputBase, depth);
                 case OutputNode.ValueMap value -> {
                     final String selected = textOf(value.select(), match, matchCount);
                     String mapped = null;
@@ -573,12 +593,13 @@ public final class Executor {
                           final MatchResult match,
                           final int matchCount,
                           final byte[] content,
+                          final long inputBase,
                           final int depth) {
         vars.push();
         vars.shadow(value.name());
 
         final java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
-        body(value.body(), match, matchCount, content, OutputSink.of(buffer), depth);
+        body(value.body(), match, matchCount, content, OutputSink.of(buffer), inputBase, depth);
 
         List<Store> captured = vars.fromCurrentScope(value.name());
         if (captured != null && captured.stream().noneMatch(store -> store.lastIndex() >= 0)) {
@@ -609,6 +630,7 @@ public final class Executor {
                       final int matchCount,
                       final byte[] content,
                       final OutputSink sink,
+                      final long inputBase,
                       final int depth) {
         final CompiledTemplate target = compiled.templates().stream()
                 .filter(candidate -> candidate.template().name().equals(value.name()))
@@ -633,7 +655,7 @@ public final class Executor {
                         .set(1, TypedValue.of(declared.defaultValue().getBytes(StandardCharsets.UTF_8)));
             }
         }
-        body(target.template().body(), match, matchCount, content, sink, depth);
+        body(target.template().body(), match, matchCount, content, sink, inputBase, depth);
         vars.pop();
     }
 
@@ -650,6 +672,7 @@ public final class Executor {
                        final int matchCount,
                        final byte[] parentContent,
                        final OutputSink sink,
+                       final long parentBase,
                        final int depth) {
         if (depth >= directive.maxDepth()) {
             return;
@@ -665,6 +688,15 @@ public final class Executor {
                 : Refs.resolve(directive.select(), match, matchCount, vars, encoding);
         if (content == null || content.length == 0) {
             return;
+        }
+
+        // Content taken straight from the parent, or from one of its groups, is still part of
+        // the input and can be pointed at. Content built from a variable cannot be.
+        final long childBase = isWholeParentContent(directive.select()) || isLocalGroup(directive.select())
+                ? parentBase
+                : Instrument.UNLOCATABLE;
+        if (childBase == Instrument.UNLOCATABLE) {
+            instrument.onMatchContent(null, content);
         }
 
         final String mode = directive.templateRef() != null
@@ -689,12 +721,25 @@ public final class Executor {
             if (cursor >= content.length) {
                 break;
             }
-            cursor += template(candidate, content, cursor, content.length, sink, depth + 1);
+            cursor += template(candidate, content, cursor, content.length, sink, childBase, depth + 1);
         }
 
         if (recursive) {
             vars.pop();
         }
+    }
+
+    /** An absolute input offset, unless the base says the content cannot be located. */
+    private static long locate(final long base, final int offset) {
+        return base >= Instrument.UNLOCATABLE ? Instrument.UNLOCATABLE : base + offset;
+    }
+
+    /** True if an expression is one group of this match, wherever that group came from. */
+    private static boolean isLocalGroup(final RefExpression expression) {
+        return expression.parts().size() == 1
+               && expression.parts().getFirst() instanceof RefExpression.RefPart.Capture capture
+               && capture.varId() == null
+               && capture.matchIndex() == null;
     }
 
     /** True if an expression is exactly "group 0 of this match, whichever one that is". */

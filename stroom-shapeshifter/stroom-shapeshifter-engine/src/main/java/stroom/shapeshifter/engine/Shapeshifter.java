@@ -56,7 +56,24 @@ public final class Shapeshifter {
     public static List<Message> run(final CompiledProject compiled,
                                     final InputStream input,
                                     final OutputSink sink) {
-        return Executor.run(compiled, input, sink, false);
+        return run(compiled, input, sink, Instrument.NONE);
+    }
+
+    /**
+     * Run a compiled configuration, watching what it does.
+     *
+     * <p>The instrument is told which template matched which bytes, what each capture held, and
+     * which part of the output came from where — enough for an editor to show a configuration
+     * working, and enough to find the template that is being tried everywhere and matching
+     * nowhere.
+     *
+     * @return everything the engine had to say, in order
+     */
+    public static List<Message> run(final CompiledProject compiled,
+                                    final InputStream input,
+                                    final OutputSink sink,
+                                    final Instrument instrument) {
+        return Executor.run(compiled, input, sink, instrument, false);
     }
 
     /**
@@ -71,6 +88,14 @@ public final class Shapeshifter {
     public static List<Message> runWhole(final CompiledProject compiled,
                                          final byte[] input,
                                          final OutputSink sink) {
-        return Executor.run(compiled, new ByteArrayInputStream(input), sink, true);
+        return runWhole(compiled, input, sink, Instrument.NONE);
+    }
+
+    /** Run a compiled configuration over an input held whole, watching what it does. */
+    public static List<Message> runWhole(final CompiledProject compiled,
+                                         final byte[] input,
+                                         final OutputSink sink,
+                                         final Instrument instrument) {
+        return Executor.run(compiled, new ByteArrayInputStream(input), sink, instrument, true);
     }
 }
