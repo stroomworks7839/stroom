@@ -298,16 +298,29 @@ exactly this combination — the third flag fix landed with the reorder — so i
 not restored.
 
 ### E19 — A capture not re-matched keeps the previous record's value
-**`open`. Raised by the win_sec_xml golden's stale values.**
+**`resolved` 2026-08-20 — half fixed, half pinned, split exactly where DS3 splits it.**
 
-A variable is stored at its template's match index, and the index restarts for every record —
-so when a field is absent from record N, the store still holds record N−1's value at the same
-index, and any reference for record N reads it. That is how `administrator` from the 4625
-records ended up in the 4720 and 4732 outputs of the old `win_sec_xml` golden: not empty,
-*wrong*, with values from a different record. Ported behaviour — ds-rs does the same — and the
-kind of defect no output audit catches, because the values look plausible.
+Reading DS3's `storeData` settled the lifecycle: a var's stores are cleared on the **first store
+of a new match sequence** (`parentMatchCount == 0 → clearStores()`), and never otherwise. That
+divides the leak into two cases with different verdicts:
 
-Anchored configurations reduce the exposure (a present field always matches) but a field absent
-from one record type can still leak a value from another. Resolving it means deciding when a
-level's captures should be cleared — per dispatch invocation is the obvious candidate — and
-checking what real DS3 does with its stores between iterations before choosing.
+- **Fewer matches than the previous record** — DS3's clear wipes the old sequence before the
+  new one stores, so the previous record's tail is unreadable. Our engine only overwrote index
+  by index, leaving the tail for `latest()` to find. **A real divergence, fixed**: a template's
+  first match of a dispatch now clears its captures' stores, mirroring DS3 exactly. The fix is
+  mutation-tested — with the clear disabled, the regression test reads the stale tail.
+- **No match at all** — DS3's clear lives inside the store path, and a template that never
+  stores never clears. **DS3 leaks here too.** The behaviour is faithful and is now pinned by a
+  test as documented semantics rather than an accident: `administrator` in the old
+  `win_sec_xml` golden was this case. A configuration that does not want it anchors its
+  patterns or guards its references.
+
+No fixture golden changed, which is itself confirmation: the legacy goldens came from Stroom,
+which has the clear — a fixture exercising the divergence would have been failing parity since
+phase 4.
+
+Residual, deliberately out of scope: `Variable` and named transform results are stored the same
+way and can tail-leak in the same shape, but they are XSLT-side constructs with no DS3
+counterpart to be faithful to, and every corpus use reads them at the current match index where
+no leak is possible. If one ever reads `latest()` across records, this entry is the precedent
+for what to do.

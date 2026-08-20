@@ -275,6 +275,21 @@ public final class Executor {
                 counts[i]++;
                 final int matchCount = counts[i];
 
+                // A template's first match of this dispatch begins a new sequence, and a new
+                // sequence starts from nothing: its captures' stores are cleared, so a record
+                // matching fewer times than the one before it cannot leave the previous
+                // record's tail to be read past its own length. This is DS3's own rule — its
+                // storeData clears on the first store of a sequence. The absent-template case
+                // is deliberately not covered, because DS3 does not cover it either: a template
+                // that never matches leaves its stores untouched, previous record and all (E19).
+                if (matchCount == 1) {
+                    for (final CaptureBinding capture : template.captures()) {
+                        if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
+                            vars.store(capture.name()).clear();
+                        }
+                    }
+                }
+
                 if (match.matchStart() > 0 && !ignoreErrors && !template.ignoreErrors()) {
                     messages.add(new Message(Severity.ERROR,
                             "Expression '" + template.name()

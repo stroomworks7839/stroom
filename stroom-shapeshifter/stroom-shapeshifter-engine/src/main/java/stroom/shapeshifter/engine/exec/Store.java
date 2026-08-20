@@ -74,6 +74,17 @@ public final class Store {
         return -1;
     }
 
+    /**
+     * Forget everything.
+     *
+     * <p>A new match sequence starts from nothing — DS3's rule, whose stores are cleared on the
+     * first store of a sequence — so a record producing fewer matches than the one before it
+     * cannot leave the previous record's tail hanging past its own length.
+     */
+    public void clear() {
+        values.clear();
+    }
+
     /** The most recently stored value, for references that do not say which they want. */
     public TypedValue latest() {
         final int last = lastIndex();

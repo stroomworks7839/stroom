@@ -360,6 +360,54 @@ class EngineBehaviourTest {
     }
 
     // -----------------------------------------------------------------------------------
+    // Capture lifecycle (E19)
+    // -----------------------------------------------------------------------------------
+
+    /** Records of x= items; each record prints its most recent captured value afterwards. */
+    private static final String STALE_CONFIG = """
+            {
+              "name": "stale", "version": 3,
+              "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+              "templates": [
+                {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                 "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                               "mode": "rec"}}]},
+                {"id": "00000000-0000-0000-0000-000000000002", "name": "rec", "mode": "rec",
+                 "match": {"delimiter": {"delimiter": ";"}},
+                 "body": [
+                   {"apply-templates": {"select": {"parts": [{"capture": {"group": 1}}]},
+                                        "mode": "item"}},
+                   {"value-of": {"parts": [{"text": "<"},
+                                           {"capture": {"var_id": "val", "group": 0}},
+                                           {"text": ">"}]}}]},
+                {"id": "00000000-0000-0000-0000-000000000003", "name": "item", "mode": "item",
+                 "match": {"regex": {"pattern": "x=([a-z]+),?"}},
+                 "captures": [{"name": "val", "select": {"group": 1}}],
+                 "body": []}
+              ]
+            }
+            """;
+
+    @Test
+    void newMatchSequenceClearsTheCapturesStore() {
+        // Record 1 captures twice, record 2 once. Without DS3's clear-on-new-sequence rule the
+        // second record's read finds record 1's tail sitting past its own single value — the
+        // divergence E19 fixed.
+        assertThat(run(STALE_CONFIG, "x=a,x=b;x=c").output()).isEqualTo("<b><c>");
+    }
+
+    @Test
+    void templateThatNeverMatchesLeavesItsStoreUntouched() {
+        // The other half of E19, pinned as DS3-faithful rather than fixed: when the template
+        // never matches at all, nothing clears, and the reference reads the previous record's
+        // value. Real DS3 does exactly this — its clear only happens on the first *store* of a
+        // sequence, and a template that never matches never stores. A configuration that does
+        // not want the leak anchors its patterns and lets absence mean absence per record type,
+        // or guards its references.
+        assertThat(run(STALE_CONFIG, "x=a,x=b;y=z").output()).isEqualTo("<b><b>");
+    }
+
+    // -----------------------------------------------------------------------------------
     // Configuration errors
     // -----------------------------------------------------------------------------------
 
