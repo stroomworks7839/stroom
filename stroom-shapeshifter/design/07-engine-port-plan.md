@@ -82,6 +82,29 @@ signal on all 51 in-scope fixtures. Real streaming becomes a decision of its own
 port is green and the semantics are pinned by tests. It is the single most valuable
 follow-up this port sets up, and it should not be smuggled in during the port.
 
+**The goldens are frozen, and the regenerators do not come with them.** Eleven of the
+eighteen `projects` goldens were produced by `gen_native_fixture_outputs` from ds-rs's own
+output. Generation was a starting point, not a warrant: each of those eleven is *checked* for
+correctness once, during phase 0, and from then on it is a golden file like any other —
+committed, and changed only by a decision that says why. None of the four ignored
+regenerators is ported. A fixture that can rewrite its own expectation is not a test.
+
+**The runners assert on messages, which is one deliberate deviation.**
+`005_unmatched_content_FAIL` and `014_simple_regex_min_match_FAIL` ship `.err` files that no
+Rust runner reads, so the warning and error paths — unconsumed content, `min_match`
+shortfall, "consumed entire buffer" — have golden data sitting unused. Our runners collect
+`ParseMessage`s and assert against `.err` where one exists. This is additive: it cannot break
+output parity, only add signal where the Rust suite is dark. It is a test-side deviation, not
+an engine-side one, and it is the only one.
+
+**The output side goes behind a sink from the start.** Every `write_ref` in `core.rs` and
+every `OutputNode` case in `body.rs` writes to a `Write`. The port keeps that behaviour but
+puts one interface at the boundary, with a byte-sink implementation as the only one built.
+The reason is D10's open question: the pipeline element will want something other than a byte
+stream — SAX events are the obvious candidate but not the only one, and that choice is not
+being made here. Taking the seam now costs one indirection; retrofitting it means revisiting
+every output case a second time.
+
 **Records and sealed interfaces for the Rust enums.** `MatchExpression`, `MatchStep`,
 `OutputNode`, `Condition`, `RefPart`, `CaptureSource` and `TypedValue` are all sum types
 whose exhaustive `match` is load-bearing. On Java 25 they become sealed interfaces with
@@ -104,7 +127,8 @@ came from Java Stroom's DS3 and are a genuine external oracle. But `gen_native_f
 one of the four ignored regenerators, regenerates the goldens for eleven of the eighteen
 `projects` fixtures *from ds-rs's own output*. For those, parity asserts "same as ds-rs" —
 which is precisely what a port wants, and precisely why they cannot catch a bug ds-rs already
-has. Worth knowing which fixtures are which when one of them disagrees.
+has. Hence the phase 0 audit and freeze in §3: reviewed once, then golden. Worth knowing which
+fixtures are which when one of them disagrees.
 
 **Open — the API shapes differ in three places** that will need real work rather than
 transliteration:
@@ -128,9 +152,9 @@ built first and report `n/51` from the start, so every phase moves a number.
 
 | # | Phase | Acceptance |
 |---|---|---|
-| 0 | **Harness first.** Vendor all 136 fixture files with their provenance; build the three golden runners (legacy, native, projects) so they run red and report a count; make the 208-pattern compile probe a test | Runners execute and report `0/51`; pattern probe green |
+| 0 | **Harness first.** Vendor all 136 fixture files with their provenance; build the three golden runners so they run red and report a count; assert `ParseMessage`s against `.err` where present; audit and freeze the eleven generated goldens; make the 208-pattern compile probe a test | Runners execute and report `0/51`; pattern probe green; every golden either externally sourced or reviewed |
 | 1 | **Model and binding.** `config` package, `error`, `Predicate`, `RefExpression`; Jackson binding behind `ProjectReader` | All 36 `project.json` files parse, and round-trip parse→write→parse structurally equal |
-| 2 | **Vertical slice.** UTF-8 only; `Store`/`TypedValue`; ref resolution; compile and run `Regex`, `Delimiter`, `Source`, `All`; body limited to `Text`, `ValueOf`, `ApplyTemplates` | First green fixtures: `native/004_simple_regex`, `native/001_csv_with_header` |
+| 2 | **Vertical slice.** UTF-8 only; the output sink interface and its byte implementation; `Store`/`TypedValue`; ref resolution; compile and run `Regex`, `Delimiter`, `Source`, `All`; body limited to `Text`, `ValueOf`, `ApplyTemplates` | First green fixtures: `native/004_simple_regex`, `native/001_csv_with_header` |
 | 3 | **The rest of the body.** Conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, and the twelve transform functions; match limits, guards, modes, `ignore_errors` and the message/warning paths | The 18 `native` and 15 in-scope `projects` fixtures green — `33/51` |
 | 4 | **DS3 import.** `ds3_config` and `migration`, including `records:2` output shaping | The 18 `legacy` golden fixtures green — `51/51` overall |
 | 5 | **Progressive matching.** The `MatchStep` atoms and combinators, `StepRef` resolution, the JDK codecs | The 4 progressive fixtures green; `progressive_embedded_codec` included |
@@ -151,6 +175,10 @@ The same discipline as the matching layer, adapted:
   gets recorded here and decided separately.
 - **A skipped fixture is a reported number, not a deleted file.** The three binary-format
   fixtures stay vendored and stay listed as skipped, so the gap is visible.
+- **The Rust design documents are vendored, unedited**, at
+  [../stroom-shapeshifter-engine/docs/](../stroom-shapeshifter-engine/docs) with an index that
+  says which apply. They are history and intent; where they and the Rust source disagree, the
+  source wins.
 - **No performance work during the port.** The matching layer's numbers came from
   change-then-measure with checked-in results; guessing at hot paths while the semantics are
   still moving would produce neither. Once the suite is green, the engine gets its own

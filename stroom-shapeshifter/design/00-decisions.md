@@ -887,6 +887,25 @@ the eighteen `projects` goldens are regenerated from ds-rs's own output by one o
 regenerators, so for those fixtures parity means "same as ds-rs" and cannot catch a bug ds-rs
 already has. The `legacy` goldens came from Java Stroom's DS3 and are a real external oracle.
 
+Three further points settled on 2026-08-20, after the baseline was measured:
+
+- **Generated goldens are audited once, then frozen.** Generation was the starting point, not
+  a warrant. Each of the eleven self-referential goldens is checked for correctness in phase 0
+  and thereafter is a committed golden file, changed only by a decision that says why. None of
+  the four regenerators is ported — a fixture that can rewrite its own expectation is not a
+  test.
+- **The runners assert on `ParseMessage`s** against the `.err` files the Rust suite never
+  reads, lighting up the unconsumed-content and `min_match` paths. It is additive, test-side,
+  and the only deliberate deviation from faithfulness.
+- **The output side goes behind a sink interface from the start**, with a byte sink as the
+  only implementation built. D10's open question — what the pipeline element consumes, SAX
+  events or something else — stays open, but the seam it needs costs one indirection now and
+  a second pass over every `OutputNode` case later.
+
+The Rust project's design documents are vendored unedited under
+`stroom-shapeshifter-engine/docs/`, with an index marking which apply to the port and which
+describe the node editor that is not being ported.
+
 **Consequences:** behaviour that looks wrong in ds-rs gets ported, recorded, and decided
 separately rather than fixed in flight; no performance work happens during the port, because
 change-then-measure needs the semantics to hold still; and the engine gets its own benchmark

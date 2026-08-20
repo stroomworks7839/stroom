@@ -96,6 +96,10 @@ The design drafts, the decisions and the measurements:
 - [07-engine-port-plan.md](design/07-engine-port-plan.md) — the plan for porting the ds-rs
   template engine into `stroom-shapeshifter-engine`: inventory, phases, and what is deferred.
 
+The Rust project's own design documents are vendored unedited at
+[stroom-shapeshifter-engine/docs/](stroom-shapeshifter-engine/docs), with an index marking
+which of them apply to the port.
+
 Prior art for both: the Rust `ds-rs`/shapeshifter prototype, and Stroom's existing DS3
 implementation at `stroom-pipeline/src/main/java/stroom/pipeline/xml/converter/ds3/`.
 
