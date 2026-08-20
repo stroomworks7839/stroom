@@ -19,18 +19,18 @@ These are things the Rust engine does that look wrong. They are reproduced exact
 fixtures encode them, so changing any of them means changing a golden and saying why.
 
 ### E1 — A `maxMatch` template warns about everything it was told not to consume
-**`open`. Most likely of these to annoy a real user.**
+**`blocked` on E17 — decided under [D34](../design/00-decisions.md). Root cause reframed.**
 
 A template with `max_match` stops after its limit, as instructed, and then the unconsumed-content
-check reports everything after it as unmatched. Any `maxMatch` template triggers this by
-construction — most visibly a CSV header, which is *supposed* to consume one line.
+check reports everything after it as unmatched — most visibly a CSV header, which is *supposed*
+to consume one line. Seen in `fixtures/legacy/001_csv_with_header.messages` (one warning quoting
+the whole body) and behind the nineteen warnings in `003_multiline_regex.messages`.
 
-Seen in `fixtures/legacy/001_csv_with_header.messages`, whose single warning quotes the whole
-body of the file. Also the likeliest cause of the nineteen warnings in
-`003_multiline_regex.messages`, on a fixture whose output is correct.
-
-Resolving it means deciding whether a template that stopped on purpose can be said to have failed
-to consume, and if not, updating the message goldens that record it.
+**The cause is not the check but the dispatch model** ([09-engine-semantics.md](../design/09-engine-semantics.md)):
+real DS3 dispatches a level as `(A|B|C)*`, where the pass after a header hits its limit simply
+lets the next expression consume, and the only report is per-level. The engine's inherited
+`A*B*C*` dispatch plus per-template reporting is what manufactures the false positive. Closes
+when E17 lands, taking its message goldens with it.
 
 ### E2 — Both `ignoreErrors` fixtures warn anyway
 **`open`. Related to E1 but not the same.**
@@ -118,7 +118,13 @@ fields. Promoted to `PASS`.
 it.*
 
 ### E16 — `win_sec`'s templates were listed out of data order
-**`resolved` for `win_sec` 2026-08-20. Still `open` for `win_sec_xml`.**
+**`resolved` for `win_sec` 2026-08-20. Still `open` for `win_sec_xml` — re-diagnose under E17's
+dispatch before any further fix.**
+
+*Reframed by [D34](../design/00-decisions.md): the deeper cause is the engine's `A*B*C*`
+dispatch, inherited from ds-rs — real DS3's `(A|B|C)*` cannot strand content across a pass, and
+this configuration was written for that model. The reorder below stays valid (order expresses
+priority under both models), but "the config was wrong" was the shallow reading.*
 
 With E6 fixed, nine empty elements and eighteen empty values remained. The cause is not dot-all
 this time but something more structural, and worth understanding because it will recur in any
@@ -222,18 +228,22 @@ parity meant something — and the matching layer underneath already answers
 Pinned by `EngineBehaviourTest`, so the current behaviour is a test rather than an assumption,
 which is what makes the change safe to attempt.
 
-### E14 — Whether progressive steps should be lowered onto the combinator layer
-**`open`.**
+### E14 — Whether the textual step subset should be lowered onto the combinator layer
+**`open`, reframed by [D34](../design/00-decisions.md) — now purely an optimisation question.
+Waits for E17.**
 
-`stroom.shapeshifter.regex.comb` has almost exactly the progressive vocabulary, and
-[D8](../design/00-decisions.md) says compose at authoring time and flatten at compile time.
-Lowering would be faster — the steps would reach the tiered engines instead of an interpreter —
-and would also **change the language**: the interpreter is greedy and does not backtrack, a
-compiled pattern does both, so `Repeat(Tag "ab")` then `Tag("ab")` against `abab` fails as steps
-and matches as a pattern.
+The original framing said the steps "could not" be lowered because they are possessive. Wrong:
+**atoms are semantics-neutral** — `comb` compiles the same vocabulary into the HIR and gets full
+backtracking, while the step interpreter drives the same atoms with PEG commitment. The
+semantics belongs to the driver, and D34 has now *chosen* PEG commitment for the step layer as
+the design, not an accident.
 
-Pinned by `StepsTest` so an accidental change fails loudly. The binary atoms cannot be lowered at
-all, so any change here is partial by nature.
+So what remains is speed: lowering the textual subset (`Tag`, `TakeWhile`, `Choice`, `Repeat`…)
+onto `comb` would reach the tiered engines instead of an interpreter, and would need the
+lowered form to preserve PEG semantics — atomic groups and possessive quantifiers express
+exactly that, and the fancy tier supports both. `StepsTest` pins the commitment behaviour so a
+lowering that silently widened what matches fails loudly. The binary atoms cannot lower and stay
+interpreted regardless.
 
 ### E15 — What the output sink's other implementation is
 **`blocked` on [D10](../design/00-decisions.md).**
@@ -242,3 +252,28 @@ Configurations describe their output as bytes that happen to be XML. A Stroom pi
 will want something else — SAX events are the obvious candidate and explicitly not the only one.
 Every write already funnels through `OutputSink`, so this is one place to answer rather than
 twenty, but the question itself belongs to the pipeline module that does not exist yet.
+
+---
+
+## From the semantics discussion (D34)
+
+### E17 — Implement `(A|B|C)*` dispatch and DS3-shaped reporting
+**`open`. The first deliberate behavioural departure from ds-rs; the write-up is
+[09-engine-semantics.md](../design/09-engine-semantics.md).**
+
+The executor's dispatch loop changes from per-template exhaustion to per-pass ordered choice;
+unconsumed reporting moves from per-template to per-level; a skipped-prefix report is added per
+match; all gated on `ignoreErrors`. Match limits and `onlyMatch` keep their meanings.
+
+The message goldens encoding the false-positive class (`001`, `003`, `011`, `012`, and the
+`005`/`014` severities) are regenerated **with review** and compared against Stroom's `.err`
+files, which should then agree in shape as well as substance. Output goldens are expected to
+survive; the ratchet names any configuration that depended on `A*B*C*`. E1 closes with this.
+
+### E18 — `matchOrder="any"` (excision) is not modelled
+**`deferred`.**
+
+Real DS3 has a second dispatch mode in which the matched span is *excised* from the buffer and
+the skipped prefix survives for other expressions. The ds-rs importer silently dropped the
+attribute, no corpus configuration uses it, and D34 defers it until a real configuration needs
+it. If it arrives, it is a dispatch variant, not a new engine.

@@ -921,3 +921,34 @@ and three places where an `apply-templates` or a message path was subtly wrong �
 of ds-rs behaviour worth deciding about, none of them fixed in flight. Both lists, and the three
 decisions the port sets up, are in the plan's closing section. The engine's benchmark set is now
 unblocked.
+
+---
+
+## D34 — Dispatch follows DS3: iterated ordered choice, with skipping reported
+
+*2026-08-20.* E16's investigation led to reading Java Stroom's own DS3 dispatch loop, which
+settled a question the port had unknowingly carried: real DS3 dispatches a level's expressions
+as `(A|B|C)*` — first match wins each pass, restarting from the first expression — while ds-rs
+designed `A* B* C*`, exhausting each expression before trying the next, and claimed equivalence
+in a comment. They are not equivalent, and E1's false-positive warning, E16's "wrong" template
+order and the `005`/`014` message divergences are all symptoms of the substitution. The full
+write-up, with the evidence quoted, is [09-engine-semantics.md](09-engine-semantics.md).
+
+Decided, with the user:
+
+- **Dispatch becomes `(A|B|C)*`** — DS3's model, which is also XSLT's instinct and what every
+  existing configuration was written against. Implementation is E17.
+- **Skipping is reported, never silent.** A match starting past the cursor reports the skipped
+  content, unconsumed content is reported once per level, both gated on `ignoreErrors` —
+  DS3's deliberate design, kept for its reasons: no silent data loss, and pressure toward
+  start-anchored expressions, which are also the cheap ones. `matchOrder="any"` (excision) is
+  deferred until a configuration needs it (E18).
+- **The step layer keeps PEG commitment**, now documented as the design rather than inherited
+  as an accident. Atoms are semantics-neutral — the phase 5 claim that they "could not be
+  used" with backtracking drivers was wrong, and E14 is reworded to match. Lowering onto the
+  combinator layer is an optimisation question that waits for E17.
+
+**Consequences:** the first deliberate behavioural departure from ds-rs since the port —
+sequenced exactly as D33 prescribed, decision first, diff second. The message goldens encoding
+the false-positive class change under review when E17 lands; output goldens are expected to
+survive, and the ratchet names any configuration that depended on `A*B*C*`.

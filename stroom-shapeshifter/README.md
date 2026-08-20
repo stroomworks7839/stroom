@@ -100,6 +100,9 @@ The design drafts, the decisions and the measurements:
   what is deliberately absent, and the findings and decisions it leaves open. Complete.
 - [08-fixture-audit.md](design/08-fixture-audit.md) — the phase 0 check of the generated
   fixture goldens, and the four found wrong.
+- [09-engine-semantics.md](design/09-engine-semantics.md) — what the engine's matching,
+  dispatch and transformation layers mean, where the port diverges from real DS3, and D34's
+  resolution.
 
 The Rust project's own design documents are vendored unedited at
 [stroom-shapeshifter-engine/docs/](stroom-shapeshifter-engine/docs), with an index marking
