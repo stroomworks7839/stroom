@@ -174,3 +174,36 @@ box was quiet. Compile cost is unchanged where it is measured meaningfully (the 
 the ones this change could not touch — the 57-template pass over unanchored `(?m)` patterns,
 and per-dispatch template filtering. Mode dispatch tables and reference strategies are the next
 candidates, one measured change at a time.
+
+## 7. Change 2, measured: the graph owns its dispatch indexes
+
+One structural change (`d4935f1ddc`): `CompiledProject` computes per-mode and per-name dispatch
+tables at construction; `apply()` and `call-template` read fields instead of filtering the
+template list per call. Correctness gate unchanged (52/52, 242 tests). Measurement
+([benchmarks/2026-08-20-1828-d4935f1ddc-engine.json](benchmarks/2026-08-20-1828-d4935f1ddc-engine.json)):
+
+| Workload | before MiB/s | after MiB/s | ratio | cumulative vs baseline |
+|---|---:|---:|---:|---:|
+| `ausearch` | 34.0 | 40.0 | 1.18× | 3.8× |
+| `regex_lines` | 74.6 | 85.1 | 1.14× | 1.26× |
+| `apache_httpd` | 29.4 | 31.7 | 1.08× | 1.50× |
+| `win_sec_xml` | 16.2 | 17.2 | 1.06× | 11.2× |
+| `progressive` | 46.1 | 48.7 | 1.06× | 1.02× |
+| `win_sec` | 5.5 | 5.7 | 1.04× | 1.04× |
+| `csv_header` | 30.6 | 31.3 | 1.02× | 1.04× |
+
+The modest prediction was the right one: 2–18% everywhere, no regressions. `regex_lines` at
+1.14× is the informative surprise — it dispatches one mode per *line*, so the per-call filter
+was a real cost even on the simplest workload. `progressive` swung 0.96× → 1.06× across the two
+runs, netting ~flat; it is a slightly noisy workload and is read as such.
+
+One honest cost, visible only where nothing else exists to hide it: index construction adds
+~170ns to compile, which halves the *rate* of the two sub-microsecond compile rows
+(`csv_header` 0.50×, `progressive` 0.63×) while the millisecond rows — the ones that matter —
+are flat to better (0.97–1.10×). Milliseconds remain the compile budget and it is nowhere near
+spent.
+
+`win_sec` confirms its diagnosis by barely moving: its cost is the unanchored `(?m)` scans, not
+dispatch bookkeeping. **Next: change 3 — reference strategies and pre-encoded literals** (the
+`String.getBytes`-per-write class), aimed at `apache_httpd`'s heavy bodies, and the first step
+of the compiled-body direction.

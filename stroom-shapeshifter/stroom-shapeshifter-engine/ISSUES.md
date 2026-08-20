@@ -232,9 +232,11 @@ optimisation: anchored patterns dispatched `ANCHORED`, and the matcher held as a
 compiled node — the `CompiledProject` *is* the per-run executable graph. That first change
 landed 2026-08-20 (`6582e96cd9`): `win_sec_xml` moved 1.5 → 16.2 MiB/s, the predicted order of
 magnitude, with `ausearch` 3.25× and `apache_httpd` 1.38× as unpredicted bonuses from the same
-mechanism and the controls flat. The loop continues —
-[10-engine-compilation.md §6](../design/10-engine-compilation.md) names `win_sec`'s dispatch
-costs as the next candidates.** `EngineBenchmark` runs seven
+mechanism and the controls flat. Change 2 (`d4935f1ddc`, dispatch
+indexes owned by the graph) added 2–18% everywhere — cumulative vs baseline: `win_sec_xml`
+11.2×, `ausearch` 3.8×, `apache_httpd` 1.5×. The loop continues —
+[10-engine-compilation.md §7](../design/10-engine-compilation.md) names reference strategies
+and pre-encoded literals as change 3.** `EngineBenchmark` runs seven
 whole configurations over 256 KiB of repeated real records, five forks, results to
 `design/benchmarks/` — the regex module's discipline. The status it measures against, and the
 gap list of what is interpreted rather than compiled, is
