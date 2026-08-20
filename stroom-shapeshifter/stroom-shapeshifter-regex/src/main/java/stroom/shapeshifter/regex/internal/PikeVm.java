@@ -115,7 +115,12 @@ public final class PikeVm {
                 // A new attempt starting here, at lowest priority so earlier starts win.
                 addThread(current, 0, seed, data, regionFrom, to, pos);
             }
-            if (current.size == 0 && (anchored || pos > to || pos > lastSeed)) {
+            if (current.size == 0
+                && (anchored || pos > to || pos > lastSeed
+                    // An input-anchored pattern past the region start can never seed again,
+                    // so once nothing is live the simulation's answer is final. Complete
+                    // windows only: a growing window's edge iterations stay.
+                    || (complete && startAnchor == Nfa.ANCHOR_INPUT && pos > regionFrom))) {
                 break;
             }
 

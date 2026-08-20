@@ -202,6 +202,13 @@ public final class NodeTree {
                     if (anchored) {
                         break;
                     }
+                    if (complete && anchor == 2) {
+                        // The one position where an input anchor can hold has already been
+                        // tried; every later iteration fails this same test, so on a window
+                        // that cannot grow the search is over. A growing window keeps the
+                        // walk for its window-edge bookkeeping.
+                        break;
+                    }
                     continue;
                 }
                 if (at < to && Utf8.isContinuation(data[at])) {

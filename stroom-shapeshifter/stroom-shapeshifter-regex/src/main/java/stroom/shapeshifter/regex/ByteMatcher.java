@@ -280,6 +280,12 @@ public final class ByteMatcher {
                 // A start-anchored pattern can only match where the anchor holds, which for a
                 // typical ^-anchored pattern rules out all but the line starts. Testing that here
                 // avoids setting up an attempt that the first instruction would reject anyway.
+                if (complete && leadingAnchor != Hir.Kind.START_LINE) {
+                    // And an input anchor holds nowhere past the region start at all: the one
+                    // viable attempt has happened, so on a window that cannot grow the search
+                    // is over. A growing window keeps the walk for its edge bookkeeping.
+                    break;
+                }
                 continue;
             }
             if (splitsCharacter(start)) {
