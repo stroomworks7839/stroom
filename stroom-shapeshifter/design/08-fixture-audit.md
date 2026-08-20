@@ -112,6 +112,14 @@ because the two names are the same length.
 
 ## What happens to the four
 
+*All four were corrected on 2026-08-20 and the quarantine is now empty — each fixed at the
+configuration, regenerated through the working engine, and verified before re-freezing:
+`win_sec` by removing two dot-all flags and reordering to its data (E6, E16), `win_sec_xml` by
+anchoring (E16), `apache_httpd` by making its newlines real and escaping captured data at the
+output boundary — with the new golden proven byte-for-byte equal to the old one plus exactly
+those two repairs (E7) — and `xml_to_json` by two braces around its nested recursion (E8). The
+paragraph below stands as written, because it described the plan that was followed.*
+
 They stay vendored and quarantined. Correcting them is post-port work, and it needs the engine
 first — a corrected golden has to be produced by something, and the only two candidates are a
 fixed config run through a working engine, or Java Stroom where an equivalent config exists.

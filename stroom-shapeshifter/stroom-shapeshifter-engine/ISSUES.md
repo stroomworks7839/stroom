@@ -75,9 +75,9 @@ Pinned by `StepsTest`. The matching layer already has correct Unicode classes
 ## Fixtures whose goldens are wrong
 
 Found by the phase 0 audit; the evidence is in
-[08-fixture-audit.md](../design/08-fixture-audit.md). One (E6) has been diagnosed, fixed and
-promoted; the rest are vendored and quarantined in `fixtures/status.txt`, and cannot be promoted
-until corrected goldens exist.
+[08-fixture-audit.md](../design/08-fixture-audit.md). **All four are now diagnosed, fixed at the
+configuration and re-frozen under review** — the quarantine is empty. Every one turned out to be
+a configuration defect; the engine needed no changes beyond what D34 had already decided.
 
 ### E6 — `win_sec` lost group identity to two dot-all flags
 **`resolved` 2026-08-20. Not an engine defect; the fixture's configuration was wrong.**
@@ -167,21 +167,32 @@ wrongness of this kind was only visible by diffing a corrected implementation's 
 E19, which the discovery raises. Every corrected value was verified against its own record in
 the input; the config diff is anchor-prefixes only, order preserved, one template added.
 
-### E7 — `apache_httpd`'s golden is not well-formed XML
-**`open`. Two problems in one file.**
+### E7 — `apache_httpd`'s golden was not well-formed XML
+**`resolved` 2026-08-20. Both defects were the configuration's, and the repair is provably
+minimal.**
 
-A captured URL puts a bare `&` into an attribute (`Value="…?year=2026&q=1"`), so the document
-cannot be parsed at all. Separately, 56 of the configuration's text nodes carry a literal
-backslash-n rather than a newline — a double-escaping accident in the fixture's own
-`project.json`, faithfully reproduced.
+Two problems, two fixes. Fifty-six of the configuration's text nodes carried a literal
+backslash-n where a newline was meant — a double-escaping accident, faithfully reproduced by
+both engines — now real newlines. And captured data was written into XML markup unescaped,
+which is how a URL's `&` broke the document; every one of the 209 places a capture is written
+into output now routes through XML escaping first, the same construction the DS3 importer
+generates. Escaping happens at the output boundary, deliberately: `urlFull` is re-parsed by
+five child modes, and escaping it in storage would corrupt the matching.
 
-### E8 — `xml_to_json`'s golden is not valid JSON
-**`open`.**
+The verification is the strong part: the regenerated golden is **byte-for-byte equal to the old
+golden with exactly the two defects repaired** — every literal `\n` made real, the single `&`
+escaped — which simultaneously proves the golden's continuity and that all 209 escape routes
+are transparent for values that need no escaping.
 
-Nested objects lose their braces: `{"name":"Alice","address":"city":"London"}` — a key whose
-value is a key. Three of its four lines are invalid. Its two sibling fixtures do the same job
-with different configurations and both produce valid JSON, so the engine can express this and
-that configuration does not.
+### E8 — `xml_to_json`'s golden was not valid JSON
+**`resolved` 2026-08-20. One missing pair of braces in the configuration.**
+
+The `element` template's nested branch wrote `"name":` and recursed into the children without
+`{` and `}` around them — `"address":"city":"London"`, a key whose value is a key. Two text
+nodes inserted around the recursion. All four lines are now valid JSON, the triple-nested
+`org.dept.team` record included, and every value traces to the input. The two sibling fixtures
+always did this correctly, which is what made the defect legible as a configuration slip rather
+than an engine limitation.
 
 ---
 

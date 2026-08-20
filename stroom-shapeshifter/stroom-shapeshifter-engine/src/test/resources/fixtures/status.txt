@@ -51,7 +51,7 @@ native/018_split_only_match                   PASS
 native/019_single_line_split                  PASS
 
 # --- projects: end-to-end project.json fixtures ---
-projects/apache_httpd                         QUARANTINED  [E7] golden is not well-formed XML — see design/08-fixture-audit.md
+projects/apache_httpd                         PASS      config fixed under E7: real newlines, output escaping
 projects/ausearch                             PASS
 projects/avro_users                           SKIPPED   Avro decoding deferred (D33)
 projects/identity_transform                   PASS
@@ -66,6 +66,6 @@ projects/win_app                              PASS
 projects/win_app_xml                          PASS
 projects/win_sec                              PASS      config fixed under E6 and E16
 projects/win_sec_xml                          PASS      config anchored under E16/E17; golden regenerated and verified
-projects/xml_to_json                          QUARANTINED  [E8] golden is not valid JSON — see design/08-fixture-audit.md
+projects/xml_to_json                          PASS      config fixed under E8: braces around nested objects
 projects/xml_to_json_attrs                    PASS
 projects/xml_to_json_unified                  PASS

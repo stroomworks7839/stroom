@@ -197,6 +197,15 @@
                     }
                   },
                   {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "{"
+                        }
+                      ]
+                    }
+                  },
+                  {
                     "apply-templates": {
                       "select": {
                         "parts": [
@@ -211,6 +220,15 @@
                       },
                       "mode": "element",
                       "max_depth": 64
+                    }
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "}"
+                        }
+                      ]
                     }
                   }
                 ]

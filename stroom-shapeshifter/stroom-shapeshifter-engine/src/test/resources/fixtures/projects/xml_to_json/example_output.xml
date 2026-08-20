@@ -1,4 +1,4 @@
-{"name":"Alice","age":"30","address":"city":"London","country":"UK"}
+{"name":"Alice","age":"30","address":{"city":"London","country":"UK"}}
 {"name":"Bob","age":"25","city":"Paris","role":"designer","department":"product"}
-{"name":"Carol","age":"35","location":"region":"city":"Berlin","state":"BE","country":"Germany"}
-{"name":"Dave","org":"dept":"team":"lead":"Eve","size":"5"}
+{"name":"Carol","age":"35","location":{"region":{"city":"Berlin","state":"BE"},"country":"Germany"}}
+{"name":"Dave","org":{"dept":{"team":{"lead":"Eve","size":"5"}}}}

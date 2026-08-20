@@ -53,12 +53,12 @@ goldens now record the DS3-shaped reporting — `001`, `011` and `012` are empty
 eleven true errors in place of nineteen false warnings. The bullets stand as what recording the
 messages found, which is what justified recording them.
 
-**Quarantine.** The phase 0 audit found four `projects` goldens wrong — they were generated
-from ds-rs's own output and never checked. Two (`win_sec`, `win_sec_xml`) have since been fixed
-at the configuration and re-frozen under review (E6, E16); two (`apache_httpd`, `xml_to_json`)
-remain `QUARANTINED` in `status.txt` against their issue ids until corrected goldens replace
-them. The evidence is in [08-fixture-audit.md](../../../../design/08-fixture-audit.md) and the
-entries are E6 to E8 in [ISSUES.md](../../../../ISSUES.md).
+**Quarantine — now empty.** The phase 0 audit found four `projects` goldens wrong — generated
+from ds-rs's own output and never checked. All four have since been diagnosed, fixed at the
+configuration, and re-frozen under review: `win_sec` and `win_sec_xml` (E6, E16),
+`apache_httpd` (E7) and `xml_to_json` (E8). Every one was a configuration defect. The evidence
+is in [08-fixture-audit.md](../../../../design/08-fixture-audit.md) and
+[ISSUES.md](../../../../ISSUES.md).
 
 ## What was left behind
 

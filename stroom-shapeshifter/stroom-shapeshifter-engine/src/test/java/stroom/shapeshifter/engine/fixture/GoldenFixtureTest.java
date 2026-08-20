@@ -42,8 +42,8 @@ import static org.assertj.core.api.Assertions.fail;
  *
  * <p>The Rust implementation passed 51 of these — 18 legacy, 18 native, 15 projects — plus one
  * config-rejection case. Three are skipped for deferred binary formats; the phase 0 audit
- * quarantined four whose goldens were wrong (D33, {@code design/08-fixture-audit.md}), of which
- * two have since been fixed at the configuration and re-frozen (E6, E16).
+ * quarantined four whose goldens were wrong (D33, {@code design/08-fixture-audit.md}), and all
+ * four have since been fixed at the configuration and re-frozen under review (E6–E8, E16).
  */
 class GoldenFixtureTest {
 
