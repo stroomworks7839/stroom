@@ -27,6 +27,7 @@ import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.exec.Codecs;
+import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.Flag;
 import stroom.shapeshifter.regex.PatternCompileException;
@@ -59,7 +60,10 @@ public final class Compiler {
      * @throws ConfigException if anything in it cannot be compiled
      */
     public static CompiledProject compile(final Project project) {
-        final Charset charset = charset(project.source().encoding());
+        final Encoding encoding = encoding(project.source().encoding());
+        final Charset charset = encoding.isUtf8Compatible() || encoding == Encoding.RAW
+                ? StandardCharsets.UTF_8
+                : encoding.charset();
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
         final Map<String, BytePattern> patterns = new HashMap<>();
@@ -74,7 +78,7 @@ public final class Compiler {
                 steps(progressive.steps(), template, patterns);
             }
         }
-        return new CompiledProject(project, templates, patterns, warnings);
+        return new CompiledProject(project, templates, patterns, encoding, warnings);
     }
 
     // -----------------------------------------------------------------------------------
@@ -272,19 +276,22 @@ public final class Compiler {
     }
 
     /**
-     * The charset a configuration's encoding label names.
+     * The encoding a configuration's label names.
      *
-     * <p>{@code auto} means "look at the input", which the executor does per stream; until it
-     * has, UTF-8 is the assumption, and it is also what the delimiters are encoded as.
+     * <p>An unknown name is a configuration error, and so is a known name this build has no
+     * charset for — better to say so now than to read a stream as something it is not.
      */
-    public static Charset charset(final String label) {
-        if (label == null || label.isBlank() || "auto".equalsIgnoreCase(label)) {
-            return StandardCharsets.UTF_8;
+    public static Encoding encoding(final String label) {
+        if (label == null || label.isBlank()) {
+            return Encoding.AUTO;
         }
-        try {
-            return Charset.forName(label);
-        } catch (final RuntimeException e) {
-            throw new ConfigException("Unknown encoding: " + label, e);
+        final Encoding encoding = Encoding.fromLabel(label);
+        if (encoding == null) {
+            throw new ConfigException("Unknown encoding: " + label);
         }
+        if (!encoding.isAvailable()) {
+            throw new ConfigException("This build has no charset for " + encoding.label());
+        }
+        return encoding;
     }
 }

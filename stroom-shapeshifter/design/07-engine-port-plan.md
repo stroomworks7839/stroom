@@ -161,13 +161,24 @@ built first and report `n/48` from the start, so every phase moves a number.
 | 3 | **The rest of the body — done.** All fourteen conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, the twelve transform functions, and template guards | `25/48` — all 18 `native` and all 7 non-progressive `projects` fixtures |
 | 4 | **DS3 import — done.** `ds3_config`, `migration` and the legacy `$`-syntax reference parser, including `records:2` output shaping | `44/48` — all 19 `legacy` entries, output *and* message goldens, rejection case included |
 | 5 | **Progressive matching — done.** All 24 `MatchStep` kinds, `StepRef` resolution, pattern-reference inlining, and the JDK codecs | `48/48` — every in-scope fixture |
-| 6 | **Encodings.** Full charset resolution, BOM detection, inheritance | The 17 encoding integration tests and 22 `encoding.rs` unit tests ported and green |
+| 6 | **Encodings — done.** All 29 named encodings, byte-order-mark detection, inheritance, and conversion at the two boundaries that need it | The Rust suite's encoding assertions ported (18 tests), plus 6 that run non-UTF-8 input end to end |
 | 7 | **Unit test port.** The remaining ~160 unit and integration tests, `refs` (33) and `store` (13) and `compiled` (14) and `exec_tests` (55) foremost | Whole suite green; coverage of the ported surface no worse than the Rust crate's |
 | 8 | **Instrumentation seam.** `Instrument` + no-op, and `regex_info` | Engine compiles against the seam with no production cost |
 
 Phases 5 and 6 are ordered after 4 deliberately: a full ledger is the milestone that
 proves the architecture, and progressive matching and exotic encodings are each self-contained
 enough to follow it without re-opening anything.
+
+**What phase 6 found: a field nobody reads.** `Template.encoding` is in the model, is written
+by the format, and is never looked at by the Rust engine — an encoding override per template
+does not work and never has. It is ported as modelled, because a port that silently dropped a
+field would be worse, and recorded here as something to decide rather than to fix in flight.
+
+Worth noting about the phase's shape: no fixture reaches any of this. Every configuration in the
+corpus is UTF-8 or `auto`, so the encoding path could have been wired up backwards and all 48
+would still pass. Hence `EncodedInputTest`, which runs Latin-1, Windows-1252 and a
+byte-order-marked stream through the whole engine — including a non-ASCII *delimiter*, which is
+the case that proves encoding reaches compilation and not just output.
 
 **What phase 5 settled: the combinator layer is the wrong home, for a reason worth writing
 down.** `stroom.shapeshifter.regex.comb` has almost exactly the progressive vocabulary — `Tag`,

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.exec;
 
 import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
@@ -52,42 +53,43 @@ public final class Conditions {
                                    final MatchResult match,
                                    final int matchCount,
                                    final VarRegistry vars,
+                                   final Encoding encoding,
                                    final Map<String, BytePattern> patterns) {
         return switch (condition) {
             case Condition.Equals value ->
-                    text(value.select(), match, matchCount, vars).equals(value.value());
+                    text(value.select(), match, matchCount, vars, encoding).equals(value.value());
             case Condition.NotEquals value ->
-                    !text(value.select(), match, matchCount, vars).equals(value.value());
+                    !text(value.select(), match, matchCount, vars, encoding).equals(value.value());
             case Condition.RefEquals value ->
-                    text(value.left(), match, matchCount, vars)
-                            .equals(text(value.right(), match, matchCount, vars));
+                    text(value.left(), match, matchCount, vars, encoding)
+                            .equals(text(value.right(), match, matchCount, vars, encoding));
             case Condition.Matches value -> {
                 final BytePattern pattern = patterns.get(value.pattern());
                 if (pattern == null) {
                     throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
                 }
                 yield pattern.matcher().find(
-                        text(value.select(), match, matchCount, vars).getBytes(StandardCharsets.UTF_8));
+                        text(value.select(), match, matchCount, vars, encoding).getBytes(StandardCharsets.UTF_8));
             }
             case Condition.Contains value ->
-                    text(value.select(), match, matchCount, vars).contains(value.substring());
+                    text(value.select(), match, matchCount, vars, encoding).contains(value.substring());
             case Condition.StartsWith value ->
-                    text(value.select(), match, matchCount, vars).startsWith(value.prefix());
+                    text(value.select(), match, matchCount, vars, encoding).startsWith(value.prefix());
             case Condition.GreaterThan value -> {
-                final Double number = number(value.select(), match, matchCount, vars);
+                final Double number = number(value.select(), match, matchCount, vars, encoding);
                 yield number != null && number > value.value();
             }
             case Condition.LessThan value -> {
-                final Double number = number(value.select(), match, matchCount, vars);
+                final Double number = number(value.select(), match, matchCount, vars, encoding);
                 yield number != null && number < value.value();
             }
             case Condition.And value -> value.conditions().stream()
-                    .allMatch(child -> evaluate(child, match, matchCount, vars, patterns));
+                    .allMatch(child -> evaluate(child, match, matchCount, vars, encoding, patterns));
             case Condition.Or value -> value.conditions().stream()
-                    .anyMatch(child -> evaluate(child, match, matchCount, vars, patterns));
-            case Condition.Not value -> !evaluate(value.condition(), match, matchCount, vars, patterns);
+                    .anyMatch(child -> evaluate(child, match, matchCount, vars, encoding, patterns));
+            case Condition.Not value -> !evaluate(value.condition(), match, matchCount, vars, encoding, patterns);
             case Condition.Exists value -> {
-                final byte[] resolved = Refs.resolve(value.select(), match, matchCount, vars);
+                final byte[] resolved = Refs.resolve(value.select(), match, matchCount, vars, encoding);
                 yield resolved != null && resolved.length > 0;
             }
             case Condition.IsFirst ignored -> flag(IS_FIRST, matchCount, vars);
@@ -98,17 +100,19 @@ public final class Conditions {
     private static String text(final stroom.shapeshifter.engine.config.RefExpression expression,
                                final MatchResult match,
                                final int matchCount,
-                               final VarRegistry vars) {
-        final String resolved = Refs.resolveText(expression, match, matchCount, vars);
+                               final VarRegistry vars,
+                               final Encoding encoding) {
+        final String resolved = Refs.resolveText(expression, match, matchCount, vars, encoding);
         return resolved == null ? "" : resolved;
     }
 
     private static Double number(final stroom.shapeshifter.engine.config.RefExpression expression,
                                  final MatchResult match,
                                  final int matchCount,
-                                 final VarRegistry vars) {
+                                 final VarRegistry vars,
+                                 final Encoding encoding) {
         try {
-            return Double.valueOf(text(expression, match, matchCount, vars).trim());
+            return Double.valueOf(text(expression, match, matchCount, vars, encoding).trim());
         } catch (final NumberFormatException e) {
             return null;
         }

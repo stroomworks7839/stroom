@@ -28,6 +28,7 @@ import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 
@@ -67,9 +68,16 @@ public final class Executor {
     private final List<Message> messages = new ArrayList<>();
     private final VarRegistry vars = new VarRegistry();
 
+    /**
+     * The encoding in force. Starts as whatever the configuration declared, and is replaced if
+     * the input opens with a byte-order mark, which is better evidence than a declaration.
+     */
+    private Encoding encoding;
+
     private Executor(final CompiledProject compiled, final OutputSink sink) {
         this.compiled = compiled;
         this.output = sink;
+        this.encoding = compiled.encoding();
         this.messages.addAll(compiled.warnings());
     }
 
@@ -137,7 +145,11 @@ public final class Executor {
             int from = 0;
             if (first) {
                 first = false;
-                from = byteOrderMarkLength(chunk);
+                final Encoding.ByteOrderMark mark = Encoding.detectByteOrderMark(chunk);
+                if (mark != null) {
+                    encoding = mark.encoding();
+                    from = mark.length();
+                }
             }
             if (from >= chunk.length) {
                 continue;
@@ -205,7 +217,8 @@ public final class Executor {
         // exist yet. A template whose guard fails consumes nothing and leaves the content to
         // whichever sibling comes next.
         if (template.guard() != null
-            && !Conditions.evaluate(template.guard(), MatchResult.empty(), 1, vars, compiled.patterns())) {
+            && !Conditions.evaluate(
+                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns())) {
             return 0;
         }
 
@@ -351,17 +364,19 @@ public final class Executor {
                               final int matchCount) {
         for (final CaptureBinding capture : compiledTemplate.template().captures()) {
             final TypedValue value = switch (capture.select()) {
-                case CaptureBinding.CaptureSource.Group group -> match.group(group.group());
-                case CaptureBinding.CaptureSource.Step step -> match.group(step.index() + 1);
+                // A capture is a slice of the input, and is stored in the engine's own form so
+                // that everything reading it later can assume UTF-8.
+                case CaptureBinding.CaptureSource.Group group -> normalise(match.group(group.group()));
+                case CaptureBinding.CaptureSource.Step step -> normalise(match.group(step.index() + 1));
                 case CaptureBinding.CaptureSource.Select select -> {
-                    final byte[] bytes = Refs.resolve(select.select(), match, matchCount, vars);
+                    final byte[] bytes = Refs.resolve(select.select(), match, matchCount, vars, encoding);
                     yield bytes == null ? null : TypedValue.of(bytes);
                 }
                 case CaptureBinding.CaptureSource.Field ignored -> null;
                 case CaptureBinding.CaptureSource.KeyValue keyValue -> {
-                    final String key = Refs.resolveText(keyValue.keyRef(), match, matchCount, vars);
+                    final String key = Refs.resolveText(keyValue.keyRef(), match, matchCount, vars, encoding);
                     if (key != null) {
-                        final byte[] bytes = Refs.resolve(keyValue.valueRef(), match, matchCount, vars);
+                        final byte[] bytes = Refs.resolve(keyValue.valueRef(), match, matchCount, vars, encoding);
                         if (bytes != null) {
                             vars.store(key).set(matchCount, TypedValue.of(bytes));
                         }
@@ -383,6 +398,14 @@ public final class Executor {
         }
     }
 
+    /** Convert a captured value into the engine's internal form, which is UTF-8. */
+    private TypedValue normalise(final TypedValue value) {
+        if (value == null || encoding.isUtf8Compatible() || !(value instanceof TypedValue.Bytes)) {
+            return value;
+        }
+        return TypedValue.of(Refs.bytes(value, encoding));
+    }
+
     private void body(final List<OutputNode> nodes,
                       final MatchResult match,
                       final int matchCount,
@@ -392,7 +415,8 @@ public final class Executor {
         for (final OutputNode node : nodes) {
             switch (node) {
                 case OutputNode.Text text -> sink.write(text.value());
-                case OutputNode.ValueOf valueOf -> Refs.write(valueOf.select(), match, matchCount, vars, sink);
+                case OutputNode.ValueOf valueOf ->
+                        Refs.write(valueOf.select(), match, matchCount, vars, encoding, sink);
                 case OutputNode.ApplyTemplates apply -> {
                     // A directive naming a template is the recursive form, which the compiler
                     // has already inlined; running it here would recurse for ever.
@@ -483,11 +507,11 @@ public final class Executor {
     private boolean test(final stroom.shapeshifter.engine.config.Condition condition,
                          final MatchResult match,
                          final int matchCount) {
-        return Conditions.evaluate(condition, match, matchCount, vars, compiled.patterns());
+        return Conditions.evaluate(condition, match, matchCount, vars, encoding, compiled.patterns());
     }
 
     private String textOf(final RefExpression expression, final MatchResult match, final int matchCount) {
-        final String resolved = Refs.resolveText(expression, match, matchCount, vars);
+        final String resolved = Refs.resolveText(expression, match, matchCount, vars, encoding);
         return resolved == null ? "" : resolved;
     }
 
@@ -515,7 +539,7 @@ public final class Executor {
                            final java.util.function.Function<List<String>, String> function) {
         final List<String> inputs = new ArrayList<>(select.size());
         for (final RefExpression expression : select) {
-            final String resolved = Refs.resolveText(expression, match, matchCount, vars);
+            final String resolved = Refs.resolveText(expression, match, matchCount, vars, encoding);
             if (resolved != null) {
                 inputs.add(resolved);
             }
@@ -596,7 +620,7 @@ public final class Executor {
 
         vars.push();
         for (final OutputNode.Param param : value.withParam()) {
-            final byte[] resolved = Refs.resolve(param.value(), match, matchCount, vars);
+            final byte[] resolved = Refs.resolve(param.value(), match, matchCount, vars, encoding);
             if (resolved != null) {
                 vars.store(param.name()).set(1, TypedValue.of(resolved));
             }
@@ -638,7 +662,7 @@ public final class Executor {
         // So the content the parent already selected is passed straight through.
         final byte[] content = isWholeParentContent(directive.select())
                 ? parentContent
-                : Refs.resolve(directive.select(), match, matchCount, vars);
+                : Refs.resolve(directive.select(), match, matchCount, vars, encoding);
         if (content == null || content.length == 0) {
             return;
         }
@@ -708,12 +732,4 @@ public final class Executor {
         }
     }
 
-    /** How many bytes of byte-order mark to skip. UTF-8 only for now; the rest is phase 6. */
-    private static int byteOrderMarkLength(final byte[] chunk) {
-        if (chunk.length >= 3
-            && (chunk[0] & 0xFF) == 0xEF && (chunk[1] & 0xFF) == 0xBB && (chunk[2] & 0xFF) == 0xBF) {
-            return 3;
-        }
-        return 0;
-    }
 }

@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.config.Project;
+import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.util.List;
@@ -33,6 +34,8 @@ import java.util.Map;
  *                  Interning by text rather than by position means the same pattern written in
  *                  three places is compiled once, and means a pattern that will not compile is
  *                  an error before any input is read
+ * @param encoding  the encoding its input is declared to be in, which a byte-order mark on the
+ *                  input may still override
  * @param warnings  anything worth saying that did not stop compilation; these are reported at
  *                  the start of a run, so that a configuration's problems reach the same place
  *                  its data's problems do
@@ -40,6 +43,7 @@ import java.util.Map;
 public record CompiledProject(Project project,
                               List<CompiledTemplate> templates,
                               Map<String, BytePattern> patterns,
+                              Encoding encoding,
                               List<Message> warnings) {
 
     public CompiledProject {
