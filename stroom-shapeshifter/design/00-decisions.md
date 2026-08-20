@@ -914,3 +914,10 @@ describe the node editor that is not being ported.
 separately rather than fixed in flight; no performance work happens during the port, because
 change-then-measure needs the semantics to hold still; and the engine gets its own benchmark
 set and plan only once the suite is green.
+
+**Closed 2026-08-20.** All eight phases done: 48 of 48 in-scope fixtures, 198 tests, both modules
+clean. The port found four defects of its own making — a missing pattern-reference cycle guard,
+and three places where an `apply-templates` or a message path was subtly wrong — and seven pieces
+of ds-rs behaviour worth deciding about, none of them fixed in flight. Both lists, and the three
+decisions the port sets up, are in the plan's closing section. The engine's benchmark set is now
+unblocked.

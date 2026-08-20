@@ -7,6 +7,7 @@ A byte-level parsing and transformation engine.
 | Module | Contents |
 |---|---|
 | `stroom-shapeshifter-regex` | Byte-level regex and combinator matching engine |
+| `stroom-shapeshifter-engine` | Configurations, templates and transforms, built on it |
 
 ## Status
 
@@ -68,9 +69,10 @@ A pattern outside the dialect is rejected with the reason — never matched appr
 
 - `stroom-shapeshifter-regex` — the matching library: everything described above.
   Zero dependencies, enforced; usable standalone.
-- `stroom-shapeshifter-engine` — the layers above matching (D12): the record/structure
-  walker, transforms, and the output side. Depends on the regex module; the reverse is
-  forbidden by the zero-dependency check. Currently a skeleton.
+- `stroom-shapeshifter-engine` — the layers above matching (D12): configurations, templates,
+  transforms and the output side, ported from the Rust prototype (D33). Depends on the regex
+  module; the reverse is forbidden by the zero-dependency check.
+  [Its README](stroom-shapeshifter-engine/README.md) is the way in.
 - `stroom-shapeshifter-pipeline` — planned (D10): the thin adapter that puts the engine
   into a Stroom pipeline, keeping Stroom's types out of both library modules.
 
@@ -93,8 +95,9 @@ The design drafts, the decisions and the measurements:
   divergence found so far.
 - [06-performance-plan.md](design/06-performance-plan.md) — the performance work and its
   standing, the per-tier audit record, and the method notes; future sessions start here.
-- [07-engine-port-plan.md](design/07-engine-port-plan.md) — the plan for porting the ds-rs
-  template engine into `stroom-shapeshifter-engine`: inventory, phases, and what is deferred.
+- [07-engine-port-plan.md](design/07-engine-port-plan.md) — the port of the ds-rs template
+  engine into `stroom-shapeshifter-engine`: inventory, the eight phases and what each found,
+  what is deliberately absent, and the findings and decisions it leaves open. Complete.
 - [08-fixture-audit.md](design/08-fixture-audit.md) — the phase 0 check of the generated
   fixture goldens, and the four found wrong.
 
