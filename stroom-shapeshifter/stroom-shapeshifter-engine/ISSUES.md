@@ -224,7 +224,11 @@ grows will want its own shape rather than that one.
 ## Decisions the port sets up
 
 ### E12 — The engine has no performance story at all
-**`open`. Now unblocked.**
+**`open` — harness landed 2026-08-20, baseline being recorded.** `EngineBenchmark` runs seven
+whole configurations over 256 KiB of repeated real records, five forks, results to
+`design/benchmarks/` — the regex module's discipline. The status it measures against, and the
+gap list of what is interpreted rather than compiled, is
+[10-engine-compilation.md](../design/10-engine-compilation.md).
 
 Correct as far as 198 tests can show, and entirely unmeasured. The matching layer has a benchmark
 suite, checked-in results and a scoreboard ([D21](../design/00-decisions.md),

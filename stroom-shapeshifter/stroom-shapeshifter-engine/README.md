@@ -70,9 +70,11 @@ deliberately left out, and the decisions the port enables. Refer to them by id.
 - **Avro, Parquet and Protobuf.** Modelled, and refused at compile time with a clear message.
   Each needs a large dependency; D33 deferred them. Three fixtures are skipped accordingly.
 - **The compile-time optimiser** ds-rs has. It changes work, not output.
-- **A performance story.** The engine is correct as far as 198 tests can show and entirely
-  unmeasured. The matching layer has a benchmark suite and a scoreboard; this does not, and D33
-  ruled out performance work until the suite was green. It now is.
+- **A performance story, yet.** The engine now has a benchmark suite
+  (`stroom.shapeshifter.engine.bench`, run with the `jmh` task, results in
+  `../design/benchmarks/`), and [10-engine-compilation.md](../design/10-engine-compilation.md)
+  records what is compiled, what is still interpreted, and the decoration design. Optimisation
+  follows the baseline, one measured change at a time.
 
 ## Testing
 

@@ -28,6 +28,34 @@ dependencies {
     // if this module ever needs the regex module's standalone-library promise.
     implementation libs.jackson.databind
 
+    // JMH benchmarks live in src/test/java, see stroom.shapeshifter.engine.bench — the same
+    // pattern as the regex module, results to the same design/benchmarks directory.
+    testImplementation libs.jmh.core
+    testAnnotationProcessor libs.jmh.generator.annprocess
+
     testImplementation libs.bundles.common.test.implementation
     testRuntimeOnly libs.bundles.common.test.runtime
+}
+
+// Runs the engine benchmarks. The discipline is the regex module's (D21): every run writes its
+// full results to design/benchmarks as JSON, named by date and commit, because a number that
+// exists only in scrollback cannot be compared with the next one — and comparing runs is the
+// whole point.
+tasks.register('jmh', JavaExec) {
+    group = 'verification'
+    description = 'Run the Shapeshifter engine benchmarks, recording results to design/benchmarks'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.openjdk.jmh.Main'
+    args = ['stroom.shapeshifter.engine.bench..*Benchmark.*']
+
+    doFirst {
+        final def results = file("${project.projectDir}/../design/benchmarks")
+        results.mkdirs()
+        final def stamp = new java.text.SimpleDateFormat('yyyy-MM-dd-HHmm').format(new Date())
+        final def commit = providers.exec {
+            commandLine 'git', 'rev-parse', '--short', 'HEAD'
+        }.standardOutput.asText.get().trim()
+        args = args + ['-rf', 'json',
+                       '-rff', new File(results, "${stamp}-${commit}-engine.json").path]
+    }
 }

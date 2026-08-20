@@ -100,6 +100,8 @@ The design drafts, the decisions and the measurements:
   what is deliberately absent, and the findings and decisions it leaves open. Complete.
 - [08-fixture-audit.md](design/08-fixture-audit.md) — the phase 0 check of the generated
   fixture goldens, and the four found wrong.
+- [10-engine-compilation.md](design/10-engine-compilation.md) — the engine's compilation
+  stage: what is compiled, what is interpreted, and the measurement-first plan.
 - [09-engine-semantics.md](design/09-engine-semantics.md) — what the engine's matching,
   dispatch and transformation layers mean, where the port diverges from real DS3, and D34's
   resolution.
