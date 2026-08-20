@@ -17,8 +17,10 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
+import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.MatchExpression;
+import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.regex.BytePattern;
@@ -29,7 +31,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -54,11 +58,90 @@ public final class Compiler {
         final Charset charset = charset(project.source().encoding());
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
+        final Map<String, BytePattern> patterns = new HashMap<>();
 
         for (final Template template : project.templates()) {
             templates.add(new CompiledTemplate(template, compileMatch(template, charset)));
+            if (template.guard() != null) {
+                collect(template.guard(), template, patterns);
+            }
+            collect(template.body(), template, patterns);
         }
-        return new CompiledProject(project, templates, warnings);
+        return new CompiledProject(project, templates, patterns, warnings);
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Patterns used outside a template's own match
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * Compile the patterns hiding inside bodies and conditions.
+     *
+     * <p>A template's own pattern is obvious; these are the ones in a {@code matches} test or a
+     * regex {@code replace}, nested arbitrarily deep in a {@code choose} inside a
+     * {@code variable}. They are just as capable of being wrong, and finding out at compile time
+     * is the difference between a configuration that is rejected and one that fails on a record.
+     */
+    private static void collect(final List<OutputNode> body,
+                                final Template template,
+                                final Map<String, BytePattern> patterns) {
+        for (final OutputNode node : body) {
+            switch (node) {
+                case OutputNode.Replace replace -> {
+                    if (replace.isRegex()) {
+                        intern(replace.pattern(), template, patterns);
+                    }
+                }
+                case OutputNode.If value -> {
+                    collect(value.test(), template, patterns);
+                    collect(value.then(), template, patterns);
+                }
+                case OutputNode.Choose value -> {
+                    value.when().forEach(branch -> {
+                        collect(branch.test(), template, patterns);
+                        collect(branch.body(), template, patterns);
+                    });
+                    collect(value.otherwise(), template, patterns);
+                }
+                case OutputNode.Switch value -> {
+                    value.cases().forEach(switchCase -> collect(switchCase.body(), template, patterns));
+                    collect(value.defaultBody(), template, patterns);
+                }
+                case OutputNode.Variable value -> collect(value.body(), template, patterns);
+                default -> {
+                    // Every other instruction is a leaf as far as patterns are concerned.
+                }
+            }
+        }
+    }
+
+    private static void collect(final Condition condition,
+                                final Template template,
+                                final Map<String, BytePattern> patterns) {
+        switch (condition) {
+            case Condition.Matches matches -> intern(matches.pattern(), template, patterns);
+            case Condition.And value -> value.conditions()
+                    .forEach(child -> collect(child, template, patterns));
+            case Condition.Or value -> value.conditions()
+                    .forEach(child -> collect(child, template, patterns));
+            case Condition.Not value -> collect(value.condition(), template, patterns);
+            default -> {
+                // Everything else compares values rather than matching patterns.
+            }
+        }
+    }
+
+    private static void intern(final String pattern,
+                               final Template template,
+                               final Map<String, BytePattern> patterns) {
+        patterns.computeIfAbsent(pattern, text -> {
+            try {
+                return BytePattern.compile(text);
+            } catch (final PatternCompileException e) {
+                throw new ConfigException("Template '" + template.name() + "' has an invalid pattern '"
+                                          + text + "': " + e.getMessage(), e);
+            }
+        });
     }
 
     private static CompiledMatch compileMatch(final Template template, final Charset charset) {

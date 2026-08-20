@@ -158,7 +158,7 @@ built first and report `n/48` from the start, so every phase moves a number.
 | 0 | **Harness first — done.** 132 fixture files vendored with provenance; the ledger, the three golden runners and the message goldens built; the eleven generated goldens audited and four quarantined; the pattern probe made a test | `0/48`, 3 skipped, 4 quarantined; 204 corpus patterns compiling |
 | 1 | **Model and binding — done.** The `config` package as records and sealed interfaces; the whole wire format in one `ProjectJson`, behind `ProjectReader` | All 36 configurations round-trip; every variant of all 8 sum types round-trips, checked against the sealed permits list |
 | 2 | **Vertical slice — done.** UTF-8 only; the output sink and its byte implementation; `TypedValue`, `Store`, `VarRegistry`, `Refs`, `Splitter`; compile and run `Regex`, `Delimiter`, `Source`, `All`; body limited to `Text`, `ValueOf`, `ApplyTemplates` | `6/48` — native 004, 006, 010, 012, 013 and `projects/json_to_xml`, which is every fixture the slice can reach |
-| 3 | **The rest of the body.** Conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, and the twelve transform functions; guards, `call-template`, and the rest of the message paths | The 18 `native` and 7 non-progressive `projects` fixtures green — `25/48` |
+| 3 | **The rest of the body — done.** All fourteen conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, the twelve transform functions, and template guards | `25/48` — all 18 `native` and all 7 non-progressive `projects` fixtures |
 | 4 | **DS3 import.** `ds3_config` and `migration`, including `records:2` output shaping | The 19 `legacy` entries green, rejection case included — `44/48` |
 | 5 | **Progressive matching.** The `MatchStep` atoms and combinators, `StepRef` resolution, the JDK codecs | The 4 progressive fixtures green — `48/48` |
 | 6 | **Encodings.** Full charset resolution, BOM detection, inheritance | The 17 encoding integration tests and 22 `encoding.rs` unit tests ported and green |
@@ -168,6 +168,14 @@ built first and report `n/48` from the start, so every phase moves a number.
 Phases 5 and 6 are ordered after 4 deliberately: a full ledger is the milestone that
 proves the architecture, and progressive matching and exotic encodings are each self-contained
 enough to follow it without re-opening anything.
+
+**What phase 3 found.** `native/001_csv_with_header` was the last of the twenty-five to go
+green, and it failed on something no other fixture could see: an `apply-templates` whose
+`select` is group 0 must be handed the content the parent template *selected*, not group 0 of
+the parent's match. For a delimiter template those differ — its content is the field, its group
+0 includes the delimiter — so resolving group 0 hands the separator down to the child, and a CSV
+header's last column name comes out as `what\n`. The Rust engine has the same special case with
+a comment explaining it; the fixture is what forced reading the comment properly.
 
 **A correction from phase 2.** This table originally named `native/001_csv_with_header` as the
 slice's second green fixture. It is not reachable by a slice: it needs `Variable` for scope

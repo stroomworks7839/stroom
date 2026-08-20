@@ -26,6 +26,7 @@ import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
+import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
@@ -62,13 +63,13 @@ public final class Executor {
     private static final String MATCH_INDEX = "__match_idx";
 
     private final CompiledProject compiled;
-    private final OutputSink sink;
+    private final OutputSink output;
     private final List<Message> messages = new ArrayList<>();
     private final VarRegistry vars = new VarRegistry();
 
     private Executor(final CompiledProject compiled, final OutputSink sink) {
         this.compiled = compiled;
-        this.sink = sink;
+        this.output = sink;
         this.messages.addAll(compiled.warnings());
     }
 
@@ -125,7 +126,7 @@ public final class Executor {
         }
 
         if (!prologue.isEmpty()) {
-            body(prologue, nothing, 0, vars, 0);
+            body(prologue, nothing, 0, new byte[0], output, 0);
         }
 
         final int bufferSize = wholeBuffer
@@ -147,7 +148,7 @@ public final class Executor {
                 if (cursor >= chunk.length) {
                     break;
                 }
-                final int consumed = template(root, chunk, cursor, chunk.length, 0);
+                final int consumed = template(root, chunk, cursor, chunk.length, output, 0);
                 if (!wholeBuffer && consumed > 0 && cursor + consumed == chunk.length
                     && chunk.length - from == bufferSize) {
                     messages.add(new Message(Severity.WARNING, "Template '" + root.template().name()
@@ -160,7 +161,7 @@ public final class Executor {
         }
 
         if (!epilogue.isEmpty()) {
-            body(epilogue, nothing, 0, vars, 0);
+            body(epilogue, nothing, 0, new byte[0], output, 0);
         }
         return List.copyOf(messages);
     }
@@ -196,8 +197,18 @@ public final class Executor {
                          final byte[] data,
                          final int from,
                          final int to,
+                         final OutputSink sink,
                          final int depth) {
         final Template template = compiledTemplate.template();
+
+        // The guard runs before any matching, so it sees scope and nothing else — no captures
+        // exist yet. A template whose guard fails consumes nothing and leaves the content to
+        // whichever sibling comes next.
+        if (template.guard() != null
+            && !Conditions.evaluate(template.guard(), MatchResult.empty(), 1, vars, compiled.patterns())) {
+            return 0;
+        }
+
         final int minMatch = template.matchLimits().minMatch();
         final int maxMatch = template.matchLimits().maxMatch();
 
@@ -239,7 +250,7 @@ public final class Executor {
                     continue;
                 }
                 bindCaptures(compiledTemplate, match, matchCount);
-                body(template.body(), match, matchCount, vars, depth);
+                body(template.body(), match, matchCount, content.asBytes(), sink, depth);
             }
 
             if (match.advance() <= 0) {
@@ -373,18 +384,231 @@ public final class Executor {
     private void body(final List<OutputNode> nodes,
                       final MatchResult match,
                       final int matchCount,
-                      final VarRegistry scope,
+                      final byte[] content,
+                      final OutputSink sink,
                       final int depth) {
         for (final OutputNode node : nodes) {
             switch (node) {
                 case OutputNode.Text text -> sink.write(text.value());
-                case OutputNode.ValueOf valueOf -> Refs.write(valueOf.select(), match, matchCount, scope, sink);
-                case OutputNode.ApplyTemplates apply ->
-                        apply(apply.directive(), match, matchCount, depth);
-                default -> throw new UnsupportedOperationException(
-                        node.getClass().getSimpleName() + " is not ported yet");
+                case OutputNode.ValueOf valueOf -> Refs.write(valueOf.select(), match, matchCount, vars, sink);
+                case OutputNode.ApplyTemplates apply -> {
+                    // A directive naming a template is the recursive form, which the compiler
+                    // has already inlined; running it here would recurse for ever.
+                    if (apply.directive().templateRef() == null) {
+                        apply(apply.directive(), match, matchCount, content, sink, depth);
+                    }
+                }
+                case OutputNode.If value -> {
+                    if (test(value.test(), match, matchCount)) {
+                        body(value.then(), match, matchCount, content, sink, depth);
+                    }
+                }
+                case OutputNode.Choose value -> {
+                    boolean taken = false;
+                    for (final OutputNode.WhenBranch branch : value.when()) {
+                        if (test(branch.test(), match, matchCount)) {
+                            body(branch.body(), match, matchCount, content, sink, depth);
+                            taken = true;
+                            break;
+                        }
+                    }
+                    if (!taken) {
+                        body(value.otherwise(), match, matchCount, content, sink, depth);
+                    }
+                }
+                case OutputNode.Switch value -> {
+                    final String selected = textOf(value.select(), match, matchCount);
+                    boolean taken = false;
+                    for (final OutputNode.SwitchCase switchCase : value.cases()) {
+                        if (switchCase.value().equals(selected)) {
+                            body(switchCase.body(), match, matchCount, content, sink, depth);
+                            taken = true;
+                            break;
+                        }
+                    }
+                    if (!taken) {
+                        body(value.defaultBody(), match, matchCount, content, sink, depth);
+                    }
+                }
+                case OutputNode.Variable value -> variable(value, match, matchCount, content, depth);
+                case OutputNode.CallTemplate value -> call(value, match, matchCount, content, sink, depth);
+                case OutputNode.ValueMap value -> {
+                    final String selected = textOf(value.select(), match, matchCount);
+                    String mapped = null;
+                    for (final OutputNode.Entry entry : value.entries()) {
+                        if (entry.from().equals(selected)) {
+                            mapped = entry.to();
+                            break;
+                        }
+                    }
+                    if (mapped == null) {
+                        mapped = value.defaultValue();
+                    }
+                    emit(mapped == null ? "" : mapped, value.name(), matchCount, sink);
+                }
+                case OutputNode.Translate value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, inputs -> Transforms.translate(inputs, value.from(), value.to()));
+                case OutputNode.StringJoin value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, inputs -> Transforms.stringJoin(inputs, value.separator()));
+                case OutputNode.Replace value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, inputs -> {
+                            if (inputs.isEmpty()) {
+                                return null;
+                            }
+                            return value.isRegex()
+                                    ? Transforms.replaceRegex(pattern(value.pattern()), inputs.getFirst(),
+                                    value.replacement())
+                                    : Transforms.replaceLiteral(inputs, value.pattern(), value.replacement());
+                        });
+                case OutputNode.LowerCase value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, Transforms::lowerCase);
+                case OutputNode.UpperCase value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, Transforms::upperCase);
+                case OutputNode.NormalizeSpace value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, Transforms::normalizeSpace);
+                case OutputNode.Trim value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, Transforms::trim);
+                case OutputNode.Substring value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, inputs -> Transforms.substring(inputs, value.start(), value.length()));
+                case OutputNode.Tokenize value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, inputs -> Transforms.tokenize(inputs, value.delimiter()));
+                case OutputNode.Number value -> transform(value.select(), value.name(), match,
+                        matchCount, sink, Transforms::number);
             }
         }
+    }
+
+    private boolean test(final stroom.shapeshifter.engine.config.Condition condition,
+                         final MatchResult match,
+                         final int matchCount) {
+        return Conditions.evaluate(condition, match, matchCount, vars, compiled.patterns());
+    }
+
+    private String textOf(final RefExpression expression, final MatchResult match, final int matchCount) {
+        final String resolved = Refs.resolveText(expression, match, matchCount, vars);
+        return resolved == null ? "" : resolved;
+    }
+
+    private stroom.shapeshifter.regex.BytePattern pattern(final String text) {
+        final stroom.shapeshifter.regex.BytePattern pattern = compiled.patterns().get(text);
+        if (pattern == null) {
+            throw new IllegalStateException("Pattern was not compiled: " + text);
+        }
+        return pattern;
+    }
+
+    /**
+     * Run a transform function and either write its result or bind it to a variable.
+     *
+     * <p>An input that resolves to nothing is dropped rather than passed along as an empty
+     * string, so a function receiving two references and finding one absent sees one input, not
+     * two of which one is blank. And a function returning nothing writes nothing — which is what
+     * makes a join of no values disappear instead of leaving a stray separator.
+     */
+    private void transform(final List<RefExpression> select,
+                           final String name,
+                           final MatchResult match,
+                           final int matchCount,
+                           final OutputSink sink,
+                           final java.util.function.Function<List<String>, String> function) {
+        final List<String> inputs = new ArrayList<>(select.size());
+        for (final RefExpression expression : select) {
+            final String resolved = Refs.resolveText(expression, match, matchCount, vars);
+            if (resolved != null) {
+                inputs.add(resolved);
+            }
+        }
+        final String result = function.apply(inputs);
+        if (result != null) {
+            emit(result, name, matchCount, sink);
+        }
+    }
+
+    /** Write a produced value, or bind it to a variable if the instruction named one. */
+    private void emit(final String value, final String name, final int matchCount, final OutputSink sink) {
+        if (name == null) {
+            sink.write(value);
+        } else {
+            vars.store(name).set(matchCount, TypedValue.of(value.getBytes(StandardCharsets.UTF_8)));
+        }
+    }
+
+    /**
+     * Bind a variable to what a nested body produces.
+     *
+     * <p>The body runs in its own scope and into its own buffer, and what comes out depends on
+     * what it did. If it captured into the variable's name — which is what happens when the body
+     * dispatches to templates that capture — those captures are promoted whole, keeping their
+     * per-match structure so that a later reference can still ask for the third one. Otherwise
+     * the text it wrote becomes the value. If it did neither, the variable is cleared rather
+     * than left holding the previous record's value.
+     */
+    private void variable(final OutputNode.Variable value,
+                          final MatchResult match,
+                          final int matchCount,
+                          final byte[] content,
+                          final int depth) {
+        vars.push();
+        vars.shadow(value.name());
+
+        final java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+        body(value.body(), match, matchCount, content, OutputSink.of(buffer), depth);
+
+        List<Store> captured = vars.fromCurrentScope(value.name());
+        if (captured != null && captured.stream().noneMatch(store -> store.lastIndex() >= 0)) {
+            captured = null;
+        }
+        final List<Store> promoted = captured == null ? null : List.copyOf(captured);
+        vars.pop();
+
+        if (promoted != null) {
+            final List<Store> target = vars.entry(value.name());
+            target.clear();
+            target.addAll(promoted);
+        } else if (buffer.size() > 0) {
+            vars.store(value.name()).set(matchCount, TypedValue.of(buffer.toByteArray()));
+        } else {
+            vars.store(value.name()).remove(matchCount);
+        }
+    }
+
+    /**
+     * Invoke a template by name, with parameters and without matching anything.
+     *
+     * <p>Parameters live in their own scope, so a call cannot leave its arguments behind for the
+     * next one. Declared parameters the caller did not supply take their defaults.
+     */
+    private void call(final OutputNode.CallTemplate value,
+                      final MatchResult match,
+                      final int matchCount,
+                      final byte[] content,
+                      final OutputSink sink,
+                      final int depth) {
+        final CompiledTemplate target = compiled.templates().stream()
+                .filter(candidate -> candidate.template().name().equals(value.name()))
+                .findFirst()
+                .orElse(null);
+        if (target == null) {
+            return;
+        }
+
+        vars.push();
+        for (final OutputNode.Param param : value.withParam()) {
+            final byte[] resolved = Refs.resolve(param.value(), match, matchCount, vars);
+            if (resolved != null) {
+                vars.store(param.name()).set(1, TypedValue.of(resolved));
+            }
+        }
+        for (final Template.ParamDecl declared : target.template().param()) {
+            final boolean supplied = value.withParam().stream()
+                    .anyMatch(param -> param.name().equals(declared.name()));
+            if (!supplied && declared.defaultValue() != null) {
+                vars.store(declared.name())
+                        .set(1, TypedValue.of(declared.defaultValue().getBytes(StandardCharsets.UTF_8)));
+            }
+        }
+        body(target.template().body(), match, matchCount, content, sink, depth);
+        vars.pop();
     }
 
     /**
@@ -398,11 +622,21 @@ public final class Executor {
     private void apply(final ApplyDirective directive,
                        final MatchResult match,
                        final int matchCount,
+                       final byte[] parentContent,
+                       final OutputSink sink,
                        final int depth) {
         if (depth >= directive.maxDepth()) {
             return;
         }
-        final byte[] content = Refs.resolve(directive.select(), match, matchCount, vars);
+
+        // "Group 0" means the content this template is working on, which is not always group 0
+        // of its match: a delimiter template's content is the field, and its group 0 carries the
+        // delimiter too. Resolving group 0 here would hand the trailing separator down to the
+        // child templates, which is what turns a CSV header's last column name into "what\n".
+        // So the content the parent already selected is passed straight through.
+        final byte[] content = isWholeParentContent(directive.select())
+                ? parentContent
+                : Refs.resolve(directive.select(), match, matchCount, vars);
         if (content == null || content.length == 0) {
             return;
         }
@@ -429,12 +663,21 @@ public final class Executor {
             if (cursor >= content.length) {
                 break;
             }
-            cursor += template(candidate, content, cursor, content.length, depth + 1);
+            cursor += template(candidate, content, cursor, content.length, sink, depth + 1);
         }
 
         if (recursive) {
             vars.pop();
         }
+    }
+
+    /** True if an expression is exactly "group 0 of this match, whichever one that is". */
+    private static boolean isWholeParentContent(final RefExpression expression) {
+        return expression.parts().size() == 1
+               && expression.parts().getFirst() instanceof RefExpression.RefPart.Capture capture
+               && capture.varId() == null
+               && capture.group() == 0
+               && capture.matchIndex() == null;
     }
 
     // -----------------------------------------------------------------------------------

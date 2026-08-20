@@ -18,22 +18,33 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.config.Project;
+import stroom.shapeshifter.regex.BytePattern;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * A configuration ready to run.
  *
  * @param project   the authored configuration
  * @param templates its templates, compiled, in their authored order
+ * @param patterns  every pattern used somewhere other than a template's own match — in a
+ *                  condition, or in a regex replacement — compiled once and keyed by its text.
+ *                  Interning by text rather than by position means the same pattern written in
+ *                  three places is compiled once, and means a pattern that will not compile is
+ *                  an error before any input is read
  * @param warnings  anything worth saying that did not stop compilation; these are reported at
  *                  the start of a run, so that a configuration's problems reach the same place
  *                  its data's problems do
  */
-public record CompiledProject(Project project, List<CompiledTemplate> templates, List<Message> warnings) {
+public record CompiledProject(Project project,
+                              List<CompiledTemplate> templates,
+                              Map<String, BytePattern> patterns,
+                              List<Message> warnings) {
 
     public CompiledProject {
         templates = List.copyOf(templates);
+        patterns = Map.copyOf(patterns);
         warnings = List.copyOf(warnings);
     }
 }
