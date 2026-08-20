@@ -42,6 +42,8 @@ candidate, and none may be acted on before a benchmark says which matter (§4):
 | `TakeWhile` predicates | switch dispatch per byte | 256-entry boolean lookup table |
 | Conditions and guards | config-tree walk per evaluation | compiled once |
 | Captures | every group copied out of the buffer whether or not anything reads it | unused-capture elimination + dead-branch pruning (the E10 optimiser, deliberately unported during the port) |
+| `^`-anchored patterns dispatched as **unanchored searches** | a failing anchored template scans the whole remaining region instead of testing one position — ~55 times per element in `win_sec_xml` | detect start-anchored patterns at compile time and dispatch them `Anchoring.ANCHORED` *(added from the baseline, §5)* |
+| `ByteMatcher` allocated per match attempt | allocation on the hottest call the engine makes | cache one matcher per compiled template per executor *(added from the baseline, §5)* |
 
 The regex library already proves the end state on its own layer; the engine's job is the same
 move for dispatch, references, bodies and steps. The likely shape is what D34 already implies:
@@ -88,3 +90,36 @@ fixed size, so a number is a configuration's real throughput, not a microbenchma
 
 Baseline results land in `design/benchmarks/` alongside the regex module's, named by date and
 commit, and the first optimisation may be attempted only after the baseline is committed.
+
+## 5. The baseline (2026-08-20, harness commit `7ffb36f0b4`, five forks)
+
+| Workload | run ops/s | ± | MiB/s | compile ops/s |
+|---|---:|---:|---:|---:|
+| `regex_lines` | 270.5 | 4.6 | 67.6 | 183,942 |
+| `progressive` | 191.3 | 3.6 | 47.8 | 8,637,471 |
+| `csv_header` | 120.9 | 2.4 | 30.2 | 5,754,139 |
+| `apache_httpd` | 84.9 | 2.0 | 21.2 | 263 |
+| `ausearch` | 41.9 | 1.4 | 10.5 | 354 |
+| `win_sec` | 22.0 | 0.8 | 5.5 | 293 |
+| `win_sec_xml` | 6.1 | 0.1 | **1.5** | 118 |
+
+Raw results: [benchmarks/2026-08-20-1658-7ffb36f0b4-engine.json](benchmarks/2026-08-20-1658-7ffb36f0b4-engine.json).
+The box was checked for competing JMH runs before launch, and the five-fork numbers agree with
+the pre-commit smoke run (`regex_lines` 254 → 270, `win_sec` 21.9 → 22.0).
+
+**The headline is an inversion.** The A/B built to show anchored dispatch as the cheap path
+shows the opposite: `win_sec_xml`, the anchored configuration, is **3.6× slower** than its
+unanchored sibling and the slowest workload measured — 45× off the simple-regex pace. The
+diagnosis, read from the executor rather than guessed: every attempt allocates a fresh
+`ByteMatcher`, and a `^`-anchored pattern is still dispatched as an *unanchored search*, so each
+failing template — ~55 of them per element, since only one field is ever next — scans the
+remaining region to prove what one test at the cursor would have proved. D34's "anchored is the
+cheap path" is true of the matching layer's single attempt and false of our dispatch as
+implemented; the baseline caught the gap between the principle and the code, which is what it
+was for. Both fixes are compile-time items, now rows in §2, and together they are the obvious
+first optimisation — with a predicted order-of-magnitude win on exactly the configuration style
+D34 pushes authors toward.
+
+Elsewhere: the step interpreter is *not* the first-order problem (47.8 MiB/s without any of
+E14's lowering), and compile costs are milliseconds at worst (`win_sec_xml`, 55 patterns,
+~8.5 ms) — compile-once-run-many holds with room to spare.
