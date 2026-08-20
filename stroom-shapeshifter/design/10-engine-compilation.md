@@ -46,9 +46,9 @@ candidate, and none may be acted on before a benchmark says which matter (§4):
 | `ByteMatcher` allocated per match attempt | allocation on the hottest call the engine makes | a matcher held as a *field* of the compiled node — structure, not a cache *(added from the baseline, §5)* |
 
 The regex library already proves the end state on its own layer; the engine's job is the same
-move for dispatch, references, bodies and steps. And the shape is **two layers, not three** —
-settled 2026-08-20 after a false start that imported `BytePattern`'s shared-immutable contract
-up a level where nothing needs it. The `Project` is the model the user edits; the
+move for dispatch, references, bodies and steps. And the shape is **two layers, never three**
+([D35](00-decisions.md)) — settled 2026-08-20 after a false start that imported `BytePattern`'s
+shared-immutable contract up a level where nothing needs it. The `Project` is the model the user edits; the
 `CompiledProject` **is the executable graph**, and matchers and stores are *fields of its
 nodes* — structure, not a cache, because nothing is looked up when state has an owner. The
 sharing that actually matters, pattern compilation, already lives in the immutable

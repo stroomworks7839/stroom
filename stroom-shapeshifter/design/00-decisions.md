@@ -952,3 +952,41 @@ Decided, with the user:
 sequenced exactly as D33 prescribed, decision first, diff second. The message goldens encoding
 the false-positive class change under review when E17 lands; output goldens are expected to
 survive, and the ratchet names any configuration that depended on `A*B*C*`.
+
+---
+
+## D35 — Two layers, never three
+
+*2026-08-20.* There are exactly two artifacts in this engine, and there will only ever be two:
+
+1. **The user-editable model** — a `Project`, as a pattern is text.
+2. **The executable optimised graph** — a `CompiledProject`, as a pattern becomes a
+   `BytePattern`. It *performs the execution*; its nodes own their state — matchers, stores —
+   as fields.
+
+Everything else people are tempted to put between them is a mistake with a familiar shape, and
+this decision exists because the temptation demonstrably recurs. The ds-rs project grew
+intermediate layers repeatedly and had to be fought back each time — its own docs record
+NodeConfig eras, legacy-node wrappers and multi-path compilation pipelines. And on the very day
+this was written, the same session that documented the two-layer target proposed a matcher
+*cache*, then a shared-immutable `CompiledProject` with a third "per-run instance graph"
+instantiated from it, before the user's question collapsed it back to two.
+
+The recurring rationalisations, pre-refuted:
+
+- *"We need a shared immutable layer for concurrency."* The sharing that matters — pattern
+  compilation — lives in immutable values (`BytePattern`) the graph holds; they are shareable
+  regardless of what holds them. Concurrency is compile-one-per-instance, measured at
+  milliseconds (10-engine-compilation.md §5).
+- *"We need a cache for stateful pieces."* Nothing is looked up when state has an owner.
+  Matchers and stores are fields of graph nodes.
+- *"DS3 has a factory tree."* As an instantiation convenience, not an architecture. Its
+  essential shape is config → executable node graph.
+- *"Instrumentation needs a wrapper layer."* Decoration is a compile *option* that produces
+  different nodes in the same graph, not a layer around it.
+
+**Consequences:** `CompiledProject` carries `ByteMatcher`'s contract one level up — one
+execution at a time, reusable sequentially, with a defined reset between streams (E19's
+lifecycle). `Executor` is transitional and dissolves into the graph as compilation deepens. Any
+design that introduces a third artifact between the model and the graph is wrong until the user
+says otherwise.
