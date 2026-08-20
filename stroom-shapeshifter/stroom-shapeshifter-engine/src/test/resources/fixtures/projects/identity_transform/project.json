@@ -1,0 +1,203 @@
+{
+  "name": "identity_transform",
+  "version": 3,
+  "source": {
+    "buffer_size": 20000,
+    "ignore_errors": true,
+    "encoding": "auto"
+  },
+  "templates": [
+    {
+      "id": "60a27d6e-31fb-4537-b546-9fade094b619",
+      "name": "line_split",
+      "match": {
+        "delimiter": {
+          "delimiter": "\n"
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "elements",
+            "max_depth": 64
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "563a1f75-f549-44e8-a9a3-f68f5da535bc",
+      "name": "xml_element",
+      "mode": "elements",
+      "match": {
+        "regex": {
+          "pattern": "<(\\w+)>(.*?)</\\1>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "choose": {
+            "when": [
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": null,
+                            "group": 1,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "oldName"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "<newName>"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "group": 2,
+                            "var_id": null
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "</newName>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ],
+            "otherwise": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "<"
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "group": 1,
+                        "var_id": null
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": ">"
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "group": 2,
+                        "var_id": null
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "</"
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "group": 1,
+                        "var_id": null
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": ">"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

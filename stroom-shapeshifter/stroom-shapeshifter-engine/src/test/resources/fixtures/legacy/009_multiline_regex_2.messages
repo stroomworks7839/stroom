@@ -1,0 +1,6 @@
+Warning	Template 'unnamed' did not consume all content. Unmatched: [\n09/07/2016    14:49:36    Query = some query\n]
+Warning	Template 'unnamed' did not consume all content. Unmatched: [\n09/07/2016    16:34:40    Line 1:   result1\n09/07/2016    16:34:40    Line 2:   result2\n09/07/2016    16:34:40    Line 3:   result3\n09/07/2016    16:34:40    Line 4:   result4\n\n]
+Warning	Template 'unnamed' did not consume all content. Unmatched: [\n09/07/2009    16:35:21    Query = some other query\n]
+Warning	Template 'unnamed' did not consume all content. Unmatched: [\n09/07/2009    16:45:36    Line 1:   result1\n09/07/2009    16:45:36    Line 2:   result2\n09/07/2009    16:45:36    Line 3:   result3\n09/07/2009    16:45:36    Line 4:   result5\n\n]
+Warning	Template 'unnamed' did not consume all content. Unmatched: [\n09/07/2009    16:35:21    Query = some great query\n]
+Warning	Template 'unnamed' did not consume all content. Unmatched: [\n09/07/2009    16:45:36    Line 1:   result1\n09/07/2009    16:45:36    Line 2:   result2\n]

@@ -1,0 +1,4 @@
+<record><name>Alice</name><age>30</age><address><city>London</city><country>UK</country></address></record>
+<record><name>Bob</name><age>25</age><city>Paris</city><role>designer</role><department>product</department></record>
+<record><name>Carol</name><age>35</age><location><region><city>Berlin</city><state>BE</state></region><country>Germany</country></location></record>
+<record><name>Dave</name><org><dept><team><lead>Eve</lead><size>5</size></team></dept></org></record>

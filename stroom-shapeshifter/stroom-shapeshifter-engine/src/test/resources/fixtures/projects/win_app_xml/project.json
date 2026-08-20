@@ -1,0 +1,3321 @@
+{
+  "name": "win_app_xml",
+  "version": 3,
+  "source": {
+    "buffer_size": 20000,
+    "ignore_errors": true,
+    "encoding": "auto"
+  },
+  "templates": [
+    {
+      "id": "a842e12c-c9f9-4077-b715-93ae4ec6392e",
+      "name": "source",
+      "match": "source",
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Events xmlns=\"event-logging:3\"\n        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n        xsi:schemaLocation=\"event-logging:3 file://event-logging-v4.1.0.xsd\"\n        Version=\"4.1.0\">\n"
+              }
+            ]
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "root",
+            "max_depth": 64
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n</Events>\n"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "3aa39e17-e0c9-40b0-9b20-86496ec4dd89",
+      "name": "event_record",
+      "match": {
+        "regex": {
+          "pattern": "<Event[^>]*>(.+?)</Event>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "captures": [
+        {
+          "name": "event_record",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": "event_record",
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "event_fields",
+            "max_depth": 64
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": "SystemTime",
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "timestamp_parse",
+            "max_depth": 64
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": "DataField_1",
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "user_parse",
+            "max_depth": 64
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": "DataField_3",
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "client_parse",
+            "max_depth": 64
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": "DataField_2",
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "detail_parse",
+            "max_depth": 64
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": "DataField_1",
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "detail_parse",
+            "max_depth": 64
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "Store": {
+                      "var_id": "timestamp_truncate",
+                      "group": 0,
+                      "match_index": null
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_0"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "Store": {
+                      "var_id": "ProviderName",
+                      "group": 0,
+                      "match_index": null
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_1"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "Store": {
+                      "var_id": "Computer",
+                      "group": 0,
+                      "match_index": null
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_2"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n  <Event>\n    <EventTime>\n      <TimeCreated>"
+              },
+              {
+                "Store": {
+                  "var_id": "__esc_0",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>"
+              },
+              {
+                "Store": {
+                  "var_id": "__esc_1",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "</Name>\n        <Environment>Windows</Environment>\n      </System>\n      <Generator>wevtutil</Generator>\n      <Device>\n        <HostName>"
+              },
+              {
+                "Store": {
+                  "var_id": "__esc_2",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "</HostName>\n      </Device>"
+              }
+            ]
+          }
+        },
+        {
+          "choose": {
+            "when": [
+              {
+                "test": {
+                  "or": [
+                    {
+                      "equals": {
+                        "select": {
+                          "parts": [
+                            {
+                              "Store": {
+                                "var_id": "EventID",
+                                "group": 0,
+                                "match_index": null
+                              }
+                            }
+                          ]
+                        },
+                        "value": "1"
+                      }
+                    },
+                    {
+                      "equals": {
+                        "select": {
+                          "parts": [
+                            {
+                              "Store": {
+                                "var_id": "EventID",
+                                "group": 0,
+                                "match_index": null
+                              }
+                            }
+                          ]
+                        },
+                        "value": "2"
+                      }
+                    }
+                  ]
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <User>\n        <Id>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Id>\n        <UserDetails>\n          <Id>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "domain_user_split_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Id>\n          <Domain>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "domain_user_split_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Domain>\n        </UserDetails>\n      </User>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "10000"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <User>\n        <Id>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "SecurityUserID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Id>\n      </User>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "Store": {
+                      "var_id": "EventID",
+                      "group": 0,
+                      "match_index": null
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_0"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n    </EventSource>\n    <EventDetail>\n      <TypeId>"
+              },
+              {
+                "Store": {
+                  "var_id": "__esc_0",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "</TypeId>"
+              }
+            ]
+          }
+        },
+        {
+          "choose": {
+            "when": [
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "1"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>Windows has started loading the local user profile</Description>\n      <Authenticate>\n        <Action>Logon</Action>\n        <User>\n          <Id>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Id>\n          <UserDetails>\n            <Id>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "domain_user_split_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Id>\n            <Domain>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "domain_user_split_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Authenticate>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "2"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>Windows has finished loading the local user profile ("
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": ")</Description>\n      <Authenticate>\n        <Action>Logon</Action>\n        <User>\n          <Id>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Id>\n          <UserDetails>\n            <Id>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "domain_user_split_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Id>\n            <Domain>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "domain_user_split_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Authenticate>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "12291"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " started</Description>\n      <Create>\n        <Object>\n          <Type>Process</Type>\n          <Name>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Name>\n          <Description>Version "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": ", Build "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_3",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Description>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Create>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "1000"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>Faulting application "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " crashed with access violation</Description>\n      <Alert>\n        <Type>Error</Type>\n        <Severity>High</Severity>\n        <Description>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " crashed. Exception code: 0x"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_7",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " (Access Violation) in "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_4",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " at offset 0x"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_8",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Description>\n        <Data Name=\"FaultingApplication\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"FaultingApplicationVersion\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"FaultingModule\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_4",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"FaultingModuleVersion\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_5",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"ExceptionCode\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_7",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"FaultOffset\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_8",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"FaultingProcessId\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_9",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"FaultingApplicationPath\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_11",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"FaultingModulePath\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_12",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"ReportId\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_13",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Alert>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "1001"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>Windows Error Reporting: "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_3",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " for "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_6",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Description>\n      <Alert>\n        <Type>Error</Type>\n        <Severity>High</Severity>\n        <Description>Fault bucket "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " - "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_3",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " in "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_6",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_7",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " due to exception "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_12",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " in "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_9",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Description>\n        <Data Name=\"FaultBucket\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"EventName\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_3",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"P1_Application\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_6",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"P2_AppVersion\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_7",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"P4_FaultingModule\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_9",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"P7_ExceptionCode\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_12",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"P8_FaultOffset\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_13",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Alert>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "1033"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>Windows Installer installed product: "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Description>\n      <Install>\n        <Object>\n          <Type>Software</Type>\n          <Name>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Name>\n          <Description>Version "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": ", Language "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_3",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": ", Manufacturer "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_4",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Description>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"ProductName\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"ProductVersion\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"ProductLanguage\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_3",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"Manufacturer\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_4",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"InstallStatus\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_5",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Install>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "17162"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>SQL Server is ready for client connections</Description>\n      <Process>\n        <Action>Start</Action>\n        <Type>Application</Type>\n        <Command>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "ProviderName",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Command>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Process>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "18456"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>SQL Server login failed for user \\x27"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\\x27</Description>\n      <Authenticate>\n        <Action>Logon</Action>\n        <User>\n          <Id>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Id>\n        </User>\n        <Outcome>\n          <Success>false</Success>\n          <Description>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "reason_extract",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Description>\n        </Outcome>\n        <Data Name=\"ClientAddress\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "client_address",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Authenticate>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "18454"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>SQL Server login succeeded for user \\x27"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\\x27</Description>\n      <Authenticate>\n        <Action>Logon</Action>\n        <User>\n          <Id>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Id>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"AuthMethod\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "connection_method",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"ClientAddress\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "client_address",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Authenticate>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "8193"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>Volume Shadow Copy Service error: "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " failed</Description>\n      <Alert>\n        <Type>Error</Type>\n        <Severity>High</Severity>\n        <Description>Unexpected error calling routine "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": ". hr = "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": ", "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_3",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Description>\n        <Data Name=\"Routine\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_1",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"HRESULT\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"ErrorMessage\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "DataField_3",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Alert>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "1003"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>Licensing status check completed: Licensed</Description>\n      <Authorise>\n        <Object>\n          <Type>License</Type>\n          <Name>Windows(R), Professional edition</Name>\n          <Description>VOLUME_KMSCLIENT channel</Description>\n        </Object>\n        <Action>Request</Action>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"LicenseStatus\" Value=\"Licensed\"/>\n        <Data Name=\"GraceTimeDays\" Value=\"0\"/>\n        <Data Name=\"RemainingRearmCount\" Value=\"1001\"/>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Authorise>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "1026"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "application_name",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " terminated due to unhandled "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "exception_info",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Description>\n      <Alert>\n        <Type>Error</Type>\n        <Severity>High</Severity>\n        <Description>The process "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "application_name",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " was terminated due to an unhandled "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "exception_info",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " in UpdateStock method</Description>\n        <Data Name=\"Application\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "application_name",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"FrameworkVersion\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "framework_version",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"ExceptionType\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "exception_info",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"StackTrace\" Value=\"at SqlConnection.OnError > TdsParser.ThrowExceptionAndWarning > TdsParser.TryRun > SqlCommand.RunExecuteNonQueryTds > SqlCommand.ExecuteNonQuery > DataAccess.UpdateStock > StockUpdateHandler.Handle > Program.Main\"/>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Alert>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "EventID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "10000"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\n      <Description>RestartManager session started for "
+                        },
+                        {
+                          "Store": {
+                            "var_id": "RestartedApplication",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": " update</Description>\n      <Update>\n        <Object>\n          <Type>Software</Type>\n          <Name>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "RestartedApplication",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"RmSessionId\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "RmSessionId",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"OwnerProcess\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "OwnerProcess",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"OwnerPID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "OwnerPID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"RestartedApplication\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "RestartedApplication",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"RestartedPID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "RestartedPID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
+                        },
+                        {
+                          "Store": {
+                            "var_id": "EventRecordID",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "\"/>\n      </Update>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ],
+            "otherwise": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n      <Description>Event "
+                    },
+                    {
+                      "Store": {
+                        "var_id": "EventID",
+                        "group": 0,
+                        "match_index": null
+                      }
+                    },
+                    {
+                      "text": "</Description>\n      <View>\n        <Data Name=\"EventRecordID\" Value=\""
+                    },
+                    {
+                      "Store": {
+                        "var_id": "EventRecordID",
+                        "group": 0,
+                        "match_index": null
+                      }
+                    },
+                    {
+                      "text": "\"/>\n      </View>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n    </EventDetail>\n  </Event>\n"
+              }
+            ]
+          }
+        }
+      ],
+      "mode": "root"
+    },
+    {
+      "id": "00ecb948-520a-4ee4-b545-2d20bfc1ce96",
+      "name": "ProviderName",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Provider Name=\"([^\"]+)",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "ProviderName",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "7bf85a90-bc0f-42cf-ab27-87a776e75b06",
+      "name": "EventID",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<EventID[^>]*>(\\d+)</EventID>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "EventID",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "f6cf8456-e1cd-480c-a16d-783959b1cba1",
+      "name": "Level",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Level>(\\d+)</Level>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "Level",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "b4e326c1-96c9-477d-a9bd-87d5fe992e56",
+      "name": "SystemTime",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "SystemTime=\"([^\"]+)\"",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "SystemTime",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "56e3eb04-fa33-4eaf-b30e-6eed18e9bd3e",
+      "name": "EventRecordID",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<EventRecordID>(\\d+)</EventRecordID>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "EventRecordID",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c154e937-3dbc-4e6e-ba80-11c132311b22",
+      "name": "Computer",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Computer>([^<]+)</Computer>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "Computer",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c1786d4e-2529-46a4-8cf0-4a8d908e9176",
+      "name": "SecurityUserID",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Security UserID=\"([^\"]+)\"",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "SecurityUserID",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "48044a30-4d16-4d33-8096-3e02862815ea",
+      "name": "DataField_1",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_1",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "941e8896-0a84-4145-a9cf-7a1e8cd0fa4c",
+      "name": "DataField_2",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_2",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "33b759ef-f61a-4d01-9e89-7a53b0955274",
+      "name": "DataField_3",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_3",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "5b99c8c7-8f20-4d76-8420-08b7cc26568e",
+      "name": "DataField_4",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_4",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "38cd22e8-87aa-419c-a07f-22d0b3f89ab5",
+      "name": "DataField_5",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_5",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "b49f7c4f-fec9-49f5-9626-205de94b4317",
+      "name": "DataField_6",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_6",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "5274f851-6440-43ae-9109-dfda4eabcc6f",
+      "name": "DataField_7",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_7",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "f87658e1-a934-46cf-8e5a-5b819a2c7d25",
+      "name": "DataField_8",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_8",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "1dad3594-97b4-471e-8f05-5287ce6f3682",
+      "name": "DataField_9",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_9",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "8c88ae90-6c2c-4889-a812-649e1f51fc86",
+      "name": "DataField_10",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_10",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "fe67f7c3-0393-4120-ae8f-f67798e2f0bd",
+      "name": "DataField_11",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_11",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "fbf434e7-3c26-4911-83c2-a672b79782a7",
+      "name": "DataField_12",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_12",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "9e0efb4b-a9f8-41a2-b137-eb953517eca8",
+      "name": "DataField_13",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_13",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "406dfc0b-1a86-4091-bc0f-03776c0ee749",
+      "name": "DataField_14",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_14",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ec0af432-f022-448a-9141-2daff01e3401",
+      "name": "DataField_15",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_15",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "b2a2b597-146c-48e6-93a6-a1de16cbefdf",
+      "name": "DataField_16",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_16",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "a29ab697-0cd3-4f84-ab15-f185a7e5001c",
+      "name": "DataField_17",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "DataField_17",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "3c82cd72-3dab-4f4a-a238-8c0621592b46",
+      "name": "RmSessionId",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data Name=\"RmSessionId\">(.*?)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "RmSessionId",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "28213771-4c04-4781-9bf9-edf8f8769ba0",
+      "name": "UTCStartTime",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data Name=\"UTCStartTime\">(.*?)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "UTCStartTime",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "df368f7c-47e8-409e-b243-d62bc6ce61f9",
+      "name": "OwnerProcess",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data Name=\"OwnerProcess\">(.*?)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "OwnerProcess",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "d613291e-edfa-456b-bdfa-ee5548d2d6b5",
+      "name": "OwnerPID",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data Name=\"OwnerPID\">(.*?)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "OwnerPID",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "3b81ae62-a650-4974-afc0-18c1ef3d49a8",
+      "name": "RestartedApplication",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data Name=\"RestartedApplication\">(.*?)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "RestartedApplication",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "3ac1d99b-3ba0-42f9-92ac-9fd1d36843c1",
+      "name": "RestartedPID",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "<Data Name=\"RestartedPID\">(.*?)</Data>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "RestartedPID",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "4a1171c4-71f5-4f72-8c73-ebbf4aaa705d",
+      "name": "timestamp_truncate",
+      "mode": "timestamp_parse",
+      "match": {
+        "regex": {
+          "pattern": "^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{1,3})\\d*Z$",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "timestamp_truncate",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "6a29a852-d9a7-47e6-a4e0-26b5aa54a704",
+      "name": "domain_user_split",
+      "mode": "user_parse",
+      "match": {
+        "regex": {
+          "pattern": "^(.+)\\\\(.+)$",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "domain_user_split_1",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "domain_user_split_2",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 2,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "5d6cf3b2-22d2-4ebd-b6c9-c552dc247ff9",
+      "name": "client_address",
+      "mode": "client_parse",
+      "match": {
+        "regex": {
+          "pattern": "\\[CLIENT:\\s*([^\\]]+)\\]",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "client_address",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "8e12c03a-d0b3-42fc-a473-4e9e2c95430c",
+      "name": "reason_extract",
+      "mode": "detail_parse",
+      "match": {
+        "regex": {
+          "pattern": "^\\s*Reason:\\s*(.+?)\\.?\\s*$",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "reason_extract",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "f9f9700a-1c56-4975-99bb-29cafe344d6a",
+      "name": "connection_method",
+      "mode": "detail_parse",
+      "match": {
+        "regex": {
+          "pattern": "^\\s*Connection made using (.+?)\\.?\\s*$",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "connection_method",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "96edebee-d2f7-4d7e-919b-7443376d05fe",
+      "name": "application_name",
+      "mode": "detail_parse",
+      "match": {
+        "regex": {
+          "pattern": "Application:\\s*(\\S+)",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "application_name",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "4c8c6cf9-185c-4cc8-bc7d-33d8a0abe3e3",
+      "name": "framework_version",
+      "mode": "detail_parse",
+      "match": {
+        "regex": {
+          "pattern": "Framework Version:\\s*(\\S+)",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "framework_version",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "e3ea47ce-2109-40b1-9df9-48c2f42d3f82",
+      "name": "exception_info",
+      "mode": "detail_parse",
+      "match": {
+        "regex": {
+          "pattern": "Exception Info:\\s*(\\S+)",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "captures": [
+        {
+          "name": "exception_info",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

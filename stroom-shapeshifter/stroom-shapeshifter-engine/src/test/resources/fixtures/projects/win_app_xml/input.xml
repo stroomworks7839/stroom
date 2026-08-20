@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Events>
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Microsoft-Windows-User Profiles Service" Guid="{89B1E9F0-5AFF-44A6-9B44-0A07A7CE5845}"/>
+    <EventID>1</EventID>
+    <Version>0</Version>
+    <Level>4</Level>
+    <Task>0</Task>
+    <Opcode>0</Opcode>
+    <Keywords>0x8000000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T08:55:01.2340000Z"/>
+    <EventRecordID>45201</EventRecordID>
+    <Correlation/>
+    <Execution ProcessID="1012" ThreadID="3456"/>
+    <Channel>Application</Channel>
+    <Computer>WORKSTATION01.corp.example.com</Computer>
+    <Security UserID="S-1-5-18"/>
+  </System>
+  <EventData>
+    <Data>CORP\jsmith</Data>
+    <Data>S-1-5-21-3623811015-3361044348-3011020102-1105</Data>
+    <Data>1</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Microsoft-Windows-User Profiles Service" Guid="{89B1E9F0-5AFF-44A6-9B44-0A07A7CE5845}"/>
+    <EventID>2</EventID>
+    <Version>0</Version>
+    <Level>4</Level>
+    <Task>0</Task>
+    <Opcode>0</Opcode>
+    <Keywords>0x8000000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T08:55:03.5670000Z"/>
+    <EventRecordID>45202</EventRecordID>
+    <Correlation/>
+    <Execution ProcessID="1012" ThreadID="3456"/>
+    <Channel>Application</Channel>
+    <Computer>WORKSTATION01.corp.example.com</Computer>
+    <Security UserID="S-1-5-18"/>
+  </System>
+  <EventData>
+    <Data>CORP\jsmith</Data>
+    <Data>S-1-5-21-3623811015-3361044348-3011020102-1105</Data>
+    <Data>2</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Microsoft Office 16"/>
+    <EventID Qualifiers="0">12291</EventID>
+    <Level>4</Level>
+    <Task>0</Task>
+    <Keywords>0x80000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:00:05.1230000Z"/>
+    <EventRecordID>45210</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>WORKSTATION01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>Microsoft Excel</Data>
+    <Data>16.0</Data>
+    <Data>16.0.17928.20114</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Application Error"/>
+    <EventID Qualifiers="0">1000</EventID>
+    <Level>2</Level>
+    <Task>100</Task>
+    <Keywords>0x80000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:05:12.4560000Z"/>
+    <EventRecordID>45215</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>WORKSTATION01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>OUTLOOK.EXE</Data>
+    <Data>16.0.17928.20114</Data>
+    <Data>65f2a1b3</Data>
+    <Data>mso40uiwin32client.dll</Data>
+    <Data>16.0.17928.20114</Data>
+    <Data>65f29d44</Data>
+    <Data>c0000005</Data>
+    <Data>00000000002a1f8c</Data>
+    <Data>2a4c</Data>
+    <Data>01db8c3f2a7d5e00</Data>
+    <Data>C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE</Data>
+    <Data>C:\Program Files\Microsoft Office\root\Office16\mso40uiwin32client.dll</Data>
+    <Data>3f8a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c</Data>
+    <Data></Data>
+    <Data></Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Windows Error Reporting"/>
+    <EventID Qualifiers="0">1001</EventID>
+    <Level>4</Level>
+    <Task>0</Task>
+    <Keywords>0x80000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:05:14.7890000Z"/>
+    <EventRecordID>45216</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>WORKSTATION01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>1409251102913</Data>
+    <Data>1</Data>
+    <Data>APPCRASH</Data>
+    <Data>Not available</Data>
+    <Data>0</Data>
+    <Data>OUTLOOK.EXE</Data>
+    <Data>16.0.17928.20114</Data>
+    <Data>65f2a1b3</Data>
+    <Data>mso40uiwin32client.dll</Data>
+    <Data>16.0.17928.20114</Data>
+    <Data>65f29d44</Data>
+    <Data>c0000005</Data>
+    <Data>00000000002a1f8c</Data>
+    <Data></Data>
+    <Data></Data>
+    <Data>\\?\C:\ProgramData\Microsoft\Windows\WER\Temp\WER1234.tmp.mdmp</Data>
+    <Data>\\?\C:\ProgramData\Microsoft\Windows\WER\Temp\WER5678.tmp.WERInternalMetadata.xml</Data>
+    <Data>\\?\C:\ProgramData\Microsoft\Windows\WER\Temp\WER9ABC.tmp.xml</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="MsiInstaller"/>
+    <EventID Qualifiers="0">1033</EventID>
+    <Level>4</Level>
+    <Task>0</Task>
+    <Keywords>0x80000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:10:30.1120000Z"/>
+    <EventRecordID>45220</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>WORKSTATION01.corp.example.com</Computer>
+    <Security UserID="S-1-5-18"/>
+  </System>
+  <EventData>
+    <Data>Adobe Acrobat Reader DC</Data>
+    <Data>24.001.20604</Data>
+    <Data>1033</Data>
+    <Data>Adobe</Data>
+    <Data>0</Data>
+    <Data>(NULL)</Data>
+    <Data>(NULL)</Data>
+    <Data>(NULL)</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="MSSQLSERVER"/>
+    <EventID Qualifiers="16384">17162</EventID>
+    <Level>4</Level>
+    <Task>2</Task>
+    <Keywords>0x80000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:15:00.3340000Z"/>
+    <EventRecordID>98001</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>DBSERVER01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>SQL Server is ready for client connections. This is an informational message; no user action is required.</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="MSSQLSERVER"/>
+    <EventID Qualifiers="49152">18456</EventID>
+    <Level>2</Level>
+    <Task>4</Task>
+    <Keywords>0x90000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:15:05.5560000Z"/>
+    <EventRecordID>98002</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>DBSERVER01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>sa</Data>
+    <Data> Reason: Password did not match that for the login provided.</Data>
+    <Data> [CLIENT: 10.0.0.99]</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="MSSQLSERVER"/>
+    <EventID Qualifiers="49152">18456</EventID>
+    <Level>2</Level>
+    <Task>4</Task>
+    <Keywords>0x90000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:15:06.1120000Z"/>
+    <EventRecordID>98003</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>DBSERVER01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>sa</Data>
+    <Data> Reason: Password did not match that for the login provided.</Data>
+    <Data> [CLIENT: 10.0.0.99]</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="MSSQLSERVER"/>
+    <EventID Qualifiers="49152">18456</EventID>
+    <Level>2</Level>
+    <Task>4</Task>
+    <Keywords>0x90000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:15:07.6780000Z"/>
+    <EventRecordID>98004</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>DBSERVER01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>sa</Data>
+    <Data> Reason: Password did not match that for the login provided.</Data>
+    <Data> [CLIENT: 10.0.0.99]</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="MSSQLSERVER"/>
+    <EventID Qualifiers="16384">18454</EventID>
+    <Level>4</Level>
+    <Task>4</Task>
+    <Keywords>0x80000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:20:00.8910000Z"/>
+    <EventRecordID>98010</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>DBSERVER01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>app_service</Data>
+    <Data> Connection made using SQL Server authentication.</Data>
+    <Data> [CLIENT: 192.168.1.25]</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="VSS"/>
+    <EventID Qualifiers="0">8193</EventID>
+    <Level>2</Level>
+    <Task>0</Task>
+    <Keywords>0x80000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:30:15.2340000Z"/>
+    <EventRecordID>67801</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>FILESERVER01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>CoCreateInstance</Data>
+    <Data>0x80040154</Data>
+    <Data>Class not registered
+</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Software Protection Platform Service" Guid="{E23B3382-4A1F-4166-8B5A-6B070003E5C2}"/>
+    <EventID>1003</EventID>
+    <Version>0</Version>
+    <Level>4</Level>
+    <Task>0</Task>
+    <Opcode>0</Opcode>
+    <Keywords>0x8000000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T09:45:00.4450000Z"/>
+    <EventRecordID>45230</EventRecordID>
+    <Correlation/>
+    <Execution ProcessID="2108" ThreadID="4512"/>
+    <Channel>Application</Channel>
+    <Computer>WORKSTATION01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>The Software Protection service has completed licensing status check.
+Windows(R), Professional edition, VOLUME_KMSCLIENT channel: License Status = Licensed, Grace Time (days) = 0, Remaining Rearm Count = 1001.</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name=".NET Runtime"/>
+    <EventID Qualifiers="0">1026</EventID>
+    <Level>2</Level>
+    <Task>0</Task>
+    <Keywords>0x80000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T10:00:00.1230000Z"/>
+    <EventRecordID>34501</EventRecordID>
+    <Channel>Application</Channel>
+    <Computer>APPSERVER01.corp.example.com</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data>Application: InventoryService.exe
+Framework Version: v4.0.30319
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.Data.SqlClient.SqlException
+   at System.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at System.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at System.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean&amp; dataReady)
+   at System.Data.SqlClient.SqlCommand.RunExecuteNonQueryTds(String methodName, Boolean async, Int32 timeout, Boolean asyncWrite)
+   at System.Data.SqlClient.SqlCommand.ExecuteNonQuery()
+   at InventoryService.DataAccess.UpdateStock(Int32 productId, Int32 quantity)
+   at InventoryService.Handlers.StockUpdateHandler.Handle(StockUpdateMessage msg)
+   at InventoryService.Program.Main(String[] args)</Data>
+  </EventData>
+</Event>
+
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Microsoft-Windows-RestartManager" Guid="{0888E5EF-9B98-4695-979D-E92CE4247224}"/>
+    <EventID>10000</EventID>
+    <Version>0</Version>
+    <Level>4</Level>
+    <Task>0</Task>
+    <Opcode>0</Opcode>
+    <Keywords>0x8000000000000000</Keywords>
+    <TimeCreated SystemTime="2026-03-23T10:15:30.5560000Z"/>
+    <EventRecordID>45240</EventRecordID>
+    <Correlation/>
+    <Execution ProcessID="6712" ThreadID="6720"/>
+    <Channel>Application</Channel>
+    <Computer>WORKSTATION01.corp.example.com</Computer>
+    <Security UserID="S-1-5-21-3623811015-3361044348-3011020102-1105"/>
+  </System>
+  <EventData>
+    <Data Name="RmSessionId">3</Data>
+    <Data Name="UTCStartTime">2026-03-23T10:15:30.5560000Z</Data>
+    <Data Name="OwnerProcess">C:\Program Files\Mozilla Firefox\updater.exe</Data>
+    <Data Name="OwnerPID">6712</Data>
+    <Data Name="RestartedApplication">Firefox</Data>
+    <Data Name="RestartedPID">5544</Data>
+  </EventData>
+</Event>
+</Events>

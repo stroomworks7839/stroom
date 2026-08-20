@@ -1,0 +1,4 @@
+<record id="1" status="active"><name>Alice</name><age>30</age><address type="home"><city>London</city><country>UK</country></address></record>
+<record id="2" status="active"><name>Bob</name><age>25</age><city>Paris</city></record>
+<record id="3" status="inactive"><name>Carol</name><age>35</age><location region="europe"><city>Berlin</city><state>BE</state></location></record>
+<record id="4" status="active"><name>Dave</name><org level="top"><dept type="eng"><team name="core"><lead>Eve</lead><size>5</size></team></dept></org></record>

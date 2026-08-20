@@ -95,6 +95,8 @@ The design drafts, the decisions and the measurements:
   standing, the per-tier audit record, and the method notes; future sessions start here.
 - [07-engine-port-plan.md](design/07-engine-port-plan.md) — the plan for porting the ds-rs
   template engine into `stroom-shapeshifter-engine`: inventory, phases, and what is deferred.
+- [08-fixture-audit.md](design/08-fixture-audit.md) — the phase 0 check of the generated
+  fixture goldens, and the four found wrong.
 
 The Rust project's own design documents are vendored unedited at
 [stroom-shapeshifter-engine/docs/](stroom-shapeshifter-engine/docs), with an index marking

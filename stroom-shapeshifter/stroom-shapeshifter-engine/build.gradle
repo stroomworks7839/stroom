@@ -23,6 +23,11 @@ dependencies {
     // standalone library, and this module is where everything above matching lives (D12).
     implementation project(':stroom-shapeshifter:stroom-shapeshifter-regex')
 
+    // The config format is a serde document with ~40 externally-tagged variants; Jackson binds
+    // it (D33). Reading sits behind a ProjectReader seam, so a JDK-only reader stays reachable
+    // if this module ever needs the regex module's standalone-library promise.
+    implementation libs.jackson.databind
+
     testImplementation libs.bundles.common.test.implementation
     testRuntimeOnly libs.bundles.common.test.runtime
 }

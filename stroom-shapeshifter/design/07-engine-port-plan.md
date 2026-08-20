@@ -78,7 +78,7 @@ enforced by `verifyZeroDependencies`, and stays true. Reading stays behind one
 match span a chunk boundary; it emits a "consumed entire buffer" warning instead. Our
 matching layer can do better — `StreamMatcher`'s three-way outcome exists precisely for this
 — but porting the limitation first is what makes golden-output parity a clean pass/fail
-signal on all 51 in-scope fixtures. Real streaming becomes a decision of its own once the
+signal on all 48 in-scope fixtures. Real streaming becomes a decision of its own once the
 port is green and the semantics are pinned by tests. It is the single most valuable
 follow-up this port sets up, and it should not be smuggled in during the port.
 
@@ -115,20 +115,23 @@ rather than a runtime default branch.
 
 **Retired — the regex dialect matches.** The corpus's patterns are written for Rust's
 `regex` and `fancy-regex`, and D19 chose that dialect for exactly this reason, but "chose it"
-and "it works" are different claims. So: all 208 distinct `pattern` values across the three
-fixture families were extracted and compiled through `BytePattern`. **207 compile** — 77 to
-`SCAN_PLAN`, 121 to `SIMULATE`, 9 to `TREE`, including atomic groups (`(?>…)`), `\z`, `(?m)`
-and inline flags. The single failure is `"+"`, which is a literal `replace` pattern with
-`is_regex` false, so it is not a regex at all and Rust rejects it too. This probe becomes a
-permanent test in phase 0, not a one-off.
+and "it works" are different claims. So they were extracted and compiled through
+`BytePattern`. The corpus holds 208 distinct `pattern` strings, four of which belong to
+`replace` instructions with `is_regex` false and are literals rather than regexes (`\t`, `\n`,
+`+`, `drafts`). **All 204 genuine regexes compile** — 74 to `SCAN_PLAN`, 121 to `SIMULATE`, 9
+to `TREE`, including atomic groups (`(?>…)`), `\z`, `(?m)` and inline flags. This is now
+`PatternCorpusTest`, which harvests from the three places a regex can appear rather than every
+field named `pattern`, so the literals are excluded by construction.
 
-**Open — the goldens are not all the same kind of evidence.** The `legacy` `.out.xml` files
-came from Java Stroom's DS3 and are a genuine external oracle. But `gen_native_fixture_outputs`,
-one of the four ignored regenerators, regenerates the goldens for eleven of the eighteen
-`projects` fixtures *from ds-rs's own output*. For those, parity asserts "same as ds-rs" —
-which is precisely what a port wants, and precisely why they cannot catch a bug ds-rs already
-has. Hence the phase 0 audit and freeze in §3: reviewed once, then golden. Worth knowing which
-fixtures are which when one of them disagrees.
+**Retired, and it cost four fixtures — the generated goldens were not all correct.** Eleven
+of the eighteen `projects` goldens came from ds-rs's own output rather than an external
+oracle. The phase 0 audit checked all eleven for well-formedness, record count, empty
+elements, stray escapes and unescaped markup. Record counts are exact everywhere — no fixture
+drops a record — but **four are wrong**: `apache_httpd`'s golden is not well-formed XML,
+`xml_to_json`'s is not valid JSON, and `win_sec` and `win_sec_xml` silently drop group
+identity that is plainly present in their inputs. They are quarantined rather than deleted,
+and the findings are in [08-fixture-audit.md](08-fixture-audit.md). The other seven are frozen
+goldens from here on. In-scope expectations are therefore **48**, not 51.
 
 **Open — the API shapes differ in three places** that will need real work rather than
 transliteration:
@@ -148,21 +151,21 @@ transliteration:
 ## 5. Phases
 
 Each phase has an acceptance test that is a count, not an opinion. The fixture runners are
-built first and report `n/51` from the start, so every phase moves a number.
+built first and report `n/48` from the start, so every phase moves a number.
 
 | # | Phase | Acceptance |
 |---|---|---|
-| 0 | **Harness first.** Vendor all 136 fixture files with their provenance; build the three golden runners so they run red and report a count; assert `ParseMessage`s against `.err` where present; audit and freeze the eleven generated goldens; make the 208-pattern compile probe a test | Runners execute and report `0/51`; pattern probe green; every golden either externally sourced or reviewed |
+| 0 | **Harness first — done.** 132 fixture files vendored with provenance; the ledger, the three golden runners and the message goldens built; the eleven generated goldens audited and four quarantined; the pattern probe made a test | `0/48`, 3 skipped, 4 quarantined; 204 corpus patterns compiling |
 | 1 | **Model and binding.** `config` package, `error`, `Predicate`, `RefExpression`; Jackson binding behind `ProjectReader` | All 36 `project.json` files parse, and round-trip parse→write→parse structurally equal |
 | 2 | **Vertical slice.** UTF-8 only; the output sink interface and its byte implementation; `Store`/`TypedValue`; ref resolution; compile and run `Regex`, `Delimiter`, `Source`, `All`; body limited to `Text`, `ValueOf`, `ApplyTemplates` | First green fixtures: `native/004_simple_regex`, `native/001_csv_with_header` |
-| 3 | **The rest of the body.** Conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, and the twelve transform functions; match limits, guards, modes, `ignore_errors` and the message/warning paths | The 18 `native` and 15 in-scope `projects` fixtures green — `33/51` |
-| 4 | **DS3 import.** `ds3_config` and `migration`, including `records:2` output shaping | The 18 `legacy` golden fixtures green — `51/51` overall |
-| 5 | **Progressive matching.** The `MatchStep` atoms and combinators, `StepRef` resolution, the JDK codecs | The 4 progressive fixtures green; `progressive_embedded_codec` included |
+| 3 | **The rest of the body.** Conditions, `If`/`Choose`/`Switch`, `Variable`, `CallTemplate`, `ValueMap`, and the twelve transform functions; match limits, guards, modes, `ignore_errors` and the message/warning paths | The 18 `native` and 7 non-progressive `projects` fixtures green — `25/48` |
+| 4 | **DS3 import.** `ds3_config` and `migration`, including `records:2` output shaping | The 19 `legacy` entries green, rejection case included — `44/48` |
+| 5 | **Progressive matching.** The `MatchStep` atoms and combinators, `StepRef` resolution, the JDK codecs | The 4 progressive fixtures green — `48/48` |
 | 6 | **Encodings.** Full charset resolution, BOM detection, inheritance | The 17 encoding integration tests and 22 `encoding.rs` unit tests ported and green |
 | 7 | **Unit test port.** The remaining ~160 unit and integration tests, `refs` (33) and `store` (13) and `compiled` (14) and `exec_tests` (55) foremost | Whole suite green; coverage of the ported surface no worse than the Rust crate's |
 | 8 | **Instrumentation seam.** `Instrument` + no-op, and `regex_info` | Engine compiles against the seam with no production cost |
 
-Phases 5 and 6 are ordered after 4 deliberately: 51 green fixtures is the milestone that
+Phases 5 and 6 are ordered after 4 deliberately: a full ledger is the milestone that
 proves the architecture, and progressive matching and exotic encodings are each self-contained
 enough to follow it without re-opening anything.
 
@@ -174,7 +177,8 @@ The same discipline as the matching layer, adapted:
   surprise and note it; do not improve it silently. Anything that looks like a bug in `ds-rs`
   gets recorded here and decided separately.
 - **A skipped fixture is a reported number, not a deleted file.** The three binary-format
-  fixtures stay vendored and stay listed as skipped, so the gap is visible.
+  fixtures and the four quarantined ones stay vendored and stay listed, so the gap is visible
+  in the same file that says what passes.
 - **The Rust design documents are vendored, unedited**, at
   [../stroom-shapeshifter-engine/docs/](../stroom-shapeshifter-engine/docs) with an index that
   says which apply. They are history and intent; where they and the Rust source disagree, the

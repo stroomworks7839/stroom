@@ -890,13 +890,17 @@ already has. The `legacy` goldens came from Java Stroom's DS3 and are a real ext
 Three further points settled on 2026-08-20, after the baseline was measured:
 
 - **Generated goldens are audited once, then frozen.** Generation was the starting point, not
-  a warrant. Each of the eleven self-referential goldens is checked for correctness in phase 0
-  and thereafter is a committed golden file, changed only by a decision that says why. None of
-  the four regenerators is ported — a fixture that can rewrite its own expectation is not a
-  test.
-- **The runners assert on `ParseMessage`s** against the `.err` files the Rust suite never
-  reads, lighting up the unconsumed-content and `min_match` paths. It is additive, test-side,
-  and the only deliberate deviation from faithfulness.
+  a warrant. None of the four regenerators is ported — a fixture that can rewrite its own
+  expectation is not a test. *The audit ran on 2026-08-20 and found four of the eleven wrong*
+  (`apache_httpd` not well-formed XML, `xml_to_json` not valid JSON, `win_sec` and
+  `win_sec_xml` dropping group identity present in their inputs). They are quarantined rather
+  than deleted; see [08-fixture-audit.md](08-fixture-audit.md). In-scope expectations are 48.
+- **The runners assert on `ParseMessage`s.** Every legacy fixture now has a `.messages`
+  golden — 38 messages across 18 fixtures — where the Rust suite compared output only. The
+  `.err` files stay as external evidence but are Stroom's format, not the expectation.
+  Additive, test-side, and the only deliberate deviation from faithfulness. It immediately
+  showed that `maxMatch` templates raise a false "did not consume all content" warning, and
+  that both `ignoreErrors` fixtures warn anyway — recorded, not endorsed.
 - **The output side goes behind a sink interface from the start**, with a byte sink as the
   only implementation built. D10's open question — what the pipeline element consumes, SAX
   events or something else — stays open, but the seam it needs costs one indirection now and

@@ -1,0 +1,73 @@
+----
+time->Mon Mar 23 09:15:22 2026
+type=SYSCALL msg=audit(1711177922.451:1234): arch=c000003e syscall=59 success=yes exit=0 a0=55d4e8a01230 a1=55d4e8a012b0 a2=55d4e8a01340 a3=7ffd4c8e2010 items=2 ppid=4521 pid=4522 auid=1000 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts0 ses=3 comm="useradd" exe="/usr/sbin/useradd" key="user_modification"
+type=EXECVE msg=audit(1711177922.451:1234): argc=3 a0="useradd" a1="-m" a2="testuser1"
+type=CWD msg=audit(1711177922.451:1234): cwd="/root"
+type=PATH msg=audit(1711177922.451:1234): item=0 name="/usr/sbin/useradd" inode=131076 dev=08:01 mode=0100755 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL
+type=PATH msg=audit(1711177922.451:1234): item=1 name="/lib64/ld-linux-x86-64.so.2" inode=262145 dev=08:01 mode=0100755 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL
+type=PROCTITLE msg=audit(1711177922.451:1234): proctitle=757365726164640020002D6D007465737475736572
+----
+time->Mon Mar 23 09:16:01 2026
+type=SYSCALL msg=audit(1711177961.102:1235): arch=c000003e syscall=2 success=yes exit=3 a0=7f8c3a001920 a1=241 a2=1b6 a3=0 items=2 ppid=4521 pid=4522 auid=1000 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts0 ses=3 comm="useradd" exe="/usr/sbin/useradd" key="user_modification"
+type=CWD msg=audit(1711177961.102:1235): cwd="/root"
+type=PATH msg=audit(1711177961.102:1235): item=0 name="/etc/passwd" inode=524289 dev=08:01 mode=0100644 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL
+type=PATH msg=audit(1711177961.102:1235): item=1 name="/etc/passwd.lock" inode=524310 dev=08:01 mode=0100600 ouid=0 ogid=0 rdev=00:00 nametype=CREATE
+----
+time->Mon Mar 23 09:20:45 2026
+type=SYSCALL msg=audit(1711178245.887:1240): arch=c000003e syscall=59 success=yes exit=0 a0=562a1c301230 a1=562a1c301290 a2=562a1c301300 a3=7ffc9a2e1010 items=2 ppid=4600 pid=4601 auid=1000 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts0 ses=3 comm="passwd" exe="/usr/bin/passwd" key="password_change"
+type=EXECVE msg=audit(1711178245.887:1240): argc=2 a0="passwd" a1="testuser1"
+type=CWD msg=audit(1711178245.887:1240): cwd="/root"
+type=PATH msg=audit(1711178245.887:1240): item=0 name="/usr/bin/passwd" inode=131090 dev=08:01 mode=0104755 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL
+type=PATH msg=audit(1711178245.887:1240): item=1 name="/lib64/ld-linux-x86-64.so.2" inode=262145 dev=08:01 mode=0100755 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL
+----
+time->Mon Mar 23 09:25:10 2026
+type=USER_LOGIN msg=audit(1711178510.334:1250): pid=4700 uid=0 auid=1001 ses=5 msg='op=login id=1001 exe="/usr/sbin/sshd" hostname=192.168.1.50 addr=192.168.1.50 terminal=/dev/pts/1 res=success'
+----
+time->Mon Mar 23 09:25:12 2026
+type=USER_START msg=audit(1711178512.001:1251): pid=4700 uid=0 auid=1001 ses=5 msg='op=PAM:session_open grantors=pam_selinux,pam_loginuid,pam_keyinit,pam_namespace,pam_limits,pam_systemd,pam_unix,pam_lastlog acct="jsmith" exe="/usr/sbin/sshd" hostname=192.168.1.50 addr=192.168.1.50 terminal=ssh res=success'
+----
+time->Mon Mar 23 09:30:05 2026
+type=SYSCALL msg=audit(1711178805.221:1260): arch=c000003e syscall=59 success=yes exit=0 a0=55a7f2a01230 a1=55a7f2a012b0 a2=55a7f2a01340 a3=7ffda4e32010 items=2 ppid=4710 pid=4711 auid=1001 uid=1001 gid=1001 euid=1001 suid=1001 fsuid=1001 egid=1001 sgid=1001 fsgid=1001 tty=pts1 ses=5 comm="sudo" exe="/usr/bin/sudo" key="privilege_escalation"
+type=EXECVE msg=audit(1711178805.221:1260): argc=3 a0="sudo" a1="cat" a2="/etc/shadow"
+type=CWD msg=audit(1711178805.221:1260): cwd="/home/jsmith"
+type=PATH msg=audit(1711178805.221:1260): item=0 name="/usr/bin/sudo" inode=131095 dev=08:01 mode=0104755 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL
+type=PATH msg=audit(1711178805.221:1260): item=1 name="/lib64/ld-linux-x86-64.so.2" inode=262145 dev=08:01 mode=0100755 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL
+----
+time->Mon Mar 23 09:30:06 2026
+type=USER_AUTH msg=audit(1711178806.005:1261): pid=4711 uid=1001 auid=1001 ses=5 msg='op=PAM:authentication grantors=pam_unix acct="jsmith" exe="/usr/bin/sudo" hostname=? addr=? terminal=/dev/pts/1 res=success'
+----
+time->Mon Mar 23 09:30:06 2026
+type=USER_ACCT msg=audit(1711178806.010:1262): pid=4711 uid=1001 auid=1001 ses=5 msg='op=PAM:accounting grantors=pam_unix,pam_localuser acct="jsmith" exe="/usr/bin/sudo" hostname=? addr=? terminal=/dev/pts/1 res=success'
+----
+time->Mon Mar 23 09:35:30 2026
+type=SYSCALL msg=audit(1711179130.445:1270): arch=c000003e syscall=87 success=yes exit=0 a0=7ffd5c8e2a40 a1=0 a2=0 a3=7ffd5c8e2010 items=2 ppid=4800 pid=4801 auid=1001 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts1 ses=5 comm="rm" exe="/usr/bin/rm" key="file_deletion"
+type=EXECVE msg=audit(1711179130.445:1270): argc=3 a0="rm" a1="-rf" a2="/tmp/sensitive_data"
+type=CWD msg=audit(1711179130.445:1270): cwd="/home/jsmith"
+type=PATH msg=audit(1711179130.445:1270): item=0 name="/tmp/sensitive_data" inode=786433 dev=08:01 mode=040755 ouid=1001 ogid=1001 rdev=00:00 nametype=NORMAL
+type=PATH msg=audit(1711179130.445:1270): item=1 name="/tmp/" inode=786432 dev=08:01 mode=041777 ouid=0 ogid=0 rdev=00:00 nametype=PARENT
+----
+time->Mon Mar 23 09:40:15 2026
+type=USER_LOGIN msg=audit(1711179415.678:1280): pid=4900 uid=0 auid=4294967295 ses=4294967295 msg='op=login id=0 exe="/usr/sbin/sshd" hostname=10.0.0.99 addr=10.0.0.99 terminal=ssh res=failed'
+----
+time->Mon Mar 23 09:40:16 2026
+type=USER_LOGIN msg=audit(1711179416.112:1281): pid=4900 uid=0 auid=4294967295 ses=4294967295 msg='op=login id=0 exe="/usr/sbin/sshd" hostname=10.0.0.99 addr=10.0.0.99 terminal=ssh res=failed'
+----
+time->Mon Mar 23 09:40:17 2026
+type=USER_LOGIN msg=audit(1711179417.556:1282): pid=4900 uid=0 auid=4294967295 ses=4294967295 msg='op=login id=0 exe="/usr/sbin/sshd" hostname=10.0.0.99 addr=10.0.0.99 terminal=ssh res=failed'
+----
+time->Mon Mar 23 09:45:00 2026
+type=SYSCALL msg=audit(1711179700.891:1290): arch=c000003e syscall=42 success=yes exit=0 a0=3 a1=7ffd5c8e2a40 a2=10 a3=0 items=0 ppid=5000 pid=5001 auid=1001 uid=1001 gid=1001 euid=1001 suid=1001 fsuid=1001 egid=1001 sgid=1001 fsgid=1001 tty=pts1 ses=5 comm="nc" exe="/usr/bin/ncat" key="network_connection"
+type=SOCKADDR msg=audit(1711179700.891:1290): saddr=02000050C0A80132000000000000000000000000000000000000
+----
+time->Mon Mar 23 09:50:30 2026
+type=SYSCALL msg=audit(1711180030.334:1300): arch=c000003e syscall=59 success=yes exit=0 a0=55b8c1a01230 a1=55b8c1a012b0 a2=55b8c1a01340 a3=7ffc8b2e1010 items=2 ppid=5100 pid=5101 auid=1001 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts1 ses=5 comm="chmod" exe="/usr/bin/chmod" key="permission_change"
+type=EXECVE msg=audit(1711180030.334:1300): argc=3 a0="chmod" a1="777" a2="/etc/cron.d/backup_job"
+type=CWD msg=audit(1711180030.334:1300): cwd="/home/jsmith"
+type=PATH msg=audit(1711180030.334:1300): item=0 name="/etc/cron.d/backup_job" inode=655361 dev=08:01 mode=0100644 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL
+type=PATH msg=audit(1711180030.334:1300): item=1 name="/etc/cron.d/" inode=655360 dev=08:01 mode=040755 ouid=0 ogid=0 rdev=00:00 nametype=PARENT
+----
+time->Mon Mar 23 10:00:00 2026
+type=USER_END msg=audit(1711180800.112:1310): pid=4700 uid=0 auid=1001 ses=5 msg='op=PAM:session_close grantors=pam_selinux,pam_loginuid,pam_keyinit,pam_namespace,pam_limits,pam_systemd,pam_unix,pam_lastlog acct="jsmith" exe="/usr/sbin/sshd" hostname=192.168.1.50 addr=192.168.1.50 terminal=ssh res=success'
+----
+time->Mon Mar 23 10:00:01 2026
+type=USER_LOGOUT msg=audit(1711180801.445:1311): pid=4700 uid=0 auid=1001 ses=5 msg='op=login id=1001 exe="/usr/sbin/sshd" hostname=192.168.1.50 addr=192.168.1.50 terminal=/dev/pts/1 res=success'

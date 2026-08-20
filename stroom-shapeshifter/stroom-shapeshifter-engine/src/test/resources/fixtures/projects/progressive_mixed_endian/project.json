@@ -1,0 +1,101 @@
+{
+  "name": "progressive_mixed_endian",
+  "version": 1,
+  "source": {
+    "buffer_size": 1000000,
+    "ignore_errors": true,
+    "encoding": "UTF-8"
+  },
+  "templates": [
+    {
+      "id": "6285c3b5-f02b-50c9-961f-d76d97e16f88",
+      "name": "root",
+      "match": {
+        "progressive": [
+          {
+            "ReadNumeric": {
+              "numeric_type": "Short",
+              "signed": false,
+              "endian": "Little"
+            }
+          },
+          {
+            "ReadNumeric": {
+              "numeric_type": "Short",
+              "signed": false,
+              "endian": "Big"
+            }
+          },
+          {
+            "Seek": {
+              "Literal": 4
+            }
+          },
+          "Tell",
+          {
+            "ReadNumeric": {
+              "numeric_type": "Int",
+              "signed": false,
+              "endian": "Big"
+            }
+          }
+        ]
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<r a=\""
+              },
+              {
+                "capture": {
+                  "var_id": null,
+                  "group": 1,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\" b=\""
+              },
+              {
+                "capture": {
+                  "var_id": null,
+                  "group": 2,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\" off=\""
+              },
+              {
+                "capture": {
+                  "var_id": null,
+                  "group": 4,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\" c=\""
+              },
+              {
+                "capture": {
+                  "var_id": null,
+                  "group": 5,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\"/>\n"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

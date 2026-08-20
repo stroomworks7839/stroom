@@ -1,0 +1,3 @@
+<user name="Alice" age="42" score="4.5" active="true"/>
+<user name="Bob" age="37" score="1.25" active="false"/>
+<user name="Carol" age="29" score="9.0" active="true"/>

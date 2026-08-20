@@ -1,0 +1,277 @@
+{
+  "name": "xml_to_json",
+  "version": 3,
+  "source": {
+    "buffer_size": 20000,
+    "ignore_errors": true,
+    "encoding": "auto"
+  },
+  "templates": [
+    {
+      "id": "a0000001-0000-0000-0000-000000000001",
+      "name": "line_split",
+      "match": {
+        "delimiter": {
+          "delimiter": "\n"
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "{"
+              }
+            ]
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "record",
+            "max_depth": 64
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "}\n"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "a0000001-0000-0000-0000-000000000002",
+      "name": "record_unwrap",
+      "mode": "record",
+      "match": {
+        "regex": {
+          "pattern": "<record>(.*)</record>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": 1
+      },
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "element",
+            "max_depth": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "a0000001-0000-0000-0000-000000000003",
+      "name": "element",
+      "mode": "element",
+      "match": {
+        "regex": {
+          "pattern": "<(\\w+)>(.*?)</\\1>",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "if": {
+            "test": {
+              "greater-than": {
+                "select": {
+                  "parts": [
+                    {
+                      "Store": {
+                        "var_id": "__match_idx",
+                        "group": 0,
+                        "match_index": null
+                      }
+                    }
+                  ]
+                },
+                "value": 0.0
+              }
+            },
+            "then": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": ","
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "choose": {
+            "when": [
+              {
+                "test": {
+                  "contains": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": null,
+                            "group": 2,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "substring": "<"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\""
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "group": 1,
+                            "var_id": null
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "\":"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "apply-templates": {
+                      "select": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": null,
+                              "group": 2,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      },
+                      "mode": "element",
+                      "max_depth": 64
+                    }
+                  }
+                ]
+              }
+            ],
+            "otherwise": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\""
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "group": 1,
+                        "var_id": null
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\":\""
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "group": 2,
+                        "var_id": null
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\""
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

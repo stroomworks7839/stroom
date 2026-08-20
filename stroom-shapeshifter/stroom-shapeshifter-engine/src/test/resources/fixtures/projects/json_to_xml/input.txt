@@ -1,0 +1,12 @@
+{"name":"Alice","age":"30","city":"London","role":"engineer","department":"platform"}
+{"name":"Bob","age":"25","city":"Paris","role":"designer","department":"product"}
+{"name":"Carol","age":"35","city":"Berlin","role":"manager","department":"engineering"}
+{"name":"David","age":"28","city":"Tokyo","role":"analyst","department":"data"}
+{"name":"Eve","age":"42","city":"Sydney","role":"director","department":"security"}
+{"name":"Frank","age":"31","city":"Toronto","role":"engineer","department":"infrastructure"}
+{"name":"Grace","age":"27","city":"Amsterdam","role":"researcher","department":"ai"}
+{"name":"Hank","age":"39","city":"Zurich","role":"architect","department":"platform"}
+{"name":"Ivy","age":"33","city":"Singapore","role":"devops","department":"reliability"}
+{"name":"Jack","age":"45","city":"Dublin","role":"principal","department":"engineering"}
+{"name":"Karen","age":"29","city":"Oslo","role":"engineer","department":"frontend"}
+{"name":"Leo","age":"36","city":"Seoul","role":"lead","department":"backend"}

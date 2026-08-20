@@ -1,0 +1,1007 @@
+{
+  "name": "ausearch",
+  "version": 3,
+  "source": {
+    "buffer_size": 20000,
+    "ignore_errors": true,
+    "encoding": "auto"
+  },
+  "templates": [
+    {
+      "id": "cec6641d-4696-4c23-915e-c2902a164401",
+      "name": "source",
+      "match": "source",
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Events>\n"
+              }
+            ]
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "root",
+            "max_depth": 64
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "</Events>\n"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "7eaf2704-2ace-4f11-b9a6-ff6d7c4de259",
+      "name": "audit_section",
+      "match": {
+        "delimiter": {
+          "delimiter": "----\n"
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "record_fields",
+            "max_depth": 64
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<Event><EventTime><TimeCreated>"
+              },
+              {
+                "Store": {
+                  "var_id": "audit_record_1",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "</TimeCreated></EventTime><EventSource><System><Name>AuditD</Name></System><User><Id>"
+              },
+              {
+                "Store": {
+                  "var_id": "auid",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "</Id></User></EventSource><EventDetail>"
+              }
+            ]
+          }
+        },
+        {
+          "choose": {
+            "when": [
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "audit_record_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "SYSCALL"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "<TypeId>SYSCALL</TypeId>"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "choose": {
+                      "when": [
+                        {
+                          "test": {
+                            "equals": {
+                              "select": {
+                                "parts": [
+                                  {
+                                    "Store": {
+                                      "var_id": "key",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
+                                  }
+                                ]
+                              },
+                              "value": "user_modification"
+                            }
+                          },
+                          "body": [
+                            {
+                              "value-of": {
+                                "parts": [
+                                  {
+                                    "text": "<Create><Outcome><Success>"
+                                  },
+                                  {
+                                    "Store": {
+                                      "var_id": "success",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
+                                  },
+                                  {
+                                    "text": "</Success></Outcome></Create>"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "test": {
+                            "or": [
+                              {
+                                "equals": {
+                                  "select": {
+                                    "parts": [
+                                      {
+                                        "Store": {
+                                          "var_id": "key",
+                                          "group": 0,
+                                          "match_index": null
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "value": "password_change"
+                                }
+                              },
+                              {
+                                "equals": {
+                                  "select": {
+                                    "parts": [
+                                      {
+                                        "Store": {
+                                          "var_id": "key",
+                                          "group": 0,
+                                          "match_index": null
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "value": "permission_change"
+                                }
+                              }
+                            ]
+                          },
+                          "body": [
+                            {
+                              "value-of": {
+                                "parts": [
+                                  {
+                                    "text": "<Update><Outcome><Success>"
+                                  },
+                                  {
+                                    "Store": {
+                                      "var_id": "success",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
+                                  },
+                                  {
+                                    "text": "</Success></Outcome></Update>"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "test": {
+                            "equals": {
+                              "select": {
+                                "parts": [
+                                  {
+                                    "Store": {
+                                      "var_id": "key",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
+                                  }
+                                ]
+                              },
+                              "value": "file_deletion"
+                            }
+                          },
+                          "body": [
+                            {
+                              "value-of": {
+                                "parts": [
+                                  {
+                                    "text": "<Delete><Outcome><Success>"
+                                  },
+                                  {
+                                    "Store": {
+                                      "var_id": "success",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
+                                  },
+                                  {
+                                    "text": "</Success></Outcome></Delete>"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "test": {
+                            "equals": {
+                              "select": {
+                                "parts": [
+                                  {
+                                    "Store": {
+                                      "var_id": "key",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
+                                  }
+                                ]
+                              },
+                              "value": "privilege_escalation"
+                            }
+                          },
+                          "body": [
+                            {
+                              "value-of": {
+                                "parts": [
+                                  {
+                                    "text": "<Authorise><Action>Request</Action><Outcome><Success>"
+                                  },
+                                  {
+                                    "Store": {
+                                      "var_id": "success",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
+                                  },
+                                  {
+                                    "text": "</Success></Outcome></Authorise>"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "test": {
+                            "equals": {
+                              "select": {
+                                "parts": [
+                                  {
+                                    "Store": {
+                                      "var_id": "key",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
+                                  }
+                                ]
+                              },
+                              "value": "network_connection"
+                            }
+                          },
+                          "body": [
+                            {
+                              "value-of": {
+                                "parts": [
+                                  {
+                                    "text": "<Network><Outcome><Success>"
+                                  },
+                                  {
+                                    "Store": {
+                                      "var_id": "success",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
+                                  },
+                                  {
+                                    "text": "</Success></Outcome></Network>"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "otherwise": [
+                        {
+                          "value-of": {
+                            "parts": [
+                              {
+                                "text": "<Process><Outcome><Success>"
+                              },
+                              {
+                                "Store": {
+                                  "var_id": "success",
+                                  "group": 0,
+                                  "match_index": null
+                                }
+                              },
+                              {
+                                "text": "</Success></Outcome></Process>"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "or": [
+                    {
+                      "equals": {
+                        "select": {
+                          "parts": [
+                            {
+                              "Store": {
+                                "var_id": "audit_record_2",
+                                "group": 0,
+                                "match_index": null
+                              }
+                            }
+                          ]
+                        },
+                        "value": "USER_LOGIN"
+                      }
+                    },
+                    {
+                      "equals": {
+                        "select": {
+                          "parts": [
+                            {
+                              "Store": {
+                                "var_id": "audit_record_2",
+                                "group": 0,
+                                "match_index": null
+                              }
+                            }
+                          ]
+                        },
+                        "value": "USER_START"
+                      }
+                    },
+                    {
+                      "equals": {
+                        "select": {
+                          "parts": [
+                            {
+                              "Store": {
+                                "var_id": "audit_record_2",
+                                "group": 0,
+                                "match_index": null
+                              }
+                            }
+                          ]
+                        },
+                        "value": "USER_AUTH"
+                      }
+                    }
+                  ]
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "<TypeId>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "audit_record_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</TypeId><Authenticate><Action>Logon</Action><Outcome><Success>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "res",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Success></Outcome></Authenticate>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "equals": {
+                    "select": {
+                      "parts": [
+                        {
+                          "Store": {
+                            "var_id": "audit_record_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    },
+                    "value": "USER_ACCT"
+                  }
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "<TypeId>USER_ACCT</TypeId><Authorise><Action>Request</Action><Outcome><Success>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "res",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Success></Outcome></Authorise>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "test": {
+                  "or": [
+                    {
+                      "equals": {
+                        "select": {
+                          "parts": [
+                            {
+                              "Store": {
+                                "var_id": "audit_record_2",
+                                "group": 0,
+                                "match_index": null
+                              }
+                            }
+                          ]
+                        },
+                        "value": "USER_END"
+                      }
+                    },
+                    {
+                      "equals": {
+                        "select": {
+                          "parts": [
+                            {
+                              "Store": {
+                                "var_id": "audit_record_2",
+                                "group": 0,
+                                "match_index": null
+                              }
+                            }
+                          ]
+                        },
+                        "value": "USER_LOGOUT"
+                      }
+                    }
+                  ]
+                },
+                "body": [
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "text": "<TypeId>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "audit_record_2",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</TypeId><Authenticate><Action>Logoff</Action><Outcome><Success>"
+                        },
+                        {
+                          "Store": {
+                            "var_id": "res",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        },
+                        {
+                          "text": "</Success></Outcome></Authenticate>"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ],
+            "otherwise": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "<TypeId>"
+                    },
+                    {
+                      "Store": {
+                        "var_id": "audit_record_2",
+                        "group": 0,
+                        "match_index": null
+                      }
+                    },
+                    {
+                      "text": "</TypeId>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "</EventDetail></Event>\n"
+              }
+            ]
+          }
+        }
+      ],
+      "mode": "root"
+    },
+    {
+      "id": "7dc04bb3-c02d-4deb-ad40-2ca1d4052673",
+      "name": "kv_pair",
+      "mode": "kv_fields",
+      "match": {
+        "regex": {
+          "pattern": "^(\\w+)=(?:\"([^\"]*)\"|'([^']*)'|([^\\s']+))",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "captures": [
+        {
+          "name": "__kv",
+          "select": {
+            "key-value": {
+              "key_ref": {
+                "parts": [
+                  {
+                    "Store": {
+                      "var_id": null,
+                      "group": 1,
+                      "match_index": null
+                    }
+                  }
+                ]
+              },
+              "value_ref": {
+                "parts": [
+                  {
+                    "Store": {
+                      "var_id": null,
+                      "group": 2,
+                      "match_index": null
+                    }
+                  },
+                  {
+                    "Store": {
+                      "var_id": null,
+                      "group": 3,
+                      "match_index": null
+                    }
+                  },
+                  {
+                    "Store": {
+                      "var_id": null,
+                      "group": 4,
+                      "match_index": null
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "920ae6e7-41f0-4797-8553-694eefd882cb",
+      "name": "msg_token",
+      "mode": "msg_tokens",
+      "match": {
+        "delimiter": {
+          "delimiter": " "
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "kv_fields",
+            "max_depth": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "0d4d52f6-4375-4b5e-b4b5-62e986eefab0",
+      "name": "extra_kv_pair",
+      "mode": "extra_kv_fields",
+      "match": {
+        "regex": {
+          "pattern": "^(\\w+)=(?:\"([^\"]*)\"|'([^']*)'|([^\\s']+))",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "captures": [
+        {
+          "name": "__kv",
+          "select": {
+            "key-value": {
+              "key_ref": {
+                "parts": [
+                  {
+                    "Store": {
+                      "var_id": null,
+                      "group": 1,
+                      "match_index": null
+                    }
+                  }
+                ]
+              },
+              "value_ref": {
+                "parts": [
+                  {
+                    "Store": {
+                      "var_id": null,
+                      "group": 2,
+                      "match_index": null
+                    }
+                  },
+                  {
+                    "Store": {
+                      "var_id": null,
+                      "group": 3,
+                      "match_index": null
+                    }
+                  },
+                  {
+                    "Store": {
+                      "var_id": null,
+                      "group": 4,
+                      "match_index": null
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "1079dab1-c96a-4164-b6cd-621932628867",
+      "name": "extra_token",
+      "mode": "extra_tokens",
+      "match": {
+        "delimiter": {
+          "delimiter": " "
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "extra_kv_fields",
+            "max_depth": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "989221c7-cedb-4791-9596-19ebb21e0344",
+      "name": "extra_line",
+      "mode": "extra_lines",
+      "match": {
+        "regex": {
+          "pattern": "^type=(\\S+)\\s+msg=audit\\(([^)]+)\\):\\s*(.*)",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "captures": [
+        {
+          "name": "extra_line_1",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "extra_line_2",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 2,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 3,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "extra_tokens",
+            "max_depth": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "ad4f2ebb-8041-4b82-a525-7df19aefcb61",
+      "name": "extra_line_split",
+      "mode": "extra_line_splits",
+      "match": {
+        "delimiter": {
+          "delimiter": "\n"
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "extra_lines",
+            "max_depth": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "ba36d5d6-3b89-49f0-8116-1150fe64c083",
+      "name": "audit_record",
+      "mode": "record_fields",
+      "match": {
+        "regex": {
+          "pattern": "^time->([^\\n]+)\\ntype=(\\S+)\\s+msg=audit\\([^)]+\\):\\s*([^\\n]*)\\n?([\\s\\S]*)$",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": true
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "captures": [
+        {
+          "name": "audit_record_1",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 1,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "audit_record_2",
+          "select": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 2,
+                    "match_index": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 3,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "msg_tokens",
+            "max_depth": 64
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 4,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "extra_line_splits",
+            "max_depth": 64
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "name": "011_ignore_group_errors",
+  "version": 3,
+  "source": {
+    "buffer_size": 20000,
+    "ignore_errors": false,
+    "encoding": "auto"
+  },
+  "templates": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "source",
+      "match": "source",
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n<records xmlns=\"records:2\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"records:2 file://records-v2.0.xsd\"\n         version=\"2.0\">"
+              }
+            ]
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "capture": {
+                    "group": 0
+                  }
+                }
+              ]
+            },
+            "mode": "root"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n</records>\n"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "log_line",
+      "mode": "root",
+      "match": {
+        "delimiter": {
+          "delimiter": "\n"
+        }
+      },
+      "body": [
+        {
+          "variable": {
+            "name": "__record_body__",
+            "body": [
+              {
+                "apply-templates": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "group": 1
+                        }
+                      }
+                    ]
+                  },
+                  "mode": "field_parsers"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "test": {
+              "exists": {
+                "select": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__record_body__",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "then": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n   <record>"
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__record_body__",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n   </record>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "name": "line_fields",
+      "mode": "field_parsers",
+      "ignore_errors": true,
+      "match": {
+        "regex": {
+          "pattern": "^([0-9]+) \\[([^\\]]*)\\] (\\(.*\\))$"
+        }
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n      <data name=\"number\" value=\""
+              },
+              {
+                "capture": {
+                  "group": 1
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n      <data name=\"type\" value=\""
+              },
+              {
+                "capture": {
+                  "group": 2
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n      <data name=\"text\" value=\""
+              },
+              {
+                "capture": {
+                  "group": 3
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,603 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Events xmlns="event-logging:3"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="event-logging:3 file://event-logging-v4.1.0.xsd"
+        Version="4.1.0">
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T08:55:01.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-User Profiles Service</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>1</TypeId>
+      <Description>Windows has started loading the local user profile</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <User>
+          <Id>jsmith</Id>
+          <UserDetails>
+            <Id>jsmith</Id>
+            <Domain>CORP</Domain>
+          </UserDetails>
+        </User>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="EventCode" Value="1"/>
+        <Data Name="RecordNumber" Value="45201"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T08:55:03.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-User Profiles Service</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>2</TypeId>
+      <Description>Windows has finished loading the local user profile (CORP\jsmith)</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <User>
+          <Id>jsmith</Id>
+          <UserDetails>
+            <Id>jsmith</Id>
+            <Domain>CORP</Domain>
+          </UserDetails>
+        </User>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="EventCode" Value="2"/>
+        <Data Name="RecordNumber" Value="45202"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:00:05.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft Office 16</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>12291</TypeId>
+      <Description>Microsoft Excel 16.0 started</Description>
+      <Create>
+        <Object>
+          <Type>Process</Type>
+          <Name>Microsoft Excel 16.0</Name>
+          <Description>Build 16.0.17928.20114</Description>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="RecordNumber" Value="45210"/>
+      </Create>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:05:12.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Application Error</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>1000</TypeId>
+      <Description>Faulting application OUTLOOK.EXE crashed with access violation</Description>
+      <Alert>
+        <Type>Error</Type>
+        <Severity>High</Severity>
+        <Description>OUTLOOK.EXE crashed. Exception code: 0xc0000005 (Access Violation). Faulting module: mso40uiwin32client.dll at offset 0x00000000002a1f8c</Description>
+        <Data Name="FaultingApplication" Value="OUTLOOK.EXE"/>
+        <Data Name="FaultingApplicationVersion" Value="16.0.17928.20114"/>
+        <Data Name="FaultingModule" Value="mso40uiwin32client.dll"/>
+        <Data Name="FaultingModuleVersion" Value="16.0.17928.20114"/>
+        <Data Name="ExceptionCode" Value="0xc0000005"/>
+        <Data Name="FaultOffset" Value="0x00000000002a1f8c"/>
+        <Data Name="FaultingProcessId" Value="0x2a4c"/>
+        <Data Name="FaultingApplicationPath" Value="C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE"/>
+        <Data Name="FaultingModulePath" Value="C:\Program Files\Microsoft Office\root\Office16\mso40uiwin32client.dll"/>
+        <Data Name="ReportId" Value="3f8a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"/>
+        <Data Name="RecordNumber" Value="45215"/>
+      </Alert>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:05:14.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Windows Error Reporting</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>1001</TypeId>
+      <Description>Windows Error Reporting: APPCRASH for </Description>
+      <Alert>
+        <Type>Error</Type>
+        <Severity>High</Severity>
+        <Description>Fault bucket 1409251102913 - APPCRASH in   due to exception  in </Description>
+        <Data Name="EventName" Value="APPCRASH"/>
+        <Data Name="FaultBucket" Value="1409251102913"/>
+        <Data Name="P1_Application" Value=""/>
+        <Data Name="P2_AppVersion" Value=""/>
+        <Data Name="P4_FaultingModule" Value=""/>
+        <Data Name="P7_ExceptionCode" Value=""/>
+        <Data Name="P8_FaultOffset" Value=""/>
+        <Data Name="RecordNumber" Value="45216"/>
+      </Alert>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:10:30.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>MsiInstaller</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>1033</TypeId>
+      <Description>Windows Installer installed product: Adobe Acrobat Reader DC</Description>
+      <Install>
+        <Object>
+          <Type>Software</Type>
+          <Name>Adobe Acrobat Reader DC</Name>
+          <Description>Version 24.001.20604, Language 1033, Manufacturer Adobe</Description>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="ProductName" Value="Adobe Acrobat Reader DC"/>
+        <Data Name="ProductVersion" Value="24.001.20604"/>
+        <Data Name="ProductLanguage" Value="1033"/>
+        <Data Name="Manufacturer" Value="Adobe"/>
+        <Data Name="InstallStatus" Value="0"/>
+        <Data Name="RecordNumber" Value="45220"/>
+      </Install>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:15:00.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>MSSQLSERVER</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>DBSERVER01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>17162</TypeId>
+      <Description>SQL Server is ready for client connections</Description>
+      <Process>
+        <Action>Start</Action>
+        <Type>Application</Type>
+        <Command>MSSQLSERVER</Command>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="RecordNumber" Value="98001"/>
+      </Process>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:15:05.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>MSSQLSERVER</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>DBSERVER01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>18456</TypeId>
+      <Description>SQL Server login failed for user \x27sa\x27</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <User>
+          <Id>sa</Id>
+        </User>
+        <Outcome>
+          <Success>false</Success>
+          <Description>Password did not match that for the login provided</Description>
+        </Outcome>
+        <Data Name="ClientAddress" Value=""/>
+        <Data Name="RecordNumber" Value="98002"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:15:06.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>MSSQLSERVER</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>DBSERVER01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>18456</TypeId>
+      <Description>SQL Server login failed for user \x27sa\x27</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <User>
+          <Id>sa</Id>
+        </User>
+        <Outcome>
+          <Success>false</Success>
+          <Description>Password did not match that for the login provided</Description>
+        </Outcome>
+        <Data Name="ClientAddress" Value=""/>
+        <Data Name="RecordNumber" Value="98003"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:15:07.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>MSSQLSERVER</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>DBSERVER01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>18456</TypeId>
+      <Description>SQL Server login failed for user \x27sa\x27</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <User>
+          <Id>sa</Id>
+        </User>
+        <Outcome>
+          <Success>false</Success>
+          <Description>Password did not match that for the login provided</Description>
+        </Outcome>
+        <Data Name="ClientAddress" Value=""/>
+        <Data Name="RecordNumber" Value="98004"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:20:00.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>MSSQLSERVER</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>DBSERVER01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>18454</TypeId>
+      <Description>SQL Server login succeeded for user \x27app_service\x27</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <User>
+          <Id>app_service</Id>
+        </User>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="AuthMethod" Value=""/>
+        <Data Name="ClientAddress" Value="192.168.1.25"/>
+        <Data Name="RecordNumber" Value="98010"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:30:15.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>VSS</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>FILESERVER01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>8193</TypeId>
+      <Description>Volume Shadow Copy Service error: CoCreateInstance failed</Description>
+      <Alert>
+        <Type>Error</Type>
+        <Severity>High</Severity>
+        <Description>Unexpected error calling routine CoCreateInstance. hr = 0x80040154, Class not registered</Description>
+        <Data Name="HRESULT" Value="0x80040154"/>
+        <Data Name="ErrorMessage" Value="Class not registered"/>
+        <Data Name="RecordNumber" Value="67801"/>
+      </Alert>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:45:00.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Software Protection Platform Service</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>1003</TypeId>
+      <Description>Licensing status check completed: Licensed</Description>
+      <Authorise>
+        <Object>
+          <Type>License</Type>
+          <Name>Windows(R), Professional edition</Name>
+          <Description>VOLUME_KMSCLIENT channel</Description>
+        </Object>
+        <Action>Request</Action>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="LicenseStatus" Value="Licensed"/>
+        <Data Name="GraceTimeDays" Value="0"/>
+        <Data Name="RemainingRearmCount" Value="1001"/>
+        <Data Name="RecordNumber" Value="45230"/>
+      </Authorise>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T10:00:00.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>.NET Runtime</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>APPSERVER01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>1026</TypeId>
+      <Description>InventoryService.exe terminated due to unhandled System.Data.SqlClient.SqlException</Description>
+      <Alert>
+        <Type>Error</Type>
+        <Severity>High</Severity>
+        <Description>The process InventoryService.exe was terminated due to an unhandled System.Data.SqlClient.SqlException in UpdateStock method</Description>
+        <Data Name="Application" Value="InventoryService.exe"/>
+        <Data Name="FrameworkVersion" Value="v4.0.30319"/>
+        <Data Name="ExceptionType" Value="System.Data.SqlClient.SqlException"/>
+        <Data Name="StackTrace" Value="at SqlConnection.OnError &gt; TdsParser.ThrowExceptionAndWarning &gt; TdsParser.TryRun &gt; SqlCommand.RunExecuteNonQueryTds &gt; SqlCommand.ExecuteNonQuery &gt; DataAccess.UpdateStock &gt; StockUpdateHandler.Handle &gt; Program.Main"/>
+        <Data Name="RecordNumber" Value="34501"/>
+      </Alert>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T10:15:30.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-RestartManager</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Application Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>jsmith</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>10000</TypeId>
+      <Description>RestartManager session started for Firefox update</Description>
+      <Update>
+        <Object>
+          <Type>Software</Type>
+          <Name>Firefox</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="SessionId" Value="3"/>
+        <Data Name="OwnerProcess" Value="C:\Program Files\Mozilla Firefox\updater.exe"/>
+        <Data Name="OwnerPID" Value="6712"/>
+        <Data Name="RestartingApplication" Value="Firefox"/>
+        <Data Name="RestartingPID" Value="5544"/>
+        <Data Name="RecordNumber" Value="45240"/>
+      </Update>
+    </EventDetail>
+  </Event>
+
+</Events>

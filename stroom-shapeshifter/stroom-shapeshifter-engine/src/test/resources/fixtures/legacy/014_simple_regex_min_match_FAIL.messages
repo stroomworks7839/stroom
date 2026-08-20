@@ -1,0 +1,6 @@
+Error	Expected at least 1 matches but got 0
+Warning	Template 'threeFields' did not consume all content. Unmatched: [[abc] This is some text]
+Error	Expected at least 1 matches but got 0
+Warning	Template 'threeFields' did not consume all content. Unmatched: [[defg] This is some other text]
+Error	Expected at least 1 matches but got 0
+Warning	Template 'threeFields' did not consume all content. Unmatched: [[hjkl] More text]

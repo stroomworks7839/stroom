@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Events xmlns="event-logging:3"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="event-logging:3 file://event-logging-v4.1.0.xsd"
+        Version="4.1.0">
+\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:00:01.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET / HTTP/1.1</Description>\n      <View>\n        <Object>\n          <Type>WebPage</Type>\n          <Name>/</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="4523"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:00:01.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /css/main.css HTTP/1.1</Description>\n      <View>\n        <Object>\n          <Type>Resource</Type>\n          <Name>/css/main.css</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/css/main.css"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="8192"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:00:02.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /js/app.js HTTP/1.1</Description>\n      <View>\n        <Object>\n          <Type>Resource</Type>\n          <Name>/js/app.js</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/js/app.js"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="15360"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:00:02.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /images/logo.png HTTP/1.1 (Not Modified)</Description>\n      <View>\n        <Object>\n          <Type>Resource</Type>\n          <Name>/images/logo.png</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/images/logo.png"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="304"/>
+        <Data Name="ResponseSize" Value="0"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:05:10.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /api/v1/users/me HTTP/1.1</Description>\n      <View>\n        <Object>\n          <Type>API</Type>\n          <Name>/api/v1/users/me</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/api/v1/users/me"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="312"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/dashboard"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:05:11.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /api/v1/reports/quarterly HTTP/1.1</Description>\n      <View>\n        <Object>\n          <Type>API</Type>\n          <Name>/api/v1/reports/quarterly</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/api/v1/reports/quarterly?year=2026&q=1"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="28456"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/reports"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:10:30.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>POST /api/v1/reports/export HTTP/1.1</Description>
+      <Export>
+        <Object>
+          <Type>Report</Type>
+          <Name>/api/v1/reports/export</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/api/v1/reports/export"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="1048576"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/reports"/>\n      </Export>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:15:00.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>app_service</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /api/v1/health HTTP/1.1</Description>\n      <View>\n        <Object>\n          <Type>API</Type>\n          <Name>/api/v1/health</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/api/v1/health"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="52"/>
+        <Data Name="ClientIP" Value="192.168.1.25"/>
+        <Data Name="UserAgent" Value="HealthChecker/1.0"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:20:00.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>app_service</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /api/v1/health HTTP/1.1</Description>\n      <View>\n        <Object>\n          <Type>API</Type>\n          <Name>/api/v1/health</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/api/v1/health"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="52"/>
+        <Data Name="ClientIP" Value="192.168.1.25"/>
+        <Data Name="UserAgent" Value="HealthChecker/1.0"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:20:45.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /admin/login HTTP/1.1</Description>\n      <View>\n        <Object>\n          <Type>WebPage</Type>\n          <Name>/admin/login</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/admin/login"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="3412"/>
+        <Data Name="ClientIP" Value="10.0.0.99"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:20:46.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>POST /admin/login HTTP/1.1 (Unauthorized)</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <Outcome>
+          <Success>false</Success>
+          <Description>HTTP 401 Unauthorized</Description>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/admin/login"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="401"/>
+        <Data Name="ResponseSize" Value="187"/>
+        <Data Name="ClientIP" Value="10.0.0.99"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/admin/login"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"/>\n      </Authenticate>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:20:47.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>POST /admin/login HTTP/1.1 (Unauthorized)</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <Outcome>
+          <Success>false</Success>
+          <Description>HTTP 401 Unauthorized</Description>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/admin/login"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="401"/>
+        <Data Name="ResponseSize" Value="187"/>
+        <Data Name="ClientIP" Value="10.0.0.99"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/admin/login"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"/>\n      </Authenticate>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:20:48.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>POST /admin/login HTTP/1.1 (Unauthorized)</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <Outcome>
+          <Success>false</Success>
+          <Description>HTTP 401 Unauthorized</Description>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/admin/login"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="401"/>
+        <Data Name="ResponseSize" Value="187"/>
+        <Data Name="ClientIP" Value="10.0.0.99"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/admin/login"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"/>\n      </Authenticate>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:20:49.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>POST /admin/login HTTP/1.1 (Unauthorized)</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <Outcome>
+          <Success>false</Success>
+          <Description>HTTP 401 Unauthorized</Description>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/admin/login"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="401"/>
+        <Data Name="ResponseSize" Value="187"/>
+        <Data Name="ClientIP" Value="10.0.0.99"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/admin/login"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"/>\n      </Authenticate>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:20:50.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>POST /admin/login HTTP/1.1 (Forbidden - account locked)</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <Outcome>
+          <Success>false</Success>
+          <Permitted>false</Permitted>
+          <Description>HTTP 403 Forbidden - account locked after repeated failures</Description>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/admin/login"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="403"/>
+        <Data Name="ResponseSize" Value="245"/>
+        <Data Name="ClientIP" Value="10.0.0.99"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/admin/login"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"/>\n      </Authenticate>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:25:15.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>contractor1</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>GET /shares/hr/salary-data HTTP/1.1 (Forbidden)</Description>
+      <View>
+        <Object>
+          <Type>WebPage</Type>
+          <Name>/shares/hr/salary-data</Name>
+        </Object>
+        <Outcome>
+          <Success>false</Success>
+          <Permitted>false</Permitted>
+          <Description>HTTP 403 Forbidden - insufficient permissions</Description>
+        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/shares/hr/salary-data"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="403"/>
+        <Data Name="ResponseSize" Value="287"/>
+        <Data Name="ClientIP" Value="192.168.1.75"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/shares"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:30:00.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>contractor1</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /shares/public/company-handbook.pdf HTTP/1.1</Description>\n      <Export>\n        <Object>\n          <Type>Document</Type>\n          <Name>company-handbook.pdf</Name>\n          <Description>/shares/public/company-handbook.pdf</Description>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/shares/public/company-handbook.pdf"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="2097152"/>
+        <Data Name="ClientIP" Value="192.168.1.75"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/shares/public"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"/>\n      </Export>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:35:22.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>PUT /api/v1/users/1105/profile HTTP/1.1</Description>\n      <Update>\n        <Object>\n          <Type>UserProfile</Type>\n          <Id>1105</Id>\n          <Name>/api/v1/users/1105/profile</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="PUT"/>
+        <Data Name="URL" Value="/api/v1/users/1105/profile"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="156"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/profile/edit"/>\n      </Update>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:40:15.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>DELETE /api/v1/drafts/8842 HTTP/1.1</Description>\n      <Delete>\n        <Object>\n          <Type>Draft</Type>\n          <Id>8842</Id>\n          <Name>/api/v1/drafts/8842</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="DELETE"/>
+        <Data Name="URL" Value="/api/v1/drafts/8842"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="204"/>
+        <Data Name="ResponseSize" Value="0"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/drafts"/>\n      </Delete>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:45:00.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>POST /api/v1/upload HTTP/1.1 (Created)</Description>
+      <Import>
+        <Object>
+          <Type>Document</Type>
+          <Name>/api/v1/upload</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/api/v1/upload"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="201"/>
+        <Data Name="ResponseSize" Value="89"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/documents/upload"/>\n      </Import>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:50:30.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>GET /../../etc/passwd HTTP/1.1 (Bad Request - path traversal attempt)</Description>
+      <Alert>
+        <Type>Error</Type>
+        <Severity>High</Severity>
+        <Description>Path traversal attack attempt: GET /../../etc/passwd</Description>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/../../etc/passwd"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="400"/>
+        <Data Name="ResponseSize" Value="226"/>
+        <Data Name="ClientIP" Value="10.0.0.55"/>
+        <Data Name="UserAgent" Value="curl/7.88.1"/>\n      </Alert>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:50:31.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /cgi-bin/test.cgi HTTP/1.1 (Not Found - command injection attempt)</Description>\n      <Alert>\n        <Type>Error</Type>\n        <Severity>High</Severity>\n        <Description>Command injection attempt via CGI: cmd=cat /etc/shadow</Description>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/cgi-bin/test.cgi?cmd=cat+/etc/shadow"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="404"/>
+        <Data Name="ResponseSize" Value="196"/>
+        <Data Name="ClientIP" Value="10.0.0.55"/>
+        <Data Name="UserAgent" Value="curl/7.88.1"/>\n      </Alert>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:50:32.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /wp-admin/ HTTP/1.1 (Not Found - vulnerability scan)</Description>\n      <Alert>\n        <Type>Warning</Type>\n        <Severity>Medium</Severity>\n        <Description>Vulnerability scanning: probing for WordPress admin panel</Description>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/wp-admin/"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="404"/>
+        <Data Name="ResponseSize" Value="196"/>
+        <Data Name="ClientIP" Value="10.0.0.55"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)"/>\n      </Alert>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T09:50:33.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /phpmyadmin/ HTTP/1.1 (Not Found - vulnerability scan)</Description>\n      <Alert>\n        <Type>Warning</Type>\n        <Severity>Medium</Severity>\n        <Description>Vulnerability scanning: probing for phpMyAdmin</Description>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/phpmyadmin/"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="404"/>
+        <Data Name="ResponseSize" Value="196"/>
+        <Data Name="ClientIP" Value="10.0.0.55"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)"/>\n      </Alert>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T10:00:00.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>GET /api/v1/notifications HTTP/1.1</Description>\n      <View>\n        <Object>\n          <Type>API</Type>\n          <Name>/api/v1/notifications</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/api/v1/notifications"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="1247"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/dashboard"/>\n      </View>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T10:05:00.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>GET /api/v1/status HTTP/1.1 (Internal Server Error)</Description>
+      <Alert>
+        <Type>Error</Type>
+        <Severity>High</Severity>
+        <Description>HTTP 500 Internal Server Error on /api/v1/status</Description>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/api/v1/status"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="500"/>
+        <Data Name="ResponseSize" Value="342"/>
+        <Data Name="ClientIP" Value="192.168.1.100"/>
+        <Data Name="UserAgent" Value="monitoring-agent/2.1"/>\n      </Alert>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T10:10:00.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>GET /api/v1/status HTTP/1.1 (Service Unavailable)</Description>
+      <Alert>
+        <Type>Error</Type>
+        <Severity>High</Severity>
+        <Description>HTTP 503 Service Unavailable on /api/v1/status</Description>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/api/v1/status"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="503"/>
+        <Data Name="ResponseSize" Value="189"/>
+        <Data Name="ClientIP" Value="192.168.1.100"/>
+        <Data Name="UserAgent" Value="monitoring-agent/2.1"/>\n      </Alert>\n    </EventDetail>\n  </Event>\n\n  <Event>\n    <EventTime>\n      <TimeCreated>2026-03-23T10:15:30.000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n      <User>\n        <Id>jsmith</Id>\n      </User>\n    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>
+      <Description>GET /logout HTTP/1.1 (Redirect)</Description>
+      <Authenticate>
+        <Action>Logoff</Action>
+        <User>
+          <Id>jsmith</Id>
+        </User>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/logout"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="302"/>
+        <Data Name="ResponseSize" Value="0"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/dashboard"/>\n      </Authenticate>\n    </EventDetail>\n  </Event>\n
+</Events>

@@ -1,0 +1,42 @@
+{
+  "name": "parquet_cities",
+  "version": 3,
+  "source": {
+    "buffer_size": 1000000,
+    "ignore_errors": true,
+    "encoding": "utf-8"
+  },
+  "templates": [
+    {
+      "id": "b1a7c2d0-0002-4a10-9f02-bbbbbbbbbbbb",
+      "name": "parquet_row",
+      "match": {
+        "parquet": {}
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "captures": [
+        { "name": "cid", "select": { "field": "id" } },
+        { "name": "cname", "select": { "field": "city" } },
+        { "name": "cpop", "select": { "field": "population" } }
+      ],
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              { "text": "<city id=\"" },
+              { "capture": { "var_id": "cid", "group": 0, "match_index": null } },
+              { "text": "\" name=\"" },
+              { "capture": { "var_id": "cname", "group": 0, "match_index": null } },
+              { "text": "\" pop=\"" },
+              { "capture": { "var_id": "cpop", "group": 0, "match_index": null } },
+              { "text": "\"/>\n" }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

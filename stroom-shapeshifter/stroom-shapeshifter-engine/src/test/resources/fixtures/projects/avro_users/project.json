@@ -1,0 +1,45 @@
+{
+  "name": "avro_users",
+  "version": 3,
+  "source": {
+    "buffer_size": 1000000,
+    "ignore_errors": true,
+    "encoding": "utf-8"
+  },
+  "templates": [
+    {
+      "id": "b1a7c2d0-0001-4a10-9f01-aaaaaaaaaaaa",
+      "name": "avro_record",
+      "match": {
+        "avro": {}
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "captures": [
+        { "name": "uname", "select": { "field": "name" } },
+        { "name": "uage", "select": { "field": "age" } },
+        { "name": "uscore", "select": { "field": "score" } },
+        { "name": "uactive", "select": { "field": "active" } }
+      ],
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              { "text": "<user name=\"" },
+              { "capture": { "var_id": "uname", "group": 0, "match_index": null } },
+              { "text": "\" age=\"" },
+              { "capture": { "var_id": "uage", "group": 0, "match_index": null } },
+              { "text": "\" score=\"" },
+              { "capture": { "var_id": "uscore", "group": 0, "match_index": null } },
+              { "text": "\" active=\"" },
+              { "capture": { "var_id": "uactive", "group": 0, "match_index": null } },
+              { "text": "\"/>\n" }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{"@id":"1","@status":"active","name":"Alice","age":"30","address":{"@type":"home","city":"London","country":"UK"}}
+{"@id":"2","@status":"active","name":"Bob","age":"25","city":"Paris"}
+{"@id":"3","@status":"inactive","name":"Carol","age":"35","location":{"@region":"europe","city":"Berlin","state":"BE"}}
+{"@id":"4","@status":"active","name":"Dave","org":{"@level":"top","dept":{"@type":"eng","team":{"@name":"core","lead":"Eve","size":"5"}}}}

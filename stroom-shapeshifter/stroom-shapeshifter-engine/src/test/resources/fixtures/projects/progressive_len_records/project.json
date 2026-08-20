@@ -1,0 +1,50 @@
+{
+  "name": "progressive_len_records",
+  "version": 1,
+  "source": {
+    "buffer_size": 1000000,
+    "ignore_errors": true,
+    "encoding": "UTF-8"
+  },
+  "templates": [
+    {
+      "id": "e97f0eba-5e1a-587e-a22e-a3d761377ea6",
+      "name": "root",
+      "match": {
+        "progressive": [
+          "ReadVarint",
+          {
+            "TakeBytes": {
+              "StepOutput": 0
+            }
+          }
+        ]
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<rec name=\""
+              },
+              {
+                "capture": {
+                  "var_id": null,
+                  "group": 2,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\"/>\n"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

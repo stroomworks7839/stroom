@@ -1,0 +1,3 @@
+<event id="1" kind="login" ok="true"/>
+<event id="2" kind="click" ok="false"/>
+<event id="3" kind="logout" ok="true"/>

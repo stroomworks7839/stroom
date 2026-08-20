@@ -1,0 +1,45 @@
+{
+  "name": "progressive_varint_zigzag",
+  "version": 1,
+  "source": {
+    "buffer_size": 1000000,
+    "ignore_errors": true,
+    "encoding": "UTF-8"
+  },
+  "templates": [
+    {
+      "id": "08951c36-151b-5763-a5ba-ed80bc0360e4",
+      "name": "root",
+      "match": {
+        "progressive": [
+          "ReadVarintZigZag"
+        ]
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<n v=\""
+              },
+              {
+                "capture": {
+                  "var_id": null,
+                  "group": 1,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\"/>\n"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

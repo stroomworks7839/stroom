@@ -1,0 +1,58 @@
+{
+  "name": "progressive_embedded_codec",
+  "version": 1,
+  "source": {
+    "buffer_size": 1000000,
+    "ignore_errors": true,
+    "encoding": "UTF-8"
+  },
+  "templates": [
+    {
+      "id": "33cd4e9c-f792-5b58-a74b-89c14011d26f",
+      "name": "root",
+      "match": {
+        "progressive": [
+          "ReadVarint",
+          {
+            "TakeBytes": {
+              "StepOutput": 0
+            }
+          },
+          {
+            "Decode": {
+              "data": {
+                "StepOutput": 1
+              },
+              "codec": "Base64"
+            }
+          }
+        ]
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<d v=\""
+              },
+              {
+                "capture": {
+                  "var_id": null,
+                  "group": 3,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\"/>\n"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

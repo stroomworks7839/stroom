@@ -1,0 +1,242 @@
+03/23/2026 08:55:01 AM
+LogName=Application
+SourceName=Microsoft-Windows-User Profiles Service
+EventCode=1
+EventType=4
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=None
+OpCode=Info
+RecordNumber=45201
+Keywords=Classic
+Message=Windows has started loading the local user profile. Windows will now try to log on with this profile.
+
+ User: CORP\jsmith
+
+03/23/2026 08:55:03 AM
+LogName=Application
+SourceName=Microsoft-Windows-User Profiles Service
+EventCode=2
+EventType=4
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=None
+OpCode=Info
+RecordNumber=45202
+Keywords=Classic
+Message=Windows has finished loading the local user profile (CORP\jsmith).
+
+ User: CORP\jsmith
+
+03/23/2026 09:00:05 AM
+LogName=Application
+SourceName=Microsoft Office 16
+EventCode=12291
+EventType=4
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=None
+OpCode=Info
+RecordNumber=45210
+Keywords=Classic
+Message=Microsoft Excel 16.0 (Build 16.0.17928.20114) started.
+
+03/23/2026 09:05:12 AM
+LogName=Application
+SourceName=Application Error
+EventCode=1000
+EventType=2
+Type=Error
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=(100)
+OpCode=Info
+RecordNumber=45215
+Keywords=Classic
+Message=Faulting application name: OUTLOOK.EXE, version: 16.0.17928.20114, time stamp: 0x65f2a1b3
+Faulting module name: mso40uiwin32client.dll, version: 16.0.17928.20114, time stamp: 0x65f29d44
+Exception code: 0xc0000005
+Fault offset: 0x00000000002a1f8c
+Faulting process id: 0x2a4c
+Faulting application start time: 0x01db8c3f2a7d5e00
+Faulting application path: C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE
+Faulting module path: C:\Program Files\Microsoft Office\root\Office16\mso40uiwin32client.dll
+Report Id: 3f8a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c
+Faulting package full name: 
+Faulting package-relative application ID: 
+
+03/23/2026 09:05:14 AM
+LogName=Application
+SourceName=Windows Error Reporting
+EventCode=1001
+EventType=4
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=None
+OpCode=Info
+RecordNumber=45216
+Keywords=Classic
+Message=Fault bucket 1409251102913, type 1
+Event Name: APPCRASH
+Response: Not available
+Cab Id: 0
+
+Problem signature:
+P1: OUTLOOK.EXE
+P2: 16.0.17928.20114
+P3: 65f2a1b3
+P4: mso40uiwin32client.dll
+P5: 16.0.17928.20114
+P6: 65f29d44
+P7: c0000005
+P8: 00000000002a1f8c
+P9: 
+P10: 
+
+Attached files:
+\\?\C:\ProgramData\Microsoft\Windows\WER\Temp\WER1234.tmp.mdmp
+\\?\C:\ProgramData\Microsoft\Windows\WER\Temp\WER5678.tmp.WERInternalMetadata.xml
+\\?\C:\ProgramData\Microsoft\Windows\WER\Temp\WER9ABC.tmp.xml
+
+03/23/2026 09:10:30 AM
+LogName=Application
+SourceName=MsiInstaller
+EventCode=1033
+EventType=4
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=None
+OpCode=Info
+RecordNumber=45220
+Keywords=Classic
+Message=Windows Installer installed the product. Product Name: Adobe Acrobat Reader DC. Product Version: 24.001.20604. Product Language: 1033. Manufacturer: Adobe. Installation success or error status: 0.
+
+03/23/2026 09:15:00 AM
+LogName=Application
+SourceName=MSSQLSERVER
+EventCode=17162
+EventType=4
+Type=Information
+ComputerName=DBSERVER01.corp.example.com
+TaskCategory=Server
+OpCode=Info
+RecordNumber=98001
+Keywords=Classic
+Message=SQL Server is ready for client connections. This is an informational message; no user action is required.
+
+03/23/2026 09:15:05 AM
+LogName=Application
+SourceName=MSSQLSERVER
+EventCode=18456
+EventType=1
+Type=Error
+ComputerName=DBSERVER01.corp.example.com
+TaskCategory=Logon
+OpCode=Info
+RecordNumber=98002
+Keywords=Classic
+Message=Login failed for user 'sa'. Reason: Password did not match that for the login provided. [CLIENT: 10.0.0.99]
+
+03/23/2026 09:15:06 AM
+LogName=Application
+SourceName=MSSQLSERVER
+EventCode=18456
+EventType=1
+Type=Error
+ComputerName=DBSERVER01.corp.example.com
+TaskCategory=Logon
+OpCode=Info
+RecordNumber=98003
+Keywords=Classic
+Message=Login failed for user 'sa'. Reason: Password did not match that for the login provided. [CLIENT: 10.0.0.99]
+
+03/23/2026 09:15:07 AM
+LogName=Application
+SourceName=MSSQLSERVER
+EventCode=18456
+EventType=1
+Type=Error
+ComputerName=DBSERVER01.corp.example.com
+TaskCategory=Logon
+OpCode=Info
+RecordNumber=98004
+Keywords=Classic
+Message=Login failed for user 'sa'. Reason: Password did not match that for the login provided. [CLIENT: 10.0.0.99]
+
+03/23/2026 09:20:00 AM
+LogName=Application
+SourceName=MSSQLSERVER
+EventCode=18454
+EventType=4
+Type=Information
+ComputerName=DBSERVER01.corp.example.com
+TaskCategory=Logon
+OpCode=Info
+RecordNumber=98010
+Keywords=Classic
+Message=Login succeeded for user 'app_service'. Connection made using SQL Server authentication. [CLIENT: 192.168.1.25]
+
+03/23/2026 09:30:15 AM
+LogName=Application
+SourceName=VSS
+EventCode=8193
+EventType=2
+Type=Error
+ComputerName=FILESERVER01.corp.example.com
+TaskCategory=None
+OpCode=Info
+RecordNumber=67801
+Keywords=Classic
+Message=Volume Shadow Copy Service error: Unexpected error calling routine CoCreateInstance. hr = 0x80040154, Class not registered.
+
+03/23/2026 09:45:00 AM
+LogName=Application
+SourceName=Software Protection Platform Service
+EventCode=1003
+EventType=4
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=None
+OpCode=Info
+RecordNumber=45230
+Keywords=Classic
+Message=The Software Protection service has completed licensing status check.
+Windows(R), Professional edition, VOLUME_KMSCLIENT channel: License Status = Licensed, Grace Time (days) = 0, Remaining Rearm Count = 1001.
+
+03/23/2026 10:00:00 AM
+LogName=Application
+SourceName=.NET Runtime
+EventCode=1026
+EventType=2
+Type=Error
+ComputerName=APPSERVER01.corp.example.com
+TaskCategory=None
+OpCode=Info
+RecordNumber=34501
+Keywords=Classic
+Message=Application: InventoryService.exe
+Framework Version: v4.0.30319
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.Data.SqlClient.SqlException
+   at System.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction)
+   at System.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, Boolean callerHasConnectionLock, Boolean asyncClose)
+   at System.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady)
+   at System.Data.SqlClient.SqlCommand.RunExecuteNonQueryTds(String methodName, Boolean async, Int32 timeout, Boolean asyncWrite)
+   at System.Data.SqlClient.SqlCommand.ExecuteNonQuery()
+   at InventoryService.DataAccess.UpdateStock(Int32 productId, Int32 quantity)
+   at InventoryService.Handlers.StockUpdateHandler.Handle(StockUpdateMessage msg)
+   at InventoryService.Program.Main(String[] args)
+
+03/23/2026 10:15:30 AM
+LogName=Application
+SourceName=Microsoft-Windows-RestartManager
+EventCode=10000
+EventType=4
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=None
+OpCode=Info
+RecordNumber=45240
+Keywords=Classic
+Message=Starting session 3 - 2026/03/23 10:15:30.
+Owner process: C:\Program Files\Mozilla Firefox\updater.exe (PID: 6712)
+Session is restarting applications to update: Firefox (PID: 5544)

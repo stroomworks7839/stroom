@@ -1,0 +1,859 @@
+{
+  "name": "003_multiline_regex",
+  "version": 3,
+  "source": {
+    "buffer_size": 5000000,
+    "ignore_errors": false,
+    "encoding": "auto"
+  },
+  "templates": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "source",
+      "match": "source",
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n<records xmlns=\"records:2\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"records:2 file://records-v2.0.xsd\"\n         version=\"2.0\">"
+              }
+            ]
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "capture": {
+                    "group": 0
+                  }
+                }
+              ]
+            },
+            "mode": "root"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n</records>\n"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "audit_section",
+      "mode": "root",
+      "match": {
+        "delimiter": {
+          "delimiter": "\n----\n"
+        }
+      },
+      "body": [
+        {
+          "variable": {
+            "name": "__record_body__",
+            "body": [
+              {
+                "apply-templates": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "group": 1
+                        }
+                      }
+                    ]
+                  },
+                  "mode": "section_lines"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "test": {
+              "exists": {
+                "select": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__record_body__",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "then": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n   <record>"
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__record_body__",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n   </record>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "name": "audit_line",
+      "mode": "section_lines",
+      "match": {
+        "delimiter": {
+          "delimiter": "\n"
+        }
+      },
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "capture": {
+                    "group": 0
+                  }
+                }
+              ]
+            },
+            "mode": "line_parsers"
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000004",
+      "name": "audit_event",
+      "mode": "line_parsers",
+      "match": {
+        "regex": {
+          "pattern": "^(\\s*node=)?([^ ]+) type=([^ ]+) msg=audit\\(([^\\)]+)(\\) :)?(.+)"
+        }
+      },
+      "body": [
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 3
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_type"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 2
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_node"
+          }
+        },
+        {
+          "variable": {
+            "name": "__data_type_body__",
+            "body": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n         <data name=\"type\" value=\""
+                    },
+                    {
+                      "capture": {
+                        "var_id": "__esc_type",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    },
+                    {
+                      "text": "\"/>"
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n         <data name=\"node\" value=\""
+                    },
+                    {
+                      "capture": {
+                        "var_id": "__esc_node",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    },
+                    {
+                      "text": "\"/>"
+                    }
+                  ]
+                }
+              },
+              {
+                "apply-templates": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "group": 4
+                        }
+                      }
+                    ]
+                  },
+                  "mode": "event_fields"
+                }
+              },
+              {
+                "apply-templates": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "group": 6
+                        }
+                      }
+                    ]
+                  },
+                  "mode": "tail_fields"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "test": {
+              "exists": {
+                "select": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__data_type_body__",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "then": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n      <data name=\"type\" value=\""
+                    },
+                    {
+                      "capture": {
+                        "var_id": "__esc_type",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    },
+                    {
+                      "text": "\">"
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__data_type_body__",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n      </data>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "test": {
+              "not": {
+                "exists": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "var_id": "__data_type_body__",
+                          "group": 0,
+                          "match_index": {
+                            "index": 0,
+                            "is_offset": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n      <data name=\"type\" value=\""
+                    },
+                    {
+                      "capture": {
+                        "var_id": "__esc_type",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    },
+                    {
+                      "text": "\"/>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000005",
+      "name": "delimiter_line",
+      "mode": "line_parsers",
+      "match": {
+        "regex": {
+          "pattern": "^----\\n"
+        }
+      },
+      "body": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000006",
+      "name": "event_timestamp",
+      "mode": "event_fields",
+      "match": {
+        "regex": {
+          "pattern": "^(.+):(.+)"
+        }
+      },
+      "body": [
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_etime"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 2
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_eid"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\"eventTime\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_etime",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\"eventId\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_eid",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000007",
+      "name": "argc_fields",
+      "mode": "tail_fields",
+      "ignore_errors": true,
+      "match": {
+        "regex": {
+          "pattern": "argc=(.+) a0=([^\\s]+) (.+)"
+        }
+      },
+      "body": [
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_argc"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 2
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_a0"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 3
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_a1"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\"argc\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_argc",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\"a0\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_a0",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\"a1\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_a1",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000008",
+      "name": "kv_pair",
+      "mode": "tail_fields",
+      "ignore_errors": true,
+      "match": {
+        "regex": {
+          "pattern": "\\(?([^= ]+)=([^ \\(]+(\\([^\\)]+\\))?|\\([^\\)]+\\))"
+        }
+      },
+      "body": [
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_kv_name"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 2
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_kv_val"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_kv_name",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_kv_val",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
