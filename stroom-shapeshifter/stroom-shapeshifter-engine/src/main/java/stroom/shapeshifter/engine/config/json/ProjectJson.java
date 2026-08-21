@@ -755,8 +755,6 @@ public final class ProjectJson {
                 checkFields(body, "exists", "select");
                 yield new Condition.Exists(readRef(required(body, "select", "exists")));
             }
-            case "is-first" -> new Condition.IsFirst();
-            case "is-last" -> new Condition.IsLast();
             default -> throw new ConfigException("Unknown condition: " + tagged.name());
         };
     }
@@ -797,8 +795,6 @@ public final class ProjectJson {
                 body.set("select", writeRef(value.select()));
                 yield wrap("exists", body);
             }
-            case Condition.IsFirst ignored -> NODES.stringNode("is-first");
-            case Condition.IsLast ignored -> NODES.stringNode("is-last");
         };
     }
 

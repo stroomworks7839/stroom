@@ -108,7 +108,7 @@ class ProjectReaderTest {
                       "body": [
                         {"text": "<row>"},
                         {"if": {"test": {"and": [{"exists": {"select": {"parts": []}}},
-                                                {"not": "is-first"}]},
+                                                {"not": {"exists": {"select": {"parts": []}}}}]},
                                 "then": [{"trim": {"select": [{"parts": [{"text": " x "}]}]}}]}}
                       ]
                     }

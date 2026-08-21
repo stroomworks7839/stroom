@@ -163,7 +163,7 @@ class EveryVariantTest {
                 "matching",
                 "mode",
                 false,
-                new Condition.IsFirst(),
+                new Condition.Exists(ref()),
                 List.of(new ParamDecl("depth", "0"), new ParamDecl("required", null)),
                 new MatchExpression.Progressive(steps),
                 new MatchLimits(1, 9, Set.of(1, 2, 5)),
@@ -222,7 +222,7 @@ class EveryVariantTest {
                 new Condition.GreaterThan(ref(), 1.5),
                 new Condition.LessThan(ref(), -2.25),
                 new Condition.And(List.of(new Condition.Exists(ref()))),
-                new Condition.Or(List.of(new Condition.IsLast())),
+                new Condition.Or(List.of(new Condition.StartsWith(ref(), "or-pre"))),
                 new Condition.Not(new Condition.Exists(ref())))) {
             body.add(new OutputNode.If(condition, List.of(new OutputNode.Text("."))));
         }

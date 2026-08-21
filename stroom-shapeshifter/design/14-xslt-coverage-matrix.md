@@ -32,7 +32,7 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | Comments / PIs in output | **covered, proven** | they are bytes | computed_names ✓ |
 | `strip-space` / `preserve-space` | **out of scope** | input whitespace is content to match or eat, not tree decoration |
 | Serialization (`xsl:output`, indent, cdata-section-elements, character maps) | **out of scope** | the engine emits exactly what the config says; there is no serializer to configure. Byte-parity with a *configured* serializer is the author's job, as the escape-chain idiom shows |
-| `result-document` (multiple outputs) | **gap** | one sink today; D10/E15 territory — the sink seam exists, the routing does not | |
+| `result-document` (multiple outputs) | **gap, walled** | one sink today; D10/E15 territory — the sink seam exists, the routing does not. Walled executably 2026-08-21: `dual_output` runs the same records to XML on the primary output and text via `result-document`, and no challenger exists | dual_output (wall) |
 | `xsl:import`/`include` | **out of scope** | composition is an authoring-tool concern (combinator patterns already compose matches; body composition unplanned) |
 
 ## 2. Sorting, grouping, keys — the hard block
@@ -50,7 +50,7 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | XPath | Verdict | Mechanism / idiom / reason |
 |---|---|---|
 | Downward paths (`a/b/c`, predicates on structure) | **expressible** | nested levels, or a single pattern spanning the structure (nasty's five-deep pull) — proven ✓ |
-| `position()` / `last()` | **covered, proven — with a finding** | `__match_count` works as position; but the `is-first`/`is-last` *conditions* read a `__foreach_is_first` flag no dispatch mode sets — dead vocabulary outside some ds-rs foreach context, worth an issue (test count equality instead) | adjacent_groups ✓ |
+| `position()` / `last()` | **covered, proven** | `__match_count` works as position, tested with `equals`; the dead `is-first`/`is-last` conditions the case found were **deleted by E21's ruling** (2026-08-21) — count equality is the documented idiom until a case demands richer positional vocabulary | adjacent_groups ✓ |
 | Upward/sideways axes (`ancestor::`, `preceding-sibling::`) | **out of scope** | there is no tree to walk back up; state wanted from "above" is captured on the way down (the `batch` var in nasty is exactly `../@id`) — proven ✓ |
 | General/value comparisons, arithmetic | **partial** | conditions compare equality, ordering, existence, regex; arithmetic beyond `number()` is a **gap** (no expression language, by design — D35's model is declarative). Revisit only if cases demand computation |
 | Sequences, `distinct-values`, `index-of`, quantifiers | **gap** | store arrays exist; sequence *operations* over them do not |
@@ -60,7 +60,7 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | Function family | Verdict | Mechanism |
 |---|---|---|
 | `concat` | **covered** | multi-part refs |
-| `substring`, `substring-before/after` | **covered / proven** | `substring` (**0-based where XSLT is 1-based** — found by the case, an authoring trap worth a doc note or a future alignment ruling); before/after via capture patterns | string_functions ✓ |
+| `substring`, `substring-before/after` | **covered / proven** | `substring` (**0-based where XSLT is 1-based** — ruled 2026-08-21: documented as-is, faithful to the ported library; the trap note lives in `OutputNode.Substring`'s javadoc); before/after via capture patterns | string_functions ✓ |
 | `translate` | **covered** | `translate` |
 | `upper-case`, `lower-case` | **covered** | same names |
 | `normalize-space` | **covered** | `normalize-space`, plus `trim` |
@@ -68,7 +68,7 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | `string-join` | **covered** | `string-join` |
 | `string-length`, `starts-with`, `ends-with`, `contains` | **expressible, contains proven** | `matches` conditions (regex anchors give starts/ends); length-as-value stays a **gap** | string_functions ✓ |
 | `format-number` | **gap** | transforms emit what they were given; numeric formatting is a candidate transform if cases demand it |
-| `format-dateTime`, date/duration arithmetic | **gap** | the corpus dodged it (ISO passthrough); Stroom's real configs lean on `stroom:format-date` — this is the likeliest **first real gap** a production-shaped case hits |
+| `format-dateTime`, date/duration arithmetic | **gap** | the corpus dodged it (ISO passthrough); Stroom's real configs lean on `stroom:format-date` — this is the likeliest **first real gap** a production-shaped case hits. **Ruled 2026-08-21: not a verbatim port.** `stroom:format-date` conflates parsing and formatting in one call where the honest shape is a composed `format-date(parse-date())` pair; the vocabulary, when grown, should be that pair — design before code, shaped by the first case that hits it |
 | `sum`, `count`, `avg`, `min`, `max` | **gap** | aggregation over matches = accumulator territory; classify mode + stores get partway, nothing folds |
 | `number()` | **covered** | `number` |
 | `generate-id`, `id()`, `document()`, `doc()` | **out of scope** | identity and secondary documents are pipeline concerns (reference data), not transform concerns — Stroom itself agrees, via `stroom:lookup` living outside XSLT |
@@ -80,9 +80,10 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 
 Counting rows: **~17 covered, ~9 expressible — 8 now proven by catalogue cases — ~12 gaps
 (one of them, non-adjacent grouping/keys, executably documented as a wall the suite trips on
-the day it is solved), ~13 out of scope.** Three authoring traps found by the proving cases:
-`substring` is 0-based against XSLT's 1-based; the `is-first`/`is-last` conditions are
-dead vocabulary outside a ds-rs foreach context; and an optional capture that fails to
+the day it is solved), ~13 out of scope.** Three authoring traps found by the proving cases,
+all now ruled on (2026-08-21): `substring` is 0-based against XSLT's 1-based — documented
+as-is, javadoc carries the trap; the `is-first`/`is-last` conditions were dead vocabulary —
+deleted until a case needs positional semantics (E21); and an optional capture that fails to
 re-match reads the previous record's value straight through an `exists` test — E19's pinned
 no-match case, met live by `modes` and dodged by deciding branches at dispatch time.
 
@@ -92,8 +93,11 @@ The gaps cluster into exactly three families, which is the matrix's real finding
    One architectural question wearing five names. `keys_grouping` is the case that forces it.
 2. **Value computation** — arithmetic, string-length-as-value, format-number,
    format-dateTime. Transform-vocabulary growth, evidence-driven, one function at a time —
-   date formatting first, since Stroom's own configs lean on it hardest.
-3. **Output routing** — result-document / multiple sinks. Already owned by D10/E15.
+   date formatting first, since Stroom's own configs lean on it hardest. Ruled 2026-08-21:
+   the date vocabulary is a composed `format-date(parse-date())` pair, not a verbatim port
+   of `stroom:format-date`'s conflated signature; design starts when the first case hits it.
+3. **Output routing** — result-document / multiple sinks. Already owned by D10/E15, and now
+   walled executably: `dual_output` is the second wall, tripped the day routing lands.
 
 Everything else is either covered, an idiom awaiting its proving case, or refused with a
 reason that survives being read aloud.

@@ -21,7 +21,6 @@ import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -36,10 +35,6 @@ import java.util.Map;
  * all, which is a different question from whether the value equals something.
  */
 public final class Conditions {
-
-    /** The engine's own variables, set while iterating, that {@code IsFirst}/{@code IsLast} read. */
-    private static final String IS_FIRST = "__foreach_is_first";
-    private static final String IS_LAST = "__foreach_is_last";
 
     private Conditions() {
     }
@@ -92,8 +87,6 @@ public final class Conditions {
                 final byte[] resolved = Refs.resolve(value.select(), match, matchCount, vars, encoding);
                 yield resolved != null && resolved.length > 0;
             }
-            case Condition.IsFirst ignored -> flag(IS_FIRST, matchCount, vars);
-            case Condition.IsLast ignored -> flag(IS_LAST, matchCount, vars);
         };
     }
 
@@ -116,20 +109,5 @@ public final class Conditions {
         } catch (final NumberFormatException e) {
             return null;
         }
-    }
-
-    /** Read one of the iteration flags the engine sets while looping. */
-    private static boolean flag(final String name, final int matchCount, final VarRegistry vars) {
-        final List<Store> stores = vars.get(name);
-        if (stores == null || stores.isEmpty()) {
-            return false;
-        }
-        final TypedValue value = stores.getFirst().get(matchCount);
-        return switch (value) {
-            case null -> false;
-            case TypedValue.Bool bool -> bool.value();
-            case TypedValue.Bytes bytes -> "true".equals(bytes.toString());
-            default -> false;
-        };
     }
 }

@@ -199,7 +199,12 @@ public sealed interface OutputNode {
         }
     }
 
-    /** Take part of a value. XSLT: {@code substring()}. */
+    /**
+     * Take part of a value. XSLT: {@code substring()} — but note the trap: {@code start} is
+     * <b>0-based</b> where XSLT's is 1-based. {@code substring(x, 1, 2)} here is XSLT's
+     * {@code substring(x, 2, 2)}. Ruled 2026-08-21 (E21): documented, not aligned — the
+     * 0-based form is faithful to the ported transform library and existing configurations.
+     */
     record Substring(List<RefExpression> select,
                      int start,
                      Integer length,

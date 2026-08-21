@@ -28,6 +28,8 @@ import org.junit.jupiter.api.TestFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import javax.xml.transform.Templates;
 import javax.xml.transform.TransformerFactory;
@@ -61,7 +63,8 @@ class CaseCatalogueTest {
      * stay quietly misfiled.
      */
     private static final List<String> WALLS = List.of(
-            "keys_grouping");
+            "keys_grouping",
+            "dual_output");
 
     @TestFactory
     List<DynamicTest> everyCaseIsByteIdentical() {
@@ -84,10 +87,21 @@ class CaseCatalogueTest {
         final Templates templates = factory.newTemplates(new StreamSource(
                 new ByteArrayInputStream(resource(name, "transform.xsl"))));
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        templates.newTransformer().transform(
-                new StreamSource(new ByteArrayInputStream(resource(name, "input.xml"))),
-                new StreamResult(out));
-        assertThat(out.size()).isPositive();
+        // A base output URI in a scratch directory, so a wall exercising xsl:result-document
+        // (the output-routing gap) really writes its secondary documents.
+        final Path scratch = Files.createTempDirectory("wall-" + name);
+        try {
+            final StreamResult result = new StreamResult(out);
+            result.setSystemId(scratch.resolve("primary.xml").toUri().toString());
+            templates.newTransformer().transform(
+                    new StreamSource(new ByteArrayInputStream(resource(name, "input.xml"))),
+                    result);
+            assertThat(out.size()).isPositive();
+        } finally {
+            try (var files = Files.walk(scratch)) {
+                files.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+            }
+        }
         try (var challenger = getClass().getResourceAsStream(
                 "/xmlbench/cases/" + name + "/challenger.project.json")) {
             assertThat(challenger)

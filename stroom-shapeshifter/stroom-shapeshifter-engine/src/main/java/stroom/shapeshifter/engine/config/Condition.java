@@ -100,14 +100,4 @@ public sealed interface Condition {
     record Exists(RefExpression select) implements Condition {
 
     }
-
-    /** This is the first iteration of the enclosing loop. */
-    record IsFirst() implements Condition {
-
-    }
-
-    /** This is the last iteration of the enclosing loop. */
-    record IsLast() implements Condition {
-
-    }
 }

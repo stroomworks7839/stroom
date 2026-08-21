@@ -155,6 +155,7 @@ throughout, passed byte-identical on the first run.
 2. `modes` (adapted from `search_result.xsl`): one input walked by two template modes.
    **Done 2026-08-21 — and no adaptation was needed**; see below.
 3. `dual_output` (appender family): the same records emitted as XML and as text.
+   **Done 2026-08-21 — as the second wall, per the ruling**; see below.
 4. `reference` (`REFERENCE.xsl`): the clean reference-builder.
 5. `json_front` (TEST_TRACES): JSON input — pipeline's JSON parser + XSLT vs shapeshifter
    reading the JSON itself. A different fight, worth its own baseline rows.
@@ -174,5 +175,15 @@ proven. Byte-parity earned its keep twice: the stylesheet's stray literal `Autho
 copied by XSLT's built-in text rule is emitted where Saxon emits it. The first draft
 exists-tested optional branch captures and hit E19's pinned stale-value case — event 2
 reporting event 1's action — recorded as an addendum there; branch-at-dispatch is the idiom.
+
+**`dual_output`, walled (2026-08-21):** backlog item 3, ruled onto the wall rather than into
+engine work. The appender family's job — the same source emitted two ways — collapsed into
+one stylesheet using XSLT's native routing, `xsl:result-document` (adaptation disclosed in
+the stylesheet header: two pipelines become one sheet, `stroom:format-date` dropped). The
+wall runner grew the one thing result-document needs, a base output URI in a scratch
+directory, so the stylesheet genuinely writes its secondary document every run. One sink
+today (D10/E15); the test trips the day someone authors a challenger without promoting it —
+and promotion will need the runner to compare both outputs, which is tomorrow's problem by
+design.
 
 Profiling resumes once the catalogue is fat enough to profile against — per the ruling.

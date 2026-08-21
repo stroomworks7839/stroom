@@ -455,10 +455,16 @@ position while a strict group with an eater is position-priority-over-template �
 territory. Blocked on the doc's seven numbered decisions.
 
 ### E21 — `is-first`/`is-last` conditions read a flag nothing sets
-**`open` — found 2026-08-21 by the coverage catalogue's `adjacent_groups` case.**
-`Conditions` evaluates `IsFirst`/`IsLast` against `__foreach_is_first`/`__foreach_is_last`,
-variables no dispatch mode ever sets — ported vocabulary whose ds-rs context did not survive
-the port. Either wire them to the current level's match counts (`is-first` ≡ first match of
-the template, which is what the case wanted and worked around with an `equals` on
-`__match_count`), or delete the conditions. Also from the same case: `substring` is 0-based
-where XSLT's is 1-based — decide whether to document or align.
+**`resolved` 2026-08-21 — ruled: deleted, both same-day.**
+Found by the coverage catalogue's `adjacent_groups` case: `Conditions` evaluated
+`IsFirst`/`IsLast` against `__foreach_is_first`/`__foreach_is_last`, variables no dispatch
+mode ever sets — ported vocabulary whose ds-rs context did not survive the port. **Ruling:
+delete until a case needs for-each positional index and count semantics.** The conditions,
+their evaluator arm and its flag reader, and the `is-first`/`is-last` codec spellings are
+gone; the `equals`-on-`__match_count` idiom (proven by `adjacent_groups`) is the documented
+way to test position. If a case ever demands richer positional vocabulary, this entry is
+where the deleted shape is recorded.
+
+The same ruling settled the case's second finding: **`substring` stays 0-based, documented,
+not aligned** to XSLT's 1-based — faithful to the ported transform library and existing
+configurations. The trap note lives in `OutputNode.Substring`'s javadoc and the matrix.
