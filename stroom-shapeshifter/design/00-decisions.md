@@ -990,3 +990,36 @@ execution at a time, reusable sequentially, with a defined reset between streams
 lifecycle). `Executor` is transitional and dissolves into the graph as compilation deepens. Any
 design that introduces a third artifact between the model and the graph is wrong until the user
 says otherwise.
+
+## D36 — Strict dispatch: the cursor moves only by matching at it
+
+*2026-08-21.* Dispatch control flow is unbundled into four dimensions — binding, iteration,
+selection, consumption — and shipped as five named modes chosen per apply site
+(`dispatch:` on the directive, source-level default): **`strict`** (at-cursor, the default
+for newly authored configurations), **`lax`** (DS3's search-and-skip, kept for migrated
+configurations, whose goldens stay frozen), **`any`** (DS3's excision mode), **`classify`**
+(one pass, every matching template runs, nothing consumes) and **`lexer`** (maximal munch —
+longest match wins, ties to list order). Full design: [11-strict-dispatch.md](11-strict-dispatch.md).
+
+The consequences, each decided with the design rather than discovered later:
+
+- Implicit cursor movement is gone from strict groups. Skipping is authored — any match
+  expression carrying a **`consume`** marker, which means *advance, don't count*; a
+  consume-marked template may not declare captures (a non-counting match has no index to
+  bind them at, and a binding would trip E19's clearing).
+- **`emit_error`** joins the body vocabulary — severities include `fatal`, which aborts the
+  run — replacing engine-generated skip warnings with authored diagnostics.
+- A **zero-advance match in a consuming mode is an error and exits the group**: with
+  `classify`, the progressive `Peek` step, and composition available, it has no innocent
+  reading left. No compile-time empty-match gate — `*`-quantified patterns legitimately
+  smell empty; the run-time rule carries the weight.
+- The library's published `leadingAnchor()` becomes a validator in strict groups (the
+  anchored question carries the anchoring; suspicious patterns are **errors in strict,
+  warnings in lax**) and keeps its performance role wherever lax dispatch survives.
+
+Why: silent content skipping and search-shaped dispatch costs were both symptoms of the
+engine doing implicitly what authors should say explicitly. DS3 is precedent, not oracle —
+its author's own ruling. Migration cannot silently convert lax to strict: DS3's winner
+selection is template-priority-over-position, a strict group with an eater is
+position-priority-over-template, so conversion is an authoring act with audited output
+changes.

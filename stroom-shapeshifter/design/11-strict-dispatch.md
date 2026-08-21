@@ -1,9 +1,9 @@
 # Strict dispatch — the cursor moves only by matching at it
 
-Status: **decided 2026-08-21 except §7 (zero-advance), which is open**. Written out of the
+Status: **decided 2026-08-21, in full** ([D36](00-decisions.md)). Written out of the
 anchoring investigation ([06-performance-plan.md §1](06-performance-plan.md),
 [10-engine-compilation.md §§6–10](10-engine-compilation.md)); the rulings at the end are the
-user's. The two modes are named **strict** and **lax**.
+user's. Implementation tracked as E20.
 
 ## 1. Why
 
@@ -131,7 +131,11 @@ What survives is a short list of named modes:
 | **`lax`** | search | until-no-progress | first | advance + skip | DS3 sequence, compat |
 | **`any`** | search | until-no-progress | first | excise | DS3 any, compat |
 | **`classify`** | search | **once** | **every** | **none** | **new** — the missing shape |
-| *(lexer)* | cursor | until-no-progress | longest | advance | deferred — maximal-munch tokenising; recorded, not built |
+| **`lexer`** | cursor | until-no-progress | **longest** | advance | **accepted** — maximal-munch tokenising |
+
+**`lexer`** is maximal munch: every template attempts at the cursor, the longest match
+wins, ties go to list order — the classic tokeniser rule. Counting, guards and limits apply
+as in strict; the zero-advance rule applies unchanged.
 
 **`classify`** is the user's scenario as a first-class mode: one pass over the region, every
 template whose match succeeds runs its body and binds its captures (each at most once, its
@@ -221,8 +225,9 @@ template); their bodies may still reference the match's own groups directly (an
    handle zero-advance at run time instead.
 6. **Zero-advance**: resolved via §7's control-flow unbundling — `peek` withdrawn;
    `classify` mode covers legitimate non-consuming matching; zero-advance in consuming
-   modes is error-and-exit. *Awaiting the user's confirmation of the §7 mode table.*
+   modes is error-and-exit. Mode table confirmed, with `lexer` promoted from deferred to
+   accepted.
 7. **Lints**: errors in strict, warnings in lax.
 8. **Mode placement** (§8b): `dispatch` on the apply directive, source-level default —
-   *proposed from the DS3 analysis, awaiting confirmation*, together with §8b's refinement
-   that consume-marked templates may not declare captures.
+   confirmed, together with §8b's refinement that consume-marked templates may not declare
+   captures.
