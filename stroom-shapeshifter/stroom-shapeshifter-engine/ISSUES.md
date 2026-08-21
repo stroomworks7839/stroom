@@ -260,8 +260,25 @@ on every match rather than once at compile time; `apply-templates` filters the t
 call instead of grouping by mode once; and every captured group is copied out of the buffer even
 when nothing reads it — which is what E10's optimiser was for.
 
-### E13 — Whether a match may span two buffers
-**`open`. The most valuable follow-up the port enables.**
+### E13 — The window should slide, as DS3's does; the bounded contract stays
+**`open` — rescoped 2026-08-21 after checking DS3's source against the port.**
+
+The desirable contract is DS3's and is not in question: memory bounded by a user-set buffer
+size, a single match must fit the buffer's capacity or fail (DS3 pairs the failure with its
+recovery mode), and those bounds are behaviour and performance guarantees. What differs is
+the window's motion. DS3 consumes from the front and **refills to capacity every round**
+(`reader.fillBuffer()` inside the pass loop) — a sliding window, so chunk boundaries are
+invisible and only genuinely oversized matches fail. Our port reads **fixed independent
+chunks** and abandons each unconsumed tail: a record well within capacity fails if it merely
+straddles where a chunk happened to end, making failures depend on stream *position* rather
+than record *size* — something no author can reason about.
+
+Resolving it means a sliding refill under the same bounded contract: carry the unconsumed
+tail, refill behind it, report unmatched content only when the window is full and nothing
+matches or at end of stream — DS3's own shape. One D36 interplay to decide during
+implementation: DS3's recovery advance is an implicit cursor movement, which the strict
+world would express as an error (or fatal) rather than a silent half-buffer skip. Compaction
+cost gets the usual treatment: benchmark either side.
 
 Input is read in buffers and a match never crosses one, so a configuration's buffer size is also
 the largest record it can handle. This is ds-rs's limitation, kept on purpose so that golden
