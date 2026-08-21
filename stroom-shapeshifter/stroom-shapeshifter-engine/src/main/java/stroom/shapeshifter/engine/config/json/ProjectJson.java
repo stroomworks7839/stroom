@@ -116,17 +116,40 @@ public final class ProjectJson {
     }
 
     private static SourceConfig readSource(final JsonNode node) {
-        checkFields(node, "source", "buffer_size", "ignore_errors", "encoding");
+        checkFields(node, "source", "buffer_size", "ignore_errors", "encoding", "dispatch");
         return new SourceConfig(
                 node.path("buffer_size").asInt(SourceConfig.DEFAULT_BUFFER_SIZE),
                 node.path("ignore_errors").asBoolean(false),
-                node.has("encoding") ? node.get("encoding").asString() : SourceConfig.AUTO);
+                node.has("encoding") ? node.get("encoding").asString() : SourceConfig.AUTO,
+                readDispatch(node));
+    }
+
+    /** The dispatch mode, spelt lowercase, or null to inherit (D36). */
+    private static stroom.shapeshifter.engine.config.Dispatch readDispatch(final JsonNode node) {
+        if (!node.has("dispatch")) {
+            return null;
+        }
+        final String text = node.get("dispatch").asString();
+        try {
+            return stroom.shapeshifter.engine.config.Dispatch.valueOf(
+                    text.toUpperCase(java.util.Locale.ROOT));
+        } catch (final IllegalArgumentException e) {
+            throw new ConfigException("Unknown dispatch mode: " + text);
+        }
+    }
+
+    private static void writeDispatch(final ObjectNode node,
+                                      final stroom.shapeshifter.engine.config.Dispatch dispatch) {
+        if (dispatch != null) {
+            node.put("dispatch", dispatch.name().toLowerCase(java.util.Locale.ROOT));
+        }
     }
 
     private static ObjectNode writeSource(final SourceConfig source) {
         final ObjectNode node = NODES.objectNode();
         node.put("buffer_size", source.bufferSize());
         node.put("ignore_errors", source.ignoreErrors());
+        writeDispatch(node, source.dispatch());
         node.put("encoding", source.encoding());
         return node;
     }
@@ -151,11 +174,12 @@ public final class ProjectJson {
 
     private static Template readTemplate(final JsonNode node) {
         checkFields(node, "template", "id", "name", "mode", "guard", "param", "match",
-                "match_limits", "captures", "body", "encoding", "ignore_errors");
+                "match_limits", "captures", "body", "encoding", "ignore_errors", "consume");
         return new Template(
                 uuid(node, "id"),
                 text(node, "name"),
                 optionalText(node, "mode"),
+                node.path("consume").asBoolean(false),
                 node.has("guard") ? readCondition(node.get("guard")) : null,
                 list(node.get("param"), ProjectJson::readParamDecl),
                 readMatch(required(node, "match", "template")),
@@ -171,6 +195,9 @@ public final class ProjectJson {
         node.put("id", template.id().toString());
         node.put("name", template.name());
         putIfPresent(node, "mode", template.mode());
+        if (template.consume()) {
+            node.put("consume", true);
+        }
         if (template.guard() != null) {
             node.set("guard", writeCondition(template.guard()));
         }
@@ -811,6 +838,18 @@ public final class ProjectJson {
                         list(body.get("default"), ProjectJson::readOutput));
             }
             case "apply-templates" -> new OutputNode.ApplyTemplates(readApply(body));
+            case "emit-error" -> {
+                checkFields(body, "emit-error", "severity", "message");
+                final String severity = text(body, "severity");
+                try {
+                    yield new OutputNode.EmitError(
+                            stroom.shapeshifter.engine.Severity.valueOf(
+                                    severity.toUpperCase(java.util.Locale.ROOT)),
+                            readRef(required(body, "message", "emit-error")));
+                } catch (final IllegalArgumentException e) {
+                    throw new ConfigException("Unknown emit-error severity: " + severity);
+                }
+            }
             case "call-template" -> {
                 checkFields(body, "call-template", "name", "with-param");
                 yield new OutputNode.CallTemplate(
@@ -913,6 +952,12 @@ public final class ProjectJson {
                 yield wrap("switch", body);
             }
             case OutputNode.ApplyTemplates value -> wrap("apply-templates", writeApply(value.directive()));
+            case OutputNode.EmitError value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("severity", value.severity().name().toLowerCase(java.util.Locale.ROOT));
+                body.set("message", writeRef(value.message()));
+                yield wrap("emit-error", body);
+            }
             case OutputNode.CallTemplate value -> {
                 final ObjectNode body = NODES.objectNode();
                 body.put("name", value.name());
@@ -1048,14 +1093,15 @@ public final class ProjectJson {
 
     private static ApplyDirective readApply(final JsonNode node) {
         checkFields(node, "apply-templates", "select", "mode", "with-param", "max_depth", "template_ref",
-                "ignore_errors");
+                "ignore_errors", "dispatch");
         return new ApplyDirective(
                 readRef(required(node, "select", "apply-templates")),
                 optionalText(node, "mode"),
                 list(node.get("with-param"), ProjectJson::readParam),
                 node.path("max_depth").asInt(ApplyDirective.DEFAULT_MAX_DEPTH),
                 optionalText(node, "template_ref"),
-                node.path("ignore_errors").asBoolean(false));
+                node.path("ignore_errors").asBoolean(false),
+                readDispatch(node));
     }
 
     private static ObjectNode writeApply(final ApplyDirective directive) {
@@ -1070,6 +1116,7 @@ public final class ProjectJson {
         if (directive.ignoreErrors()) {
             node.put("ignore_errors", true);
         }
+        writeDispatch(node, directive.dispatch());
         return node;
     }
 

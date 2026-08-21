@@ -33,6 +33,16 @@ import java.util.Map;
  */
 public sealed interface OutputNode {
 
+    /**
+     * Emit a message into the run's message stream, as {@code value-of} emits into output —
+     * authored diagnostics for paths the author can name, like the cautionary eater (D36).
+     * A {@link stroom.shapeshifter.engine.Severity#FATAL} emission aborts the run.
+     */
+    record EmitError(stroom.shapeshifter.engine.Severity severity,
+                     RefExpression message) implements OutputNode {
+
+    }
+
     /** Write literal text. XSLT: {@code xsl:text}. */
     record Text(String value) implements OutputNode {
 
@@ -259,13 +269,17 @@ public sealed interface OutputNode {
      * @param ignoreErrors suppress the dispatched level's skip and unmatched-content reports.
      *                     This is DS3's {@code ignoreErrors} on the group whose content is being
      *                     dispatched: the container owns the gate, not the templates inside it
+     * @param dispatch     how the dispatched level runs (D36), or null to inherit the source
+     *                     default. The container owns this too, exactly as DS3's group owned
+     *                     {@code matchOrder}
      */
     record ApplyDirective(RefExpression select,
                           String mode,
                           List<Param> withParam,
                           int maxDepth,
                           String templateRef,
-                          boolean ignoreErrors) {
+                          boolean ignoreErrors,
+                          Dispatch dispatch) {
 
         /** How deep recursion goes before the engine calls it a runaway. */
         public static final int DEFAULT_MAX_DEPTH = 64;

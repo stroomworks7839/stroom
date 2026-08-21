@@ -53,8 +53,10 @@ public record Project(String name,
      * @param ignoreErrors suppress the root level's skip and unmatched-content reports — DS3's
      *                     {@code ignoreErrors} on the {@code dataSplitter} element itself
      * @param encoding     the input encoding, or {@code auto} to detect it from a byte-order mark
+     * @param dispatch     the default dispatch mode for every level (D36), or null to let the
+     *                     configuration's version decide: strict from version 4, lax before
      */
-    public record SourceConfig(int bufferSize, boolean ignoreErrors, String encoding) {
+    public record SourceConfig(int bufferSize, boolean ignoreErrors, String encoding, Dispatch dispatch) {
 
         /** The buffer size a configuration gets if it does not ask for one. */
         public static final int DEFAULT_BUFFER_SIZE = 20_000;
@@ -68,7 +70,7 @@ public record Project(String name,
 
         /** The settings an input gets when a configuration says nothing about it. */
         public static SourceConfig defaults() {
-            return new SourceConfig(DEFAULT_BUFFER_SIZE, false, AUTO);
+            return new SourceConfig(DEFAULT_BUFFER_SIZE, false, AUTO, null);
         }
     }
 }

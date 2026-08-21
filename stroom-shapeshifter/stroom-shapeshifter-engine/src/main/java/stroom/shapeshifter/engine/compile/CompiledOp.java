@@ -16,9 +16,12 @@
 
 package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
+import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.exec.Transforms;
@@ -90,11 +93,19 @@ public sealed interface CompiledOp {
      *                           on", which is passed straight through rather than re-resolved
      * @param locatable          whether the dispatched content is still part of the input, and
      *                           can therefore be pointed at
+     * @param dispatch           how the dispatched level runs — the directive's word, the
+     *                           source default, or the version default, resolved once (D36)
      */
     record Apply(ApplyDirective directive,
                  CompiledRef select,
                  boolean wholeParentContent,
-                 boolean locatable) implements CompiledOp {
+                 boolean locatable,
+                 Dispatch dispatch) implements CompiledOp {
+
+    }
+
+    /** Emit a message into the run's stream; {@code FATAL} aborts the run (D36). */
+    record EmitError(Severity severity, CompiledRef message) implements CompiledOp {
 
     }
 
@@ -139,7 +150,9 @@ public sealed interface CompiledOp {
      * @param patterns the project's interned patterns, already collected — a regex replace
      *                 resolves its {@link BytePattern} here, once
      */
-    static List<CompiledOp> compile(final List<OutputNode> body, final Map<String, BytePattern> patterns) {
+    static List<CompiledOp> compile(final List<OutputNode> body,
+                                    final Map<String, BytePattern> patterns,
+                                    final Project project) {
         final List<CompiledOp> ops = new ArrayList<>(body.size());
         for (final OutputNode node : body) {
             final CompiledOp op = switch (node) {
@@ -147,31 +160,34 @@ public sealed interface CompiledOp {
                         new Text(text.value().getBytes(StandardCharsets.UTF_8));
                 case OutputNode.ValueOf valueOf -> new ValueOf(CompiledRef.of(valueOf.select()));
                 case OutputNode.If value ->
-                        new If(value.test(), compile(value.then(), patterns));
+                        new If(value.test(), compile(value.then(), patterns, project));
                 case OutputNode.Choose value -> new Choose(
                         value.when().stream()
-                                .map(branch -> new When(branch.test(), compile(branch.body(), patterns)))
+                                .map(branch -> new When(branch.test(), compile(branch.body(), patterns, project)))
                                 .toList(),
-                        compile(value.otherwise(), patterns));
+                        compile(value.otherwise(), patterns, project));
                 case OutputNode.Switch value -> new Switch(
                         CompiledRef.of(value.select()),
                         value.cases().stream()
-                                .map(c -> new Case(c.value(), compile(c.body(), patterns)))
+                                .map(c -> new Case(c.value(), compile(c.body(), patterns, project)))
                                 .toList(),
-                        compile(value.defaultBody(), patterns));
+                        compile(value.defaultBody(), patterns, project));
                 case OutputNode.ApplyTemplates apply -> new Apply(
                         apply.directive(),
                         CompiledRef.of(apply.directive().select()),
                         isWholeParentContent(apply.directive().select()),
                         isWholeParentContent(apply.directive().select())
-                        || isLocalGroup(apply.directive().select()));
+                        || isLocalGroup(apply.directive().select()),
+                        Dispatch.effective(apply.directive().dispatch(), project));
+                case OutputNode.EmitError value ->
+                        new EmitError(value.severity(), CompiledRef.of(value.message()));
                 case OutputNode.CallTemplate value -> new Call(
                         value.name(),
                         value.withParam().stream()
                                 .map(param -> new Arg(param.name(), CompiledRef.of(param.value())))
                                 .toList());
                 case OutputNode.Variable value ->
-                        new Variable(value.name(), compile(value.body(), patterns));
+                        new Variable(value.name(), compile(value.body(), patterns, project));
                 case OutputNode.ValueMap value -> new ValueMap(
                         CompiledRef.of(value.select()), value.entries(), value.defaultValue(), value.name());
                 case OutputNode.Translate value -> transform(value.select(), value.name(),

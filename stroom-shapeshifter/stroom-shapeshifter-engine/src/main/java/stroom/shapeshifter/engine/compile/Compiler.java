@@ -17,10 +17,12 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
+import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.CombinatorPattern;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.OutputNode;
@@ -30,6 +32,7 @@ import stroom.shapeshifter.engine.exec.Codecs;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.Flag;
+import stroom.shapeshifter.regex.LeadingAnchor;
 import stroom.shapeshifter.regex.PatternCompileException;
 
 import java.nio.charset.Charset;
@@ -71,6 +74,13 @@ public final class Compiler {
         final Map<String, BytePattern> patterns = new HashMap<>();
 
         for (final Template template : project.templates()) {
+            // An eater's matches do not count, so its captures would have no index to bind
+            // at — and a binding would trip the first-match store clearing (D36, §8b).
+            if (template.consume() && !template.captures().isEmpty()) {
+                throw new ConfigException("Template '" + template.name()
+                                          + "' is marked consume but declares captures: an eater's"
+                                          + " matches do not count, so there is no index to bind them at");
+            }
             // Patterns first: a body's compiled form resolves its regex replaces against them.
             if (template.guard() != null) {
                 collect(template.guard(), template, patterns);
@@ -81,9 +91,70 @@ public final class Compiler {
             }
             templates.add(new CompiledTemplate(template,
                     compileMatch(template, charset, project),
-                    CompiledOp.compile(template.body(), patterns)));
+                    CompiledOp.compile(template.body(), patterns, project)));
         }
+        dispatchChecks(project, templates, warnings);
         return new CompiledProject(project, templates, patterns, encoding, warnings);
+    }
+
+    /**
+     * D36's dispatch validation: {@code any} is refused until E18 lands, and a line-anchored
+     * pattern in a strict or lexer level draws a warning — the anchored question means it
+     * matches at the cursor only, and a line anchor does not make it search line starts.
+     */
+    private static void dispatchChecks(final Project project,
+                                       final List<CompiledTemplate> templates,
+                                       final List<Message> warnings) {
+        final List<OutputNode.ApplyDirective> applies = new ArrayList<>();
+        for (final Template template : project.templates()) {
+            collectApplies(template.body(), applies);
+        }
+        final Set<String> strictModes = new HashSet<>();
+        for (final OutputNode.ApplyDirective directive : applies) {
+            final Dispatch effective = Dispatch.effective(directive.dispatch(), project);
+            if (effective == Dispatch.ANY) {
+                throw new ConfigException(
+                        "dispatch \"any\" is not implemented yet: DS3's excision mode is E18");
+            }
+            if (effective == Dispatch.STRICT || effective == Dispatch.LEXER) {
+                strictModes.add(directive.templateRef() != null
+                        ? "__rec_" + directive.templateRef()
+                        : directive.mode());
+            }
+        }
+        for (final CompiledTemplate compiledTemplate : templates) {
+            if (strictModes.contains(compiledTemplate.template().mode())
+                && compiledTemplate.match() instanceof CompiledMatch.Regex regex
+                && regex.pattern().leadingAnchor() == LeadingAnchor.LINE) {
+                warnings.add(new Message(Severity.WARNING, "Template '"
+                        + compiledTemplate.template().name()
+                        + "' uses a line-anchored pattern in a strict level: it matches at the"
+                        + " cursor only, and the line anchor does not make it search line"
+                        + " starts. If line iteration is intended, add a line eater."));
+            }
+        }
+    }
+
+    private static void collectApplies(final List<OutputNode> body,
+                                       final List<OutputNode.ApplyDirective> applies) {
+        for (final OutputNode node : body) {
+            switch (node) {
+                case OutputNode.ApplyTemplates apply -> applies.add(apply.directive());
+                case OutputNode.If value -> collectApplies(value.then(), applies);
+                case OutputNode.Choose value -> {
+                    value.when().forEach(branch -> collectApplies(branch.body(), applies));
+                    collectApplies(value.otherwise(), applies);
+                }
+                case OutputNode.Switch value -> {
+                    value.cases().forEach(c -> collectApplies(c.body(), applies));
+                    collectApplies(value.defaultBody(), applies);
+                }
+                case OutputNode.Variable value -> collectApplies(value.body(), applies);
+                default -> {
+                    // Leaves as far as dispatch is concerned.
+                }
+            }
+        }
     }
 
     // -----------------------------------------------------------------------------------

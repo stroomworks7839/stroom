@@ -360,7 +360,10 @@ counterpart to be faithful to, and every corpus use reads them at the current ma
 no leak is possible. If one ever reads `latest()` across records, this entry is the precedent
 for what to do.
 ### E20 — Strict dispatch: the cursor moves only by matching at it
-**`accepted` — decided in full 2026-08-21 (D36), ready to implement**
+**`in progress` — core implemented 2026-08-21: modes strict/lax/classify/lexer live, `consume`
+and `emit-error` live, zero-advance errors, version-gated defaults (v4+ strict), validation
+and lints; `StrictDispatchTest` covers it behaviourally. Remaining: `any` (with E18), corpus
+fixtures for the new modes, and the strict-vs-lax benchmark**
 ([design/11-strict-dispatch.md](../design/11-strict-dispatch.md)). Implicit cursor movement —
 skip consumption, recovery advance, the zero-advance quirk — replaced by authored eaters
 (`consume: line` / `bytes(n)` / `until`) and authored error-emitting paths; dispatch asks only

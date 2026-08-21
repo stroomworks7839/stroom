@@ -97,7 +97,7 @@ public final class Ds3Migration {
 
     private Project run(final Ds3Config root) {
         final SourceConfig source = root instanceof Ds3Config.Root document
-                ? new SourceConfig(document.bufferSize(), document.ignoreErrors(), SourceConfig.AUTO)
+                ? new SourceConfig(document.bufferSize(), document.ignoreErrors(), SourceConfig.AUTO, null)
                 : SourceConfig.defaults();
 
         for (final Ds3Config child : root.children()) {
@@ -112,7 +112,7 @@ public final class Ds3Migration {
         final List<Template> withModes = templates.stream()
                 .map(template -> template.mode() != null
                         ? template
-                        : new Template(template.id(), template.name(), ROOT_MODE, template.guard(),
+                        : new Template(template.id(), template.name(), ROOT_MODE, false, template.guard(),
                         template.param(), template.match(), template.matchLimits(), template.captures(),
                         template.body(), template.encoding(), template.ignoreErrors()))
                 .toList();
@@ -129,6 +129,7 @@ public final class Ds3Migration {
                 UUID.randomUUID(),
                 "envelope",
                 null,
+                false,
                 null,
                 List.of(),
                 new MatchExpression.Source(),
@@ -138,7 +139,7 @@ public final class Ds3Migration {
                         new OutputNode.Text(RECORDS_HEADER),
                         new OutputNode.ApplyTemplates(new ApplyDirective(
                                 RefExpression.group(0), ROOT_MODE, List.of(),
-                                ApplyDirective.DEFAULT_MAX_DEPTH, null, false)),
+                                ApplyDirective.DEFAULT_MAX_DEPTH, null, false, null)),
                         new OutputNode.Text(RECORDS_FOOTER)),
                 null,
                 false);
@@ -192,6 +193,7 @@ public final class Ds3Migration {
                 identifier(node),
                 name(node),
                 mode,
+                false,
                 onlyMatchGuard(node),
                 List.of(),
                 matchExpression(node),
@@ -243,7 +245,7 @@ public final class Ds3Migration {
                         expression(child, subMode, false, dataDepth);
                         body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
                                 RefExpression.group(0), subMode, List.of(),
-                                ApplyDirective.DEFAULT_MAX_DEPTH, null, false)));
+                                ApplyDirective.DEFAULT_MAX_DEPTH, null, false, null)));
                     }
                 }
             }
@@ -309,7 +311,7 @@ public final class Ds3Migration {
         // flattening.
         body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
                 group.value() == null ? RefExpression.group(0) : LegacyRefs.parse(group.value()),
-                subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, null, group.ignoreErrors())));
+                subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, null, group.ignoreErrors(), null)));
         for (final Ds3Config child : group.children()) {
             if (!child.isExpression()) {
                 switch (child) {

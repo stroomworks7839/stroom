@@ -168,7 +168,12 @@ anchoring, whatever the pattern says. It becomes a **validator**:
 - A lax-group pattern that is INPUT-anchored gets today's fast path, unchanged.
 
 The performance role survives wherever lax dispatch survives. **Decided:** the lints are
-errors in strict mode, warnings in lax.
+errors in strict mode, warnings in lax. **Implementation deviation (2026-08-21), flagged for
+review:** the line-anchor lint shipped as a *warning* even in strict mode, because erroring
+would prohibit a legitimate idiom — a `(?m)^` pattern asked the anchored question is
+well-defined (`^` holds at the region start), and strict line-iteration configs converted
+from lax will commonly carry the prefix. The error-strength lint set is currently empty; a
+lint that can prove author confusion rather than suspect it can join it.
 
 ## 8b. Where the mode lives, and the match-number contract
 

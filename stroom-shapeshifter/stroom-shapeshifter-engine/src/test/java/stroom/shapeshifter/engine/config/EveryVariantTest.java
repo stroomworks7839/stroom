@@ -16,7 +16,9 @@
 
 package stroom.shapeshifter.engine.config;
 
+import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
+import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.OutputNode.Entry;
 import stroom.shapeshifter.engine.config.OutputNode.Param;
@@ -98,13 +100,13 @@ class EveryVariantTest {
                 new MatchExpression.Avro("{\"type\":\"record\"}"),
                 new MatchExpression.Parquet(List.of("city", "population")),
                 new MatchExpression.Protobuf("/tmp/schema.desc", "example.Event"))) {
-            templates.add(new Template(ID, "carrier", null, null, List.of(), match,
+            templates.add(new Template(ID, "carrier", null, false, null, List.of(), match,
                     MatchLimits.unlimited(), List.of(), List.of(), null, false));
         }
         return new Project(
                 "every variant",
                 3,
-                new SourceConfig(1024, true, "windows-1252"),
+                new SourceConfig(1024, true, "windows-1252", Dispatch.LEXER),
                 templates,
                 List.of(new CombinatorPattern(ID, "reusable", List.of(new MatchStep.Tag("x")))));
     }
@@ -160,6 +162,7 @@ class EveryVariantTest {
                 ID,
                 "matching",
                 "mode",
+                false,
                 new Condition.IsFirst(),
                 List.of(new ParamDecl("depth", "0"), new ParamDecl("required", null)),
                 new MatchExpression.Progressive(steps),
@@ -190,7 +193,9 @@ class EveryVariantTest {
                         List.of(new SwitchCase("a", List.of(new OutputNode.Text("case")))),
                         List.of(new OutputNode.Text("default"))),
                 new OutputNode.ApplyTemplates(new ApplyDirective(
-                        ref(), "row", List.of(new Param("depth", ref())), 32, "named", true)),
+                        ref(), "row", List.of(new Param("depth", ref())), 32, "named", true,
+                        Dispatch.CLASSIFY)),
+                new OutputNode.EmitError(Severity.WARNING, ref()),
                 new OutputNode.CallTemplate("named", List.of(new Param("depth", ref()))),
                 new OutputNode.Variable("bound", List.of(new OutputNode.Text("value"))),
                 new OutputNode.ValueMap(ref(), List.of(new Entry("1", "one")), "unknown", "mapped"),
@@ -226,6 +231,7 @@ class EveryVariantTest {
                 ID,
                 "output",
                 null,
+                true,
                 null,
                 List.of(),
                 new MatchExpression.All(),

@@ -43,10 +43,14 @@ import java.util.UUID;
  * @param body         the output instructions, executed once per match
  * @param encoding     an encoding override for this template, or null to inherit
  * @param ignoreErrors suppress warnings about unconsumed content and match gaps
+ * @param consume      this template's matches exist to advance the cursor, not to count
+ *                     (D36): an eater. Its wins move no match number, bind no captures —
+ *                     declaring any is a compile-time error — and trip no store clearing
  */
 public record Template(UUID id,
                        String name,
                        String mode,
+                       boolean consume,
                        Condition guard,
                        List<ParamDecl> param,
                        MatchExpression match,

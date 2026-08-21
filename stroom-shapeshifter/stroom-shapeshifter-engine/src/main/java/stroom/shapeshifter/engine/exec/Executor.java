@@ -26,6 +26,7 @@ import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.CompiledRef;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
 import stroom.shapeshifter.engine.config.CaptureBinding;
+import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
@@ -106,7 +107,24 @@ public final class Executor {
     // The stream
     // -----------------------------------------------------------------------------------
 
+    /** A fatal emission ends the run; the message is already recorded when this flies. */
+    private static final class AbortRun extends RuntimeException {
+
+        AbortRun() {
+            super(null, null, false, false);
+        }
+    }
+
     private List<Message> execute(final InputStream input, final boolean wholeBuffer) {
+        try {
+            run(input, wholeBuffer);
+        } catch (final AbortRun ignored) {
+            // The fatal message is the last thing the run has to say.
+        }
+        return List.copyOf(messages);
+    }
+
+    private void run(final InputStream input, final boolean wholeBuffer) {
         final CompiledTemplate source = compiled.templates().stream()
                 .filter(t -> t.match() instanceof CompiledMatch.Source)
                 .findFirst()
@@ -118,6 +136,8 @@ public final class Executor {
         // of the mode it names.
         final ApplyDirective streamDirective = source == null ? null : applyDirective(source.template());
         final String streamMode = streamDirective == null ? null : streamDirective.mode();
+        final Dispatch rootDispatch = Dispatch.effective(
+                streamDirective == null ? null : streamDirective.dispatch(), compiled.project());
         final List<CompiledTemplate> roots = compiled.templates().stream()
                 .filter(t -> !(t.match() instanceof CompiledMatch.Source))
                 .filter(t -> java.util.Objects.equals(t.template().mode(), streamMode))
@@ -167,7 +187,8 @@ public final class Executor {
                 continue;
             }
 
-            final int consumed = level(roots, chunk, from, chunk.length, output, read, rootIgnoreErrors, 0);
+            final int consumed = level(roots, chunk, from, chunk.length, output, read,
+                    rootIgnoreErrors, 0, rootDispatch);
             if (!wholeBuffer && consumed > 0 && from + consumed == chunk.length
                 && chunk.length - from == bufferSize) {
                 messages.add(new Message(Severity.WARNING, "Expressions consumed entire buffer ("
@@ -181,7 +202,6 @@ public final class Executor {
         if (!epilogue.isEmpty()) {
             body(epilogue, nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0);
         }
-        return List.copyOf(messages);
     }
 
     private static ApplyDirective applyDirective(final Template template) {
@@ -232,7 +252,14 @@ public final class Executor {
                       final OutputSink sink,
                       final long inputBase,
                       final boolean ignoreErrors,
-                      final int depth) {
+                      final int depth,
+                      final Dispatch dispatch) {
+        if (dispatch == Dispatch.CLASSIFY) {
+            return classify(templates, data, from, to, sink, inputBase, ignoreErrors, depth);
+        }
+        // Strict and lexer levels ask the anchored question of every template: the mode
+        // carries the anchoring, whatever the pattern text says (D36).
+        final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
         final int[] counts = new int[templates.size()];
 
         // Guards are evaluated once, on the way in — not per pass. The distinction is
@@ -255,6 +282,8 @@ public final class Executor {
 
         while (cursor < to && matched) {
             matched = false;
+            int winner = -1;
+            MatchResult match = null;
             for (int i = 0; i < templates.size(); i++) {
                 if (!allowed[i]) {
                     continue;
@@ -262,18 +291,64 @@ public final class Executor {
                 final CompiledTemplate candidate = templates.get(i);
                 final Template template = candidate.template();
                 final int maxMatch = template.matchLimits().maxMatch();
-                if (maxMatch >= 0 && counts[i] >= maxMatch) {
+                if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
                     continue;
                 }
                 final long timing = instrument.startTiming();
-                final MatchResult match = match(candidate, data, cursor, to);
-                instrument.stopTiming(template.id(), timing, match != null);
-                if (match == null) {
+                final MatchResult attempt = match(candidate, data, cursor, to, atCursor);
+                instrument.stopTiming(template.id(), timing, attempt != null);
+                if (attempt == null) {
+                    continue;
+                }
+                if (dispatch != Dispatch.LEXER) {
+                    winner = i;
+                    match = attempt;
+                    break;
+                }
+                // Maximal munch: the longest match wins, ties to list order.
+                if (match == null || attempt.advance() > match.advance()) {
+                    winner = i;
+                    match = attempt;
+                }
+            }
+            if (match == null) {
+                break;
+            }
+            {
+                final CompiledTemplate candidate = templates.get(winner);
+                final Template template = candidate.template();
+
+                // A zero-advance match in a consuming mode is a grammar bug, not a result:
+                // with classify, the Peek step, and composition available, it has no innocent
+                // reading left (D36). The body does not run — output from a match that cannot
+                // move the level would be output from a mistake.
+                if (match.advance() == 0) {
+                    messages.add(new Message(Severity.ERROR,
+                            "Template '" + template.name() + "' matched without advancing at"
+                            + " offset " + (cursor - from + match.matchStart())
+                            + "; the level cannot make progress."));
+                    break;
+                }
+
+                // An eater: advance, don't count (D36). No counters move, no stores clear,
+                // no skip report — the eater is the authored skip. Its body still runs,
+                // because an eater's job is often to say what it swallowed.
+                if (template.consume()) {
+                    final int eaten = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
+                    final TypedValue swallowed = match.group(eaten) != null
+                            ? match.group(eaten)
+                            : match.group(0);
+                    if (swallowed != null && !swallowed.isEmpty()) {
+                        body(candidate.body(), match, 1, swallowed.asBytes(), sink,
+                                inputBase, ignoreErrors, depth);
+                    }
+                    cursor += match.advance();
+                    matched = true;
                     continue;
                 }
 
-                counts[i]++;
-                final int matchCount = counts[i];
+                counts[winner]++;
+                final int matchCount = counts[winner];
 
                 // A template's first match of this dispatch begins a new sequence, and a new
                 // sequence starts from nothing: its captures' stores are cleared, so a record
@@ -329,12 +404,9 @@ public final class Executor {
                     }
                 }
 
-                if (match.advance() > 0) {
-                    cursor += match.advance();
-                    matched = true;
-                }
-                // First match wins the pass; the choice re-opens from the first template.
-                break;
+                cursor += match.advance();
+                matched = true;
+                // The choice re-opens from the first template.
             }
         }
 
@@ -363,6 +435,53 @@ public final class Executor {
         return cursor - from;
     }
 
+    /**
+     * A classify level: one pass, every matching template runs, nothing consumes (D36).
+     *
+     * <p>Each template searches the whole region — classification asks "is this in there",
+     * not "is this here" — and a match binds its captures and runs its body exactly once, at
+     * match number 1. The cursor never moves and nothing is reported: a mode that consumes
+     * nothing cannot leave anything unmatched.
+     */
+    private int classify(final List<CompiledTemplate> templates,
+                         final byte[] data,
+                         final int from,
+                         final int to,
+                         final OutputSink sink,
+                         final long inputBase,
+                         final boolean ignoreErrors,
+                         final int depth) {
+        for (final CompiledTemplate candidate : templates) {
+            final Template template = candidate.template();
+            if (template.guard() != null && !Conditions.evaluate(
+                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns())) {
+                continue;
+            }
+            final long timing = instrument.startTiming();
+            final MatchResult match = match(candidate, data, from, to, false);
+            instrument.stopTiming(template.id(), timing, match != null);
+            if (match == null) {
+                continue;
+            }
+            vars.store(MATCH_INDEX).set(1, new TypedValue.Int(0));
+            vars.store(MATCH_COUNT).set(1, new TypedValue.Int(1));
+            final int contentGroup = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
+            final TypedValue content = match.group(contentGroup) != null
+                    ? match.group(contentGroup)
+                    : match.group(0);
+            if (content != null && !content.isEmpty()) {
+                instrument.onMatch(template.id(), template.name(),
+                        locate(inputBase, match.matchStart()), match.advance(), 1, depth);
+                bindCaptures(candidate, match, 1);
+                final long before = sink.position();
+                body(candidate.body(), match, 1, content.asBytes(), sink,
+                        inputBase, ignoreErrors, depth);
+                instrument.onOutput(template.id(), 1, before, sink.position() - before);
+            }
+        }
+        return 0;
+    }
+
     /** True if a region holds anything but whitespace. Blank remainders are not worth a message. */
     private static boolean hasContent(final byte[] data, final int from, final int to) {
         for (int i = from; i < to; i++) {
@@ -384,7 +503,8 @@ public final class Executor {
     private MatchResult match(final CompiledTemplate compiledTemplate,
                               final byte[] data,
                               final int from,
-                              final int to) {
+                              final int to,
+                              final boolean atCursor) {
         if (from >= to) {
             return null;
         }
@@ -392,7 +512,7 @@ public final class Executor {
             case CompiledMatch.Delimiter delimiter -> Splitter.split(data, from, to,
                     delimiter.delimiter(), delimiter.escape(),
                     delimiter.containerStart(), delimiter.containerEnd());
-            case CompiledMatch.Regex regex -> regexMatch(regex, data, from, to);
+            case CompiledMatch.Regex regex -> regexMatch(regex, data, from, to, atCursor);
             case CompiledMatch.Progressive progressive ->
                     Steps.match(progressive.steps(), data, from, to, compiled.patterns());
             case CompiledMatch.All ignored -> new MatchResult(
@@ -405,13 +525,17 @@ public final class Executor {
     private static MatchResult regexMatch(final CompiledMatch.Regex regex,
                                           final byte[] data,
                                           final int from,
-                                          final int to) {
+                                          final int to,
+                                          final boolean atCursor) {
         // The node owns its matcher (D35) and asks the question the library's published
         // anchor fact licenses: for an input-anchored pattern the anchored and unanchored
         // questions provably agree, so the node asks the one with the bare prologue. The
         // fact's single source is the library's parser — nothing here reads pattern text.
         final ByteMatcher matcher = regex.matcher();
-        if (!matcher.match(data, from, to, regex.anchoring())) {
+        final stroom.shapeshifter.regex.Anchoring question = atCursor
+                ? stroom.shapeshifter.regex.Anchoring.ANCHORED
+                : regex.anchoring();
+        if (!matcher.match(data, from, to, question)) {
             return null;
         }
         final int groupCount = regex.pattern().groupCount() + 1;
@@ -558,6 +682,15 @@ public final class Executor {
                 }
                 case CompiledOp.Transform value -> transform(value.select(), value.name(), match,
                         matchCount, sink, value.function());
+                case CompiledOp.EmitError value -> {
+                    final String text = CompiledRefs.resolveText(
+                            value.message(), match, matchCount, vars, encoding);
+                    messages.add(new Message(value.severity(), text == null ? "" : text));
+                    if (value.severity() == Severity.FATAL) {
+                        // The message is recorded; the run ends here (D36).
+                        throw new AbortRun();
+                    }
+                }
             }
         }
     }
@@ -748,7 +881,7 @@ public final class Executor {
         // DS3 inherits ignoreErrors down the tree: a level inside an ignoring container is
         // gated even when its own directive says nothing.
         level(candidates, content, 0, content.length, sink, childBase,
-                inheritedIgnoreErrors || directive.ignoreErrors(), depth + 1);
+                inheritedIgnoreErrors || directive.ignoreErrors(), depth + 1, op.dispatch());
 
         if (recursive) {
             vars.pop();
