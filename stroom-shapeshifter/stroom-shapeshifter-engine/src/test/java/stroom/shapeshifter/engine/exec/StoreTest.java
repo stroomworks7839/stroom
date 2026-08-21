@@ -103,8 +103,11 @@ class StoreTest {
         assertThat(new TypedValue.Int(-17).asString()).isEqualTo("-17");
         assertThat(new TypedValue.Int(42).asNumber()).isEqualTo(42.0);
         // A whole number does not acquire a decimal point on the way out.
-        assertThat(new TypedValue.Float(3.0).asString()).isEqualTo("3");
-        assertThat(new TypedValue.Float(3.5).asString()).isEqualTo("3.5");
+        assertThat(new TypedValue.Real(3.0).asString()).isEqualTo("3");
+        assertThat(new TypedValue.Real(3.5).asString()).isEqualTo("3.5");
+        // Whole but beyond a long: the cast would saturate to Long.MAX_VALUE and render the
+        // wrong number, so it keeps its floating form instead.
+        assertThat(new TypedValue.Real(1e19).asString()).isEqualTo("1.0E19");
         assertThat(new TypedValue.Bool(true).asString()).isEqualTo("true");
         assertThat(new TypedValue.Bool(true).asNumber()).isEqualTo(1.0);
         assertThat(new TypedValue.Bool(false).asNumber()).isZero();

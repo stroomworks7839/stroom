@@ -29,7 +29,10 @@ import java.util.List;
  * its captures and its output, dispatched by mode and guard rather than by position in a tree.
  *
  * @param name      a human-readable name for the configuration
- * @param version   the format version; 3 is the template format described here
+ * @param version   the format version; 3 is the template format described here, and 4 is the
+ *                  same format with the dispatch default flipped to strict (E20) — a
+ *                  configuration that says nothing about dispatch runs lax at version 3 and
+ *                  strict from version 4
  * @param source    settings for the input as a whole
  * @param templates the templates, in the order they are tried
  * @param patterns  named combinator patterns, reusable across templates by id
@@ -41,6 +44,7 @@ public record Project(String name,
                       List<CombinatorPattern> patterns) {
 
     public Project {
+        source = source == null ? SourceConfig.defaults() : source;
         templates = templates == null ? List.of() : List.copyOf(templates);
         patterns = patterns == null ? List.of() : List.copyOf(patterns);
     }
@@ -48,8 +52,10 @@ public record Project(String name,
     /**
      * Settings that apply to the input as a whole.
      *
-     * @param bufferSize   how many bytes are read at a time. A match never spans two buffers, so
-     *                     this is also the largest record the configuration can handle
+     * @param bufferSize   the capacity of the sliding window the input is read through (E13).
+     *                     Consumed content slides out and more slides in, so this is not a
+     *                     record-size cap on the stream — but a single match must fit within
+     *                     the window, so it is the largest one match the configuration can make
      * @param ignoreErrors suppress the root level's skip and unmatched-content reports — DS3's
      *                     {@code ignoreErrors} on the {@code dataSplitter} element itself
      * @param encoding     the input encoding, or {@code auto} to detect it from a byte-order mark
@@ -66,6 +72,9 @@ public record Project(String name,
 
         public SourceConfig {
             encoding = encoding == null ? AUTO : encoding;
+            if (bufferSize <= 0) {
+                throw new ConfigException("A buffer size must be positive: " + bufferSize);
+            }
         }
 
         /** The settings an input gets when a configuration says nothing about it. */

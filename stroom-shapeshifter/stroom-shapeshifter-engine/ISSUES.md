@@ -25,7 +25,17 @@ An artifact of the inherited `A*B*C*` dispatch plus per-template reporting: the 
 at its limit, as instructed, and was then accused of failing to consume the rest of the file.
 Under D34's `(A|B|C)*` dispatch the pass after the limit lets the next template consume, and
 unmatched content is reported once per level. `001`'s message golden is now empty and `003`'s
-went from nineteen false warnings to eleven true errors naming genuinely unparsed audit lines.
+went from nineteen false warnings to eleven.
+
+*Corrected 2026-08-21 by the audit: those eleven were called "true errors naming genuinely
+unparsed audit lines". They were not. Ten of them were a second defect this note's own framing
+hid — the DS3 importer gave each sibling expression its own dispatch level, so the siblings
+rescanned the same content and each accused what the other had eaten. The audit fixed the
+migration shape (siblings now share one mode, as they already did at the root and in a group),
+and `003`'s messages golden went from eleven to one: the first record's stray `----` line,
+which the configuration's own `^----\n` cannot match once the split has stripped the newline.
+The output golden did not move a byte under either shape, which is what let the false
+accusations survive being frozen.*
 
 ### E2 — Both `ignoreErrors` fixtures warned anyway
 **`resolved` 2026-08-20, by E17.**
@@ -470,7 +480,20 @@ not aligned** to XSLT's 1-based — faithful to the ported transform library and
 configurations. The trap note lives in `OutputNode.Substring`'s javadoc and the matrix.
 
 ### E22 — Charset fallback chains substitute near-equivalents silently
-**`open` — found 2026-08-21 by the adversarial audit.**
+**`resolved` 2026-08-21: pinned and made loud, per the user's ruling.** ds-rs parity is no
+longer a constraint — the port is done, and divergence from here is a choice this
+implementation gets to make — and exotic encodings are accepted as something to be dealt with
+outside the engine. That removes the only argument for keeping an approximate fallback. The
+approximating names are gone: `SHIFT_JIS` resolves `Shift_JIS` or nothing, `WINDOWS_874`
+resolves its own spellings or nothing, and the remaining multi-name entries are alternative
+spellings of one charset rather than neighbours. A declared encoding this runtime lacks is now
+refused by name at compile time from the template path too, which is where the hole actually
+was: the source path already refused it, a template's `encoding=` did not, and would have
+reached `new String(bytes, null)` at run time. An encoding now decodes exactly what it says, or
+the configuration naming it does not compile.
+
+Original text:
+
 `Encoding`'s multi-name entries treat their later names as interchangeable, and they are not:
 `SHIFT_JIS` falls back to `windows-31j` (differs on the NEC/IBM vendor rows) and
 `WINDOWS_874` to `TIS-620` (lacks the 0x80–0x9F assignments), so a slim runtime without

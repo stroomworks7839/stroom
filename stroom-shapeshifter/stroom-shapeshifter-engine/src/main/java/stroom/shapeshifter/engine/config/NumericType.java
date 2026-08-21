@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.config;
 
-
 /** The width and kind of a fixed-width binary number. */
 public enum NumericType {
 

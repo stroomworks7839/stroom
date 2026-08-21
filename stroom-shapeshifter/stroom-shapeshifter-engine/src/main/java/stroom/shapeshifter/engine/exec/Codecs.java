@@ -21,6 +21,7 @@ import stroom.shapeshifter.engine.config.Codec;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.zip.DeflaterOutputStream;
@@ -200,7 +201,7 @@ public final class Codecs {
         return result.toByteArray();
     }
 
-    private static byte[] readAll(final java.io.InputStream input) throws IOException {
+    private static byte[] readAll(final InputStream input) throws IOException {
         try (input) {
             return input.readAllBytes();
         }

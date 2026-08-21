@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.ds3;
 
+import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * DS3's reference syntax, ported from the Rust crate's own suite.
@@ -145,6 +147,41 @@ class LegacyRefsTest {
                 new RefPart.Capture("a", 1, null),
                 new RefPart.Text("/"),
                 new RefPart.Capture("b", 2, null));
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Malformed references are refused, not misread
+    // -----------------------------------------------------------------------------------
+
+    @Test
+    void rejectsAnUnclosedIndex() {
+        assertThatThrownBy(() -> LegacyRefs.parse("$1[2"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("unclosed");
+        assertThatThrownBy(() -> LegacyRefs.parse("@foo.1[2"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("unclosed");
+        // A ']' before the '[' is no closer either — this used to escape as a raw
+        // StringIndexOutOfBoundsException.
+        assertThatThrownBy(() -> LegacyRefs.parse("@foo]x["))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("unclosed");
+    }
+
+    @Test
+    void rejectsAnEmptyVariableName() {
+        // '$$1' would otherwise read as the variable named nothing.
+        assertThatThrownBy(() -> LegacyRefs.parse("$$1"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("empty variable name");
+    }
+
+    @Test
+    void rejectsTrailingTextAfterAClosedIndex() {
+        // Whatever '$1[2]x' was meant to say, silently ignoring the 'x' is not it.
+        assertThatThrownBy(() -> LegacyRefs.parse("$1[2]x"))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("trailing text");
     }
 
     // -----------------------------------------------------------------------------------

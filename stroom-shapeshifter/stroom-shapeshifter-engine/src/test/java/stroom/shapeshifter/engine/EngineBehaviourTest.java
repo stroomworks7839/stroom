@@ -590,4 +590,53 @@ class EngineBehaviourTest {
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Avro decoding");
     }
+
+    @Test
+    void refusesACallToATemplateThatDoesNotExist() {
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read("""
+                {
+                  "name": "typo", "version": 3,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"call-template": {"name": "wrpa", "with-param": []}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "wrap", "match": "named",
+                     "body": [{"text": "x"}]}
+                  ]
+                }
+                """)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("'wrpa'")
+                .hasMessageContaining("does not exist");
+    }
+
+    /**
+     * The closing-quote trim belongs to fields that opened with a quote. A field that merely
+     * ends in the container byte is text, and used to lose that byte.
+     */
+    @Test
+    void trimsAClosingContainerOnlyForAFieldThatOpenedWithOne() {
+        final String config = """
+                {
+                  "name": "csv", "version": 3,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "field"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "field", "mode": "field",
+                     "match": {"delimiter": {"delimiter": ",", "container_start": "\\"",
+                                             "container_end": "\\""}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}
+                  ]
+                }
+                """;
+
+        // Never opened a quote: every byte the author wrote survives.
+        assertThat(run(config, "a\"b\",c").output()).isEqualTo("[a\"b\"][c]");
+
+        // Opened with one: the quotes are the container, and the trim still does its job.
+        assertThat(run(config, "\"a\",\"b\"").output()).isEqualTo("[a][b]");
+    }
 }

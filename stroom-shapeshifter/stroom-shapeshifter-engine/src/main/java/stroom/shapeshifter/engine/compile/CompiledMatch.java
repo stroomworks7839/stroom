@@ -41,14 +41,13 @@ public sealed interface CompiledMatch {
      * any body runs; it is also what makes the graph one-execution-at-a-time, which is the
      * graph's contract.
      *
-     * <p>Anchoring is decided here, at compile time. A pattern that can only match at the start
-     * of its region — it opens with {@code ^} or {@code \A}, has no alternation to smuggle in
-     * an unanchored branch, and no {@code (?m)} to turn {@code ^} into a line anchor — is
-     * dispatched {@code ANCHORED}: one attempt at the cursor, instead of a search of the whole
-     * remaining region to prove what that one attempt would have proved. The baseline measured
-     * that difference at 3.6× on {@code win_sec_xml} (10-engine-compilation.md §5). The
-     * detection is conservative: a pattern it cannot prove anchored costs a search, never a
-     * wrong answer.
+     * <p>Anchoring is decided here, at compile time, from the parser's published
+     * {@link LeadingAnchor} fact — that contract owns what counts as input-anchored. An
+     * input-anchored pattern is dispatched {@code ANCHORED}: one attempt at the cursor, instead
+     * of a search of the whole remaining region to prove what that one attempt would have
+     * proved. The baseline measured that difference at 3.6× on {@code win_sec_xml}
+     * (10-engine-compilation.md §5). The detection is conservative: a pattern it cannot prove
+     * anchored costs a search, never a wrong answer.
      */
     final class Regex implements CompiledMatch {
 

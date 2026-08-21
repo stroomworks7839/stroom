@@ -123,11 +123,20 @@ public final class LegacyRefs {
             } else if (c == '$') {
                 if (pos == 1) {
                     varId = section.substring(pos, i);
+                    if (varId.isEmpty()) {
+                        throw new ConfigException("Reference has an empty variable name: " + reference);
+                    }
                 }
                 pos = i + 1;
             }
         }
 
+        if (inArray) {
+            throw new ConfigException("Reference has an unclosed '[': " + reference);
+        }
+        if (matchIndex != null && pos < section.length()) {
+            throw new ConfigException("Reference has trailing text after ']': " + reference);
+        }
         if (group == -1) {
             group = pos < section.length() ? number(section.substring(pos), reference) : 0;
         }
@@ -160,7 +169,8 @@ public final class LegacyRefs {
         MatchIndex matchIndex = null;
         if (bracket >= 0) {
             final int close = section.lastIndexOf(']');
-            if (close < 0) {
+            // close < bracket also covers close < 0: a ']' before the '[' is no closer either.
+            if (close < bracket) {
                 throw new ConfigException("Reference has an unclosed '[': " + reference);
             }
             matchIndex = matchIndex(reference, section.substring(bracket + 1, close));

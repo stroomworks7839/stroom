@@ -26,14 +26,17 @@ import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.CompiledRef;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
 import stroom.shapeshifter.engine.config.CaptureBinding;
+import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -41,6 +44,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * The runtime: reads the input, drives the templates, writes the output.
@@ -121,6 +126,10 @@ public final class Executor {
             run(input, wholeBuffer);
         } catch (final AbortRun ignored) {
             // The fatal message is the last thing the run has to say.
+        } catch (final UncheckedIOException e) {
+            // The input failed mid-read. Everything already said still stands, so the failure
+            // joins the messages rather than throwing them away.
+            messages.add(new Message(Severity.FATAL, "Reading the input failed: " + e.getCause()));
         }
         return List.copyOf(messages);
     }
@@ -141,7 +150,7 @@ public final class Executor {
                 streamDirective == null ? null : streamDirective.dispatch(), compiled.project());
         final List<CompiledTemplate> roots = compiled.templates().stream()
                 .filter(t -> !(t.match() instanceof CompiledMatch.Source))
-                .filter(t -> java.util.Objects.equals(t.template().mode(), streamMode))
+                .filter(t -> Objects.equals(t.template().mode(), streamMode))
                 .toList();
 
         // The root level's gate is the configuration's own ignoreErrors — DS3's flag on the
@@ -185,6 +194,8 @@ public final class Executor {
                     if (mark != null) {
                         encoding = mark.encoding();
                         from = mark.length();
+                        // The mark is part of the input: absolute offsets count its bytes.
+                        read = from;
                     }
                 }
                 if (from >= chunk.length) {
@@ -316,42 +327,37 @@ public final class Executor {
             if (match == null) {
                 break;
             }
-            {
-                final CompiledTemplate candidate = templates.get(winner);
-                final Template template = candidate.template();
+            final CompiledTemplate candidate = templates.get(winner);
+            final Template template = candidate.template();
 
-                // A zero-advance match in a consuming mode is a grammar bug, not a result:
-                // with classify, the Peek step, and composition available, it has no innocent
-                // reading left (D36). The body does not run — output from a match that cannot
-                // move the level would be output from a mistake.
-                if (match.advance() == 0) {
-                    messages.add(new Message(Severity.ERROR,
-                            "Template '" + template.name() + "' matched without advancing at"
-                            + " offset " + (cursor - from + match.matchStart())
-                            + "; the level cannot make progress."));
-                    break;
-                }
+            // A zero-advance match in a consuming mode is a grammar bug, not a result:
+            // with classify, the Peek step, and composition available, it has no innocent
+            // reading left (D36). The body does not run — output from a match that cannot
+            // move the level would be output from a mistake.
+            if (match.advance() == 0) {
+                messages.add(new Message(Severity.ERROR,
+                        "Template '" + template.name() + "' matched without advancing at"
+                        + " content offset " + (cursor - from + match.matchStart())
+                        + "; the level cannot make progress."));
+                break;
+            }
 
-                // An eater: advance, don't count (D36). No counters move, no stores clear,
-                // no skip report — the eater is the authored skip.
-                if (template.consume()) {
-                    processEater(candidate, match, sink, inputBase, ignoreErrors, depth);
-                    cursor += match.advance();
-                    matched = true;
-                    continue;
-                }
-
-                counts[winner]++;
-                final int matchCount = counts[winner];
-                processMatch(candidate, match, matchCount, data, cursor,
-                        locate(inputBase, cursor - from), sink, ignoreErrors, depth);
+            // An eater: advance, don't count (D36). No counters move, no stores clear,
+            // no skip report — the eater is the authored skip.
+            if (template.consume()) {
+                processEater(candidate, match, sink, inputBase, ignoreErrors, depth);
                 cursor += match.advance();
                 matched = true;
-                // The choice re-opens from the first template.
+                continue;
             }
+
+            counts[winner]++;
+            processMatch(candidate, match, counts[winner], data, cursor,
+                    locate(inputBase, cursor - from), sink, ignoreErrors, depth, true);
+            cursor += match.advance();
+            matched = true;
+            // The choice re-opens from the first template.
         }
-
-
 
         boolean minMatchFailed = false;
         for (int i = 0; i < templates.size(); i++) {
@@ -383,11 +389,12 @@ public final class Executor {
      * Process a counting winner: the first-match store clearing (E19), the skip report, the
      * engine's counter variables, and — when the match is wanted — captures, body and
      * instrumentation. One method because it is the hottest processing the engine does, and
-     * both the nested level and the root stream must share its compiled form rather than
-     * carrying a copy each.
+     * every dispatch mode must share its compiled form rather than carrying a copy each.
      *
-     * @param locateBase the value such that {@code locateBase + match.matchStart()} is the
-     *                   match's absolute input offset, or {@link Instrument#UNLOCATABLE}
+     * @param locateBase  the value such that {@code locateBase + match.matchStart()} is the
+     *                    match's absolute input offset, or {@link Instrument#UNLOCATABLE}
+     * @param reportSkips whether a skipped prefix earns a report — the ordered modes say so,
+     *                    {@code any} never does, because DS3 gates the report on sequence order
      */
     private void processMatch(final CompiledTemplate candidate,
                               final MatchResult match,
@@ -397,7 +404,8 @@ public final class Executor {
                               final long locateBase,
                               final OutputSink sink,
                               final boolean ignoreErrors,
-                              final int depth) {
+                              final int depth,
+                              final boolean reportSkips) {
         final Template template = candidate.template();
         if (matchCount == 1) {
             for (final CaptureBinding capture : template.captures()) {
@@ -406,7 +414,7 @@ public final class Executor {
                 }
             }
         }
-        if (match.matchStart() > 0 && !ignoreErrors && !template.ignoreErrors()) {
+        if (reportSkips && match.matchStart() > 0 && !ignoreErrors && !template.ignoreErrors()) {
             messages.add(new Message(Severity.ERROR,
                     "Expression '" + template.name()
                     + "' failed to match from the start of the content. Skipped: ["
@@ -424,7 +432,8 @@ public final class Executor {
                     : match.group(0);
             if (content != null && !content.isEmpty()) {
                 instrument.onMatch(template.id(), template.name(),
-                        locate(locateBase, match.matchStart()), match.advance(), matchCount, depth);
+                        locate(locateBase, match.matchStart()),
+                        match.advance() - match.matchStart(), matchCount, depth);
                 bindCaptures(candidate, match, matchCount);
                 final long before = sink.position();
                 body(candidate.body(), match, matchCount, content.asBytes(), sink,
@@ -488,6 +497,8 @@ public final class Executor {
         if (mark != null) {
             encoding = mark.encoding();
             start = Math.min(mark.length(), filled);
+            // The mark is part of the input: absolute offsets count its bytes.
+            consumedTotal = start;
         }
 
         final int[] counts = new int[templates.size()];
@@ -563,7 +574,7 @@ public final class Executor {
             if (match.advance() == 0) {
                 messages.add(new Message(Severity.ERROR,
                         "Template '" + template.name() + "' matched without advancing at"
-                        + " offset " + (consumedTotal + match.matchStart())
+                        + " input offset " + (consumedTotal + match.matchStart())
                         + "; the level cannot make progress."));
                 break;
             }
@@ -584,7 +595,7 @@ public final class Executor {
 
             counts[winner]++;
             processMatch(candidate, match, counts[winner], window, start,
-                    consumedTotal, sink, ignoreErrors, 0);
+                    consumedTotal, sink, ignoreErrors, 0, true);
             consumedTotal += match.advance();
             start = end;
         }
@@ -687,43 +698,19 @@ public final class Executor {
                 final int start = match.matchStart();
                 final int end = match.advance();
                 if (end <= start) {
+                    // Break, not return: the level can say nothing more, but the minimum-match
+                    // and unmatched-content reporting below still has its say — exactly as the
+                    // equivalent break in the ordered modes reaches it.
                     messages.add(new Message(Severity.ERROR,
                             "Template '" + template.name() + "' matched without advancing at"
-                            + " offset " + start + "; the level cannot make progress."));
-                    return excised;
+                            + " content offset " + start + "; the level cannot make progress."));
+                    break;
                 }
 
                 if (!template.consume()) {
                     counts[i]++;
-                    final int matchCount = counts[i];
-                    if (matchCount == 1) {
-                        for (final CaptureBinding capture : template.captures()) {
-                            if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
-                                vars.store(capture.name()).clear();
-                            }
-                        }
-                    }
-                    vars.store(MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
-                    vars.store(MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
-                    final boolean wanted = template.matchLimits().onlyMatch() == null
-                                           || template.matchLimits().onlyMatch().contains(matchCount);
-                    if (wanted) {
-                        final int contentGroup =
-                                template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
-                        final TypedValue content = match.group(contentGroup) != null
-                                ? match.group(contentGroup)
-                                : match.group(0);
-                        if (content != null && !content.isEmpty()) {
-                            instrument.onMatch(template.id(), template.name(),
-                                    locate(base, start), end - start, matchCount, depth);
-                            bindCaptures(candidate, match, matchCount);
-                            final long before = sink.position();
-                            body(candidate.body(), match, matchCount, content.asBytes(), sink,
-                                    base, ignoreErrors, depth, effective(candidate));
-                            instrument.onOutput(template.id(), matchCount, before,
-                                    sink.position() - before);
-                        }
-                    }
+                    processMatch(candidate, match, counts[i], work, 0, base, sink,
+                            ignoreErrors, depth, false);
                 }
 
                 // The excision: the matched span leaves, and the pieces close up. From here
@@ -793,7 +780,8 @@ public final class Executor {
                     : match.group(0);
             if (content != null && !content.isEmpty()) {
                 instrument.onMatch(template.id(), template.name(),
-                        locate(inputBase, match.matchStart()), match.advance(), 1, depth);
+                        locate(inputBase, match.matchStart()),
+                        match.advance() - match.matchStart(), 1, depth);
                 bindCaptures(candidate, match, 1);
                 final long before = sink.position();
                 body(candidate.body(), match, 1, content.asBytes(), sink,
@@ -816,9 +804,9 @@ public final class Executor {
     }
 
     /** The start of a region, as text fit for a message: newlines escaped, capped at 200 bytes. */
-    private static String preview(final byte[] data, final int from, final int to) {
+    private String preview(final byte[] data, final int from, final int to) {
         final int length = Math.min(200, to - from);
-        return new String(data, from, length, StandardCharsets.UTF_8).replace("\n", "\\n")
+        return encoding.decode(data, from, length).replace("\n", "\\n")
                + (to - from > 200 ? "...TRUNCATED..." : "");
     }
 
@@ -855,9 +843,7 @@ public final class Executor {
         // questions provably agree, so the node asks the one with the bare prologue. The
         // fact's single source is the library's parser — nothing here reads pattern text.
         final ByteMatcher matcher = regex.matcher();
-        final stroom.shapeshifter.regex.Anchoring question = atCursor
-                ? stroom.shapeshifter.regex.Anchoring.ANCHORED
-                : regex.anchoring();
+        final Anchoring question = atCursor ? Anchoring.ANCHORED : regex.anchoring();
         if (!matcher.match(data, from, to, question)) {
             return null;
         }
@@ -1035,7 +1021,7 @@ public final class Executor {
         }
     }
 
-    private boolean test(final stroom.shapeshifter.engine.config.Condition condition,
+    private boolean test(final Condition condition,
                          final MatchResult match,
                          final int matchCount,
                          final Encoding contentEncoding) {
@@ -1061,7 +1047,7 @@ public final class Executor {
                            final MatchResult match,
                            final int matchCount,
                            final OutputSink sink,
-                           final java.util.function.Function<List<String>, String> function,
+                           final Function<List<String>, String> function,
                            final Encoding contentEncoding) {
         final List<String> inputs = new ArrayList<>(select.size());
         for (final CompiledRef ref : select) {
@@ -1106,7 +1092,7 @@ public final class Executor {
         vars.push();
         vars.shadow(value.name());
 
-        final java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+        final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         body(value.body(), match, matchCount, content,
                 OutputSink.of(buffer), inputBase, ignoreErrors, depth, contentEncoding);
 

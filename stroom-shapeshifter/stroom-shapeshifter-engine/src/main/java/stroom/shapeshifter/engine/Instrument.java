@@ -58,7 +58,8 @@ public interface Instrument {
      * @param templateId   which template
      * @param templateName its name, for display
      * @param inputOffset  where the match begins in the input, or {@link #UNLOCATABLE}
-     * @param inputLength  how many bytes it consumed
+     * @param inputLength  the match's length in bytes, from where it begins to where its
+     *                     consumption ends — so offset and length describe the same span
      * @param matchIndex   which match this is for that template, counting from one
      * @param depth        how deep in the dispatch this happened
      */

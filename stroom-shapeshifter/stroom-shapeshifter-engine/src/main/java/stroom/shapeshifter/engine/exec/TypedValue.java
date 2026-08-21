@@ -53,8 +53,8 @@ public sealed interface TypedValue {
 
     }
 
-    /** A number with a fractional part. */
-    record Float(double value) implements TypedValue {
+    /** A number with a fractional part. Named to leave {@code java.lang.Float} unshadowed. */
+    record Real(double value) implements TypedValue {
 
     }
 
@@ -83,7 +83,7 @@ public sealed interface TypedValue {
         return switch (this) {
             case Bytes bytes -> bytes.value();
             case Int value -> Long.toString(value.value()).getBytes(StandardCharsets.US_ASCII);
-            case Float value -> format(value.value()).getBytes(StandardCharsets.US_ASCII);
+            case Real value -> format(value.value()).getBytes(StandardCharsets.US_ASCII);
             case Bool value -> Boolean.toString(value.value()).getBytes(StandardCharsets.US_ASCII);
         };
     }
@@ -93,7 +93,7 @@ public sealed interface TypedValue {
         return switch (this) {
             case Bytes bytes -> new String(bytes.value(), StandardCharsets.UTF_8);
             case Int value -> Long.toString(value.value());
-            case Float value -> format(value.value());
+            case Real value -> format(value.value());
             case Bool value -> Boolean.toString(value.value());
         };
     }
@@ -102,7 +102,7 @@ public sealed interface TypedValue {
     default Double asNumber() {
         return switch (this) {
             case Int value -> (double) value.value();
-            case Float value -> value.value();
+            case Real value -> value.value();
             case Bool value -> value.value() ? 1.0 : 0.0;
             case Bytes bytes -> {
                 try {
@@ -114,11 +114,14 @@ public sealed interface TypedValue {
         };
     }
 
-    /** Render a double the way Rust does: whole numbers without a trailing {@code .0}. */
+    /**
+     * Render a double the way Rust does: whole numbers without a trailing {@code .0} — but only
+     * while they fit a long, beyond which the cast saturates and would render the wrong number.
+     */
     private static String format(final double value) {
-        if (value == Math.rint(value) && !java.lang.Double.isInfinite(value)) {
+        if (value == Math.rint(value) && !Double.isInfinite(value) && Math.abs(value) < 0x1p63) {
             return Long.toString((long) value);
         }
-        return java.lang.Double.toString(value);
+        return Double.toString(value);
     }
 }

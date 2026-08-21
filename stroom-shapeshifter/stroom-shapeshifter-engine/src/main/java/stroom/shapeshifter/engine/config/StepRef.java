@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.config;
 
-
 /**
  * A count or offset in a progressive match: either written down, or read from an earlier step.
  *
@@ -28,12 +27,18 @@ public sealed interface StepRef {
     /** A count written into the configuration. */
     record Literal(int value) implements StepRef {
 
+        public Literal {
+            if (value < 0) {
+                throw new ConfigException("A literal count cannot be negative: " + value);
+            }
+        }
     }
 
     /**
-     * The output of an earlier step in the same sequence, parsed as a decimal number.
+     * The output of an earlier step, parsed as a decimal number.
      *
-     * @param index the step's 0-based position within its containing sequence
+     * @param index the output's 0-based position counting every step output the match has
+     *              produced so far, in execution order and at any nesting depth
      */
     record StepOutput(int index) implements StepRef {
 

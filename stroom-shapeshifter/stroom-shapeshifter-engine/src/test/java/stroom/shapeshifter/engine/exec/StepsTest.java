@@ -52,7 +52,8 @@ class StepsTest {
     }
 
     private static String group(final MatchResult result, final int index) {
-        return new String(result.groupBytes(index), StandardCharsets.UTF_8);
+        final TypedValue value = result.group(index);
+        return value == null ? "" : new String(value.asBytes(), StandardCharsets.UTF_8);
     }
 
     // -----------------------------------------------------------------------------------
@@ -195,7 +196,7 @@ class StepsTest {
                 new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.BIG),
                 new MatchStep.TakeBytes(new StepRef.StepOutput(0))),
                 data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
-        assertThat(new String(result.groupBytes(2), StandardCharsets.UTF_8)).isEqualTo("abc");
+        assertThat(group(result, 2)).isEqualTo("abc");
         assertThat(result.advance()).isEqualTo(5);
     }
 
@@ -268,6 +269,30 @@ class StepsTest {
         assertThat(run(List.of(new MatchStep.Peek(List.of(new MatchStep.Tag("zz")))), "abc")).isNull();
         assertThat(run(List.of(new MatchStep.Not(List.of(new MatchStep.Tag("zz")))), "abc")).isNotNull();
         assertThat(run(List.of(new MatchStep.Not(List.of(new MatchStep.Tag("ab")))), "abc")).isNull();
+    }
+
+    @Test
+    void nestedStepsSeeEveryOutputProducedSoFarAtAnyDepth() {
+        // The flat rule: output indexes count all step outputs in execution order, at any
+        // nesting depth. Flat indexes here: 0 is the outer "3", 1 the outer ":", 2 the middle
+        // sequence's "2", 3 its ":". The doubly nested steps read both the middle sequence's
+        // own earlier output (index 2 -> take 2 bytes) and the outer sequence's (index 0 ->
+        // take 3 bytes) — the second of which a depth-2 step could not see when the recursion
+        // dropped its parent's outputs and handed down only the grandparent's.
+        final MatchResult result = run(List.of(
+                new MatchStep.TakeWhile(new Predicate.Numeric()),
+                new MatchStep.Tag(":"),
+                new MatchStep.Sequence(List.of(
+                        new MatchStep.TakeWhile(new Predicate.Numeric()),
+                        new MatchStep.Tag(":"),
+                        new MatchStep.Sequence(List.of(
+                                new MatchStep.TakeBytes(new StepRef.StepOutput(2)),
+                                new MatchStep.TakeBytes(new StepRef.StepOutput(0))))))),
+                "3:2:aabbbZ");
+
+        assertThat(result).isNotNull();
+        assertThat(group(result, 3)).isEqualTo("2:aabbb");
+        assertThat(result.advance()).isEqualTo("3:2:aabbb".length());
     }
 
     @Test

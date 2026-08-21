@@ -28,6 +28,9 @@ package stroom.shapeshifter.engine.exec;
  * <p>A null entry is a group that did not participate, which is different from one that matched
  * emptily.
  *
+ * <p>The array component gives the record identity {@code equals}/{@code hashCode}, and that is
+ * deliberate: a result is a transient runtime value that is read and dropped, never compared.
+ *
  * @param groups     the captured values, group 0 first; entries may be null
  * @param advance    how far the cursor moves, measured from the start of the searched region
  *                   rather than from the start of the match
@@ -39,12 +42,6 @@ public record MatchResult(TypedValue[] groups, int advance, int matchStart) {
     /** The value of a group, or null if it is absent or out of range. */
     public TypedValue group(final int index) {
         return index >= 0 && index < groups.length ? groups[index] : null;
-    }
-
-    /** The bytes of a group, or an empty array. */
-    public byte[] groupBytes(final int index) {
-        final TypedValue value = group(index);
-        return value == null ? new byte[0] : value.asBytes();
     }
 
     /** A result with no groups, for the places that need a match-shaped nothing. */

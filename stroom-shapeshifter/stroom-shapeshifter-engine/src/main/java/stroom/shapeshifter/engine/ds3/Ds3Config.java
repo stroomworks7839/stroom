@@ -59,11 +59,18 @@ public sealed interface Ds3Config {
 
     }
 
-    /** {@code <regex>} — match the input against a pattern. */
+    /**
+     * {@code <regex>} — match the input against a pattern.
+     *
+     * <p>{@code advance} is where the cursor lands after a match: 0 for the end of the whole
+     * match, or {@code N} for the end of group {@code N} — how a pattern looks further than
+     * it eats.
+     */
     record Regex(String id,
                  String pattern,
                  boolean dotAll,
                  boolean caseInsensitive,
+                 int advance,
                  int minMatch,
                  int maxMatch,
                  Set<Integer> onlyMatch,
@@ -88,7 +95,6 @@ public sealed interface Ds3Config {
     record Data(String id,
                 String name,
                 String value,
-                boolean hasChildren,
                 List<Ds3Config> children) implements Ds3Config {
 
     }

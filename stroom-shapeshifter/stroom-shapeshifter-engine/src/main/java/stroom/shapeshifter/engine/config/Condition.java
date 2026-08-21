@@ -49,7 +49,7 @@ public sealed interface Condition {
      * The value matches a regex.
      *
      * @param select  the value to test
-     * @param pattern the pattern, in the dialect of Rust's {@code regex} crate
+     * @param pattern the pattern, in {@link stroom.shapeshifter.regex.BytePattern}'s dialect
      */
     record Matches(RefExpression select, String pattern) implements Condition {
 

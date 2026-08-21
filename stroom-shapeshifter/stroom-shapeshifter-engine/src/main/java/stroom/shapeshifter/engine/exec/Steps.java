@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.config.Endianness;
 import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.Predicate;
 import stroom.shapeshifter.engine.config.StepRef;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Progressive matching: a sequence of steps, each starting where the last one stopped.
@@ -141,7 +143,10 @@ public final class Steps {
         final int available = to - from;
         return switch (step) {
             case MatchStep.Tag tag -> {
-                final byte[] bytes = tag.value().getBytes(StandardCharsets.UTF_8);
+                // The effective encoding, not UTF-8 by fiat: the compiler encodes Delimiter
+                // literals under the template's charset (E3), and a tag is the same kind of
+                // literal looking for the same kind of bytes.
+                final byte[] bytes = encoding.encode(tag.value());
                 yield startsWith(data, from, to, bytes) ? new Result(TypedValue.of(bytes), bytes.length) : null;
             }
             case MatchStep.MatchByte value -> startsWith(data, from, to, value.value())
@@ -165,7 +170,7 @@ public final class Steps {
                         : null;
             }
             case MatchStep.TakeUntil takeUntil -> {
-                final byte[] needle = takeUntil.pattern().getBytes(StandardCharsets.UTF_8);
+                final byte[] needle = encoding.encode(takeUntil.pattern());
                 if (needle.length == 0) {
                     yield null;
                 }
@@ -182,10 +187,14 @@ public final class Steps {
                 if (available <= 0) {
                     yield null;
                 }
-                final int length = characterLength(data[from]);
-                yield available >= length
-                        ? new Result(TypedValue.of(Arrays.copyOfRange(data, from, from + length)), length)
-                        : null;
+                // A character is what the effective encoding says it is — the same decode
+                // TakeWhile uses, so a UTF-16 character is two bytes and a RAW byte is one.
+                final long decoded = decode(data, from, to, encoding);
+                if (decoded < 0) {
+                    yield null;
+                }
+                final int length = (int) (decoded & 0xFF);
+                yield new Result(TypedValue.of(Arrays.copyOfRange(data, from, from + length)), length);
             }
             case MatchStep.ReadNumeric numeric -> number(numeric, data, from, to);
             case MatchStep.ReadVarint ignored -> {
@@ -240,8 +249,6 @@ public final class Steps {
                 }
                 final ByteMatcher matcher = pattern.matcher();
                 // An atom, like every other step: it matches at the cursor or it fails (E4).
-                // The old ds-rs behaviour — search ahead, then advance by the match's length
-                // from the wrong place — was an API accident, never a design, and never used.
                 if (!matcher.match(data, from, to, Anchoring.ANCHORED)) {
                     yield null;
                 }
@@ -250,7 +257,8 @@ public final class Steps {
             }
             case MatchStep.Choice choice -> {
                 for (final List<MatchStep> alternative : choice.alternatives()) {
-                    final Integer consumed = sequence(alternative, data, from, to, prior, position, patterns, encoding);
+                    final Integer consumed = sequence(
+                            alternative, data, from, to, prior, local, position, patterns, encoding);
                     if (consumed != null) {
                         yield consumed(data, from, consumed);
                     }
@@ -259,7 +267,7 @@ public final class Steps {
             }
             case MatchStep.Optional optional -> {
                 final Integer consumed = sequence(
-                        optional.steps(), data, from, to, prior, position, patterns, encoding);
+                        optional.steps(), data, from, to, prior, local, position, patterns, encoding);
                 yield consumed(data, from, consumed == null ? 0 : consumed);
             }
             case MatchStep.Repeat repeat -> {
@@ -268,7 +276,7 @@ public final class Steps {
                 final int max = repeat.max() == null ? Integer.MAX_VALUE : repeat.max();
                 while (iterations < max && from + total < to) {
                     final Integer consumed = sequence(
-                            repeat.steps(), data, from + total, to, prior, position + total, patterns, encoding);
+                            repeat.steps(), data, from + total, to, prior, local, position + total, patterns, encoding);
                     if (consumed == null || consumed == 0) {
                         break;
                     }
@@ -278,14 +286,16 @@ public final class Steps {
                 yield iterations >= repeat.min() ? consumed(data, from, total) : null;
             }
             case MatchStep.Sequence nested -> {
-                final Integer consumed = sequence(nested.steps(), data, from, to, prior, position, patterns, encoding);
+                final Integer consumed = sequence(
+                        nested.steps(), data, from, to, prior, local, position, patterns, encoding);
                 yield consumed == null ? null : consumed(data, from, consumed);
             }
             case MatchStep.Peek peek -> sequence(
-                    peek.steps(), data, from, to, prior, position, patterns, encoding) == null
+                    peek.steps(), data, from, to, prior, local, position, patterns, encoding) == null
                     ? null
                     : new Result(NOTHING, 0);
-            case MatchStep.Not not -> sequence(not.steps(), data, from, to, prior, position, patterns, encoding) == null
+            case MatchStep.Not not -> sequence(
+                    not.steps(), data, from, to, prior, local, position, patterns, encoding) == null
                     ? new Result(NOTHING, 0)
                     : null;
             case MatchStep.PatternRef ignored -> throw new IllegalStateException(
@@ -293,15 +303,23 @@ public final class Steps {
         };
     }
 
-    /** Run a nested sequence, returning how much it consumed or null if it failed. */
+    /**
+     * Run a nested sequence, returning how much it consumed or null if it failed.
+     *
+     * <p>The nested steps see everything produced so far — the enclosing sequences' outputs
+     * and the caller's own — as one flat list. That is the rule a step reference indexes into:
+     * output indexes count all step outputs in execution order, at any nesting depth.
+     */
     private static Integer sequence(final List<MatchStep> steps,
                                     final byte[] data,
                                     final int from,
                                     final int to,
-                                    final List<TypedValue> prior,
+                                    final List<TypedValue> enclosing,
+                                    final List<TypedValue> callerLocal,
                                     final int position,
                                     final Map<String, BytePattern> patterns,
                                     final Encoding encoding) {
+        final List<TypedValue> prior = concat(enclosing, callerLocal);
         int pos = 0;
         final List<TypedValue> local = new ArrayList<>(steps.size());
         for (final MatchStep step : steps) {
@@ -313,6 +331,23 @@ public final class Steps {
             local.add(result.output());
         }
         return pos;
+    }
+
+    /**
+     * Two output lists as one, copying only when both have content — which only a doubly
+     * nested combinator ever asks for, so the common paths stay allocation-free.
+     */
+    private static List<TypedValue> concat(final List<TypedValue> prior, final List<TypedValue> local) {
+        if (local.isEmpty()) {
+            return prior;
+        }
+        if (prior.isEmpty()) {
+            return local;
+        }
+        final List<TypedValue> all = new ArrayList<>(prior.size() + local.size());
+        all.addAll(prior);
+        all.addAll(local);
+        return all;
     }
 
     // -----------------------------------------------------------------------------------
@@ -370,14 +405,7 @@ public final class Steps {
         return offset < local.size() ? local.get(offset) : null;
     }
 
-    /**
-     * Whether a byte satisfies a predicate.
-     *
-     * <p>ASCII, deliberately. The Rust engine's predicates are Unicode-aware over characters but
-     * it takes the byte path for every byte-oriented encoding, UTF-8 included — so
-     * {@code TakeWhile(alphabetic)} stops at the first non-ASCII letter. Ported as it is, and
-     * recorded here rather than quietly improved (D33).
-     */
+    /** Predicates classify decoded codepoints; the encoding story lives at {@link #decode}. */
     private static boolean matches(final Predicate predicate, final int codepoint) {
         return switch (predicate) {
             case Predicate.Alphabetic ignored -> Character.isLetter(codepoint);
@@ -392,8 +420,7 @@ public final class Steps {
     }
 
     /** Decode tables for the single-byte encodings, one lazy row per encoding. */
-    private static final java.util.concurrent.ConcurrentHashMap<Encoding, char[]> SINGLE_BYTE =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Encoding, char[]> SINGLE_BYTE = new ConcurrentHashMap<>();
 
     /**
      * The character at an offset under an encoding, packed as {@code codepoint << 8 | length},
@@ -445,10 +472,6 @@ public final class Steps {
             }
         }
         return -1;
-    }
-
-    private static boolean isSpace(final int b) {
-        return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == 0x0C;
     }
 
     private static boolean inSet(final Predicate.CharSet set, final char c) {
@@ -515,7 +538,7 @@ public final class Steps {
             return null;
         }
 
-        final boolean big = numeric.endian() == stroom.shapeshifter.engine.config.Endianness.BIG;
+        final boolean big = numeric.endian() == Endianness.BIG;
         long raw = 0;
         for (int i = 0; i < size; i++) {
             final int b = data[from + (big ? i : size - 1 - i)] & 0xFF;
@@ -526,8 +549,8 @@ public final class Steps {
             case SHORT -> new TypedValue.Int(numeric.signed() ? (short) raw : raw);
             case INT -> new TypedValue.Int(numeric.signed() ? (int) raw : raw);
             case LONG -> numeric.signed() ? new TypedValue.Int(raw) : unsigned(raw);
-            case FLOAT -> new TypedValue.Float(Float.intBitsToFloat((int) raw));
-            case DOUBLE -> new TypedValue.Float(Double.longBitsToDouble(raw));
+            case FLOAT -> new TypedValue.Real(Float.intBitsToFloat((int) raw));
+            case DOUBLE -> new TypedValue.Real(Double.longBitsToDouble(raw));
         };
         return new Result(value, size);
     }

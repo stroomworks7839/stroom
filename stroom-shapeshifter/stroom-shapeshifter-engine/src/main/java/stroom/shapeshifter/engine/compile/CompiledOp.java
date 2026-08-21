@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
@@ -40,7 +41,7 @@ import java.util.function.Function;
  * decision that does not depend on a match already taken (D35). Literal text is bytes. A
  * reference is a {@link CompiledRef} that knows its strategy. A regex replace holds its
  * {@link BytePattern} instead of the text to look one up by. An apply knows whether its select
- * is the parent's whole content. The twelve transform functions collapse to one instruction
+ * is the parent's whole content. The transform instructions collapse to one instruction
  * holding its function, parameters already bound.
  *
  * <p>Conditions stay authored and are evaluated by {@code Conditions} as before — their
@@ -172,13 +173,17 @@ public sealed interface CompiledOp {
                                 .map(c -> new Case(c.value(), compile(c.body(), patterns, project)))
                                 .toList(),
                         compile(value.defaultBody(), patterns, project));
-                case OutputNode.ApplyTemplates apply -> new Apply(
-                        apply.directive(),
-                        CompiledRef.of(apply.directive().select()),
-                        isWholeParentContent(apply.directive().select()),
-                        isWholeParentContent(apply.directive().select())
-                        || isLocalGroup(apply.directive().select()),
-                        Dispatch.effective(apply.directive().dispatch(), project));
+                case OutputNode.ApplyTemplates apply -> {
+                    // Whole-parent-content is the group-0 special case of a local group, so
+                    // being a local group is the whole of being locatable.
+                    final RefExpression select = apply.directive().select();
+                    yield new Apply(
+                            apply.directive(),
+                            CompiledRef.of(select),
+                            isWholeParentContent(select),
+                            isLocalGroup(select),
+                            Dispatch.effective(apply.directive().dispatch(), project));
+                }
                 case OutputNode.EmitError value ->
                         new EmitError(value.severity(), CompiledRef.of(value.message()));
                 case OutputNode.CallTemplate value -> new Call(
@@ -190,25 +195,25 @@ public sealed interface CompiledOp {
                         new Variable(value.name(), compile(value.body(), patterns, project));
                 case OutputNode.ValueMap value -> new ValueMap(
                         CompiledRef.of(value.select()), value.entries(), value.defaultValue(), value.name());
-                case OutputNode.Translate value -> transform(value.select(), value.name(),
-                        inputs -> Transforms.translate(inputs, value.from(), value.to()));
+                case OutputNode.Translate value -> transform(single("translate", value.select()),
+                        value.name(), inputs -> Transforms.translate(inputs, value.from(), value.to()));
                 case OutputNode.StringJoin value -> transform(value.select(), value.name(),
                         inputs -> Transforms.stringJoin(inputs, value.separator()));
                 case OutputNode.Replace value -> replace(value, patterns);
                 case OutputNode.LowerCase value ->
-                        transform(value.select(), value.name(), Transforms::lowerCase);
+                        transform(single("lower-case", value.select()), value.name(), Transforms::lowerCase);
                 case OutputNode.UpperCase value ->
-                        transform(value.select(), value.name(), Transforms::upperCase);
-                case OutputNode.NormalizeSpace value ->
-                        transform(value.select(), value.name(), Transforms::normalizeSpace);
+                        transform(single("upper-case", value.select()), value.name(), Transforms::upperCase);
+                case OutputNode.NormalizeSpace value -> transform(
+                        single("normalize-space", value.select()), value.name(), Transforms::normalizeSpace);
                 case OutputNode.Trim value ->
-                        transform(value.select(), value.name(), Transforms::trim);
-                case OutputNode.Substring value -> transform(value.select(), value.name(),
-                        inputs -> Transforms.substring(inputs, value.start(), value.length()));
-                case OutputNode.Tokenize value -> transform(value.select(), value.name(),
-                        inputs -> Transforms.tokenize(inputs, value.delimiter()));
+                        transform(single("trim", value.select()), value.name(), Transforms::trim);
+                case OutputNode.Substring value -> transform(single("substring", value.select()),
+                        value.name(), inputs -> Transforms.substring(inputs, value.start(), value.length()));
+                case OutputNode.Tokenize value -> transform(single("tokenize", value.select()),
+                        value.name(), inputs -> Transforms.tokenize(inputs, value.delimiter()));
                 case OutputNode.Number value ->
-                        transform(value.select(), value.name(), Transforms::number);
+                        transform(single("number", value.select()), value.name(), Transforms::number);
             };
             ops.add(op);
         }
@@ -221,9 +226,23 @@ public sealed interface CompiledOp {
         return new Transform(select.stream().map(CompiledRef::of).toList(), name, function);
     }
 
+    /**
+     * Refuse extra selects on a one-input transform. Only {@code string-join} folds a list;
+     * every other transform reads its first input, so a second one is an authoring mistake
+     * that would otherwise run and silently drop data.
+     */
+    private static List<RefExpression> single(final String what, final List<RefExpression> select) {
+        if (select.size() > 1) {
+            throw new ConfigException("A " + what + " takes one select, but has " + select.size()
+                                      + ": only the first select would be read");
+        }
+        return select;
+    }
+
     /** A regex replace closes over its compiled pattern; a literal one over its text. */
     private static Transform replace(final OutputNode.Replace value,
                                      final Map<String, BytePattern> patterns) {
+        single("replace", value.select());
         if (!value.isRegex()) {
             return transform(value.select(), value.name(),
                     inputs -> Transforms.replaceLiteral(inputs, value.pattern(), value.replacement()));

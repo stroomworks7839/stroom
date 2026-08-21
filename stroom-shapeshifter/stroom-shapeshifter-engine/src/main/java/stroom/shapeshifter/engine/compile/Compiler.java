@@ -42,6 +42,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -98,6 +99,12 @@ public final class Compiler {
                     throw new ConfigException("Template '" + template.name()
                                               + "' declares an unknown encoding: " + template.encoding());
                 }
+                if (!declared.isAvailable()) {
+                    // The same refusal the source encoding gets: a charset this runtime lacks is
+                    // refused by name, never quietly approximated by a neighbour (E22).
+                    throw new ConfigException("Template '" + template.name() + "' declares "
+                                              + declared.label() + ", and this build has no charset for it");
+                }
                 if (declared == Encoding.AUTO) {
                     declared = null;
                 }
@@ -112,14 +119,15 @@ public final class Compiler {
                     CompiledOp.compile(template.body(), patterns, project),
                     declared));
         }
+        resolveTemplateNames(project);
         dispatchChecks(project, templates, warnings);
         return new CompiledProject(project, templates, patterns, encoding, warnings);
     }
 
     /**
-     * D36's dispatch validation: {@code any} is refused until E18 lands, and a line-anchored
-     * pattern in a strict or lexer level draws a warning — the anchored question means it
-     * matches at the cursor only, and a line anchor does not make it search line starts.
+     * D36's dispatch lint: a line-anchored pattern in a strict or lexer level draws a warning —
+     * the anchored question means it matches at the cursor only, and a line anchor does not
+     * make it search line starts.
      */
     private static void dispatchChecks(final Project project,
                                        final List<CompiledTemplate> templates,
@@ -146,6 +154,60 @@ public final class Compiler {
                         + "' uses a line-anchored pattern in a strict level: it matches at the"
                         + " cursor only, and the line anchor does not make it search line"
                         + " starts. If line iteration is intended, add a line eater."));
+            }
+        }
+    }
+
+    /**
+     * Resolve every name that points at a template — a {@code call-template}'s target and an
+     * {@code apply-templates}' template reference — against the templates that exist.
+     *
+     * <p>Compilation is where a configuration's mistakes are found. Left to run time, a name
+     * with a typo in it finds nothing, and finding nothing is spelt the same as a template that
+     * legitimately wrote nothing: the run completes, the output is short, and the configuration
+     * looks correct.
+     */
+    private static void resolveTemplateNames(final Project project) {
+        final Set<String> names = new HashSet<>();
+        for (final Template template : project.templates()) {
+            names.add(template.name());
+        }
+        for (final Template template : project.templates()) {
+            final List<String> referenced = new ArrayList<>();
+            collectCalls(template.body(), referenced);
+            final List<OutputNode.ApplyDirective> applies = new ArrayList<>();
+            collectApplies(template.body(), applies);
+            for (final OutputNode.ApplyDirective directive : applies) {
+                if (directive.templateRef() != null) {
+                    referenced.add(directive.templateRef());
+                }
+            }
+            for (final String name : referenced) {
+                if (!names.contains(name)) {
+                    throw new ConfigException("Template '" + template.name() + "' refers to a"
+                                              + " template named '" + name + "', which does not exist");
+                }
+            }
+        }
+    }
+
+    private static void collectCalls(final List<OutputNode> body, final List<String> names) {
+        for (final OutputNode node : body) {
+            switch (node) {
+                case OutputNode.CallTemplate value -> names.add(value.name());
+                case OutputNode.If value -> collectCalls(value.then(), names);
+                case OutputNode.Choose value -> {
+                    value.when().forEach(branch -> collectCalls(branch.body(), names));
+                    collectCalls(value.otherwise(), names);
+                }
+                case OutputNode.Switch value -> {
+                    value.cases().forEach(c -> collectCalls(c.body(), names));
+                    collectCalls(value.defaultBody(), names);
+                }
+                case OutputNode.Variable value -> collectCalls(value.body(), names);
+                default -> {
+                    // Leaves as far as calls are concerned.
+                }
             }
         }
     }
@@ -277,7 +339,7 @@ public final class Compiler {
 
     private static void requireCodec(final Codec codec, final Template template) {
         if (!Codecs.isSupported(codec)) {
-            throw notYet(template, codec.name().toLowerCase(java.util.Locale.ROOT) + " coding");
+            throw notYet(template, codec.name().toLowerCase(Locale.ROOT) + " coding");
         }
     }
 
@@ -341,13 +403,20 @@ public final class Compiler {
                 if (regex.flags().dotAll()) {
                     flags.add(Flag.DOT_ALL);
                 }
+                final BytePattern pattern;
                 try {
-                    yield new CompiledMatch.Regex(BytePattern.compile(regex.pattern(), flags), regex.advance());
+                    pattern = BytePattern.compile(regex.pattern(), flags);
                 } catch (final PatternCompileException e) {
                     throw new ConfigException(
                             "Template '" + template.name() + "' has an invalid pattern '"
                             + regex.pattern() + "': " + e.getMessage(), e);
                 }
+                if (regex.advance() > pattern.groupCount()) {
+                    throw new ConfigException(
+                            "Template '" + template.name() + "' advances to group " + regex.advance()
+                            + ", but its pattern has only " + pattern.groupCount() + " groups");
+                }
+                yield new CompiledMatch.Regex(pattern, regex.advance());
             }
             case MatchExpression.Delimiter delimiter -> new CompiledMatch.Delimiter(
                     encode(delimiter.delimiter(), charset),
@@ -368,9 +437,10 @@ public final class Compiler {
     /**
      * Refuse clearly rather than fail obscurely.
      *
-     * <p>The binary formats are deferred by decision (D33) and progressive matching by phase, and
-     * in both cases a configuration that names them should be told so at compile time — not run
-     * and produce nothing.
+     * <p>The callers are the binary format matches — Avro, Parquet, Protobuf — deferred by
+     * decision (D33), and the compression codecs the JDK does not carry. In both cases a
+     * configuration that names them should be told so at compile time — not run and produce
+     * nothing.
      */
     private static ConfigException notYet(final Template template, final String what) {
         return new ConfigException(

@@ -16,12 +16,14 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
  * The function library: the string operations a configuration can apply to a value.
@@ -110,7 +112,7 @@ public final class Transforms {
         if (inputs.isEmpty()) {
             return null;
         }
-        return String.join("\n", inputs.getFirst().split(java.util.regex.Pattern.quote(delimiter), -1));
+        return String.join("\n", inputs.getFirst().split(Pattern.quote(delimiter), -1));
     }
 
     /**
@@ -156,7 +158,7 @@ public final class Transforms {
 
         int cursor = 0;
         while (cursor <= data.length) {
-            if (!matcher.match(data, cursor, data.length, stroom.shapeshifter.regex.Anchoring.UNANCHORED)) {
+            if (!matcher.match(data, cursor, data.length, Anchoring.UNANCHORED)) {
                 break;
             }
             final int start = matcher.start();

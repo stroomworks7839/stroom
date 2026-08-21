@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * A test on a single character, used by {@link MatchStep.TakeWhile}.
  *
- * <p>Five named predicates cover the common cases; anything else is a {@link Custom} character
+ * <p>Six named predicates cover the common cases; anything else is a {@link Custom} character
  * set written in a small bracket language, {@code [a-zA-Z0-9_.-]}, deliberately close enough to
  * regex character-class syntax to read without explanation.
  */

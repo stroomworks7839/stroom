@@ -19,7 +19,7 @@
  * how it is stored or executed.
  *
  * <p>A plain tree of records and sealed interfaces, deliberately free of framework annotations.
- * Serialisation lives in {@code config.json}; compilation and execution live above it. Keeping
- * the model inert is what lets the format be replaced without the engine noticing.
+ * Serialisation lives in the {@code json} subpackage; compilation and execution live above it.
+ * Keeping the model inert is what lets the format be replaced without the engine noticing.
  */
 package stroom.shapeshifter.engine.config;

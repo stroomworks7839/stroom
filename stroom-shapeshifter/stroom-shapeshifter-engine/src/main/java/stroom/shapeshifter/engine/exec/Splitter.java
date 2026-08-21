@@ -156,7 +156,11 @@ public final class Splitter {
         // A closing quote immediately before the delimiter closes the field. If the bytes there
         // are not the closing quote, fall back to the last one seen — which is how a field like
         // "a","b" still ends where the quoting says it does rather than where the scan stopped.
-        if (containerEnd != null && contentEnd >= containerEnd.length + contentStart) {
+        //
+        // Only a field that opened with the container has a closing quote to trim. An unquoted
+        // field that merely happens to end in the container byte — a"b" — is text, and trimming
+        // it would silently eat a byte the author wrote.
+        if (hasStartContainer && containerEnd != null && contentEnd >= containerEnd.length + contentStart) {
             final int candidate = contentEnd - containerEnd.length;
             if (matchesAt(data, candidate, delimiterPos + containerEnd.length, containerEnd)) {
                 contentEnd = candidate;

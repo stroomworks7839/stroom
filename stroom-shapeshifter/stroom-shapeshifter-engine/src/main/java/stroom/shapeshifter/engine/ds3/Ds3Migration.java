@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine.ds3;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
@@ -34,6 +35,7 @@ import stroom.shapeshifter.engine.config.Template.RegexFlags;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -79,6 +81,7 @@ public final class Ds3Migration {
 
     private final List<Template> templates = new ArrayList<>();
     private int modeCounter;
+    private int variableCounter;
     private int escapeCounter;
 
     private Ds3Migration() {
@@ -100,9 +103,17 @@ public final class Ds3Migration {
                 ? new SourceConfig(document.bufferSize(), document.ignoreErrors(), SourceConfig.AUTO, null)
                 : SourceConfig.defaults();
 
-        for (final Ds3Config child : root.children()) {
+        final List<Ds3Config> rootChildren = root.children();
+        for (int i = 0; i < rootChildren.size(); i++) {
+            final Ds3Config child = rootChildren.get(i);
             if (child.isExpression()) {
-                expression(child, null, true, 0);
+                expression(child, null, true, 0, "dataSplitter/" + kind(child) + "[" + i + "]");
+            } else if (root instanceof Ds3Config.Root) {
+                // Anything else at the root would be dropped, and a dropped element is the
+                // quietly-wrong import this package refuses to be.
+                throw new ConfigException(
+                        "<" + kind(child) + "> is not allowed directly under <dataSplitter>; "
+                        + "only <split>, <regex> and <all> are");
             }
         }
 
@@ -112,9 +123,9 @@ public final class Ds3Migration {
         final List<Template> withModes = templates.stream()
                 .map(template -> template.mode() != null
                         ? template
-                        : new Template(template.id(), template.name(), ROOT_MODE, false, template.guard(),
-                        template.param(), template.match(), template.matchLimits(), template.captures(),
-                        template.body(), template.encoding(), template.ignoreErrors()))
+                        : new Template(template.id(), template.name(), ROOT_MODE, template.consume(),
+                        template.guard(), template.param(), template.match(), template.matchLimits(),
+                        template.captures(), template.body(), template.encoding(), template.ignoreErrors()))
                 .toList();
 
         final List<Template> all = new ArrayList<>();
@@ -126,7 +137,7 @@ public final class Ds3Migration {
     /** The document template: the {@code records:2} wrapper, written once around everything. */
     private static Template envelope() {
         return new Template(
-                UUID.randomUUID(),
+                UUID.nameUUIDFromBytes("ds3:envelope".getBytes(StandardCharsets.UTF_8)),
                 "envelope",
                 null,
                 false,
@@ -156,26 +167,32 @@ public final class Ds3Migration {
      * @param recordWrap  whether a match here is a record, and so needs the {@code <record>}
      *                    wrapper. True at the root and false below it — records do not nest
      * @param dataDepth   how far down the {@code <data>} nesting is, which sets the indentation
+     * @param path        where this node sits in the DS3 tree, for deriving a stable identifier
      */
     private void expression(final Ds3Config node,
                             final String mode,
                             final boolean recordWrap,
-                            final int dataDepth) {
+                            final int dataDepth,
+                            final String path) {
         final List<CaptureBinding> captures = new ArrayList<>();
         final List<OutputNode> body = new ArrayList<>();
 
         // A single unnamed group under an expression adds nothing but a level of nesting, so its
-        // contents are treated as the expression's own.
+        // contents are treated as the expression's own — unless it carries ignoreErrors, which
+        // only survives if the group does.
         List<Ds3Config> children = node.children();
+        String childPath = path;
         if (children.size() == 1
             && children.getFirst() instanceof Ds3Config.Group group
-            && group.value() == null) {
+            && group.value() == null
+            && !group.ignoreErrors()) {
             children = group.children();
+            childPath = path + "/group[0]";
         }
 
         // The expression owns the record wrapper when it has one, so its children never add a
         // second: a group inside a wrapped expression is part of the record, not another record.
-        children(children, captures, body, false, dataDepth);
+        children(children, captures, body, false, dataDepth, childPath);
 
         if (recordWrap) {
             wrapAsRecord(body);
@@ -190,7 +207,7 @@ public final class Ds3Migration {
                 .toList();
 
         templates.add(new Template(
-                identifier(node),
+                identifier(node, path),
                 name(node),
                 mode,
                 false,
@@ -231,21 +248,36 @@ public final class Ds3Migration {
                           final List<CaptureBinding> captures,
                           final List<OutputNode> body,
                           final boolean recordWrap,
-                          final int dataDepth) {
-        for (final Ds3Config child : children) {
+                          final int dataDepth,
+                          final String path) {
+        // Sibling expressions share one mode and one dispatch, as they do at the root and in a
+        // group: DS3 runs them in order against a single cursor over the parent's content, so a
+        // split that consumes the first line leaves the rest to the expression after it. Giving
+        // each sibling its own level would instead rescan the whole content once per sibling,
+        // and every sibling but the first would then accuse the content its predecessor ate.
+        final boolean hasExpression = children.stream().anyMatch(Ds3Config::isExpression);
+        final String subMode = hasExpression ? nextMode() : null;
+        boolean dispatched = false;
+
+        for (int i = 0; i < children.size(); i++) {
+            final Ds3Config child = children.get(i);
+            final String childPath = path + "/" + kind(child) + "[" + i + "]";
             switch (child) {
                 case Ds3Config.Var var -> variable(var, captures, body);
-                case Ds3Config.Data data -> data(data, captures, body, dataDepth);
-                case Ds3Config.Group group -> group(group, captures, body, recordWrap, dataDepth);
+                case Ds3Config.Data data -> data(data, captures, body, dataDepth, childPath);
+                case Ds3Config.Group group ->
+                        group(group, captures, body, recordWrap, dataDepth, childPath);
                 default -> {
                     if (child.isExpression()) {
-                        // A nested expression becomes a template of its own, reached by a mode
-                        // nobody else uses.
-                        final String subMode = nextMode();
-                        expression(child, subMode, false, dataDepth);
-                        body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
-                                RefExpression.group(0), subMode, List.of(),
-                                ApplyDirective.DEFAULT_MAX_DEPTH, null, false, null)));
+                        expression(child, subMode, false, dataDepth, childPath);
+                        if (!dispatched) {
+                            // One dispatch, at the first sibling's position: the level it opens
+                            // is where all of them live.
+                            body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
+                                    RefExpression.group(0), subMode, List.of(),
+                                    ApplyDirective.DEFAULT_MAX_DEPTH, null, false, null)));
+                            dispatched = true;
+                        }
                     }
                 }
             }
@@ -274,7 +306,8 @@ public final class Ds3Migration {
         if (localOnly) {
             captures.add(new CaptureBinding(var.id(), new CaptureSource.Select(reference)));
         } else {
-            body.add(new OutputNode.Variable(var.id(), List.of(new OutputNode.ValueOf(reference))));
+            body.add(new OutputNode.Variable(var.id(),
+                    List.of(new OutputNode.ValueOf(indexed(reference)))));
         }
     }
 
@@ -283,13 +316,15 @@ public final class Ds3Migration {
                        final List<CaptureBinding> captures,
                        final List<OutputNode> body,
                        final boolean recordWrap,
-                       final int dataDepth) {
-        final boolean hasExpression = group.children().stream().anyMatch(Ds3Config::isExpression);
+                       final int dataDepth,
+                       final String path) {
+        final List<Ds3Config> members = group.children();
+        final boolean hasExpression = members.stream().anyMatch(Ds3Config::isExpression);
         if (!hasExpression) {
             if (recordWrap) {
                 body.add(new OutputNode.Text("\n   <record>"));
             }
-            children(group.children(), captures, body, false, dataDepth);
+            children(members, captures, body, false, dataDepth, path);
             if (recordWrap) {
                 body.add(new OutputNode.Text("\n   </record>"));
             }
@@ -297,9 +332,11 @@ public final class Ds3Migration {
         }
 
         final String subMode = nextMode();
-        for (final Ds3Config child : group.children()) {
+        for (int i = 0; i < members.size(); i++) {
+            final Ds3Config child = members.get(i);
             if (child.isExpression()) {
-                expression(child, subMode, false, dataDepth);
+                expression(child, subMode, false, dataDepth,
+                        path + "/" + kind(child) + "[" + i + "]");
             }
         }
 
@@ -312,7 +349,8 @@ public final class Ds3Migration {
         body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
                 group.value() == null ? RefExpression.group(0) : LegacyRefs.parse(group.value()),
                 subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, null, group.ignoreErrors(), null)));
-        for (final Ds3Config child : group.children()) {
+        for (int i = 0; i < members.size(); i++) {
+            final Ds3Config child = members.get(i);
             if (!child.isExpression()) {
                 switch (child) {
                     case Ds3Config.Var var -> {
@@ -320,12 +358,14 @@ public final class Ds3Migration {
                             captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0)));
                         } else {
                             body.add(new OutputNode.Variable(var.id(),
-                                    List.of(new OutputNode.ValueOf(LegacyRefs.parse(var.value())))));
+                                    List.of(new OutputNode.ValueOf(
+                                            indexed(LegacyRefs.parse(var.value()))))));
                         }
                     }
-                    case Ds3Config.Data data -> data(data, captures, body, dataDepth);
-                    case Ds3Config.Group nested ->
-                            children(nested.children(), captures, body, false, dataDepth);
+                    case Ds3Config.Data data -> data(data, captures, body, dataDepth,
+                            path + "/" + kind(child) + "[" + i + "]");
+                    case Ds3Config.Group nested -> group(nested, captures, body, false, dataDepth,
+                            path + "/" + kind(child) + "[" + i + "]");
                     default -> {
                         // Nothing else can appear here.
                     }
@@ -347,10 +387,11 @@ public final class Ds3Migration {
     private void data(final Ds3Config.Data data,
                       final List<CaptureBinding> captures,
                       final List<OutputNode> body,
-                      final int dataDepth) {
+                      final int dataDepth,
+                      final String path) {
         final String indent = " ".repeat(6 + dataDepth * 3);
 
-        if (!data.hasChildren()) {
+        if (data.children().isEmpty()) {
             emitDataTag(dataReference(data, indent, false), body);
             return;
         }
@@ -358,9 +399,9 @@ public final class Ds3Migration {
         final List<OutputNode> openTag = new ArrayList<>();
         emitDataTag(dataReference(data, indent, true), openTag);
 
-        final String childVar = "__data_children_" + modeCounter++ + "__";
+        final String childVar = "__data_children_" + variableCounter++ + "__";
         final List<OutputNode> childBody = new ArrayList<>();
-        children(data.children(), captures, childBody, false, dataDepth + 1);
+        children(data.children(), captures, childBody, false, dataDepth + 1, path);
 
         body.add(new OutputNode.Variable(childVar, childBody));
 
@@ -433,7 +474,12 @@ public final class Ds3Migration {
             return null;
         }
 
-        return new RefExpression(parts.stream().map(Ds3Migration::indexVarReads).toList());
+        return indexed(new RefExpression(parts));
+    }
+
+    /** Apply {@link #indexVarReads} across a whole expression. */
+    private static RefExpression indexed(final RefExpression expression) {
+        return new RefExpression(expression.parts().stream().map(Ds3Migration::indexVarReads).toList());
     }
 
     /**
@@ -498,7 +544,8 @@ public final class Ds3Migration {
     }
 
     private static boolean isReference(final String text) {
-        return text.startsWith("$") || text.startsWith("'");
+        // The same three sigils LegacyRefs.parse() recognises — anything else is a literal.
+        return text.startsWith("$") || text.startsWith("'") || text.startsWith("@");
     }
 
     private static String escapeAttribute(final String text) {
@@ -517,7 +564,9 @@ public final class Ds3Migration {
             case Ds3Config.Split split -> new MatchExpression.Delimiter(
                     split.delimiter(), split.escape(), split.containerStart(), split.containerEnd());
             case Ds3Config.Regex regex -> new MatchExpression.Regex(
-                    regex.pattern(), new RegexFlags(regex.caseInsensitive(), regex.dotAll()), 0);
+                    regex.pattern(),
+                    new RegexFlags(regex.caseInsensitive(), regex.dotAll()),
+                    regex.advance());
             default -> new MatchExpression.All();
         };
     }
@@ -540,7 +589,7 @@ public final class Ds3Migration {
      * counter — a guard.
      */
     private static Condition onlyMatchGuard(final Ds3Config node) {
-        final java.util.Set<Integer> onlyMatch = switch (node) {
+        final Set<Integer> onlyMatch = switch (node) {
             case Ds3Config.Split split -> split.onlyMatch();
             case Ds3Config.Regex regex -> regex.onlyMatch();
             default -> null;
@@ -566,18 +615,32 @@ public final class Ds3Migration {
      *
      * <p>DS3 ids are names, not identifiers, so they are hashed into one deterministically —
      * the same configuration produces the same ids every time, which matters for anything that
-     * records what a template did.
+     * records what a template did. A node with no id gets one from its position in the tree
+     * ({@code dataSplitter/split[0]/regex[1]}), which is just as stable.
      */
-    private static UUID identifier(final Ds3Config node) {
+    private static UUID identifier(final Ds3Config node, final String path) {
         final String id = identifierText(node);
         if (id == null) {
-            return UUID.randomUUID();
+            return UUID.nameUUIDFromBytes(("ds3:" + path).getBytes(StandardCharsets.UTF_8));
         }
         try {
             return UUID.fromString(id);
         } catch (final IllegalArgumentException e) {
             return UUID.nameUUIDFromBytes(id.getBytes(StandardCharsets.UTF_8));
         }
+    }
+
+    /** The DS3 element name for a node, for tree paths and messages. */
+    private static String kind(final Ds3Config node) {
+        return switch (node) {
+            case Ds3Config.Root ignored -> "dataSplitter";
+            case Ds3Config.Split ignored -> "split";
+            case Ds3Config.Regex ignored -> "regex";
+            case Ds3Config.All ignored -> "all";
+            case Ds3Config.Group ignored -> "group";
+            case Ds3Config.Data ignored -> "data";
+            case Ds3Config.Var ignored -> "var";
+        };
     }
 
     private static String identifierText(final Ds3Config node) {

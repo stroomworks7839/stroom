@@ -16,11 +16,11 @@
 
 package stroom.shapeshifter.engine.config;
 
-
 /**
  * A transformation applied to bytes rather than to text.
  *
- * <p>The first four are always available; the rest need a compression library, and are rejected
+ * <p>The first six are carried by the JDK — {@code java.util.zip} covers DEFLATE and GZIP —
+ * and are always available; SNAPPY, ZSTD and LZ4 need a compression library, and are rejected
  * at compile time in builds that do not have one (D33).
  */
 public enum Codec {

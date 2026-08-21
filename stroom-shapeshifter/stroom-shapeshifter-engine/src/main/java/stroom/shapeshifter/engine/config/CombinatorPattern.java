@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.config;
 
-
 import java.util.List;
 import java.util.UUID;
 

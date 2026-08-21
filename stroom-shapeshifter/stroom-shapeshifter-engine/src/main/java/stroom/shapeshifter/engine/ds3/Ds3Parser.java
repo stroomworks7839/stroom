@@ -18,17 +18,17 @@ package stroom.shapeshifter.engine.ds3;
 
 import stroom.shapeshifter.engine.config.ConfigException;
 
+import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -75,66 +75,88 @@ public final class Ds3Parser {
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             document = factory.newDocumentBuilder().parse(source(xml));
-        } catch (final SAXException | IOException | ParserConfigurationException e) {
+        } catch (final ParserConfigurationException e) {
+            throw new ConfigException("The XML parser could not be configured: " + e.getMessage(), e);
+        } catch (final SAXException | IOException e) {
             throw new ConfigException("Configuration is not well-formed XML: " + e.getMessage(), e);
         }
-        return element(document.getDocumentElement());
+        final Element root = document.getDocumentElement();
+        if (!"dataSplitter".equals(localName(root))) {
+            throw new ConfigException(
+                    "The document element must be <dataSplitter>, not <" + localName(root) + ">");
+        }
+        return element(root);
     }
 
     private static InputSource source(final String xml) {
         // A declared encoding is about bytes, and this is already a string; reading it as
         // characters avoids the parser objecting to an encoding it is not being given.
-        final InputSource input = new InputSource(new StringReader(xml));
-        input.setByteStream(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
-        input.setCharacterStream(new StringReader(xml));
-        return input;
+        return new InputSource(new StringReader(xml));
     }
 
     private static Ds3Config element(final Element element) {
         final String name = localName(element);
         return switch (name) {
-            case "dataSplitter" -> new Ds3Config.Root(
-                    bufferSize(element), flag(element, "ignoreErrors"), children(element));
-            case "split" -> new Ds3Config.Split(
-                    attribute(element, "id"),
-                    unescape(required(element, "split", "delimiter")),
-                    unescape(attribute(element, "escape")),
-                    unescape(attribute(element, "containerStart")),
-                    unescape(attribute(element, "containerEnd")),
-                    number(element, "split", "minMatch", 0),
-                    number(element, "split", "maxMatch", -1),
-                    onlyMatch(element),
-                    children(element));
-            case "regex" -> new Ds3Config.Regex(
-                    attribute(element, "id"),
-                    required(element, "regex", "pattern"),
-                    flag(element, "dotAll"),
-                    flag(element, "caseInsensitive"),
-                    number(element, "regex", "minMatch", 0),
-                    number(element, "regex", "maxMatch", -1),
-                    onlyMatch(element),
-                    children(element));
-            case "all" -> new Ds3Config.All(attribute(element, "id"), children(element));
-            case "group" -> new Ds3Config.Group(
-                    attribute(element, "id"),
-                    attribute(element, "value"),
-                    flag(element, "ignoreErrors"),
-                    children(element));
+            case "dataSplitter" -> {
+                // 'version' says which DS3 this is; the format documents it and every real
+                // configuration carries it, so it is read for nothing and accepted.
+                attributes(element, name, Set.of("bufferSize", "ignoreErrors", "version"));
+                yield new Ds3Config.Root(
+                        bufferSize(element), flag(element, "ignoreErrors"), children(element));
+            }
+            case "split" -> {
+                attributes(element, name, Set.of("id", "delimiter", "escape", "containerStart",
+                        "containerEnd", "minMatch", "maxMatch", "onlyMatch"));
+                yield new Ds3Config.Split(
+                        attribute(element, "id"),
+                        unescape(required(element, "split", "delimiter")),
+                        unescape(attribute(element, "escape")),
+                        unescape(attribute(element, "containerStart")),
+                        unescape(attribute(element, "containerEnd")),
+                        number(element, "split", "minMatch", 0),
+                        number(element, "split", "maxMatch", -1),
+                        onlyMatch(element),
+                        children(element));
+            }
+            case "regex" -> {
+                attributes(element, name, Set.of("id", "pattern", "dotAll", "caseInsensitive",
+                        "advance", "minMatch", "maxMatch", "onlyMatch"));
+                yield new Ds3Config.Regex(
+                        attribute(element, "id"),
+                        required(element, "regex", "pattern"),
+                        flag(element, "dotAll"),
+                        flag(element, "caseInsensitive"),
+                        number(element, "regex", "advance", 0),
+                        number(element, "regex", "minMatch", 0),
+                        number(element, "regex", "maxMatch", -1),
+                        onlyMatch(element),
+                        children(element));
+            }
+            case "all" -> {
+                attributes(element, name, Set.of("id"));
+                yield new Ds3Config.All(attribute(element, "id"), children(element));
+            }
+            case "group" -> {
+                attributes(element, name, Set.of("id", "value", "ignoreErrors"));
+                yield new Ds3Config.Group(
+                        attribute(element, "id"),
+                        attribute(element, "value"),
+                        flag(element, "ignoreErrors"),
+                        children(element));
+            }
             case "data" -> {
-                final List<Ds3Config> children = children(element);
-                // The Rust parser distinguishes <data/> from <data></data> by the tag form, which
-                // DOM does not report. It makes no difference to the output: a data element whose
-                // children produce nothing is written self-closed either way. So "has children"
-                // means "has element children", which is the same thing wherever it matters.
+                attributes(element, name, Set.of("id", "name", "value"));
                 yield new Ds3Config.Data(
                         attribute(element, "id"),
                         attribute(element, "name"),
                         attribute(element, "value"),
-                        !children.isEmpty(),
-                        children);
+                        children(element));
             }
-            case "var" -> new Ds3Config.Var(
-                    required(element, "var", "id"), attribute(element, "value"));
+            case "var" -> {
+                attributes(element, name, Set.of("id", "value"));
+                yield new Ds3Config.Var(
+                        required(element, "var", "id"), attribute(element, "value"));
+            }
             default -> throw new ConfigException("Unknown element in configuration: " + name);
         };
     }
@@ -145,6 +167,9 @@ public final class Ds3Parser {
         for (int i = 0; i < nodes.getLength(); i++) {
             final Node node = nodes.item(i);
             if (node.getNodeType() == Node.ELEMENT_NODE) {
+                if ("dataSplitter".equals(localName((Element) node))) {
+                    throw new ConfigException("<dataSplitter> must be the document element");
+                }
                 children.add(element((Element) node));
             }
         }
@@ -163,6 +188,34 @@ public final class Ds3Parser {
         final String tag = element.getTagName();
         final int colon = tag.lastIndexOf(':');
         return colon < 0 ? tag : tag.substring(colon + 1);
+    }
+
+    /**
+     * Refuse any attribute the importer does not know.
+     *
+     * <p>A misspelled attribute — {@code maxmatch} for {@code maxMatch} — would otherwise change
+     * what the configuration does without a word said, which is the quietly-wrong failure this
+     * parser exists to prevent. Namespaced attributes ({@code xmlns}, {@code xsi:schemaLocation})
+     * are XML machinery, not DS3 vocabulary, and pass. {@code matchOrder} is DS3 vocabulary the
+     * import deliberately refuses, and says so by name.
+     */
+    private static void attributes(final Element element, final String owner, final Set<String> known) {
+        final NamedNodeMap all = element.getAttributes();
+        for (int i = 0; i < all.getLength(); i++) {
+            final Attr attr = (Attr) all.item(i);
+            if (attr.getNamespaceURI() != null) {
+                continue;
+            }
+            final String name = attr.getName();
+            if (known.contains(name)) {
+                continue;
+            }
+            if ("matchOrder".equals(name)) {
+                throw new ConfigException("<" + owner + "> attribute 'matchOrder' is not imported; "
+                                          + "the engine's dispatch attribute owns this — see E18/E20");
+            }
+            throw new ConfigException("Unknown attribute '" + name + "' on <" + owner + ">");
+        }
     }
 
     private static String attribute(final Element element, final String name) {
@@ -197,8 +250,18 @@ public final class Ds3Parser {
         }
     }
 
+    /**
+     * The buffer size, positive and capped.
+     *
+     * <p>A non-positive size is a configuration error and refused. A size above
+     * {@link #MAX_BUFFER_SIZE} is silently clamped to it — the ask was legitimate, the engine
+     * just will not allocate that much, and the parser has no channel for warnings.
+     */
     private static int bufferSize(final Element element) {
         final int size = number(element, "dataSplitter", "bufferSize", DEFAULT_BUFFER_SIZE);
+        if (size <= 0) {
+            throw new ConfigException("<dataSplitter> bufferSize must be positive: " + size);
+        }
         return Math.min(size, MAX_BUFFER_SIZE);
     }
 

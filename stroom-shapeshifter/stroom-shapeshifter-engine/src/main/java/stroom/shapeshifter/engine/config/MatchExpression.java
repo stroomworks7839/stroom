@@ -32,15 +32,20 @@ public sealed interface MatchExpression {
     /**
      * A regex, producing capture groups {@code $0}..{@code $N}.
      *
-     * @param pattern the pattern, in the dialect of Rust's {@code regex} crate
+     * @param pattern the pattern, in {@link stroom.shapeshifter.regex.BytePattern}'s dialect
      * @param flags   case and dot-all handling
      * @param advance where the cursor lands after a match: 0 for the end of the whole match, or
-     *                {@code N} for the end of group {@code N}
+     *                {@code N} for the end of group {@code N}. A group that did not participate
+     *                in the match cannot place the cursor, so the match falls back to consuming
+     *                to the end of the whole match
      */
     record Regex(String pattern, RegexFlags flags, int advance) implements MatchExpression {
 
         public Regex {
             flags = flags == null ? RegexFlags.none() : flags;
+            if (advance < 0) {
+                throw new ConfigException("A regex advance cannot be negative: " + advance);
+            }
         }
     }
 

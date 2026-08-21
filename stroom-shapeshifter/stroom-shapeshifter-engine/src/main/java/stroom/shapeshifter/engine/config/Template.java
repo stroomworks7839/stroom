@@ -35,6 +35,9 @@ import java.util.UUID;
  * @param id           a stable identifier, referenced by capture bindings and instrumentation
  * @param name         a human-readable name, used in messages
  * @param mode         the dispatch partition, or null to be a candidate in every dispatch
+ * @param consume      this template's matches exist to advance the cursor, not to count
+ *                     (D36): an eater. Its wins move no match number, bind no captures —
+ *                     declaring any is a compile-time error — and trip no store clearing
  * @param guard        a pre-filter over scope, or null
  * @param param        parameters this template expects from its callers
  * @param match        how this template matches content
@@ -42,10 +45,10 @@ import java.util.UUID;
  * @param captures     bindings from match groups or steps to named scope variables
  * @param body         the output instructions, executed once per match
  * @param encoding     an encoding override for this template, or null to inherit
- * @param ignoreErrors suppress warnings about unconsumed content and match gaps
- * @param consume      this template's matches exist to advance the cursor, not to count
- *                     (D36): an eater. Its wins move no match number, bind no captures —
- *                     declaring any is a compile-time error — and trip no store clearing
+ * @param ignoreErrors suppress the report a match draws when it starts past the cursor and
+ *                     consumes the skipped prefix. That is all it gates: unmatched-content
+ *                     reporting belongs to the container that dispatched the level, through
+ *                     {@link OutputNode.ApplyDirective#ignoreErrors()}
  */
 public record Template(UUID id,
                        String name,
@@ -91,6 +94,19 @@ public record Template(UUID id,
 
         public MatchLimits {
             onlyMatch = onlyMatch == null ? null : Set.copyOf(onlyMatch);
+            if (minMatch < 0) {
+                throw new ConfigException("A minMatch cannot be negative: " + minMatch);
+            }
+            if (maxMatch < UNLIMITED) {
+                throw new ConfigException("A maxMatch must be a count, or -1 for unlimited: " + maxMatch);
+            }
+            if (onlyMatch != null) {
+                for (final Integer index : onlyMatch) {
+                    if (index < 1) {
+                        throw new ConfigException("An onlyMatch index is 1-based: " + index);
+                    }
+                }
+            }
         }
 
         /** No minimum, no maximum, every match producing output. */
@@ -103,7 +119,8 @@ public record Template(UUID id,
      * Flags on a regex match.
      *
      * <p>Only two, because the rest of the dialect's flags are spelled inline. Multiline in
-     * particular is {@code (?m)} in the pattern, matching Rust's {@code regex} crate.
+     * particular is {@code (?m)} in the pattern, as
+     * {@link stroom.shapeshifter.regex.BytePattern}'s dialect spells it.
      *
      * @param caseInsensitive fold case when matching
      * @param dotAll          let {@code .} match a newline

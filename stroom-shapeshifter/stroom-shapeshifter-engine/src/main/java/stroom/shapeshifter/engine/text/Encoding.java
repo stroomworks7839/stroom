@@ -82,7 +82,7 @@ public enum Encoding {
     WINDOWS_1255("windows-1255", "windows-1255"),
 
     /** Shift JIS — Japanese. */
-    SHIFT_JIS("shift_jis", "Shift_JIS", "windows-31j"),
+    SHIFT_JIS("shift_jis", "Shift_JIS"),
     /** EUC-JP — Japanese. */
     EUC_JP("euc-jp", "EUC-JP"),
     /** ISO-2022-JP — Japanese, as used in mail. */
@@ -99,7 +99,7 @@ public enum Encoding {
     /** US-ASCII. Anything above 0x7F is not text. */
     ASCII("us-ascii", "US-ASCII"),
     /** Windows-874 — Thai. */
-    WINDOWS_874("windows-874", "x-windows-874", "windows-874", "TIS-620"),
+    WINDOWS_874("windows-874", "x-windows-874", "windows-874"),
     /** Windows-1258 — Vietnamese. */
     WINDOWS_1258("windows-1258", "x-windows-1258", "windows-1258"),
 
@@ -163,11 +163,13 @@ public enum Encoding {
      * The JDK charset behind this encoding, or null if it has none ({@link #RAW}, {@link #AUTO})
      * or this runtime supports none of its names.
      *
-     * <p>Where an encoding lists more than one name, the later names are fallbacks for slimmer
-     * runtimes, and they are approximations, not equivalents — windows-31j differs from
-     * Shift_JIS on the vendor extension rows, and TIS-620 lacks windows-874's 0x80–0x9F
-     * assignments. A full JDK always resolves the first name; the trade is recorded in
-     * ISSUES.md (E22).
+     * <p>Where an encoding lists more than one name they are alternative spellings of the same
+     * charset, tried in order because runtimes differ over which spelling is canonical. None of
+     * them is an approximation of another: an encoding decodes exactly what it says it does, or
+     * this runtime does not have it and the configuration naming it is refused at compile time
+     * (E22). Substituting a near neighbour — windows-31j for Shift_JIS, TIS-620 for
+     * windows-874 — would decode the vendor rows differently with nothing said, and a wrong
+     * character is worse than a refusal that names the problem.
      */
     public Charset charset() {
         return charset;

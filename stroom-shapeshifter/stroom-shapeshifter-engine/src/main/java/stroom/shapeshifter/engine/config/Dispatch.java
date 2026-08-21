@@ -18,7 +18,7 @@ package stroom.shapeshifter.engine.config;
 
 /**
  * How a level's templates are dispatched against its content — D36's named points in the
- * unbundled control-flow space ([design/11-strict-dispatch.md]). Chosen per apply site, with
+ * unbundled control-flow space (design/11-strict-dispatch.md). Chosen per apply site, with
  * a source-level default; when nothing says otherwise, a configuration's version decides:
  * version 4 and later default {@link #STRICT}, earlier versions — the migrated DS3 era —
  * default {@link #LAX}, which is how "migration marks migrated configurations lax" is spelt
@@ -39,8 +39,12 @@ public enum Dispatch {
     LAX,
 
     /**
-     * DS3's {@code matchOrder="any"}: search, excising the matched span. Not yet
-     * implemented — E18.
+     * DS3's {@code matchOrder="any"}: templates search a working copy of the content, and each
+     * match's span is excised — the matched bytes leave and the pieces close up before the next
+     * pass. List priority beats data position: the first template in order that matches
+     * anywhere wins, however far into the content its match lies. After the first excision,
+     * offsets in the working copy no longer correspond to the input, so match attribution goes
+     * dark from there on.
      */
     ANY,
 

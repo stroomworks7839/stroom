@@ -16,8 +16,9 @@
 
 package stroom.shapeshifter.engine.config;
 
+import stroom.shapeshifter.engine.Severity;
+
 import java.util.List;
-import java.util.Map;
 
 /**
  * One instruction in a template's body.
@@ -36,10 +37,9 @@ public sealed interface OutputNode {
     /**
      * Emit a message into the run's message stream, as {@code value-of} emits into output —
      * authored diagnostics for paths the author can name, like the cautionary eater (D36).
-     * A {@link stroom.shapeshifter.engine.Severity#FATAL} emission aborts the run.
+     * A {@link Severity#FATAL} emission aborts the run.
      */
-    record EmitError(stroom.shapeshifter.engine.Severity severity,
-                     RefExpression message) implements OutputNode {
+    record EmitError(Severity severity, RefExpression message) implements OutputNode {
 
     }
 
@@ -129,7 +129,12 @@ public sealed interface OutputNode {
     // Transform functions
     // -----------------------------------------------------------------------------------
 
-    /** Substitute characters one for one. XSLT: {@code translate()}. */
+    /**
+     * Substitute substrings, one search string at a time, in order: each {@code from} entry is
+     * replaced throughout by the {@code to} entry at the same index, or deleted when {@code to}
+     * has no entry there. Whole substrings, not characters — this is <i>not</i> XSLT's
+     * {@code translate()}, whose arguments are parallel character sets.
+     */
     record Translate(List<RefExpression> select,
                      List<String> from,
                      List<String> to,
@@ -291,11 +296,9 @@ public sealed interface OutputNode {
 
         public ApplyDirective {
             withParam = withParam == null ? List.of() : List.copyOf(withParam);
+            if (maxDepth <= 0) {
+                throw new ConfigException("A max depth must be positive: " + maxDepth);
+            }
         }
-    }
-
-    /** Convenience for the common shape of a parameter list. */
-    static List<Param> params(final Map<String, RefExpression> values) {
-        return values.entrySet().stream().map(e -> new Param(e.getKey(), e.getValue())).toList();
     }
 }

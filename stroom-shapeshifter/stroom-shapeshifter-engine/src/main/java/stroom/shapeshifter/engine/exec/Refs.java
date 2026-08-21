@@ -205,6 +205,9 @@ public final class Refs {
                     }
                 }
             }
+            // The first match — the conservative read when the index variable is absent or
+            // holds nothing numeric. Match indexes count from one, so 1 is the earliest value
+            // a store can hold.
             return 1;
         }
         if (matchIndex.isLast()) {

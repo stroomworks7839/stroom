@@ -16,8 +16,7 @@
 
 package stroom.shapeshifter.engine.config;
 
-
-/** Byte order for multi-byte numbers. Network order is the default, as it is on the wire. */
+/** Byte order for multi-byte numbers. */
 public enum Endianness {
 
     /** Most significant byte first. */

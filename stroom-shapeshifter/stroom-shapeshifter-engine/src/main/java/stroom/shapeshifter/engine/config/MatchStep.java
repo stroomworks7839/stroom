@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.config;
 
 import stroom.shapeshifter.engine.config.Template.RegexFlags;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -46,20 +47,29 @@ public sealed interface MatchStep {
     /** Match an exact sequence of bytes. */
     record MatchByte(byte[] value) implements MatchStep {
 
+        public MatchByte {
+            value = value.clone();
+        }
+
+        @Override
+        public byte[] value() {
+            return value.clone();
+        }
+
         @Override
         public boolean equals(final Object other) {
             return other instanceof MatchByte matchByte
-                   && java.util.Arrays.equals(value, matchByte.value);
+                   && Arrays.equals(value, matchByte.value);
         }
 
         @Override
         public int hashCode() {
-            return java.util.Arrays.hashCode(value);
+            return Arrays.hashCode(value);
         }
 
         @Override
         public String toString() {
-            return "MatchByte[" + java.util.Arrays.toString(value) + "]";
+            return "MatchByte[" + Arrays.toString(value) + "]";
         }
     }
 
@@ -86,6 +96,11 @@ public sealed interface MatchStep {
     /** Take exactly this many characters, which is encoding-dependent. */
     record TakeN(int count) implements MatchStep {
 
+        public TakeN {
+            if (count < 0) {
+                throw new ConfigException("A TakeN count cannot be negative: " + count);
+            }
+        }
     }
 
     /** Consume one character. */
@@ -98,7 +113,8 @@ public sealed interface MatchStep {
      *
      * @param numericType the width and kind
      * @param signed      whether to interpret the high bit as a sign
-     * @param endian      the byte order
+     * @param endian      the byte order; null means network order (big-endian), as it is on
+     *                    the wire
      */
     record ReadNumeric(NumericType numericType, boolean signed, Endianness endian) implements MatchStep {
 
@@ -198,6 +214,13 @@ public sealed interface MatchStep {
 
         public Repeat {
             steps = steps == null ? List.of() : List.copyOf(steps);
+            if (min < 0) {
+                throw new ConfigException("A Repeat minimum cannot be negative: " + min);
+            }
+            if (max != null && max < min) {
+                throw new ConfigException(
+                        "A Repeat maximum cannot be less than its minimum: " + max + " < " + min);
+            }
         }
     }
 

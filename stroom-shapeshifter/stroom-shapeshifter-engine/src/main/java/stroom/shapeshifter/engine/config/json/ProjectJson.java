@@ -16,12 +16,14 @@
 
 package stroom.shapeshifter.engine.config.json;
 
+import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.CombinatorPattern;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.Endianness;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.MatchStep;
@@ -95,11 +97,11 @@ public final class ProjectJson {
         expectObject(node, "project");
         checkFields(node, "project", "name", "version", "source", "templates", "patterns");
         return new Project(
-                text(node, "name"),
-                node.path("version").asInt(),
+                text(node, "name", "project"),
+                required(node, "version", "project").asInt(),
                 node.has("source") ? readSource(node.get("source")) : SourceConfig.defaults(),
-                list(node.get("templates"), ProjectJson::readTemplate),
-                list(node.get("patterns"), ProjectJson::readPattern));
+                list(node.get("templates"), "templates", ProjectJson::readTemplate),
+                list(node.get("patterns"), "patterns", ProjectJson::readPattern));
     }
 
     /** Write a whole configuration. */
@@ -125,23 +127,21 @@ public final class ProjectJson {
     }
 
     /** The dispatch mode, spelt lowercase, or null to inherit (D36). */
-    private static stroom.shapeshifter.engine.config.Dispatch readDispatch(final JsonNode node) {
+    private static Dispatch readDispatch(final JsonNode node) {
         if (!node.has("dispatch")) {
             return null;
         }
         final String text = node.get("dispatch").asString();
         try {
-            return stroom.shapeshifter.engine.config.Dispatch.valueOf(
-                    text.toUpperCase(java.util.Locale.ROOT));
+            return Dispatch.valueOf(text.toUpperCase(Locale.ROOT));
         } catch (final IllegalArgumentException e) {
             throw new ConfigException("Unknown dispatch mode: " + text);
         }
     }
 
-    private static void writeDispatch(final ObjectNode node,
-                                      final stroom.shapeshifter.engine.config.Dispatch dispatch) {
+    private static void writeDispatch(final ObjectNode node, final Dispatch dispatch) {
         if (dispatch != null) {
-            node.put("dispatch", dispatch.name().toLowerCase(java.util.Locale.ROOT));
+            node.put("dispatch", dispatch.name().toLowerCase(Locale.ROOT));
         }
     }
 
@@ -157,7 +157,9 @@ public final class ProjectJson {
     private static CombinatorPattern readPattern(final JsonNode node) {
         checkFields(node, "pattern", "id", "name", "steps");
         return new CombinatorPattern(
-                uuid(node, "id"), text(node, "name"), list(node.get("steps"), ProjectJson::readStep));
+                uuid(node, "id", "pattern"),
+                text(node, "name", "pattern"),
+                list(node.get("steps"), "steps", ProjectJson::readStep));
     }
 
     private static ObjectNode writePattern(final CombinatorPattern pattern) {
@@ -176,16 +178,16 @@ public final class ProjectJson {
         checkFields(node, "template", "id", "name", "mode", "guard", "param", "match",
                 "match_limits", "captures", "body", "encoding", "ignore_errors", "consume");
         return new Template(
-                uuid(node, "id"),
-                text(node, "name"),
+                uuid(node, "id", "template"),
+                text(node, "name", "template"),
                 optionalText(node, "mode"),
                 node.path("consume").asBoolean(false),
                 node.has("guard") ? readCondition(node.get("guard")) : null,
-                list(node.get("param"), ProjectJson::readParamDecl),
+                list(node.get("param"), "param", ProjectJson::readParamDecl),
                 readMatch(required(node, "match", "template")),
                 node.has("match_limits") ? readMatchLimits(node.get("match_limits")) : MatchLimits.unlimited(),
-                list(node.get("captures"), ProjectJson::readCapture),
-                list(node.get("body"), ProjectJson::readOutput),
+                list(node.get("captures"), "captures", ProjectJson::readCapture),
+                list(node.get("body"), "body", ProjectJson::readOutput),
                 optionalText(node, "encoding"),
                 node.path("ignore_errors").asBoolean(false));
     }
@@ -221,7 +223,7 @@ public final class ProjectJson {
 
     private static ParamDecl readParamDecl(final JsonNode node) {
         checkFields(node, "param", "name", "default");
-        return new ParamDecl(text(node, "name"), optionalText(node, "default"));
+        return new ParamDecl(text(node, "name", "param"), optionalText(node, "default"));
     }
 
     private static ObjectNode writeParamDecl(final ParamDecl param) {
@@ -284,32 +286,43 @@ public final class ProjectJson {
             case "regex" -> {
                 checkFields(body, "regex", "pattern", "flags", "advance");
                 yield new MatchExpression.Regex(
-                        text(body, "pattern"), readFlags(body.get("flags")), body.path("advance").asInt(0));
+                        text(body, "pattern", "regex"), readFlags(body.get("flags")),
+                        body.path("advance").asInt(0));
             }
             case "delimiter" -> {
                 checkFields(body, "delimiter", "delimiter", "escape", "container_start", "container_end");
                 yield new MatchExpression.Delimiter(
-                        text(body, "delimiter"),
+                        text(body, "delimiter", "delimiter"),
                         optionalText(body, "escape"),
                         optionalText(body, "container_start"),
                         optionalText(body, "container_end"));
             }
-            case "progressive" -> new MatchExpression.Progressive(list(body, ProjectJson::readStep));
-            case "source" -> new MatchExpression.Source();
-            case "all" -> new MatchExpression.All();
-            case "named" -> new MatchExpression.Named();
+            case "progressive" -> new MatchExpression.Progressive(
+                    list(body, "progressive", ProjectJson::readStep));
+            case "source" -> {
+                checkFields(body, "source");
+                yield new MatchExpression.Source();
+            }
+            case "all" -> {
+                checkFields(body, "all");
+                yield new MatchExpression.All();
+            }
+            case "named" -> {
+                checkFields(body, "named");
+                yield new MatchExpression.Named();
+            }
             case "avro" -> {
                 checkFields(body, "avro", "schema");
                 yield new MatchExpression.Avro(optionalText(body, "schema"));
             }
             case "parquet" -> {
                 checkFields(body, "parquet", "columns");
-                yield new MatchExpression.Parquet(list(body.get("columns"), JsonNode::asString));
+                yield new MatchExpression.Parquet(list(body.get("columns"), "columns", JsonNode::asString));
             }
             case "protobuf" -> {
                 checkFields(body, "protobuf", "descriptor_path", "message_type");
                 yield new MatchExpression.Protobuf(
-                        text(body, "descriptor_path"), text(body, "message_type"));
+                        text(body, "descriptor_path", "protobuf"), text(body, "message_type", "protobuf"));
             }
             default -> throw new ConfigException("Unknown match expression: " + tagged.name());
         };
@@ -371,68 +384,85 @@ public final class ProjectJson {
             case "MatchByte" -> {
                 final byte[] value = new byte[body.size()];
                 for (int i = 0; i < value.length; i++) {
-                    value[i] = (byte) body.get(i).asInt();
+                    final int b = body.get(i).asInt();
+                    if (b < 0 || b > 255) {
+                        throw new ConfigException("A MatchByte value must be 0-255, but was " + b);
+                    }
+                    value[i] = (byte) b;
                 }
                 yield new MatchStep.MatchByte(value);
             }
             case "TakeWhile" -> new MatchStep.TakeWhile(readPredicate(body));
             case "TakeUntil" -> {
                 checkFields(body, "TakeUntil", "pattern", "inclusive");
-                yield new MatchStep.TakeUntil(text(body, "pattern"), body.path("inclusive").asBoolean(false));
+                yield new MatchStep.TakeUntil(
+                        text(body, "pattern", "TakeUntil"), body.path("inclusive").asBoolean(false));
             }
             case "TakeBytes" -> new MatchStep.TakeBytes(readStepRef(body));
             case "TakeN" -> new MatchStep.TakeN(body.asInt());
-            case "AnyChar" -> new MatchStep.AnyChar();
+            case "AnyChar" -> {
+                checkFields(body, "AnyChar");
+                yield new MatchStep.AnyChar();
+            }
             case "ReadNumeric" -> {
                 checkFields(body, "ReadNumeric", "numeric_type", "signed", "endian");
                 yield new MatchStep.ReadNumeric(
-                        constant(NumericType.class, text(body, "numeric_type")),
+                        constant(NumericType.class, text(body, "numeric_type", "ReadNumeric")),
                         body.path("signed").asBoolean(false),
                         body.has("endian")
                                 ? constant(Endianness.class, body.get("endian").asString())
                                 : Endianness.BIG);
             }
-            case "ReadVarint" -> new MatchStep.ReadVarint();
-            case "ReadVarintZigZag" -> new MatchStep.ReadVarintZigZag();
+            case "ReadVarint" -> {
+                checkFields(body, "ReadVarint");
+                yield new MatchStep.ReadVarint();
+            }
+            case "ReadVarintZigZag" -> {
+                checkFields(body, "ReadVarintZigZag");
+                yield new MatchStep.ReadVarintZigZag();
+            }
             case "Seek" -> new MatchStep.Seek(readStepRef(body));
             case "SeekAbs" -> new MatchStep.SeekAbs(readStepRef(body));
             case "SeekBack" -> new MatchStep.SeekBack(readStepRef(body));
-            case "Tell" -> new MatchStep.Tell();
+            case "Tell" -> {
+                checkFields(body, "Tell");
+                yield new MatchStep.Tell();
+            }
             case "Decode" -> {
                 checkFields(body, "Decode", "data", "codec");
                 yield new MatchStep.Decode(
                         readStepRef(required(body, "data", "Decode")),
-                        constant(Codec.class, text(body, "codec")));
+                        constant(Codec.class, text(body, "codec", "Decode")));
             }
             case "Encode" -> {
                 checkFields(body, "Encode", "data", "codec");
                 yield new MatchStep.Encode(
                         readStepRef(required(body, "data", "Encode")),
-                        constant(Codec.class, text(body, "codec")));
+                        constant(Codec.class, text(body, "codec", "Encode")));
             }
             case "Regex" -> {
                 checkFields(body, "Regex", "pattern", "flags");
-                yield new MatchStep.Regex(text(body, "pattern"), readFlags(body.get("flags")));
+                yield new MatchStep.Regex(text(body, "pattern", "Regex"), readFlags(body.get("flags")));
             }
             case "Choice" -> {
                 final List<List<MatchStep>> alternatives = new ArrayList<>();
                 for (final JsonNode alternative : body) {
-                    alternatives.add(list(alternative, ProjectJson::readStep));
+                    alternatives.add(list(alternative, "Choice alternative", ProjectJson::readStep));
                 }
                 yield new MatchStep.Choice(alternatives);
             }
-            case "Optional" -> new MatchStep.Optional(list(body, ProjectJson::readStep));
+            case "Optional" -> new MatchStep.Optional(list(body, "Optional", ProjectJson::readStep));
             case "Repeat" -> {
                 checkFields(body, "Repeat", "steps", "min", "max");
                 yield new MatchStep.Repeat(
-                        list(body.get("steps"), ProjectJson::readStep),
+                        list(body.get("steps"), "steps", ProjectJson::readStep),
                         body.path("min").asInt(0),
                         body.has("max") && !body.get("max").isNull() ? body.get("max").asInt() : null);
             }
-            case "Sequence" -> new MatchStep.Sequence(list(body, ProjectJson::readStep));
+            case "Sequence" -> new MatchStep.Sequence(list(body, "Sequence", ProjectJson::readStep));
             case "PatternRef" -> new MatchStep.PatternRef(UUID.fromString(body.asString()));
-            case "Peek" -> new MatchStep.Peek(list(body, ProjectJson::readStep));
-            case "Not" -> new MatchStep.Not(list(body, ProjectJson::readStep));
+            case "Peek" -> new MatchStep.Peek(list(body, "Peek", ProjectJson::readStep));
+            case "Not" -> new MatchStep.Not(list(body, "Not", ProjectJson::readStep));
             default -> throw new ConfigException("Unknown match step: " + tagged.name());
         };
     }
@@ -533,12 +563,30 @@ public final class ProjectJson {
     private static Predicate readPredicate(final JsonNode node) {
         final Tagged tagged = tag(node, "predicate");
         return switch (tagged.name()) {
-            case "Alphabetic" -> new Predicate.Alphabetic();
-            case "Alphanumeric" -> new Predicate.Alphanumeric();
-            case "Numeric" -> new Predicate.Numeric();
-            case "Whitespace" -> new Predicate.Whitespace();
-            case "NonWhitespace" -> new Predicate.NonWhitespace();
-            case "Any" -> new Predicate.Any();
+            case "Alphabetic" -> {
+                checkFields(tagged.body(), "Alphabetic");
+                yield new Predicate.Alphabetic();
+            }
+            case "Alphanumeric" -> {
+                checkFields(tagged.body(), "Alphanumeric");
+                yield new Predicate.Alphanumeric();
+            }
+            case "Numeric" -> {
+                checkFields(tagged.body(), "Numeric");
+                yield new Predicate.Numeric();
+            }
+            case "Whitespace" -> {
+                checkFields(tagged.body(), "Whitespace");
+                yield new Predicate.Whitespace();
+            }
+            case "NonWhitespace" -> {
+                checkFields(tagged.body(), "NonWhitespace");
+                yield new Predicate.NonWhitespace();
+            }
+            case "Any" -> {
+                checkFields(tagged.body(), "Any");
+                yield new Predicate.Any();
+            }
             case "Custom" -> new Predicate.Custom(readCharSet(tagged.body()));
             default -> throw new ConfigException("Unknown predicate: " + tagged.name());
         };
@@ -560,13 +608,30 @@ public final class ProjectJson {
         checkFields(node, "charset", "expression", "chars", "ranges", "negated");
         final List<Character> chars = new ArrayList<>();
         for (final JsonNode ch : node.path("chars")) {
-            chars.add(ch.asString().charAt(0));
+            chars.add(character(ch));
         }
         final List<CharSet.Range> ranges = new ArrayList<>();
         for (final JsonNode range : node.path("ranges")) {
-            ranges.add(new CharSet.Range(range.get(0).asString().charAt(0), range.get(1).asString().charAt(0)));
+            if (!range.isArray() || range.size() != 2) {
+                throw new ConfigException("A charset range must be a [from, to] pair");
+            }
+            ranges.add(new CharSet.Range(character(range.get(0)), character(range.get(1))));
         }
-        return new CharSet(text(node, "expression"), chars, ranges, node.path("negated").asBoolean(false));
+        return new CharSet(text(node, "expression", "charset"), chars, ranges,
+                node.path("negated").asBoolean(false));
+    }
+
+    /**
+     * One character of a charset — exactly one. A supplementary character is two UTF-16 units,
+     * which the model's {@code char} cannot carry, and truncating it to its high surrogate would
+     * match something the author never wrote.
+     */
+    private static char character(final JsonNode node) {
+        final String value = node.asString();
+        if (value.length() != 1) {
+            throw new ConfigException("A charset entry must be a single character, but was '" + value + "'");
+        }
+        return value.charAt(0);
     }
 
     private static ObjectNode writeCharSet(final CharSet charSet) {
@@ -590,7 +655,8 @@ public final class ProjectJson {
 
     private static CaptureBinding readCapture(final JsonNode node) {
         checkFields(node, "capture", "name", "select");
-        return new CaptureBinding(text(node, "name"), readCaptureSource(required(node, "select", "capture")));
+        return new CaptureBinding(
+                text(node, "name", "capture"), readCaptureSource(required(node, "select", "capture")));
     }
 
     private static ObjectNode writeCapture(final CaptureBinding capture) {
@@ -639,7 +705,7 @@ public final class ProjectJson {
 
     private static RefExpression readRef(final JsonNode node) {
         checkFields(node, "reference", "parts");
-        return new RefExpression(list(node.get("parts"), ProjectJson::readRefPart));
+        return new RefExpression(list(node.get("parts"), "parts", ProjectJson::readRefPart));
     }
 
     private static ObjectNode writeRef(final RefExpression ref) {
@@ -712,11 +778,13 @@ public final class ProjectJson {
         return switch (tagged.name()) {
             case "equals" -> {
                 checkFields(body, "equals", "select", "value");
-                yield new Condition.Equals(readRef(required(body, "select", "equals")), text(body, "value"));
+                yield new Condition.Equals(
+                        readRef(required(body, "select", "equals")), text(body, "value", "equals"));
             }
             case "not-equals" -> {
                 checkFields(body, "not-equals", "select", "value");
-                yield new Condition.NotEquals(readRef(required(body, "select", "not-equals")), text(body, "value"));
+                yield new Condition.NotEquals(
+                        readRef(required(body, "select", "not-equals")), text(body, "value", "not-equals"));
             }
             case "ref-equals" -> {
                 checkFields(body, "ref-equals", "left", "right");
@@ -725,31 +793,34 @@ public final class ProjectJson {
                         readRef(required(body, "right", "ref-equals")));
             }
             case "matches" -> {
-                checkFields(body, "matches", "select", "pattern", "compiled_idx");
-                yield new Condition.Matches(readRef(required(body, "select", "matches")), text(body, "pattern"));
+                checkFields(body, "matches", "select", "pattern");
+                yield new Condition.Matches(
+                        readRef(required(body, "select", "matches")), text(body, "pattern", "matches"));
             }
             case "contains" -> {
                 checkFields(body, "contains", "select", "substring");
                 yield new Condition.Contains(
-                        readRef(required(body, "select", "contains")), text(body, "substring"));
+                        readRef(required(body, "select", "contains")), text(body, "substring", "contains"));
             }
             case "starts-with" -> {
                 checkFields(body, "starts-with", "select", "prefix");
                 yield new Condition.StartsWith(
-                        readRef(required(body, "select", "starts-with")), text(body, "prefix"));
+                        readRef(required(body, "select", "starts-with")), text(body, "prefix", "starts-with"));
             }
             case "greater-than" -> {
                 checkFields(body, "greater-than", "select", "value");
                 yield new Condition.GreaterThan(
-                        readRef(required(body, "select", "greater-than")), body.path("value").asDouble());
+                        readRef(required(body, "select", "greater-than")),
+                        required(body, "value", "greater-than").asDouble());
             }
             case "less-than" -> {
                 checkFields(body, "less-than", "select", "value");
                 yield new Condition.LessThan(
-                        readRef(required(body, "select", "less-than")), body.path("value").asDouble());
+                        readRef(required(body, "select", "less-than")),
+                        required(body, "value", "less-than").asDouble());
             }
-            case "and" -> new Condition.And(list(body, ProjectJson::readCondition));
-            case "or" -> new Condition.Or(list(body, ProjectJson::readCondition));
+            case "and" -> new Condition.And(list(body, "and", ProjectJson::readCondition));
+            case "or" -> new Condition.Or(list(body, "or", ProjectJson::readCondition));
             case "not" -> new Condition.Not(readCondition(body));
             case "exists" -> {
                 checkFields(body, "exists", "select");
@@ -818,29 +889,29 @@ public final class ProjectJson {
             case "if" -> {
                 checkFields(body, "if", "test", "then");
                 yield new OutputNode.If(
-                        readCondition(required(body, "test", "if")), list(body.get("then"), ProjectJson::readOutput));
+                        readCondition(required(body, "test", "if")),
+                        list(body.get("then"), "then", ProjectJson::readOutput));
             }
             case "choose" -> {
                 checkFields(body, "choose", "when", "otherwise");
                 yield new OutputNode.Choose(
-                        list(body.get("when"), ProjectJson::readWhen),
-                        list(body.get("otherwise"), ProjectJson::readOutput));
+                        list(body.get("when"), "when", ProjectJson::readWhen),
+                        list(body.get("otherwise"), "otherwise", ProjectJson::readOutput));
             }
             case "switch" -> {
                 checkFields(body, "switch", "select", "cases", "default");
                 yield new OutputNode.Switch(
                         readRef(required(body, "select", "switch")),
-                        list(body.get("cases"), ProjectJson::readCase),
-                        list(body.get("default"), ProjectJson::readOutput));
+                        list(body.get("cases"), "cases", ProjectJson::readCase),
+                        list(body.get("default"), "default", ProjectJson::readOutput));
             }
             case "apply-templates" -> new OutputNode.ApplyTemplates(readApply(body));
             case "emit-error" -> {
                 checkFields(body, "emit-error", "severity", "message");
-                final String severity = text(body, "severity");
+                final String severity = text(body, "severity", "emit-error");
                 try {
                     yield new OutputNode.EmitError(
-                            stroom.shapeshifter.engine.Severity.valueOf(
-                                    severity.toUpperCase(java.util.Locale.ROOT)),
+                            Severity.valueOf(severity.toUpperCase(Locale.ROOT)),
                             readRef(required(body, "message", "emit-error")));
                 } catch (final IllegalArgumentException e) {
                     throw new ConfigException("Unknown emit-error severity: " + severity);
@@ -849,42 +920,43 @@ public final class ProjectJson {
             case "call-template" -> {
                 checkFields(body, "call-template", "name", "with-param");
                 yield new OutputNode.CallTemplate(
-                        text(body, "name"), list(body.get("with-param"), ProjectJson::readParam));
+                        text(body, "name", "call-template"),
+                        list(body.get("with-param"), "with-param", ProjectJson::readParam));
             }
             case "variable" -> {
                 checkFields(body, "variable", "name", "body");
-                yield new OutputNode.Variable(text(body, "name"), list(body.get("body"), ProjectJson::readOutput));
+                yield new OutputNode.Variable(
+                        text(body, "name", "variable"), list(body.get("body"), "body", ProjectJson::readOutput));
             }
             case "value-map" -> {
                 checkFields(body, "value-map", "select", "entries", "default", "name");
                 yield new OutputNode.ValueMap(
                         readRef(required(body, "select", "value-map")),
-                        list(body.get("entries"), ProjectJson::readEntry),
+                        list(body.get("entries"), "entries", ProjectJson::readEntry),
                         optionalText(body, "default"),
                         optionalText(body, "name"));
             }
             case "translate" -> {
                 checkFields(body, "translate", "select", "from", "to", "name");
                 yield new OutputNode.Translate(
-                        list(body.get("select"), ProjectJson::readRef),
-                        list(body.get("from"), JsonNode::asString),
-                        list(body.get("to"), JsonNode::asString),
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        list(body.get("from"), "from", JsonNode::asString),
+                        list(body.get("to"), "to", JsonNode::asString),
                         optionalText(body, "name"));
             }
             case "string-join" -> {
                 checkFields(body, "string-join", "select", "separator", "name");
                 yield new OutputNode.StringJoin(
-                        list(body.get("select"), ProjectJson::readRef),
+                        list(body.get("select"), "select", ProjectJson::readRef),
                         optionalText(body, "separator"),
                         optionalText(body, "name"));
             }
             case "replace" -> {
-                checkFields(body, "replace", "select", "pattern", "replacement", "is_regex", "name",
-                        "compiled_idx");
+                checkFields(body, "replace", "select", "pattern", "replacement", "is_regex", "name");
                 yield new OutputNode.Replace(
-                        list(body.get("select"), ProjectJson::readRef),
-                        text(body, "pattern"),
-                        text(body, "replacement"),
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        text(body, "pattern", "replace"),
+                        text(body, "replacement", "replace"),
                         body.path("is_regex").asBoolean(false),
                         optionalText(body, "name"));
             }
@@ -898,7 +970,7 @@ public final class ProjectJson {
             case "substring" -> {
                 checkFields(body, "substring", "select", "start", "length", "name");
                 yield new OutputNode.Substring(
-                        list(body.get("select"), ProjectJson::readRef),
+                        list(body.get("select"), "select", ProjectJson::readRef),
                         body.path("start").asInt(0),
                         body.has("length") && !body.get("length").isNull() ? body.get("length").asInt() : null,
                         optionalText(body, "name"));
@@ -906,8 +978,8 @@ public final class ProjectJson {
             case "tokenize" -> {
                 checkFields(body, "tokenize", "select", "delimiter", "name");
                 yield new OutputNode.Tokenize(
-                        list(body.get("select"), ProjectJson::readRef),
-                        text(body, "delimiter"),
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        text(body, "delimiter", "tokenize"),
                         optionalText(body, "name"));
             }
             case "number" -> new OutputNode.Number(selectList(body, "number"), optionalText(body, "name"));
@@ -917,7 +989,7 @@ public final class ProjectJson {
 
     private static List<RefExpression> selectList(final JsonNode body, final String owner) {
         checkFields(body, owner, "select", "name");
-        return list(body.get("select"), ProjectJson::readRef);
+        return list(body.get("select"), "select", ProjectJson::readRef);
     }
 
     private static JsonNode writeOutput(final OutputNode output) {
@@ -950,7 +1022,7 @@ public final class ProjectJson {
             case OutputNode.ApplyTemplates value -> wrap("apply-templates", writeApply(value.directive()));
             case OutputNode.EmitError value -> {
                 final ObjectNode body = NODES.objectNode();
-                body.put("severity", value.severity().name().toLowerCase(java.util.Locale.ROOT));
+                body.put("severity", value.severity().name().toLowerCase(Locale.ROOT));
                 body.set("message", writeRef(value.message()));
                 yield wrap("emit-error", body);
             }
@@ -1038,7 +1110,8 @@ public final class ProjectJson {
     private static WhenBranch readWhen(final JsonNode node) {
         checkFields(node, "when", "test", "body");
         return new WhenBranch(
-                readCondition(required(node, "test", "when")), list(node.get("body"), ProjectJson::readOutput));
+                readCondition(required(node, "test", "when")),
+                list(node.get("body"), "body", ProjectJson::readOutput));
     }
 
     private static ObjectNode writeWhen(final WhenBranch branch) {
@@ -1050,7 +1123,8 @@ public final class ProjectJson {
 
     private static SwitchCase readCase(final JsonNode node) {
         checkFields(node, "case", "value", "body");
-        return new SwitchCase(text(node, "value"), list(node.get("body"), ProjectJson::readOutput));
+        return new SwitchCase(
+                text(node, "value", "case"), list(node.get("body"), "body", ProjectJson::readOutput));
     }
 
     private static ObjectNode writeCase(final SwitchCase switchCase) {
@@ -1062,7 +1136,7 @@ public final class ProjectJson {
 
     private static Entry readEntry(final JsonNode node) {
         checkFields(node, "entry", "from", "to");
-        return new Entry(text(node, "from"), text(node, "to"));
+        return new Entry(text(node, "from", "entry"), text(node, "to", "entry"));
     }
 
     private static ObjectNode writeEntry(final Entry entry) {
@@ -1093,7 +1167,7 @@ public final class ProjectJson {
         return new ApplyDirective(
                 readRef(required(node, "select", "apply-templates")),
                 optionalText(node, "mode"),
-                list(node.get("with-param"), ProjectJson::readParam),
+                list(node.get("with-param"), "with-param", ProjectJson::readParam),
                 node.path("max_depth").asInt(ApplyDirective.DEFAULT_MAX_DEPTH),
                 optionalText(node, "template_ref"),
                 node.path("ignore_errors").asBoolean(false),
@@ -1140,7 +1214,12 @@ public final class ProjectJson {
         if (node.isString()) {
             return new Tagged(node.asString(), NODES.objectNode());
         }
-        if (!node.isObject() || node.size() != 1) {
+        if (!node.isObject()) {
+            throw new ConfigException(
+                    "A " + what + " must be a name or a single-key object, but was of type "
+                    + node.getNodeType().name().toLowerCase(Locale.ROOT).replace('_', ' '));
+        }
+        if (node.size() != 1) {
             throw new ConfigException(
                     "A " + what + " must be a name or a single-key object, but had " + node.size() + " keys");
         }
@@ -1159,10 +1238,16 @@ public final class ProjectJson {
      *
      * <p>The alternative is a configuration that loads with a typo in it and runs with the
      * setting silently absent, which is a bug that presents as a data problem weeks later.
+     * Absent is tolerated — an optional object that is not there — but a value of the wrong
+     * shape is not, because a document carrying a string where an object belongs was written
+     * by something with a different format in mind.
      */
     private static void checkFields(final JsonNode node, final String what, final String... known) {
-        if (node == null || !node.isObject()) {
+        if (node == null || node.isNull()) {
             return;
+        }
+        if (!node.isObject()) {
+            throw new ConfigException("Expected an object for '" + what + "'");
         }
         node.propertyStream().forEach(property -> {
             for (final String field : known) {
@@ -1188,8 +1273,8 @@ public final class ProjectJson {
         return value;
     }
 
-    private static String text(final JsonNode node, final String field) {
-        return required(node, field, "configuration").asString();
+    private static String text(final JsonNode node, final String field, final String what) {
+        return required(node, field, what).asString();
     }
 
     private static String optionalText(final JsonNode node, final String field) {
@@ -1197,9 +1282,9 @@ public final class ProjectJson {
         return value == null || value.isNull() ? null : value.asString();
     }
 
-    private static UUID uuid(final JsonNode node, final String field) {
+    private static UUID uuid(final JsonNode node, final String field, final String what) {
         try {
-            return UUID.fromString(text(node, field));
+            return UUID.fromString(text(node, field, what));
         } catch (final IllegalArgumentException e) {
             throw new ConfigException("Not a valid id: " + optionalText(node, field), e);
         }
@@ -1211,12 +1296,13 @@ public final class ProjectJson {
         }
     }
 
-    private static <T> List<T> list(final JsonNode node, final Function<JsonNode, T> reader) {
+    private static <T> List<T> list(final JsonNode node, final String what,
+                                    final Function<JsonNode, T> reader) {
         if (node == null || node.isNull()) {
             return List.of();
         }
         if (!node.isArray()) {
-            throw new ConfigException("Expected an array");
+            throw new ConfigException("Expected an array for '" + what + "'");
         }
         final List<T> values = new ArrayList<>(node.size());
         node.forEach(child -> values.add(reader.apply(child)));
