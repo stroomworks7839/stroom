@@ -48,7 +48,17 @@ Resolving it means either implementing the override, or removing the field and t
 support for it.
 
 ### E4 — A `Regex` step consumes only its match, not what it skipped
-**`open`. Surprising rather than wrong.**
+**`resolved` 2026-08-21: the step is anchored.** The user's ruling restored the design's own
+intent: the step vocabulary exists so grammar can be described with atoms and combinators
+instead of regexes, and the `Regex` step is a pre-compiled fragment of that grammar — an atom
+beside `Tag` and `TakeWhile` (the vendored combinator design says exactly this), so it matches
+at the cursor and never skips. The old behaviour was traced to its source and found to be an
+API accident, not a design: ds-rs's `find_bytes` returned matched bytes without their offsets,
+so its caller could only advance by the match's length from the wrong place. Never used by any
+configuration in either codebase. Pinned by `StepsTest`, which now asserts the atom refuses a
+pattern it would have found by searching.
+
+Original text, kept for the record:
 
 Inside a progressive sequence, a `Regex` step searches forward for its pattern but advances the
 cursor only by the length of the match — so the bytes it skipped over are neither consumed nor

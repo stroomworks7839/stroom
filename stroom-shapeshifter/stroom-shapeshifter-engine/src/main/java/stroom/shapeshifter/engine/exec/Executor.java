@@ -333,17 +333,9 @@ public final class Executor {
                 }
 
                 // An eater: advance, don't count (D36). No counters move, no stores clear,
-                // no skip report — the eater is the authored skip. Its body still runs,
-                // because an eater's job is often to say what it swallowed.
+                // no skip report — the eater is the authored skip.
                 if (template.consume()) {
-                    final int eaten = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
-                    final TypedValue swallowed = match.group(eaten) != null
-                            ? match.group(eaten)
-                            : match.group(0);
-                    if (swallowed != null && !swallowed.isEmpty()) {
-                        body(candidate.body(), match, 1, swallowed.asBytes(), sink,
-                                inputBase, ignoreErrors, depth);
-                    }
+                    processEater(candidate, match, sink, inputBase, ignoreErrors, depth);
                     cursor += match.advance();
                     matched = true;
                     continue;
@@ -351,66 +343,15 @@ public final class Executor {
 
                 counts[winner]++;
                 final int matchCount = counts[winner];
-
-                // A template's first match of this dispatch begins a new sequence, and a new
-                // sequence starts from nothing: its captures' stores are cleared, so a record
-                // matching fewer times than the one before it cannot leave the previous
-                // record's tail to be read past its own length. This is DS3's own rule — its
-                // storeData clears on the first store of a sequence. The absent-template case
-                // is deliberately not covered, because DS3 does not cover it either: a template
-                // that never matches leaves its stores untouched, previous record and all (E19).
-                if (matchCount == 1) {
-                    for (final CaptureBinding capture : template.captures()) {
-                        if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
-                            vars.store(capture.name()).clear();
-                        }
-                    }
-                }
-
-                if (match.matchStart() > 0 && !ignoreErrors && !template.ignoreErrors()) {
-                    messages.add(new Message(Severity.ERROR,
-                            "Expression '" + template.name()
-                            + "' failed to match from the start of the content. Skipped: ["
-                            + preview(data, cursor, cursor + match.matchStart()) + "]"));
-                }
-
-                // The engine's own variables, readable by any reference: how many times this
-                // template has matched. A child template's reference to a parent's multi-valued
-                // capture uses this to pick the right one, which is how a header column lines up
-                // with the data column beneath it.
-                vars.store(MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
-                vars.store(MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
-
-                final boolean wanted = template.matchLimits().onlyMatch() == null
-                                       || template.matchLimits().onlyMatch().contains(matchCount);
-                if (wanted) {
-                    // A delimiter match's content is the field, not the field plus its
-                    // delimiter; every other kind of match means the whole of what it matched.
-                    final int contentGroup =
-                            template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
-                    final TypedValue content = match.group(contentGroup) != null
-                            ? match.group(contentGroup)
-                            : match.group(0);
-
-                    if (content != null && !content.isEmpty()) {
-                        instrument.onMatch(template.id(), template.name(),
-                                locate(inputBase, cursor - from + match.matchStart()),
-                                match.advance(), matchCount, depth);
-                        bindCaptures(candidate, match, matchCount);
-
-                        final long before = sink.position();
-                        body(candidate.body(), match, matchCount, content.asBytes(), sink,
-                                inputBase, ignoreErrors, depth);
-                        instrument.onOutput(template.id(), matchCount, before,
-                                sink.position() - before);
-                    }
-                }
-
+                processMatch(candidate, match, matchCount, data, cursor,
+                        locate(inputBase, cursor - from), sink, ignoreErrors, depth);
                 cursor += match.advance();
                 matched = true;
                 // The choice re-opens from the first template.
             }
         }
+
+
 
         boolean minMatchFailed = false;
         for (int i = 0; i < templates.size(); i++) {
@@ -435,6 +376,80 @@ public final class Executor {
                     + preview(data, cursor, to) + "]"));
         }
         return cursor - from;
+    }
+
+
+    /**
+     * Process a counting winner: the first-match store clearing (E19), the skip report, the
+     * engine's counter variables, and — when the match is wanted — captures, body and
+     * instrumentation. One method because it is the hottest processing the engine does, and
+     * both the nested level and the root stream must share its compiled form rather than
+     * carrying a copy each.
+     *
+     * @param locateBase the value such that {@code locateBase + match.matchStart()} is the
+     *                   match's absolute input offset, or {@link Instrument#UNLOCATABLE}
+     */
+    private void processMatch(final CompiledTemplate candidate,
+                              final MatchResult match,
+                              final int matchCount,
+                              final byte[] data,
+                              final int cursor,
+                              final long locateBase,
+                              final OutputSink sink,
+                              final boolean ignoreErrors,
+                              final int depth) {
+        final Template template = candidate.template();
+        if (matchCount == 1) {
+            for (final CaptureBinding capture : template.captures()) {
+                if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
+                    vars.store(capture.name()).clear();
+                }
+            }
+        }
+        if (match.matchStart() > 0 && !ignoreErrors && !template.ignoreErrors()) {
+            messages.add(new Message(Severity.ERROR,
+                    "Expression '" + template.name()
+                    + "' failed to match from the start of the content. Skipped: ["
+                    + preview(data, cursor, cursor + match.matchStart()) + "]"));
+        }
+        vars.store(MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
+        vars.store(MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
+        final boolean wanted = template.matchLimits().onlyMatch() == null
+                               || template.matchLimits().onlyMatch().contains(matchCount);
+        if (wanted) {
+            final int contentGroup =
+                    template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
+            final TypedValue content = match.group(contentGroup) != null
+                    ? match.group(contentGroup)
+                    : match.group(0);
+            if (content != null && !content.isEmpty()) {
+                instrument.onMatch(template.id(), template.name(),
+                        locate(locateBase, match.matchStart()), match.advance(), matchCount, depth);
+                bindCaptures(candidate, match, matchCount);
+                final long before = sink.position();
+                body(candidate.body(), match, matchCount, content.asBytes(), sink,
+                        locateBase, ignoreErrors, depth);
+                instrument.onOutput(template.id(), matchCount, before,
+                        sink.position() - before);
+            }
+        }
+    }
+
+    /** An eater's win: the body runs — often to say what was swallowed — and nothing counts. */
+    private void processEater(final CompiledTemplate candidate,
+                              final MatchResult match,
+                              final OutputSink sink,
+                              final long locateBase,
+                              final boolean ignoreErrors,
+                              final int depth) {
+        final int eaten = candidate.template().match() instanceof MatchExpression.Delimiter ? 1 : 0;
+        final TypedValue swallowed = match.group(eaten) != null
+                ? match.group(eaten)
+                : match.group(0);
+        if (swallowed != null && !swallowed.isEmpty()) {
+            body(candidate.body(), match, 1, swallowed.asBytes(), sink,
+                    locateBase, ignoreErrors, depth);
+        }
     }
 
     /**
@@ -561,55 +576,15 @@ public final class Executor {
             }
 
             if (template.consume()) {
-                final int eaten = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
-                final TypedValue swallowed = match.group(eaten) != null
-                        ? match.group(eaten)
-                        : match.group(0);
-                if (swallowed != null && !swallowed.isEmpty()) {
-                    body(candidate.body(), match, 1, swallowed.asBytes(), sink,
-                            consumedTotal, ignoreErrors, 0);
-                }
+                processEater(candidate, match, sink, consumedTotal, ignoreErrors, 0);
                 consumedTotal += match.advance();
                 start = end;
                 continue;
             }
 
             counts[winner]++;
-            final int matchCount = counts[winner];
-            if (matchCount == 1) {
-                for (final CaptureBinding capture : template.captures()) {
-                    if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
-                        vars.store(capture.name()).clear();
-                    }
-                }
-            }
-            if (match.matchStart() > 0 && !ignoreErrors && !template.ignoreErrors()) {
-                messages.add(new Message(Severity.ERROR,
-                        "Expression '" + template.name()
-                        + "' failed to match from the start of the content. Skipped: ["
-                        + preview(window, start, start + match.matchStart()) + "]"));
-            }
-            vars.store(MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
-            vars.store(MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
-            final boolean wanted = template.matchLimits().onlyMatch() == null
-                                   || template.matchLimits().onlyMatch().contains(matchCount);
-            if (wanted) {
-                final int contentGroup =
-                        template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
-                final TypedValue content = match.group(contentGroup) != null
-                        ? match.group(contentGroup)
-                        : match.group(0);
-                if (content != null && !content.isEmpty()) {
-                    instrument.onMatch(template.id(), template.name(),
-                            consumedTotal + match.matchStart(), match.advance(), matchCount, 0);
-                    bindCaptures(candidate, match, matchCount);
-                    final long before = sink.position();
-                    body(candidate.body(), match, matchCount, content.asBytes(), sink,
-                            consumedTotal, ignoreErrors, 0);
-                    instrument.onOutput(template.id(), matchCount, before,
-                            sink.position() - before);
-                }
-            }
+            processMatch(candidate, match, counts[winner], window, start,
+                    consumedTotal, sink, ignoreErrors, 0);
             consumedTotal += match.advance();
             start = end;
         }

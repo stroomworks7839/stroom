@@ -207,6 +207,25 @@ class StepsTest {
     }
 
     @Test
+    void theRegexStepIsAnAtomAnchoredAtTheCursor() {
+        // A pre-compiled fragment of grammar, usable beside Tag and TakeWhile — which means it
+        // matches from the cursor and never skips (E4, ruled 2026-08-21). The pattern here
+        // would be found four bytes in by a search; an atom must refuse instead.
+        final Map<String, BytePattern> patterns = Map.of("[0-9]+", BytePattern.compile("[0-9]+"));
+        final byte[] data = "abcd42;".getBytes(StandardCharsets.UTF_8);
+        assertThat(Steps.match(List.of(new MatchStep.Regex("[0-9]+", null)),
+                data, 0, data.length, patterns)).isNull();
+
+        // At the cursor it consumes exactly its match, leaving the next step where it ended.
+        final MatchResult result = Steps.match(List.of(
+                        new MatchStep.Regex("[0-9]+", null),
+                        new MatchStep.Tag(";")),
+                data, 4, data.length, patterns);
+        assertThat(result).isNotNull();
+        assertThat(result.advance()).isEqualTo(3);
+    }
+
+    @Test
     void thereIsNoBacktrackingBetweenSteps() {
         // A pattern would match this: the repeat would give back its last "ab" so the tag could
         // have it. These steps do not, and that difference is the whole reason they are

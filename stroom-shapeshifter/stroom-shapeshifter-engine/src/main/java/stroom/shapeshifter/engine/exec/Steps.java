@@ -228,11 +228,12 @@ public final class Steps {
                     throw new IllegalStateException("Pattern was not compiled: " + regex.pattern());
                 }
                 final ByteMatcher matcher = pattern.matcher();
-                if (!matcher.match(data, from, to, Anchoring.UNANCHORED)) {
+                // An atom, like every other step: it matches at the cursor or it fails (E4).
+                // The old ds-rs behaviour — search ahead, then advance by the match's length
+                // from the wrong place — was an API accident, never a design, and never used.
+                if (!matcher.match(data, from, to, Anchoring.ANCHORED)) {
                     yield null;
                 }
-                // Faithful to ds-rs, and worth knowing: the search may match further along, but
-                // only the match's own length is consumed — the skipped bytes are not.
                 final byte[] matched = matcher.groupBytes(0);
                 yield new Result(TypedValue.of(matched), matched.length);
             }
