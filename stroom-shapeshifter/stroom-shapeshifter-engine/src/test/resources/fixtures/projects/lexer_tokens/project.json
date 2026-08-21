@@ -1,0 +1,27 @@
+{
+ "name": "lexer_tokens",
+ "version": 4,
+ "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
+ "templates": [
+  {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+   "body": [
+    {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                         "mode": "tokens", "dispatch": "lexer"}}]},
+  {"id": "00000000-0000-0000-0000-000000000002", "name": "assign", "mode": "tokens",
+   "match": {"regex": {"pattern": "="}},
+   "body": [{"text": "<op>=</op>"}]},
+  {"id": "00000000-0000-0000-0000-000000000003", "name": "arrow", "mode": "tokens",
+   "match": {"regex": {"pattern": "=>"}},
+   "body": [{"text": "<arrow/>"}]},
+  {"id": "00000000-0000-0000-0000-000000000004", "name": "word", "mode": "tokens",
+   "match": {"regex": {"pattern": "[a-z]+"}},
+   "body": [{"text": "<w>"}, {"value-of": {"parts": [{"capture": {"group": 0}}]}}, {"text": "</w>"}]},
+  {"id": "00000000-0000-0000-0000-000000000005", "name": "number", "mode": "tokens",
+   "match": {"regex": {"pattern": "[0-9]+"}},
+   "body": [{"text": "<n>"}, {"value-of": {"parts": [{"capture": {"group": 0}}]}}, {"text": "</n>"}]},
+  {"id": "00000000-0000-0000-0000-000000000006", "name": "space", "mode": "tokens",
+   "consume": true,
+   "match": {"regex": {"pattern": " +"}},
+   "body": []}
+ ]
+}

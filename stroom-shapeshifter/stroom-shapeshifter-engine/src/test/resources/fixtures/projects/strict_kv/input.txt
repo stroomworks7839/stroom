@@ -1,0 +1,3 @@
+host=web01
+# a comment the grammar never claimed
+level=warn

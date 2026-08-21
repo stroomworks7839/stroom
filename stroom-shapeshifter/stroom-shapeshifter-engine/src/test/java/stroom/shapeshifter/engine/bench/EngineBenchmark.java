@@ -73,7 +73,7 @@ public class EngineBenchmark {
     private static final int TARGET_SIZE = 256 * 1024;
 
     @Param({"regex_lines", "csv_header", "ausearch", "apache_httpd",
-            "win_sec", "win_sec_xml", "progressive"})
+            "win_sec", "win_sec_strict", "win_sec_xml", "progressive"})
     public String workload;
 
     private Project project;
@@ -92,6 +92,10 @@ public class EngineBenchmark {
             case "apache_httpd" -> streamed("projects/apache_httpd/project.json",
                     FixtureLedger.bytes("projects/apache_httpd/input.txt"));
             case "win_sec" -> streamed("projects/win_sec/project.json",
+                    FixtureLedger.bytes("projects/win_sec/input.txt"));
+            // The same events, the same output bytes, the strict idiom (D36): the direct A/B
+            // on what dissolving the search is worth.
+            case "win_sec_strict" -> streamed("projects/win_sec_strict/project.json",
                     FixtureLedger.bytes("projects/win_sec/input.txt"));
             case "win_sec_xml" -> streamed("projects/win_sec_xml/project.json",
                     FixtureLedger.bytes("projects/win_sec_xml/input.xml"));

@@ -1,0 +1,3 @@
+INFO started
+ERROR connection lost code=57
+WARN retrying code=98

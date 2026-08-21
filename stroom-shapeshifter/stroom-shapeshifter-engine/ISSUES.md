@@ -362,8 +362,12 @@ for what to do.
 ### E20 — Strict dispatch: the cursor moves only by matching at it
 **`in progress` — core implemented 2026-08-21: modes strict/lax/classify/lexer live, `consume`
 and `emit-error` live, zero-advance errors, version-gated defaults (v4+ strict), validation
-and lints; `StrictDispatchTest` covers it behaviourally. Remaining: `any` (with E18), corpus
-fixtures for the new modes, and the strict-vs-lax benchmark**
+and lints; `StrictDispatchTest` covers it behaviourally. Update, same day: `any` implemented
+(DS3's excision, list-priority over data position, attribution goes dark after the first
+excision rather than lying); four fixtures landed — `win_sec_strict` (the lax config converted
+with two dispatch attributes and two line eaters, **byte-identical output**), `strict_kv`,
+`classify_alerts`, `lexer_tokens`; benchmark workload `win_sec_strict` added as the direct
+A/B. Remaining: the E18 original-order fixture question, and the measurement itself**
 ([design/11-strict-dispatch.md](../design/11-strict-dispatch.md)). Implicit cursor movement —
 skip consumption, recovery advance, the zero-advance quirk — replaced by authored eaters
 (`consume: line` / `bytes(n)` / `until`) and authored error-emitting paths; dispatch asks only

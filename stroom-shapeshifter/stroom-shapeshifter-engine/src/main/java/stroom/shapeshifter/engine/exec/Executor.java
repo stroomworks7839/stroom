@@ -257,6 +257,9 @@ public final class Executor {
         if (dispatch == Dispatch.CLASSIFY) {
             return classify(templates, data, from, to, sink, inputBase, ignoreErrors, depth);
         }
+        if (dispatch == Dispatch.ANY) {
+            return anyLevel(templates, data, from, to, sink, inputBase, ignoreErrors, depth);
+        }
         // Strict and lexer levels ask the anchored question of every template: the mode
         // carries the anchoring, whatever the pattern text says (D36).
         final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
@@ -433,6 +436,132 @@ public final class Executor {
                     + preview(data, cursor, to) + "]"));
         }
         return cursor - from;
+    }
+
+    /**
+     * An {@code any} level — DS3's {@code matchOrder="any"}, ported for E18: templates search
+     * a working copy of the content, and a match is <b>excised</b> — the span is removed and
+     * the pieces either side close up — rather than the cursor moving past it. The prefix a
+     * match skipped over is kept for later passes, which is the mode's whole point: order in
+     * the data does not decide who wins, list order does.
+     *
+     * <p>There are no skip reports (DS3 gates them on sequence order), and after the first
+     * excision nothing can be located in the input any more — positions in a stitched buffer
+     * point at nothing — so attribution goes dark rather than lying.
+     */
+    private int anyLevel(final List<CompiledTemplate> templates,
+                         final byte[] data,
+                         final int from,
+                         final int to,
+                         final OutputSink sink,
+                         final long inputBase,
+                         final boolean ignoreErrors,
+                         final int depth) {
+        final byte[] work = Arrays.copyOfRange(data, from, to);
+        int length = work.length;
+        long base = inputBase;
+        int excised = 0;
+
+        final int[] counts = new int[templates.size()];
+        final boolean[] allowed = new boolean[templates.size()];
+        for (int i = 0; i < templates.size(); i++) {
+            final Template template = templates.get(i).template();
+            allowed[i] = template.guard() == null
+                         || Conditions.evaluate(
+                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns());
+        }
+
+        boolean matched = true;
+        while (length > 0 && matched) {
+            matched = false;
+            for (int i = 0; i < templates.size(); i++) {
+                if (!allowed[i]) {
+                    continue;
+                }
+                final CompiledTemplate candidate = templates.get(i);
+                final Template template = candidate.template();
+                final int maxMatch = template.matchLimits().maxMatch();
+                if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
+                    continue;
+                }
+                final long timing = instrument.startTiming();
+                final MatchResult match = match(candidate, work, 0, length, false);
+                instrument.stopTiming(template.id(), timing, match != null);
+                if (match == null) {
+                    continue;
+                }
+
+                final int start = match.matchStart();
+                final int end = match.advance();
+                if (end <= start) {
+                    messages.add(new Message(Severity.ERROR,
+                            "Template '" + template.name() + "' matched without advancing at"
+                            + " offset " + start + "; the level cannot make progress."));
+                    return excised;
+                }
+
+                if (!template.consume()) {
+                    counts[i]++;
+                    final int matchCount = counts[i];
+                    if (matchCount == 1) {
+                        for (final CaptureBinding capture : template.captures()) {
+                            if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
+                                vars.store(capture.name()).clear();
+                            }
+                        }
+                    }
+                    vars.store(MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
+                    vars.store(MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
+                    final boolean wanted = template.matchLimits().onlyMatch() == null
+                                           || template.matchLimits().onlyMatch().contains(matchCount);
+                    if (wanted) {
+                        final int contentGroup =
+                                template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
+                        final TypedValue content = match.group(contentGroup) != null
+                                ? match.group(contentGroup)
+                                : match.group(0);
+                        if (content != null && !content.isEmpty()) {
+                            instrument.onMatch(template.id(), template.name(),
+                                    locate(base, start), end - start, matchCount, depth);
+                            bindCaptures(candidate, match, matchCount);
+                            final long before = sink.position();
+                            body(candidate.body(), match, matchCount, content.asBytes(), sink,
+                                    base, ignoreErrors, depth);
+                            instrument.onOutput(template.id(), matchCount, before,
+                                    sink.position() - before);
+                        }
+                    }
+                }
+
+                // The excision: the matched span leaves, and the pieces close up. From here
+                // on, offsets in the working buffer mean nothing in the input.
+                System.arraycopy(work, end, work, start, length - end);
+                length -= end - start;
+                excised += end - start;
+                base = Instrument.UNLOCATABLE;
+                matched = true;
+                break;
+            }
+        }
+
+        boolean minMatchFailed = false;
+        for (int i = 0; i < templates.size(); i++) {
+            final Template template = templates.get(i).template();
+            final int minMatch = template.matchLimits().minMatch();
+            if (minMatch > 0 && counts[i] < minMatch) {
+                minMatchFailed = true;
+                messages.add(new Message(Severity.ERROR,
+                        "Expression '" + template.name()
+                        + "' did not match the required number of times (match count: "
+                        + counts[i] + ")"));
+            }
+        }
+        if (!minMatchFailed && !ignoreErrors && hasContent(work, 0, length)) {
+            messages.add(new Message(Severity.ERROR,
+                    "Expressions failed to match all of the content. Unmatched: ["
+                    + preview(work, 0, length) + "]"));
+        }
+        return excised;
     }
 
     /**

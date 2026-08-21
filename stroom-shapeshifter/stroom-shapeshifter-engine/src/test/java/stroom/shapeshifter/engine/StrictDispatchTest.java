@@ -207,11 +207,25 @@ class StrictDispatchTest {
     }
 
     @Test
-    void anyDispatchIsRefusedUntilItExists() {
-        final String json = project(4, "any", row("02", "field", "x", "", ""));
-        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(json)))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("E18");
+    void anyModeExcisesTheMatchAndKeepsThePrefix() {
+        // List priority over data position: A is listed first, so it wins the first pass even
+        // though B sits earlier in the buffer — and B's content survives the excision to win
+        // the second. The leftover that matched nobody is reported.
+        final Run result = run(project(4, "any",
+                row("02", "a", "a=([0-9]);", "", emit("A")) + ",\n"
+                + row("03", "b", "b=([0-9]);", "", emit("B"))),
+                "b=1;a=2;x");
+        assertThat(result.output()).isEqualTo("[A:2][B:1]");
+        assertThat(result.messages()).anyMatch(m ->
+                m.severity() == Severity.ERROR && m.text().contains("Unmatched: [x]"));
+    }
+
+    @Test
+    void anyModeZeroAdvanceIsAnError() {
+        final Run result = run(project(4, "any",
+                row("02", "empty", "x*", "", emit("X"))), "yyy");
+        assertThat(result.output()).isEmpty();
+        assertThat(result.messages()).anyMatch(m -> m.text().contains("matched without advancing"));
     }
 
     @Test

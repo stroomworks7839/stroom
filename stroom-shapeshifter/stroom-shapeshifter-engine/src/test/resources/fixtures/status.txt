@@ -65,6 +65,10 @@ projects/protobuf_events                      SKIPPED   Protobuf decoding deferr
 projects/win_app                              PASS
 projects/win_app_xml                          PASS
 projects/win_sec                              PASS      config fixed under E6 and E16
+projects/win_sec_strict                       PASS      D36/E20: the lax config converted to strict — two dispatch attributes and two line eaters, byte-identical output
+projects/strict_kv                            PASS      D36/E20: the strict idiom — anchored pairs, an eater that says what it swallowed
+projects/classify_alerts                      PASS      D36/E20: classify — every matching template runs once, nothing consumes
+projects/lexer_tokens                         PASS      D36/E20: lexer — maximal munch, => beats the first-listed =
 projects/win_sec_xml                          PASS      config anchored under E16/E17; golden regenerated and verified
 projects/xml_to_json                          PASS      config fixed under E8: braces around nested objects
 projects/xml_to_json_attrs                    PASS

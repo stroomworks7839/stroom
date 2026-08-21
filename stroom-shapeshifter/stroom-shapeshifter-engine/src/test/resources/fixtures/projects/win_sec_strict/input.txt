@@ -1,0 +1,412 @@
+03/23/2026 09:00:15 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4624
+EventType=0
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=Logon
+OpCode=Info
+RecordNumber=108451
+Keywords=Audit Success
+Message=An account was successfully logged on.
+
+Subject:
+	Security ID:		S-1-5-18
+	Account Name:		WORKSTATION01$
+	Account Domain:		CORP
+	Logon ID:		0x3E7
+
+Logon Information:
+	Logon Type:		2
+	Restricted Admin Mode:	-
+	Virtual Account:		No
+	Elevated Token:		Yes
+
+New Logon:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-1105
+	Account Name:		jsmith
+	Account Domain:		CORP
+	Logon ID:		0x4A8F12
+	Linked Logon ID:		0x4A8F05
+	Network Account Name:	-
+	Network Account Domain:	-
+	Logon GUID:		{00000000-0000-0000-0000-000000000000}
+
+Process Information:
+	Process ID:		0x3f0
+	Process Name:		C:\Windows\System32\svchost.exe
+
+Network Information:
+	Workstation Name:	WORKSTATION01
+	Source Network Address:	127.0.0.1
+	Source Port:		0
+
+Detailed Authentication Information:
+	Logon Process:		User32
+	Authentication Package:	Negotiate
+	Transited Services:	-
+	Package Name (NTLM only):	-
+	Key Length:		0
+
+03/23/2026 09:00:18 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4672
+EventType=0
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=Special Logon
+OpCode=Info
+RecordNumber=108452
+Keywords=Audit Success
+Message=Special privileges assigned to new logon.
+
+Subject:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-1105
+	Account Name:		jsmith
+	Account Domain:		CORP
+	Logon ID:		0x4A8F12
+
+Privileges:		SeSecurityPrivilege
+			SeTakeOwnershipPrivilege
+			SeLoadDriverPrivilege
+			SeBackupPrivilege
+			SeRestorePrivilege
+			SeDebugPrivilege
+			SeSystemEnvironmentPrivilege
+			SeImpersonatePrivilege
+			SeDelegateSessionUserImpersonatePrivilege
+
+03/23/2026 09:15:32 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4688
+EventType=0
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=Process Creation
+OpCode=Info
+RecordNumber=108460
+Keywords=Audit Success
+Message=A new process has been created.
+
+Creator Subject:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-1105
+	Account Name:		jsmith
+	Account Domain:		CORP
+	Logon ID:		0x4A8F12
+
+Target Subject:
+	Security ID:		S-1-0-0
+	Account Name:		-
+	Account Domain:		-
+	Logon ID:		0x0
+
+Process Information:
+	New Process ID:		0x1a2c
+	New Process Name:	C:\Windows\System32\cmd.exe
+	Token Elevation Type:	%%1936
+	Mandatory Label:		S-1-16-12288
+	Creator Process ID:	0x1234
+	Creator Process Name:	C:\Windows\explorer.exe
+	Process Command Line:	cmd.exe /c whoami /all
+
+03/23/2026 09:20:45 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4625
+EventType=0
+Type=Information
+ComputerName=DC01.corp.example.com
+TaskCategory=Logon
+OpCode=Info
+RecordNumber=208901
+Keywords=Audit Failure
+Message=An account failed to log on.
+
+Subject:
+	Security ID:		S-1-0-0
+	Account Name:		-
+	Account Domain:		-
+	Logon ID:		0x0
+
+Logon Type:		3
+
+Account For Which Logon Failed:
+	Security ID:		S-1-0-0
+	Account Name:		administrator
+	Account Domain:		CORP
+
+Failure Information:
+	Failure Reason:		%%2313
+	Status:			0xC000006D
+	Sub Status:		0xC000006A
+
+Process Information:
+	Caller Process ID:	0x0
+	Caller Process Name:	-
+
+Network Information:
+	Workstation Name:	ATTACKER-PC
+	Source Network Address:	10.0.0.99
+	Source Port:		49823
+
+Detailed Authentication Information:
+	Logon Process:		NtLmSsp
+	Authentication Package:	NTLM
+	Transited Services:	-
+	Package Name (NTLM only):	-
+	Key Length:		0
+
+03/23/2026 09:20:46 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4625
+EventType=0
+Type=Information
+ComputerName=DC01.corp.example.com
+TaskCategory=Logon
+OpCode=Info
+RecordNumber=208902
+Keywords=Audit Failure
+Message=An account failed to log on.
+
+Subject:
+	Security ID:		S-1-0-0
+	Account Name:		-
+	Account Domain:		-
+	Logon ID:		0x0
+
+Logon Type:		3
+
+Account For Which Logon Failed:
+	Security ID:		S-1-0-0
+	Account Name:		administrator
+	Account Domain:		CORP
+
+Failure Information:
+	Failure Reason:		%%2313
+	Status:			0xC000006D
+	Sub Status:		0xC000006A
+
+Process Information:
+	Caller Process ID:	0x0
+	Caller Process Name:	-
+
+Network Information:
+	Workstation Name:	ATTACKER-PC
+	Source Network Address:	10.0.0.99
+	Source Port:		49824
+
+Detailed Authentication Information:
+	Logon Process:		NtLmSsp
+	Authentication Package:	NTLM
+	Transited Services:	-
+	Package Name (NTLM only):	-
+	Key Length:		0
+
+03/23/2026 09:25:10 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4720
+EventType=0
+Type=Information
+ComputerName=DC01.corp.example.com
+TaskCategory=User Account Management
+OpCode=Info
+RecordNumber=208910
+Keywords=Audit Success
+Message=A user account was created.
+
+Subject:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-500
+	Account Name:		Administrator
+	Account Domain:		CORP
+	Logon ID:		0x3B2F1
+
+New Account:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-1120
+	Account Name:		svc_backup
+	Account Domain:		CORP
+
+Attributes:
+	SAM Account Name:	svc_backup
+	Display Name:		Backup Service Account
+	User Principal Name:	svc_backup@corp.example.com
+	Home Directory:		-
+	Home Drive:		-
+	Script Path:		-
+	Profile Path:		-
+	User Workstations:	-
+	Password Last Set:	3/23/2026 9:25:10 AM
+	Account Expires:		Never
+	Primary Group ID:	513
+	Allowed To Delegate To:	-
+	Old UAC Value:		0x0
+	New UAC Value:		0x15
+	User Account Control:
+		Account Disabled
+		'Password Not Required' - Enabled
+		'Normal Account' - Enabled
+	User Parameters:	-
+	SID History:		-
+	Logon Hours:		All
+
+03/23/2026 09:30:00 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4732
+EventType=0
+Type=Information
+ComputerName=DC01.corp.example.com
+TaskCategory=Security Group Management
+OpCode=Info
+RecordNumber=208915
+Keywords=Audit Success
+Message=A member was added to a security-enabled local group.
+
+Subject:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-500
+	Account Name:		Administrator
+	Account Domain:		CORP
+	Logon ID:		0x3B2F1
+
+Member:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-1120
+	Account Name:		CN=svc_backup,CN=Users,DC=corp,DC=example,DC=com
+
+Group:
+	Security ID:		S-1-5-32-551
+	Group Name:		Backup Operators
+	Group Domain:		Builtin
+
+03/23/2026 09:35:22 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4663
+EventType=0
+Type=Information
+ComputerName=FILESERVER01.corp.example.com
+TaskCategory=File System
+OpCode=Info
+RecordNumber=508123
+Keywords=Audit Success
+Message=An attempt was made to access an object.
+
+Subject:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-1105
+	Account Name:		jsmith
+	Account Domain:		CORP
+	Logon ID:		0x5C2A01
+
+Object:
+	Object Server:		Security
+	Object Type:		File
+	Object Name:		D:\Shares\Finance\Q1_2026_Results.xlsx
+	Handle ID:		0x4a8
+	Resource Attributes:	-
+
+Process Information:
+	Process ID:		0x4
+	Process Name:		
+
+Access Request Information:
+	Accesses:		ReadData (or ListDirectory)
+				WriteData (or AddFile)
+	Access Mask:		0x3
+	Access Reasons:		-
+
+03/23/2026 09:40:15 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4656
+EventType=0
+Type=Information
+ComputerName=FILESERVER01.corp.example.com
+TaskCategory=File System
+OpCode=Info
+RecordNumber=508130
+Keywords=Audit Failure
+Message=A handle to an object was requested.
+
+Subject:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-1108
+	Account Name:		contractor1
+	Account Domain:		CORP
+	Logon ID:		0x6D3B02
+
+Object:
+	Object Server:		Security
+	Object Type:		File
+	Object Name:		D:\Shares\HR\Salary_Data_2026.csv
+	Handle ID:		0x0
+	Resource Attributes:	-
+
+Process Information:
+	Process ID:		0x4
+	Process Name:		
+
+Access Request Information:
+	Accesses:		ReadData (or ListDirectory)
+	Access Mask:		0x1
+	Access Reasons:		-
+	Privileges Used for Access Check:	-
+	Restricted SID Count:	0
+
+03/23/2026 09:50:30 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4648
+EventType=0
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=Logon
+OpCode=Info
+RecordNumber=108480
+Keywords=Audit Success
+Message=A logon was attempted using explicit credentials.
+
+Subject:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-1105
+	Account Name:		jsmith
+	Account Domain:		CORP
+	Logon ID:		0x4A8F12
+	Logon GUID:		{00000000-0000-0000-0000-000000000000}
+
+Account Whose Credentials Were Used:
+	Account Name:		admin_jsmith
+	Account Domain:		CORP
+	Logon GUID:		{F14D5E73-2A91-4B44-9C7B-06E4D8C9A1F2}
+
+Target Server:
+	Target Server Name:	DC01.corp.example.com
+	Additional Information:	cifs/DC01.corp.example.com
+
+Process Information:
+	Process ID:		0x2a4c
+	Process Name:		C:\Windows\System32\mmc.exe
+
+Network Information:
+	Network Address:	192.168.1.10
+	Port:			445
+
+03/23/2026 10:00:00 AM
+LogName=Security
+SourceName=Microsoft-Windows-Security-Auditing
+EventCode=4634
+EventType=0
+Type=Information
+ComputerName=WORKSTATION01.corp.example.com
+TaskCategory=Logoff
+OpCode=Info
+RecordNumber=108495
+Keywords=Audit Success
+Message=An account was logged off.
+
+Subject:
+	Security ID:		S-1-5-21-3623811015-3361044348-3011020102-1105
+	Account Name:		jsmith
+	Account Domain:		CORP
+	Logon ID:		0x4A8F12
+	Logon Type:		2

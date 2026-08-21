@@ -1,0 +1,527 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Events xmlns="event-logging:3"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="event-logging:3 file://event-logging-v4.1.0.xsd"
+        Version="4.1.0">
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:00:15.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+        <IPAddress>127.0.0.1</IPAddress>
+      </Device>
+      <User>
+        <Id>S-1-5-21-3623811015-3361044348-3011020102-1105</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4624</TypeId>
+      <Description>An account was successfully logged on</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <LogonType>Interactive</LogonType>
+        <User>
+          <Id>S-1-5-21-3623811015-3361044348-3011020102-1105</Id>
+          <UserDetails>
+            <Id>jsmith</Id>
+            <Domain>CORP</Domain>
+          </UserDetails>
+        </User>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="LogonType" Value="2"/>
+        <Data Name="LogonId" Value="0x4A8F12"/>
+        <Data Name="LogonProcess" Value="User32"/>
+        <Data Name="AuthenticationPackage" Value="Negotiate"/>
+        <Data Name="ElevatedToken" Value="Yes"/>
+        <Data Name="WorkstationName" Value="WORKSTATION01"/>
+        <Data Name="SourceNetworkAddress" Value="127.0.0.1"/>
+        <Data Name="ProcessName" Value="C:\Windows\System32\svchost.exe"/>
+        <Data Name="ProcessId" Value="0x3f0"/>
+        <Data Name="RecordNumber" Value="108451"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:00:18.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>S-1-5-21-3623811015-3361044348-3011020102-1105</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4672</TypeId>
+      <Description>Special privileges assigned to new logon</Description>
+      <Authorise>
+        <Object>
+          <Type>UserSession</Type>
+          <Id>0x4A8F12</Id>
+          <Name>jsmith</Name>
+        </Object>
+        <Action>Request</Action>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="LogonId" Value="0x4A8F12"/>
+        <Data Name="Privileges" Value="SeSecurityPrivilege
+			SeTakeOwnershipPrivilege
+			SeLoadDriverPrivilege
+			SeBackupPrivilege
+			SeRestorePrivilege
+			SeDebugPrivilege
+			SeSystemEnvironmentPrivilege
+			SeImpersonatePrivilege
+			SeDelegateSessionUserImpersonatePrivilege"/>
+        <Data Name="RecordNumber" Value="108452"/>
+      </Authorise>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:15:32.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>S-1-5-21-3623811015-3361044348-3011020102-1105</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4688</TypeId>
+      <Description>A new process has been created</Description>
+      <Create>
+        <Object>
+          <Type>Process</Type>
+          <Id>0x1a2c</Id>
+          <Name>cmd.exe</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="NewProcessId" Value="0x1a2c"/>
+        <Data Name="NewProcessName" Value="C:\Windows\System32\cmd.exe"/>
+        <Data Name="CommandLine" Value="cmd.exe /c whoami /all"/>
+        <Data Name="CreatorProcessId" Value="0x1234"/>
+        <Data Name="CreatorProcessName" Value="C:\Windows\explorer.exe"/>
+        <Data Name="TokenElevationType" Value="%%1936"/>
+        <Data Name="MandatoryLabel" Value="S-1-16-12288"/>
+        <Data Name="LogonId" Value="0x4A8F12"/>
+        <Data Name="RecordNumber" Value="108460"/>
+      </Create>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:20:45.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>DC01.corp.example.com</HostName>
+      </Device>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4625</TypeId>
+      <Description>An account failed to log on</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <LogonType>Interactive</LogonType>
+        <User>
+          <Id>administrator</Id>
+          <UserDetails>
+            <Id>administrator</Id>
+            <Domain>CORP</Domain>
+          </UserDetails>
+        </User>
+        <Outcome>
+          <Success>false</Success>
+          <Description>Unknown user name or bad password (0xC000006A)</Description>
+        </Outcome>
+        <Data Name="LogonType" Value="2"/>
+        <Data Name="FailureReason" Value="%%2313"/>
+        <Data Name="Status" Value="0xC000006D"/>
+        <Data Name="SubStatus" Value="0xC000006A"/>
+        <Data Name="WorkstationName" Value="ATTACKER-PC"/>
+        <Data Name="SourceNetworkAddress" Value="10.0.0.99"/>
+        <Data Name="SourcePort" Value="49823"/>
+        <Data Name="LogonProcess" Value="NtLmSsp"/>
+        <Data Name="AuthenticationPackage" Value="NTLM"/>
+        <Data Name="RecordNumber" Value="208901"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:20:46.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>DC01.corp.example.com</HostName>
+      </Device>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4625</TypeId>
+      <Description>An account failed to log on</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <LogonType>Interactive</LogonType>
+        <User>
+          <Id>administrator</Id>
+          <UserDetails>
+            <Id>administrator</Id>
+            <Domain>CORP</Domain>
+          </UserDetails>
+        </User>
+        <Outcome>
+          <Success>false</Success>
+          <Description>Unknown user name or bad password (0xC000006A)</Description>
+        </Outcome>
+        <Data Name="LogonType" Value="2"/>
+        <Data Name="FailureReason" Value="%%2313"/>
+        <Data Name="Status" Value="0xC000006D"/>
+        <Data Name="SubStatus" Value="0xC000006A"/>
+        <Data Name="WorkstationName" Value="ATTACKER-PC"/>
+        <Data Name="SourceNetworkAddress" Value="10.0.0.99"/>
+        <Data Name="SourcePort" Value="49824"/>
+        <Data Name="LogonProcess" Value="NtLmSsp"/>
+        <Data Name="AuthenticationPackage" Value="NTLM"/>
+        <Data Name="RecordNumber" Value="208902"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:25:10.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>DC01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>S-1-5-21-3623811015-3361044348-3011020102-500</Id>
+        <UserDetails>
+          <Id>Administrator</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4720</TypeId>
+      <Description>A user account was created</Description>
+      <Create>
+        <Object>
+          <Type>UserAccount</Type>
+          <Id>S-1-5-21-3623811015-3361044348-3011020102-1120</Id>
+          <Name>svc_backup</Name>
+          <Description>Backup Service Account</Description>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="SAMAccountName" Value="svc_backup"/>
+        <Data Name="DisplayName" Value="Backup Service Account"/>
+        <Data Name="UserPrincipalName" Value="svc_backup@corp.example.com"/>
+        <Data Name="AccountDomain" Value="CORP"/>
+        <Data Name="PrimaryGroupId" Value="513"/>
+        <Data Name="NewUACValue" Value="0x15"/>
+        <Data Name="PasswordLastSet" Value="3/23/2026 9:25:10 AM"/>
+        <Data Name="AccountExpires" Value="Never"/>
+        <Data Name="SubjectLogonId" Value="0x3B2F1"/>
+        <Data Name="RecordNumber" Value="208910"/>
+      </Create>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:30:00.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>DC01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>S-1-5-21-3623811015-3361044348-3011020102-500</Id>
+        <UserDetails>
+          <Id>Administrator</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4732</TypeId>
+      <Description>A member was added to a security-enabled local group</Description>
+      <Authorise>
+        <Object>
+          <Type>UserAccount</Type>
+          <Id>S-1-5-21-3623811015-3361044348-3011020102-1120</Id>
+          <Name>svc_backup</Name>
+        </Object>
+        <Action>Modify</Action>
+        <AddGroups>
+          <Group>
+            <Id>S-1-5-32-551</Id>
+            <Name>Backup Operators</Name>
+          </Group>
+        </AddGroups>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="MemberDN" Value="CN=svc_backup,CN=Users,DC=corp,DC=example,DC=com"/>
+        <Data Name="GroupDomain" Value="Builtin"/>
+        <Data Name="SubjectLogonId" Value="0x3B2F1"/>
+        <Data Name="RecordNumber" Value="208915"/>
+      </Authorise>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:35:22.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>FILESERVER01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>S-1-5-21-3623811015-3361044348-3011020102-1105</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4663</TypeId>
+      <Description>An attempt was made to access an object</Description>
+      <View>
+        <Object>
+          <Type>File</Type>
+          <Id>D:\Shares\Finance\Q1_2026_Results.xlsx</Id>
+          <Name>Q1_2026_Results.xlsx</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="ObjectServer" Value="Security"/>
+        <Data Name="ObjectType" Value="File"/>
+        <Data Name="ObjectName" Value="D:\Shares\Finance\Q1_2026_Results.xlsx"/>
+        <Data Name="HandleId" Value="0x4a8"/>
+        <Data Name="Accesses" Value="ReadData (or ListDirectory)
+				WriteData (or AddFile)"/>
+        <Data Name="AccessMask" Value="0x3"/>
+        <Data Name="LogonId" Value="0x5C2A01"/>
+        <Data Name="RecordNumber" Value="508123"/>
+      </View>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:40:15.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>FILESERVER01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>S-1-5-21-3623811015-3361044348-3011020102-1108</Id>
+        <UserDetails>
+          <Id>contractor1</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4656</TypeId>
+      <Description>A handle to an object was requested - access denied</Description>
+      <View>
+        <Object>
+          <Type>File</Type>
+          <Id>D:\Shares\HR\Salary_Data_2026.csv</Id>
+          <Name>Salary_Data_2026.csv</Name>
+        </Object>
+        <Outcome>
+          <Success>false</Success>
+          <Permitted>false</Permitted>
+          <Description>Access denied to HR salary data</Description>
+        </Outcome>
+        <Data Name="ObjectServer" Value="Security"/>
+        <Data Name="ObjectType" Value="File"/>
+        <Data Name="ObjectName" Value="D:\Shares\HR\Salary_Data_2026.csv"/>
+        <Data Name="Accesses" Value="ReadData (or ListDirectory)"/>
+        <Data Name="AccessMask" Value="0x1"/>
+        <Data Name="LogonId" Value="0x6D3B02"/>
+        <Data Name="RecordNumber" Value="508130"/>
+      </View>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T09:50:30.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>S-1-5-21-3623811015-3361044348-3011020102-1105</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4648</TypeId>
+      <Description>A logon was attempted using explicit credentials</Description>
+      <Authenticate>
+        <Action>Logon</Action>
+        <User>
+          <Id>admin_jsmith</Id>
+          <UserDetails>
+            <Id>admin_jsmith</Id>
+            <Domain>CORP</Domain>
+          </UserDetails>
+        </User>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="SubjectAccountName" Value="jsmith"/>
+        <Data Name="SubjectLogonId" Value="0x4A8F12"/>
+        <Data Name="TargetAccountName" Value="admin_jsmith"/>
+        <Data Name="TargetAccountDomain" Value="CORP"/>
+        <Data Name="TargetServerName" Value="DC01.corp.example.com"/>
+        <Data Name="TargetInfo" Value="cifs/DC01.corp.example.com"/>
+        <Data Name="ProcessName" Value="C:\Windows\System32\mmc.exe"/>
+        <Data Name="ProcessId" Value="0x2a4c"/>
+        <Data Name="NetworkAddress" Value="192.168.1.10"/>
+        <Data Name="NetworkPort" Value="445"/>
+        <Data Name="LogonGUID" Value="{F14D5E73-2A91-4B44-9C7B-06E4D8C9A1F2}"/>
+        <Data Name="RecordNumber" Value="108480"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+  <Event>
+    <EventTime>
+      <TimeCreated>2026-03-23T10:00:00.000Z</TimeCreated>
+    </EventTime>
+    <EventSource>
+      <System>
+        <Name>Microsoft-Windows-Security-Auditing</Name>
+        <Environment>Windows</Environment>
+      </System>
+      <Generator>Windows Security Event Log</Generator>
+      <Device>
+        <HostName>WORKSTATION01.corp.example.com</HostName>
+      </Device>
+      <User>
+        <Id>S-1-5-21-3623811015-3361044348-3011020102-1105</Id>
+        <UserDetails>
+          <Id>jsmith</Id>
+          <Domain>CORP</Domain>
+        </UserDetails>
+      </User>
+    </EventSource>
+    <EventDetail>
+      <TypeId>4634</TypeId>
+      <Description>An account was logged off</Description>
+      <Authenticate>
+        <Action>Logoff</Action>
+        <User>
+          <Id>S-1-5-21-3623811015-3361044348-3011020102-1105</Id>
+          <UserDetails>
+            <Id>jsmith</Id>
+            <Domain>CORP</Domain>
+          </UserDetails>
+        </User>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="LogonId" Value="0x4A8F12"/>
+        <Data Name="LogonType" Value="2"/>
+        <Data Name="RecordNumber" Value="108495"/>
+      </Authenticate>
+    </EventDetail>
+  </Event>
+
+</Events>

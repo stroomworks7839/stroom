@@ -112,10 +112,6 @@ public final class Compiler {
         final Set<String> strictModes = new HashSet<>();
         for (final OutputNode.ApplyDirective directive : applies) {
             final Dispatch effective = Dispatch.effective(directive.dispatch(), project);
-            if (effective == Dispatch.ANY) {
-                throw new ConfigException(
-                        "dispatch \"any\" is not implemented yet: DS3's excision mode is E18");
-            }
             if (effective == Dispatch.STRICT || effective == Dispatch.LEXER) {
                 strictModes.add(directive.templateRef() != null
                         ? "__rec_" + directive.templateRef()

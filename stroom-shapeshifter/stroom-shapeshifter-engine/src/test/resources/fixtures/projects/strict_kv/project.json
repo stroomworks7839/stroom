@@ -1,0 +1,22 @@
+{
+ "name": "strict_kv",
+ "version": 4,
+ "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
+ "templates": [
+  {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+   "body": [
+    {"text": "<records>\n"},
+    {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "kv"}},
+    {"text": "</records>\n"}]},
+  {"id": "00000000-0000-0000-0000-000000000002", "name": "pair", "mode": "kv",
+   "match": {"regex": {"pattern": "([a-z]+)=([^\\n]*)\\n"}},
+   "body": [{"text": " <pair key=\""}, {"value-of": {"parts": [{"capture": {"group": 1}}]}},
+            {"text": "\">"}, {"value-of": {"parts": [{"capture": {"group": 2}}]}},
+            {"text": "</pair>\n"}]},
+  {"id": "00000000-0000-0000-0000-000000000003", "name": "junk_line", "mode": "kv",
+   "consume": true,
+   "match": {"regex": {"pattern": "[^\\n]*\\n?"}},
+   "body": [{"emit-error": {"severity": "warning",
+             "message": {"parts": [{"text": "unrecognised line: "}, {"capture": {"group": 0}}]}}}]}
+ ]
+}

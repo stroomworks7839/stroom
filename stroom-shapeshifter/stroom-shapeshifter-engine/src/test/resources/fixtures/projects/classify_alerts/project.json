@@ -1,0 +1,23 @@
+{
+ "name": "classify_alerts",
+ "version": 4,
+ "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
+ "templates": [
+  {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+   "body": [
+    {"text": "<flags>"},
+    {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                         "mode": "flags", "dispatch": "classify"}},
+    {"text": "</flags>\n"}]},
+  {"id": "00000000-0000-0000-0000-000000000002", "name": "has_error", "mode": "flags",
+   "match": {"regex": {"pattern": "ERROR"}},
+   "body": [{"text": "<error/>"}]},
+  {"id": "00000000-0000-0000-0000-000000000003", "name": "has_timeout", "mode": "flags",
+   "match": {"regex": {"pattern": "timed out"}},
+   "body": [{"text": "<timeout/>"}]},
+  {"id": "00000000-0000-0000-0000-000000000004", "name": "first_code", "mode": "flags",
+   "match": {"regex": {"pattern": "code=([0-9]+)"}},
+   "body": [{"text": "<code>"}, {"value-of": {"parts": [{"capture": {"group": 1}}]}},
+            {"text": "</code>"}]}
+ ]
+}
