@@ -1,0 +1,54 @@
+/*
+ * Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// The XML head-to-head (design/13-xml-xslt-benchmark.md): a proper XML parser plus compiled
+// XSLT against a shapeshifter configuration, over the same catalogue of cases, judged on
+// byte-identical output. A test-only module so neither engine module grows a Saxon edge.
+
+ext.moduleName = 'stroom.shapeshifter.xmlbench'
+
+dependencies {
+    testImplementation project(':stroom-shapeshifter:stroom-shapeshifter-engine')
+    testImplementation project(':stroom-shapeshifter:stroom-shapeshifter-regex')
+    testImplementation libs.saxon.he
+
+    testImplementation libs.jmh.core
+    testAnnotationProcessor libs.jmh.generator.annprocess
+
+    testImplementation libs.bundles.common.test.implementation
+    testRuntimeOnly libs.bundles.common.test.runtime
+}
+
+// Results go where every shapeshifter measurement goes, named by date and commit — see the
+// regex module's build file for why a number in a scrollback is not a measurement.
+tasks.register('jmh', JavaExec) {
+    group = 'verification'
+    description = 'Run the XML head-to-head benchmarks, recording results to design/benchmarks'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.openjdk.jmh.Main'
+    args = ['stroom.shapeshifter.xmlbench..*Benchmark.*']
+
+    doFirst {
+        final def results = file("${project.projectDir}/../design/benchmarks")
+        results.mkdirs()
+        final def stamp = new java.text.SimpleDateFormat('yyyy-MM-dd-HHmm').format(new Date())
+        final def commit = providers.exec {
+            commandLine 'git', 'rev-parse', '--short', 'HEAD'
+        }.standardOutput.asText.get().trim()
+        args = args + ['-rf', 'json',
+                       '-rff', new File(results, "${stamp}-${commit}-xml.json").path]
+    }
+}

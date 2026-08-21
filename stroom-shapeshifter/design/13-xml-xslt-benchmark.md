@@ -71,11 +71,18 @@ confirmed exactly as stated (the middle, not the parser, was the incumbent's cos
 feed the performance queue (the first-byte table is the obvious lever) rather than
 disappearing.
 
-## Open decisions for sign-off
+## Rulings (2026-08-21)
 
-1. Module placement: new `stroom-shapeshifter-xmlbench` test module (proposed) vs living in
-   `stroom-app`'s test tree beside `F2XTestUtil`.
-2. `XsltFilter`-with-wiring vs Saxon-direct if Phase 0 finds the filter needs the app
-   module (proposal: Saxon-direct with disclosure).
-3. The record schema and transform job above — right shape, right difficulty?
-4. Parity criterion: byte-identical (proposed) vs canonicalised-equal.
+1. **Module**: new test-only module `stroom-shapeshifter-xmlbench`.
+2. **Saxon direct, no `SplitFilter`** — with the XSLT **compiled to `Templates` in setup**,
+   outside the measured region, for a fair test; memory is expected to hold and the run
+   records heap use so the expectation is evidenced. (Phase 2's three rows become: parse →
+   write floor; identity XSLT; real XSLT.)
+3. **Transform**: something moderately complex, taken from a real example in the codebase
+   where one exists. The larger intent is recorded as the framework's shape: this is not
+   one benchmark but an extensible **catalogue of (input, XSLT, golden) cases**, gathered
+   from across the codebase and beyond, doubling as a correctness-and-capability validation
+   suite — can shapeshifter do everything XSLT does, and how fast — with cases added freely
+   once the framework executes.
+4. **Parity: byte-identical**, and the shapeshifter side must achieve it with ordinary
+   template emission — no special writer.

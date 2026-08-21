@@ -285,6 +285,7 @@ include 'stroom-security:stroom-security-user-api'
 // Shapeshifter
 include 'stroom-shapeshifter:stroom-shapeshifter-engine'
 include 'stroom-shapeshifter:stroom-shapeshifter-regex'
+include 'stroom-shapeshifter:stroom-shapeshifter-xmlbench'
 
 // SSL Tests
 include 'stroom-ssl-test'
