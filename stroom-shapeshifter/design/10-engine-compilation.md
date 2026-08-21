@@ -302,3 +302,33 @@ flat at 0.99–1.01×. Cumulative from the day-one baseline: **`win_sec_xml` 11.
 as text, the graph owns matchers as fields, and the regex library — alone — determines what
 patterns mean, publishing the facts callers may act on. A fact crosses the seam only with the
 parser's signature on it.
+
+## 11. The strict-vs-lax A/B: first attempt contaminated, prediction under review
+
+The first measurement of `win_sec_strict` against `win_sec`
+([benchmarks/2026-08-21-1303-f0ded903af-engine.json](benchmarks/2026-08-21-1303-f0ded903af-engine.json))
+ran on a saturated box — load average 25.9, untouched workloads drifting to 0.45–0.70× with
+error bars ten times their usual width — and is checked in as **contaminated, no verdict**.
+The clean rerun is owed before anything is concluded.
+
+What survives contamination is the *same-run* relative reading, since both sides suffered
+the same weather: **strict 1.4× over lax** (30.1 vs 21.2 ops/s). That is far from §1's
+order-of-magnitude expectation, and the mechanism analysis says the expectation may simply
+be stale: the prediction priced lax's failed searches at their pre-library-fix cost, but
+this week's regex work (first-byte tables, anchor gates, the early exit) already cheapened
+exactly those searches — the design's performance claim was partly *pre-paid* by the library.
+Meanwhile strict pays ~57 anchored attempts per line — every template tried at every line
+start, ~25ns each — which is the same shape of waste one level up: the level knows most
+templates cannot match a line that starts with this byte, and asks them anyway.
+
+That is a new §2-style row, recorded now so it is not rediscovered:
+
+| Interpreted per use | The cost, concretely | The compiled answer |
+|---|---|---|
+| Strict/lexer dispatch tries **every template at every position** | ~57 anchored attempts per line in `win_sec_strict`, most refuted by the first byte | A first-byte candidate table on the compiled level — the engine-side analogue of the library's `firstBytes` — dispatching each position to the few templates that could match. Needs the library to publish a pattern's first-byte set (single-source principle, as `leadingAnchor()`) |
+
+Two honest possibilities for the clean rerun, stated before it happens: strict lands modestly
+ahead (the library already ate the feast, and the first-byte table is where the next meal
+is), or the quiet-box numbers move both sides and the ratio with them. Either way the §1
+claim as written — an order of magnitude from dissolving the search — is **not currently
+supported** and stays unclaimed until a clean measurement speaks.
