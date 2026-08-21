@@ -1,0 +1,477 @@
+{
+ "name": "nasty_xml_challenger",
+ "version": 4,
+ "source": {
+  "buffer_size": 100000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><summary>"
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "doc"
+     }
+    },
+    {
+     "text": "</summary>"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "decl",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<\\?xml[^\\n]*\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "doc_comment",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<!--(?s).*?-->\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "audit_open",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<audit>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000005",
+   "name": "batch",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  <batch id=\"([^\"]*)\">\\n((?s).*?)  </batch>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "batch",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": [
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 2
+         }
+        }
+       ]
+      },
+      "mode": "entries"
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000006",
+   "name": "audit_close",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "</audit>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000007",
+   "name": "entry_comment",
+   "mode": "entries",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "    <!--(?s).*?-->\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000008",
+   "name": "entry",
+   "mode": "entries",
+   "match": {
+    "regex": {
+     "pattern": "    <entry seq=\"([0-9]+)\">\\n((?s).*?    </entry>)\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "seq",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": [
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 2
+         }
+        }
+       ]
+      },
+      "mode": "__rec_fields"
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000009",
+   "name": "meta",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "      <meta><source><system><name>([^<]*)</name><tier>([^<]*)</tier></system></source></meta>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "name",
+     "select": {
+      "group": 1
+     }
+    },
+    {
+     "name": "tier",
+     "select": {
+      "group": 2
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-00000000000a",
+   "name": "detail",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "      <detail><!\\[CDATA\\[((?s).*?)\\]\\]></detail>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "detail",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-00000000000b",
+   "name": "note",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "      <note>([^\\n]*)</note>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "note",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-00000000000c",
+   "name": "context",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "      <context><a><b><c><d><e>([^<]*)</e></d></c></b></a></context>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "deep",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000020",
+   "name": "emit",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "    </entry>"
+    }
+   },
+   "body": [
+    {
+     "replace": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "var_id": "detail",
+           "group": 0
+          }
+         }
+        ]
+       }
+      ],
+      "pattern": "&",
+      "replacement": "&amp;",
+      "is_regex": false,
+      "name": "e1"
+     }
+    },
+    {
+     "replace": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "var_id": "e1",
+           "group": 0
+          }
+         }
+        ]
+       }
+      ],
+      "pattern": "<",
+      "replacement": "&lt;",
+      "is_regex": false,
+      "name": "e2"
+     }
+    },
+    {
+     "replace": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "var_id": "e2",
+           "group": 0
+          }
+         }
+        ]
+       }
+      ],
+      "pattern": ">",
+      "replacement": "&gt;",
+      "is_regex": false,
+      "name": "sqlText"
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<item batch=\""
+       },
+       {
+        "capture": {
+         "var_id": "batch",
+         "group": 0
+        }
+       },
+       {
+        "text": "\" seq=\""
+       },
+       {
+        "capture": {
+         "var_id": "seq",
+         "group": 0
+        }
+       },
+       {
+        "text": "\" system=\""
+       },
+       {
+        "capture": {
+         "var_id": "name",
+         "group": 0
+        }
+       },
+       {
+        "text": "\" tier=\""
+       },
+       {
+        "capture": {
+         "var_id": "tier",
+         "group": 0
+        }
+       },
+       {
+        "text": "\">"
+       }
+      ]
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "exists": {
+          "select": {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "sqlText",
+              "group": 0
+             }
+            }
+           ]
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "<sql>"
+            },
+            {
+             "capture": {
+              "var_id": "sqlText",
+              "group": 0
+             }
+            },
+            {
+             "text": "</sql>"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "text": "<sql/>"
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<note>"
+       },
+       {
+        "capture": {
+         "var_id": "note",
+         "group": 0
+        }
+       },
+       {
+        "text": "</note>"
+       }
+      ]
+     }
+    },
+    {
+     "if": {
+      "test": {
+       "exists": {
+        "select": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "deep",
+            "group": 0
+           }
+          }
+         ]
+        }
+       }
+      },
+      "then": [
+       {
+        "value-of": {
+         "parts": [
+          {
+           "text": "<deep>"
+          },
+          {
+           "capture": {
+            "var_id": "deep",
+            "group": 0
+           }
+          },
+          {
+           "text": "</deep>"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "</item>"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

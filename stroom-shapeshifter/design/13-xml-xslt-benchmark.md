@@ -119,3 +119,45 @@ lookups. The catalogue exists to grow — gnarlier XSLT (keys, grouping, multi-p
 nastier XML (CDATA, comments, deep nesting, attribute-order variance), and the cases where
 the challenger should lose, sought as deliberately as the ones it wins. The first-byte
 candidate table remains the engine-side lever if a case ever needs it.
+
+## The catalogue (2026-08-21): survey and framework
+
+**The survey.** 97 stylesheets in the repository. Most carry `stroom:` extension functions
+(reference-data lookups, date formatting) and need adaptation-with-disclosure to run under
+Saxon direct. The notable findings:
+
+- **Nothing in the codebase uses `xsl:key` or `for-each-group`** — the gnarly end of the
+  catalogue must be authored, as anticipated by the "and beyond" ruling.
+- The gnarliest extension-free stylesheet is `samples/config/Pathways/TEST_TRACES.xsl`
+  (modes, `xsl:function`, `position()`) — but its input is **JSON** (OTEL traces), which
+  makes it a marquee *future* case of a different kind: shapeshifter parsing the JSON
+  directly against the pipeline's JSON-parser-plus-XSLT front end.
+- Strong candidates with clean or adaptable features: `CommonIndexingTest/search_result.xsl`
+  (modes), `TestIndexingPipeline/Indexes.xsl` (for-each), `benchmark/REFERENCE.xsl`, the
+  appender family (`*_Text.xsl`/`*_XML.xsl` — the same source emitted two ways, a good
+  dual-output case), and the `CommonTranslationTest` reference-building set.
+
+**The framework.** `CaseCatalogueTest`: each case is a resource directory of `input.xml`,
+`transform.xsl`, `challenger.project.json`; the contract is **byte-identical output with
+Saxon run live** — no goldens to go stale — plus a clean-run requirement on the engine's
+messages. Cases are listed explicitly so a broken path fails loudly.
+
+**Case 1, `nasty_xml`, passing:** comments (one containing `<entry>` bait) dropped; CDATA
+flattened to escaped text through a literal-replace chain (`&`, `<`, `>` — matching Saxon's
+serializer exactly); an empty CDATA becoming a self-closed `<sql/>` via choose-on-exists;
+a five-element-deep descendant pull; attribute value templates. Thirteen templates, strict
+throughout, passed byte-identical on the first run.
+
+**The backlog, in intended order:**
+1. `keys_grouping` (authored): `xsl:key` + `for-each-group` over non-adjacent groups — the
+   case where the challenger may hit a genuine capability wall (grouping needs whole-input
+   state before first output), sought deliberately per the ruling: losses are findings.
+2. `modes` (adapted from `search_result.xsl`): one input walked by two template modes.
+3. `dual_output` (appender family): the same records emitted as XML and as text.
+4. `reference` (`REFERENCE.xsl`): the clean reference-builder.
+5. `json_front` (TEST_TRACES): JSON input — pipeline's JSON parser + XSLT vs shapeshifter
+   reading the JSON itself. A different fight, worth its own baseline rows.
+6. Deeper nastiness: processing instructions, attribute-order variance, mixed content,
+   namespace prefixes differing between input documents.
+
+Profiling resumes once the catalogue is fat enough to profile against — per the ruling.

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- audit export: comments must never reach the output -->
+<audit>
+  <batch id="b-1">
+    <entry seq="1">
+      <meta><source><system><name>alpha</name><tier>prod</tier></system></source></meta>
+      <detail><![CDATA[select * from users where name = 'O'Brien' & age > 30 and age < 90]]></detail>
+      <note>plain &amp; escaped &lt;text&gt;</note>
+    </entry>
+    <!-- a comment between entries, with <entry seq="99"/> bait inside it -->
+    <entry seq="2">
+      <meta><source><system><name>beta</name><tier>dev</tier></system></source></meta>
+      <detail><![CDATA[]]></detail>
+      <note>empty CDATA above must become a self-closing element</note>
+    </entry>
+  </batch>
+  <batch id="b-2">
+    <entry seq="3">
+      <meta><source><system><name>gamma</name><tier>test</tier></system></source></meta>
+      <detail><![CDATA[deeply nested context follows]]></detail>
+      <note>third</note>
+      <context><a><b><c><d><e>buried-value</e></d></c></b></a></context>
+    </entry>
+  </batch>
+</audit>
