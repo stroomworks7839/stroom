@@ -1148,14 +1148,26 @@ public final class Executor {
             return;
         }
 
-        vars.push();
+        // Arguments resolve in the caller's scope — an argument may legitimately read the very
+        // variable its parameter will shadow — and only then does the call's own scope open.
+        final List<byte[]> resolved = new ArrayList<>(value.args().size());
         for (final CompiledOp.Arg arg : value.args()) {
-            final byte[] resolved = CompiledRefs.resolve(arg.value(), match, matchCount, vars, contentEncoding);
-            if (resolved != null) {
-                vars.store(arg.name()).set(1, TypedValue.of(resolved));
+            resolved.add(CompiledRefs.resolve(arg.value(), match, matchCount, vars, contentEncoding));
+        }
+
+        vars.push();
+        for (int i = 0; i < value.args().size(); i++) {
+            final CompiledOp.Arg arg = value.args().get(i);
+            // Shadow before storing: store() searches outwards, and a parameter whose name
+            // collides with a capture registered globally would otherwise write straight
+            // through the new scope and outlive the call.
+            vars.shadow(arg.name());
+            if (resolved.get(i) != null) {
+                vars.store(arg.name()).set(1, TypedValue.of(resolved.get(i)));
             }
         }
         for (final Template.ParamDecl declared : target.template().param()) {
+            vars.shadow(declared.name());
             final boolean supplied = value.args().stream()
                     .anyMatch(arg -> arg.name().equals(declared.name()));
             if (!supplied && declared.defaultValue() != null) {

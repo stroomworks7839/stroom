@@ -228,6 +228,18 @@ class StreamingTest {
     }
 
     @Test
+    void terminatesOnEmptyMatchablePatternsAtEndOfStream() {
+        // The audit reproduced a hang: a deduplicated empty match at the end of a complete
+        // window advanced nothing and looped forever. Every empty-matchable pattern ends a
+        // stream in exactly that state, so iteration must terminate — for any input.
+        assertThat(matchesOf(BytePattern.compile("a*"), "a", 1)).containsExactly("a");
+        assertThat(matchesOf(BytePattern.compile("a*"), "", 1)).containsExactly("");
+        assertThat(matchesOf(BytePattern.compile("a*"), "ba", 1)).containsExactly("", "a");
+        // Empty matches abutting the previous match's end are deduplicated by policy.
+        assertThat(matchesOf(BytePattern.compile("x*"), "xxyx", 2)).containsExactly("xx", "x");
+    }
+
+    @Test
     void growsTheWindowToHoldALongMatch() {
         // The initial window is far smaller than the record, so this only works if the window
         // grows on NEED_MORE_INPUT rather than giving up.

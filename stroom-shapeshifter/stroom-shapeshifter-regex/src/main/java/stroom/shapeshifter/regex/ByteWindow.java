@@ -23,7 +23,12 @@ import java.nio.charset.StandardCharsets;
  *
  * @param array        the backing buffer.
  * @param start        first valid offset.
- * @param end          one past the last valid offset.
+ * @param end          one past the last offset of the match region.
+ * @param contextEnd   one past the last byte of the array that may be consulted at all — as
+ *                     surrounding context for zero-width assertions and character-boundary
+ *                     checks, never as match material. A bounded search over a fully-held
+ *                     haystack sets it to the array's length; a streaming buffer sets it to
+ *                     {@code end}, because the bytes past its fill point are stale.
  * @param originOffset absolute offset of {@code start} within the whole stream. Survives
  *                     compaction, so spans and error locations can be reported against the
  *                     source rather than against a buffer that keeps moving.
@@ -33,28 +38,37 @@ import java.nio.charset.StandardCharsets;
  *                     window falsely marked complete truncates matches, and one falsely marked
  *                     incomplete never terminates.
  */
-public record ByteWindow(byte[] array, int start, int end, long originOffset, boolean complete) {
+public record ByteWindow(byte[] array,
+                         int start,
+                         int end,
+                         int contextEnd,
+                         long originOffset,
+                         boolean complete) {
 
     public ByteWindow {
         if (start < 0 || end < start || end > array.length) {
             throw new IndexOutOfBoundsException(
                     "window [" + start + ", " + end + ") outside array of length " + array.length);
         }
+        if (contextEnd < end || contextEnd > array.length) {
+            throw new IndexOutOfBoundsException(
+                    "contextEnd " + contextEnd + " outside [" + end + ", " + array.length + "]");
+        }
     }
 
     /** A window over an entire array, with nothing more to come. */
     public static ByteWindow complete(final byte[] array) {
-        return new ByteWindow(array, 0, array.length, 0, true);
+        return new ByteWindow(array, 0, array.length, array.length, 0, true);
     }
 
-    /** A window over part of an array, with nothing more to come. */
+    /** A window over part of an array, with the rest of the array as context. */
     public static ByteWindow complete(final byte[] array, final int start, final int end) {
-        return new ByteWindow(array, start, end, start, true);
+        return new ByteWindow(array, start, end, array.length, start, true);
     }
 
     /** A window that may yet be extended — the engine will report {@code NEED_MORE_INPUT}. */
     public static ByteWindow partial(final byte[] array, final int start, final int end) {
-        return new ByteWindow(array, start, end, start, false);
+        return new ByteWindow(array, start, end, end, start, false);
     }
 
     public static ByteWindow of(final String text) {

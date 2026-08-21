@@ -212,6 +212,38 @@ class EngineBehaviourTest {
         assertThat(result.output()).isEqualTo("a<>");
     }
 
+    @Test
+    void parametersShadowCapturesOfTheSameName() {
+        // The audit found call() writing through its own scope: a parameter named like any
+        // capture landed in the global store and clobbered it. The parameter must shadow the
+        // capture inside the call and leave it untouched after.
+        final Run result = run("""
+                {
+                  "name": "shadow", "version": 3,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "match": {"delimiter": {"delimiter": "\\n"}},
+                     "captures": [{"name": "c", "select": {"group": 1}}],
+                     "body": [
+                       {"call-template": {"name": "inner", "with-param": [
+                         ["c", {"parts": [{"text": "X"}]}]]}},
+                       {"value-of": {"parts": [{"text": "<"},
+                                               {"capture": {"var_id": "c", "group": 0}},
+                                               {"text": ">"}]}}]},
+                    {"id": "00000000-0000-0000-0000-000000000003", "name": "inner", "match": "named",
+                     "body": [{"value-of": {"parts": [{"capture": {"var_id": "c", "group": 0}}]}}]}
+                  ]
+                }
+                """, "a\n");
+
+        // Inside the call, c is the parameter; after it, c is the capture again.
+        assertThat(result.output()).isEqualTo("X<a>");
+    }
+
     // -----------------------------------------------------------------------------------
     // Guards
     // -----------------------------------------------------------------------------------

@@ -155,7 +155,12 @@ public final class Backtracker {
                 continue;
             }
             if (at < to && Utf8.isContinuation(data[at])) {
-                continue; // a match may not begin inside a character
+                // A match may not begin inside a character — and an anchored search may not
+                // begin anywhere else, so it is over (as the simulation already answers).
+                if (anchored) {
+                    break;
+                }
+                continue;
             }
             if (firstBytes != null && (at == to || firstBytes[data[at] & 0xFF] == 0)) {
                 if (at == to) {

@@ -68,6 +68,8 @@ public final class ByteMatcher {
     private int regionFrom;
     private int regionTo;
     private boolean complete = true;
+    /** One past the last byte that may be consulted as context — the window's contextEnd. */
+    private int validTo;
     private boolean matched;
 
     ByteMatcher(final BytePattern pattern) {
@@ -132,6 +134,7 @@ public final class ByteMatcher {
         this.data = window.array();
         this.regionFrom = window.start();
         this.regionTo = window.end();
+        this.validTo = window.contextEnd();
         this.complete = window.complete();
         this.matched = false;
         return run(from, anchoring);
@@ -159,6 +162,7 @@ public final class ByteMatcher {
         this.data = data;
         this.regionFrom = from;
         this.regionTo = to;
+        this.validTo = data.length;
         this.complete = true;
         this.matched = false;
         return run(from, anchoring) == MatchOutcome.MATCH;
@@ -328,7 +332,7 @@ public final class ByteMatcher {
      * not arrived and must not be read.
      */
     private boolean splitsCharacter(final int at) {
-        return (at < regionTo || (complete && at < data.length))
+        return (at < regionTo || (complete && at < validTo))
                && Utf8.isContinuation(data[at]);
     }
 

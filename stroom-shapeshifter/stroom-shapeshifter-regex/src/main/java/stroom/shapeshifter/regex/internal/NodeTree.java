@@ -211,6 +211,10 @@ public final class NodeTree {
                     continue;
                 }
                 if (at < to && Utf8.isContinuation(data[at])) {
+                    // A match may not begin inside a character; anchored searches stop here.
+                    if (anchored) {
+                        break;
+                    }
                     continue;
                 }
                 if (firstBytes != null && (at == to || firstBytes[data[at] & 0xFF] == 0)) {

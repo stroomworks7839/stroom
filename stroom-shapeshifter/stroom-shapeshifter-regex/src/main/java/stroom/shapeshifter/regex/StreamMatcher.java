@@ -86,7 +86,7 @@ public final class StreamMatcher implements AutoCloseable {
     public boolean findNext() {
         while (true) {
             final ByteWindow window =
-                    new ByteWindow(buffer, start, end, bufferOrigin + start, exhausted);
+                    new ByteWindow(buffer, start, end, end, bufferOrigin + start, exhausted);
             final MatchOutcome outcome = matcher.match(window, start, Anchoring.UNANCHORED);
 
             switch (outcome) {
@@ -99,7 +99,12 @@ public final class StreamMatcher implements AutoCloseable {
                             : matchEnd;
                     if (empty && bufferOrigin + matcher.start() == previousEnd) {
                         // An empty match immediately after a non-empty one reports the same
-                        // position a second time; a match iterator yields it once.
+                        // position a second time; a match iterator yields it once. When it
+                        // sits at the end of the window there is nothing to advance past:
+                        // either the stream is done, or only more input can change the answer.
+                        if (matchEnd == end && !fill()) {
+                            return false;
+                        }
                         continue;
                     }
                     previousEnd = bufferOrigin + matchEnd;
@@ -109,12 +114,15 @@ public final class StreamMatcher implements AutoCloseable {
                     return false;
                 }
                 case NEED_MORE_INPUT -> {
-                    if (!fill()) {
-                        // EOF reached: the next attempt sees a complete window and decides.
-                        if (end == start) {
-                            return false;
-                        }
+                    if (window.complete()) {
+                        // A complete window must decide; asking again would loop forever.
+                        throw new IllegalStateException(
+                                "the engine asked for more input on a complete window");
                     }
+                    // At EOF this marks the stream exhausted, and the next attempt sees a
+                    // complete window and decides — including yielding a final empty match
+                    // on an empty input, which an early return here would swallow.
+                    fill();
                 }
             }
         }
@@ -174,7 +182,7 @@ public final class StreamMatcher implements AutoCloseable {
                         + bufferOrigin + "; a pattern that can never complete would otherwise "
                         + "buffer without limit");
             }
-            buffer = Arrays.copyOf(buffer, Math.min(maxWindow, Math.max(buffer.length * 2, 1)));
+            buffer = Arrays.copyOf(buffer, (int) Math.min(maxWindow, buffer.length * 2L));
         }
 
         final int read;
