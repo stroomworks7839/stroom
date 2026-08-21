@@ -1,0 +1,364 @@
+{
+ "name": "xml_challenger",
+ "version": 4,
+ "source": {
+  "buffer_size": 1000000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Events xmlns=\"event-logging:3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"event-logging:3 file://event-logging-v3.0.0.xsd\" Version=\"3.0.0\">"
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "doc"
+     }
+    },
+    {
+     "text": "\n</Events>"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "header",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<\\?xml[^\\n]*\\n<records[^\\n]*>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "event_record",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  (<record>[^\\n]*</record>)\\n"
+    }
+   },
+   "body": [
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 1
+         }
+        }
+       ]
+      },
+      "mode": "__rec_fields"
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "footer",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "</records>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000005",
+   "name": "record_open",
+   "mode": "__rec_fields",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<record>"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000010",
+   "name": "f_Date",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "<data name=\"Date\" value=\"([^\"]*)\"/>"
+    }
+   },
+   "captures": [
+    {
+     "name": "Date",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000011",
+   "name": "f_Time",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "<data name=\"Time\" value=\"([^\"]*)\"/>"
+    }
+   },
+   "captures": [
+    {
+     "name": "Time",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000012",
+   "name": "f_FileNo",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "<data name=\"FileNo\" value=\"([^\"]*)\"/>"
+    }
+   },
+   "captures": [
+    {
+     "name": "FileNo",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000013",
+   "name": "f_LineNo",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "<data name=\"LineNo\" value=\"([^\"]*)\"/>"
+    }
+   },
+   "captures": [
+    {
+     "name": "LineNo",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000014",
+   "name": "f_User",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "<data name=\"User\" value=\"([^\"]*)\"/>"
+    }
+   },
+   "captures": [
+    {
+     "name": "User",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000015",
+   "name": "f_Message",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "<data name=\"Message\" value=\"([^\"]*)\"/>"
+    }
+   },
+   "captures": [
+    {
+     "name": "Message",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000016",
+   "name": "f_Host",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "<data name=\"Host\" value=\"([^\"]*)\"/>"
+    }
+   },
+   "captures": [
+    {
+     "name": "Host",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000020",
+   "name": "emit_event",
+   "mode": "__rec_fields",
+   "match": {
+    "regex": {
+     "pattern": "</record>"
+    }
+   },
+   "body": [
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "\n  <Event><EventTime><TimeCreated>"
+       },
+       {
+        "capture": {
+         "var_id": "Date",
+         "group": 0
+        }
+       },
+       {
+        "text": "T"
+       },
+       {
+        "capture": {
+         "var_id": "Time",
+         "group": 0
+        }
+       },
+       {
+        "text": "</TimeCreated></EventTime><EventSource><Generator>CSV</Generator><Device><IPAddress>1.1.1.1</IPAddress><MACAddress>00-00-00-00-00-00</MACAddress>"
+       }
+      ]
+     }
+    },
+    {
+     "if": {
+      "test": {
+       "exists": {
+        "select": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "Host",
+            "group": 0
+           }
+          }
+         ]
+        }
+       }
+      },
+      "then": [
+       {
+        "value-of": {
+         "parts": [
+          {
+           "text": "<HostName>"
+          },
+          {
+           "capture": {
+            "var_id": "Host",
+            "group": 0
+           }
+          },
+          {
+           "text": "</HostName>"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "</Device><User><Id>"
+       },
+       {
+        "capture": {
+         "var_id": "User",
+         "group": 0
+        }
+       },
+       {
+        "text": "</Id></User></EventSource><EventDetail><Description>"
+       },
+       {
+        "capture": {
+         "var_id": "Message",
+         "group": 0
+        }
+       },
+       {
+        "text": "</Description><Authenticate><Action>Logon</Action><LogonType>Interactive</LogonType><User><Id>"
+       },
+       {
+        "capture": {
+         "var_id": "User",
+         "group": 0
+        }
+       },
+       {
+        "text": "</Id></User><Data Name=\"FileNo\" Value=\""
+       },
+       {
+        "capture": {
+         "var_id": "FileNo",
+         "group": 0
+        }
+       },
+       {
+        "text": "\"/><Data Name=\"LineNo\" Value=\""
+       },
+       {
+        "capture": {
+         "var_id": "LineNo",
+         "group": 0
+        }
+       },
+       {
+        "text": "\"/></Authenticate></EventDetail></Event>"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

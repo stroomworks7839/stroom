@@ -45,6 +45,11 @@ import javax.xml.transform.stream.StreamSource;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.DefaultHandler;
 
+import stroom.shapeshifter.engine.OutputSink;
+import stroom.shapeshifter.engine.Shapeshifter;
+import stroom.shapeshifter.engine.compile.CompiledProject;
+import stroom.shapeshifter.engine.config.ProjectReader;
+
 /**
  * The incumbent, decomposed (design/13, Phase 2). Three rows so the eventual comparison
  * teaches where time goes, not just who won:
@@ -84,6 +89,7 @@ public class XmlBaselineBenchmark {
     private SAXParserFactory saxFactory;
     private Templates identity;
     private Templates events;
+    private CompiledProject challenger;
 
     @Setup
     public void setup() throws Exception {
@@ -94,6 +100,10 @@ public class XmlBaselineBenchmark {
         identity = factory.newTemplates(new StreamSource(new StringReader(IDENTITY)));
         try (var xsl = getClass().getResourceAsStream("/xmlbench/events-adapted.xsl")) {
             events = factory.newTemplates(new StreamSource(xsl));
+        }
+        try (var config = getClass().getResourceAsStream("/xmlbench/challenger.project.json")) {
+            challenger = Shapeshifter.compile(ProjectReader.read(
+                    new String(config.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)));
         }
     }
 
@@ -124,6 +134,18 @@ public class XmlBaselineBenchmark {
     @Benchmark
     public int eventsTransform() throws Exception {
         return transform(events);
+    }
+
+    /**
+     * The challenger (design/13, Phase 3): the same job through the shapeshifter engine,
+     * compiled in setup exactly as the stylesheets are, parity-gated byte-identical by
+     * {@code ChallengerParityTest} before it was allowed here.
+     */
+    @Benchmark
+    public int shapeshifterTransform() {
+        final ByteArrayOutputStream out = new ByteArrayOutputStream(input.length * 2);
+        Shapeshifter.run(challenger, new ByteArrayInputStream(input), OutputSink.of(out));
+        return out.size();
     }
 
     private int transform(final Templates templates) throws Exception {
