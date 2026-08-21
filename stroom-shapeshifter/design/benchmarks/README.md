@@ -35,6 +35,8 @@ is the check that would have caught the false 7% result described in
 | `PatternCorpusBenchmark` | All 106 accepted corpus patterns, short inputs | Per-match overhead across the breadth the correctness suite covers, at the tier mix a real config would have |
 | `MatchingBaselineBenchmark` | Hand-written scanners vs `java.util.regex` | The pre-engine baseline from [03-baseline-results.md](../03-baseline-results.md) |
 | `BranchOrderBenchmark` | Alternation branch ordering | Whether branch order is worth optimising |
+| `XmlBaselineBenchmark` | The events workload at 10k/100k/1M records | The XML head-to-head's decomposition: SAX floor, Saxon identity, Saxon proper, shapeshifter (design/13) |
+| `CaseCatalogueBenchmark` | Seven catalogue cases amplified to ~10k/~100k units | Per-capability-family A/B, Saxon vs shapeshifter, parity-licensed by `CaseAmplifierTest` |
 
 Runs are machine-specific. Compare files from the same machine, or not at all.
 
@@ -65,3 +67,8 @@ comparable even on the same machine:
 - **2026-08-19-1028** ran on a non-idle machine: `javaRegexFromBytes` — code no commit
   touched — moved −5.0% against the previous run while `javaRegex` was flat. Cross-run
   comparisons against it measure the machine, not the engine; within-run ratios stand.
+- **2026-08-21-1555 ran on a non-idle machine**: `saxParse` — code no commit touched —
+  sat −55% against both its neighbours (`2026-08-21-1543` before, `2026-08-21-1753` after,
+  which agree with each other within ~2% on every untouched row), with error bars to match
+  (±204 on a 484 ms score; identity at 1M ±5094 on 8225). Cross-run comparisons against it
+  measure the machine, not the engine; within-run ratios stand.

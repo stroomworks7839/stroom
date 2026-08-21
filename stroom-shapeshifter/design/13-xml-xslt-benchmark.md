@@ -217,3 +217,30 @@ The catalogue is fat enough — the ruling's gate is open. Three pieces make it 
 
 Profiling resumes once the catalogue is fat enough to profile against — per the ruling.
 **That gate is now open.**
+
+## First per-case measurements (2026-08-21, run `1753-e2d51ac41b`)
+
+Single-shot ms/op at ~100,000 units, two forks, on an idle machine (the 1555 run's drift
+was diagnosed as contention — see benchmarks/README's comparability notes; 1543 and 1753
+agree within ~2% on every untouched row):
+
+| case | Saxon | shapeshifter | ratio |
+|---|---|---|---|
+| computed_names | 140.6 | 33.0 | **4.27×** |
+| analyze_string | 134.6 | 44.9 | **3.00×** |
+| reference | 717.9 | 312.4 | **2.30×** |
+| string_functions | 211.4 | 93.3 | **2.27×** |
+| adjacent_groups | 48.9 | 22.4 | **2.18×** |
+| modes | 650.4 | 359.4 | **1.81×** |
+| nasty_xml | 621.7 | 1005.4 | **0.62×** |
+
+(The ~10k-unit rows agree in ordering and roughly in ratio; the events workload's baseline
+rows re-ran at 3.2–3.3×, consistent with the standing 3.1× claim.)
+
+The surface did its job: six wins from 1.8× to 4.3×, and **the first measured loss
+anywhere — `nasty_xml` at 0.62×, Saxon ahead by 1.6×.** The blended events number never
+showed it; the per-family split names the suspect territory immediately: nasty is the
+CDATA/escape-chain case — a three-pass literal `replace` chain materialising intermediates
+per entry, plus the lazy-dotall block captures (`((?s).*?)` spanning batches and entries)
+that no other case leans on as hard. That is profiling target number one, and it is a
+*localised* target because the other six families are measured clean of it.
