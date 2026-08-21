@@ -443,3 +443,12 @@ instead of engineering around it. Key constraint found while drafting: migration
 silently replace search mode, because DS3's winner selection is template-priority-over-
 position while a strict group with an eater is position-priority-over-template — the E16/E18
 territory. Blocked on the doc's seven numbered decisions.
+
+### E21 — `is-first`/`is-last` conditions read a flag nothing sets
+**`open` — found 2026-08-21 by the coverage catalogue's `adjacent_groups` case.**
+`Conditions` evaluates `IsFirst`/`IsLast` against `__foreach_is_first`/`__foreach_is_last`,
+variables no dispatch mode ever sets — ported vocabulary whose ds-rs context did not survive
+the port. Either wire them to the current level's match counts (`is-first` ≡ first match of
+the template, which is what the case wanted and worked around with an `equals` on
+`__match_count`), or delete the conditions. Also from the same case: `substring` is 0-based
+where XSLT's is 1-based — decide whether to document or align.

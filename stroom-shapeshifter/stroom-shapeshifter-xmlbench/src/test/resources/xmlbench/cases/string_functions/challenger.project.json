@@ -1,0 +1,288 @@
+{
+ "name": "string_functions",
+ "version": 4,
+ "source": {
+  "buffer_size": 100000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><t>"
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "doc"
+     }
+    },
+    {
+     "text": "</t>"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "decl",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<\\?xml[^\\n]*\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "open",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<rows>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "row",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  <row v=\"(([^\"|]*)\\|([^\"]*))\" pad=\"([^\"]*)\" code=\"([^\"]*)\" n=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "body": [
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<r><up>"
+       }
+      ]
+     }
+    },
+    {
+     "upper-case": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 2
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "</up><lo>"
+       }
+      ]
+     }
+    },
+    {
+     "lower-case": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 3
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "</lo><ns>"
+       }
+      ]
+     }
+    },
+    {
+     "normalize-space": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 4
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "</ns><tr>"
+       }
+      ]
+     }
+    },
+    {
+     "translate": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 5
+          }
+         }
+        ]
+       }
+      ],
+      "from": [
+       "-"
+      ],
+      "to": [
+       "."
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "</tr><sub>"
+       }
+      ]
+     }
+    },
+    {
+     "substring": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 1
+          }
+         }
+        ]
+       }
+      ],
+      "start": 0,
+      "length": 3
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "</sub><num>"
+       }
+      ]
+     }
+    },
+    {
+     "number": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 6
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "</num><has>"
+       }
+      ]
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "matches": {
+          "select": {
+           "parts": [
+            {
+             "capture": {
+              "group": 1
+             }
+            }
+           ]
+          },
+          "pattern": "BETA"
+         }
+        },
+        "body": [
+         {
+          "text": "true"
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "text": "false"
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "</has></r>"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000006",
+   "name": "close",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "</rows>\\n"
+    }
+   },
+   "body": []
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log>
+  <h name="startup"/>
+  <e>alpha</e>
+  <e>beta</e>
+  <h name="run"/>
+  <e>gamma</e>
+  <h name="shutdown"/>
+  <e>delta</e>
+  <e>epsilon</e>
+</log>

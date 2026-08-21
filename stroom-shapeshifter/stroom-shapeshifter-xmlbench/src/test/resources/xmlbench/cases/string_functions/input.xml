@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rows>
+  <row v="alpha|BETA gamma" pad="  spaced   out  " code="a-b-c" n="042"/>
+  <row v="delta|EPSILON zeta" pad=" x " code="q-r" n="7"/>
+</rows>

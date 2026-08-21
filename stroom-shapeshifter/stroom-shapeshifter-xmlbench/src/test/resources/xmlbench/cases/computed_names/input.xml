@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed>
+  <item type="alert" level="high"><body>disk full</body></item>
+  <item type="notice" level="low"><body>rotated &amp; archived</body></item>
+  <raw><keep a="1"><x/>mixed text<y k="2">inner</y> tail</keep></raw>
+  <item type="alert" level="low"><body>cpu warm</body></item>
+</feed>

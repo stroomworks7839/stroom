@@ -1,0 +1,197 @@
+{
+ "name": "adjacent_groups",
+ "version": 4,
+ "source": {
+  "buffer_size": 100000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><sections>"
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "doc"
+     }
+    },
+    {
+     "text": "</section></sections>"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "decl",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<\\?xml[^\\n]*\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "open",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<log>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "header",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  <h name=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "body": [
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "equals": {
+          "select": {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "__match_count",
+              "group": 0
+             }
+            }
+           ]
+          },
+          "value": "1"
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "<section name=\""
+            },
+            {
+             "capture": {
+              "group": 1
+             }
+            },
+            {
+             "text": "\" n=\""
+            },
+            {
+             "capture": {
+              "var_id": "__match_count",
+              "group": 0
+             }
+            },
+            {
+             "text": "\">"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "value-of": {
+         "parts": [
+          {
+           "text": "</section>"
+          },
+          {
+           "text": "<section name=\""
+          },
+          {
+           "capture": {
+            "group": 1
+           }
+          },
+          {
+           "text": "\" n=\""
+          },
+          {
+           "capture": {
+            "var_id": "__match_count",
+            "group": 0
+           }
+          },
+          {
+           "text": "\">"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000005",
+   "name": "entry",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  <e>([^<]*)</e>\\n"
+    }
+   },
+   "body": [
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<i>"
+       },
+       {
+        "capture": {
+         "group": 1
+        }
+       },
+       {
+        "text": "</i>"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000006",
+   "name": "close",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "</log>\\n"
+    }
+   },
+   "body": []
+  }
+ ]
+}

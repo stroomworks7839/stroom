@@ -24,12 +24,12 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | `if` / `choose` / `when` / `otherwise` | **covered** | `if`, `choose`, plus `switch`, which XSLT lacks | nasty ✓ |
 | Variables / params | **covered** | captures, stores, `variable`, transform `name=` binding; per-match array indexing (`match_index`) exceeds XSLT's scalar variables | events ✓ |
 | `value-of` | **covered** | `value-of` with multi-part refs | events ✓ |
-| `copy-of` / deep copy | **expressible** | group-0 passthrough: the matched bytes re-emitted verbatim *are* the deep copy, cheaper than any tree walk. Not proven for "copy with namespace fix-up", which is likely **out of scope** (no tree) | |
+| `copy-of` / deep copy | **expressible, proven** | subtree passthrough: the matched bytes re-emitted verbatim *are* the deep copy — mixed content, self-closed elements and all. Namespace fix-up remains **out of scope** (no tree) | computed_names ✓ |
 | `copy` (shallow) | **out of scope** | shallow-copy-then-rebuild-children is a tree operation; the byte model re-emits or re-writes, it does not graft |
 | Literal result elements + AVTs | **covered** | literal text + refs anywhere, including inside attribute text | nasty ✓ |
-| Computed constructors (`xsl:element`/`xsl:attribute` with computed names) | **expressible** | a name is just bytes from a ref | |
+| Computed constructors (`xsl:element`/`xsl:attribute` with computed names) | **expressible, proven** | a name is just bytes from a ref | computed_names ✓ |
 | `xsl:text` / whitespace control | **covered** | literals are exact bytes; there is no whitespace stripping to control | events ✓ |
-| Comments / PIs in output | **covered** | they are bytes | |
+| Comments / PIs in output | **covered, proven** | they are bytes | computed_names ✓ |
 | `strip-space` / `preserve-space` | **out of scope** | input whitespace is content to match or eat, not tree decoration |
 | Serialization (`xsl:output`, indent, cdata-section-elements, character maps) | **out of scope** | the engine emits exactly what the config says; there is no serializer to configure. Byte-parity with a *configured* serializer is the author's job, as the escape-chain idiom shows |
 | `result-document` (multiple outputs) | **gap** | one sink today; D10/E15 territory — the sink seam exists, the routing does not | |
@@ -41,8 +41,8 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 |---|---|---|---|
 | `xsl:sort` | **gap** | emission follows match order; no reorder buffer exists. Any answer (sortable store iteration? sink-side sort?) is a design decision, not an idiom | backlog |
 | `for-each-group group-by` (non-adjacent) | **gap** | needs whole-input state before first output byte; stores can accumulate but nothing iterates a store's *distinct keys*. The expected capability wall — the backlog's first case exists to hit it honestly | keys_grouping |
-| `for-each-group group-adjacent` | **expressible** | adjacency is dispatch's native gait: a guard on value-change, or nested levels — needs its case | keys_grouping |
-| `group-starting-with` / `ending-with` | **expressible** | that is literally what strict dispatch with a starting template does | |
+| `for-each-group group-adjacent` | **expressible** | adjacency is dispatch's native gait | — |
+| `group-starting-with` / `ending-with` | **expressible, proven** | strict dispatch with a starting template; group position via `__match_count`; the boundary close via choose-on-count | adjacent_groups ✓ |
 | `xsl:key` / `key()` | **gap** | keys are random-access indexes over the whole document; stores are append-arrays. Same wall as group-by | keys_grouping |
 
 ## 3. XPath semantics against matched content
@@ -50,7 +50,7 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | XPath | Verdict | Mechanism / idiom / reason |
 |---|---|---|
 | Downward paths (`a/b/c`, predicates on structure) | **expressible** | nested levels, or a single pattern spanning the structure (nasty's five-deep pull) — proven ✓ |
-| `position()` / `last()` | **covered** | `__match_count`/`__match_idx`; `is-first`/`is-last` conditions |
+| `position()` / `last()` | **covered, proven — with a finding** | `__match_count` works as position; but the `is-first`/`is-last` *conditions* read a `__foreach_is_first` flag no dispatch mode sets — dead vocabulary outside some ds-rs foreach context, worth an issue (test count equality instead) | adjacent_groups ✓ |
 | Upward/sideways axes (`ancestor::`, `preceding-sibling::`) | **out of scope** | there is no tree to walk back up; state wanted from "above" is captured on the way down (the `batch` var in nasty is exactly `../@id`) — proven ✓ |
 | General/value comparisons, arithmetic | **partial** | conditions compare equality, ordering, existence, regex; arithmetic beyond `number()` is a **gap** (no expression language, by design — D35's model is declarative). Revisit only if cases demand computation |
 | Sequences, `distinct-values`, `index-of`, quantifiers | **gap** | store arrays exist; sequence *operations* over them do not |
@@ -60,25 +60,29 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | Function family | Verdict | Mechanism |
 |---|---|---|
 | `concat` | **covered** | multi-part refs |
-| `substring`, `substring-before/after` | **covered / expressible** | `substring`; before/after via regex `replace` or capture patterns |
+| `substring`, `substring-before/after` | **covered / proven** | `substring` (**0-based where XSLT is 1-based** — found by the case, an authoring trap worth a doc note or a future alignment ruling); before/after via capture patterns | string_functions ✓ |
 | `translate` | **covered** | `translate` |
 | `upper-case`, `lower-case` | **covered** | same names |
 | `normalize-space` | **covered** | `normalize-space`, plus `trim` |
 | `replace` (regex), `matches`, `tokenize` | **covered** | same names, byte-level regex |
 | `string-join` | **covered** | `string-join` |
-| `string-length`, `starts-with`, `ends-with`, `contains` | **expressible** | `matches` conditions; length is a **gap** if a case needs the number rather than a test |
+| `string-length`, `starts-with`, `ends-with`, `contains` | **expressible, contains proven** | `matches` conditions (regex anchors give starts/ends); length-as-value stays a **gap** | string_functions ✓ |
 | `format-number` | **gap** | transforms emit what they were given; numeric formatting is a candidate transform if cases demand it |
 | `format-dateTime`, date/duration arithmetic | **gap** | the corpus dodged it (ISO passthrough); Stroom's real configs lean on `stroom:format-date` — this is the likeliest **first real gap** a production-shaped case hits |
 | `sum`, `count`, `avg`, `min`, `max` | **gap** | aggregation over matches = accumulator territory; classify mode + stores get partway, nothing folds |
 | `number()` | **covered** | `number` |
 | `generate-id`, `id()`, `document()`, `doc()` | **out of scope** | identity and secondary documents are pipeline concerns (reference data), not transform concerns — Stroom itself agrees, via `stroom:lookup` living outside XSLT |
 | `current-dateTime()` etc. | **out of scope** | injecting wall-clock into a deterministic transform breaks golden parity by definition; Stroom feeds times through data or context |
-| `analyze-string` (2.0) | **expressible** | that is what a level of regex templates over a captured value *is* |
+| `analyze-string` (2.0) | **expressible, proven** | a level of regex templates over a captured value | analyze_string ✓ |
 | `unparsed-text` (2.0), `xsl:evaluate` (3.0), streaming/accumulators (3.0), `xsl:try` (3.0), maps/arrays (3.0) | **out of scope / gap-by-ruling** | 3.0's streaming machinery solves a problem the byte engine does not have; `try` partially met by `emit-error`+`fatal`; maps/arrays await evidence |
 
 ## 5. The score, and what it means
 
-Counting rows: **~17 covered, ~9 expressible (3 proven), ~12 gaps, ~13 out of scope.**
+Counting rows: **~17 covered, ~9 expressible — 8 now proven by catalogue cases — ~12 gaps
+(one of them, non-adjacent grouping/keys, executably documented as a wall the suite trips on
+the day it is solved), ~13 out of scope.** Two authoring traps found by the proving cases:
+`substring` is 0-based against XSLT's 1-based, and the `is-first`/`is-last` conditions are
+dead vocabulary outside a ds-rs foreach context.
 
 The gaps cluster into exactly three families, which is the matrix's real finding:
 

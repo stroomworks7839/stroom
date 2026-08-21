@@ -47,13 +47,52 @@ class CaseCatalogueTest {
 
     /** The catalogue. Grows with every capability the comparison should protect. */
     private static final List<String> CASES = List.of(
-            "nasty_xml");
+            "nasty_xml",
+            "computed_names",
+            "adjacent_groups",
+            "string_functions",
+            "analyze_string");
+
+    /**
+     * The walls: cases whose stylesheet runs but for which no challenger exists — executable
+     * documentation of a capability gap (design/14). A wall test fails the day someone adds a
+     * challenger config without promoting the case to {@link #CASES}, so a solved wall cannot
+     * stay quietly misfiled.
+     */
+    private static final List<String> WALLS = List.of(
+            "keys_grouping");
 
     @TestFactory
     List<DynamicTest> everyCaseIsByteIdentical() {
         return CASES.stream()
                 .map(name -> DynamicTest.dynamicTest(name, () -> run(name)))
                 .toList();
+    }
+
+    @TestFactory
+    List<DynamicTest> everyWallIsStillAWall() {
+        return WALLS.stream()
+                .map(name -> DynamicTest.dynamicTest(name + " (gap)", () -> wall(name)))
+                .toList();
+    }
+
+    private void wall(final String name) throws Exception {
+        // The stylesheet must run — a wall is a real job the challenger cannot do yet, not a
+        // broken example — and the challenger must be absent, else it belongs in CASES.
+        final TransformerFactory factory = new net.sf.saxon.TransformerFactoryImpl();
+        final Templates templates = factory.newTemplates(new StreamSource(
+                new ByteArrayInputStream(resource(name, "transform.xsl"))));
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        templates.newTransformer().transform(
+                new StreamSource(new ByteArrayInputStream(resource(name, "input.xml"))),
+                new StreamResult(out));
+        assertThat(out.size()).isPositive();
+        try (var challenger = getClass().getResourceAsStream(
+                "/xmlbench/cases/" + name + "/challenger.project.json")) {
+            assertThat(challenger)
+                    .as("%s has a challenger now — promote it from WALLS to CASES", name)
+                    .isNull();
+        }
     }
 
     private void run(final String name) throws Exception {

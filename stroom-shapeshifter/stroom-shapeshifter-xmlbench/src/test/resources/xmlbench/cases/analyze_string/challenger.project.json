@@ -1,0 +1,137 @@
+{
+ "name": "analyze_string",
+ "version": 4,
+ "source": {
+  "buffer_size": 100000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><pairs>"
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "doc"
+     }
+    },
+    {
+     "text": "</pairs>"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "decl",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<\\?xml[^\\n]*\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "open",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<ms>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "m",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  <m kv=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "body": [
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 1
+         }
+        }
+       ]
+      },
+      "mode": "pairs"
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000005",
+   "name": "close",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "</ms>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000006",
+   "name": "pair",
+   "mode": "pairs",
+   "match": {
+    "regex": {
+     "pattern": "([a-z]+)=([0-9]+);?"
+    }
+   },
+   "body": [
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<p k=\""
+       },
+       {
+        "capture": {
+         "group": 1
+        }
+       },
+       {
+        "text": "\" v=\""
+       },
+       {
+        "capture": {
+         "group": 2
+        }
+       },
+       {
+        "text": "\"/>"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}
