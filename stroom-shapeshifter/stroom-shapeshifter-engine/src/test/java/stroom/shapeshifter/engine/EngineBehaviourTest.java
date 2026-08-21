@@ -77,10 +77,59 @@ class EngineBehaviourTest {
 
     @Test
     void readsInputLongerThanOneBuffer() {
-        // Six records over a four-byte buffer: the loop has to run several times and carry
-        // nothing between iterations except the variables.
+        // Six records over a four-byte buffer: the window slides and refills as records
+        // consume from its front (E13).
         final Run result = run(lines(4), "a\nb\nc\nd\ne\nf\n");
         assertThat(result.output()).isEqualTo("[a][b][c][d][e][f]");
+        assertThat(result.messages()).isEmpty();
+    }
+
+    @Test
+    void recordsMayStraddleWhereAReadHappenedToEnd() {
+        // The E13 fix: with a six-byte window, "cdef\n" begins inside the first read and ends
+        // in the second. The fixed-chunk engine failed it for its position; the sliding window
+        // parses it because it fits. Failures depend on record size, never on stream position.
+        final Run result = run("""
+                {
+                  "name": "straddle", "version": 3,
+                  "source": {"buffer_size": 6, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "row",
+                     "match": {"regex": {"pattern": "([a-z]+)\\n"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}
+                  ]
+                }
+                """, "ab\ncdef\n");
+        assertThat(result.output()).isEqualTo("[ab][cdef]");
+        assertThat(result.messages()).isEmpty();
+    }
+
+    @Test
+    void minimumMatchesAreCountedOverTheWholeStream() {
+        // Three matches spread across several window fills satisfy min_match 3 — the counts
+        // live for the stream, as DS3's do, not per read (E13).
+        final Run result = run("""
+                {
+                  "name": "minmatch", "version": 3,
+                  "source": {"buffer_size": 4, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "row",
+                     "match": {"regex": {"pattern": "([a-z])\\n"}},
+                     "match_limits": {"min_match": 3},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}
+                  ]
+                }
+                """, "a\nb\nc\n");
+        assertThat(result.output()).isEqualTo("[a][b][c]");
+        assertThat(result.messages()).isEmpty();
     }
 
     @Test

@@ -261,7 +261,17 @@ call instead of grouping by mode once; and every captured group is copied out of
 when nothing reads it — which is what E10's optimiser was for.
 
 ### E13 — The window should slide, as DS3's does; the bounded contract stays
-**`open` — rescoped 2026-08-21 after checking DS3's source against the port.**
+**`resolved` 2026-08-21.** The root level streams through a sliding window: consumption
+advances an offset, and the window compacts and refills only when a match runs into its edge
+with input unread, or when a pass finds nothing and more input might complete a record — DS3's
+semantics at none of DS3's per-match compaction cost. Match counts live for the whole stream,
+so minimum-match is judged once at the end; the truncation warning fires exactly as before for
+a match that swallows a full window. Whole-buffer inputs and the non-consuming root dispatches
+(classify, any) keep the window-at-a-time path. Pinned by three behavioural tests, including a
+record that straddles a read boundary and parses. The zero-advance error replaces DS3's
+recovery mode, per D36: no silent half-buffer skips.
+
+Original scoping note, kept for the record:
 
 The desirable contract is DS3's and is not in question: memory bounded by a user-set buffer
 size, a single match must fit the buffer's capacity or fail (DS3 pairs the failure with its

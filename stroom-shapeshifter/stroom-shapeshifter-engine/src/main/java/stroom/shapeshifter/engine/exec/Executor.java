@@ -45,11 +45,12 @@ import java.util.List;
 /**
  * The runtime: reads the input, drives the templates, writes the output.
  *
- * <p>Input arrives in buffers, and <b>a match never spans two of them</b>. That is a real
- * limitation rather than an oversight — it is the Rust engine's behaviour, ported deliberately so
- * that golden parity means something (D33) — and it is why a configuration's buffer size is also
- * the largest record it can handle. The matching layer underneath can do better, and lifting this
- * is the first thing to decide once the port is green.
+ * <p>Input arrives through a <b>sliding window</b> of the configured buffer size (E13, restoring
+ * DS3's own shape): records consume from the window's front and it refills behind them, so a
+ * record is never failed for straddling where a read happened to end. The bounds are the
+ * contract — memory is capped by the buffer size, and a single match must fit the window's
+ * capacity or it cannot be made — which makes failures depend on record size, never on stream
+ * position.
  *
  * <p>Within a buffer the shape is simple and recursive. The document template writes its prologue,
  * hands the buffer to the templates of its mode, and writes its epilogue at the end of the stream.
@@ -171,32 +172,30 @@ public final class Executor {
         final int bufferSize = wholeBuffer
                 ? Integer.MAX_VALUE
                 : Math.max(1, compiled.project().source().bufferSize());
-        boolean first = true;
-        long read = 0;
-        for (byte[] chunk = read(input, bufferSize); chunk != null; chunk = read(input, bufferSize)) {
-            int from = 0;
-            if (first) {
-                first = false;
-                final Encoding.ByteOrderMark mark = Encoding.detectByteOrderMark(chunk);
-                if (mark != null) {
-                    encoding = mark.encoding();
-                    from = mark.length();
+        if (wholeBuffer || rootDispatch == Dispatch.CLASSIFY || rootDispatch == Dispatch.ANY) {
+            // Whole-buffer inputs are addressed in one piece, and the non-consuming root
+            // dispatches work window-at-a-time; neither slides.
+            boolean first = true;
+            long read = 0;
+            for (byte[] chunk = read(input, bufferSize); chunk != null; chunk = read(input, bufferSize)) {
+                int from = 0;
+                if (first) {
+                    first = false;
+                    final Encoding.ByteOrderMark mark = Encoding.detectByteOrderMark(chunk);
+                    if (mark != null) {
+                        encoding = mark.encoding();
+                        from = mark.length();
+                    }
                 }
+                if (from >= chunk.length) {
+                    continue;
+                }
+                level(roots, chunk, from, chunk.length, output, read,
+                        rootIgnoreErrors, 0, rootDispatch);
+                read += chunk.length - from;
             }
-            if (from >= chunk.length) {
-                continue;
-            }
-
-            final int consumed = level(roots, chunk, from, chunk.length, output, read,
-                    rootIgnoreErrors, 0, rootDispatch);
-            if (!wholeBuffer && consumed > 0 && from + consumed == chunk.length
-                && chunk.length - from == bufferSize) {
-                messages.add(new Message(Severity.WARNING, "Expressions consumed entire buffer ("
-                                                           + consumed
-                                                           + " bytes). If data is truncated, increase source "
-                                                           + "buffer_size (currently " + bufferSize + ")."));
-            }
-            read += chunk.length - from;
+        } else {
+            stream(roots, input, bufferSize, output, rootIgnoreErrors, rootDispatch);
         }
 
         if (!epilogue.isEmpty()) {
@@ -436,6 +435,225 @@ public final class Executor {
                     + preview(data, cursor, to) + "]"));
         }
         return cursor - from;
+    }
+
+    /**
+     * The root level over a stream: DS3's sliding window, restored for E13.
+     *
+     * <p>The contract is DS3's and is deliberate: memory is bounded by the configured buffer
+     * size, and a single match must fit the window's capacity or it cannot be made. What
+     * slides is the window, not the contract — the unconsumed tail is kept, the window
+     * refills behind it, and a record is never failed for merely straddling where a read
+     * happened to end. Failures depend on record size, never on stream position.
+     *
+     * <p>The refill is lazy where DS3's is eager, because eager compaction would copy the
+     * whole window per match: consumption advances an offset, and the window compacts and
+     * refills only when a match runs into its edge with input still unread, or when a pass
+     * finds nothing and more input might complete a record. A match that reaches the edge of
+     * a <em>full</em> window is the truncation case, warned about exactly as before.
+     *
+     * <p>Match counts live for the whole stream, as DS3's do — a minimum-match requirement is
+     * judged once at the end, not once per read.
+     */
+    private void stream(final List<CompiledTemplate> templates,
+                        final InputStream input,
+                        final int capacity,
+                        final OutputSink sink,
+                        final boolean ignoreErrors,
+                        final Dispatch dispatch) {
+        final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
+        final byte[] window = new byte[capacity];
+        int start = 0;
+        int filled = fill(input, window, 0);
+        boolean eof = filled < capacity;
+        long consumedTotal = 0;
+
+        final Encoding.ByteOrderMark mark = Encoding.detectByteOrderMark(
+                Arrays.copyOf(window, Math.min(filled, 4)));
+        if (mark != null) {
+            encoding = mark.encoding();
+            start = Math.min(mark.length(), filled);
+        }
+
+        final int[] counts = new int[templates.size()];
+        final boolean[] allowed = new boolean[templates.size()];
+        for (int i = 0; i < templates.size(); i++) {
+            final Template template = templates.get(i).template();
+            allowed[i] = template.guard() == null
+                         || Conditions.evaluate(
+                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns());
+        }
+
+        while (start < filled) {
+            int winner = -1;
+            MatchResult match = null;
+            for (int i = 0; i < templates.size(); i++) {
+                if (!allowed[i]) {
+                    continue;
+                }
+                final CompiledTemplate candidate = templates.get(i);
+                final Template template = candidate.template();
+                final int maxMatch = template.matchLimits().maxMatch();
+                if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
+                    continue;
+                }
+                final long timing = instrument.startTiming();
+                final MatchResult attempt = match(candidate, window, start, filled, atCursor);
+                instrument.stopTiming(template.id(), timing, attempt != null);
+                if (attempt == null) {
+                    continue;
+                }
+                if (dispatch != Dispatch.LEXER) {
+                    winner = i;
+                    match = attempt;
+                    break;
+                }
+                if (match == null || attempt.advance() > match.advance()) {
+                    winner = i;
+                    match = attempt;
+                }
+            }
+
+            if (match == null) {
+                // Nothing matches the window's front. If the window can still grow, the tail
+                // may be a partial record — refill and try again; otherwise the stream is done
+                // saying what it has to say.
+                if (!eof && (start > 0 || filled < capacity)) {
+                    filled = compact(window, start, filled);
+                    start = 0;
+                    final int before = filled;
+                    filled += fill(input, window, filled);
+                    eof = filled < capacity;
+                    if (filled > before) {
+                        continue;
+                    }
+                }
+                break;
+            }
+
+            final int end = start + match.advance();
+            if (end == filled && !eof && !(start == 0 && filled == capacity)) {
+                // The match ran into the window's edge with input still unread: it may have
+                // matched a truncated view. Refill and let it try again against more.
+                filled = compact(window, start, filled);
+                start = 0;
+                filled += fill(input, window, filled);
+                eof = filled < capacity;
+                continue;
+            }
+
+            final CompiledTemplate candidate = templates.get(winner);
+            final Template template = candidate.template();
+
+            if (match.advance() == 0) {
+                messages.add(new Message(Severity.ERROR,
+                        "Template '" + template.name() + "' matched without advancing at"
+                        + " offset " + (consumedTotal + match.matchStart())
+                        + "; the level cannot make progress."));
+                break;
+            }
+
+            if (end == filled && !eof) {
+                messages.add(new Message(Severity.WARNING, "Expressions consumed entire buffer ("
+                                                           + match.advance()
+                                                           + " bytes). If data is truncated, increase source "
+                                                           + "buffer_size (currently " + capacity + ")."));
+            }
+
+            if (template.consume()) {
+                final int eaten = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
+                final TypedValue swallowed = match.group(eaten) != null
+                        ? match.group(eaten)
+                        : match.group(0);
+                if (swallowed != null && !swallowed.isEmpty()) {
+                    body(candidate.body(), match, 1, swallowed.asBytes(), sink,
+                            consumedTotal, ignoreErrors, 0);
+                }
+                consumedTotal += match.advance();
+                start = end;
+                continue;
+            }
+
+            counts[winner]++;
+            final int matchCount = counts[winner];
+            if (matchCount == 1) {
+                for (final CaptureBinding capture : template.captures()) {
+                    if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
+                        vars.store(capture.name()).clear();
+                    }
+                }
+            }
+            if (match.matchStart() > 0 && !ignoreErrors && !template.ignoreErrors()) {
+                messages.add(new Message(Severity.ERROR,
+                        "Expression '" + template.name()
+                        + "' failed to match from the start of the content. Skipped: ["
+                        + preview(window, start, start + match.matchStart()) + "]"));
+            }
+            vars.store(MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
+            vars.store(MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
+            final boolean wanted = template.matchLimits().onlyMatch() == null
+                                   || template.matchLimits().onlyMatch().contains(matchCount);
+            if (wanted) {
+                final int contentGroup =
+                        template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
+                final TypedValue content = match.group(contentGroup) != null
+                        ? match.group(contentGroup)
+                        : match.group(0);
+                if (content != null && !content.isEmpty()) {
+                    instrument.onMatch(template.id(), template.name(),
+                            consumedTotal + match.matchStart(), match.advance(), matchCount, 0);
+                    bindCaptures(candidate, match, matchCount);
+                    final long before = sink.position();
+                    body(candidate.body(), match, matchCount, content.asBytes(), sink,
+                            consumedTotal, ignoreErrors, 0);
+                    instrument.onOutput(template.id(), matchCount, before,
+                            sink.position() - before);
+                }
+            }
+            consumedTotal += match.advance();
+            start = end;
+        }
+
+        boolean minMatchFailed = false;
+        for (int i = 0; i < templates.size(); i++) {
+            final Template template = templates.get(i).template();
+            final int minMatch = template.matchLimits().minMatch();
+            if (minMatch > 0 && counts[i] < minMatch) {
+                minMatchFailed = true;
+                messages.add(new Message(Severity.ERROR,
+                        "Expression '" + template.name()
+                        + "' did not match the required number of times (match count: "
+                        + counts[i] + ")"));
+            }
+        }
+        if (!minMatchFailed && !ignoreErrors && hasContent(window, start, filled)) {
+            messages.add(new Message(Severity.ERROR,
+                    "Expressions failed to match all of the content. Unmatched: ["
+                    + preview(window, start, filled) + "]"));
+        }
+    }
+
+    /** Shift the live region to the window's front, returning the new fill level. */
+    private static int compact(final byte[] window, final int start, final int filled) {
+        System.arraycopy(window, start, window, 0, filled - start);
+        return filled - start;
+    }
+
+    /** Read until the window is full or the input ends; returns how many bytes arrived. */
+    private static int fill(final InputStream input, final byte[] window, final int from) {
+        try {
+            int total = from;
+            while (total < window.length) {
+                final int got = input.read(window, total, window.length - total);
+                if (got < 0) {
+                    break;
+                }
+                total += got;
+            }
+            return total - from;
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
