@@ -17,8 +17,10 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.MatchStep;
+import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
+import stroom.shapeshifter.regex.LeadingAnchor;
 
 import java.util.List;
 
@@ -52,11 +54,19 @@ public sealed interface CompiledMatch {
 
         private final BytePattern pattern;
         private final int advance;
+        private final Anchoring anchoring;
         private final ByteMatcher matcher;
 
         public Regex(final BytePattern pattern, final int advance) {
             this.pattern = pattern;
             this.advance = advance;
+            // The library publishes its parser's conclusion, and for an input-anchored
+            // pattern the anchored and unanchored questions provably agree — so this node
+            // asks the cheaper one. No pattern text is inspected on this side of the seam:
+            // the fact has one source, and it is the parser's.
+            this.anchoring = pattern.leadingAnchor() == LeadingAnchor.INPUT
+                    ? Anchoring.ANCHORED
+                    : Anchoring.UNANCHORED;
             this.matcher = pattern.matcher();
         }
 
@@ -68,6 +78,11 @@ public sealed interface CompiledMatch {
         /** Which group's end the cursor lands on, or 0 for the end of the whole match. */
         public int advance() {
             return advance;
+        }
+
+        /** How this node asks its question — the library's published fact, not a sniff. */
+        public Anchoring anchoring() {
+            return anchoring;
         }
 
         /** This node's matcher. */

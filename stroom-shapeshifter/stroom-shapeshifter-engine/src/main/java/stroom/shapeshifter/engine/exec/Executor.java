@@ -406,12 +406,12 @@ public final class Executor {
                                           final byte[] data,
                                           final int from,
                                           final int to) {
-        // The node owns its matcher (D35) and asks the one honest question — find the leftmost
-        // match at or after the cursor — exactly as DS3 asks the JDK. The library exits early
-        // for start-anchored patterns on its own parsed knowledge, which is stronger than any
-        // sniff of the pattern text this side could make (06-performance-plan.md §1).
+        // The node owns its matcher (D35) and asks the question the library's published
+        // anchor fact licenses: for an input-anchored pattern the anchored and unanchored
+        // questions provably agree, so the node asks the one with the bare prologue. The
+        // fact's single source is the library's parser — nothing here reads pattern text.
         final ByteMatcher matcher = regex.matcher();
-        if (!matcher.match(data, from, to, stroom.shapeshifter.regex.Anchoring.UNANCHORED)) {
+        if (!matcher.match(data, from, to, regex.anchoring())) {
             return null;
         }
         final int groupCount = regex.pattern().groupCount() + 1;
