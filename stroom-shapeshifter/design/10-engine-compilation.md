@@ -282,5 +282,23 @@ the deletion of caller-side pattern-text parsing. If a future measurement ever s
 scaffolding mattering, the fix belongs in the library — a search that clamps to one position
 could collapse to the anchored path internally — not in a returning sniff.
 
-**The arc closes where D35 pointed:** the model knows patterns as text, the graph owns
-matchers as fields, and the regex library — alone — knows what patterns mean.
+## 10. Change 5, measured: the anchoring fact returns, wearing the parser's signature
+
+The user's actual requirement, stated once the trade-off had a price: publishing the fact is
+fine so long as the library makes the determination — the objection was never to the fast
+path, it was to a caller-side sniff that could disagree with the parser. So the library
+publishes `BytePattern.leadingAnchor()` (its 06-performance-plan §1, Done 2026-08-21), read
+from the same analysis its own search loops act on, and `CompiledMatch.Regex` consumes it:
+INPUT asks the anchored question with its bare prologue, everything else asks the honest
+search. Nothing engine-side reads pattern text. The sniff's refusals became gains — `^(a|b)`
+and `(?s)^a` now take the fast path it denied them.
+
+Measured against the retirement run (`2026-08-21-0718` vs `2026-08-21-0221`): `regex_lines`
+1.05× and `win_sec_xml` 1.02× — the exact prologue change 4 knowingly paid, recovered to the
+decimal (441.3 vs the pre-retirement 442.0; 68.2 vs 68.2) — with the other five workloads
+flat at 0.99–1.01×. Cumulative from the day-one baseline: **`win_sec_xml` 11.1×**.
+
+**The arc closes where D35 pointed, one seam clearer than before:** the model knows patterns
+as text, the graph owns matchers as fields, and the regex library — alone — determines what
+patterns mean, publishing the facts callers may act on. A fact crosses the seam only with the
+parser's signature on it.
