@@ -336,3 +336,21 @@ buys a solid third on this workload *today*, its real payload is semantic (no si
 skipping), and the next performance meal is the first-byte candidate table above — which
 would cut strict's per-line attempts from ~57 to a handful and is now the only row on the
 list with a measured workload waiting for it.
+
+## 12. E13's price: 8% on one workload, convicted properly, mechanism still at large
+
+The sliding window (E13) regressed `apache_httpd` and only `apache_httpd`. Convicted by the
+strongest evidence this box can produce — a same-hour, same-box A/B of HEAD against the
+pre-E13 commit (`2026-08-21-1443` vs `-1446`): apache 125.1 vs 136.2 (0.92×) with the
+`csv_header` control at 1.00×. Two theories eliminated on the way: it is not the sliding
+mechanics (`regex_lines` and `ausearch` share the same 20 KB window, slide through *more*
+refill cycles, and are flat), and it is not the duplicated winner-processing (deduplicated
+into one shared `processMatch` — kept as hygiene — with no recovery). What distinguishes
+apache is body-heaviness, which suggests profile shape around the shared body path, but that
+is a suspicion, not a finding.
+
+Recorded as an open diagnosis rather than papered over: the next honest step is a profiler
+diff (perfasm or async-profiler) of the apache workload either side of the E13 commit, which
+needs tooling this session did not reach for. The trade as it stands: correctness that
+cannot be configured around — records no longer fail by stream position — for 8% on one
+workload, with six others flat.

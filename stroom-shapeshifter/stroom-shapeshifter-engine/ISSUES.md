@@ -279,7 +279,10 @@ so minimum-match is judged once at the end; the truncation warning fires exactly
 a match that swallows a full window. Whole-buffer inputs and the non-consuming root dispatches
 (classify, any) keep the window-at-a-time path. Pinned by three behavioural tests, including a
 record that straddles a read boundary and parses. The zero-advance error replaces DS3's
-recovery mode, per D36: no silent half-buffer skips.
+recovery mode, per D36: no silent half-buffer skips. Known price, convicted by a same-hour
+A/B ([10-engine-compilation.md §12](../design/10-engine-compilation.md)): 8% on
+`apache_httpd` alone, six workloads flat, mechanism undiagnosed after two eliminated
+theories — an open profiler-diff item, not a mystery to forget.
 
 Original scoping note, kept for the record:
 
