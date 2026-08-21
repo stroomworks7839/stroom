@@ -17,7 +17,6 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.MatchStep;
-import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
 
@@ -53,15 +52,11 @@ public sealed interface CompiledMatch {
 
         private final BytePattern pattern;
         private final int advance;
-        private final Anchoring anchoring;
         private final ByteMatcher matcher;
 
         public Regex(final BytePattern pattern, final int advance) {
             this.pattern = pattern;
             this.advance = advance;
-            this.anchoring = startAnchored(pattern.pattern())
-                    ? Anchoring.ANCHORED
-                    : Anchoring.UNANCHORED;
             this.matcher = pattern.matcher();
         }
 
@@ -75,21 +70,9 @@ public sealed interface CompiledMatch {
             return advance;
         }
 
-        /** How this pattern is dispatched — decided once, above. */
-        public Anchoring anchoring() {
-            return anchoring;
-        }
-
         /** This node's matcher. */
         public ByteMatcher matcher() {
             return matcher;
-        }
-
-        /** Provably start-anchored, conservatively: a miss costs a search, never a wrong match. */
-        private static boolean startAnchored(final String pattern) {
-            return (pattern.startsWith("^") || pattern.startsWith("\\A"))
-                   && pattern.indexOf('|') < 0
-                   && !pattern.contains("(?m");
         }
     }
 

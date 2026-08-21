@@ -406,10 +406,12 @@ public final class Executor {
                                           final byte[] data,
                                           final int from,
                                           final int to) {
-        // The node owns its matcher and knows its anchoring (D35): an anchored dispatch is one
-        // attempt at the cursor, not a search of everything after it.
+        // The node owns its matcher (D35) and asks the one honest question — find the leftmost
+        // match at or after the cursor — exactly as DS3 asks the JDK. The library exits early
+        // for start-anchored patterns on its own parsed knowledge, which is stronger than any
+        // sniff of the pattern text this side could make (06-performance-plan.md §1).
         final ByteMatcher matcher = regex.matcher();
-        if (!matcher.match(data, from, to, regex.anchoring())) {
+        if (!matcher.match(data, from, to, stroom.shapeshifter.regex.Anchoring.UNANCHORED)) {
             return null;
         }
         final int groupCount = regex.pattern().groupCount() + 1;
