@@ -42,7 +42,7 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | `xsl:sort` | **gap** | emission follows match order; no reorder buffer exists. Any answer (sortable store iteration? sink-side sort?) is a design decision, not an idiom | backlog |
 | `for-each-group group-by` (non-adjacent) | **gap** | needs whole-input state before first output byte; stores can accumulate but nothing iterates a store's *distinct keys*. The expected capability wall — the backlog's first case exists to hit it honestly | keys_grouping |
 | `for-each-group group-adjacent` | **expressible** | adjacency is dispatch's native gait | — |
-| `group-starting-with` / `ending-with` | **expressible, proven** | strict dispatch with a starting template; group position via `__match_count`; the boundary close via choose-on-count | adjacent_groups ✓ |
+| `group-starting-with` / `ending-with` | **expressible, proven — with a found limit** | strict dispatch with a starting template; group position via `__match_count`; the boundary close via choose-on-count. Limit found at amplified scale (2026-08-21): a **trailing empty group** serializes as `<x></x>` where Saxon self-closes `<x/>` — the challenger has emitted the open tag before knowing the group is empty. Expressible in principle via the match language's `Peek`; awaiting a real case before any rework | adjacent_groups ✓ |
 | `xsl:key` / `key()` | **gap** | keys are random-access indexes over the whole document; stores are append-arrays. Same wall as group-by | keys_grouping |
 
 ## 3. XPath semantics against matched content

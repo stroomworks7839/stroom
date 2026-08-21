@@ -1,0 +1,361 @@
+{
+ "name": "reference_challenger",
+ "version": 4,
+ "source": {
+  "buffer_size": 100000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><referenceData xmlns=\"reference-data:2\" xmlns:evt=\"event-logging:3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"reference-data:2 file://reference-data-v2.0.1.xsd event-logging:3 file://event-logging-v3.0.0.xsd\" version=\"2.0.1\">"
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "doc"
+     }
+    },
+    {
+     "text": "\n</referenceData>"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "decl",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<\\?xml[^\\n]*\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "records_open",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<records xmlns=\"records:2\" version=\"2\\.0\">"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "record",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "\\n  <record>\\n((?s).*?  </record>)"
+    }
+   },
+   "body": [
+    {
+     "text": "\n  "
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 1
+         }
+        }
+       ]
+      },
+      "mode": "fields"
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000005",
+   "name": "records_close",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "\\n</records>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000006",
+   "name": "file_no",
+   "mode": "fields",
+   "match": {
+    "regex": {
+     "pattern": "    <data name=\"FileNo\" value=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "fileNo",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000007",
+   "name": "country",
+   "mode": "fields",
+   "match": {
+    "regex": {
+     "pattern": "    <data name=\"Country\" value=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "country",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000008",
+   "name": "site",
+   "mode": "fields",
+   "match": {
+    "regex": {
+     "pattern": "    <data name=\"Site\" value=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "site",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000009",
+   "name": "building",
+   "mode": "fields",
+   "match": {
+    "regex": {
+     "pattern": "    <data name=\"Building\" value=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "building",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-00000000000a",
+   "name": "floor",
+   "mode": "fields",
+   "match": {
+    "regex": {
+     "pattern": "    <data name=\"Floor\" value=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "floor",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-00000000000b",
+   "name": "room",
+   "mode": "fields",
+   "match": {
+    "regex": {
+     "pattern": "    <data name=\"Room\" value=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "room",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-00000000000c",
+   "name": "desk",
+   "mode": "fields",
+   "match": {
+    "regex": {
+     "pattern": "    <data name=\"Desk\" value=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "desk",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000020",
+   "name": "emit",
+   "mode": "fields",
+   "match": {
+    "regex": {
+     "pattern": "  </record>"
+    }
+   },
+   "body": [
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<reference><map>FILENO_TO_LOCATION_MAP</map><key>"
+       },
+       {
+        "capture": {
+         "var_id": "fileNo",
+         "group": 0
+        }
+       },
+       {
+        "text": "</key><value><evt:Location><evt:Country>"
+       },
+       {
+        "capture": {
+         "var_id": "country",
+         "group": 0
+        }
+       },
+       {
+        "text": "</evt:Country><evt:Site>"
+       },
+       {
+        "capture": {
+         "var_id": "site",
+         "group": 0
+        }
+       },
+       {
+        "text": "</evt:Site><evt:Building>"
+       },
+       {
+        "capture": {
+         "var_id": "building",
+         "group": 0
+        }
+       },
+       {
+        "text": "</evt:Building><evt:Floor>"
+       },
+       {
+        "capture": {
+         "var_id": "floor",
+         "group": 0
+        }
+       },
+       {
+        "text": "</evt:Floor><evt:Room>"
+       },
+       {
+        "capture": {
+         "var_id": "room",
+         "group": 0
+        }
+       },
+       {
+        "text": "</evt:Room>"
+       }
+      ]
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "exists": {
+          "select": {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "desk",
+              "group": 0
+             }
+            }
+           ]
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "<evt:Desk>"
+            },
+            {
+             "capture": {
+              "var_id": "desk",
+              "group": 0
+             }
+            },
+            {
+             "text": "</evt:Desk>"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "text": "<evt:Desk/>"
+       }
+      ]
+     }
+    },
+    {
+     "text": "</evt:Location></value></reference>"
+    }
+   ]
+  }
+ ]
+}

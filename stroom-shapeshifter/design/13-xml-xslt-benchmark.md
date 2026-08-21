@@ -157,6 +157,7 @@ throughout, passed byte-identical on the first run.
 3. `dual_output` (appender family): the same records emitted as XML and as text.
    **Done 2026-08-21 — as the second wall, per the ruling**; see below.
 4. `reference` (`REFERENCE.xsl`): the clean reference-builder.
+   **Done 2026-08-21 — verbatim, passed first time**; see below.
 5. `json_front` (TEST_TRACES): JSON input — pipeline's JSON parser + XSLT vs shapeshifter
    reading the JSON itself. A different fight, worth its own baseline rows.
 6. Deeper nastiness: processing instructions, attribute-order variance, mixed content,
@@ -186,4 +187,33 @@ today (D10/E15); the test trips the day someone authors a challenger without pro
 and promotion will need the runner to compare both outputs, which is tomorrow's problem by
 design.
 
+**`reference`, passing (2026-08-21):** backlog item 4, the second verbatim production
+stylesheet (`stroom/benchmark/REFERENCE.xsl`, extension-free, straight from main resources).
+The case's teeth are in its input, not its stylesheet: the `data` fields arrive in a
+different order per record — the stylesheet selects by `@name`, and the challenger's
+per-field templates dispatch in any order, which is the honest translation — and one empty
+`Desk` value forces Saxon's self-closing serialization, met with choose-on-exists. Passed
+first time. This closes the survey-sourced XML tranche; what remains in the backlog is
+genuinely new fronts.
+
+## The profiling surface (2026-08-21)
+
+The catalogue is fat enough — the ruling's gate is open. Three pieces make it profilable:
+
+- **`CaseCorpus`**: amplifies any challenger-backed case to benchmark scale by repeating its
+  body units (records, events, batches) cyclically, in **whole cycles only**. The disclosure:
+  repetition measures throughput, not branch surprise — content variety stays whatever the
+  case authored. The whole-cycle rule was learned, not guessed: cutting `adjacent_groups`
+  mid-cycle leaves a trailing empty group that Saxon self-closes where the challenger has
+  already emitted its open tag — a real idiom limit (recorded in design/14), found by the
+  amplifier before it could pollute a measurement.
+- **`CaseAmplifierTest`**: the licence for every benchmark row — each case, amplified, must
+  still pass Saxon/challenger byte-parity and run clean. The benchmark and the correctness
+  catalogue cannot drift apart.
+- **`CaseCatalogueBenchmark`**: seven cases × two sizes (~10k and ~100k units) × Saxon and
+  shapeshifter, single-shot whole-file, both engines compiled in setup per the fair-test
+  ruling. Per-capability-family numbers instead of one workload's blend; results land in
+  design/benchmarks by date and commit like every other measurement.
+
 Profiling resumes once the catalogue is fat enough to profile against — per the ruling.
+**That gate is now open.**

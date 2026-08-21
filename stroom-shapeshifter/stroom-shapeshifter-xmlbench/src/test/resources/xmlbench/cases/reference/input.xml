@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<records xmlns="records:2" version="2.0">
+  <record>
+    <data name="FileNo" value="1"/>
+    <data name="Country" value="UK"/>
+    <data name="Site" value="Site A"/>
+    <data name="Building" value="Main"/>
+    <data name="Floor" value="1"/>
+    <data name="Room" value="A1"/>
+    <data name="Desk" value="100"/>
+  </record>
+  <record>
+    <data name="Desk" value="205"/>
+    <data name="Room" value="B2"/>
+    <data name="Floor" value="2"/>
+    <data name="Building" value="Annex"/>
+    <data name="Site" value="Site B"/>
+    <data name="Country" value="FR"/>
+    <data name="FileNo" value="2"/>
+  </record>
+  <record>
+    <data name="FileNo" value="3"/>
+    <data name="Country" value="DE"/>
+    <data name="Site" value="Site C"/>
+    <data name="Building" value="West"/>
+    <data name="Floor" value="3"/>
+    <data name="Room" value="C3"/>
+    <data name="Desk" value=""/>
+  </record>
+</records>
