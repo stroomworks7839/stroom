@@ -1,8 +1,9 @@
 # Strict dispatch — the cursor moves only by matching at it
 
-Status: **proposal, for discussion**. Nothing here is implemented, and the numbered questions
-at the end are the user's to decide. Written 2026-08-21 out of the anchoring investigation
-([06-performance-plan.md §1](06-performance-plan.md), [10-engine-compilation.md §§6–10](10-engine-compilation.md)).
+Status: **decided 2026-08-21 except §7 (zero-advance), which is open**. Written out of the
+anchoring investigation ([06-performance-plan.md §1](06-performance-plan.md),
+[10-engine-compilation.md §§6–10](10-engine-compilation.md)); the rulings at the end are the
+user's. The two modes are named **strict** and **lax**.
 
 ## 1. Why
 
@@ -40,21 +41,23 @@ A **strict group** moves its cursor only by a template matching at it.
   an exact byte — and the group exits.
 - Nothing else moves the cursor. No skip consumption, no recovery advance.
 
-## 3. Explicit consumption — eaters
+## 3. Explicit consumption — eaters (decided: a marker, not a vocabulary)
 
 The replacement for implicit skipping is a template that *matches* the content to be
-discarded, authored at the end of the group where its priority is lowest:
+discarded, authored at the end of the group where its priority is lowest. **There is no new
+atom vocabulary**: an eater uses the same match expressions as every other template — regex,
+delimiter, steps, whatever fits — and carries a **`consume` marker** telling the engine this
+match exists to advance, not to count. One mechanism for matching; the marker only changes
+what the match *means*:
 
-- **`consume: line`** — one line including its terminator. The idiomatic eater: line-shaped
-  data skips line-wise, and the whole group iterates line-by-line at anchored-question speed.
-- **`consume: bytes(n)`** — the `TakeN` shape; `bytes(1)` is the honest spelling of DS3's
-  advance-by-one, priced visibly (skipping N bytes costs N passes — documented as the
-  expensive spelling, for binary formats).
-- **`consume: until(...)`** — scan to a delimiter; the one eater that is search-shaped
-  inside, kept cheap by the library's first-byte machinery.
+- a consume-marked match does **not** advance `__match_count` / the match number — counting
+  belongs to real matches, and an author who wants an eater to count simply removes the
+  marker;
+- its body still runs (usually empty, often one `emit_error`), its captures still bind;
+- the optimiser must never prune it (its side effect *is* the cursor movement — an E10 note).
 
-An eater is a template: it can have a body (usually empty, often just an error emission), it
-is visible in review, and deleting it makes the group strict about that content.
+The idiomatic eater is a line consumer (`^[^\n]*\n?`); a one-byte consumer is the honest
+spelling of DS3's advance-by-one, priced visibly at one pass per byte.
 
 ## 4. Error-emitting paths
 
@@ -70,15 +73,17 @@ content — and the engine's location attribution attached. The cautionary eater
 
 This is the authored replacement for DS3's engine-generated skip warnings — same
 information, but written where it applies, hittable-by-design for paths added out of caution.
+**Decided:** severities include `fatal`, and a fatal emission aborts the run (scope — record
+vs stream — refinable when records exist as an engine concept).
 
-## 5. Backward compatibility — and the subtlety that constrains it
+## 5. Backward compatibility — decided: both modes, strict by default
 
-Two strategies, not mutually exclusive:
-
-- **A. A `search` dispatch mode retained in the engine** — current DS3-faithful behaviour,
-  per group or per source. Two code paths, cheap fidelity, frozen goldens untouched.
-- **B. Migration mapping** — `Ds3Migration` rewrites implicit behaviour into explicit
-  config: a trailing `consume: bytes(1)` + `emit_error` reproducing the skip warnings.
+The engine keeps two dispatch modes. **`strict`** is the default for newly authored
+configurations; **`lax`** is today's DS3-faithful search dispatch, and migration marks
+migrated DS3 configurations `lax` so their goldens stay frozen. An author converting a group
+to strict deliberately simulates the old non-match advance with a trailing one-byte
+`consume` eater (plus an `emit_error` if they want the old warnings) — accepting the
+winner-selection change below with their eyes open:
 
 **The subtlety: B is not semantics-preserving in multi-template groups.** DS3's winner
 selection is *template-priority over position* — the first template in list order that
@@ -87,9 +92,9 @@ strict group with a byte eater is *position-priority over template*: the first c
 position where any template matches decides, and only list order among templates at that
 position. Where list order used to beat buffer position (exactly the E16/E18 territory —
 win_sec's ordering bugs came from here), migrated configs would select different winners and
-goldens would shift. So B alone cannot silently replace A for existing configs; it is either
-B-with-accepted-golden-changes (each audited, as E6/E7 were) or A for legacy and B's style
-for new configs. `matchOrder="any"` needs search dispatch regardless (§6).
+goldens would shift. That is why migration marks configs `lax` rather than rewriting them,
+and why conversion to strict is an authoring act with audited output changes, not a mapping.
+`matchOrder="any"` needs lax dispatch regardless (§6).
 
 ## 6. What is preserved
 
@@ -100,20 +105,29 @@ for new configs. `matchOrder="any"` needs search dispatch regardless (§6).
   each other, and any-mode templates are not expected to be anchored.
 - **Guards, match limits, captures, stores, refs** — untouched.
 
-## 7. Zero-advance matches
+## 7. Zero-advance matches — OPEN
 
 A match that does not move the cursor is today a silent level-ender; in a loop whose only
-exit is "no progress", it is also one bug away from spinning forever. Proposal, two layers:
+exit is "no progress", it is also one bug away from spinning forever.
 
-- **Compile time:** the library publishes each pattern's minimum match length (it already
-  computes `byteLength[min,max]`; publishing follows the `leadingAnchor()` precedent — the
-  parser's fact, one source). A strict-group pattern that *can* match empty is a
-  compile-time error naming the template.
-- **Run time** (still needed — advance-to-group can reach zero through an empty group even
-  when the whole match is non-empty): a zero-advance match is an **error**, and the pass
-  moves to the next template rather than accepting the non-advancing winner — "try matchers
-  until one advances", bounded by the pass. Whether the zero-advance winner's body should
-  have run at all is Q6.
+**Ruled out:** a compile-time empty-match gate via a published `minLength()`. Authors
+commonly write `*`-quantified patterns that can theoretically match empty but in practice
+never do; rejecting them all would fight the corpus. The weight is carried at run time.
+
+**Open between two runtime semantics** — both defensible, scenarios in the discussion log:
+
+- *Error-and-try-next*: the zero-advance winner is reported and the pass continues to the
+  next template; self-healing when an early template mis-fires empty on a record shape a
+  later template handles.
+- *Error-and-exit*: a zero-advance means the grammar is wrong; fail at the first occurrence
+  with one clear error instead of limping on and flooding.
+
+**Proposed synthesis, pending ruling:** make it explicit like everything else in this
+design. A template that *legitimately* matches without advancing declares it — a `peek`
+marker: allowed to zero-advance, no error, skipped for the rest of the current cursor
+position so the pass continues past it (enabling classify-then-consume idioms). An
+**unmarked** zero-advance is a grammar bug: error and exit the group. Explicit intent, loud
+accidents.
 
 ## 8. What this does to the published anchor fact
 
@@ -123,22 +137,23 @@ anchoring, whatever the pattern says. It becomes a **validator**:
 - A strict-group pattern that opens `.*` or is LINE-anchored (`(?m)^`) probably expects to
   search; warn with the template's name: *in a strict group this matches at the cursor only —
   did you mean a line eater above it?*
-- A search-group pattern that is INPUT-anchored gets today's fast path, unchanged.
+- A lax-group pattern that is INPUT-anchored gets today's fast path, unchanged.
 
-The performance role survives wherever search dispatch survives (§5 A, `matchOrder="any"`).
+The performance role survives wherever lax dispatch survives. **Decided:** the lints are
+errors in strict mode, warnings in lax.
 
-## Decisions required
+## Rulings (2026-08-21)
 
-1. **Compat strategy**: keep `search` mode in-engine, migrate-with-audited-golden-changes,
-   or both — and which is the default for newly authored configs?
-2. **Eater vocabulary**: `line` / `bytes(n)` / `until(...)` as match atoms — right set, right
-   spelling?
-3. **Eater counting**: do eater matches count toward `min/maxMatch` and `__match_count`?
-   (Lean: no, by default — else every relative reference in the group shifts.)
-4. **Error paths**: severity set; can an error path abort the record or stream, or only
-   report?
-5. **Publish `minLength()`** from the regex library for empty-match validation (same
-   single-source principle as `leadingAnchor()`)?
-6. **Zero-advance**: error-and-try-next (proposed) vs error-and-exit; and does the
-   non-advancing winner's body run?
-7. **Validation strictness**: are §8's lints warnings or errors?
+1. **Compat**: both modes, in-engine — `strict` (default for new configs) and `lax`
+   (DS3-faithful; migration marks migrated configs lax). Strict conversion is an authoring
+   act using a trailing one-byte `consume` eater, with audited output changes.
+2. **Eaters**: no new vocabulary — any match expression plus a `consume` marker meaning
+   "advance, don't count".
+3. **Counting**: follows from 2 — consume-marked matches don't advance the match number;
+   want counting, drop the marker. The engine's only obligation is never to prune them.
+4. **Error paths**: severities with `fatal`; fatal aborts the run.
+5. **`minLength()` publication**: no — `*`-authored patterns legitimately smell empty;
+   handle zero-advance at run time instead.
+6. **Zero-advance**: OPEN — scenarios requested and provided; `peek`-marker synthesis
+   proposed (§7).
+7. **Lints**: errors in strict, warnings in lax.
