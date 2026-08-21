@@ -255,3 +255,32 @@ remaining gap-list rows (step `Tag` pre-encoding, compiled conditions, capture c
 small next to it. The next decision is strategic rather than incremental: attack the
 unanchored-scan cost itself, or price E13's buffer-spanning matches against this now-solid
 baseline.
+
+## 9. Change 4, measured: the engine forgets what anchoring is
+
+The regex library now exits early for input-anchored patterns on its own parsed knowledge
+([06-performance-plan.md §1, Done 2026-08-21](06-performance-plan.md)), so change 1's
+caller-side sniff retired: `CompiledMatch.Regex` lost its `anchoring` field, and the executor
+asks the one honest question every time — DS3's own shape, restored on evidence. Correctness
+gate unchanged (52/52, 242 tests). Measured against a fresh same-night baseline
+(`2026-08-21-0211`, itself flat 0.97–1.01× against the change-3 run):
+
+| Workload | before | after | ratio | cumulative vs day-1 baseline |
+|---|---:|---:|---:|---:|
+| `win_sec` | 22.7 | 23.7 | 1.05× | ~flat |
+| `csv_header` / `progressive` / `apache_httpd` / `ausearch` | — | — | 0.99–1.01× | 1.2× / 1.2× / 1.7× / 4.0× |
+| `win_sec_xml` | 68.2 | 66.7 | 0.98× | **10.9×** |
+| `regex_lines` | 442.0 | 419.1 | 0.95× | 1.5× |
+
+The honest asterisk: the two workloads whose patterns the sniff fast-pathed paid a whisker —
+`regex_lines` −5% and `win_sec_xml` −2%, both just outside their error bars. The mechanism is
+real and small: an unanchored search of an anchored pattern is now clamp + one attempt + the
+search loop's scaffolding, where the anchored question was the attempt alone. That is the
+price of each layer keeping its own job, it is bounded by the scaffolding of one empty loop,
+and it bought the cases the sniff could never prove (anchored alternations, flag groups) plus
+the deletion of caller-side pattern-text parsing. If a future measurement ever shows the
+scaffolding mattering, the fix belongs in the library — a search that clamps to one position
+could collapse to the anchored path internally — not in a returning sniff.
+
+**The arc closes where D35 pointed:** the model knows patterns as text, the graph owns
+matchers as fields, and the regex library — alone — knows what patterns mean.

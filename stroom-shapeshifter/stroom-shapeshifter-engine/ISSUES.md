@@ -238,9 +238,13 @@ indexes owned by the graph) added 2–18% everywhere — cumulative vs baseline:
 bodies: pre-encoded literals, classified references, transforms closed over their parameters)
 added 12–31% on body-heavy workloads. Cumulative vs baseline after three changes:
 `win_sec_xml` 11.0×, `ausearch` 4.0×, `apache_httpd` 1.67×, `regex_lines` 1.65× (112 MiB/s).
-The outlier is `win_sec` at 5.8 MiB/s — unanchored `(?m)` scans — and
-[10-engine-compilation.md §8](../design/10-engine-compilation.md) frames the next choice:
-attack that scan cost, or price E13 buffer-spanning against this baseline.** `EngineBenchmark` runs seven
+The outlier is `win_sec` at 5.8 MiB/s — unanchored `(?m)` scans.
+Change 4 (`6131d1a371`, 2026-08-21) then retired change 1's anchor sniff: the regex library
+now exits early for input-anchored patterns on its own parsed knowledge (its
+06-performance-plan §1, an issue this port surfaced), and the engine asks the one honest
+unanchored question — DS3's own shape — for 0–5% on the previously fast-pathed rows.
+[10-engine-compilation.md §9](../design/10-engine-compilation.md) closes the arc; the next
+choice stands: attack `win_sec`'s scan cost, or price E13 buffer-spanning.** `EngineBenchmark` runs seven
 whole configurations over 256 KiB of repeated real records, five forks, results to
 `design/benchmarks/` — the regex module's discipline. The status it measures against, and the
 gap list of what is interpreted rather than compiled, is
