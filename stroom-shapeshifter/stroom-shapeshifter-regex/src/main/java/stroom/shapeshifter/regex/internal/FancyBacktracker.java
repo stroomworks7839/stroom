@@ -58,10 +58,13 @@ import java.util.Arrays;
  *
  * <h2>Streaming</h2>
  * The same conservative contract as the bounded engine: {@link PlanRunner#NEED_MORE} whenever
- * any explored path — including one inside a lookahead — reached the edge of a window that can
- * still grow. A lookbehind is the exception: its sub-match ends at the cursor by definition, so
- * bytes arriving at the window's right edge cannot change it, and it does not record edge
- * contact.
+ * any explored path — including one inside a lookaround — reached the edge of a window that can
+ * still grow. That includes paths inside a lookbehind body: a nested lookahead's edge contact is
+ * genuine, and a consuming path's is conservative — from a start nearer than {@code cursor - max}
+ * the body can overshoot the cursor by up to {@code max - min} before the end-pin fails it, and
+ * an overshooting path can touch the edge even though more bytes cannot make it end at the
+ * cursor. The latch errs toward asking for input it may not need; the answer, when it comes, is
+ * right either way.
  */
 public final class FancyBacktracker {
 
@@ -245,6 +248,7 @@ public final class FancyBacktracker {
         final int[] b = nfa.b;
         final int[] next = nfa.next;
         final byte[][] classes = nfa.classes;
+        final int[][] dispatch = nfa.dispatch;
 
         for (;;) {
             // The budget is charged where work is provably done — bytes consumed, choice
@@ -274,7 +278,7 @@ public final class FancyBacktracker {
                     if (pos >= to) {
                         edge(recordEdge);
                     } else {
-                        final int successor = nfa.dispatch[a[pc]][data[pos] & 0xFF];
+                        final int successor = dispatch[a[pc]][data[pos] & 0xFF];
                         if (successor >= 0) {
                             pc = successor;
                             pos++;
@@ -315,10 +319,10 @@ public final class FancyBacktracker {
                     if (pos >= to) {
                         edge(recordEdge);
                     }
-                    final Hir.Kind kind = Hir.Kind.VALUES[nfa.a[pc]];
+                    final Hir.Kind kind = Hir.Kind.VALUES[a[pc]];
                     final boolean holds = kind == Hir.Kind.PREVIOUS_MATCH_END
                             ? pos == context.searchStart
-                            : PikeVm.assertionHolds(kind, data, regionFrom, to, pos);
+                            : Words.assertionHolds(kind, data, regionFrom, to, pos);
                     if (holds) {
                         pc++;
                         continue;
@@ -328,20 +332,20 @@ public final class FancyBacktracker {
                     final int advanced = matchBackref(data, pos, to, pc, recordEdge, slots);
                     if (advanced >= 0) {
                         pos += advanced;
-                        pc = nfa.next[pc];
+                        pc = next[pc];
                         continue;
                     }
                 }
                 case Nfa.LOOK -> {
-                    final boolean negated = (nfa.b[pc] & Nfa.LOOK_NEGATED) != 0;
-                    final boolean behind = (nfa.b[pc] & Nfa.LOOK_BEHIND) != 0;
+                    final boolean negated = (b[pc] & Nfa.LOOK_NEGATED) != 0;
+                    final boolean behind = (b[pc] & Nfa.LOOK_BEHIND) != 0;
                     final int mark = undoSize;
-                    if (childWritesCaptures[nfa.a[pc]]) {
+                    if (childWritesCaptures[a[pc]]) {
                         logSlots(slots);
                     }
                     final boolean matched = behind
-                            ? matchBehind(data, regionFrom, pos, nfa.a[pc], slots)
-                            : children[nfa.a[pc]]
+                            ? matchBehind(data, regionFrom, pos, to, a[pc], recordEdge, slots)
+                            : children[a[pc]]
                                       .attempt(data, regionFrom, pos, to, -1, recordEdge, slots)
                               >= 0;
                     if (matched != negated) {
@@ -355,8 +359,8 @@ public final class FancyBacktracker {
                     unwind(mark, slots);
                 }
                 case Nfa.CLASS_STAR -> {
-                    final byte[] table = nfa.classes[nfa.a[pc]];
-                    if (nfa.b[pc] == 0) {
+                    final byte[] table = classes[a[pc]];
+                    if (b[pc] == 0) {
                         // Greedy: measure the whole run in one tight loop, keep one backoff
                         // frame, and try the continuation from the far end first.
                         int end = pos;
@@ -382,16 +386,16 @@ public final class FancyBacktracker {
                 }
                 case Nfa.ATOMIC -> {
                     final int mark = undoSize;
-                    if (childWritesCaptures[nfa.a[pc]]) {
+                    if (childWritesCaptures[a[pc]]) {
                         logSlots(slots);
                     }
-                    final int end = children[nfa.a[pc]]
+                    final int end = children[a[pc]]
                             .attempt(data, regionFrom, pos, to, -1, recordEdge, slots);
                     if (end >= 0) {
                         // The child's preferred match, kept; its alternatives died with its
                         // stack, which is the whole meaning of an atomic group.
                         pos = end;
-                        pc = nfa.next[pc];
+                        pc = next[pc];
                         continue;
                     }
                     unwind(mark, slots);
@@ -405,7 +409,7 @@ public final class FancyBacktracker {
                     // A lookbehind must end exactly at the cursor; any other end is a failed
                     // path, not a match.
                 }
-                default -> throw new IllegalStateException("unexpected instruction " + nfa.op[pc]);
+                default -> throw new IllegalStateException("unexpected instruction " + op[pc]);
             }
 
             // This path is done. Resume the most recent choice point, undoing what it wrote.
@@ -418,10 +422,7 @@ public final class FancyBacktracker {
                 }
                 stackSize--;
                 if (--context.steps < 0) {
-                    throw new MatchLimitException(
-                            "the search took more than " + STEP_BUDGET + " steps, which only a "
-                            + "pathological combination of pattern and input does; the pattern "
-                            + "backtracks catastrophically and needs restructuring");
+                    throw limitExceeded();
                 }
                 unwind(stackUndo[stackSize], slots);
                 final int frame = stackPc[stackSize];
@@ -431,9 +432,9 @@ public final class FancyBacktracker {
                     break;
                 }
                 final int starPc = ~frame;
-                final byte[] table = nfa.classes[nfa.a[starPc]];
+                final byte[] table = classes[a[starPc]];
                 final int floor = stackAux[stackSize];
-                if (nfa.b[starPc] == 0) {
+                if (b[starPc] == 0) {
                     // Greedy backoff: one whole character shorter, continuation next.
                     int cur = stackPos[stackSize] - 1;
                     while (cur > floor && Utf8.isContinuation(data[cur])) {
@@ -484,11 +485,19 @@ public final class FancyBacktracker {
      * in the window the body's length bounds allow is tried, nearest first. Preference between
      * starts is not observable — only captures could see it, and the JDK agrees with
      * nearest-first on those.
+     *
+     * <p>The cursor pins where the body must end, and nothing more: the body keeps the region's
+     * own {@code to}, so an assertion or a nested lookahead inside it reads the input past the
+     * cursor exactly as it would outside. Handing it {@code cursor} as its window instead made
+     * {@code (?<=a(?=bc))bc} fail and {@code (?<=a$)b} match, neither of which is what the
+     * construct means.
      */
     private boolean matchBehind(final byte[] data,
                                 final int regionFrom,
                                 final int cursor,
+                                final int to,
                                 final int sub,
+                                final boolean recordEdge,
                                 final int[] slots) {
         final int min = nfa.subMin[sub];
         final int max = nfa.subMax[sub];
@@ -499,7 +508,7 @@ public final class FancyBacktracker {
             if (at > regionFrom && at < cursor && Utf8.isContinuation(data[at])) {
                 continue; // a sub-match may not begin inside a character either
             }
-            if (children[sub].attempt(data, regionFrom, at, cursor, cursor, false, slots) >= 0) {
+            if (children[sub].attempt(data, regionFrom, at, to, cursor, recordEdge, slots) >= 0) {
                 return true;
             }
         }
@@ -544,6 +553,14 @@ public final class FancyBacktracker {
         }
     }
 
+    /** The step budget ran out; one message, wherever the budget happened to be charged. */
+    private static MatchLimitException limitExceeded() {
+        return new MatchLimitException(
+                "the search took more than " + STEP_BUDGET + " steps, which only a "
+                + "pathological combination of pattern and input does; the pattern "
+                + "backtracks catastrophically and needs restructuring");
+    }
+
     /** Logs every capture slot, so a nested match's writes can be undone as one unit. */
     private void logSlots(final int[] slots) {
         for (int i = 0; i < slots.length; i++) {
@@ -553,10 +570,7 @@ public final class FancyBacktracker {
 
     private void push(final int pc, final int pos) {
         if (--context.steps < 0) {
-            throw new MatchLimitException(
-                    "the search took more than " + STEP_BUDGET + " steps, which only a "
-                    + "pathological combination of pattern and input does; the pattern "
-                    + "backtracks catastrophically and needs restructuring");
+            throw limitExceeded();
         }
         if (stackSize == stackPc.length) {
             stackPc = Arrays.copyOf(stackPc, stackSize * 2);

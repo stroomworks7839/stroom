@@ -17,7 +17,9 @@
 package stroom.shapeshifter.regex.internal;
 
 /**
- * Word characters, and the boundary test built on them.
+ * Word characters, the boundary test built on them, and — since the boundary test is its
+ * heaviest case — the one shared evaluation of the zero-width assertions
+ * ({@link #assertionHolds}) that every engine delegates to.
  * <p>
  * A word boundary is defined over <em>characters</em>, so with Unicode word characters the test
  * has to decode either side of the cursor rather than look at single bytes. UTF-8 makes the
@@ -40,17 +42,8 @@ public final class Words {
      */
     private static final class Unicode {
 
-        private static final CodePointSet SET = build();
-
-        private static CodePointSet build() {
-            final CodePointSet.Builder builder = new CodePointSet.Builder();
-            for (int codePoint = 0; codePoint <= CodePointSet.MAX; codePoint++) {
-                if (isWordCodePoint(codePoint)) {
-                    builder.add(codePoint, codePoint);
-                }
-            }
-            return builder.build();
-        }
+        /** Built by {@link UnicodeClasses}' predicate sweep, which coalesces runs into ranges. */
+        private static final CodePointSet SET = UnicodeClasses.build(Unicode::isWordCodePoint);
 
         private static boolean isWordCodePoint(final int codePoint) {
             // Alphabetic rather than isLetter, because that is what java.util.regex uses under
@@ -135,40 +128,56 @@ public final class Words {
         return wordBefore != wordAfter;
     }
 
-    /** The code point ending at {@code cursor}, or -1 at the region start. */
+    /** The code point ending at {@code cursor}, or -1 at the region start or on malformed bytes. */
     private static int characterBefore(final byte[] data, final int regionFrom, final int cursor) {
         if (cursor <= regionFrom) {
             return -1;
         }
         int start = cursor - 1;
-        // Continuation bytes are 10xxxxxx, so stepping back over them finds the lead byte.
-        while (start > regionFrom && (data[start] & 0xC0) == 0x80) {
+        // Continuation bytes are 10xxxxxx, so stepping back over them finds the lead byte. A
+        // well-formed sequence has at most three, which bounds the walk on malformed input —
+        // a run of stray continuation bytes must read as non-word, not send this to the
+        // region start.
+        while (start > regionFrom && cursor - start < 4 && Utf8.isContinuation(data[start])) {
             start--;
+        }
+        if (start + Utf8.sequenceLength(data[start] & 0xFF) != cursor) {
+            return -1; // no character ends exactly at the cursor: malformed input
         }
         return characterAt(data, start, cursor);
     }
 
     /** The code point beginning at {@code at}, or -1 if there is none or it is ill-formed. */
     private static int characterAt(final byte[] data, final int at, final int to) {
-        if (at >= to) {
-            return -1;
-        }
-        final int lead = data[at] & 0xFF;
-        final int length = Utf8.sequenceLength(lead);
-        if (length == 0 || at + length > to) {
-            return -1;
-        }
-        if (length == 1) {
-            return lead;
-        }
-        int codePoint = lead & (0x7F >> length);
-        for (int i = 1; i < length; i++) {
-            final int continuation = data[at + i] & 0xFF;
-            if ((continuation & 0xC0) != 0x80) {
-                return -1;
-            }
-            codePoint = (codePoint << 6) | (continuation & 0x3F);
-        }
-        return codePoint;
+        return at >= to
+                ? -1
+                : Utf8.decode(data, at, to);
+    }
+
+    /**
+     * Whether {@code kind} holds at {@code pos}. Shared by every engine — an assertion depends
+     * only on the data and the position, so one implementation serves them all — except
+     * {@code \G}, which depends on the search and is evaluated by the engines that support it
+     * before delegating here.
+     */
+    static boolean assertionHolds(final Hir.Kind kind,
+                                  final byte[] data,
+                                  final int regionFrom,
+                                  final int to,
+                                  final int pos) {
+        return switch (kind) {
+            case START_INPUT -> pos == regionFrom;
+            case START_LINE -> pos == regionFrom || data[pos - 1] == '\n';
+            case END_INPUT -> pos == to;
+            case END_LINE -> pos == to || data[pos] == '\n';
+            case WORD_BOUNDARY -> atBoundary(data, regionFrom, to, pos, true);
+            case NOT_WORD_BOUNDARY -> !atBoundary(data, regionFrom, to, pos, true);
+            case WORD_BOUNDARY_ASCII -> atBoundary(data, regionFrom, to, pos, false);
+            case NOT_WORD_BOUNDARY_ASCII -> !atBoundary(data, regionFrom, to, pos, false);
+            // Depends on the search, not only the data; the engines that support it evaluate
+            // it before delegating here, and no other engine ever receives it.
+            case PREVIOUS_MATCH_END -> throw new IllegalStateException(
+                    "\\G reached an engine that cannot evaluate it");
+        };
     }
 }

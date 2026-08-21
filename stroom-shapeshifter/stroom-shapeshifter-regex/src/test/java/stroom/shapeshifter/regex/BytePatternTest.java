@@ -266,7 +266,7 @@ class BytePatternTest {
                                    final PatternCompileException.Reason reason) {
         assertThatThrownBy(() -> BytePattern.compile(pattern))
                 .isInstanceOf(PatternCompileException.class)
-                .extracting(e -> ((PatternCompileException) e).getReason())
+                .extracting(e -> ((PatternCompileException) e).reason())
                 .isEqualTo(reason);
     }
 

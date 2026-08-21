@@ -263,7 +263,7 @@ public final class PikeVm {
             final int[] pathAsserts = closures.asserts(pc, i);
             boolean holds = true;
             for (final int kind : pathAsserts) {
-                if (!holds(Hir.Kind.VALUES[kind], data, regionFrom, to, pos)) {
+                if (!Words.assertionHolds(Hir.Kind.VALUES[kind], data, regionFrom, to, pos)) {
                     holds = false;
                     break;
                 }
@@ -277,38 +277,6 @@ public final class PikeVm {
             // instructions between here and the target consumed a byte.
             list.add(target, slots, closures.saves(pc, i), pos);
         }
-    }
-
-    /** Shared with every backtracking engine: an assertion depends only on the data and the
-     * position, so one implementation serves them all — except {@code \G}, which depends on
-     * the search and is evaluated by the engines that support it before delegating here. */
-    static boolean assertionHolds(final Hir.Kind kind,
-                                  final byte[] data,
-                                  final int regionFrom,
-                                  final int to,
-                                  final int pos) {
-        return holds(kind, data, regionFrom, to, pos);
-    }
-
-    private static boolean holds(final Hir.Kind kind,
-                                 final byte[] data,
-                                 final int regionFrom,
-                                 final int to,
-                                 final int pos) {
-        return switch (kind) {
-            case START_INPUT -> pos == regionFrom;
-            case START_LINE -> pos == regionFrom || data[pos - 1] == '\n';
-            case END_INPUT -> pos == to;
-            case END_LINE -> pos == to || data[pos] == '\n';
-            case WORD_BOUNDARY -> Words.atBoundary(data, regionFrom, to, pos, true);
-            case NOT_WORD_BOUNDARY -> !Words.atBoundary(data, regionFrom, to, pos, true);
-            case WORD_BOUNDARY_ASCII -> Words.atBoundary(data, regionFrom, to, pos, false);
-            case NOT_WORD_BOUNDARY_ASCII -> !Words.atBoundary(data, regionFrom, to, pos, false);
-            // Depends on the search, not only the data; the fancy engine evaluates it before
-            // delegating here, and a program containing it never runs on any other engine.
-            case PREVIOUS_MATCH_END -> throw new IllegalStateException(
-                    "\\G reached an engine that cannot evaluate it");
-        };
     }
 
     /**
@@ -340,7 +308,7 @@ public final class PikeVm {
         void clear() {
             size = 0;
             if (++generation == Integer.MIN_VALUE) {
-                // Once per 2^32 clears — roughly four gigabytes of input through one matcher
+                // Once per 2^31 clears — roughly two gigabytes of input through one matcher
                 // — the counter wraps, and stale stamps from a full cycle ago would read as
                 // current. The bounded backtracker lost real matches to exactly this disease
                 // at its 127-generation scale; the branch is one predictable compare.

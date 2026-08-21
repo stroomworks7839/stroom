@@ -71,6 +71,7 @@ public record ByteWindow(byte[] array,
         return new ByteWindow(array, start, end, end, start, false);
     }
 
+    /** A complete window over the UTF-8 encoding of {@code text} — a test and demo convenience. */
     public static ByteWindow of(final String text) {
         return complete(text.getBytes(StandardCharsets.UTF_8));
     }

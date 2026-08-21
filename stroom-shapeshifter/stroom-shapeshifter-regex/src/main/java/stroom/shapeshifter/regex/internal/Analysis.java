@@ -452,16 +452,22 @@ public final class Analysis {
             case Hir.Group group -> byteLength(group.body());
             case Hir.Atomic atomic -> byteLength(atomic.body());
             case Hir.Concat concat -> {
-                int min = 0;
-                int max = 0;
+                // Both bounds accumulate in long and saturate, because a legal repetition can
+                // already exceed an int: a{1500000000}a{1500000000} is a valid pattern whose
+                // minimum overflows to a negative, and a negative minimum poisons every
+                // consumer from Nfa.minLength down into index arithmetic. Saturating the
+                // minimum at MAX_VALUE stays a true lower bound — no input an array can hold
+                // reaches it — and the maximum saturates to its own "no finite bound" sentinel.
+                long min = 0;
+                long max = 0;
                 for (final Hir item : concat.items()) {
                     final int[] bounds = byteLength(item);
-                    min += bounds[0];
+                    min = Math.min(min + bounds[0], Integer.MAX_VALUE);
                     max = max == UNBOUNDED_LENGTH || bounds[1] == UNBOUNDED_LENGTH
                             ? UNBOUNDED_LENGTH
-                            : max + bounds[1];
+                            : Math.min(max + bounds[1], UNBOUNDED_LENGTH);
                 }
-                yield new int[]{min, max};
+                yield new int[]{(int) min, (int) max};
             }
             case Hir.Alt alt -> {
                 int min = UNBOUNDED_LENGTH;
@@ -475,7 +481,8 @@ public final class Analysis {
             }
             case Hir.Repeat repeat -> {
                 final int[] body = byteLength(repeat.body());
-                final int min = body[0] * repeat.min();
+                // Saturating, like the Concat case: the product of two legal ints overflows.
+                final int min = (int) Math.min((long) body[0] * repeat.min(), Integer.MAX_VALUE);
                 if (body[1] == 0) {
                     yield new int[]{0, 0}; // only empty iterations, however many
                 }

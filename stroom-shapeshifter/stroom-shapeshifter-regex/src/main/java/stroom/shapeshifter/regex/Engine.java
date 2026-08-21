@@ -17,8 +17,9 @@
 package stroom.shapeshifter.regex;
 
 /**
- * The engines a pattern can run on, in order of how much machinery they need — which is also the
- * order of what they cost. {@link BytePattern#tier()} is an engine's ordinal.
+ * The engines a pattern can run on, in order of how much machinery they need.
+ * {@link BytePattern#tier()} is an engine's ordinal. Machinery is not cost: {@link #TREE},
+ * the biggest machine, measured faster than every flat engine on the corpus (D32).
  * <p>
  * The compiler picks the cheapest engine that can give the right answer, and says which through
  * {@link BytePattern#explain()}. That is a deliberate part of the design rather than an internal

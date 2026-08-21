@@ -21,6 +21,7 @@ import stroom.shapeshifter.regex.PatternCompileException;
 import stroom.shapeshifter.regex.PatternCompileException.Reason;
 
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 
 /**
@@ -198,13 +199,13 @@ public final class NodeTree {
             // An input-anchored pattern cannot start past the region start, so on a window
             // that cannot grow the walk ends there. Decided once, out here, so the
             // line-anchored walk pays nothing for it.
-            if (complete && anchor == 2) {
+            if (complete && anchor == Nfa.ANCHOR_INPUT) {
                 lastStart = Math.min(lastStart, regionFrom);
             }
 
             for (int at = start; at <= lastStart; at++) {
-                if (at < to && at > regionFrom && anchor != 0
-                    && (anchor == 2 || data[at - 1] != '\n')) {
+                if (at < to && at > regionFrom && anchor != Nfa.ANCHOR_NONE
+                    && (anchor == Nfa.ANCHOR_INPUT || data[at - 1] != '\n')) {
                     if (anchored) {
                         break;
                     }
@@ -264,7 +265,7 @@ public final class NodeTree {
         final Node accept = compiler.node(new Accept());
         final Node head = compiler.compile(root, accept);
 
-        final java.util.BitSet first = Analysis.first(root);
+        final BitSet first = Analysis.first(root);
         byte[] firstBytes = null;
         if (!Analysis.nullable(root) && !first.isEmpty()) {
             firstBytes = new byte[256];
@@ -829,7 +830,7 @@ public final class NodeTree {
             }
             final boolean holds = kind == Hir.Kind.PREVIOUS_MATCH_END
                     ? pos == ctx.searchStart
-                    : PikeVm.assertionHolds(kind, ctx.data, ctx.regionFrom, ctx.to, pos);
+                    : Words.assertionHolds(kind, ctx.data, ctx.regionFrom, ctx.to, pos);
             return holds && next.match(ctx, pos);
         }
     }
@@ -931,13 +932,27 @@ public final class NodeTree {
             }
         }
 
+        /**
+         * A lookbehind pins where its body must <em>end</em>, and nothing else. The window it
+         * sees stays the whole region: an assertion or a nested lookahead in the body reads the
+         * input past the cursor, exactly as it would outside — {@code (?<=a(?=bc))bc} matches
+         * and {@code (?<=a$)b} does not, both of which need bytes the cursor would have hidden.
+         * <p>
+         * Pinning the window instead of the end used to do both jobs at once, and got the second
+         * one wrong in both directions: a nested lookahead could never see its own text, and
+         * {@code $} read the cursor as the end of the input and matched there.
+         * <p>
+         * The body can overrun the cursor while exploring, though never match past it. Starts
+         * are tried from {@code cursor - min} back to {@code cursor - max}, and from any start
+         * nearer than the farthest a consuming path can overshoot the cursor by up to
+         * {@code max - min} before the end-pin fails it. {@code recordEdge} therefore stays
+         * live for two kinds of contact: a nested lookahead's, which is genuine, and an
+         * overshooting path's, which is conservative — more bytes cannot make that path end at
+         * the cursor, so the latch merely defers the answer until the window grows or completes.
+         */
         private boolean matchBehind(final Ctx ctx, final int pos) {
             final int savedRequire = ctx.requireEnd;
-            final boolean savedEdge = ctx.recordEdge;
-            final int savedTo = ctx.to;
             ctx.requireEnd = pos;
-            ctx.recordEdge = false;
-            ctx.to = pos;
             try {
                 final int lowest = Math.max(ctx.regionFrom, pos - maxLength);
                 for (int at = pos - minLength; at >= lowest; at--) {
@@ -951,8 +966,6 @@ public final class NodeTree {
                 return false;
             } finally {
                 ctx.requireEnd = savedRequire;
-                ctx.recordEdge = savedEdge;
-                ctx.to = savedTo;
             }
         }
     }

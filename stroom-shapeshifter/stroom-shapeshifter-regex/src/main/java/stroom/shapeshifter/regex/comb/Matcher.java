@@ -60,20 +60,34 @@ public sealed interface Matcher {
     /** A whole regex as one element. Its own capture groups are preserved and renumbered. */
     record Regex(String pattern, Set<Flag> flags) implements Matcher {
 
+        public Regex {
+            flags = Set.copyOf(flags);
+        }
     }
 
     /** All elements in order. */
     record Sequence(List<Matcher> items) implements Matcher {
 
+        public Sequence {
+            items = List.copyOf(items);
+        }
     }
 
     /** Ordered alternatives — the first that matches wins. */
     record Choice(List<Matcher> alternatives) implements Matcher {
 
+        public Choice {
+            alternatives = List.copyOf(alternatives);
+        }
     }
 
+    /**
+     * The body repeated between {@code min} and {@code max} times, {@code max} being
+     * {@link #UNBOUNDED} for no upper limit.
+     */
     record Repeat(Matcher body, int min, int max, boolean greedy) implements Matcher {
 
+        /** The {@code max} that means no upper bound, as in {@code x*} or {@code x+}. */
         public static final int UNBOUNDED = Integer.MAX_VALUE;
     }
 

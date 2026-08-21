@@ -33,9 +33,10 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
- * A pattern compiled to a byte-level scan plan.
+ * A pattern compiled for byte-level matching.
  * <p>
  * Immutable and safe to share; obtain a {@link ByteMatcher} per thread to match with.
  *
@@ -79,13 +80,17 @@ public final class BytePattern {
     private final List<String> groupNames;
 
     /**
-     * The engine every search must use, or null to let each search pick. Only set by
-     * {@link #compileForcing}, and only for testing and diagnostics — the choice between
-     * backtracking and simulation is otherwise made per search, since it depends on the input.
+     * The engine every search must use, or null to leave the compiled machines their normal
+     * order — the tree engine first with its fallback beneath it. Only set by
+     * {@link #compileForcing}, and only for testing and diagnostics.
      */
     private final Engine forced;
 
-    /** The node-tree compilation, present only when {@link Engine#TREE} was forced. */
+    /**
+     * The node-tree compilation, built for every fancy and every ambiguous pattern — since
+     * D31/D32 the tree engine runs first on both — and when {@link Engine#TREE} was forced.
+     * Null for a one-pass pattern, and when another engine was forced.
+     */
     private final NodeTree.Compiled tree;
 
     private BytePattern(final String pattern,
@@ -168,9 +173,7 @@ public final class BytePattern {
         // decidable one byte at a time, so they reach tier 0 instead of the NFA.
         final Hir root = Normalise.normalise(parsed);
         final boolean multiline = flags.contains(Flag.MULTILINE);
-        final Set<Flag> copy = EnumSet.copyOf(flags.isEmpty()
-                ? EnumSet.noneOf(Flag.class)
-                : flags);
+        final Set<Flag> copy = copyFlags(flags);
 
         // A pattern using a construct outside the regular subset — a backreference, lookaround,
         // an atomic group, \G — can only run on the unbounded backtracker, so neither the
@@ -207,16 +210,16 @@ public final class BytePattern {
         return switch (matcher) {
             case Matcher.Tag tag -> "tag(" + tag.text() + ")";
             case Matcher.Characters characters -> "takeWhile(" + characters.classExpression() + ")";
-            case Matcher.Until until -> "takeUntil(" + (char) until.codePoint() + ")";
+            case Matcher.Until until -> "takeUntil(" + Character.toString(until.codePoint()) + ")";
             case Matcher.Regex regex -> "regex(" + regex.pattern() + ")";
             case Matcher.Ref ref -> ref.name();
             case Matcher.Labelled labelled -> describe(labelled.body()) + " as " + labelled.label();
             case Matcher.Sequence sequence -> sequence.items().stream()
                     .map(BytePattern::describe)
-                    .collect(java.util.stream.Collectors.joining(", ", "sequence(", ")"));
+                    .collect(Collectors.joining(", ", "sequence(", ")"));
             case Matcher.Choice choice -> choice.alternatives().stream()
                     .map(BytePattern::describe)
-                    .collect(java.util.stream.Collectors.joining(", ", "choice(", ")"));
+                    .collect(Collectors.joining(", ", "choice(", ")"));
             case Matcher.Repeat repeat -> "repeat(" + describe(repeat.body()) + ")";
         };
     }
@@ -229,9 +232,11 @@ public final class BytePattern {
      * comparing is how that is established, rather than inferring it from each agreeing with
      * {@code java.util.regex} separately. It is also how their costs are compared on equal terms.
      *
-     * @throws IllegalArgumentException if the engine cannot run the pattern — only
-     *                                  {@link Engine#SCAN_PLAN} can refuse, and only for a pattern
-     *                                  that is not one-pass.
+     * @throws IllegalArgumentException if the engine cannot run the pattern:
+     *                                  {@link Engine#SCAN_PLAN} refuses a pattern that is not
+     *                                  one-pass, and {@link Engine#SIMULATE} and
+     *                                  {@link Engine#BACKTRACK} refuse a fancy pattern, whose
+     *                                  constructs only the backtracking engines can run.
      */
     public static BytePattern compileForcing(final Engine engine,
                                              final String pattern,
@@ -250,13 +255,11 @@ public final class BytePattern {
             final NodeTree.Compiled tree =
                     NodeTree.compile(
                             root, parsed.groupCount(), pattern);
-            return new BytePattern(pattern, EnumSet.copyOf(flags.isEmpty()
-                    ? EnumSet.noneOf(Flag.class)
-                    : flags), null, null,
+            return new BytePattern(pattern, copyFlags(flags), null, null,
                     List.of(), Analysis.warnings(root), parsed.groupNames(), engine, tree);
         }
-        final BytePattern compiled = compileForcingNfa(pattern, flags);
-        if (engine != Engine.FANCY && engine != Engine.TREE && compiled.nfa.fancy()) {
+        final BytePattern compiled = compileNfa(pattern, flags);
+        if (engine != Engine.FANCY && compiled.nfa.fancy()) {
             throw new IllegalArgumentException(
                     "the pattern needs the unbounded backtracker, which cannot be overridden: "
                     + pattern);
@@ -265,12 +268,15 @@ public final class BytePattern {
                 compiled.ambiguities, compiled.warnings, compiled.groupNames, engine);
     }
 
-    /** The engine every search must use, or null to choose per search. */
+    /** The engine every search must use, or null to run the machines in their normal order. */
     Engine forced() {
         return forced;
     }
 
-    /** The node-tree compilation, or null unless {@link Engine#TREE} was forced. */
+    /**
+     * The node-tree compilation — present for every fancy and ambiguous pattern, and when
+     * {@link Engine#TREE} was forced — or null for a one-pass pattern or another forced engine.
+     */
     NodeTree.Compiled tree() {
         return tree;
     }
@@ -282,19 +288,28 @@ public final class BytePattern {
      */
     @Deprecated
     public static BytePattern compileForcingNfa(final String pattern, final Set<Flag> flags) {
+        return compileNfa(pattern, flags);
+    }
+
+    private static BytePattern compileNfa(final String pattern, final Set<Flag> flags) {
         final Parser.Result parsed = Parser.parse(pattern, flags);
         final Hir root = Normalise.normalise(parsed.root());
         final boolean multiline = flags.contains(Flag.MULTILINE);
         final Nfa nfa = NfaCompiler.compile(root, parsed.groupCount(), multiline, pattern);
         return new BytePattern(pattern,
-                EnumSet.copyOf(flags.isEmpty()
-                        ? EnumSet.noneOf(Flag.class)
-                        : flags),
+                copyFlags(flags),
                 null,
                 nfa,
                 Analysis.onePassViolations(root),
                 Analysis.warnings(root),
                 parsed.groupNames());
+    }
+
+    /** A defensive {@link EnumSet} copy, tolerating the empty immutable sets callers pass. */
+    private static Set<Flag> copyFlags(final Set<Flag> flags) {
+        return flags.isEmpty()
+                ? EnumSet.noneOf(Flag.class)
+                : EnumSet.copyOf(flags);
     }
 
     /**
@@ -348,9 +363,7 @@ public final class BytePattern {
     }
 
     public Set<Flag> flags() {
-        return EnumSet.copyOf(flags.isEmpty()
-                ? EnumSet.noneOf(Flag.class)
-                : flags);
+        return copyFlags(flags);
     }
 
     public int groupCount() {
@@ -363,9 +376,11 @@ public final class BytePattern {
     }
 
     /**
-     * The engine the compiler chose, which for a pattern needing an automaton is the most
-     * expensive one that might be used: whether {@link Engine#BACKTRACK} can run a given search
-     * depends on the input length, so it is settled per search rather than here.
+     * The engine that guarantees this pattern an answer: the scan plan for a one-pass pattern,
+     * the tree engine for a fancy one (with {@link Engine#FANCY} as its structural fallback),
+     * and the simulation for an ambiguous one — which keeps the linear-time promise even though
+     * the tree engine runs first (D31/D32). Not necessarily the machine that answers a given
+     * search; {@link #explain()} names the compiled tier.
      */
     public Engine engine() {
         if (plan != null) {

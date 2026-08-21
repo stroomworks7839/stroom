@@ -180,19 +180,6 @@ public final class Nfa {
         final int[] next,
         final byte[][] classes,
         final int[][] dispatch,
-        final int slotCount,
-        final int groupCount,
-        final boolean multiline) {
-        this(op, a, b, next, classes, dispatch, new Nfa[0], new int[0], new int[0],
-                slotCount, groupCount, multiline, 0);
-    }
-
-    Nfa(final int[] op,
-        final int[] a,
-        final int[] b,
-        final int[] next,
-        final byte[][] classes,
-        final int[][] dispatch,
         final Nfa[] subs,
         final int[] subMin,
         final int[] subMax,
@@ -216,6 +203,7 @@ public final class Nfa {
         boolean needsFancy = subs.length > 0;
         for (int pc = 0; pc < op.length && !needsFancy; pc++) {
             needsFancy = op[pc] == BACKREF
+                         || op[pc] == CLASS_STAR
                          || (op[pc] == ASSERT && a[pc] == Hir.Kind.PREVIOUS_MATCH_END.ordinal());
         }
         this.fancy = needsFancy;
@@ -280,7 +268,9 @@ public final class Nfa {
                     }
                 }
                 default -> {
-                    return null; // MATCH is reachable without consuming, so anything could start
+                    // A non-consuming or fancy instruction is reachable, so no byte table can
+                    // gate the start.
+                    return null;
                 }
             }
         }

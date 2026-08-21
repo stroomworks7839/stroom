@@ -127,7 +127,7 @@ class RustCorpusTest {
                         : EnumSet.noneOf(Flag.class));
             } catch (final PatternCompileException e) {
                 // Refusing a pattern is a documented scope boundary, not a failure.
-                outcomes.merge("rejected: " + e.getReason(), 1, Integer::sum);
+                outcomes.merge("rejected: " + e.reason(), 1, Integer::sum);
                 // The message carries the offending pattern and a caret under it; the first
                 // line alone is the reason, which is what these are grouped by.
                 refusals.merge(e.getMessage().split("\n")[0], 1, Integer::sum);

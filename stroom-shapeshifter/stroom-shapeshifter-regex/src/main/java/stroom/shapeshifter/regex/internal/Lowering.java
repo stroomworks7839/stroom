@@ -28,7 +28,6 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 
 /**
  * Lowers a composed {@link Matcher} into {@link Hir} — the same representation a regex parses
@@ -123,13 +122,18 @@ public final class Lowering {
     /**
      * An embedded regex is parsed with its group numbering continuing from the composition's, so
      * its captures interleave correctly with surrounding labels rather than colliding with them.
+     * The labels seen so far are passed in by name too, which is what lets the regex's own
+     * {@code \k<name>} references resolve to absolute group numbers, and duplicate names across
+     * the two layers be refused rather than silently shadowed.
      */
     private Hir lowerRegex(final Matcher.Regex regex) {
         final Set<Flag> effective = regex.flags().isEmpty()
                 ? flags
                 : regex.flags();
-        final Parser.Result parsed = Parser.parse(regex.pattern(), effective, groupCount);
+        final Parser.Result parsed = Parser.parse(regex.pattern(), effective, groupNames);
         groupCount = parsed.groupCount();
+        // The parser's list is this one plus the groups the regex created, indexed by number.
+        groupNames.clear();
         groupNames.addAll(parsed.groupNames());
         return parsed.root();
     }
@@ -142,20 +146,27 @@ public final class Lowering {
         }
         if (resolving.contains(ref.name())) {
             // Inlining is what keeps the engine free of recursion, so a cycle has to be an error
-            // rather than something the runtime discovers.
+            // rather than something the runtime discovers. The chain reads outermost-first —
+            // a -> b -> a — which is the order a reader follows the definitions in.
             throw new PatternCompileException(Reason.UNSUPPORTED, ref.name(), -1,
                     "matcher '" + ref.name() + "' refers to itself via "
                     + String.join(" -> ", resolving) + " -> " + ref.name());
         }
-        resolving.push(ref.name());
+        resolving.addLast(ref.name());
         try {
             return lowerNode(target);
         } finally {
-            resolving.pop();
+            resolving.removeLast();
         }
     }
 
-    /** A literal becomes one byte sequence, which compiles to a single compare. */
+    /**
+     * A literal becomes one byte sequence, which compiles to a single compare — except a single
+     * byte, which becomes a singleton class instead. That is the shape {@link Parser#literal}
+     * gives one-byte literals, and {@link Normalise} compares classes and byte sequences by
+     * different rules when folding and factoring, so matching the parser's shape is what keeps a
+     * composed {@code tag("a")} and the regex {@code a} compiling to the identical plan.
+     */
     private static Hir literal(final String text) {
         if (text.isEmpty()) {
             return new Hir.Empty();
@@ -170,22 +181,5 @@ public final class Lowering {
         return codePoint >= 0x20 && codePoint < 0x7F
                 ? String.valueOf((char) codePoint)
                 : String.format("\\x%02X", codePoint);
-    }
-
-    /** Exposed so callers can supply their own resolver without depending on a map type. */
-    public static Result lower(final Matcher matcher,
-                               final Function<String, Matcher> resolver,
-                               final Set<Flag> flags) {
-        return lower(matcher, new java.util.AbstractMap<String, Matcher>() {
-            @Override
-            public Matcher get(final Object key) {
-                return resolver.apply((String) key);
-            }
-
-            @Override
-            public Set<Entry<String, Matcher>> entrySet() {
-                return Set.of();
-            }
-        }, flags);
     }
 }

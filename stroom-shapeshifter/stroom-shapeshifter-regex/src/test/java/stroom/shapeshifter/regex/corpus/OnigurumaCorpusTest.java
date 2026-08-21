@@ -87,7 +87,7 @@ class OnigurumaCorpusTest {
             try {
                 pattern = BytePattern.compile(testCase.pattern(), EnumSet.of(Flag.MULTILINE));
             } catch (final PatternCompileException e) {
-                outcomes.merge("rejected: " + e.getReason(), 1, Integer::sum);
+                outcomes.merge("rejected: " + e.reason(), 1, Integer::sum);
                 refusals.merge(e.getMessage().split("\n")[0], 1, Integer::sum);
                 continue;
             }

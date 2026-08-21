@@ -67,8 +67,8 @@ class CorpusDifferentialTest {
                 try {
                     compiled = BytePattern.compile(pattern);
                 } catch (final PatternCompileException e) {
-                    byVerdict.merge(e.getReason().name(), 1, Integer::sum);
-                    rejected.computeIfAbsent(e.getReason().name(), reason -> new ArrayList<>())
+                    byVerdict.merge(e.reason().name(), 1, Integer::sum);
+                    rejected.computeIfAbsent(e.reason().name(), reason -> new ArrayList<>())
                             .add(pattern);
                     counts[3]++;
                     continue;

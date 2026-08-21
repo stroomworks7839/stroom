@@ -107,7 +107,7 @@ class CorpusAnalysisTest {
                         compiled.ambiguities().getFirst().toString());
             };
         } catch (final PatternCompileException e) {
-            final String verdict = switch (e.getReason()) {
+            final String verdict = switch (e.reason()) {
                 case UNSUPPORTED -> "unsupported";
                 case SYNTAX -> "syntax error";
             };

@@ -138,22 +138,27 @@ public final class StreamMatcher implements AutoCloseable {
         return bufferOrigin + matcher.end();
     }
 
+    /** The match start relative to the current buffer — unlike the absolute {@link #matchStart()}. */
     public int start() {
         return matcher.start();
     }
 
+    /** One past the match end relative to the current buffer — unlike the absolute {@link #matchEnd()}. */
     public int end() {
         return matcher.end();
     }
 
+    /** The span of a group in the current buffer, or null if it did not take part. */
     public ByteSpan group(final int group) {
         return matcher.group(group);
     }
 
+    /** The span of a named group, or null if it did not take part; the name must exist. */
     public ByteSpan group(final String name) {
         return matcher.group(name);
     }
 
+    /** A group decoded as UTF-8, or null if it did not take part. */
     public String groupString(final int group) {
         return matcher.groupString(group);
     }

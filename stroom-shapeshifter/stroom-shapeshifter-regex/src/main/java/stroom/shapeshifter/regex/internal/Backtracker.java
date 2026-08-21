@@ -262,7 +262,7 @@ public final class Backtracker {
                         if (pos >= to) {
                             hitEnd = true;
                         }
-                        if (PikeVm.assertionHolds(Hir.Kind.VALUES[nfa.a[pc]],
+                        if (Words.assertionHolds(Hir.Kind.VALUES[nfa.a[pc]],
                                 data, regionFrom, to, pos)) {
                             pc++;
                             continue;

@@ -72,8 +72,18 @@ public final class Matchers {
         return new Matcher.Until(terminator, false);
     }
 
+    /** As {@link #takeUntil(char)}, for a terminator outside the basic multilingual plane. */
+    public static Matcher takeUntil(final int terminator) {
+        return new Matcher.Until(terminator, false);
+    }
+
     /** Everything up to and including the next occurrence of {@code terminator}. */
     public static Matcher takeThrough(final char terminator) {
+        return new Matcher.Until(terminator, true);
+    }
+
+    /** As {@link #takeThrough(char)}, for a terminator outside the basic multilingual plane. */
+    public static Matcher takeThrough(final int terminator) {
         return new Matcher.Until(terminator, true);
     }
 
@@ -122,6 +132,7 @@ public final class Matchers {
         return new Matcher.Repeat(body, 0, 1, true);
     }
 
+    /** Between {@code min} and {@code max} repetitions, matched greedily. */
     public static Matcher repeat(final Matcher body, final int min, final int max) {
         return new Matcher.Repeat(body, min, max, true);
     }
@@ -158,7 +169,9 @@ public final class Matchers {
         library.define("identifier", regex("[A-Za-z_][A-Za-z0-9_]*"));
         library.define("whitespace", takeWhile("[ \\t]"));
         library.define("quotedString", delimited(tag("\""), takeUntil('"'), tag("\"")));
-        library.define("ipv4", separated(ref("digits"), tag(".")));
+        library.define("octet", regex("[0-9]{1,3}"));
+        library.define("ipv4", sequence(
+                ref("octet"), repeat(sequence(tag("."), ref("octet")), 3, 3)));
         library.define("isoDate", regex("[0-9]{4}-[0-9]{2}-[0-9]{2}"));
         library.define("isoDateTime", sequence(
                 ref("isoDate"), tag("T"), regex("[0-9]{2}:[0-9]{2}:[0-9]{2}")));

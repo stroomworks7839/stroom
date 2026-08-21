@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.regex.internal;
 
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -126,7 +127,7 @@ final class UnicodeClasses {
                 : null;
         return prefixed != null
                 ? prefixed
-                : scriptOrBlock(name);
+                : script(name);
     }
 
     /** The handful of binary properties that are not general categories. */
@@ -154,7 +155,7 @@ final class UnicodeClasses {
     private static final Map<String, IntPredicate> CATEGORIES = categories();
 
     private static Map<String, IntPredicate> categories() {
-        final Map<String, IntPredicate> map = new java.util.HashMap<>();
+        final Map<String, IntPredicate> map = new HashMap<>();
         category(map, "Lu", "Uppercase_Letter", ofType(Character.UPPERCASE_LETTER));
         category(map, "Ll", "Lowercase_Letter", ofType(Character.LOWERCASE_LETTER));
         category(map, "Lt", "Titlecase_Letter", ofType(Character.TITLECASE_LETTER));
@@ -233,8 +234,9 @@ final class UnicodeClasses {
         };
     }
 
-    /** {@code \p{IsGreek}} and the like, resolved through the JDK's own script lookup. */
-    private static IntPredicate scriptOrBlock(final String name) {
+    /** {@code \p{IsGreek}} and the like, resolved through the JDK's own script lookup. Scripts
+     * only: the {@code In...} block names are not recognised anywhere in this parser. */
+    private static IntPredicate script(final String name) {
         final String bare = name.startsWith("Is")
                 ? name.substring(2)
                 : name;
@@ -276,8 +278,9 @@ final class UnicodeClasses {
         };
     }
 
-    /** One sweep of the code space, coalescing runs into ranges as it goes. */
-    private static CodePointSet build(final IntPredicate predicate) {
+    /** One sweep of the code space, coalescing runs into ranges as it goes. Shared with
+     * {@link Words}, whose word-character set is built the same way. */
+    static CodePointSet build(final IntPredicate predicate) {
         final CodePointSet.Builder builder = new CodePointSet.Builder();
         int runStart = -1;
         for (int codePoint = 0; codePoint <= CodePointSet.MAX; codePoint++) {

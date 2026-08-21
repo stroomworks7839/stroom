@@ -22,8 +22,10 @@ import stroom.shapeshifter.regex.PatternCompileException.Reason;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -44,6 +46,15 @@ public final class Parser {
     private final Set<Flag> flags;
     private int pos;
     private int groupCount;
+
+    /** How many groups a surrounding composition had already defined; 0 for a standalone parse. */
+    private int firstGroupIndex;
+
+    /**
+     * Group names indexed by group number — seeded with the surrounding composition's names (and
+     * the group-0 slot), so {@code indexOf} arithmetic and duplicate detection both work in
+     * absolute group numbers.
+     */
     private final List<String> groupNames = new ArrayList<>();
 
     /** Numeric backreferences seen, as (group, position) pairs — validated after the whole
@@ -57,25 +68,28 @@ public final class Parser {
         this.flags.addAll(flags);
     }
 
+    /** The group-0 slot, which has no name; the seed for a standalone parse. */
+    private static final List<String> NO_OUTER_GROUPS = Collections.singletonList(null);
+
     public static Result parse(final String pattern, final Set<Flag> flags) {
-        final Parser parser = new Parser(pattern, flags);
-        parser.groupNames.add(null); // group 0
-        final Hir root = parser.parseAlternation();
-        if (parser.pos < pattern.length()) {
-            throw parser.fail(Reason.SYNTAX, "unbalanced ')'");
-        }
-        parser.validateBackrefs();
-        return new Result(root, parser.groupCount, parser.groupNames);
+        return parse(pattern, flags, NO_OUTER_GROUPS);
     }
 
     /**
-     * Parses with group numbering continuing from {@code firstGroupIndex}, for a regex embedded
-     * in a composition whose labels are also capture groups. The returned names cover only the
-     * groups this call created, in order.
+     * Parses with group numbering continuing after {@code outerNames}, for a regex embedded in a
+     * composition whose labels are also capture groups. {@code outerNames} lists the groups
+     * already defined, by group number, with the group-0 slot first. The result's names are the
+     * full list — the outer names followed by the groups this call created — so a name's index is
+     * its group number, and an embedded name that collides with an outer label is refused just
+     * like a reused name within one pattern.
      */
-    public static Result parse(final String pattern, final Set<Flag> flags, final int firstGroupIndex) {
+    public static Result parse(final String pattern,
+                               final Set<Flag> flags,
+                               final List<String> outerNames) {
         final Parser parser = new Parser(pattern, flags);
-        parser.groupCount = firstGroupIndex;
+        parser.firstGroupIndex = outerNames.size() - 1;
+        parser.groupCount = parser.firstGroupIndex;
+        parser.groupNames.addAll(outerNames);
         final Hir root = parser.parseAlternation();
         if (parser.pos < pattern.length()) {
             throw parser.fail(Reason.SYNTAX, "unbalanced ')'");
@@ -101,6 +115,16 @@ public final class Parser {
         if (parser.pos < expression.length()) {
             throw parser.fail(Reason.SYNTAX,
                     "a class expression must be a single class, such as [a-z] or \\d");
+        }
+        if (parsed instanceof Hir.Bytes bytes) {
+            // A one-character literal is a singleton class. A single-byte character already
+            // arrives as one ("a" parses to a CharClass); a multi-byte character parses to a
+            // byte sequence, and rejecting "é" while accepting "a" would make acceptance
+            // depend on the character's encoded length.
+            final int codePoint = Utf8.decode(bytes.value(), 0, bytes.value().length);
+            if (codePoint >= 0 && Utf8.encodedLength(codePoint) == bytes.value().length) {
+                return CodePointSet.single(codePoint);
+            }
         }
         if (!(parsed instanceof Hir.CharClass charClass)) {
             throw parser.fail(Reason.SYNTAX,
@@ -223,14 +247,23 @@ public final class Parser {
             return null;
         }
         final String[] parts = body.split(",", -1);
-        final int min = Integer.parseInt(parts[0]);
+        final int min = parseBound(parts[0]);
         final int max = parts.length == 1
                 ? min
                 : (parts[1].isEmpty()
                         ? Hir.Repeat.UNBOUNDED
-                        : Integer.parseInt(parts[1]));
+                        : parseBound(parts[1]));
         pos = close + 1;
         return new int[]{min, max};
+    }
+
+    /** A repetition bound, already known to be all digits — so a parse failure means overflow. */
+    private int parseBound(final String digits) {
+        try {
+            return Integer.parseInt(digits);
+        } catch (final NumberFormatException e) {
+            throw fail(Reason.SYNTAX, "repetition bound " + digits + " is too large");
+        }
     }
 
     private Hir parseAtom() {
@@ -447,6 +480,9 @@ public final class Parser {
                 pos = close + 1;
                 // A named group must already exist — the JDK's rule too. Numeric references may
                 // point ahead, but a name that has not been seen is far more likely a typo.
+                // The list is indexed by absolute group number (seeded with any surrounding
+                // composition's labels), so this resolves an embedded regex's own names and a
+                // surrounding label's alike.
                 final int index = groupNames.indexOf(name);
                 if (index <= 0) {
                     throw fail(Reason.SYNTAX,
@@ -465,9 +501,12 @@ public final class Parser {
                     // Greedy, like the JDK: \12 is group 12 if the pattern has one, else
                     // group 1 followed by a literal '2'. Validated against the total group
                     // count after the parse, since a reference may run ahead of its group.
+                    // The bound counts the outer composition's groups too, exactly as
+                    // validateBackrefs will.
+                    final int total = firstGroupIndex + countGroups();
                     int index = c - '0';
                     while (pos < pattern.length() && Character.isDigit(peek())
-                           && index * 10 + (peek() - '0') <= countGroups()) {
+                           && index * 10 + (peek() - '0') <= total) {
                         index = index * 10 + (peek() - '0');
                         pos++;
                     }
@@ -485,16 +524,33 @@ public final class Parser {
             if (close < 0) {
                 throw fail(Reason.SYNTAX, "unterminated \\x{...}", start);
             }
-            final int value = Integer.parseInt(pattern.substring(pos + 1, close), 16);
+            final String digits = pattern.substring(pos + 1, close);
+            if (!digits.matches("[0-9a-fA-F]+")) {
+                throw fail(Reason.SYNTAX, "\\x{...} needs hexadecimal digits", start);
+            }
+            final int value;
+            try {
+                value = Integer.parseInt(digits, 16);
+            } catch (final NumberFormatException e) {
+                throw fail(Reason.SYNTAX,
+                        "\\x{" + digits + "} is past the last code point, U+10FFFF", start);
+            }
+            if (value > Character.MAX_CODE_POINT) {
+                throw fail(Reason.SYNTAX,
+                        "\\x{" + digits + "} is past the last code point, U+10FFFF", start);
+            }
             pos = close + 1;
             return value;
         }
         if (pos + 2 > pattern.length()) {
             throw fail(Reason.SYNTAX, "\\x needs two hex digits", start);
         }
-        final int value = Integer.parseInt(pattern.substring(pos, pos + 2), 16);
+        final String digits = pattern.substring(pos, pos + 2);
+        if (!digits.matches("[0-9a-fA-F]{2}")) {
+            throw fail(Reason.SYNTAX, "\\x needs two hex digits", start);
+        }
         pos += 2;
-        return value;
+        return Integer.parseInt(digits, 16);
     }
 
     /** {@code [:alpha:]} inside a bracket expression, which POSIX allows and Java accepts. */
@@ -543,7 +599,7 @@ public final class Parser {
             // than pick a meaning for an ambiguous spelling, insist on the unambiguous ones.
             throw fail(Reason.UNSUPPORTED,
                     "'" + name + "' is an ASCII POSIX class, not a Unicode property; write "
-                    + "[[:" + name.toLowerCase(java.util.Locale.ROOT) + ":]] for the ASCII "
+                    + "[[:" + name.toLowerCase(Locale.ROOT) + ":]] for the ASCII "
                     + "meaning, or a Unicode property such as \\p{L} or \\p{Alphabetic}", start);
         }
         final CodePointSet set = UnicodeClasses.byName(name);
@@ -690,15 +746,23 @@ public final class Parser {
     /** Capturing groups in the whole pattern, counted without disturbing the parse position. */
     private int countGroups() {
         int count = 0;
-        boolean escaped = false;
         boolean inClass = false;
-        for (int i = 0; i < pattern.length(); i++) {
+        int i = 0;
+        while (i < pattern.length()) {
             final char c = pattern.charAt(i);
-            if (escaped) {
-                escaped = false;
-            } else if (c == '\\') {
-                escaped = true;
-            } else if (inClass) {
+            if (c == '\\') {
+                if (pattern.startsWith("\\Q", i)) {
+                    // Everything up to \E (or the end) is literal text, parentheses included.
+                    final int end = pattern.indexOf("\\E", i + 2);
+                    i = end < 0
+                            ? pattern.length()
+                            : end + 2;
+                    continue;
+                }
+                i += 2; // skip the escaped character
+                continue;
+            }
+            if (inClass) {
                 inClass = c != ']';
             } else if (c == '[') {
                 inClass = true;
@@ -708,6 +772,7 @@ public final class Parser {
                        && pattern.charAt(i + 3) != '=' && pattern.charAt(i + 3) != '!') {
                 count++;
             }
+            i++;
         }
         return count;
     }

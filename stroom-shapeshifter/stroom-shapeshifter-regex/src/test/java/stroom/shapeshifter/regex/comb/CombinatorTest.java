@@ -180,6 +180,76 @@ class CombinatorTest {
         assertThat(matcher.groupString(0)).isEqualTo("2026-08-17T14:30:00");
     }
 
+    /** The standard ipv4 is four 1-3 digit octets — not any dotted run of digits. */
+    @Test
+    void standardIpv4RequiresFourOctets() {
+        final ByteMatcher matcher = Matchers.standardLibrary().compile("ipv4").matcher();
+
+        assertThat(matcher.find(bytes("from 10.0.0.255 ok"))).isTrue();
+        assertThat(matcher.groupString(0)).isEqualTo("10.0.0.255");
+
+        assertThat(matcher.find(bytes("v1.2 loaded"))).isFalse();
+    }
+
+    /**
+     * An embedded regex's own {@code \k<name>} resolves against absolute group numbers, seeded
+     * with the composition's labels. Unseeded, the first embedded name landed at index 0 — which
+     * reads as group 0 and was refused — and any later name resolved to the wrong group.
+     */
+    @Test
+    void anEmbeddedRegexResolvesItsOwnNamedBackreference() {
+        final BytePattern pattern = new MatcherLibrary().compile(Matchers.sequence(
+                Matchers.takeWhile("[a-z]").label("key"),
+                Matchers.tag(" "),
+                Matchers.regex("(?<digits>[0-9]+)-\\k<digits>")));
+
+        final ByteMatcher matcher = pattern.matcher();
+        assertThat(matcher.find(bytes("abc 42-42"))).isTrue();
+        assertThat(matcher.group("key").toString()).isEqualTo("abc");
+        assertThat(matcher.group("digits").toString()).isEqualTo("42");
+
+        assertThat(matcher.find(bytes("abc 42-43"))).isFalse();
+    }
+
+    /** A second embedded name resolves to its own group, not a neighbour's. */
+    @Test
+    void aLaterEmbeddedNameResolvesToItsOwnGroup() {
+        final BytePattern pattern = new MatcherLibrary().compile(Matchers.sequence(
+                Matchers.takeWhile("[a-z]").label("key"),
+                Matchers.tag(" "),
+                Matchers.regex("(?<left>[0-9]+),(?<right>[0-9]+)=\\k<right>")));
+
+        final ByteMatcher matcher = pattern.matcher();
+        assertThat(matcher.find(bytes("abc 11,22=22"))).isTrue();
+        assertThat(matcher.group("left").toString()).isEqualTo("11");
+        assertThat(matcher.group("right").toString()).isEqualTo("22");
+
+        // Before seeding, \k<right> resolved one group too low — to left — and this matched.
+        assertThat(matcher.find(bytes("abc 11,22=11"))).isFalse();
+    }
+
+    /** An embedded name colliding with a surrounding label is a reused name, and refused. */
+    @Test
+    void anEmbeddedNameCollidingWithALabelIsRefused() {
+        assertThatThrownBy(() -> new MatcherLibrary().compile(Matchers.sequence(
+                Matchers.takeWhile("[a-z]").label("key"),
+                Matchers.regex("(?<key>[0-9]+)"))))
+                .isInstanceOf(PatternCompileException.class)
+                .hasMessageContaining("key");
+    }
+
+    /** A terminator outside the basic multilingual plane is one character, not a char pair. */
+    @Test
+    void takeUntilAcceptsASupplementaryTerminator() {
+        final BytePattern pattern = new MatcherLibrary().compile(
+                Matchers.takeUntil(0x1F600).label("prefix"));
+        assertThat(pattern.pattern()).isEqualTo("takeUntil(😀) as prefix");
+
+        final ByteMatcher matcher = pattern.matcher();
+        assertThat(matcher.find(bytes("abc😀def"))).isTrue();
+        assertThat(matcher.group("prefix").toString()).isEqualTo("abc");
+    }
+
     @Test
     void reportsAnUndefinedReference() {
         assertThatThrownBy(() -> new MatcherLibrary().compile(Matchers.ref("missing")))

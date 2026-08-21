@@ -20,11 +20,11 @@ package stroom.shapeshifter.regex;
  * Thrown when a pattern cannot be compiled, carrying the reason so a caller can tell a syntax
  * error from a pattern that is merely outside what this engine supports.
  */
-public class PatternCompileException extends RuntimeException {
+public final class PatternCompileException extends RuntimeException {
 
     /**
      * Why a pattern was rejected. The distinction matters: {@link #SYNTAX} is the author's
-     * mistake, while the others are statements about engine capability and each has a
+     * mistake, while {@link #UNSUPPORTED} is a statement about engine capability with a
      * documented route forward.
      */
     public enum Reason {
@@ -48,16 +48,16 @@ public class PatternCompileException extends RuntimeException {
         this.position = position;
     }
 
-    public Reason getReason() {
+    public Reason reason() {
         return reason;
     }
 
-    public String getPattern() {
+    public String pattern() {
         return pattern;
     }
 
     /** Offset within the pattern, or -1 if the problem is not localised. */
-    public int getPosition() {
+    public int position() {
         return position;
     }
 

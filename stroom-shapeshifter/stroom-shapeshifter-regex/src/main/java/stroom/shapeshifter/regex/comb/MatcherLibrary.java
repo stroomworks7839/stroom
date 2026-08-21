@@ -19,8 +19,10 @@ package stroom.shapeshifter.regex.comb;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.Flag;
 
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,12 +47,14 @@ public final class MatcherLibrary {
         return this;
     }
 
+    /** The definition of a named matcher, or null if the name is not defined. */
     public Matcher get(final String name) {
         return definitions.get(name);
     }
 
+    /** The defined names in definition order — an unmodifiable snapshot, not a live view. */
     public Set<String> names() {
-        return definitions.keySet();
+        return Collections.unmodifiableSet(new LinkedHashSet<>(definitions.keySet()));
     }
 
     /** Compiles a composition, resolving any references against this library. */

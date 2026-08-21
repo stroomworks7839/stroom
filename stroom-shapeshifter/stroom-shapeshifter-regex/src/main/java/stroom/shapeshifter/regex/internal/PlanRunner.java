@@ -234,7 +234,9 @@ public final class PlanRunner {
                         // Whether this is the end is not yet knowable.
                         return NEED_MORE;
                     }
-                    if (!holds(kind, data, regionFrom, to, cursor)) {
+                    // \G makes a pattern fancy, and a fancy pattern is never one-pass, so the
+                    // shared evaluation's \G refusal is unreachable from here.
+                    if (!Words.assertionHolds(kind, data, regionFrom, to, cursor)) {
                         return NO_MATCH;
                     }
                     pc++;
@@ -270,26 +272,5 @@ public final class PlanRunner {
                || kind == Hir.Kind.NOT_WORD_BOUNDARY
                || kind == Hir.Kind.WORD_BOUNDARY_ASCII
                || kind == Hir.Kind.NOT_WORD_BOUNDARY_ASCII;
-    }
-
-    private static boolean holds(final Hir.Kind kind,
-                                 final byte[] data,
-                                 final int regionFrom,
-                                 final int to,
-                                 final int cursor) {
-        return switch (kind) {
-            case START_INPUT -> cursor == regionFrom;
-            case START_LINE -> cursor == regionFrom || data[cursor - 1] == '\n';
-            case END_INPUT -> cursor == to;
-            case END_LINE -> cursor == to || data[cursor] == '\n';
-            case WORD_BOUNDARY -> Words.atBoundary(data, regionFrom, to, cursor, true);
-            case NOT_WORD_BOUNDARY -> !Words.atBoundary(data, regionFrom, to, cursor, true);
-            case WORD_BOUNDARY_ASCII -> Words.atBoundary(data, regionFrom, to, cursor, false);
-            case NOT_WORD_BOUNDARY_ASCII -> !Words.atBoundary(data, regionFrom, to, cursor, false);
-            // \G makes a pattern fancy, and a fancy pattern is never one-pass, so it cannot
-            // reach a scan plan.
-            case PREVIOUS_MATCH_END -> throw new IllegalStateException(
-                    "\\G reached an engine that cannot evaluate it");
-        };
     }
 }

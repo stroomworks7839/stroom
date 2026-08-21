@@ -39,6 +39,16 @@ import java.util.Arrays;
  */
 public final class ByteMatcher {
 
+    /**
+     * How much the backtracker's (instruction, position) bitset may occupy before a search is
+     * refused. The bounded backtracker runs only when pinned (D32), so there is no automatic
+     * fall-through to another engine: a pinned search that exceeds the budget throws
+     * {@link IllegalStateException}. 128 KB covers a 2,000-instruction program over a 500-byte
+     * record, which is the shape this engine is built for; beyond it the simulation's fixed cost
+     * per position is the better trade.
+     */
+    private static final int BACKTRACK_BUDGET_BYTES = 128 * 1024;
+
     private final BytePattern pattern;
     private final Plan plan;
     private final PikeVm vm;
@@ -51,16 +61,13 @@ public final class ByteMatcher {
      */
     private final FancyBacktracker fancy;
 
-    /** The experimental tree-walking engine, present only when {@link Engine#TREE} was forced. */
+    /**
+     * The tree-walking engine, present for every fancy and every ambiguous pattern — it runs
+     * first on both since D31/D32 — and when {@link Engine#TREE} was pinned. Null when the
+     * pattern compiled to a scan plan, or when another engine was pinned.
+     */
     private final NodeTree.Machine tree;
 
-    /**
-     * How much the backtracker's (instruction, position) bitset may occupy before a search goes to
-     * the simulation instead. 128 KB covers a 2,000-instruction program over a 500-byte record,
-     * which is the shape this engine is built for; beyond it the simulation's fixed cost per
-     * position is the better trade.
-     */
-    private static final int BACKTRACK_BUDGET_BYTES = 128 * 1024;
     private final int groupCount;
     private final int[] slots;
 
@@ -92,7 +99,9 @@ public final class ByteMatcher {
                 : null;
         final boolean needsLinear = plan == null && pattern.nfa() != null && !fancyProgram
                                     && pinned != Engine.FANCY && pinned != Engine.TREE;
-        this.vm = needsLinear
+        // A pinned bounded backtracker takes every search itself (or refuses), so the VM would
+        // be unreachable beside it; slot sizing reads the NFA directly, not the VM.
+        this.vm = needsLinear && pinned != Engine.BACKTRACK
                 ? new PikeVm(pattern.nfa())
                 : null;
         // The bounded backtracker retired from the default path (D32): every corpus pattern
@@ -109,6 +118,7 @@ public final class ByteMatcher {
                 : pattern.nfa().slotCount()];
     }
 
+    /** The pattern this matcher was created from. */
     public BytePattern pattern() {
         return pattern;
     }
@@ -129,7 +139,7 @@ public final class ByteMatcher {
         if (from < window.start() || from > window.end()) {
             throw new IndexOutOfBoundsException(
                     "offset " + from + " outside window [" + window.start() + ", "
-                    + window.end() + ")");
+                    + window.end() + "]");
         }
         this.data = window.array();
         this.regionFrom = window.start();
@@ -181,7 +191,7 @@ public final class ByteMatcher {
         if (fancy != null) {
             return runFancy(from, anchored);
         }
-        if (vm != null) {
+        if (vm != null || backtracker != null) {
             return runLinear(from, anchored);
         }
         if (anchored) {
@@ -250,7 +260,7 @@ public final class ByteMatcher {
             matched = end >= 0;
             return outcome(end);
         }
-        if (tree != null && pattern.forced() != Engine.SIMULATE) {
+        if (tree != null) {
             try {
                 final int end = tree.search(data, regionFrom, from, regionTo,
                         anchored, complete, slots);
@@ -361,20 +371,24 @@ public final class ByteMatcher {
     // Results
     // -----------------------------------------------------------------------------------
 
+    /** The buffer offset where the match starts. */
     public int start() {
         return start(0);
     }
 
+    /** The buffer offset one past the last byte of the match. */
     public int end() {
         return end(0);
     }
 
+    /** The buffer offset where a group starts, or -1 if the group did not take part. */
     public int start(final int group) {
         checkMatched();
         checkGroup(group);
         return slots[2 * group];
     }
 
+    /** The buffer offset one past a group's last byte, or -1 if the group did not take part. */
     public int end(final int group) {
         checkMatched();
         checkGroup(group);
@@ -395,6 +409,7 @@ public final class ByteMatcher {
                 : null;
     }
 
+    /** The span of a named group, or null if it did not take part; the name must exist. */
     public ByteSpan group(final String name) {
         final int index = pattern.groupIndex(name);
         if (index < 0) {

@@ -25,6 +25,11 @@ import java.util.Arrays;
  * <p>
  * The span is only valid while the underlying array holds the data it was matched against.
  * Call {@link #toBytes()} to take a copy that outlives it.
+ * <p>
+ * Equality is the record default, which compares the {@code data} component by array
+ * <em>identity</em>: two spans over identical bytes in different arrays are not equal, and
+ * {@code hashCode} does not read the bytes either. Do not use spans as value keys — compare
+ * {@link #toBytes()} or the decoded string instead.
  */
 public record ByteSpan(byte[] data, int start, int end) {
 
