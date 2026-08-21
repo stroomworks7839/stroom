@@ -23,11 +23,13 @@ and **guarantee the stream reaches its end**. The goals stay. The proposal repla
 mechanism: both become things an author writes down, not things the engine does behind their
 back. DS3 is precedent here, not oracle — its author says so.
 
-Performance is the second motive and it follows automatically: a group whose every template
-must match *at the cursor* asks only the anchored question — one attempt, ~15–110ns,
-measured — and the unanchored-search cost structure (the [§2 gap-list
-row](10-engine-compilation.md) about `(?m)` scans, the failed-search memo idea) dissolves for
-such groups rather than being engineered around.
+Performance is the second motive, and the measurement (2026-08-21, clean box: `win_sec_strict`
+1.36× over `win_sec`, byte-identical output) sized it honestly at a solid third rather than
+the order of magnitude first imagined — because by the time strict landed, the regex
+library's own work (first-byte tables, anchor gates, the early exit) had already cheapened
+the searches strict dissolves. The remaining performance headroom is the compiled level's
+first-byte candidate table ([10-engine-compilation.md §11](10-engine-compilation.md)). The
+first motive — nothing skipped silently — was never about speed.
 
 ## 2. The rule
 

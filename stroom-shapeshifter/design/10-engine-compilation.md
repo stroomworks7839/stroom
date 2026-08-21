@@ -327,8 +327,12 @@ That is a new §2-style row, recorded now so it is not rediscovered:
 |---|---|---|
 | Strict/lexer dispatch tries **every template at every position** | ~57 anchored attempts per line in `win_sec_strict`, most refuted by the first byte | A first-byte candidate table on the compiled level — the engine-side analogue of the library's `firstBytes` — dispatching each position to the few templates that could match. Needs the library to publish a pattern's first-byte set (single-source principle, as `leadingAnchor()`) |
 
-Two honest possibilities for the clean rerun, stated before it happens: strict lands modestly
-ahead (the library already ate the feast, and the first-byte table is where the next meal
-is), or the quiet-box numbers move both sides and the ratio with them. Either way the §1
-claim as written — an order of magnitude from dissolving the search — is **not currently
-supported** and stays unclaimed until a clean measurement speaks.
+**The clean rerun spoke (`2026-08-21-1323`, load 1.43, drift controls 0.96–0.97): strict is
+1.36× over lax — 7.8 vs 5.7 MiB/s.** The first possibility was the truth: the library already
+ate the feast. Lax's failed searches, priced at milliseconds when the design was written, now
+cost first-byte-table-accelerated scans; strict's at-cursor attempts cost ~57 per line. The
+order-of-magnitude claim in 11-strict-dispatch.md §1 is amended to the measured truth: strict
+buys a solid third on this workload *today*, its real payload is semantic (no silent
+skipping), and the next performance meal is the first-byte candidate table above — which
+would cut strict's per-line attempts from ~57 to a handful and is now the only row on the
+list with a measured workload waiting for it.

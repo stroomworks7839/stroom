@@ -367,7 +367,11 @@ and lints; `StrictDispatchTest` covers it behaviourally. Update, same day: `any`
 excision rather than lying); four fixtures landed — `win_sec_strict` (the lax config converted
 with two dispatch attributes and two line eaters, **byte-identical output**), `strict_kv`,
 `classify_alerts`, `lexer_tokens`; benchmark workload `win_sec_strict` added as the direct
-A/B. Remaining: the E18 original-order fixture question, and the measurement itself**
+A/B. The measurement landed clean
+(2026-08-21-1323): strict 1.36× over lax on win_sec, byte-identical output — the
+order-of-magnitude expectation amended honestly in both design docs, the headroom now named
+(the compiled level's first-byte candidate table). Remaining: the E18 original-order fixture
+question only**
 ([design/11-strict-dispatch.md](../design/11-strict-dispatch.md)). Implicit cursor movement —
 skip consumption, recovery advance, the zero-advance quirk — replaced by authored eaters
 (`consume: line` / `bytes(n)` / `until`) and authored error-emitting paths; dispatch asks only
