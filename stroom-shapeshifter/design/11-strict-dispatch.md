@@ -105,29 +105,53 @@ and why conversion to strict is an authoring act with audited output changes, no
   each other, and any-mode templates are not expected to be anchored.
 - **Guards, match limits, captures, stores, refs** — untouched.
 
-## 7. Zero-advance matches — OPEN
+## 7. The control-flow space — dispatch modes, not markers
 
-A match that does not move the cursor is today a silent level-ender; in a loop whose only
-exit is "no progress", it is also one bug away from spinning forever.
+The `peek` proposal was withdrawn on the user's observation that it put control flow at two
+levels: the group's match mode *and* per-template markers, clashing with `matchOrder="any"`
+and failing shapes like "several matchers all inspect the same input, all have a go, then
+exit." The underlying problem is that DS3's `matchOrder` was a **bundle** of independent
+choices. Unbundled, a group's dispatch has four dimensions:
 
-**Ruled out:** a compile-time empty-match gate via a published `minLength()`. Authors
-commonly write `*`-quantified patterns that can theoretically match empty but in practice
-never do; rejecting them all would fight the corpus. The weight is carried at run time.
+| Dimension | Choices |
+|---|---|
+| **Binding** | at-cursor (the anchored question) / search (leftmost) |
+| **Iteration** | until-no-progress (the `*`) / once |
+| **Selection** | first-in-list / every-matching-template / (longest-match, deferred) |
+| **Consumption** | advance-to-end / excise-the-span / none |
 
-**Open between two runtime semantics** — both defensible, scenarios in the discussion log:
+Most of the 36 combinations are incoherent, and saying why prunes the space fast:
+*consumption none* with *iteration until-no-progress* cannot terminate; *selection every*
+with any consumption has no defined cursor; *excise* only means anything under *search*.
+What survives is a short list of named modes:
 
-- *Error-and-try-next*: the zero-advance winner is reported and the pass continues to the
-  next template; self-healing when an early template mis-fires empty on a record shape a
-  later template handles.
-- *Error-and-exit*: a zero-advance means the grammar is wrong; fail at the first occurrence
-  with one clear error instead of limping on and flooding.
+| Mode | Binding | Iteration | Selection | Consumption | Standing |
+|---|---|---|---|---|---|
+| **`strict`** | cursor | until-no-progress | first | advance | new default (§2) |
+| **`lax`** | search | until-no-progress | first | advance + skip | DS3 sequence, compat |
+| **`any`** | search | until-no-progress | first | excise | DS3 any, compat |
+| **`classify`** | search | **once** | **every** | **none** | **new** — the missing shape |
+| *(lexer)* | cursor | until-no-progress | longest | advance | deferred — maximal-munch tokenising; recorded, not built |
 
-**Proposed synthesis, pending ruling:** make it explicit like everything else in this
-design. A template that *legitimately* matches without advancing declares it — a `peek`
-marker: allowed to zero-advance, no error, skipped for the rest of the current cursor
-position so the pass continues past it (enabling classify-then-consume idioms). An
-**unmarked** zero-advance is a grammar bug: error and exit the group. Explicit intent, loud
-accidents.
+**`classify`** is the user's scenario as a first-class mode: one pass over the region, every
+template whose match succeeds runs its body and binds its captures (each at most once, its
+leftmost match), nothing consumes, then the group exits. Classification, validation sweeps,
+multi-angle flag-setting — shapes DS3 could not express at all. And *classify-then-consume*
+needs no per-template marker either: it is **composition** — apply the same content to a
+`classify` group, then to a `strict` group, two `apply-templates` in a row. Control flow
+stays at exactly one level: the group.
+
+Per-template markers that remain are precisely the ones that do not alter control flow:
+`consume` (counting semantics, §3), guards, match limits.
+
+### Zero-advance, resolved by the above
+
+With legitimate non-consuming matching now owning proper homes — `classify` mode, the
+progressive `Peek` step, composition — a zero-advance match in a consuming mode has no
+innocent reading left. **Ruling proposed: error and exit the group, no exceptions, in strict
+and lax alike** (lax today ends the level silently on zero-advance; the error is strictly
+better diagnostics for the same halt). The self-healing scenario is served by fixing the
+pattern or restructuring as classify-then-consume — both of which say what they mean.
 
 ## 8. What this does to the published anchor fact
 
@@ -154,6 +178,7 @@ errors in strict mode, warnings in lax.
 4. **Error paths**: severities with `fatal`; fatal aborts the run.
 5. **`minLength()` publication**: no — `*`-authored patterns legitimately smell empty;
    handle zero-advance at run time instead.
-6. **Zero-advance**: OPEN — scenarios requested and provided; `peek`-marker synthesis
-   proposed (§7).
+6. **Zero-advance**: resolved via §7's control-flow unbundling — `peek` withdrawn;
+   `classify` mode covers legitimate non-consuming matching; zero-advance in consuming
+   modes is error-and-exit. *Awaiting the user's confirmation of the §7 mode table.*
 7. **Lints**: errors in strict, warnings in lax.
