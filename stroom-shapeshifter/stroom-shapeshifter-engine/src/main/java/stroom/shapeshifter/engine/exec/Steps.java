@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine.exec;
 import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.Predicate;
 import stroom.shapeshifter.engine.config.StepRef;
+import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
@@ -71,7 +72,8 @@ public final class Steps {
                                     final byte[] data,
                                     final int from,
                                     final int to,
-                                    final Map<String, BytePattern> patterns) {
+                                    final Map<String, BytePattern> patterns,
+                                    final Encoding encoding) {
         int pos = 0;
         int highWater = 0;
         final List<TypedValue> outputs = new ArrayList<>(steps.size());
@@ -96,7 +98,7 @@ public final class Steps {
                 pos -= back;
                 outputs.add(NOTHING);
             } else {
-                final Result result = step(step, data, from + pos, to, outputs, List.of(), pos, patterns);
+                final Result result = step(step, data, from + pos, to, outputs, List.of(), pos, patterns, encoding);
                 if (result == null) {
                     return null;
                 }
@@ -134,7 +136,8 @@ public final class Steps {
                                final List<TypedValue> prior,
                                final List<TypedValue> local,
                                final int position,
-                               final Map<String, BytePattern> patterns) {
+                               final Map<String, BytePattern> patterns,
+                                    final Encoding encoding) {
         final int available = to - from;
         return switch (step) {
             case MatchStep.Tag tag -> {
@@ -145,9 +148,17 @@ public final class Steps {
                     ? new Result(TypedValue.of(value.value()), value.value().length)
                     : null;
             case MatchStep.TakeWhile takeWhile -> {
+                // E5: the predicate classifies characters, not bytes, and a character is what
+                // the effective encoding says it is — a multi-byte UTF-8 letter is a letter,
+                // a windows-1252 0xE9 is a letter under that encoding and a stray byte under
+                // raw. RAW keeps the ASCII reading: bytes with no declared meaning earn none.
                 int end = from;
-                while (end < to && matches(takeWhile.predicate(), data[end])) {
-                    end++;
+                while (end < to) {
+                    final long decoded = decode(data, end, to, encoding);
+                    if (decoded < 0 || !matches(takeWhile.predicate(), (int) (decoded >>> 8))) {
+                        break;
+                    }
+                    end += (int) (decoded & 0xFF);
                 }
                 yield end > from
                         ? new Result(TypedValue.of(Arrays.copyOfRange(data, from, end)), end - from)
@@ -239,7 +250,7 @@ public final class Steps {
             }
             case MatchStep.Choice choice -> {
                 for (final List<MatchStep> alternative : choice.alternatives()) {
-                    final Integer consumed = sequence(alternative, data, from, to, prior, position, patterns);
+                    final Integer consumed = sequence(alternative, data, from, to, prior, position, patterns, encoding);
                     if (consumed != null) {
                         yield consumed(data, from, consumed);
                     }
@@ -247,7 +258,8 @@ public final class Steps {
                 yield null;
             }
             case MatchStep.Optional optional -> {
-                final Integer consumed = sequence(optional.steps(), data, from, to, prior, position, patterns);
+                final Integer consumed = sequence(
+                        optional.steps(), data, from, to, prior, position, patterns, encoding);
                 yield consumed(data, from, consumed == null ? 0 : consumed);
             }
             case MatchStep.Repeat repeat -> {
@@ -256,7 +268,7 @@ public final class Steps {
                 final int max = repeat.max() == null ? Integer.MAX_VALUE : repeat.max();
                 while (iterations < max && from + total < to) {
                     final Integer consumed = sequence(
-                            repeat.steps(), data, from + total, to, prior, position + total, patterns);
+                            repeat.steps(), data, from + total, to, prior, position + total, patterns, encoding);
                     if (consumed == null || consumed == 0) {
                         break;
                     }
@@ -266,13 +278,14 @@ public final class Steps {
                 yield iterations >= repeat.min() ? consumed(data, from, total) : null;
             }
             case MatchStep.Sequence nested -> {
-                final Integer consumed = sequence(nested.steps(), data, from, to, prior, position, patterns);
+                final Integer consumed = sequence(nested.steps(), data, from, to, prior, position, patterns, encoding);
                 yield consumed == null ? null : consumed(data, from, consumed);
             }
-            case MatchStep.Peek peek -> sequence(peek.steps(), data, from, to, prior, position, patterns) == null
+            case MatchStep.Peek peek -> sequence(
+                    peek.steps(), data, from, to, prior, position, patterns, encoding) == null
                     ? null
                     : new Result(NOTHING, 0);
-            case MatchStep.Not not -> sequence(not.steps(), data, from, to, prior, position, patterns) == null
+            case MatchStep.Not not -> sequence(not.steps(), data, from, to, prior, position, patterns, encoding) == null
                     ? new Result(NOTHING, 0)
                     : null;
             case MatchStep.PatternRef ignored -> throw new IllegalStateException(
@@ -287,11 +300,12 @@ public final class Steps {
                                     final int to,
                                     final List<TypedValue> prior,
                                     final int position,
-                                    final Map<String, BytePattern> patterns) {
+                                    final Map<String, BytePattern> patterns,
+                                    final Encoding encoding) {
         int pos = 0;
         final List<TypedValue> local = new ArrayList<>(steps.size());
         for (final MatchStep step : steps) {
-            final Result result = step(step, data, from + pos, to, prior, local, position + pos, patterns);
+            final Result result = step(step, data, from + pos, to, prior, local, position + pos, patterns, encoding);
             if (result == null) {
                 return null;
             }
@@ -364,18 +378,73 @@ public final class Steps {
      * {@code TakeWhile(alphabetic)} stops at the first non-ASCII letter. Ported as it is, and
      * recorded here rather than quietly improved (D33).
      */
-    private static boolean matches(final Predicate predicate, final byte value) {
-        final int b = value & 0xFF;
+    private static boolean matches(final Predicate predicate, final int codepoint) {
         return switch (predicate) {
-            case Predicate.Alphabetic ignored -> (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z');
-            case Predicate.Alphanumeric ignored ->
-                    (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z') || (b >= '0' && b <= '9');
-            case Predicate.Numeric ignored -> b >= '0' && b <= '9';
-            case Predicate.Whitespace ignored -> isSpace(b);
-            case Predicate.NonWhitespace ignored -> !isSpace(b);
+            case Predicate.Alphabetic ignored -> Character.isLetter(codepoint);
+            case Predicate.Alphanumeric ignored -> Character.isLetterOrDigit(codepoint);
+            case Predicate.Numeric ignored -> Character.isDigit(codepoint);
+            case Predicate.Whitespace ignored -> Character.isWhitespace(codepoint);
+            case Predicate.NonWhitespace ignored -> !Character.isWhitespace(codepoint);
             case Predicate.Any ignored -> true;
-            case Predicate.Custom custom -> inSet(custom.charSet(), (char) b);
+            case Predicate.Custom custom -> codepoint <= Character.MAX_VALUE
+                                            && inSet(custom.charSet(), (char) codepoint);
         };
+    }
+
+    /** Decode tables for the single-byte encodings, one lazy row per encoding. */
+    private static final java.util.concurrent.ConcurrentHashMap<Encoding, char[]> SINGLE_BYTE =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * The character at an offset under an encoding, packed as {@code codepoint << 8 | length},
+     * or −1 when the bytes there do not form one. RAW and ASCII stay byte-shaped: values past
+     * 0x7F carry no textual meaning and fail every class except {@code Any}, exactly as the
+     * old byte predicates behaved — {@code Any} never reaches here needing more than length 1.
+     */
+    private static long decode(final byte[] data, final int at, final int to, final Encoding encoding) {
+        final int b = data[at] & 0xFF;
+        if (encoding == Encoding.RAW || encoding == Encoding.ASCII) {
+            return b <= 0x7F ? ((long) b << 8) | 1 : ((long) 0xFFFD << 8) | 1;
+        }
+        if (encoding.isUtf8Compatible()) {
+            if (b <= 0x7F) {
+                return ((long) b << 8) | 1;
+            }
+            final int length = characterLength(data[at]);
+            if (length <= 1 || at + length > to) {
+                return -1;
+            }
+            int cp = b & (0x3F >> (length - 1));
+            for (int i = 1; i < length; i++) {
+                if ((data[at + i] & 0xC0) != 0x80) {
+                    return -1;
+                }
+                cp = (cp << 6) | (data[at + i] & 0x3F);
+            }
+            return ((long) cp << 8) | length;
+        }
+        if (encoding.isSingleByte()) {
+            final char[] table = SINGLE_BYTE.computeIfAbsent(encoding, e -> {
+                final char[] chars = new char[256];
+                final byte[] one = new byte[1];
+                for (int i = 0; i < 256; i++) {
+                    one[0] = (byte) i;
+                    final String text = new String(one, e.charset());
+                    chars[i] = text.isEmpty() ? 0xFFFD : text.charAt(0);
+                }
+                return chars;
+            });
+            return ((long) table[b] << 8) | 1;
+        }
+        // Multi-byte non-UTF-8 encodings (UTF-16, Shift_JIS…): decode one character via the
+        // charset. Correct first, fast when a workload asks.
+        for (int length = 1; length <= Math.min(4, to - at); length++) {
+            final String text = new String(data, at, length, encoding.charset());
+            if (!text.isEmpty() && text.charAt(0) != 0xFFFD) {
+                return ((long) text.codePointAt(0) << 8) | length;
+            }
+        }
+        return -1;
     }
 
     private static boolean isSpace(final int b) {

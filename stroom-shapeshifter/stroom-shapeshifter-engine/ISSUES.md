@@ -38,7 +38,17 @@ the root's rides the source configuration, and both inherit down the dispatch tr
 (group flag) and `012` (root flag) are both silent, matching Stroom.
 
 ### E3 — `Template.encoding` is never read
-**`open`. A field that does nothing.**
+**`resolved` 2026-08-21: implemented, per the user's ruling.** A template's declared encoding
+now governs its own content end to end: its delimiters are encoded to bytes in it at compile
+time, its captures are normalised from it, its body's reads of the current match's groups
+convert from it, and its progressive steps classify characters under it (E5). Unknown labels
+are a compile-time error naming the template. The implementation also split value conversion
+by provenance — only the current match's bytes are converted; stored values were normalised
+at capture and now pass through untouched — which quietly fixed a latent double-conversion of
+variable reads under non-UTF-8 runs. Pinned by `EncodedInputTest`: one stream, two encodings,
+0xE9 is é only where declared.
+
+Original text:
 
 The model has it, the format writes it, no engine reads it — a per-template encoding override
 does not work and never has in either implementation. Ported as modelled, because silently
@@ -71,7 +81,14 @@ Resolving it means deciding whether the step should anchor, or consume through t
 as it is with the behaviour documented at the configuration level.
 
 ### E5 — `TakeWhile` predicates are ASCII, on UTF-8 input
-**`open`.**
+**`resolved` 2026-08-21, per the user's ruling: accurate byte matches, dependent on template
+or source encoding.** Predicates classify characters, and a character is what the effective
+encoding says it is: multi-byte UTF-8 letters are letters, single-byte encodings decode
+through a cached table, UTF-16 and the CJK encodings decode through their charset, and RAW
+keeps the ASCII reading — bytes with no declared meaning earn none. Pinned by `StepsTest`:
+0xE9 is a letter under windows-1252 and ends the run under raw.
+
+Original text:
 
 `alphabetic`, `alphanumeric`, `numeric` and `whitespace` are Unicode-aware over characters in the
 Rust source, but it takes its byte path for every byte-oriented encoding — UTF-8 included — so in
@@ -355,7 +372,13 @@ dispatch `[A:1][B:2][A:3]`, a pass is won by list order with the skip reported, 
 original `win_sec` configuration strands loudly — with real data.
 
 ### E18 — `matchOrder="any"` (excision) is not modelled
-**`deferred`.**
+**`resolved` 2026-08-21.** The mode itself landed with E20 (`dispatch: "any"`, DS3's excision
+semantics, behaviourally pinned). The original-order win_sec fixture question is closed by the
+user's ruling: the current fixture stays as E16 left it — ordering is an authoring concern for
+whoever writes the next version — and `win_sec_strict` already serves as the optimally-authored
+comparison fixture, byte-identical output included.
+
+Original text:
 
 Real DS3 has a second dispatch mode in which the matched span is *excised* from the buffer and
 the skipped prefix survives for other expressions. The ds-rs importer silently dropped the

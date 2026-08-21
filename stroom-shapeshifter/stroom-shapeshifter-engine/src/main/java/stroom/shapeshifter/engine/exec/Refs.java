@@ -72,7 +72,9 @@ public final class Refs {
                 case RefPart.Capture capture -> {
                     final TypedValue value = lookup(capture, match, matchCount, vars);
                     if (value != null && !value.isEmpty()) {
-                        sink.write(bytes(value, encoding));
+                        // Only a slice of the current match needs converting: a stored value
+                        // was normalised to UTF-8 when it was captured (E3).
+                        sink.write(capture.varId() == null ? bytes(value, encoding) : value.asBytes());
                         wrote = true;
                     }
                 }
@@ -99,7 +101,9 @@ public final class Refs {
                         : text.value().getBytes(StandardCharsets.UTF_8);
                 case RefPart.Capture capture -> {
                     final TypedValue value = lookup(capture, match, matchCount, vars);
-                    yield value == null || value.isEmpty() ? null : bytes(value, encoding);
+                    yield value == null || value.isEmpty()
+                            ? null
+                            : capture.varId() == null ? bytes(value, encoding) : value.asBytes();
                 }
             };
         }
@@ -111,7 +115,9 @@ public final class Refs {
                 case RefPart.Text text -> text.value().getBytes(StandardCharsets.UTF_8);
                 case RefPart.Capture capture -> {
                     final TypedValue value = lookup(capture, match, matchCount, vars);
-                    yield value == null ? null : bytes(value, encoding);
+                    yield value == null
+                            ? null
+                            : capture.varId() == null ? bytes(value, encoding) : value.asBytes();
                 }
             };
             if (bytes != null && bytes.length > 0) {

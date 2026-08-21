@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.engine.text.Encoding;
 
 import java.util.List;
 
@@ -31,8 +32,11 @@ import java.util.List;
  *                 captures
  * @param match    its compiled match expression
  * @param body     its compiled body
+ * @param encoding the template's declared encoding override, parsed and validated (E3), or
+ *                 null to inherit the run's — which a byte-order mark may still have replaced
  */
-public record CompiledTemplate(Template template, CompiledMatch match, List<CompiledOp> body) {
+public record CompiledTemplate(Template template, CompiledMatch match, List<CompiledOp> body,
+                               Encoding encoding) {
 
     public CompiledTemplate {
         body = List.copyOf(body);

@@ -22,6 +22,7 @@ import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.NumericType;
 import stroom.shapeshifter.engine.config.Predicate;
 import stroom.shapeshifter.engine.config.StepRef;
+import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class StepsTest {
 
     private static MatchResult run(final List<MatchStep> steps, final String input) {
         final byte[] data = input.getBytes(StandardCharsets.UTF_8);
-        return Steps.match(steps, data, 0, data.length, NO_PATTERNS);
+        return Steps.match(steps, data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
     }
 
     private static String group(final MatchResult result, final int index) {
@@ -88,16 +89,32 @@ class StepsTest {
     }
 
     @Test
-    void predicatesAreAsciiEvenOnUtf8() {
-        // Ported behaviour, not an oversight: ds-rs takes its byte path for every byte-oriented
-        // encoding, so an accented letter ends an "alphabetic" run.
-        assertThat(group(run(List.of(new MatchStep.TakeWhile(new Predicate.Alphabetic())), "abcé"), 1))
-                .isEqualTo("abc");
+    void predicatesClassifyCharactersUnderTheEffectiveEncoding() {
+        // E5, ruled 2026-08-21: the predicate classifies characters, and a character is what
+        // the encoding says it is. An accented letter is a letter under UTF-8 —
+        assertThat(group(run(List.of(new MatchStep.TakeWhile(new Predicate.Alphabetic())), "abcé,"), 1))
+                .isEqualTo("abcé");
         assertThat(group(run(List.of(new MatchStep.TakeWhile(new Predicate.NonWhitespace())), "ab cd"), 1))
                 .isEqualTo("ab");
         assertThat(group(run(List.of(new MatchStep.TakeWhile(new Predicate.Custom(
                 new Predicate.CharSet("[^,]", List.of(','), List.of(), true)))), "ab,c"), 1))
                 .isEqualTo("ab");
+    }
+
+    @Test
+    void singleByteEncodingsClassifyTheirOwnLetters() {
+        // 0xE9 is é under windows-1252 and a meaningless byte under raw: the same bytes, two
+        // encodings, two answers — both of them accurate (E5).
+        final byte[] data = {'a', (byte) 0xE9, 'b', ','};
+        final MatchResult latin = Steps.match(
+                List.of(new MatchStep.TakeWhile(new Predicate.Alphabetic())),
+                data, 0, data.length, NO_PATTERNS, Encoding.WINDOWS_1252);
+        assertThat(latin.advance()).isEqualTo(3);
+
+        final MatchResult raw = Steps.match(
+                List.of(new MatchStep.TakeWhile(new Predicate.Alphabetic())),
+                data, 0, data.length, NO_PATTERNS, Encoding.RAW);
+        assertThat(raw.advance()).isEqualTo(1);
     }
 
     @Test
@@ -114,7 +131,7 @@ class StepsTest {
                 new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.BIG),
                 new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.LITTLE),
                 new MatchStep.ReadNumeric(NumericType.SHORT, true, Endianness.BIG)),
-                data, 0, data.length, NO_PATTERNS);
+                data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
 
         assertThat(result.group(1)).isEqualTo(new TypedValue.Int(0x0102));
         assertThat(result.group(2)).isEqualTo(new TypedValue.Int(0x0102));
@@ -127,7 +144,7 @@ class StepsTest {
         final byte[] data = {-1, -1, -1, -1, -1, -1, -1, -1};
         final MatchResult result = Steps.match(
                 List.of(new MatchStep.ReadNumeric(NumericType.LONG, false, Endianness.BIG)),
-                data, 0, data.length, NO_PATTERNS);
+                data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
         // The alternative is a silently negative number, which is worse than a string.
         assertThat(result.group(1).asString()).isEqualTo("18446744073709551615");
     }
@@ -137,7 +154,7 @@ class StepsTest {
         final byte[] data = {(byte) 0xAC, 0x02, 0x03};
         final MatchResult result = Steps.match(List.of(
                 new MatchStep.ReadVarint(), new MatchStep.ReadVarintZigZag()),
-                data, 0, data.length, NO_PATTERNS);
+                data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
         assertThat(result.group(1)).isEqualTo(new TypedValue.Int(300));
         // ZigZag: 3 encodes -2.
         assertThat(result.group(2)).isEqualTo(new TypedValue.Int(-2));
@@ -177,7 +194,7 @@ class StepsTest {
         final MatchResult result = Steps.match(List.of(
                 new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.BIG),
                 new MatchStep.TakeBytes(new StepRef.StepOutput(0))),
-                data, 0, data.length, NO_PATTERNS);
+                data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
         assertThat(new String(result.groupBytes(2), StandardCharsets.UTF_8)).isEqualTo("abc");
         assertThat(result.advance()).isEqualTo(5);
     }
@@ -214,13 +231,13 @@ class StepsTest {
         final Map<String, BytePattern> patterns = Map.of("[0-9]+", BytePattern.compile("[0-9]+"));
         final byte[] data = "abcd42;".getBytes(StandardCharsets.UTF_8);
         assertThat(Steps.match(List.of(new MatchStep.Regex("[0-9]+", null)),
-                data, 0, data.length, patterns)).isNull();
+                data, 0, data.length, patterns, Encoding.UTF_8)).isNull();
 
         // At the cursor it consumes exactly its match, leaving the next step where it ended.
         final MatchResult result = Steps.match(List.of(
                         new MatchStep.Regex("[0-9]+", null),
                         new MatchStep.Tag(";")),
-                data, 4, data.length, patterns);
+                data, 4, data.length, patterns, Encoding.UTF_8);
         assertThat(result).isNotNull();
         assertThat(result.advance()).isEqualTo(3);
     }

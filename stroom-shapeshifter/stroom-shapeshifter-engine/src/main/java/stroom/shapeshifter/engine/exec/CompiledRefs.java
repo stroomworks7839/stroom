@@ -70,7 +70,10 @@ final class CompiledRefs {
                 if (value == null || value.isEmpty()) {
                     return false;
                 }
-                sink.write(Refs.bytes(value, encoding));
+                // Only the current match's bytes need converting; stores hold UTF-8 (E3).
+                sink.write(ref instanceof CompiledRef.LocalGroup
+                        ? Refs.bytes(value, encoding)
+                        : value.asBytes());
                 return true;
             }
         }
@@ -103,7 +106,11 @@ final class CompiledRefs {
             }
             default -> {
                 final TypedValue value = value(ref, match, matchCount, vars);
-                return value == null || value.isEmpty() ? null : Refs.bytes(value, encoding);
+                return value == null || value.isEmpty()
+                        ? null
+                        : ref instanceof CompiledRef.LocalGroup
+                                ? Refs.bytes(value, encoding)
+                                : value.asBytes();
             }
         }
     }

@@ -89,9 +89,28 @@ public final class Compiler {
             if (template.match() instanceof MatchExpression.Progressive progressive) {
                 steps(progressive.steps(), template, patterns);
             }
+            // E3: a template's declared encoding overrides the source's — for the byte form
+            // of its delimiters here at compile time, and for reading its captures at run time.
+            Encoding declared = null;
+            if (template.encoding() != null) {
+                declared = Encoding.fromLabel(template.encoding());
+                if (declared == null) {
+                    throw new ConfigException("Template '" + template.name()
+                                              + "' declares an unknown encoding: " + template.encoding());
+                }
+                if (declared == Encoding.AUTO) {
+                    declared = null;
+                }
+            }
+            final Encoding matchEncoding = declared == null ? encoding : declared;
+            final Charset templateCharset =
+                    matchEncoding.isUtf8Compatible() || matchEncoding == Encoding.RAW
+                            ? StandardCharsets.UTF_8
+                            : matchEncoding.charset();
             templates.add(new CompiledTemplate(template,
-                    compileMatch(template, charset, project),
-                    CompiledOp.compile(template.body(), patterns, project)));
+                    compileMatch(template, templateCharset, project),
+                    CompiledOp.compile(template.body(), patterns, project),
+                    declared));
         }
         dispatchChecks(project, templates, warnings);
         return new CompiledProject(project, templates, patterns, encoding, warnings);

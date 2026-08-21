@@ -76,6 +76,39 @@ class EncodedInputTest {
     }
 
     @Test
+    void templateEncodingOverridesTheSourcesForItsOwnContent() {
+        // E3: one stream, two encodings — a legacy line whose template declares windows-1252
+        // beside a UTF-8 line under the source default. 0xE9 is é only where declared.
+        final String config = """
+                {
+                  "name": "override", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "legacy_line", "mode": "row",
+                     "encoding": "windows-1252",
+                     "match": {"regex": {"pattern": "L:([^\\n]*)\\n"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]},
+                    {"id": "00000000-0000-0000-0000-000000000003", "name": "utf8_line", "mode": "row",
+                     "match": {"regex": {"pattern": "U:([^\\n]*)\\n"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}
+                  ]
+                }
+                """;
+        final byte[] input = {'L', ':', (byte) 0xE9, '\n', 'U', ':', (byte) 0xC3, (byte) 0xA9, '\n'};
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                OutputSink.of(output));
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é][é]");
+    }
+
+    @Test
     void readsLatin1InputAndWritesUtf8() {
         // café,naïve in Latin-1: one byte per accented character.
         final byte[] input = {'c', 'a', 'f', (byte) 0xE9, ',', 'n', 'a', (byte) 0xEF, 'v', 'e'};

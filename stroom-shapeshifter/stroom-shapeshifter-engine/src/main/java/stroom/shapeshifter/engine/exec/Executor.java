@@ -166,7 +166,7 @@ public final class Executor {
         }
 
         if (!prologue.isEmpty()) {
-            body(prologue, nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0);
+            body(prologue, nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
         }
 
         final int bufferSize = wholeBuffer
@@ -199,7 +199,7 @@ public final class Executor {
         }
 
         if (!epilogue.isEmpty()) {
-            body(epilogue, nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0);
+            body(epilogue, nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
         }
     }
 
@@ -428,7 +428,7 @@ public final class Executor {
                 bindCaptures(candidate, match, matchCount);
                 final long before = sink.position();
                 body(candidate.body(), match, matchCount, content.asBytes(), sink,
-                        locateBase, ignoreErrors, depth);
+                        locateBase, ignoreErrors, depth, effective(candidate));
                 instrument.onOutput(template.id(), matchCount, before,
                         sink.position() - before);
             }
@@ -448,7 +448,7 @@ public final class Executor {
                 : match.group(0);
         if (swallowed != null && !swallowed.isEmpty()) {
             body(candidate.body(), match, 1, swallowed.asBytes(), sink,
-                    locateBase, ignoreErrors, depth);
+                    locateBase, ignoreErrors, depth, effective(candidate));
         }
     }
 
@@ -719,7 +719,7 @@ public final class Executor {
                             bindCaptures(candidate, match, matchCount);
                             final long before = sink.position();
                             body(candidate.body(), match, matchCount, content.asBytes(), sink,
-                                    base, ignoreErrors, depth);
+                                    base, ignoreErrors, depth, effective(candidate));
                             instrument.onOutput(template.id(), matchCount, before,
                                     sink.position() - before);
                         }
@@ -797,7 +797,7 @@ public final class Executor {
                 bindCaptures(candidate, match, 1);
                 final long before = sink.position();
                 body(candidate.body(), match, 1, content.asBytes(), sink,
-                        inputBase, ignoreErrors, depth);
+                        inputBase, ignoreErrors, depth, effective(candidate));
                 instrument.onOutput(template.id(), 1, before, sink.position() - before);
             }
         }
@@ -836,7 +836,8 @@ public final class Executor {
                     delimiter.containerStart(), delimiter.containerEnd());
             case CompiledMatch.Regex regex -> regexMatch(regex, data, from, to, atCursor);
             case CompiledMatch.Progressive progressive ->
-                    Steps.match(progressive.steps(), data, from, to, compiled.patterns());
+                    Steps.match(progressive.steps(), data, from, to, compiled.patterns(),
+                            effective(compiledTemplate));
             case CompiledMatch.All ignored -> new MatchResult(
                     new TypedValue[]{TypedValue.of(Arrays.copyOfRange(data, from, to))}, to - from, 0);
             case CompiledMatch.Source ignored -> null;
@@ -884,21 +885,24 @@ public final class Executor {
     private void bindCaptures(final CompiledTemplate compiledTemplate,
                               final MatchResult match,
                               final int matchCount) {
+        final Encoding contentEncoding = effective(compiledTemplate);
         for (final CaptureBinding capture : compiledTemplate.template().captures()) {
             final TypedValue value = switch (capture.select()) {
                 // A capture is a slice of the input, and is stored in the engine's own form so
                 // that everything reading it later can assume UTF-8.
-                case CaptureBinding.CaptureSource.Group group -> normalise(match.group(group.group()));
-                case CaptureBinding.CaptureSource.Step step -> normalise(match.group(step.index() + 1));
+                case CaptureBinding.CaptureSource.Group group -> normalise(match.group(group.group()), contentEncoding);
+                case CaptureBinding.CaptureSource.Step step -> normalise(match.group(step.index() + 1),
+                        contentEncoding);
                 case CaptureBinding.CaptureSource.Select select -> {
-                    final byte[] bytes = Refs.resolve(select.select(), match, matchCount, vars, encoding);
+                    final byte[] bytes = Refs.resolve(select.select(), match, matchCount, vars, contentEncoding);
                     yield bytes == null ? null : TypedValue.of(bytes);
                 }
                 case CaptureBinding.CaptureSource.Field ignored -> null;
                 case CaptureBinding.CaptureSource.KeyValue keyValue -> {
-                    final String key = Refs.resolveText(keyValue.keyRef(), match, matchCount, vars, encoding);
+                    final String key = Refs.resolveText(keyValue.keyRef(), match, matchCount, vars, contentEncoding);
                     if (key != null) {
-                        final byte[] bytes = Refs.resolve(keyValue.valueRef(), match, matchCount, vars, encoding);
+                        final byte[] bytes = Refs.resolve(keyValue.valueRef(), match, matchCount, vars,
+                                contentEncoding);
                         if (bytes != null) {
                             vars.store(key).set(matchCount, TypedValue.of(bytes));
                         }
@@ -924,12 +928,20 @@ public final class Executor {
         }
     }
 
+    /**
+     * The encoding a template's captured bytes are in: its own declared override (E3), else
+     * whatever the run settled on — declaration or byte-order mark.
+     */
+    private Encoding effective(final CompiledTemplate candidate) {
+        return Encoding.resolve(candidate.encoding(), encoding);
+    }
+
     /** Convert a captured value into the engine's internal form, which is UTF-8. */
-    private TypedValue normalise(final TypedValue value) {
-        if (value == null || encoding.isUtf8Compatible() || !(value instanceof TypedValue.Bytes)) {
+    private TypedValue normalise(final TypedValue value, final Encoding contentEncoding) {
+        if (value == null || contentEncoding.isUtf8Compatible() || !(value instanceof TypedValue.Bytes)) {
             return value;
         }
-        return TypedValue.of(Refs.bytes(value, encoding));
+        return TypedValue.of(Refs.bytes(value, contentEncoding));
     }
 
     private void body(final List<CompiledOp> ops,
@@ -939,57 +951,63 @@ public final class Executor {
                       final OutputSink sink,
                       final long inputBase,
                       final boolean ignoreErrors,
-                      final int depth) {
+                      final int depth,
+                      final Encoding contentEncoding) {
         for (final CompiledOp op : ops) {
             switch (op) {
                 case CompiledOp.Text text -> sink.write(text.bytes());
                 case CompiledOp.ValueOf valueOf ->
-                        CompiledRefs.write(valueOf.ref(), match, matchCount, vars, encoding, sink);
+                        CompiledRefs.write(valueOf.ref(), match, matchCount, vars, contentEncoding, sink);
                 case CompiledOp.Apply apply -> {
                     // A directive naming a template is the recursive form, which the compiler
                     // has already inlined; running it here would recurse for ever.
                     if (apply.directive().templateRef() == null) {
-                        apply(apply, match, matchCount, content, sink, inputBase, ignoreErrors, depth);
+                        apply(apply, match, matchCount, content, sink, inputBase, ignoreErrors, depth, contentEncoding);
                     }
                 }
                 case CompiledOp.If value -> {
-                    if (test(value.test(), match, matchCount)) {
-                        body(value.then(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
+                    if (test(value.test(), match, matchCount, contentEncoding)) {
+                        body(value.then(), match, matchCount, content, sink,
+                                inputBase, ignoreErrors, depth, contentEncoding);
                     }
                 }
                 case CompiledOp.Choose value -> {
                     boolean taken = false;
                     for (final CompiledOp.When branch : value.when()) {
-                        if (test(branch.test(), match, matchCount)) {
-                            body(branch.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
+                        if (test(branch.test(), match, matchCount, contentEncoding)) {
+                            body(branch.body(), match, matchCount, content, sink,
+                                    inputBase, ignoreErrors, depth, contentEncoding);
                             taken = true;
                             break;
                         }
                     }
                     if (!taken) {
-                        body(value.otherwise(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
+                        body(value.otherwise(), match, matchCount, content, sink,
+                                inputBase, ignoreErrors, depth, contentEncoding);
                     }
                 }
                 case CompiledOp.Switch value -> {
-                    final String selected = textOf(value.select(), match, matchCount);
+                    final String selected = textOf(value.select(), match, matchCount, contentEncoding);
                     boolean taken = false;
                     for (final CompiledOp.Case switchCase : value.cases()) {
                         if (switchCase.value().equals(selected)) {
-                            body(switchCase.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
+                            body(switchCase.body(), match, matchCount, content, sink,
+                                    inputBase, ignoreErrors, depth, contentEncoding);
                             taken = true;
                             break;
                         }
                     }
                     if (!taken) {
-                        body(value.defaultBody(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
+                        body(value.defaultBody(), match, matchCount, content, sink,
+                                inputBase, ignoreErrors, depth, contentEncoding);
                     }
                 }
                 case CompiledOp.Variable value ->
-                        variable(value, match, matchCount, content, inputBase, ignoreErrors, depth);
+                        variable(value, match, matchCount, content, inputBase, ignoreErrors, depth, contentEncoding);
                 case CompiledOp.Call value ->
-                        call(value, match, matchCount, content, sink, inputBase, ignoreErrors, depth);
+                        call(value, match, matchCount, content, sink, inputBase, ignoreErrors, depth, contentEncoding);
                 case CompiledOp.ValueMap value -> {
-                    final String selected = textOf(value.select(), match, matchCount);
+                    final String selected = textOf(value.select(), match, matchCount, contentEncoding);
                     String mapped = null;
                     for (final OutputNode.Entry entry : value.entries()) {
                         if (entry.from().equals(selected)) {
@@ -1003,7 +1021,7 @@ public final class Executor {
                     emit(mapped == null ? "" : mapped, value.name(), matchCount, sink);
                 }
                 case CompiledOp.Transform value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, value.function());
+                        matchCount, sink, value.function(), contentEncoding);
                 case CompiledOp.EmitError value -> {
                     final String text = CompiledRefs.resolveText(
                             value.message(), match, matchCount, vars, encoding);
@@ -1019,12 +1037,14 @@ public final class Executor {
 
     private boolean test(final stroom.shapeshifter.engine.config.Condition condition,
                          final MatchResult match,
-                         final int matchCount) {
-        return Conditions.evaluate(condition, match, matchCount, vars, encoding, compiled.patterns());
+                         final int matchCount,
+                         final Encoding contentEncoding) {
+        return Conditions.evaluate(condition, match, matchCount, vars, contentEncoding, compiled.patterns());
     }
 
-    private String textOf(final CompiledRef ref, final MatchResult match, final int matchCount) {
-        final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars, encoding);
+    private String textOf(final CompiledRef ref, final MatchResult match, final int matchCount,
+                          final Encoding contentEncoding) {
+        final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars, contentEncoding);
         return resolved == null ? "" : resolved;
     }
 
@@ -1041,10 +1061,11 @@ public final class Executor {
                            final MatchResult match,
                            final int matchCount,
                            final OutputSink sink,
-                           final java.util.function.Function<List<String>, String> function) {
+                           final java.util.function.Function<List<String>, String> function,
+                           final Encoding contentEncoding) {
         final List<String> inputs = new ArrayList<>(select.size());
         for (final CompiledRef ref : select) {
-            final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars, encoding);
+            final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars, contentEncoding);
             if (resolved != null) {
                 inputs.add(resolved);
             }
@@ -1080,12 +1101,14 @@ public final class Executor {
                           final byte[] content,
                           final long inputBase,
                           final boolean ignoreErrors,
-                          final int depth) {
+                          final int depth,
+                          final Encoding contentEncoding) {
         vars.push();
         vars.shadow(value.name());
 
         final java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
-        body(value.body(), match, matchCount, content, OutputSink.of(buffer), inputBase, ignoreErrors, depth);
+        body(value.body(), match, matchCount, content,
+                OutputSink.of(buffer), inputBase, ignoreErrors, depth, contentEncoding);
 
         List<Store> captured = vars.fromCurrentScope(value.name());
         if (captured != null && captured.stream().noneMatch(store -> store.lastIndex() >= 0)) {
@@ -1118,7 +1141,8 @@ public final class Executor {
                       final OutputSink sink,
                       final long inputBase,
                       final boolean ignoreErrors,
-                      final int depth) {
+                      final int depth,
+                      final Encoding contentEncoding) {
         final CompiledTemplate target = compiled.template(value.name());
         if (target == null) {
             return;
@@ -1126,7 +1150,7 @@ public final class Executor {
 
         vars.push();
         for (final CompiledOp.Arg arg : value.args()) {
-            final byte[] resolved = CompiledRefs.resolve(arg.value(), match, matchCount, vars, encoding);
+            final byte[] resolved = CompiledRefs.resolve(arg.value(), match, matchCount, vars, contentEncoding);
             if (resolved != null) {
                 vars.store(arg.name()).set(1, TypedValue.of(resolved));
             }
@@ -1139,7 +1163,7 @@ public final class Executor {
                         .set(1, TypedValue.of(declared.defaultValue().getBytes(StandardCharsets.UTF_8)));
             }
         }
-        body(target.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
+        body(target.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth, contentEncoding);
         vars.pop();
     }
 
@@ -1158,7 +1182,8 @@ public final class Executor {
                        final OutputSink sink,
                        final long parentBase,
                        final boolean inheritedIgnoreErrors,
-                       final int depth) {
+                       final int depth,
+                       final Encoding contentEncoding) {
         final ApplyDirective directive = op.directive();
         if (depth >= directive.maxDepth()) {
             return;
@@ -1172,7 +1197,7 @@ public final class Executor {
         // that is what the select means was decided at compile time.
         final byte[] content = op.wholeParentContent()
                 ? parentContent
-                : CompiledRefs.resolve(op.select(), match, matchCount, vars, encoding);
+                : CompiledRefs.resolve(op.select(), match, matchCount, vars, contentEncoding);
         if (content == null || content.length == 0) {
             return;
         }
