@@ -16,9 +16,9 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | XSLT | Verdict | Mechanism / idiom / reason | Case |
 |---|---|---|---|
 | Template rules + `apply-templates` | **covered** | templates + `apply-templates` with modes; dispatch is D36's five modes, richer than XSLT's document-order walk in some ways (lexer, classify), narrower in others (no priority/`next-match`) | events ✓ |
-| Modes | **covered** | `mode` on templates and applies | events ✓ |
+| Modes | **covered** | `mode` on templates and applies | events ✓, modes ✓ (a production stylesheet's two-mode walk, verbatim) |
 | Template priority / `next-match` / `apply-imports` | **out of scope** | list order *is* priority (D34); import trees are an authoring-composition feature with no engine analogue planned |
-| Named templates + `call-template` + params + defaults | **covered** | `call-template`, `with-param`, declared defaults | — |
+| Named templates + `call-template` + params + defaults | **covered** | `call-template`, `with-param`, declared defaults | modes ✓ (call + named body; params/defaults still unproven) |
 | Tunnel parameters (2.0) | **gap** | scoped stores get close but do not pass silently through intermediate levels; awaiting a real case before any ruling | |
 | `for-each` | **expressible** | a level dispatched over the selected content — iteration is what levels do | events ✓ |
 | `if` / `choose` / `when` / `otherwise` | **covered** | `if`, `choose`, plus `switch`, which XSLT lacks | nasty ✓ |
@@ -80,9 +80,11 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 
 Counting rows: **~17 covered, ~9 expressible — 8 now proven by catalogue cases — ~12 gaps
 (one of them, non-adjacent grouping/keys, executably documented as a wall the suite trips on
-the day it is solved), ~13 out of scope.** Two authoring traps found by the proving cases:
-`substring` is 0-based against XSLT's 1-based, and the `is-first`/`is-last` conditions are
-dead vocabulary outside a ds-rs foreach context.
+the day it is solved), ~13 out of scope.** Three authoring traps found by the proving cases:
+`substring` is 0-based against XSLT's 1-based; the `is-first`/`is-last` conditions are
+dead vocabulary outside a ds-rs foreach context; and an optional capture that fails to
+re-match reads the previous record's value straight through an `exists` test — E19's pinned
+no-match case, met live by `modes` and dodged by deciding branches at dispatch time.
 
 The gaps cluster into exactly three families, which is the matrix's real finding:
 

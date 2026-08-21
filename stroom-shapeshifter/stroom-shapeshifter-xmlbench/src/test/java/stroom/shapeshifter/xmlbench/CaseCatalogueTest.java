@@ -51,7 +51,8 @@ class CaseCatalogueTest {
             "computed_names",
             "adjacent_groups",
             "string_functions",
-            "analyze_string");
+            "analyze_string",
+            "modes");
 
     /**
      * The walls: cases whose stylesheet runs but for which no challenger exists — executable

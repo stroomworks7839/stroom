@@ -422,6 +422,16 @@ way and can tail-leak in the same shape, but they are XSLT-side constructs with 
 counterpart to be faithful to, and every corpus use reads them at the current match index where
 no leak is possible. If one ever reads `latest()` across records, this entry is the precedent
 for what to do.
+
+**Addendum 2026-08-21, from the coverage catalogue's `modes` case:** the pinned no-match case
+is now demonstrated at authoring level. A first draft captured each `EventDetail` branch into
+its own optional variable and `exists`-tested them at a trailing emit template; a record whose
+branch template never matched read the *previous* record's value straight through the test
+(event 2 reported event 1's `Logon` as its action). The idiom that avoids the trap: decide the
+branch at dispatch time — the matching template emits its own output from current-match groups
+— rather than exists-testing optional captures after the fact. `nasty_xml`'s `deep` variable
+is the same shape and passes only because its optional field sits on the last entry; the live
+byte-parity contract would catch any reordering, so it stays as-is, noted here.
 ### E20 — Strict dispatch: the cursor moves only by matching at it
 **`in progress` — core implemented 2026-08-21: modes strict/lax/classify/lexer live, `consume`
 and `emit-error` live, zero-advance errors, version-gated defaults (v4+ strict), validation

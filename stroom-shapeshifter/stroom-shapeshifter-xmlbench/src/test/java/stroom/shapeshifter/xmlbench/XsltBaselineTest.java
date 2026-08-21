@@ -58,6 +58,7 @@ class XsltBaselineTest {
     @Test
     void tenRecordsMatchTheGolden() throws Exception {
         final byte[] output = transform(compile(), RecordsGenerator.generate(10));
+        Files.createDirectories(Path.of("/tmp/ssport"));
         Files.write(Path.of("/tmp/ssport/xmlbench-ten.xml"), output);
         final byte[] golden = getClass()
                 .getResourceAsStream("/xmlbench/ten-records-golden.xml").readAllBytes();

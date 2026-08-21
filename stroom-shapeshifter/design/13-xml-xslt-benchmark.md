@@ -153,11 +153,26 @@ throughout, passed byte-identical on the first run.
    case where the challenger may hit a genuine capability wall (grouping needs whole-input
    state before first output), sought deliberately per the ruling: losses are findings.
 2. `modes` (adapted from `search_result.xsl`): one input walked by two template modes.
+   **Done 2026-08-21 — and no adaptation was needed**; see below.
 3. `dual_output` (appender family): the same records emitted as XML and as text.
 4. `reference` (`REFERENCE.xsl`): the clean reference-builder.
 5. `json_front` (TEST_TRACES): JSON input — pipeline's JSON parser + XSLT vs shapeshifter
    reading the JSON itself. A different fight, worth its own baseline rows.
 6. Deeper nastiness: processing instructions, attribute-order variance, mixed content,
    namespace prefixes differing between input documents.
+
+**`modes`, passing (2026-08-21):** backlog item 2 delivered, and it is the catalogue's first
+**unmodified production stylesheet** — `CommonIndexingTest/search_result.xsl` copied verbatim,
+its extension-free XSLT running under Saxon exactly as the pipeline ships it. It proves the
+two-mode walk (the default mode building records while `mode="text"` collects every text leaf
+under `EventDetail` — replayed challenger-side as an eat-tag/emit-text dispatch over the
+captured subtree), the sixteen-branch `xsl:choose` translated to branch-at-dispatch (one
+fields-mode template per `EventDetail` shape, list order standing in for `when` order), and
+`call-template` with a named record-head template — the matrix's covered-but-unproven row, now
+proven. Byte-parity earned its keep twice: the stylesheet's stray literal `Authorise` text
+(a real production wart) is reproduced with its exact indentation, and inter-event whitespace
+copied by XSLT's built-in text rule is emitted where Saxon emits it. The first draft
+exists-tested optional branch captures and hit E19's pinned stale-value case — event 2
+reporting event 1's action — recorded as an addendum there; branch-at-dispatch is the idiom.
 
 Profiling resumes once the catalogue is fat enough to profile against — per the ruling.

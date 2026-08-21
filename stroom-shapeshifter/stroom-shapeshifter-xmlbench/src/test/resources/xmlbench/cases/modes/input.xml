@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Events xmlns="event-logging:3" version="3.0">
+  <Event StreamId="101" EventId="1">
+    <EventTime><TimeCreated>2026-01-05T10:15:30.000Z</TimeCreated></EventTime>
+    <EventSource><User><Id>jbloggs</Id></User></EventSource>
+    <EventDetail><TypeId>0405</TypeId><Authenticate><Action>Logon</Action><Outcome>Success</Outcome></Authenticate></EventDetail>
+  </Event>
+  <Event StreamId="101" EventId="2">
+    <EventTime><TimeCreated>2026-01-05T10:16:02.000Z</TimeCreated></EventTime>
+    <EventSource><User><Id>asmith</Id></User></EventSource>
+    <EventDetail><TypeId>0406</TypeId><Authenticate><Outcome>Failure</Outcome></Authenticate></EventDetail>
+  </Event>
+  <Event StreamId="102" EventId="3">
+    <EventTime><TimeCreated>2026-01-05T10:17:44.000Z</TimeCreated></EventTime>
+    <EventSource><User><Id>asmith</Id></User></EventSource>
+    <EventDetail><TypeId>0912</TypeId><Alert><Breach><Severity>High</Severity></Breach></Alert></EventDetail>
+  </Event>
+  <Event StreamId="102" EventId="4">
+    <EventTime><TimeCreated>2026-01-05T10:18:10.000Z</TimeCreated></EventTime>
+    <EventSource><User><Id>jbloggs</Id></User></EventSource>
+    <EventDetail><TypeId>0501</TypeId><Authorise><Action>Grant</Action><Object><Id>report-9</Id></Object></Authorise></EventDetail>
+  </Event>
+  <Event StreamId="103" EventId="5">
+    <EventTime><TimeCreated>2026-01-05T10:19:55.000Z</TimeCreated></EventTime>
+    <EventSource><User><Id>psmith</Id></User></EventSource>
+    <EventDetail><TypeId>0703</TypeId><View><Type>Document</Type><Object><Name>quarterly.pdf</Name></Object></View></EventDetail>
+  </Event>
+  <Event StreamId="103" EventId="6">
+    <EventTime><TimeCreated>2026-01-05T10:21:08.000Z</TimeCreated></EventTime>
+    <EventSource><User><Id>psmith</Id></User></EventSource>
+    <EventDetail><TypeId>0801</TypeId><Delete><Object><Id>doc-77</Id></Object></Delete></EventDetail>
+  </Event>
+  <Event StreamId="104" EventId="7">
+    <EventTime><TimeCreated>2026-01-05T10:22:31.000Z</TimeCreated></EventTime>
+    <EventSource><User><Id>svc-batch</Id></User></EventSource>
+    <EventDetail><TypeId>9999</TypeId><Export><Destination>s3://bucket/out</Destination></Export></EventDetail>
+  </Event>
+</Events>
