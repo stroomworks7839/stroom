@@ -1014,8 +1014,11 @@ The consequences, each decided with the design rather than discovered later:
   reading left. No compile-time empty-match gate — `*`-quantified patterns legitimately
   smell empty; the run-time rule carries the weight.
 - The library's published `leadingAnchor()` becomes a validator in strict groups (the
-  anchored question carries the anchoring; suspicious patterns are **errors in strict,
-  warnings in lax**) and keeps its performance role wherever lax dispatch survives.
+  anchored question carries the anchoring) and keeps its performance role wherever lax
+  dispatch survives. Lints are **warnings** at every strictness until one can *prove*
+  author confusion rather than suspect it — amended from errors-in-strict during
+  implementation, user-approved: a `(?m)^` pattern asked the anchored question is
+  well-defined, and converted configs commonly carry the prefix.
 
 Why: silent content skipping and search-shaped dispatch costs were both symptoms of the
 engine doing implicitly what authors should say explicitly. DS3 is precedent, not oracle —

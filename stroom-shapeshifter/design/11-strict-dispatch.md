@@ -168,8 +168,8 @@ anchoring, whatever the pattern says. It becomes a **validator**:
 - A lax-group pattern that is INPUT-anchored gets today's fast path, unchanged.
 
 The performance role survives wherever lax dispatch survives. **Decided:** the lints are
-errors in strict mode, warnings in lax. **Implementation deviation (2026-08-21), flagged for
-review:** the line-anchor lint shipped as a *warning* even in strict mode, because erroring
+errors in strict mode, warnings in lax. **Ruling amended (2026-08-21, user-approved):**
+the line-anchor lint ships as a *warning* even in strict mode, because erroring
 would prohibit a legitimate idiom — a `(?m)^` pattern asked the anchored question is
 well-defined (`^` holds at the region start), and strict line-iteration configs converted
 from lax will commonly carry the prefix. The error-strength lint set is currently empty; a
@@ -232,7 +232,9 @@ template); their bodies may still reference the match's own groups directly (an
    `classify` mode covers legitimate non-consuming matching; zero-advance in consuming
    modes is error-and-exit. Mode table confirmed, with `lexer` promoted from deferred to
    accepted.
-7. **Lints**: errors in strict, warnings in lax.
+7. **Lints**: errors in strict, warnings in lax — *amended*: warnings everywhere until a
+   lint can prove author confusion rather than suspect it (§8); the error tier is reserved
+   for provable mistakes.
 8. **Mode placement** (§8b): `dispatch` on the apply directive, source-level default —
    confirmed, together with §8b's refinement that consume-marked templates may not declare
    captures.
