@@ -86,3 +86,36 @@ disappearing.
    once the framework executes.
 4. **Parity: byte-identical**, and the shapeshifter side must achieve it with ordinary
    template emission — no special writer.
+
+## The first verdict (2026-08-21)
+
+Phases 0–3 landed in a day; the head-to-head ran same-day
+([benchmarks/2026-08-21-1555-324a9bbd25-xml.json](benchmarks/2026-08-21-1555-324a9bbd25-xml.json),
+baseline decomposition [2026-08-21-1543](benchmarks/2026-08-21-1543-0ea8643364-xml.json)):
+
+| row | 1M records, ms | MiB/s |
+|---|--:|--:|
+| SAX parse alone (the floor) | 1,834–2,918* | 100–160* |
+| Saxon identity (parse + tree + serialise) | 6,555–8,225 | 36–45 |
+| **Saxon + EVENTS stylesheet (incumbent)** | **8,383–8,448** | **~34.5** |
+| **shapeshifter (challenger)** | **2,725** | **~107.5** |
+
+*the floor and identity rows wobbled in the second run (error bars to ±1.8 s); the
+challenger and incumbent rows were tight in both runs, and same-run: **3.10×**.
+
+The hypothesis is confirmed in its strong form. The incumbent's decomposition showed 78% of
+its cost in the middle — the tree and the serialisation, not the parse and not the transform
+logic — and the challenger, having no middle, lands **at the parse floor itself**: it does
+the entire job in roughly the time the specialist parser takes to read the input and call
+handlers. Byte-identical output, parity-gated before any timing, ordinary template emission.
+
+The challenger's shape is the D36 idiom working as designed: strict dispatch, structural
+eaters, a recursive fields scope that keeps the optional field honest, and a
+terminator-triggered emitter that turns capture-then-restructure into plain dispatch —
+thirteen templates, none exotic.
+
+Honest scope: one adapted case, a regular corpus, and a stylesheet without reference-data
+lookups. The catalogue exists to grow — gnarlier XSLT (keys, grouping, multi-pass),
+nastier XML (CDATA, comments, deep nesting, attribute-order variance), and the cases where
+the challenger should lose, sought as deliberately as the ones it wins. The first-byte
+candidate table remains the engine-side lever if a case ever needs it.
