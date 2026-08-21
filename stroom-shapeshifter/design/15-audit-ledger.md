@@ -27,6 +27,87 @@ Each item: `[status]` file — claim (severity). Statuses: **fixed** (with batch
 - [fixed] internal/Backtracker+FancyBacktracker+NodeTree — anchored search continued past a continuation-byte start; now breaks, agreeing with PikeVm (HIGH).
 - [fixed] internal/PikeVm — NEED_MORE detection was unreachable (threads died one iteration before the check); rebuilt as an edge latch on starved threads and unjudgeable edge starts (HIGH).
 
+## Fixed in batch 3 (`dd438cad83` engine, `6a04a82138` regex) — the five-fixer sweep
+
+Five fixers ran with disjoint file ownership; two were cut off mid-run by a session limit,
+but both had already written their edits. The tree compiles and 437 tests pass (188 regex,
+249 engine, 0 failures). Verified present in the working tree:
+
+- [fixed] config — transforms refuse a second select (CompiledOp.single, decision 2 taken as the ledger assumed); Translate javadoc corrected to ordered whole-substring replace; Codec "first six" carried by the JDK; regex advance validated (negative at the record, > groupCount at the Compiler); Template.ignoreErrors and Project.bufferSize javadoc corrected; MatchByte clones in and out; params(Map) deleted; Dispatch.ANY documented as shipped; the Rust-crate dialect claims now point at BytePattern; range validation across MatchLimits/Repeat/TakeN/bufferSize/maxDepth/StepRef.Literal; Project.source defaulted.
+- [fixed] config/json — checkFields throws on non-object nodes (the strictness hole); version, greater-than and less-than values are now required rather than silently defaulted; compiled_idx removed.
+- [fixed] compile — dispatchChecks and notYet javadoc corrected; Apply's redundant disjunct collapsed and select evaluated once; "twelve transform functions" corrected; CompiledMatch.Regex points at LeadingAnchor, keeping the 3.6x citation.
+- [fixed] exec — UncheckedIOException mid-run now appends FATAL and returns the accumulated messages; anyLevel delegates to processMatch instead of re-implementing it (with reportSkips carrying DS3's rule); onMatch reports the match span, not the consumption length; the BOM counts toward absolute offsets; zero-advance errors name their offset space; TypedValue.Float renamed Real; Steps honours the template charset for tag and take-until literals (E3) and the effective encoding for AnyChar (E5).
+- [fixed] ds3 — the regex advance attribute is read and threaded; unknown attributes are refused rather than dropped; @ references recognised in data attributes.
+- [fixed] regex — the embedded-regex named-backreference defect (Parser seeds outer names and offsets by firstGroupIndex); Analysis.byteLength saturates both bounds in long; Nfa's fancy sweep covers CLASS_STAR; the dead nine-arg Nfa constructor removed; UnicodeClasses.build shared with Words and scriptOrBlock renamed script; Words owns the one assertionHolds every engine delegates to; characterBefore bounded against malformed input and delegating to Utf8.decode; MatcherLibrary.names() defensively copied; PatternCompileException made final; supplementary-safe takeUntil/takeThrough overloads.
+
+## Fixed in batch 4 (`dd438cad83`) — the rulings of 2026-08-21
+
+Jon ruled three of the six queued decisions; each is applied with its regression pinned.
+
+- [fixed] ds3 children() — sibling expressions now share one mode and one dispatch, as they already did at the root and inside a group. Decision 6. `003`'s messages golden regenerated: eleven to one, and the surviving message is a true one (the first record's stray `----`, which the configuration's own `^----\n` cannot match once the split has stripped the newline). The output golden did not move a byte, which was the stop condition. E1's closing text corrected — it had called the eleven "true errors" (HIGH).
+- [fixed] compile/Compiler — call-template targets and apply-templates template refs are resolved against the templates that exist, and an unresolved name is a ConfigException naming both the referrer and the missing template. Decision 3. Pinned by `EngineBehaviourTest.refusesACallToATemplateThatDoesNotExist` (med).
+- [fixed] exec/Splitter — the closing-container trim is gated on the field having opened with one, so an unquoted field that merely ends in the container byte keeps it (`a"b"` stays `a"b"`). Decision 4. Pinned by `EngineBehaviourTest.trimsAClosingContainerOnlyForAFieldThatOpenedWithOne` (med).
+
+Suite after batch 4: 439 tests, 0 failures (188 regex, 251 engine, 3 skipped).
+
+## Fixed in batch 5 (`dd438cad83` engine, `6a04a82138` regex) — the rulings of 2026-08-21, second pass
+
+- [fixed] regex/NodeTree + FancyBacktracker — a lookbehind pinned its body's *window* as well as its end, which got the meaning wrong in both directions: a nested lookahead could never see the text it was looking for, and `$` read the cursor as the end of input and held there. Now only the end is pinned. Decision 5, ruled to match the JDK. Probing thirteen shapes against `java.util.regex` found five diverging, not the one reported — including `(?<!a(?=bc))bc`, which matched when it should not have, and `(?<=a$)b`, which matched when the JDK finds nothing. All thirteen agree now and are pinned in `KnownDivergenceTest.aLookbehindBodySeesPastTheCursorAndAgrees`. `recordEdge` is live inside a lookbehind again: a bounded body cannot consume past the cursor, so only a nested lookahead reaches the window edge, and there the contact is real (med).
+- [fixed] `KnownDivergenceTest.assertAgrees` — asserted on group 0 before checking a match was found, so a case where both engines agree there is *no* match could not be written. Agreeing on no-match now returns early (low, found by writing the above).
+- [fixed] text/Encoding + compile/Compiler — E22 resolved. The approximating fallbacks are gone (`SHIFT_JIS` no longer falls back to windows-31j, `WINDOWS_874` no longer to TIS-620; both are distinct charsets, whereas the surviving multi-name entries are alternative spellings of one). A declared encoding this runtime lacks is now refused at compile time from the template path too — the hole was real: the source path refused it, `encoding=` on a template did not, and would have reached `new String(bytes, null)` at run time (med).
+
+Suite after batch 5: 440 tests, 0 failures (189 regex, 251 engine, 3 skipped).
+
+## Second-pass audit of the regex module's diff (`6a04a82138`, benchmark guard `08459a5c50`)
+
+Jon asked how much the regex library was being touched, and then for an audit of the day's
+changes to it before benchmarking them. Every modified regex file was re-read line by line;
+the two findings were in the newest work, not the fixers'.
+
+- [fixed] NodeTree + FancyBacktracker — the batch-5 lookbehind comments claimed the nearest
+  candidate start is `cursor - max` and that only a nested lookahead can reach past the cursor.
+  Both false: starts run from `cursor - min` down to `cursor - max`, and a consuming path from
+  any nearer start can overshoot the cursor by up to `max - min` before the end-pin fails it —
+  including touching the window edge. The *behaviour* was verified sound against `search()`'s
+  return handling (a match with `hitEnd` latched on an incomplete window returns NEED_MORE, so
+  the spurious contact costs buffering, never a wrong answer; a negative lookbehind cut off by
+  the edge is likewise withheld, not wrongly affirmed). The comments now describe the overshoot
+  and why the conservatism is sound (low — but a lying comment on a HIGH-severity fix).
+- [fixed] The HIGH embedded-backreference fix was unpinned: FancyTest's `\k<name>` cases are
+  standalone patterns, which the unseeded-list defect never touched. Three tests added to
+  CombinatorTest: first-name resolution (was refused), later-name resolution (was silently the
+  wrong group — pinned via `11,22=11`, which the old resolution would have matched), and an
+  embedded name colliding with an outer label (refused).
+- [verified] Parser: `countGroups` rewrite correct at the trailing-backslash, `\Q...\E` and
+  escaped-`]`-in-class edges; `\x{...}` overflow/malformed handling; `parseBound`; the
+  three-arg parse contract consistent with Lowering's clear-and-replace
+  (`firstGroupIndex = outerNames.size() - 1` recovers the old seeding exactly).
+- [verified] ByteMatcher rewiring: `pinned == SIMULATE` builds no tree, so the removed
+  `forced() != SIMULATE` guard was dead; `pinned == BACKTRACK` builds only the backtracker and
+  slot sizing reads the NFA directly; the budget change from silent fall-through to refusal is
+  confined to pinned runs and documented.
+- [verified] PatternCompileException accessor renames have no callers outside the module's own
+  tests (all updated); Analysis saturation is sound including the sentinel collision (a max
+  that saturates to `UNBOUNDED_LENGTH` makes lookbehind refuse conservatively);
+  PikeVm/PlanRunner/Backtracker `assertionHolds` moves are literal; `Words.characterBefore`'s
+  bounded walk is correct for four-byte sequences; comb defensive copies, the four-octet ipv4
+  and the supplementary `takeUntil`/`takeThrough` overloads are pinned by new tests.
+- [fixed] bench/BranchOrderBenchmark — its `@Setup` guard asserted tier *ordinals* and went
+  stale at D32 (the simulation moved from 1 to 2), after which the guard threw on every run and
+  JMH silently dropped the whole class from the recorded results; the last recorded run has no
+  BranchOrder rows. Now asserts named engines (med — a benchmark that silently stopped running).
+
+## Verified still open after batch 5
+
+Re-checked against the working tree, not carried over on trust:
+
+- [pending] Gate harmonisation: ByteWindow.contextEnd exists and ByteMatcher reads it, but it is not threaded into the four engines — PikeVm still consults data.length in the beyond-region clause, and the other three still lack the clause (med, one designed change).
+- [pending] Template.RegexFlags is still nested in Template (med).
+- [pending] RefExpression.MatchIndex is still a four-way union flattened into flag fields (med, model+codec surgery).
+- [pending] Compiler still lacks the shared charsetFor(Encoding) extraction (med).
+- [pending] The "__rec_" prefix is still spelt independently in Compiler and Executor (low).
+- [pending] The remaining low-severity nits listed per package below have not been individually re-confirmed since the sweep; they need a confirmation pass before being closed or fixed.
+
 ## Pending — engine/config (model)
 
 - [pending] OutputNode nine transforms take List<RefExpression> select but every consumer except StringJoin reads only the first — half-translated Vec<_> shape; add compile-time error for >1 on single-input transforms (med).
