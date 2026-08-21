@@ -32,6 +32,15 @@ dependencies {
     testRuntimeOnly libs.bundles.common.test.runtime
 }
 
+// The 1M-record rows hold a quarter-gigabyte input and Saxon's tree of it.
+test {
+    maxHeapSize = '6g'
+    // A million records of escaped text trips the JDK's default entity-expansion ceilings —
+    // a benchmark, like a production pipeline, configures its parser deliberately.
+    systemProperty 'jdk.xml.maxGeneralEntitySizeLimit', '0'
+    systemProperty 'jdk.xml.totalEntitySizeLimit', '0'
+}
+
 // Results go where every shapeshifter measurement goes, named by date and commit — see the
 // regex module's build file for why a number in a scrollback is not a measurement.
 tasks.register('jmh', JavaExec) {
