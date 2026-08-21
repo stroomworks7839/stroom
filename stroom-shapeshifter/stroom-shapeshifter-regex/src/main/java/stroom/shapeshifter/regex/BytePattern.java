@@ -314,6 +314,34 @@ public final class BytePattern {
         return new ByteMatcher(this);
     }
 
+    /**
+     * The leading anchor the parser found — the same fact the search loops use to skip
+     * non-viable positions and stop early ({@code design/06-performance-plan.md} §1).
+     *
+     * <p>For an {@link LeadingAnchor#INPUT} pattern the anchored and unanchored questions
+     * always agree, so a caller making many calls may ask the cheaper
+     * {@link Anchoring#ANCHORED} one. Every compiled artifact carries the same conclusion,
+     * because all of them read it from the parse.
+     */
+    public LeadingAnchor leadingAnchor() {
+        final int anchor;
+        if (nfa != null) {
+            anchor = nfa.startAnchor();
+        } else if (tree != null) {
+            anchor = tree.startAnchor();
+        } else if (plan != null) {
+            final Hir.Kind kind = plan.leadingAnchor();
+            return kind == null
+                    ? LeadingAnchor.NONE
+                    : kind == Hir.Kind.START_LINE ? LeadingAnchor.LINE : LeadingAnchor.INPUT;
+        } else {
+            return LeadingAnchor.NONE;
+        }
+        return anchor == Nfa.ANCHOR_INPUT
+                ? LeadingAnchor.INPUT
+                : anchor == Nfa.ANCHOR_LINE ? LeadingAnchor.LINE : LeadingAnchor.NONE;
+    }
+
     public String pattern() {
         return pattern;
     }

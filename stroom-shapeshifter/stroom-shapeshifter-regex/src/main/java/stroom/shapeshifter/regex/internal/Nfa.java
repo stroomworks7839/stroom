@@ -152,11 +152,11 @@ public final class Nfa {
     private final Closures closures;
 
     /** No start-position constraint: a match could begin anywhere. */
-    static final int ANCHOR_NONE = 0;
+    public static final int ANCHOR_NONE = 0;
     /** Every match begins at a line start — the region start, or just after a newline. */
-    static final int ANCHOR_LINE = 1;
+    public static final int ANCHOR_LINE = 1;
     /** Every match begins at the region start. */
-    static final int ANCHOR_INPUT = 2;
+    public static final int ANCHOR_INPUT = 2;
 
     /**
      * The strongest start-position constraint every entry path agrees on. The same idea as
@@ -243,7 +243,9 @@ public final class Nfa {
         return anchor;
     }
 
-    int startAnchor() {
+    /** The leading anchor, as one of the {@code ANCHOR_} constants. Published to callers
+     * through {@link stroom.shapeshifter.regex.BytePattern#leadingAnchor()}. */
+    public int startAnchor() {
         return startAnchor;
     }
 
