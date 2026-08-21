@@ -18,6 +18,7 @@ package stroom.shapeshifter.regex.bench;
 
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
+import stroom.shapeshifter.regex.Engine;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.Flag;
 
@@ -142,9 +143,14 @@ public class BranchOrderBenchmark {
                 "^(?:COMMON|RARE|SELDOM|UNUSUAL|ODD) (?:.*)$",
                 java.util.EnumSet.of(Flag.MULTILINE));
 
-        if (disjointFirst.tier() != 0 || overlapFirst.tier() != 1) {
-            throw new IllegalStateException("benchmark assumes tier 0 and tier 1 respectively, got "
-                                            + disjointFirst.tier() + " and " + overlapFirst.tier());
+        // Named engines, not tier ordinals. This guard was written against ordinals and went
+        // stale at D32, when the bounded backtracker stopped being chosen per search and the
+        // simulation's ordinal moved from 1 to 2 — after which the guard threw on every run and
+        // this whole class silently dropped out of the recorded results.
+        if (disjointFirst.engine() != Engine.SCAN_PLAN || overlapFirst.engine() != Engine.SIMULATE) {
+            throw new IllegalStateException(
+                    "benchmark assumes a scan plan and an NFA simulation respectively, got "
+                    + disjointFirst.engine() + " and " + overlapFirst.engine());
         }
     }
 
