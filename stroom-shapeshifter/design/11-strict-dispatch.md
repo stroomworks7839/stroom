@@ -166,6 +166,47 @@ anchoring, whatever the pattern says. It becomes a **validator**:
 The performance role survives wherever lax dispatch survives. **Decided:** the lints are
 errors in strict mode, warnings in lax.
 
+## 8b. Where the mode lives, and the match-number contract
+
+**DS3's placement, verified in source:** `matchOrder` sits on the **`group` element**
+(`GroupFactory`, default `SEQUENCE`); the root level is hard-wired to `SEQUENCE` in
+`DS3Parser.parse`, with only `ignoreErrors` configurable there. And the group element is
+double-jobbed exactly as remembered: `Group extends StoreNode` — the same element that picks
+the dispatch mode is the scope for positional variable storage, with `storeData(group, …,
+parentMatchCount)` writing the group's value at the *parent's* match index and
+`LocalStore.set(index, value)` making every variable an array indexed by match number.
+
+**Our placement:** the port flattened DS3's nested groups into mode-named levels invoked by
+`apply-templates`, and the group's roles split accordingly. The dispatch-container role —
+including group-level `ignoreErrors`, already moved to `ApplyDirective` during E17 — lands
+the new attribute in the same place: **`dispatch: strict|lax|any|classify` on the apply
+directive**, defaulting from a source-level setting (strict for new configurations). The
+behavioural choice tree is therefore just apply nesting, which already exists: a strict
+level's template bodies can apply an `any` level, whose bodies apply `classify` levels, each
+site choosing independently. One improvement falls out free: our root level is dispatched
+through the source template's own apply, so the root's mode is authorable rather than
+hard-wired as DS3's is.
+
+**The match-number contract, mode by mode.** The stores' positional indexing is untouched by
+strict-vs-lax — binding changes which question is asked, never how winners are counted.
+The worked CSV case confirms ruling 3's shape rather than undermining it: in a data-row
+level, a *consume*-marked eater swallowing a malformed field does **not** advance the column
+counter, so the following field would read the wrong header — and that is correct behaviour
+for stream-shaped grammars and wrong for positional ones, which is precisely why the marker
+is the author's choice: a positional grammar skips a bad field with an ordinary counting
+match (empty body), keeping alignment; a log grammar skips junk with a non-counting eater,
+keeping its counters meaningful. `classify` templates count trivially (each at most one
+match, stores at index 1). `any`-mode excision leaves counting untouched (counts increment
+per match as today); its open questions are positional *attribution* after excision, which
+belongs to E18's implementation.
+
+**One contradiction found by this analysis, now resolved in §3's terms:** §3 originally said
+an eater's captures still bind — but a non-counting match has no index to bind them at, and
+worse, a binding at index 1 would trip E19's first-match store clearing. Proposed refinement:
+**consume-marked templates may not declare captures** (compile-time error naming the
+template); their bodies may still reference the match's own groups directly (an
+`emit_error` quoting the swallowed content needs no store), and E19's clearing ignores them.
+
 ## Rulings (2026-08-21)
 
 1. **Compat**: both modes, in-engine — `strict` (default for new configs) and `lax`
@@ -182,3 +223,6 @@ errors in strict mode, warnings in lax.
    `classify` mode covers legitimate non-consuming matching; zero-advance in consuming
    modes is error-and-exit. *Awaiting the user's confirmation of the §7 mode table.*
 7. **Lints**: errors in strict, warnings in lax.
+8. **Mode placement** (§8b): `dispatch` on the apply directive, source-level default —
+   *proposed from the DS3 analysis, awaiting confirmation*, together with §8b's refinement
+   that consume-marked templates may not declare captures.
