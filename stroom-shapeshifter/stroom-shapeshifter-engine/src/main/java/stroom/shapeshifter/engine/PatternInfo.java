@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.regex.BytePattern;
+import stroom.shapeshifter.regex.PatternCompileException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,14 +30,14 @@ import java.util.List;
  *
  * <p>It compiles through exactly the same path the engine does, so what it reports is what the
  * engine would do — a separate, more forgiving parser for the editor would be worse than no
- * editor support at all.
+ * editor support at all. Group names come from the compiled pattern itself, never from reading
+ * the pattern text: the parser owns the pattern's facts and publishes them.
  *
- * @param valid      whether the pattern compiles
- * @param error      why it does not, or null
- * @param groupCount how many capture groups it defines, not counting the whole match
- * @param groups     the groups, in order
+ * @param valid  whether the pattern compiles
+ * @param error  why it does not, or null
+ * @param groups the capture groups in order, not counting the whole match
  */
-public record PatternInfo(boolean valid, String error, int groupCount, List<Group> groups) {
+public record PatternInfo(boolean valid, String error, List<Group> groups) {
 
     public PatternInfo {
         groups = groups == null ? List.of() : List.copyOf(groups);
@@ -57,57 +58,15 @@ public record PatternInfo(boolean valid, String error, int groupCount, List<Grou
         final BytePattern compiled;
         try {
             compiled = BytePattern.compile(pattern);
-        } catch (final RuntimeException e) {
-            return new PatternInfo(false, e.getMessage(), 0, List.of());
+        } catch (final PatternCompileException e) {
+            return new PatternInfo(false, e.getMessage(), List.of());
         }
 
-        final int count = compiled.groupCount();
-        final String[] names = new String[count + 1];
-        for (final String candidate : candidateNames(pattern)) {
-            final int index = compiled.groupIndex(candidate);
-            if (index > 0 && index <= count) {
-                names[index] = candidate;
-            }
+        final List<String> names = compiled.groupNames();
+        final List<Group> groups = new ArrayList<>(compiled.groupCount());
+        for (int i = 1; i <= compiled.groupCount(); i++) {
+            groups.add(new Group(i, i < names.size() ? names.get(i) : null));
         }
-
-        final List<Group> groups = new ArrayList<>(count);
-        for (int i = 1; i <= count; i++) {
-            groups.add(new Group(i, names[i]));
-        }
-        return new PatternInfo(true, null, count, groups);
-    }
-
-    /**
-     * The names a pattern's text appears to define.
-     *
-     * <p>The matching layer answers name-to-index, which is what matching needs, and does not
-     * publish the list — and this port does not change it. So the candidates are read off the
-     * pattern text with a deliberately naive scan for {@code (?<name>}, and every one of them is
-     * then <b>checked against the compiled pattern</b>. That check is what makes the naivety
-     * safe: a name the scan invents is rejected because the pattern does not know it, and a name
-     * the scan misses leaves its group unnamed rather than misnamed. The worst case is less
-     * information, never wrong information.
-     */
-    private static List<String> candidateNames(final String pattern) {
-        final List<String> names = new ArrayList<>();
-        int i = 0;
-        while (i + 3 < pattern.length()) {
-            final int open = pattern.indexOf("(?<", i);
-            if (open < 0) {
-                break;
-            }
-            i = open + 3;
-            // Lookbehind, not a name.
-            if (pattern.charAt(i) == '=' || pattern.charAt(i) == '!') {
-                continue;
-            }
-            final int close = pattern.indexOf('>', i);
-            if (close < 0) {
-                break;
-            }
-            names.add(pattern.substring(i, close));
-            i = close + 1;
-        }
-        return names;
+        return new PatternInfo(true, null, groups);
     }
 }

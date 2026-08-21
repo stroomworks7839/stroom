@@ -28,6 +28,7 @@ import stroom.shapeshifter.regex.internal.Parser;
 import stroom.shapeshifter.regex.internal.Plan;
 import stroom.shapeshifter.regex.internal.PlanCompiler;
 
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -408,6 +409,14 @@ public final class BytePattern {
     /** The group number for a named group, or -1. */
     public int groupIndex(final String name) {
         return groupNames.indexOf(name);
+    }
+
+    /**
+     * Each group's name, indexed by group number. Entry 0 (the whole match) and unnamed
+     * groups are null; a pattern with no groups yields a single-entry list. Unmodifiable.
+     */
+    public List<String> groupNames() {
+        return Collections.unmodifiableList(groupNames);
     }
 
     /**

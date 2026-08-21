@@ -29,10 +29,8 @@ package stroom.shapeshifter.engine;
 public record Message(Severity severity, String text) {
 
     /**
-     * The form the fixture goldens record: severity, a tab, and the text.
-     *
-     * <p>Deliberately the same shape the Rust engine's own message dump uses, so the two can be
-     * compared line for line while the port is in progress.
+     * The form the fixture goldens record: severity, a tab, and the text. The goldens pin this
+     * exact shape, so changing it is a fixture migration, not a formatting choice.
      */
     @Override
     public String toString() {

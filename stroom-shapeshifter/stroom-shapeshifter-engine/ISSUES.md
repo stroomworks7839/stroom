@@ -468,3 +468,15 @@ where the deleted shape is recorded.
 The same ruling settled the case's second finding: **`substring` stays 0-based, documented,
 not aligned** to XSLT's 1-based — faithful to the ported transform library and existing
 configurations. The trap note lives in `OutputNode.Substring`'s javadoc and the matrix.
+
+### E22 — Charset fallback chains substitute near-equivalents silently
+**`open` — found 2026-08-21 by the adversarial audit.**
+`Encoding`'s multi-name entries treat their later names as interchangeable, and they are not:
+`SHIFT_JIS` falls back to `windows-31j` (differs on the NEC/IBM vendor rows) and
+`WINDOWS_874` to `TIS-620` (lacks the 0x80–0x9F assignments), so a slim runtime without
+`jdk.charsets` decodes differently from a full JDK with no message — at odds with the
+compile-time refusal of unavailable encodings. Also worth settling against ds-rs: if it used
+`encoding_rs`, its `shift_jis` *is* windows-31j, so preferring JDK `Shift_JIS` first may
+itself diverge from ported parity on extension characters. The approximation is now documented
+on `Encoding.charset()`; the open question is whether to pin one name per encoding and fail
+loud, and which Shift JIS mapping parity actually requires.

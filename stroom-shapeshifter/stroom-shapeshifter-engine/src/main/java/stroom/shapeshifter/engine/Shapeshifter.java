@@ -48,8 +48,9 @@ public final class Shapeshifter {
     /**
      * Run a compiled configuration over a stream.
      *
-     * <p>The input is read in buffers of the configuration's own size, and a match never spans
-     * two of them — the limitation the Rust engine has, ported deliberately (D33).
+     * <p>Memory stays bounded by the configuration's buffer size: the input is read through a
+     * sliding window of that capacity, so a single match must fit within it — but whether a
+     * record parses never depends on where a read happened to end (E13).
      *
      * @return everything the engine had to say, in order
      */

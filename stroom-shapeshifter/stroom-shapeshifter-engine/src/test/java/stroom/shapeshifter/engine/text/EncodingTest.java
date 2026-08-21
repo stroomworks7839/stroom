@@ -148,17 +148,6 @@ class EncodingTest {
     // -----------------------------------------------------------------------------------
 
     @Test
-    void reportsItsCodeUnitSize() {
-        assertThat(Encoding.UTF_8.codeUnitSize()).isEqualTo(1);
-        assertThat(Encoding.LATIN_1.codeUnitSize()).isEqualTo(1);
-        assertThat(Encoding.ASCII.codeUnitSize()).isEqualTo(1);
-        assertThat(Encoding.WINDOWS_1252.codeUnitSize()).isEqualTo(1);
-        assertThat(Encoding.SHIFT_JIS.codeUnitSize()).isEqualTo(1);
-        assertThat(Encoding.UTF_16LE.codeUnitSize()).isEqualTo(2);
-        assertThat(Encoding.UTF_16BE.codeUnitSize()).isEqualTo(2);
-    }
-
-    @Test
     void knowsWhichEncodingsAreOneByteOneCharacter() {
         assertThat(Encoding.LATIN_1.isSingleByte()).isTrue();
         assertThat(Encoding.WINDOWS_1252.isSingleByte()).isTrue();

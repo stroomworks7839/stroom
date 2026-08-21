@@ -35,7 +35,6 @@ class PatternInfoTest {
         final PatternInfo info = PatternInfo.inspect("^([0-9]+) \\[([^\\]]*)\\] (.*)$");
         assertThat(info.valid()).isTrue();
         assertThat(info.error()).isNull();
-        assertThat(info.groupCount()).isEqualTo(3);
         assertThat(info.groups()).containsExactly(
                 new Group(1, null), new Group(2, null), new Group(3, null));
     }
@@ -43,7 +42,6 @@ class PatternInfoTest {
     @Test
     void findsTheNamesOfNamedGroups() {
         final PatternInfo info = PatternInfo.inspect("(?<year>\\d{4})-(?<month>\\d{2})");
-        assertThat(info.groupCount()).isEqualTo(2);
         assertThat(info.groups()).containsExactly(
                 new Group(1, "year"), new Group(2, "month"));
     }
@@ -67,8 +65,16 @@ class PatternInfoTest {
     void countsNoGroupsWhenThereAreNone() {
         final PatternInfo info = PatternInfo.inspect("^plain text$");
         assertThat(info.valid()).isTrue();
-        assertThat(info.groupCount()).isZero();
         assertThat(info.groups()).isEmpty();
+    }
+
+    @Test
+    void neverThrowsOnAPatternEndingMidConstruct() {
+        // The audit found the old text-scan reading past the end of a pattern whose last three
+        // characters were "(?<" — valid or not, inspection must answer, never blow up.
+        assertThat(PatternInfo.inspect("\\(?<")).isNotNull();
+        assertThat(PatternInfo.inspect("x\\(?<")).isNotNull();
+        assertThat(PatternInfo.inspect("(?<")).isNotNull();
     }
 
     @Test

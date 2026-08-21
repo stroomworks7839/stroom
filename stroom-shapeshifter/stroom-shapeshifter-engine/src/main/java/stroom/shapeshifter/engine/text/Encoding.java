@@ -18,7 +18,7 @@ package stroom.shapeshifter.engine.text;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -111,11 +111,11 @@ public enum Encoding {
     private static final Map<String, Encoding> BY_LABEL = byLabel();
 
     private final String label;
-    private final String[] charsetNames;
+    private final Charset charset;
 
     Encoding(final String label, final String... charsetNames) {
         this.label = label;
-        this.charsetNames = charsetNames;
+        this.charset = resolve(charsetNames);
     }
 
     /** The canonical name for this encoding. */
@@ -126,17 +126,6 @@ public enum Encoding {
     @Override
     public String toString() {
         return label;
-    }
-
-    /**
-     * How many bytes one unit of this encoding occupies.
-     *
-     * <p>Two for the UTF-16s and one for everything else — which is not the same as "one byte per
-     * character", since UTF-8 is variable width. It is the granularity at which scanning may
-     * safely step.
-     */
-    public int codeUnitSize() {
-        return this == UTF_16LE || this == UTF_16BE ? 2 : 1;
     }
 
     /** True if every byte is exactly one character. */
@@ -155,6 +144,11 @@ public enum Encoding {
      *
      * <p>The engine's internal form is UTF-8, so this is the test for whether a capture needs
      * converting at all — and for most real inputs the answer is no.
+     *
+     * <p>ASCII qualifies as a fast path: a byte above 0x7F is not ASCII at all, and passing it
+     * through unchanged (rather than paying a conversion to substitute a replacement character,
+     * as {@link #decode} does) is the deliberate garbage-in-garbage-out trade for the common
+     * case where the input really is ASCII.
      */
     public boolean isUtf8Compatible() {
         return this == UTF_8 || this == ASCII || this == AUTO;
@@ -162,12 +156,25 @@ public enum Encoding {
 
     /** True if this build can actually read this encoding. */
     public boolean isAvailable() {
-        return charset() != null || this == RAW || this == AUTO;
+        return charset != null || this == RAW || this == AUTO;
     }
 
-    /** The JDK charset behind this encoding, or null if it is handled here or unavailable. */
+    /**
+     * The JDK charset behind this encoding, or null if it has none ({@link #RAW}, {@link #AUTO})
+     * or this runtime supports none of its names.
+     *
+     * <p>Where an encoding lists more than one name, the later names are fallbacks for slimmer
+     * runtimes, and they are approximations, not equivalents — windows-31j differs from
+     * Shift_JIS on the vendor extension rows, and TIS-620 lacks windows-874's 0x80–0x9F
+     * assignments. A full JDK always resolves the first name; the trade is recorded in
+     * ISSUES.md (E22).
+     */
     public Charset charset() {
-        for (final String name : charsetNames) {
+        return charset;
+    }
+
+    private static Charset resolve(final String... names) {
+        for (final String name : names) {
             if (Charset.isSupported(name)) {
                 return Charset.forName(name);
             }
@@ -203,7 +210,7 @@ public enum Encoding {
     }
 
     private static Map<String, Encoding> byLabel() {
-        final Map<String, Encoding> map = new LinkedHashMap<>();
+        final Map<String, Encoding> map = new HashMap<>();
         for (final Encoding encoding : values()) {
             map.put(normalise(encoding.label), encoding);
         }

@@ -46,7 +46,9 @@ public interface Instrument {
      * The offset reported when content did not come from the input.
      *
      * <p>Content handed to a template by a variable has no position in the original bytes. Any
-     * number would be a lie, so this is a number that cannot be one.
+     * number would be a lie, so this is a number that cannot be one. Half of
+     * {@code Long.MAX_VALUE} rather than the maximum, so that offset arithmetic on top of it
+     * cannot overflow before a {@code >= UNLOCATABLE} guard catches it.
      */
     long UNLOCATABLE = Long.MAX_VALUE / 2;
 
@@ -73,7 +75,8 @@ public interface Instrument {
      *
      * @param templateId which template bound it
      * @param name       the variable's name
-     * @param value      its value, as bytes
+     * @param value      its value, in the engine's internal form — UTF-8, already normalised
+     *                   from the template's declared encoding — not necessarily the input bytes
      * @param matchIndex which match it belongs to
      */
     default void onCapture(final UUID templateId,
@@ -105,8 +108,9 @@ public interface Instrument {
      * <p>Attempts that <i>fail</i> are reported too, and that is the point: a template that never
      * matches but is tried at every position is exactly the thing worth finding.
      *
-     * @param token   whatever {@link #startTiming} returned
-     * @param matched whether the attempt succeeded
+     * @param templateId which template was tried
+     * @param token      whatever {@link #startTiming} returned
+     * @param matched    whether the attempt succeeded
      */
     default void stopTiming(final UUID templateId, final long token, final boolean matched) {
     }
