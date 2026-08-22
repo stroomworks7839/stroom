@@ -97,6 +97,47 @@ the two findings were in the newest work, not the fixers'.
   JMH silently dropped the whole class from the recorded results; the last recorded run has no
   BranchOrder rows. Now asserts named engines (med — a benchmark that silently stopped running).
 
+## The benchmark gate closes on batches 2–5 (2026-08-22)
+
+The full regex suite ran on the audited tree (`2026-08-21-2325-08459a5c50.json`, 159 results
+— 27 more than the last recorded run, the recovered BranchOrder rows). Against
+`2026-08-21-0037-e61a4317e6.json`, with the untouched `javaRegex` rows as drift control
+(+1–2% favourable, so regressions read slightly understated): every real-workload row —
+corpus, pattern corpus, baselines, every fancy-tier row the lookbehind change touched — is
+neutral to better. Two rows flagged worse, and the investigation that followed disproved two
+hypotheses before finding the truth; the chain is recorded because guessing wrong twice in
+public is what the corpus is for.
+
+- Hypothesis 1, profile pollution from the `assertionHolds` dedup: restoring a
+  PlanRunner-local switch reproduced the dedup's numbers to the digit
+  (`-anchored-planrunner-restore.json`). Disproven; the restoration was reverted and the
+  dedup stands. `floating_miss`'s pattern (`BEGIN:`) contains no assertions at all, so the
+  hypothesis was doubly dead there.
+- Hypothesis 2, cross-boot drift: the baseline *code* re-run on the current boot
+  (`-e61a4317e6-anchored-bootctl.json`) reproduced the baseline *numbers* — 362M vs 357M on
+  `anchored_miss`. Disproven: the regression is real code.
+- The bisect (`-0b75bccbd4-anchored-bisect.json`) split it in two:
+  - **Batch 2, cost of correctness, accepted.** `scan_plan anchored_miss` −9.4% is one field
+    store (`validTo`) added to `match()` setup by the stale-byte-window fix — ~0.3 ns on a
+    2.8 ns operation; the same tax on `anchored_hit` at 17 ns is inside the error bars, which
+    is exactly what was measured. `simulate anchored_hit` −2.3% is PikeVm's NEED_MORE edge
+    latch — the fix for detection that was previously unreachable. Both are the price of
+    right answers on paths that were wrong at full speed; neither shows in any real-workload
+    row.
+  - **`6a04a82138`, layout sensitivity, recorded not chased.** `scan_plan floating_miss`
+    −4.1%: the commit does not touch that loop — no semantic change exists in its path — and
+    a ~0.02 ns/byte shift from class-body reorganisation is the alignment disease D21
+    documented. Chasing it would mean tuning method order against one microbench.
+- `CorpusBenchmark tree/QUOTED` −5.4% resolved as noise: the re-run
+  (`-quoted-corpus-rerun.json`) overlaps the baseline (7446 ± 452), no mechanism connects the
+  QUOTED patterns (no lookbehind among them) to any change, and the first verification of it
+  hit the wrong benchmark (PatternCorpus `quoted`, never flagged) — noted so the record shows
+  the check was redone right.
+
+Method note for the next reader: at single-digit-nanosecond operations, compare across boots
+only through a same-boot control at the baseline commit — the drift-control rows alone said
+"clean" while hiding a real 9% regression under a favourable boot.
+
 ## Verified still open after batch 5
 
 Re-checked against the working tree, not carried over on trust:
