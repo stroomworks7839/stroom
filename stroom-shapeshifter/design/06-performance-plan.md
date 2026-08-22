@@ -6,7 +6,11 @@ citations are the benchmark files in [benchmarks/](benchmarks) and the sections 
 [05-engine-benchmarks.md](05-engine-benchmarks.md). The method is fixed and non-negotiable:
 one change at a time, a measurement after each, same machine, checked-in results —
 the discipline that took FANCY_LOOKAHEAD from 0.15× to parity (§10.1) and that refuted
-four confident hypotheses on the way.
+four confident hypotheses on the way. Amended 2026-08-22: at single-digit-nanosecond
+operations *same machine* is not enough — a cross-boot comparison hid a real 9% regression
+under a favourable boot while its drift-control rows read clean. Comparing across boots means
+re-running the baseline commit on the current boot first (the ledger's benchmark-gate section
+holds the worked example, two disproven hypotheses included).
 
 ## 1. Quick wins — mechanism proven elsewhere in the codebase
 
@@ -107,6 +111,14 @@ becomes measurable), and **UNICODE** (accented text — where D19 priced the Uni
 10–20% and no benchmark had ever charged it). Still missing: a many-hundreds-of-patterns
 pollution workload (§3 above), and any workload with catastrophically ambiguous input, which
 only the budget tests exercise today.
+
+**A fourth blind spot, found and closed 2026-08-22: a benchmark can stop running and nothing
+notices.** `BranchOrderBenchmark`'s setup guard asserted tier *ordinals*; D32 moved the
+simulation from 1 to 2, the guard threw on every run after, and JMH drops a failing benchmark
+from its results without ceremony — so every recorded run since simply had no BranchOrder
+rows, and the absence was the only evidence. The guard now asserts named engines. The lesson
+generalises: a result file proves what ran, not what was supposed to run — when comparing
+runs, diff the *row sets* as well as the scores.
 
 ## 6. General-purpose candidates — learned from other engines, awaiting a workload
 
