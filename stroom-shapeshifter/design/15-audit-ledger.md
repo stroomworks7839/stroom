@@ -319,3 +319,41 @@ trailing nulls invited a same-typed `Nfa` transposition — collapsed to one con
 that every factory calls in full. The lesson worth the ink: the warrant for a trusted
 answer is only as wide as its test alphabet, and the audit that checked the alphabet was
 the only thing standing between "fifty million misses a second" and "wrong about café".
+
+## The closing audit (2026-08-24) — the fixes to the fixes, and the module's record closes
+
+The last unreviewed diff in the tree was the audit-fix commit itself, so the eight angles
+ran once more over it. No correctness defect survived — the removed-behavior and
+line-by-line angles verified every deletion's invariant re-established and every
+constructor call site transposition-free — but the pass earned its cost twice over:
+
+- **The pushback probe could block.** On a live source (a socket peer waiting for output),
+  the unconditional probe before the truncation block would stall an already-matched
+  record indefinitely — a deadlock the pre-probe code could not produce. The probe now
+  runs only inside the refusal-eligible branch, where a hard refusal genuinely needs the
+  certainty; the hedged warning stays hedged and never blocks. The refusal also honours
+  `template.ignoreErrors()` beside the run-level flag, as the skip error always has,
+  and its comment now says what the downgrade actually does: restore the port's kept
+  limitation, not mirror the unmatched-content hatch.
+- **Three latent single-source violations, retired before they could bite:** the byte-level
+  licence had grown a third spelling (now one — `NfaCompiler.byteSafe`, package-visible,
+  called by the mode branch and by `Reverse`); the `\G` fact had grown a third encoding
+  (now one — the published `anchorsToSearchStart`, consumed at `reverseProgram`'s single
+  qualification site); and `compileByteLevel` had copy-pasted the compile wrapper this
+  very commit's constructor collapse existed to condemn (now a one-line delegate through
+  the one body). `compileSub` also stopped pre-wiring the byte-level mode into lookaround
+  sub-programs, where the over-approximation argument inverts under negation — unreachable
+  today, and now not a trap for the v2 that might not notice.
+- **Hygiene, including three of this session's own making:** an out-of-order import, the
+  `fill()` javadoc stranded above `probeExhausted` (the same dangling-doc disease fixed in
+  ByteMatcher that morning), fully-qualified same-package names in `ReverseTest` on the
+  day R3 closed, the compile-per-iteration in the randomised sweeps, the eagerly-computed
+  search-start walk on paths where `fancy()` already proves it false, and a constructor
+  comment that claimed more than its call sites delivered.
+
+Adjudicated, not changed: the silent end of processing after a full-window match under
+`ignore_errors` is the port's deliberately-kept limitation (pinned by
+`warnsWhenATemplateSwallowsAWholeFullBuffer`'s own comment), restored — not introduced —
+by the downgrade. With this pass, every diff in the module's tree has been through the
+same eight angles, the issue list is empty, and the end-anchor programme stands at Phase 4
+with Phase 5 recorded behind a workload.

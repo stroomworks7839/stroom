@@ -53,7 +53,8 @@ public final class Reverse {
     /**
      * The compiled reverse program, or null when the pattern is not cleanly reversible.
      * The caller establishes the other qualifications (END_INPUT trailing anchor, unbounded
-     * maximum, not fancy, not input-anchored at the front).
+     * maximum, not fancy, not input-anchored at the front, no {@code \G} — the published
+     * anchorsToSearchStart fact, checked at the one qualification site).
      */
     public static Nfa program(final Hir root, final boolean multiline, final String pattern) {
         if (!reversible(root)) {
@@ -65,10 +66,10 @@ public final class Reverse {
     private static boolean reversible(final Hir node) {
         return switch (node) {
             case Hir.Empty ignored -> true;
-            // \G anchors to where the search started — a coordinate the finder does not
-            // have — and Words.assertionHolds throws on it; every other assertion is a
-            // positional predicate the reversed walk evaluates unchanged.
-            case Hir.Assertion assertion -> assertion.kind() != Hir.Kind.PREVIOUS_MATCH_END;
+            // Every assertion here is a positional predicate the reversed walk evaluates
+            // unchanged — \G, the one that is not, is refused upstream by the published
+            // anchorsToSearchStart fact before this walk is consulted.
+            case Hir.Assertion ignored -> true;
             case Hir.Bytes ignored -> true;
             case Hir.CharClass charClass -> charClass.set().isAsciiOnly();
             case Hir.Group group -> reversible(group.body());
@@ -77,20 +78,14 @@ public final class Reverse {
             // An unbounded repeat of a byte-safe class runs at byte level in either
             // direction — the compiler's own licence, borrowed whole.
             case Hir.Repeat repeat -> reversible(repeat.body())
-                                      || (repeat.isUnbounded() && byteSafe(repeat.body()));
+                                      || (repeat.isUnbounded()
+                                          && NfaCompiler.byteSafe(repeat.body()));
             // Fancy constructs never reach here (the caller excludes fancy patterns), and
             // a backreference has no static shape to reverse.
             case Hir.Look ignored -> false;
             case Hir.Atomic ignored -> false;
             case Hir.Backref ignored -> false;
         };
-    }
-
-    /** {@link NfaCompiler}'s byte-level licence, restated: acceptance of a multi-byte
-     * character is exactly acceptance of each of its bytes. */
-    private static boolean byteSafe(final Hir body) {
-        return body instanceof Hir.CharClass charClass
-               && (charClass.set().isAsciiOnly() || charClass.set().containsAllNonAscii());
     }
 
     private static Hir reverse(final Hir node) {

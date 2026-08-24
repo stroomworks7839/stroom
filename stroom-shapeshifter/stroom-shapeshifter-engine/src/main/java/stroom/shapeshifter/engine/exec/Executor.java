@@ -38,9 +38,9 @@ import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.TrailingAnchor;
 
 import java.io.ByteArrayOutputStream;
-import java.io.PushbackInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PushbackInputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -585,35 +585,41 @@ public final class Executor {
             }
 
             if (end == filled && !eof) {
-                // eof only means the stream's end has not been observed: an input of exactly
-                // the buffer's capacity fills the window without ever reading the -1, and the
-                // audit caught the refusal below dropping a correct record for it. One probe
-                // byte settles the question before anything is said.
-                eof = probeExhausted(source);
-            }
-            if (end == filled && !eof) {
                 // For an end-of-input-anchored pattern this is not a maybe: every match ends
                 // exactly at the region end, so a full-buffer match with input genuinely
-                // unread has provably matched the buffer's end, not the input's. The library
-                // publishes the fact (BytePattern.trailingAnchor(), single-sourced from its
-                // parser, as D35 established for the leading anchor), so the refusal is
-                // certain, not a sniff. ignore_errors keeps its contract: it downgrades the
-                // refusal to the warning and lets the output stand, the same escape hatch the
-                // unmatched-content error honours.
-                if (!ignoreErrors && candidate.match() instanceof CompiledMatch.Regex regex
+                // unread has provably matched the buffer's edge, not the input's end. The
+                // library publishes the fact (BytePattern.trailingAnchor(), single-sourced
+                // from its parser, as D35 established for the leading anchor), so the refusal
+                // is certain, not a sniff. Two audited subtleties shape this block: eof only
+                // means the stream's -1 has not been read yet — an input of exactly the
+                // buffer's capacity fills the window without observing it — so the one probe
+                // byte settles that before refusing; and the probe can block on a live
+                // source, so it runs only here, where a hard refusal actually needs the
+                // certainty — the warning below stays hedged and never blocks. Both
+                // ignore_errors levels downgrade the refusal to that warning, as the skip
+                // error honours them; the port's kept limitation — processing ends after a
+                // full-window match — is unchanged either way.
+                if (!ignoreErrors && !template.ignoreErrors()
+                    && candidate.match() instanceof CompiledMatch.Regex regex
                     && regex.pattern().trailingAnchor() == TrailingAnchor.INPUT) {
-                    messages.add(new Message(Severity.ERROR,
-                            "Template '" + template.name() + "' is anchored to the end of "
-                            + "input but matched to the end of a full buffer with input still "
-                            + "unread — the match is against the buffer's edge, not the "
-                            + "input's end. Increase source buffer_size (currently "
-                            + capacity + ")."));
-                    break;
+                    if (probeExhausted(source)) {
+                        // The match genuinely ends at the input's end; nothing to say.
+                        eof = true;
+                    } else {
+                        messages.add(new Message(Severity.ERROR,
+                                "Template '" + template.name() + "' is anchored to the end of "
+                                + "input but matched to the end of a full buffer with input "
+                                + "still unread — the match is against the buffer's edge, not "
+                                + "the input's end. Increase source buffer_size (currently "
+                                + capacity + ")."));
+                        break;
+                    }
+                } else {
+                    messages.add(new Message(Severity.WARNING,
+                            "Expressions consumed entire buffer (" + match.advance()
+                            + " bytes). If data is truncated, increase source "
+                            + "buffer_size (currently " + capacity + ")."));
                 }
-                messages.add(new Message(Severity.WARNING, "Expressions consumed entire buffer ("
-                                                           + match.advance()
-                                                           + " bytes). If data is truncated, increase source "
-                                                           + "buffer_size (currently " + capacity + ")."));
             }
 
             if (template.consume()) {
@@ -656,20 +662,6 @@ public final class Executor {
     }
 
     /** Read until the window is full or the input ends; returns how many bytes arrived. */
-    /** Whether the stream is exhausted, learned by one probe byte — pushed back if it exists. */
-    private static boolean probeExhausted(final PushbackInputStream source) {
-        try {
-            final int probe = source.read();
-            if (probe < 0) {
-                return true;
-            }
-            source.unread(probe);
-            return false;
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     private static int fill(final InputStream input, final byte[] window, final int from) {
         try {
             int total = from;
@@ -681,6 +673,22 @@ public final class Executor {
                 total += got;
             }
             return total - from;
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** Whether the stream is exhausted, learned by one probe byte — pushed back if it
+     * exists. May block on a live source, which is why the caller reserves it for the one
+     * decision that needs the certainty. */
+    private static boolean probeExhausted(final PushbackInputStream source) {
+        try {
+            final int probe = source.read();
+            if (probe < 0) {
+                return true;
+            }
+            source.unread(probe);
+            return false;
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }

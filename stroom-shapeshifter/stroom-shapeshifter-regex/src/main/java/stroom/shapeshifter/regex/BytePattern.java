@@ -115,8 +115,9 @@ public final class BytePattern {
      */
     private final NodeTree.Compiled tree;
 
-    /** The one constructor — the audit retired the telescoping overloads whose trailing
-     * nulls invited a same-typed transposition; every factory names every argument. */
+    /** The one constructor: the audit retired the telescoping overloads so no call site
+     * hides behind implied defaults — every factory now passes the full argument list, with
+     * its absent artifacts as visible nulls rather than an overload's silent ones. */
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
                         final TrailingAnchor trailingAnchor,
@@ -187,7 +188,6 @@ public final class BytePattern {
         final Set<Flag> copy = copyFlags(flags);
         final TrailingAnchor trailingAnchor = trailing(root);
         final int maxLength = Analysis.byteLength(root)[1];
-        final boolean movesWithSearchStart = Analysis.anchorsToSearchStart(root);
 
         // A pattern using a construct outside the regular subset — a backreference, lookaround,
         // an atomic group, \G — can only run on the unbounded backtracker, so neither the
@@ -198,7 +198,7 @@ public final class BytePattern {
             // The tree engine is the primary for fancy patterns (D31); the flat engine stays
             // as the structural fallback when recursion depth gives out.
             return new BytePattern(description, copy, trailingAnchor, maxLength,
-                    movesWithSearchStart, null, nfa,
+                    Analysis.anchorsToSearchStart(root), null, nfa,
                     List.of(), Analysis.warnings(root), groupNames, null, null,
                     NodeTree.compile(
                             root, groupCount, description));
@@ -210,11 +210,13 @@ public final class BytePattern {
         final List<Analysis.Violation> violations = Analysis.onePassViolations(root);
         if (violations.isEmpty()) {
             final Plan plan = PlanCompiler.compile(root, groupCount, multiline, description);
+            // \G forces the fancy path above (Analysis.fancy owns that classification),
+            // so the search-start fact is false here by construction — the walk is skipped.
             return new BytePattern(description, copy, trailingAnchor, maxLength,
-                    movesWithSearchStart, plan, null,
+                    false, plan, null,
                     violations, warnings, groupNames,
                     reverseProgram(root, trailingAnchor, maxLength,
-                            plan.leadingAnchor() == Hir.Kind.START_INPUT,
+                            plan.leadingAnchor() == Hir.Kind.START_INPUT, false,
                             multiline, description),
                     null, null);
         }
@@ -222,10 +224,11 @@ public final class BytePattern {
         // Ambiguous patterns carry the tree too: it takes the searches the bounded
         // backtracker's budget refuses, with the simulation as the linear-time fallback (D31).
         return new BytePattern(description, copy, trailingAnchor, maxLength,
-                movesWithSearchStart, null, nfa,
+                false, null, nfa,
                 violations, warnings, groupNames,
                 reverseProgram(root, trailingAnchor, maxLength,
-                        nfa.startAnchor() == Nfa.ANCHOR_INPUT, multiline, description),
+                        nfa.startAnchor() == Nfa.ANCHOR_INPUT, false,
+                        multiline, description),
                 null, NodeTree.compile(
                         root, groupCount, description));
     }
@@ -282,11 +285,12 @@ public final class BytePattern {
                             root, parsed.groupCount(), pattern);
             final TrailingAnchor trailingAnchor = trailing(root);
             final int maxLength = Analysis.byteLength(root)[1];
+            final boolean movesWithSearchStart = Analysis.anchorsToSearchStart(root);
             return new BytePattern(pattern, copyFlags(flags), trailingAnchor, maxLength,
-                    Analysis.anchorsToSearchStart(root), null, null,
+                    movesWithSearchStart, null, null,
                     List.of(), Analysis.warnings(root), parsed.groupNames(),
                     reverseProgram(root, trailingAnchor, maxLength,
-                            tree.startAnchor() == Nfa.ANCHOR_INPUT,
+                            tree.startAnchor() == Nfa.ANCHOR_INPUT, movesWithSearchStart,
                             flags.contains(Flag.MULTILINE), pattern),
                     engine, tree);
         }
@@ -322,11 +326,13 @@ public final class BytePattern {
         final Nfa nfa = NfaCompiler.compile(root, parsed.groupCount(), multiline, pattern);
         final TrailingAnchor trailingAnchor = trailing(root);
         final int maxLength = Analysis.byteLength(root)[1];
+        // Only a fancy pattern can carry \G, so only a fancy one pays for the walk.
+        final boolean movesWithSearchStart = nfa.fancy() && Analysis.anchorsToSearchStart(root);
         return new BytePattern(pattern,
                 copyFlags(flags),
                 trailingAnchor,
                 maxLength,
-                Analysis.anchorsToSearchStart(root),
+                movesWithSearchStart,
                 null,
                 nfa,
                 Analysis.onePassViolations(root),
@@ -335,7 +341,8 @@ public final class BytePattern {
                 nfa.fancy()
                         ? null
                         : reverseProgram(root, trailingAnchor, maxLength,
-                                nfa.startAnchor() == Nfa.ANCHOR_INPUT, multiline, pattern),
+                                nfa.startAnchor() == Nfa.ANCHOR_INPUT, false,
+                                multiline, pattern),
                 null,
                 null);
     }
@@ -429,17 +436,20 @@ public final class BytePattern {
     }
 
     /** Phase 4's qualification, in one place: unbounded END_INPUT tail, not input-anchored
-     * at the front (a single forward attempt already serves those), and cleanly reversible
-     * ({@code Reverse.program} returns null otherwise). */
+     * at the front (a single forward attempt already serves those), no {@code \G} (the
+     * finder has no search-start coordinate, and its assertion evaluator throws on it), and
+     * cleanly reversible ({@code Reverse.program} returns null otherwise). */
     private static Nfa reverseProgram(final Hir root,
                                       final TrailingAnchor trailing,
                                       final int maxLength,
                                       final boolean inputAnchoredAtStart,
+                                      final boolean anchorsToSearchStart,
                                       final boolean multiline,
                                       final String description) {
         return trailing == TrailingAnchor.INPUT
                && maxLength == Analysis.UNBOUNDED_LENGTH
                && !inputAnchoredAtStart
+               && !anchorsToSearchStart
                 ? Reverse.program(root, multiline, description)
                 : null;
     }

@@ -110,15 +110,7 @@ public final class NfaCompiler {
                                 final int groupCount,
                                 final boolean multiline,
                                 final String pattern) {
-        final NfaCompiler compiler = new NfaCompiler(pattern);
-        compiler.groupCount = groupCount;
-        compiler.multiline = multiline;
-        compiler.byteLevelClasses = true;
-        compiler.emit(Nfa.SAVE, 0, 0);
-        compiler.emitNode(root);
-        compiler.emit(Nfa.SAVE, 1, 0);
-        compiler.emit(Nfa.MATCH, 0, 0);
-        return compiler.build(groupCount, multiline, Analysis.byteLength(root)[0]);
+        return compile(root, groupCount, multiline, pattern, false, true);
     }
 
     private static Nfa compile(final Hir root,
@@ -126,10 +118,20 @@ public final class NfaCompiler {
                                final boolean multiline,
                                final String pattern,
                                final boolean fancy) {
+        return compile(root, groupCount, multiline, pattern, fancy, false);
+    }
+
+    private static Nfa compile(final Hir root,
+                               final int groupCount,
+                               final boolean multiline,
+                               final String pattern,
+                               final boolean fancy,
+                               final boolean byteLevelClasses) {
         final NfaCompiler compiler = new NfaCompiler(pattern);
         compiler.groupCount = groupCount;
         compiler.multiline = multiline;
         compiler.fancy = fancy;
+        compiler.byteLevelClasses = byteLevelClasses;
         compiler.emit(Nfa.SAVE, 0, 0);
         compiler.emitNode(root);
         compiler.emit(Nfa.SAVE, 1, 0);
@@ -142,12 +144,16 @@ public final class NfaCompiler {
      * a capture inside a lookahead is a capture like any other — and has no {@code SAVE 0} /
      * {@code SAVE 1} wrapper, because a sub-match must not disturb the overall match span.
      */
+    /* Sub-programs stay exact even under the byte-level mode: the over-approximation that
+     * is safe for the finder's own consuming path inverts inside a negative lookaround,
+     * where widening the body narrows the outer acceptance — the trusted-false-miss class
+     * the mode's audit documented. Unreachable today (Reverse refuses Look/Atomic), and
+     * deliberately not pre-wired for the v2 that might not notice. */
     private Nfa compileSub(final Hir body) {
         final NfaCompiler compiler = new NfaCompiler(pattern);
         compiler.groupCount = groupCount;
         compiler.multiline = multiline;
         compiler.fancy = fancy;
-        compiler.byteLevelClasses = byteLevelClasses;
         compiler.emitNode(body);
         compiler.emit(Nfa.MATCH, 0, 0);
         return compiler.build(groupCount, multiline, 0); // sub-programs never gate a search
@@ -273,8 +279,7 @@ public final class NfaCompiler {
      * and the case that matters most in practice.
      */
     private void emitClass(final Hir.CharClass charClass) {
-        if (byteLevelClasses
-            && (charClass.set().isAsciiOnly() || charClass.set().containsAllNonAscii())) {
+        if (byteLevelClasses && byteSafe(charClass)) {
             // The reverse mode: one table test per byte; see compileByteLevel.
             classes.add(byteTable(charClass.set()));
             emit(Nfa.BYTE_CLASS, classes.size() - 1, 0);
@@ -662,7 +667,7 @@ public final class NfaCompiler {
      * ASCII-only, or that contains every non-ASCII code point, accepts multi-byte characters
      * exactly when it accepts each of their bytes.
      */
-    private static boolean byteSafe(final Hir body) {
+    static boolean byteSafe(final Hir body) {
         return body instanceof Hir.CharClass charClass
                && (charClass.set().isAsciiOnly() || charClass.set().containsAllNonAscii());
     }

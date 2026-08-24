@@ -19,6 +19,7 @@ package stroom.shapeshifter.regex;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.EnumSet;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -109,13 +110,15 @@ class ReverseTest {
         final Random random = new Random(20260824);
         final char[] alphabet = "ab \\=x.z0".toCharArray();
         for (final String pattern : QUALIFIED) {
+            final ByteMatcher ours = BytePattern.compile(pattern).matcher();
+            final Pattern theirs = Pattern.compile(pattern);
             for (int i = 0; i < 400; i++) {
                 final StringBuilder sb = new StringBuilder();
                 final int length = random.nextInt(40);
                 for (int j = 0; j < length; j++) {
                     sb.append(alphabet[random.nextInt(alphabet.length)]);
                 }
-                agree(pattern, sb.toString());
+                agree(ours, theirs, pattern, sb.toString());
             }
         }
     }
@@ -150,13 +153,15 @@ class ReverseTest {
         // Two- and three-byte characters mixed with the ASCII the patterns actually target.
         final String[] alphabet = {"a", "b", " ", "\\", "=", "x", ".", "é", "ß", "€"};
         for (final String pattern : QUALIFIED) {
+            final ByteMatcher ours = BytePattern.compile(pattern).matcher();
+            final Pattern theirs = Pattern.compile(pattern);
             for (int i = 0; i < 400; i++) {
                 final StringBuilder sb = new StringBuilder();
                 final int length = random.nextInt(24);
                 for (int j = 0; j < length; j++) {
                     sb.append(alphabet[random.nextInt(alphabet.length)]);
                 }
-                agree(pattern, sb.toString());
+                agree(ours, theirs, pattern, sb.toString());
             }
         }
     }
@@ -172,8 +177,8 @@ class ReverseTest {
         assertThat(BytePattern.compile("\\Gabc$").matcher()
                 .match(data, 0, data.length, Anchoring.UNANCHORED)).isFalse();
         final ByteMatcher forcedTree = BytePattern
-                .compileForcing(stroom.shapeshifter.regex.Engine.TREE, "\\G[a-z]+$",
-                        java.util.EnumSet.noneOf(Flag.class))
+                .compileForcing(Engine.TREE, "\\G[a-z]+$",
+                        EnumSet.noneOf(Flag.class))
                 .matcher();
         final byte[] abc = "abc".getBytes(StandardCharsets.UTF_8);
         assertThat(forcedTree.match(abc, 0, abc.length, Anchoring.UNANCHORED)).isTrue();
@@ -184,8 +189,8 @@ class ReverseTest {
     @Test
     void treeCarryingQualifiedPatternsNameTheStrategy() {
         assertThat(BytePattern
-                .compileForcing(stroom.shapeshifter.regex.Engine.TREE, "([^\\\\]+)$",
-                        java.util.EnumSet.noneOf(Flag.class))
+                .compileForcing(Engine.TREE, "([^\\\\]+)$",
+                        EnumSet.noneOf(Flag.class))
                 .explain())
                 .contains("reverse start-finder");
     }
@@ -199,10 +204,16 @@ class ReverseTest {
     }
 
     private static void agree(final String pattern, final String input) {
+        agree(BytePattern.compile(pattern).matcher(), Pattern.compile(pattern), pattern, input);
+    }
+
+    private static void agree(final ByteMatcher ours,
+                              final Pattern jdk,
+                              final String pattern,
+                              final String input) {
         final byte[] data = input.getBytes(StandardCharsets.UTF_8);
-        final ByteMatcher ours = BytePattern.compile(pattern).matcher();
         final boolean ourMatch = ours.match(data, 0, data.length, Anchoring.UNANCHORED);
-        final Matcher theirs = Pattern.compile(pattern).matcher(input);
+        final Matcher theirs = jdk.matcher(input);
         final boolean theirMatch = theirs.find();
         assertThat(ourMatch)
                 .as("%s over %s", pattern, input)
