@@ -67,6 +67,20 @@ public final class PikeVm {
     private final int[] matched;
     private boolean hasMatch;
 
+    /** One past the last consultable byte — window state, set with the window rather than
+     * passed per search: a ninth {@code search} argument measured −8.6% on the line-anchored
+     * scan ({@code AnchoredSearchBenchmark} simulate/line_miss, 2026-08-24) with the body
+     * untouched — the frame cost alone — and cost the tree engine an inlining coin-flip
+     * worth −21% a fork. Bound as state, every real-workload row sits at baseline; the
+     * store's ~0.35 ns shows only on the tree engine's 8 ns instant-rejection rows
+     * (−2–4%, accepted in ISSUES.md). */
+    private int contextEnd;
+
+    /** Binds the window's contextEnd: one past the last byte {@link #search} may consult. */
+    public void setContextEnd(final int contextEnd) {
+        this.contextEnd = contextEnd;
+    }
+
     public PikeVm(final Nfa nfa) {
         this.nfa = nfa;
         this.closures = nfa.closures();
@@ -227,10 +241,7 @@ public final class PikeVm {
         if (!anchorHoldsAt(data, regionFrom, to, pos)) {
             return false;
         }
-        if ((pos < to || (complete && pos < data.length)) && Utf8.isContinuation(data[pos])) {
-            // Never begin a match, not even an empty one, inside a character. A region can end
-            // inside one, so the byte after it is consulted too — but only once the window is
-            // complete, since on a growing window that byte has not arrived.
+        if (Utf8.splitsCharacter(data, pos, to, complete, contextEnd)) {
             return false;
         }
         if (firstBytes == null) {

@@ -164,6 +164,15 @@ public final class NodeTree {
         private final Compiled compiled;
         private final Ctx ctx = new Ctx();
 
+        /** One past the last consultable byte — bound window state, not a search argument;
+         * {@code PikeVm}'s field note records the measured reason. */
+        private int contextEnd;
+
+        /** Binds the window's contextEnd: one past the last byte {@code search} may consult. */
+        public void setContextEnd(final int contextEnd) {
+            this.contextEnd = contextEnd;
+        }
+
         public Machine(final Compiled compiled) {
             this.compiled = compiled;
             ctx.groupStart = new int[compiled.groupCount() + 1];
@@ -211,7 +220,7 @@ public final class NodeTree {
                     }
                     continue;
                 }
-                if (at < to && Utf8.isContinuation(data[at])) {
+                if (Utf8.splitsCharacter(data, at, to, complete, contextEnd)) {
                     // A match may not begin inside a character; anchored searches stop here.
                     if (anchored) {
                         break;
@@ -956,7 +965,9 @@ public final class NodeTree {
             try {
                 final int lowest = Math.max(ctx.regionFrom, pos - maxLength);
                 for (int at = pos - minLength; at >= lowest; at--) {
-                    if (at > ctx.regionFrom && at < pos && Utf8.isContinuation(ctx.data[at])) {
+                    if (at < pos && Utf8.isContinuation(ctx.data[at])) {
+                        // No regionFrom exemption: the search gate has none, and a region that
+                        // opens mid-character is no better a place to start a lookbehind body.
                         continue;
                     }
                     if (sub.match(ctx, at)) {

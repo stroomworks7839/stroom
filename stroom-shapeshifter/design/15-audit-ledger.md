@@ -142,7 +142,7 @@ only through a same-boot control at the baseline commit — the drift-control ro
 
 Re-checked against the working tree, not carried over on trust:
 
-- [pending] Gate harmonisation: ByteWindow.contextEnd exists and ByteMatcher reads it, but it is not threaded into the four engines — PikeVm still consults data.length in the beyond-region clause, and the other three still lack the clause (med, one designed change).
+- [resolved 2026-08-24] Gate harmonisation: landed as one designed change — see "R1 lands" below for what the benchmark gate caught on the way in.
 - [pending] Template.RegexFlags is still nested in Template (med).
 - [pending] RefExpression.MatchIndex is still a four-way union flattened into flag fields (med, model+codec surgery).
 - [pending] Compiler still lacks the shared charsetFor(Encoding) extraction (med).
@@ -203,3 +203,41 @@ no concrete referent for the inversion half survived re-reading.
    pinned).
 6. **ds3 003 golden regeneration** — ruled: fix the shape, regenerate the golden (batch 4;
    output golden unmoved, messages 11→1, E1 corrected).
+
+## R1 lands (2026-08-24) — the gate is one designed thing, and the signature was the cost
+
+The audit's last designed change went in: `Utf8.splitsCharacter(data, at, to, complete,
+contextEnd)` is now the single start gate all four engines ask, the beyond-region probe is
+bounded by `contextEnd` everywhere `PikeVm` used to consult `data.length` (stale garbage on
+a stream window), and the two lookbehind gates (`FancyBacktracker.matchBehind`,
+`NodeTree`'s behind node) lost the `regionFrom` exemption the search gates never had. 443
+tests green both modules; the divergence surface is unchanged.
+
+The benchmark gate earned its keep twice:
+
+- **The reboot invalidated Friday's baseline**, exactly as the method note above predicts —
+  so the day started with a fresh same-boot baseline at the unchanged commit
+  (`2026-08-24-0801-13b371cdac-anchored-r1-baseline.json`).
+- **The natural design regressed a real workload, and the body was innocent.** Threading
+  `contextEnd` as a ninth `search` argument cost −8.6% on `simulate line_miss` (1,742→1,586
+  ops/s, error bars ±4/±6). The bisect (`-anchored-r1-bisect-*.json`) removed the shared
+  helper: no change. Restored the old `data.length` body under the new signature: no
+  change. Added the unused ninth parameter alone to an otherwise untouched `PikeVm`:
+  −8.4%. Eight values already fill the call's registers; the ninth goes to the stack, and
+  the frame it grows is the whole story — `PrintInlining` shows the same inline decisions
+  both sides. On the tree engine the same ninth argument turned `anchored_miss` bimodal:
+  two forks in five dropped from ~127M to ~100M ops/s
+  (`-anchored-r1-param-engines-after.json`), an inlining coin-flip the baseline never
+  lost.
+- **The resolution: `contextEnd` is bound window state, not a search argument.** Every
+  engine now carries it in a `setContextEnd` field set beside the `search` call, the same
+  shape as the matcher's own `validTo`. Real-workload rows returned to baseline; what
+  remains is a deterministic ~0.35 ns store, visible only on the tree engine's 8–15 ns
+  instant-rejection rows (−2.3% `anchored_hit`, −4.3% `anchored_miss`, forks uniform),
+  accepted and recorded in the module's `ISSUES.md`. One non-finding for the record:
+  `scan_plan line_miss` read +56% after — but the unchanged commit reran that row at
+  9.3k and 11.4k ops/s on the same boot, so the row is bimodal on its own and credits
+  nothing. The lesson
+  joins 2026-08-22's: on these paths the *shape of the call* is a measured quantity — a
+  parameter is not free, a field is not free, and the only way to know which one a row
+  can afford is to run the benchmark either side.

@@ -1,0 +1,91 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "stroom.shapeshifter.regex.bench.AnchoredSearchBenchmark.search",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 5,
+        "jvm" : "/home/dev1/.sdkman/candidates/java/25.0.3-tem/bin/java",
+        "jvmArgs" : [
+            "-Dfile.encoding=UTF-8",
+            "-Duser.country=GB",
+            "-Duser.language=en",
+            "-Duser.variant"
+        ],
+        "jdkVersion" : "25.0.3",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "25.0.3+9-LTS",
+        "warmupIterations" : 3,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "engine" : "simulate",
+            "shape" : "anchored_miss"
+        },
+        "primaryMetric" : {
+            "score" : 1.0693523685573168E8,
+            "scoreError" : 960001.1798834922,
+            "scoreConfidence" : [
+                1.0597523567584819E8,
+                1.0789523803561518E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.0370237185269961E8,
+                "50.0" : 1.0707538546340369E8,
+                "90.0" : 1.0837046730473633E8,
+                "95.0" : 1.08620843414591E8,
+                "99.0" : 1.0872464721870728E8,
+                "99.9" : 1.0872464721870728E8,
+                "99.99" : 1.0872464721870728E8,
+                "99.999" : 1.0872464721870728E8,
+                "99.9999" : 1.0872464721870728E8,
+                "100.0" : 1.0872464721870728E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.0706127577426974E8,
+                    1.0772875049188185E8,
+                    1.075864939380283E8,
+                    1.0725369657755704E8,
+                    1.0665366096996878E8
+                ],
+                [
+                    1.0837863453831966E8,
+                    1.0677331857498212E8,
+                    1.0819366162699698E8,
+                    1.0872464721870728E8,
+                    1.0836502248234744E8
+                ],
+                [
+                    1.0756805782707193E8,
+                    1.0768760466955774E8,
+                    1.0687697011112589E8,
+                    1.0684837302621982E8,
+                    1.0799558804201122E8
+                ],
+                [
+                    1.0370237185269961E8,
+                    1.0538477795043726E8,
+                    1.0481484050515388E8,
+                    1.0442168061123899E8,
+                    1.0530756665239942E8
+                ],
+                [
+                    1.0682638177316883E8,
+                    1.070611216627767E8,
+                    1.0745682209236832E8,
+                    1.076342169605994E8,
+                    1.0707538546340369E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+

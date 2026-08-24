@@ -206,6 +206,7 @@ public final class ByteMatcher {
     private MatchOutcome runPinnedTree(final int from, final boolean anchored) {
         Arrays.fill(slots, -1);
         try {
+            tree.setContextEnd(validTo);
             final int end = tree.search(data, regionFrom, from, regionTo,
                     anchored, complete, slots);
             matched = end >= 0;
@@ -226,6 +227,7 @@ public final class ByteMatcher {
         Arrays.fill(slots, -1);
         if (tree != null) {
             try {
+                tree.setContextEnd(validTo);
                 final int end = tree.search(data, regionFrom, from, regionTo,
                         anchored, complete, slots);
                 matched = end >= 0;
@@ -234,6 +236,7 @@ public final class ByteMatcher {
                 Arrays.fill(slots, -1); // a clean rerun, not a resume
             }
         }
+        fancy.setContextEnd(validTo);
         final int end = fancy.search(data, regionFrom, from, regionTo,
                 anchored, complete, slots);
         matched = end >= 0;
@@ -255,6 +258,7 @@ public final class ByteMatcher {
                         "backtracking was pinned but cannot run this pattern over "
                         + (regionTo - regionFrom) + " bytes");
             }
+            backtracker.setContextEnd(validTo);
             final int end = backtracker.search(
                     data, regionFrom, from, regionTo, anchored, complete, slots);
             matched = end >= 0;
@@ -262,6 +266,7 @@ public final class ByteMatcher {
         }
         if (tree != null) {
             try {
+                tree.setContextEnd(validTo);
                 final int end = tree.search(data, regionFrom, from, regionTo,
                         anchored, complete, slots);
                 matched = end >= 0;
@@ -272,6 +277,7 @@ public final class ByteMatcher {
         }
         // The VM searches for the leftmost match itself, advancing every live thread
         // together, rather than restarting an attempt at each offset.
+        vm.setContextEnd(validTo);
         final int end = vm.search(data, regionFrom, from, regionTo,
                 anchored, complete, slots);
         matched = end >= 0;
@@ -342,8 +348,7 @@ public final class ByteMatcher {
      * not arrived and must not be read.
      */
     private boolean splitsCharacter(final int at) {
-        return (at < regionTo || (complete && at < validTo))
-               && Utf8.isContinuation(data[at]);
+        return Utf8.splitsCharacter(data, at, regionTo, complete, validTo);
     }
 
     private MatchOutcome outcome(final int end) {

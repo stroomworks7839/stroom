@@ -118,6 +118,15 @@ public final class Backtracker {
         return supported && (long) nfa.size() * (length + 1) <= budgetBytes;
     }
 
+    /** One past the last consultable byte — bound window state, not a search argument;
+     * {@code PikeVm}'s field note records the measured reason. */
+    private int contextEnd;
+
+    /** Binds the window's contextEnd: one past the last byte {@code search} may consult. */
+    public void setContextEnd(final int contextEnd) {
+        this.contextEnd = contextEnd;
+    }
+
     /**
      * Searches for a match, with the same contract as {@link PikeVm#search}.
      *
@@ -154,7 +163,7 @@ public final class Backtracker {
                 }
                 continue;
             }
-            if (at < to && Utf8.isContinuation(data[at])) {
+            if (Utf8.splitsCharacter(data, at, to, complete, contextEnd)) {
                 // A match may not begin inside a character — and an anchored search may not
                 // begin anywhere else, so it is over (as the simulation already answers).
                 if (anchored) {

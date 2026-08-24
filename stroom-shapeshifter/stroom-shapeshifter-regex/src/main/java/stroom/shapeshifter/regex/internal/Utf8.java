@@ -91,6 +91,30 @@ public final class Utf8 {
         return (b & 0xC0) == 0x80;
     }
 
+    /**
+     * Whether {@code at} falls inside a character, and so cannot begin a match — not even an
+     * empty one, which is the only kind that could. An offset that splits a character is of no
+     * use to a caller reading the text back.
+     *
+     * <p>A region can end inside a character, so at {@code at == to} the byte just past the
+     * region is consulted — but only when the window is complete ({@code at < contextEnd} is
+     * what makes the read safe: on a stream window, bytes past the fill are stale garbage), and
+     * never on a window that can still grow, where that byte has not arrived.
+     *
+     * <p>The one shared start gate: every engine asks this question at every candidate start,
+     * and four private spellings of it had drifted into three behaviours — one consulting
+     * {@code data.length} where only {@code contextEnd} is safe, three not consulting beyond
+     * the region at all and so seeding empty matches mid-character at the region end that the
+     * simulation refuses.
+     */
+    public static boolean splitsCharacter(final byte[] data,
+                                          final int at,
+                                          final int to,
+                                          final boolean complete,
+                                          final int contextEnd) {
+        return (at < to || (complete && at < contextEnd)) && isContinuation(data[at]);
+    }
+
     /** The length in bytes of the UTF-8 sequence a lead byte starts, or 0 if it cannot start one. */
     public static int sequenceLength(final int leadByte) {
         if (leadByte < 0x80) {

@@ -19,31 +19,6 @@ kept knowingly, with the reason.
 
 ---
 
-## R1 — The window-edge gate is not one designed thing
-
-**`open` — the audit's one remaining designed change (med).**
-
-`ByteWindow.contextEnd` exists and `ByteMatcher` honours it, but the four engines behind it
-still disagree about the bytes past the region end:
-
-- `PikeVm`'s beyond-region continuation clause (`PikeVm.java`, the
-  `complete && pos < data.length` gate) consults `data.length`, which on a stream window is
-  stale garbage past the fill — exactly what `contextEnd` was added to rule out.
-- `Backtracker`, `FancyBacktracker` and `NodeTree` lack the clause entirely, so the five
-  copies of the start gate (skip / break-if-anchored / attempt) have drifted into three
-  shapes.
-- `FancyBacktracker.matchBehind` exempts `regionFrom` from its continuation-byte skip
-  inconsistently with the others.
-
-Resolving it means threading `contextEnd` through the four engines and extracting one shared
-start-gate helper — as a single designed change, not four patches. Two constraints, both
-learned since the finding was filed: these are the hottest paths in the module (the
-2026-08-22 investigation measured a single added field store on this path at −9.4% on
-`anchored_miss`), so the change does not land without `AnchoredSearchBenchmark` run either
-side; and the shared-helper half must respect R-adjacent history — the `assertionHolds`
-dedup survived its benchmark trial, but only after one (see the ledger's benchmark-gate
-section for the method).
-
 ## R2 — `Plan.describe` prints an ellipsis for exactly six branches
 
 **`open` (low).** `Plan.java`: the dispatch-table renderer shows at most six entries and
@@ -65,6 +40,23 @@ outside the audit's cleaned set; same treatment when next touched.
 ---
 
 ## Accepted costs — measured, kept, and why
+
+**R1 (gate harmonisation, resolved 2026-08-24) carries −2–4% on the tree engine's
+nearly-free rows (`accepted`).** The window-edge gate is now one designed thing:
+`Utf8.splitsCharacter` is the single start gate all four engines ask, `contextEnd` bounds
+the beyond-region probe everywhere `data.length` used to be consulted, and the lookbehind
+gates lost their inconsistent `regionFrom` exemption. The cost is the delivery mechanism,
+found the hard way: threading `contextEnd` as a ninth `search` argument measured −8.6% on
+`simulate line_miss` *with the method body untouched* — the bisect that proved it
+(`2026-08-24-082x/083x-*-anchored-r1-bisect-*.json`) pinned the whole regression on the
+signature, and on the tree engine the same ninth argument made two forks in five lose an
+inlining coin-flip worth −21% each (`-anchored-r1-param-engines-after.json`). Binding
+`contextEnd` as engine state instead (`setContextEnd`, set beside each `search` call)
+restored every real-workload row to baseline and left a deterministic store cost on the
+tree engine's instant-rejection rows only: −2.3% on `anchored_hit` (14.5 ns/op), −4.3% on
+`anchored_miss` (7.9 ns/op) — ~0.35 ns, one field store, uniform across forks. Evidence:
+`2026-08-24-0801-*-anchored-r1-baseline.json` against
+`2026-08-24-0852-*-anchored-r1-after.json`, same boot, same commit underneath.
 
 **Batch 2's correctness fixes cost nanoseconds on nearly-free operations (`accepted`).**
 The stale-byte-window fix adds one field store to `ByteMatcher.match()` setup: ~0.3 ns,
