@@ -37,6 +37,7 @@ is the check that would have caught the false 7% result described in
 | `BranchOrderBenchmark` | Alternation branch ordering | Whether branch order is worth optimising |
 | `XmlBaselineBenchmark` | The events workload at 10k/100k/1M records | The XML head-to-head's decomposition: SAX floor, Saxon identity, Saxon proper, shapeshifter (design/13) |
 | `CaseCatalogueBenchmark` | Seven catalogue cases amplified to ~10k/~100k units | Per-capability-family A/B, Saxon vs shapeshifter, parity-licensed by `CaseAmplifierTest` |
+| `EndAnchoredSearchBenchmark` | Three end-anchored shapes (bounded WEBLOG tail, unbounded filename, key=value), hit- and miss-shaped over 256 KiB | The end-anchor programme's gate (06 §6): what the tail window and reverse matching would buy; `javaRegex` rows are the drift control; tree engine absent from the filename rows by its own step budget, pinned by the fixture test |
 
 Runs are machine-specific. Compare files from the same machine, or not at all.
 

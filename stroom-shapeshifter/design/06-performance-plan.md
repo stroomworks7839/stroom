@@ -160,6 +160,17 @@ workload that motivated DS's reverse feature is represented from day one. All th
 engines, plus JDK drift rows. Nothing below lands until this exists and has a same-boot
 baseline; its numbers decide Phase 3.
 
+*Landed 2026-08-24* (`2026-08-24-1356-aed598c2f4-endanchored-baseline.json`, 22 rows,
+fixture-pinned by `EndAnchoredSearchBenchmarkFixtureTest`). Two findings from the landing:
+the tree engine cannot run the unbounded filename shape at 256 KiB at all — its step budget
+refuses with `MatchLimitException`, so those rows are absent by the engine's own design (the
+bounded backtracker's manner of absence from `AnchoredSearchBenchmark`), and the refusal is
+itself pinned so the omission cannot go stale. And every row is millisecond-scale with the
+engines already at or ahead of the JDK — 90–719 ops/s across the board — which sharpens what
+the programme is for: not catching up, but the orders of magnitude that skipping the region
+walk entirely would buy. The KV rows' leftmost capture (`"bob create time"`, JDK-agreed) is
+pinned so no phase can change what the row measures unnoticed.
+
 **Phase 1 — the trailing-anchor fact.** `Analysis.trailingAnchor(Hir)`, the mirror of the
 leading analysis: concat takes the last element's anchor (weakened past empty-matchable
 tails), alternation the weakest branch, groups and atomics recurse. Published the way
