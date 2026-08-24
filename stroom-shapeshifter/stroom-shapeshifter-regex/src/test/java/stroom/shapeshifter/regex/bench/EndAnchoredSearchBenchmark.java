@@ -60,11 +60,13 @@ import java.util.regex.Pattern;
  * JDK agrees, and the many failed forward attempts along the way are exactly the cost being
  * priced.
  *
- * <p>The tree engine is absent from the {@code FILENAME_*} rows by its own design: at this
- * region size the unbounded shape exceeds its step budget and it refuses with
- * {@code MatchLimitException} rather than backtrack catastrophically — the same manner of
- * absence as the bounded backtracker's from {@link AnchoredSearchBenchmark}. The refusal is
- * pinned by the fixture test, so if a future phase makes the shape feasible the pin says so.
+ * <p>The tree engine was absent from the {@code FILENAME_*} rows until Phase 4: at this
+ * region size the unbounded forward walk exceeded its step budget and it refused with
+ * {@code MatchLimitException}. The reverse start-finder made the shape feasible — one
+ * backwards walk proposes the start, the tree runs a single anchored attempt — and the
+ * fixture pin that guarded the refusal said so the day it landed, exactly as designed. The
+ * tree rows for these shapes exist only from Phase 4 onward; earlier files lack them
+ * (a comparability note in the benchmarks README's manner).
  *
  * <p>One operation is one whole-region search over ~256 KiB. The {@code javaRegex} rows are
  * the untouched-code drift control ({@code design/benchmarks/README.md}): they must not move
@@ -126,10 +128,11 @@ public class EndAnchoredSearchBenchmark {
             return matches;
         }
 
-        /** Whether the tree engine can run this shape at all at this region size — the
-         * unbounded filename shape exceeds its step budget; see the class note. */
+        /** Whether the tree engine can run this shape at this region size. All of them,
+         * since Phase 4: the reverse finder spares its step budget the forward walk that
+         * used to exceed it — see the class note. */
         public boolean treeCanRun() {
-            return this != FILENAME_HIT && this != FILENAME_MISS;
+            return true;
         }
 
         /** Whether this shape's pattern qualifies for the tail-window jump: END_INPUT
@@ -216,7 +219,7 @@ public class EndAnchoredSearchBenchmark {
     public static class TreeShapes {
 
         @Param({"WEBLOG_HIT", "WEBLOG_MISS", "BOUNDED_HIT", "BOUNDED_MISS",
-                "KV_HIT", "KV_MISS"})
+                "FILENAME_HIT", "FILENAME_MISS", "KV_HIT", "KV_MISS"})
         public Shape shape;
 
         byte[] data;

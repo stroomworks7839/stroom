@@ -21,7 +21,6 @@ import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.Engine;
 import stroom.shapeshifter.regex.Flag;
-import stroom.shapeshifter.regex.MatchLimitException;
 import stroom.shapeshifter.regex.TrailingAnchor;
 
 import org.junit.jupiter.api.Test;
@@ -34,7 +33,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Every end-anchored shape must hit or miss exactly as its name claims, on all three forced
@@ -56,15 +54,10 @@ class EndAnchoredSearchBenchmarkFixtureTest {
                 final ByteMatcher matcher = BytePattern
                         .compileForcing(engine, shape.pattern(), EnumSet.noneOf(Flag.class))
                         .matcher();
-                if (engine == Engine.TREE && !shape.treeCanRun()) {
-                    // The benchmark omits these rows because the engine refuses them; the
-                    // refusal is pinned here so the omission cannot silently become stale.
-                    assertThatThrownBy(() ->
-                            matcher.match(data, 0, data.length, Anchoring.UNANCHORED))
-                            .as("%s on TREE must exceed the step budget", shape)
-                            .isInstanceOf(MatchLimitException.class);
-                    continue;
-                }
+                // Until Phase 4 the tree engine refused the unbounded filename shape at
+                // this size (step budget), and a pin here guarded the omission. The reverse
+                // finder made it feasible — the pin fired, and every shape now answers on
+                // every engine.
                 assertThat(matcher.match(data, 0, data.length, Anchoring.UNANCHORED))
                         .as("%s on %s", shape, engine)
                         .isEqualTo(shape.matches());

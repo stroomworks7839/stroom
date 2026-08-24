@@ -24,6 +24,7 @@ import stroom.shapeshifter.regex.internal.NodeTree;
 import stroom.shapeshifter.regex.internal.PikeVm;
 import stroom.shapeshifter.regex.internal.Plan;
 import stroom.shapeshifter.regex.internal.PlanRunner;
+import stroom.shapeshifter.regex.internal.ReverseScanner;
 import stroom.shapeshifter.regex.internal.Utf8;
 
 import java.nio.charset.StandardCharsets;
@@ -79,6 +80,14 @@ public final class ByteMatcher {
      * ({@code design/06-performance-plan.md} §6 Phase 2). */
     private final int tailSpan;
 
+    /** The reverse start-finder (§6 Phase 4), for the unbounded end-anchored patterns the
+     * tail window cannot serve — or null. */
+    private final ReverseScanner reverse;
+
+    /** Whether either end-anchored acceleration applies — the one branch every other
+     * pattern pays for both ({@code ISSUES.md}, accepted costs). */
+    private final boolean endgame;
+
     private byte[] data;
     private int regionFrom;
     private int regionTo;
@@ -129,6 +138,10 @@ public final class ByteMatcher {
                         && pattern.maxLength() != Analysis.UNBOUNDED_LENGTH
                 ? pattern.maxLength()
                 : -1;
+        this.reverse = pattern.reverseNfa() != null
+                ? new ReverseScanner(pattern.reverseNfa())
+                : null;
+        this.endgame = tailSpan >= 0 || reverse != null;
     }
 
     /** The pattern this matcher was created from. */
@@ -160,7 +173,9 @@ public final class ByteMatcher {
         this.contextEnd = window.contextEnd();
         this.complete = window.complete();
         this.matched = false;
-        return run(tailFrom(from, anchoring), anchoring);
+        return endgame && complete && anchoring != Anchoring.ANCHORED
+                ? endgameSearch(from, anchoring)
+                : run(from, anchoring);
     }
 
     /** Matches at exactly {@code from}. */
@@ -188,22 +203,46 @@ public final class ByteMatcher {
         this.contextEnd = data.length;
         this.complete = true;
         this.matched = false;
-        return run(tailFrom(from, anchoring), anchoring) == MatchOutcome.MATCH;
+        return (endgame && complete && anchoring != Anchoring.ANCHORED
+                ? endgameSearch(from, anchoring)
+                : run(from, anchoring)) == MatchOutcome.MATCH;
     }
 
     /**
-     * The tail-window jump (§6 Phase 2): an unanchored search for an END_INPUT-anchored
-     * pattern of finite maximum length starts at {@code regionTo - tailSpan} — no earlier
-     * candidate can produce a match ending at the region end, so leftmost within the window
-     * is leftmost overall and captures are untouched. One site, ahead of the dispatcher, so
-     * the five search loops stay byte-identical; excluded on a growing window, whose
-     * NEED_MORE bookkeeping needs the full walk (and whose {@code to} is not final anyway).
+     * The end-anchored accelerations (§6 Phases 2 and 4), one site ahead of the dispatcher
+     * so the five search loops stay byte-identical. A bounded pattern's unanchored search
+     * starts at {@code regionTo - tailSpan}: no earlier candidate can produce a match
+     * ending at the region end, so leftmost within the window is leftmost overall and
+     * captures are untouched. An unbounded one asks the reverse finder for the leftmost
+     * start and verifies it with a forward anchored attempt — the proven machinery gives
+     * the authoritative match and captures; a refused proposal is never trusted as
+     * NO_MATCH, only a finder miss is. Both excluded on a growing window, whose NEED_MORE
+     * bookkeeping needs the full walk (and whose {@code to} is not final anyway).
      */
-    private int tailFrom(final int from, final Anchoring anchoring) {
-        return tailSpan >= 0 && complete && anchoring != Anchoring.ANCHORED
-               && regionTo - from > tailSpan
-                ? regionTo - tailSpan
-                : from;
+    /**
+     * The end-anchored accelerations' out-of-line body: both entry points test the one
+     * {@code endgame} flag inline and call this only when it holds, so the
+     * match() -> run() -> searchPlan() inline chain keeps the size the dispatcher split
+     * bought — Phase 4's first cut routed every match through a grown dispatch method and
+     * the scan-plan rows paid up to -46% to the documented cliff.
+     */
+    private MatchOutcome endgameSearch(final int from, final Anchoring anchoring) {
+        if (tailSpan >= 0) {
+            return run(regionTo - from > tailSpan
+                    ? regionTo - tailSpan
+                    : from, anchoring);
+        }
+        final int start = reverse.findStart(data, regionFrom, from, regionTo, contextEnd);
+        if (start < 0) {
+            matched = false;
+            return MatchOutcome.NO_MATCH;
+        }
+        final MatchOutcome outcome = run(start, Anchoring.ANCHORED);
+        if (outcome == MatchOutcome.MATCH) {
+            return outcome;
+        }
+        // The safety valve: fall through to the unaccelerated scan.
+        return run(from, anchoring);
     }
 
     private MatchOutcome run(final int from, final Anchoring anchoring) {

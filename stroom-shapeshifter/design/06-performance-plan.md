@@ -264,6 +264,45 @@ is trusted; and word-boundary asserts read the byte on the far side, which in re
 the byte *before* the scan position — the same contextEnd-class window edge R1 just
 harmonised, to be handled with the same care.
 
+*Phase 4 ruled go by Jon (2026-08-24), ASCII-first v1 scope, and landed the same day.*
+`Reverse` reverses the HIR (concat order, literal byte order — exact bytes reverse
+trivially even mid-UTF-8; it is classes that cannot) and compiles it through the ordinary
+`NfaCompiler`, captures stripped; `ReverseScanner` is the Pike discipline run right to
+left, seeded once at the region end, recording the smallest start where MATCH is live that
+does not split a character. Assertions keep their original kinds — their predicates are
+positional and the reversed walk visits the same positions. Selection is compile-time
+(`BytePattern.reverseProgram`: END_INPUT tail, unbounded max, not input-anchored in front,
+cleanly reversible) and `explain()` names the strategy; `ByteMatcher.dispatch` folds it
+under the same one `endgame` branch the tail window already paid for, so the per-match tax
+did not grow. The v1 refusal rule surfaced one honest scope note the day it landed: `\d`
+and `\S` are Unicode classes — neither ASCII-only nor containing every non-ASCII code
+point — so the corpus's `(\d{3}) (\d+)$` spelling stays unaccelerated while the ASCII
+spellings qualify; sharpening the licence to Unicode classes is the recorded candidate.
+Two designed dividends confirmed themselves: the finder made the unbounded filename shape
+feasible on the tree engine — the step budget no longer sees the forward walk, and the
+fixture pin guarding that engine's refusal fired exactly as designed, so the benchmark's
+tree rows now cover every shape (a row-set comparability note); and a proposed start the
+forward attempt refuses falls back to the plain scan, so only a finder miss is trusted —
+warranted by `ReverseTest`'s differential sweep (six qualified shapes × adversarial edges
+× 2,400 randomised inputs, misses included, all agreeing with the JDK).
+
+The gate then convicted the first integration, in the dispatcher split's own words: routing
+every match through a grown `dispatch` method cost the scan-plan rows — the one path whose
+search lives inside `ByteMatcher` — up to −46%, tree and simulate untouched. The endgame
+body moved out of line behind the one inline-tested flag and the rows returned to their
+Phase 2 marks. The win, measured before the fix and unchanged by it: the unbounded
+filename and key=value rows moved by 4,700× to 528,000× — misses at ~50M ops/s, one
+backwards walk that dies at the first excluded byte — while the bounded rows kept their
+tail window, the Unicode-spelled WEBLOG rows sat still exactly as v1 scoped, and the JDK
+controls moved only within their documented ms-row noise.
+
+One watch item rides to the first evening run: by late afternoon the box had grown noisy —
+JDK drift rows at ±15%, unchanged-path rows moving both directions — and `scan_plan
+line_miss` recorded a 7.4k mode twice, below even its documented 9.3–14.5k same-commit
+range. The endgame branch is not in that row's path (line-anchored, `endgame` false, the
+entry shape unchanged in count), so the verdict is deferred to a quiet slot per the
+evening policy rather than chased through the noise.
+
 **Phase 5 — `ReverseSuffix`, deferred and recorded.** Scan forward for a distinguishing
 suffix literal (the `=` in key=value), verify the key backwards from each hit — the
 strategy closest to how DS's reverse feature is actually used, and the reason the

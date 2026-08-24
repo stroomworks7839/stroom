@@ -26,6 +26,7 @@ import stroom.shapeshifter.regex.internal.NodeTree;
 import stroom.shapeshifter.regex.internal.Normalise;
 import stroom.shapeshifter.regex.internal.Parser;
 import stroom.shapeshifter.regex.internal.Plan;
+import stroom.shapeshifter.regex.internal.Reverse;
 import stroom.shapeshifter.regex.internal.PlanCompiler;
 
 import java.util.Collections;
@@ -84,6 +85,12 @@ public final class BytePattern {
      * region end and spans at most this, so no candidate start exists before
      * {@code regionTo - maxLength}. */
     private final int maxLength;
+
+    /** The reverse start-finding program (§6 Phase 4) — non-null only for an unbounded
+     * END_INPUT-anchored, cleanly-reversible pattern that is not input-anchored at the
+     * front; see {@link stroom.shapeshifter.regex.internal.Reverse}. Compiled once, here,
+     * so every matcher shares it. */
+    private final Nfa reverse;
     private final Plan plan;
     private final Nfa nfa;
     private final List<Analysis.Violation> ambiguities;
@@ -112,9 +119,10 @@ public final class BytePattern {
                         final Nfa nfa,
                         final List<Analysis.Violation> ambiguities,
                         final List<String> warnings,
-                        final List<String> groupNames) {
+                        final List<String> groupNames,
+                        final Nfa reverse) {
         this(pattern, flags, trailingAnchor, maxLength, plan, nfa, ambiguities, warnings,
-                groupNames, null);
+                groupNames, reverse, null, null);
     }
 
     private BytePattern(final String pattern,
@@ -126,9 +134,10 @@ public final class BytePattern {
                         final List<Analysis.Violation> ambiguities,
                         final List<String> warnings,
                         final List<String> groupNames,
+                        final Nfa reverse,
                         final Engine forced) {
         this(pattern, flags, trailingAnchor, maxLength, plan, nfa, ambiguities, warnings,
-                groupNames, forced, null);
+                groupNames, reverse, forced, null);
     }
 
     private BytePattern(final String pattern,
@@ -140,8 +149,10 @@ public final class BytePattern {
                         final List<Analysis.Violation> ambiguities,
                         final List<String> warnings,
                         final List<String> groupNames,
+                        final Nfa reverse,
                         final Engine forced,
                         final NodeTree.Compiled tree) {
+        this.reverse = reverse;
         this.tree = tree;
         this.forced = forced;
         this.pattern = pattern;
@@ -195,6 +206,8 @@ public final class BytePattern {
         final Hir root = Normalise.normalise(parsed);
         final boolean multiline = flags.contains(Flag.MULTILINE);
         final Set<Flag> copy = copyFlags(flags);
+        final TrailingAnchor trailingAnchor = trailing(root);
+        final int maxLength = Analysis.byteLength(root)[1];
 
         // A pattern using a construct outside the regular subset — a backreference, lookaround,
         // an atomic group, \G — can only run on the unbounded backtracker, so neither the
@@ -204,9 +217,8 @@ public final class BytePattern {
             final Nfa nfa = NfaCompiler.compileFancy(root, groupCount, multiline, description);
             // The tree engine is the primary for fancy patterns (D31); the flat engine stays
             // as the structural fallback when recursion depth gives out.
-            return new BytePattern(description, copy, trailing(root),
-                    Analysis.byteLength(root)[1], null, nfa,
-                    List.of(), Analysis.warnings(root), groupNames, null,
+            return new BytePattern(description, copy, trailingAnchor, maxLength, null, nfa,
+                    List.of(), Analysis.warnings(root), groupNames, null, null,
                     NodeTree.compile(
                             root, groupCount, description));
         }
@@ -217,16 +229,19 @@ public final class BytePattern {
         final List<Analysis.Violation> violations = Analysis.onePassViolations(root);
         if (violations.isEmpty()) {
             final Plan plan = PlanCompiler.compile(root, groupCount, multiline, description);
-            return new BytePattern(description, copy, trailing(root),
-                    Analysis.byteLength(root)[1], plan, null,
-                    violations, warnings, groupNames);
+            return new BytePattern(description, copy, trailingAnchor, maxLength, plan, null,
+                    violations, warnings, groupNames,
+                    reverseProgram(root, trailingAnchor, maxLength,
+                            plan.leadingAnchor() == Hir.Kind.START_INPUT,
+                            multiline, description));
         }
         final Nfa nfa = NfaCompiler.compile(root, groupCount, multiline, description);
         // Ambiguous patterns carry the tree too: it takes the searches the bounded
         // backtracker's budget refuses, with the simulation as the linear-time fallback (D31).
-        return new BytePattern(description, copy, trailing(root),
-                Analysis.byteLength(root)[1], null, nfa,
+        return new BytePattern(description, copy, trailingAnchor, maxLength, null, nfa,
                 violations, warnings, groupNames,
+                reverseProgram(root, trailingAnchor, maxLength,
+                        nfa.startAnchor() == Nfa.ANCHOR_INPUT, multiline, description),
                 null, NodeTree.compile(
                         root, groupCount, description));
     }
@@ -281,9 +296,15 @@ public final class BytePattern {
             final NodeTree.Compiled tree =
                     NodeTree.compile(
                             root, parsed.groupCount(), pattern);
-            return new BytePattern(pattern, copyFlags(flags), trailing(root),
-                    Analysis.byteLength(root)[1], null, null,
-                    List.of(), Analysis.warnings(root), parsed.groupNames(), engine, tree);
+            final TrailingAnchor trailingAnchor = trailing(root);
+            final int maxLength = Analysis.byteLength(root)[1];
+            return new BytePattern(pattern, copyFlags(flags), trailingAnchor, maxLength,
+                    null, null,
+                    List.of(), Analysis.warnings(root), parsed.groupNames(),
+                    reverseProgram(root, trailingAnchor, maxLength,
+                            tree.startAnchor() == Nfa.ANCHOR_INPUT,
+                            flags.contains(Flag.MULTILINE), pattern),
+                    engine, tree);
         }
         final BytePattern compiled = compileNfa(pattern, flags);
         if (engine != Engine.FANCY && compiled.nfa.fancy()) {
@@ -293,7 +314,8 @@ public final class BytePattern {
         }
         return new BytePattern(compiled.pattern, compiled.flags, compiled.trailingAnchor,
                 compiled.maxLength, null, compiled.nfa,
-                compiled.ambiguities, compiled.warnings, compiled.groupNames, engine);
+                compiled.ambiguities, compiled.warnings, compiled.groupNames,
+                compiled.reverse, engine);
     }
 
     /** The engine every search must use, or null to run the machines in their normal order. */
@@ -314,15 +336,21 @@ public final class BytePattern {
         final Hir root = Normalise.normalise(parsed.root());
         final boolean multiline = flags.contains(Flag.MULTILINE);
         final Nfa nfa = NfaCompiler.compile(root, parsed.groupCount(), multiline, pattern);
+        final TrailingAnchor trailingAnchor = trailing(root);
+        final int maxLength = Analysis.byteLength(root)[1];
         return new BytePattern(pattern,
                 copyFlags(flags),
-                trailing(root),
-                Analysis.byteLength(root)[1],
+                trailingAnchor,
+                maxLength,
                 null,
                 nfa,
                 Analysis.onePassViolations(root),
                 Analysis.warnings(root),
-                parsed.groupNames());
+                parsed.groupNames(),
+                nfa.fancy()
+                        ? null
+                        : reverseProgram(root, trailingAnchor, maxLength,
+                                nfa.startAnchor() == Nfa.ANCHOR_INPUT, multiline, pattern));
     }
 
     /** A defensive {@link EnumSet} copy, tolerating the empty immutable sets callers pass. */
@@ -401,6 +429,27 @@ public final class BytePattern {
      */
     public int maxLength() {
         return maxLength;
+    }
+
+    /** The reverse start-finding program, or null; see the field note. */
+    Nfa reverseNfa() {
+        return reverse;
+    }
+
+    /** Phase 4's qualification, in one place: unbounded END_INPUT tail, not input-anchored
+     * at the front (a single forward attempt already serves those), and cleanly reversible
+     * ({@code Reverse.program} returns null otherwise). */
+    private static Nfa reverseProgram(final Hir root,
+                                      final TrailingAnchor trailing,
+                                      final int maxLength,
+                                      final boolean inputAnchoredAtStart,
+                                      final boolean multiline,
+                                      final String description) {
+        return trailing == TrailingAnchor.INPUT
+               && maxLength == Analysis.UNBOUNDED_LENGTH
+               && !inputAnchoredAtStart
+                ? Reverse.program(root, multiline, description)
+                : null;
     }
 
     private static TrailingAnchor trailing(final Hir root) {
@@ -499,6 +548,10 @@ public final class BytePattern {
             sb.append("tier:    ").append(tier()).append(" (").append(engine().description())
                     .append(", ").append(tree.nodeCount()).append(" nodes)\n");
             return sb.toString();
+        }
+        if (reverse != null) {
+            sb.append("accel:   reverse start-finder (")
+                    .append(reverse.size()).append(" instructions)\n");
         }
         if (plan != null) {
             sb.append("tier:    ").append(tier()).append(" (").append(engine().description())
