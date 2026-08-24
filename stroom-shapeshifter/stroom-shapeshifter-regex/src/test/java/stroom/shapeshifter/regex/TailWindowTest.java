@@ -117,6 +117,18 @@ class TailWindowTest {
     }
 
     @Test
+    void searchStartAnchorsNeverJump() {
+        // \G holds where the search started; moving the start moves the anchor, and the
+        // audit produced \Ga{1,2}$ matching where the JDK refuses. Bounded and end-anchored,
+        // so only the \G exclusion keeps the jump away.
+        final ByteMatcher m = matcher("\\Ga{1,2}$");
+        assertThat(m.match("bbbaa".getBytes(StandardCharsets.UTF_8), 0, 5,
+                Anchoring.UNANCHORED)).isFalse();
+        assertThat(m.match("aa".getBytes(StandardCharsets.UTF_8), 0, 2,
+                Anchoring.UNANCHORED)).isTrue();
+    }
+
+    @Test
     void everyForcedEngineAgreesThroughTheOneJumpSite() {
         final byte[] data = "xxxxxxxxxxxxxxxxxxxx 200 42".getBytes(StandardCharsets.UTF_8);
         for (final Engine engine : new Engine[]{

@@ -128,13 +128,6 @@ public class EndAnchoredSearchBenchmark {
             return matches;
         }
 
-        /** Whether the tree engine can run this shape at this region size. All of them,
-         * since Phase 4: the reverse finder spares its step budget the forward walk that
-         * used to exceed it — see the class note. */
-        public boolean treeCanRun() {
-            return true;
-        }
-
         /** Whether this shape's pattern qualifies for the tail-window jump: END_INPUT
          * trailing anchor and a finite maximum. Only the {@code BOUNDED_*} rows do — the
          * fixture test verifies the claim against the published facts, so the benchmark can
@@ -187,7 +180,9 @@ public class EndAnchoredSearchBenchmark {
         }
     }
 
-    /** State for the three searchers that take every shape. */
+    /** One state for all four searchers — the tree engine ran in its own reduced state
+     * until Phase 4 made every shape feasible for it; the audit then retired the dead
+     * split. */
     @State(Scope.Benchmark)
     public static class AllShapes {
 
@@ -196,6 +191,7 @@ public class EndAnchoredSearchBenchmark {
         public Shape shape;
 
         byte[] data;
+        ByteMatcher treeMatcher;
         ByteMatcher scanPlanMatcher;
         ByteMatcher simulateMatcher;
         Matcher javaMatcher;
@@ -204,6 +200,8 @@ public class EndAnchoredSearchBenchmark {
         public void setup() {
             data = shape.data();
             final EnumSet<Flag> none = EnumSet.noneOf(Flag.class);
+            treeMatcher =
+                    BytePattern.compileForcing(Engine.TREE, shape.pattern(), none).matcher();
             scanPlanMatcher =
                     BytePattern.compileForcing(Engine.SCAN_PLAN, shape.pattern(), none).matcher();
             simulateMatcher =
@@ -213,29 +211,8 @@ public class EndAnchoredSearchBenchmark {
         }
     }
 
-    /** State for the tree engine: only the shapes its step budget accepts (the class note).
-     * The fixture test asserts this list is exactly {@link Shape#treeCanRun()}. */
-    @State(Scope.Benchmark)
-    public static class TreeShapes {
-
-        @Param({"WEBLOG_HIT", "WEBLOG_MISS", "BOUNDED_HIT", "BOUNDED_MISS",
-                "FILENAME_HIT", "FILENAME_MISS", "KV_HIT", "KV_MISS"})
-        public Shape shape;
-
-        byte[] data;
-        ByteMatcher treeMatcher;
-
-        @Setup
-        public void setup() {
-            data = shape.data();
-            treeMatcher = BytePattern
-                    .compileForcing(Engine.TREE, shape.pattern(), EnumSet.noneOf(Flag.class))
-                    .matcher();
-        }
-    }
-
     @Benchmark
-    public boolean tree(final TreeShapes state) {
+    public boolean tree(final AllShapes state) {
         return state.treeMatcher.match(state.data, 0, state.data.length, Anchoring.UNANCHORED);
     }
 

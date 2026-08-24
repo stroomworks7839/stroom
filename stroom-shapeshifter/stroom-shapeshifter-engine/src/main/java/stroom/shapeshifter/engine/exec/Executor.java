@@ -38,6 +38,7 @@ import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.TrailingAnchor;
 
 import java.io.ByteArrayOutputStream;
+import java.io.PushbackInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -487,9 +488,12 @@ public final class Executor {
                         final boolean ignoreErrors,
                         final Dispatch dispatch) {
         final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
+        // One byte of pushback: "the window is full" and "the stream is exhausted" can
+        // coincide, and a refusal must not fire on the first when only the second is true.
+        final PushbackInputStream source = new PushbackInputStream(input, 1);
         final byte[] window = new byte[capacity];
         int start = 0;
-        int filled = fill(input, window, 0);
+        int filled = fill(source, window, 0);
         boolean eof = filled < capacity;
         long consumedTotal = 0;
 
@@ -549,7 +553,7 @@ public final class Executor {
                     filled = compact(window, start, filled);
                     start = 0;
                     final int before = filled;
-                    filled += fill(input, window, filled);
+                    filled += fill(source, window, filled);
                     eof = filled < capacity;
                     if (filled > before) {
                         continue;
@@ -564,7 +568,7 @@ public final class Executor {
                 // matched a truncated view. Refill and let it try again against more.
                 filled = compact(window, start, filled);
                 start = 0;
-                filled += fill(input, window, filled);
+                filled += fill(source, window, filled);
                 eof = filled < capacity;
                 continue;
             }
@@ -581,13 +585,22 @@ public final class Executor {
             }
 
             if (end == filled && !eof) {
+                // eof only means the stream's end has not been observed: an input of exactly
+                // the buffer's capacity fills the window without ever reading the -1, and the
+                // audit caught the refusal below dropping a correct record for it. One probe
+                // byte settles the question before anything is said.
+                eof = probeExhausted(source);
+            }
+            if (end == filled && !eof) {
                 // For an end-of-input-anchored pattern this is not a maybe: every match ends
-                // exactly at the region end, so a full-buffer match with input unread has
-                // provably matched the buffer's end, not the input's. The library publishes
-                // the fact (BytePattern.trailingAnchor(), single-sourced from its parser, as
-                // D35 established for the leading anchor), so the refusal is certain, not a
-                // sniff.
-                if (candidate.match() instanceof CompiledMatch.Regex regex
+                // exactly at the region end, so a full-buffer match with input genuinely
+                // unread has provably matched the buffer's end, not the input's. The library
+                // publishes the fact (BytePattern.trailingAnchor(), single-sourced from its
+                // parser, as D35 established for the leading anchor), so the refusal is
+                // certain, not a sniff. ignore_errors keeps its contract: it downgrades the
+                // refusal to the warning and lets the output stand, the same escape hatch the
+                // unmatched-content error honours.
+                if (!ignoreErrors && candidate.match() instanceof CompiledMatch.Regex regex
                     && regex.pattern().trailingAnchor() == TrailingAnchor.INPUT) {
                     messages.add(new Message(Severity.ERROR,
                             "Template '" + template.name() + "' is anchored to the end of "
@@ -643,6 +656,20 @@ public final class Executor {
     }
 
     /** Read until the window is full or the input ends; returns how many bytes arrived. */
+    /** Whether the stream is exhausted, learned by one probe byte — pushed back if it exists. */
+    private static boolean probeExhausted(final PushbackInputStream source) {
+        try {
+            final int probe = source.read();
+            if (probe < 0) {
+                return true;
+            }
+            source.unread(probe);
+            return false;
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     private static int fill(final InputStream input, final byte[] window, final int from) {
         try {
             int total = from;

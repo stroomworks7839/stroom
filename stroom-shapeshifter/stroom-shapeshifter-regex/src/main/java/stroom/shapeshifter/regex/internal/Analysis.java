@@ -420,6 +420,31 @@ public final class Analysis {
         };
     }
 
+    /**
+     * Whether any assertion in this node is {@code \G} — an anchor relative to where the
+     * search <em>started</em>, not to a position in the data. Every other anchor is a
+     * positional predicate; this one moves if the search's starting offset moves, which is
+     * exactly what the end-anchored tail-window jump does, so the jump is refused for
+     * patterns that carry it ({@code design/06-performance-plan.md} §6 Phase 2, audited).
+     */
+    public static boolean anchorsToSearchStart(final Hir node) {
+        return switch (node) {
+            case Hir.Assertion assertion -> assertion.kind() == Hir.Kind.PREVIOUS_MATCH_END;
+            case Hir.Group group -> anchorsToSearchStart(group.body());
+            case Hir.Atomic atomic -> anchorsToSearchStart(atomic.body());
+            case Hir.Look look -> anchorsToSearchStart(look.body());
+            case Hir.Repeat repeat -> anchorsToSearchStart(repeat.body());
+            case Hir.Concat concat ->
+                    concat.items().stream().anyMatch(Analysis::anchorsToSearchStart);
+            case Hir.Alt alt ->
+                    alt.branches().stream().anyMatch(Analysis::anchorsToSearchStart);
+            case Hir.Empty ignored -> false;
+            case Hir.Bytes ignored -> false;
+            case Hir.CharClass ignored -> false;
+            case Hir.Backref ignored -> false;
+        };
+    }
+
     /** Sentinel for {@link #byteLength}: no finite upper bound. */
     public static final int UNBOUNDED_LENGTH = Integer.MAX_VALUE;
 

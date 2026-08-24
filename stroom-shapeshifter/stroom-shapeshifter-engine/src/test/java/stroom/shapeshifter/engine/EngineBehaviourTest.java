@@ -171,6 +171,54 @@ class EngineBehaviourTest {
     }
 
     @Test
+    void anInputExactlyTheBufferSizeIsNotTruncation() {
+        // "The window is full" and "the stream is exhausted" coincided here, and the audit
+        // caught the end-anchored refusal dropping a correct record for it: eof only meant
+        // the -1 had not been read yet. The probe byte settles it.
+        final Run result = run("""
+                {
+                  "name": "exact", "version": 3,
+                  "source": {"buffer_size": 8, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "tail", "mode": "row",
+                     "match": {"regex": {"pattern": "([a-z]+)$"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}
+                  ]
+                }
+                """, "abcdefgh");
+        assertThat(result.output()).isEqualTo("[abcdefgh]");
+        assertThat(result.messages()).isEmpty();
+    }
+
+    @Test
+    void ignoreErrorsDowngradesTheEndAnchoredRefusalToAWarning() {
+        // The same escape hatch the unmatched-content error honours: the operator keeps the
+        // (possibly truncated) output and a warning instead of a dead pipeline.
+        final Run result = run("""
+                {
+                  "name": "endanchoredlax", "version": 3,
+                  "source": {"buffer_size": 4, "ignore_errors": true, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "tail", "mode": "row",
+                     "match": {"regex": {"pattern": "([a-z]+)$"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}
+                  ]
+                }
+                """, "abcdefgh");
+        assertThat(result.output()).isNotEmpty();
+        assertThat(result.messages()).isNotEmpty();
+        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.WARNING);
+    }
+
+    @Test
     void doesNotWarnWhenTheBufferMerelyRanOut() {
         // The last buffer of a stream is short, and consuming all of it means the input ended —
         // not that a record was cut in half.

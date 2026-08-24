@@ -36,11 +36,14 @@ import java.util.List;
  * UTF-8, since exact bytes are consumed in exact reverse order — but a non-ASCII character
  * class compiles to a lead-byte-first tree whose reversal is the part rust-regex calls
  * genuinely hard. v1 therefore accepts a class only where direction cannot matter: an
- * ASCII-only class (single bytes), or an unbounded repeat of a byte-safe class — the same
- * ASCII-only-or-contains-every-non-ASCII licence {@link NfaCompiler} uses to run such
- * repeats at byte level going forwards, which covers the {@code .*} and {@code [^x]+}
- * tails this exists for. Everything else returns null and the search falls back to the
- * forward scan, correct and unaccelerated.
+ * ASCII-only class (single bytes), or an unbounded repeat of a byte-safe class, which the
+ * program compiles through {@link NfaCompiler#compileByteLevel} as a single-byte table —
+ * order cannot matter for a table — covering the {@code .*} and {@code [^x]+} tails this
+ * exists for. (The audit of the first cut proved the licence has to be enforced, not
+ * assumed: compiled as ordinary character tries, the reversed walk died at the first
+ * continuation byte and a non-ASCII input turned a trusted miss into a wrong answer.)
+ * Everything else returns null and the search falls back to the forward scan, correct and
+ * unaccelerated.
  */
 public final class Reverse {
 
@@ -56,13 +59,16 @@ public final class Reverse {
         if (!reversible(root)) {
             return null;
         }
-        return NfaCompiler.compile(reverse(root), 0, multiline, pattern);
+        return NfaCompiler.compileByteLevel(reverse(root), 0, multiline, pattern);
     }
 
     private static boolean reversible(final Hir node) {
         return switch (node) {
             case Hir.Empty ignored -> true;
-            case Hir.Assertion ignored -> true;
+            // \G anchors to where the search started — a coordinate the finder does not
+            // have — and Words.assertionHolds throws on it; every other assertion is a
+            // positional predicate the reversed walk evaluates unchanged.
+            case Hir.Assertion assertion -> assertion.kind() != Hir.Kind.PREVIOUS_MATCH_END;
             case Hir.Bytes ignored -> true;
             case Hir.CharClass charClass -> charClass.set().isAsciiOnly();
             case Hir.Group group -> reversible(group.body());

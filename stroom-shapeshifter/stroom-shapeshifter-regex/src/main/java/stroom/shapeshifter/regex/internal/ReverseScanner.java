@@ -67,7 +67,7 @@ public final class ReverseScanner {
 
         int best = -1;
         for (int pos = to; ; pos--) {
-            if (listHasMatch(current)
+            if (current.matchLive
                 && !Utf8.splitsCharacter(data, pos, to, true, contextEnd)) {
                 best = pos; // positions only decrease, so the last recorded is the smallest
             }
@@ -110,15 +110,6 @@ public final class ReverseScanner {
         return best;
     }
 
-    private boolean listHasMatch(final ThreadList list) {
-        for (int i = 0; i < list.size; i++) {
-            if (nfa.op[list.pcs[i]] == Nfa.MATCH) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /** {@link PikeVm}'s addThread, without the capture rows the finder does not keep. The
      * assertion kinds are the original pattern's — their predicates are positional and the
      * reversed walk visits the same positions, so they are evaluated unchanged. */
@@ -147,6 +138,12 @@ public final class ReverseScanner {
             }
             list.mark(target);
             list.add(target);
+            if (nfa.op[target] == Nfa.MATCH) {
+                // Sticky per position, cleared with the list: the per-position "is a start
+                // live here" test is one field read instead of a scan of the list — the
+                // audit priced the scan at O(threads) per input byte of the backward walk.
+                list.matchLive = true;
+            }
         }
     }
 
@@ -157,6 +154,7 @@ public final class ReverseScanner {
         private final int[] seenAt;
         private int generation;
         private int size;
+        private boolean matchLive;
 
         ThreadList(final int programSize) {
             this.pcs = new int[programSize];
@@ -166,6 +164,7 @@ public final class ReverseScanner {
 
         void clear() {
             size = 0;
+            matchLive = false;
             if (++generation == Integer.MIN_VALUE) {
                 // The same wrap guard as the Pike VM's, for the same disease.
                 Arrays.fill(seenAt, -1);

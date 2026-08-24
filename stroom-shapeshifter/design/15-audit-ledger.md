@@ -278,3 +278,44 @@ the field-and-setter block sits in the same place in all four engines; and
 `FancyBacktracker`'s setter says what the cross-file trace proved — root only, children
 never search. The batch went through the anchored gate like everything else on these
 paths.
+
+## The audit of the end-anchor programme (2026-08-24) — three real bugs, one of them critical
+
+The same eight-angle review that cleared R1's diff was run over everything after it —
+R2–R4 and the programme's four phases — and this time it drew blood. Three findings, all
+reproduced at runtime by two or three finders independently, all fixed the same evening
+with the reproductions pinned as tests:
+
+- **CRITICAL — the reverse finder was unsound on non-ASCII input.** `Reverse` borrowed
+  `NfaCompiler`'s byte-level licence for byte-safe repeats but compiled non-fancy, where
+  that licence is never applied: the reversed `[^x]`-style repeats came out as
+  lead-byte-first character tries, and the backwards walk died at the first continuation
+  byte. `([^\\]+)$` returned a wrong NO_MATCH over `"café"` — a trusted miss, the worst
+  class — and a wrong span over `"Cé.txt"` that the safety valve could not catch, because
+  the too-late proposal genuinely verifies forward. The differential warrant had an
+  ASCII-only alphabet, which is why it swore the finder was sound. Fixed by
+  `NfaCompiler.compileByteLevel` — the licence enforced, not assumed: byte-safe classes
+  emit single-byte tables, which over-approximate (safe: proposals are verified, and
+  over-approximation cannot manufacture the false miss). `ReverseTest` now sweeps
+  non-ASCII adversarial cases and a randomised multi-byte alphabet.
+- **HIGH — the tail-window jump moved `\G`.** The jump rewrites the search start, and
+  `\G` is the one anchor defined relative to it: `\Gabc$` matched over `"xxabc"` where
+  the JDK refuses. The published facts gained `anchorsToSearchStart` and the jump refuses
+  such patterns; the reverse finder refuses them too, which also fixed the forced-TREE
+  crash where a reverse program containing `\G` reached an evaluator that throws on it.
+- **HIGH — the executor's end-anchored refusal dropped correct records when the input was
+  exactly the buffer's capacity.** `eof` only meant the stream's end had not been
+  *observed*; a one-byte pushback probe now settles the question before anything is said,
+  and `ignore_errors` regains its contract — it downgrades the refusal to the warning, the
+  same escape hatch the unmatched-content error honours.
+
+The cleanup angles landed four polishes: `explain()`'s accel line moved above the tree
+early-return it was unreachable behind (which had also weakened the exclusion pins that
+used its absence as evidence); the finder's per-position MATCH scan became a sticky flag
+set on add, per PikeVm's own idiom; the benchmark's tree-only state class, dead since
+Phase 4 made every shape tree-feasible, was deleted with its constant-true predicate and
+reflection guard; and `BytePattern`'s telescoping constructors — three signatures whose
+trailing nulls invited a same-typed `Nfa` transposition — collapsed to one constructor
+that every factory calls in full. The lesson worth the ink: the warrant for a trusted
+answer is only as wide as its test alphabet, and the audit that checked the alphabet was
+the only thing standing between "fifty million misses a second" and "wrong about café".

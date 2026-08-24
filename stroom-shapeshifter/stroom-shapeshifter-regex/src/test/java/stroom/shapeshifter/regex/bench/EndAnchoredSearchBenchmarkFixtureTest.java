@@ -24,10 +24,8 @@ import stroom.shapeshifter.regex.Flag;
 import stroom.shapeshifter.regex.TrailingAnchor;
 
 import org.junit.jupiter.api.Test;
-import org.openjdk.jmh.annotations.Param;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -85,21 +83,6 @@ class EndAnchoredSearchBenchmarkFixtureTest {
                     .as("%s bounded", shape)
                     .isEqualTo(shape.tailWindowed());
         }
-    }
-
-    /** The tree state's param list must be exactly the shapes the engine accepts — a drifted
-     * list would silently drop rows, the blind spot the row-set lesson closed. */
-    @Test
-    void treeParamListMatchesWhatTheEngineAccepts() throws Exception {
-        final String[] declared = EndAnchoredSearchBenchmark.TreeShapes.class
-                .getField("shape")
-                .getAnnotation(Param.class)
-                .value();
-        final String[] accepted = Arrays.stream(EndAnchoredSearchBenchmark.Shape.values())
-                .filter(EndAnchoredSearchBenchmark.Shape::treeCanRun)
-                .map(Enum::name)
-                .toArray(String[]::new);
-        assertThat(declared).containsExactly(accepted);
     }
 
     /**

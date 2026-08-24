@@ -120,6 +120,76 @@ class ReverseTest {
         }
     }
 
+    /**
+     * The audit's catch, pinned forever: the first cut compiled byte-safe repeats as
+     * character tries, the backwards walk died at the first continuation byte, and non-ASCII
+     * input turned trusted misses into wrong answers and starts into too-late ones. Every
+     * case here failed before {@code NfaCompiler.compileByteLevel}.
+     */
+    @Test
+    void nonAsciiInputAgreesWithTheJdk() {
+        final String[][] cases = {
+                {"([^\\\\]+)$", "café"},                // was: wrong NO_MATCH, trusted
+                {"([^\\\\]+)$", "Cé.txt"},              // was: wrong span ".txt"
+                {"([^\\\\]+)$", "a\\bé"},
+                {"([a-z ]+)=[^ ]+$", "key=vé"},         // was: wrong NO_MATCH
+                {"([^=]+)$", "a=béc"},                   // was: wrong match "c"
+                {".*=([^ ]+)$", "é a=b"},                // was: wrong leftmost, group 0 " a=b"
+                {".*=([^ ]+)$", "aé=b"},
+                {"[ab]*c$", "éc"},
+                {"(x|yy|zzz)+$", "éxyy"},
+        };
+        for (final String[] c : cases) {
+            agree(c[0], c[1]);
+        }
+    }
+
+    @Test
+    void randomisedNonAsciiInputsAgreeWithTheJdk() {
+        final Random random = new Random(20260825);
+        // Two- and three-byte characters mixed with the ASCII the patterns actually target.
+        final String[] alphabet = {"a", "b", " ", "\\", "=", "x", ".", "é", "ß", "€"};
+        for (final String pattern : QUALIFIED) {
+            for (int i = 0; i < 400; i++) {
+                final StringBuilder sb = new StringBuilder();
+                final int length = random.nextInt(24);
+                for (int j = 0; j < length; j++) {
+                    sb.append(alphabet[random.nextInt(alphabet.length)]);
+                }
+                agree(pattern, sb.toString());
+            }
+        }
+    }
+
+    /** {@code \G} anchors to the search start; neither acceleration may touch it. The
+     * forced-TREE case pinned the audit's crash: a reverse program containing {@code \G}
+     * reached the finder, whose assertion evaluator throws on it. */
+    @Test
+    void searchStartAnchorsAreExcludedAndStillAnswer() {
+        assertThat(BytePattern.compile("\\Gabc$").explain())
+                .doesNotContain("reverse start-finder");
+        final byte[] data = "xxabc".getBytes(StandardCharsets.UTF_8);
+        assertThat(BytePattern.compile("\\Gabc$").matcher()
+                .match(data, 0, data.length, Anchoring.UNANCHORED)).isFalse();
+        final ByteMatcher forcedTree = BytePattern
+                .compileForcing(stroom.shapeshifter.regex.Engine.TREE, "\\G[a-z]+$",
+                        java.util.EnumSet.noneOf(Flag.class))
+                .matcher();
+        final byte[] abc = "abc".getBytes(StandardCharsets.UTF_8);
+        assertThat(forcedTree.match(abc, 0, abc.length, Anchoring.UNANCHORED)).isTrue();
+    }
+
+    /** Tree-carrying patterns report the strategy too — the audit caught the accel line
+     * sitting below the tree early-return, which also weakened this class's exclusion pins. */
+    @Test
+    void treeCarryingQualifiedPatternsNameTheStrategy() {
+        assertThat(BytePattern
+                .compileForcing(stroom.shapeshifter.regex.Engine.TREE, "([^\\\\]+)$",
+                        java.util.EnumSet.noneOf(Flag.class))
+                .explain())
+                .contains("reverse start-finder");
+    }
+
     @Test
     void aSubRegionSearchFindsTheSameMatchAsTheJdkRegion() {
         final byte[] data = "aa\\bb\\cc".getBytes(StandardCharsets.UTF_8);

@@ -134,8 +134,11 @@ public final class ByteMatcher {
                 : plan != null
                 ? plan.slotCount()
                 : pattern.nfa().slotCount()];
+        // \G is excluded because its reference point is the search start, which the jump
+        // would move — the audit produced \Gabc$ matching where the JDK refuses.
         this.tailSpan = pattern.trailingAnchor() == TrailingAnchor.INPUT
                         && pattern.maxLength() != Analysis.UNBOUNDED_LENGTH
+                        && !pattern.anchorsToSearchStart()
                 ? pattern.maxLength()
                 : -1;
         this.reverse = pattern.reverseNfa() != null
@@ -218,9 +221,8 @@ public final class ByteMatcher {
      * the authoritative match and captures; a refused proposal is never trusted as
      * NO_MATCH, only a finder miss is. Both excluded on a growing window, whose NEED_MORE
      * bookkeeping needs the full walk (and whose {@code to} is not final anyway).
-     */
-    /**
-     * The end-anchored accelerations' out-of-line body: both entry points test the one
+     *
+     * <p>This body lives out of line deliberately: both entry points test the one
      * {@code endgame} flag inline and call this only when it holds, so the
      * match() -> run() -> searchPlan() inline chain keeps the size the dispatcher split
      * bought — Phase 4's first cut routed every match through a grown dispatch method and

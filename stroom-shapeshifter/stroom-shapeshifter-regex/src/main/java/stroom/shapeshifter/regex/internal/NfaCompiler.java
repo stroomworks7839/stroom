@@ -64,6 +64,10 @@ public final class NfaCompiler {
      * {@link Nfa#CLASS_STAR} safe to emit. */
     private boolean fancy;
 
+    /** Whether byte-safe classes are emitted as single-byte tables instead of character
+     * tries — the reverse start-finder's mode; see {@link #compileByteLevel}. */
+    private boolean byteLevelClasses;
+
     /** Dispatch tables holding the "continues past the class" sentinel, patched once it is known. */
     private final List<Integer> tablesToPatch = new ArrayList<>();
 
@@ -92,6 +96,31 @@ public final class NfaCompiler {
         return compile(root, groupCount, multiline, pattern, true);
     }
 
+    /**
+     * As {@link #compile}, for the reverse start-finder ({@link Reverse}): a byte-safe class
+     * — ASCII-only, or containing every non-ASCII code point — is emitted as one single-byte
+     * table instead of a lead-byte-first character trie, because the finder consumes bytes
+     * right to left and a trie's byte order is the one thing reversal cannot keep. The table
+     * over-approximates: any byte of a member character is accepted where the trie demanded
+     * the character whole. That is safe in the one place this mode is used — the finder's
+     * proposals are verified by a forward anchored attempt, and an over-approximation can
+     * widen proposals but never produce the false miss that would be trusted.
+     */
+    static Nfa compileByteLevel(final Hir root,
+                                final int groupCount,
+                                final boolean multiline,
+                                final String pattern) {
+        final NfaCompiler compiler = new NfaCompiler(pattern);
+        compiler.groupCount = groupCount;
+        compiler.multiline = multiline;
+        compiler.byteLevelClasses = true;
+        compiler.emit(Nfa.SAVE, 0, 0);
+        compiler.emitNode(root);
+        compiler.emit(Nfa.SAVE, 1, 0);
+        compiler.emit(Nfa.MATCH, 0, 0);
+        return compiler.build(groupCount, multiline, Analysis.byteLength(root)[0]);
+    }
+
     private static Nfa compile(final Hir root,
                                final int groupCount,
                                final boolean multiline,
@@ -118,6 +147,7 @@ public final class NfaCompiler {
         compiler.groupCount = groupCount;
         compiler.multiline = multiline;
         compiler.fancy = fancy;
+        compiler.byteLevelClasses = byteLevelClasses;
         compiler.emitNode(body);
         compiler.emit(Nfa.MATCH, 0, 0);
         return compiler.build(groupCount, multiline, 0); // sub-programs never gate a search
@@ -243,6 +273,13 @@ public final class NfaCompiler {
      * and the case that matters most in practice.
      */
     private void emitClass(final Hir.CharClass charClass) {
+        if (byteLevelClasses
+            && (charClass.set().isAsciiOnly() || charClass.set().containsAllNonAscii())) {
+            // The reverse mode: one table test per byte; see compileByteLevel.
+            classes.add(byteTable(charClass.set()));
+            emit(Nfa.BYTE_CLASS, classes.size() - 1, 0);
+            return;
+        }
         final int[][] sequences = Utf8.sequences(charClass.set());
         if (sequences.length == 0) {
             // An empty class can never match; a range no byte satisfies expresses that.
