@@ -17,13 +17,11 @@ repetition) and the two that turned out to be defects and are now pinned agreeme
 **Status** is one of: `open` — decided against nothing yet; `accepted` — a measured cost,
 kept knowingly, with the reason.
 
----
-
-## R4 — `compileForcingNfa` is deprecated but not yet retired
-
-**`open` (low).** `BytePattern.compileForcingNfa` is `@Deprecated` in favour of
-`compileForcing(Engine, ...)` and delegates properly, but two test callers remain
-(`DifferentialTest`, `BranchOrderBenchmark`). Migrate them and delete the method.
+As of 2026-08-24 nothing is `open`: R1 landed with its benchmark gate (accepted costs
+below), R2 and R3 were fixed outright, and R4's two callers were migrated to
+`compileForcing(Engine.SIMULATE, ...)` — machine-for-machine identical for every affected
+pattern — and the deprecated method deleted. What remains in this file is the accepted-cost
+record.
 
 ---
 

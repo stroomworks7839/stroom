@@ -477,7 +477,7 @@ class DifferentialTest {
             if (tierZero.tier() != 0) {
                 continue;
             }
-            final BytePattern tierOne = BytePattern.compileForcingNfa(pattern, Set.of());
+            final BytePattern tierOne = BytePattern.compileForcing(Engine.SIMULATE, pattern, Set.of());
             assertThat(tierOne.tier()).isEqualTo(Engine.SIMULATE.ordinal());
             final Pattern javaPattern = JdkOracle.compile(pattern);
 

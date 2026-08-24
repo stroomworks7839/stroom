@@ -281,16 +281,6 @@ public final class BytePattern {
         return tree;
     }
 
-    /**
-     * Compiles to the NFA simulation even when the pattern would qualify for a scan plan.
-     *
-     * @deprecated use {@link #compileForcing(Engine, String, Set)}, which names the engine.
-     */
-    @Deprecated
-    public static BytePattern compileForcingNfa(final String pattern, final Set<Flag> flags) {
-        return compileNfa(pattern, flags);
-    }
-
     private static BytePattern compileNfa(final String pattern, final Set<Flag> flags) {
         final Parser.Result parsed = Parser.parse(pattern, flags);
         final Hir root = Normalise.normalise(parsed.root());

@@ -37,6 +37,7 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.nio.charset.StandardCharsets;
+import java.util.EnumSet;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -137,11 +138,11 @@ public class BranchOrderBenchmark {
         javaOverlapLast = Pattern.compile(OVERLAP_COMMON_LAST, Pattern.MULTILINE);
 
         sameAsPlan = disjointFirst;
-        sameAsNfa = BytePattern.compileForcingNfa(DISJOINT_COMMON_FIRST,
-                java.util.EnumSet.of(Flag.MULTILINE));
-        sameAsNfaNoCaptures = BytePattern.compileForcingNfa(
+        sameAsNfa = BytePattern.compileForcing(Engine.SIMULATE, DISJOINT_COMMON_FIRST,
+                EnumSet.of(Flag.MULTILINE));
+        sameAsNfaNoCaptures = BytePattern.compileForcing(Engine.SIMULATE,
                 "^(?:COMMON|RARE|SELDOM|UNUSUAL|ODD) (?:.*)$",
-                java.util.EnumSet.of(Flag.MULTILINE));
+                EnumSet.of(Flag.MULTILINE));
 
         // Named engines, not tier ordinals. This guard was written against ordinals and went
         // stale at D32, when the bounded backtracker stopped being chosen per search and the
