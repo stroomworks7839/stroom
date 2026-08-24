@@ -232,6 +232,16 @@ windows). Evidence: `-anchored-p2-{before,after}.json`,
 whether reverse matching is worth an architecture piece. The corpus alone never justified
 it; the key=value row may.
 
+*The numbers are in (2026-08-24), and they say the prize is real.* The unbounded rows did
+not move through Phase 2 — they cannot — and sit at 90–700 ops/s: 1.4 to 11 milliseconds
+of forward walk per 256 KiB search, on all three engines, with the JDK no better. Their
+bounded twin just demonstrated what skipping the walk is worth: three to four orders of
+magnitude. The filename shape is the cleanest case for reverse (a backwards walk touches
+only the match's own bytes and stops at the first backslash), and the key=value shape is
+the DS workload itself. Queued for Jon's ruling: whether Phase 4 proceeds, and if so
+whether v1's scope — refuse any pattern whose byte structure is not cleanly reversible,
+fall back to the forward scan — is acceptable as the starting line.
+
 **Phase 4 — reverse start-finding, if the numbers say go.** The rust-regex two-pass
 design, as an *outer construct, not a tier*: no new `Engine` value, no change to the
 proven machinery. A reverse-compiled, capture-stripped program answers one question — the
