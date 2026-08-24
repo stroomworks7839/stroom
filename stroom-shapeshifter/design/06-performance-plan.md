@@ -120,28 +120,105 @@ rows, and the absence was the only evidence. The guard now asserts named engines
 generalises: a result file proves what ran, not what was supposed to run — when comparing
 runs, diff the *row sets* as well as the scores.
 
-## 6. General-purpose candidates — learned from other engines, awaiting a workload
+## 6. The end-anchor programme — planned 2026-08-24, phased and gated
 
-The library is general-purpose, so ideas with solid prior art belong on the plan even before a
-corpus workload demands them — recorded here so they are not rediscovered, and deliberately
-*not* in §1, because no measurement yet says they matter. Each enters the usual way when its
-time comes: a failure-shaped benchmark first (the 2026-08-20 method note — both of these live
-on paths the success-path suites never exercise), then one change with JMH either side.
+What stood here as two general-purpose candidate rows (the end-anchored tail window and
+reverse matching, recorded 2026-08-20 with prior art from rust regex-automata, .NET
+`RightToLeft`, Hyperscan and GNU grep) graduated to a phased plan on 2026-08-24, after Jon
+supplied the workload the corpus lacked: Stroom parses text like
+`ip address=1.1.1.1 name=bob create time=2026-01-01:00:00:00`, where the key before an `=`
+can only be told apart by walking *backwards* from it — `create time` versus `time` is
+undecidable going forwards. Stroom DS grew its "reverse" engine feature for exactly this,
+because the JDK cannot walk backwards efficiently; that feature stays regardless, but the
+workload is real, general, and end-shaped.
 
-| Item | Mechanism | Prior art | Ingredients already here |
-|---|---|---|---|
-| **End-anchored tail window** ("end sampling") | An `END_INPUT`-anchored pattern with a finite maximum length can only *start* inside `[to − maxLen, to − minLen]` — an unanchored search jumps straight to that window instead of scanning forward from the cursor. `(?m)$` earns nothing (line ends are everywhere): the exact mirror of the leading gate's INPUT/LINE split | The dual of every engine's prefix reasoning; §1's minimum-length fail-fast is the same argument one anchor weaker | The parser already distinguishes `END_INPUT` from `END_LINE`; `Analysis.byteLength` already returns `[min, max]` with an unbounded sentinel. Missing: a trailing-anchor analysis (the mirror of `Nfa.startAnchor()`) and the jump itself |
-| **Reverse matching for end-heavy patterns** | For *unbounded* end-anchored patterns (`.*foo\z`), run a reverse-compiled program backwards from the region end — one attempt, no forward scan at all. The cousin covers patterns whose most distinguishing part is their *suffix*: scan for the suffix literal, verify backwards from each hit | rust regex-automata's `ReverseAnchored` and `ReverseSuffix` strategies; .NET's `RightToLeft` matching; Hyperscan's suffix acceleration; GNU grep's backward tricks | None — this needs reverse compilation of the HIR, an architecture piece on the scale of a new engine mode. Recorded as an idea with named prior art; costed only when a workload asks |
+Three facts make the programme cheaper than it looks. The dialect already ruled the hard
+part out: bare `$` parses to `END_INPUT` — identical to `\z` — and `\Z` ("end, except a
+final line terminator") is refused at parse time, so "end-anchored" means exactly one thing
+and no JDK final-newline nuance survives to honour. `Analysis.byteLength` already returns
+`[min, max]` with an unbounded sentinel, and its javadoc already states the theorem the
+tail window needs — candidate starts for a match ending at the cursor are exactly
+`[cursor − max, cursor − min]`; it is what makes bounded lookbehind work. And every search
+loop already computes `lastSeed = to − minLength` on complete windows: the tail window is
+the same argument one anchor stronger, applied to the *first* seed instead of the last.
 
-The corpus today contains no pattern that would move: win_sec's `(.+)$` fields are all
-`(?m)` line-ends, and `filename_extract`'s `([^\\]+)$` is end-anchored but unbounded, cold,
-and would need the reverse tier. That is why these are §6 and not §1 — the general-purpose
-argument earns them a row; only a measurement earns them a change.
+One scope note, verified against the executor 2026-08-24: the engine module never uses the
+regex library's streaming API — no `ByteWindow`, no `NEED_MORE` handling anywhere in it.
+`Executor.stream` buffers and refills itself and always calls the complete-array entry, so
+every production input is a complete view. Both features below therefore exclude growing
+windows outright, at zero production cost. (The streaming surface itself is exercised only
+by the library's own tests; whether to retire it is a decision for its own D-number, not
+assumed here.)
 
-**Planned (2026-08-20, queued behind the early-exit cycle):** `EndAnchoredSearchBenchmark`,
-the failure-shaped twin of `AnchoredSearchBenchmark`, mined from the benchmark corpus's own
-pattern shapes rather than invented: a bounded end-anchored tail (WEBLOG's `(\d{3}) (\d+)$`
-shape) run miss- and late-match-shaped over a large region to put a number on the tail-window
-row, and an unbounded `(.*)$` shape to put a number on what only the reverse tier could fix.
-Landing the benchmark is the decision point — the rows above graduate to work only if its
-numbers say so.
+**Phase 0 — `EndAnchoredSearchBenchmark`, the gate and the decision point.** The
+failure-shaped twin of `AnchoredSearchBenchmark`, per the 2026-08-20 method note: both
+features live on paths the success-path suites never exercise. Rows mined from real shapes,
+not invented: the bounded WEBLOG tail `(\d{3}) (\d+)$` run miss- and late-match-shaped
+over a large region (what the tail window fixes); the unbounded `([^\\]+)$` filename shape
+(what only reverse fixes); and a key=value row shaped like Jon's text above, so the
+workload that motivated DS's reverse feature is represented from day one. All three
+engines, plus JDK drift rows. Nothing below lands until this exists and has a same-boot
+baseline; its numbers decide Phase 3.
+
+**Phase 1 — the trailing-anchor fact.** `Analysis.trailingAnchor(Hir)`, the mirror of the
+leading analysis: concat takes the last element's anchor (weakened past empty-matchable
+tails), alternation the weakest branch, groups and atomics recurse. Published the way
+`leadingAnchor()` is — computed at compile time, carried on the compiled artifacts, the
+parser its single source, no caller ever sniffing pattern text. Zero hot-path cost. It has
+a second customer before any engine changes: `Executor.stream` today *warns* when a match
+consumes a full window with input unread — for an `END_INPUT`-anchored pattern that match
+is guaranteed to mean "matched end of buffer, not end of stream", and the fact lets the
+executor upgrade that warning to an error for exactly those patterns, with the leading
+anchor's D35 usage as the precedent.
+
+**Phase 2 — the tail-window jump.** Unanchored search, complete window,
+`trailingAnchor == INPUT`, finite `max`: the first candidate start becomes
+`max(from, to − max)`. Soundness is `byteLength`'s own theorem — no match ending at `to`
+can start earlier, so leftmost-within-the-window is leftmost overall and captures are
+untouched. Two constraints from this month's scar tissue: **one site, not five** — R1
+existed because five copies of a gate drifted, so the clamp goes in `ByteMatcher` before
+engine dispatch (the R1 audit proved it is the engines' only caller), never into each
+loop; and **placement is itself benchmark-gated** — `run()` sits on the 2.8 ns
+instant-rejection rows and the contextEnd saga priced a single branch there, so whether
+the clamp lives in the unanchored branches or precomputes pattern-side is decided by the
+gate, both anchored suites either side. Expected shape of the win: a 256 KiB miss stops
+scanning the region and inspects a few dozen tail bytes.
+
+**Phase 3 — the decision.** Phase 0's unbounded rows, before and after Phase 2, say
+whether reverse matching is worth an architecture piece. The corpus alone never justified
+it; the key=value row may.
+
+**Phase 4 — reverse start-finding, if the numbers say go.** The rust-regex two-pass
+design, as an *outer construct, not a tier*: no new `Engine` value, no change to the
+proven machinery. A reverse-compiled, capture-stripped program answers one question — the
+smallest start of a match ending at `to` — by a single scan walking the original bytes
+right-to-left (the input is never copied or physically reversed), seeded once at `to`;
+for `([^\\]+)$` it touches only the match's own bytes and stops at the first backslash,
+where the forward cost is seeding a candidate at every position in the region. Captures
+then come from the machinery already trusted: an ordinary forward *anchored* attempt at
+the found start. Selection is by published facts (complete window, unanchored search,
+`trailingAnchor == INPUT`, unbounded max, non-fancy — lookarounds and backreferences fall
+back), and `explain()` names the strategy the way it names tiers. Known sharp edges, named
+now so they are pinned rather than discovered: reversal must reach *byte* level — a
+multi-byte character's bytes must be consumed in reverse order, and non-ASCII class
+structures are the part rust-regex considers genuinely hard, so v1 refuses any pattern
+whose byte structure is not cleanly reversible and falls back to the normal scan; a
+*wrong* proposed start is harmless (the forward verify fails and the search falls back —
+it is never trusted as NO_MATCH), but a *missed* start is a silent wrong answer, so the
+differential suite gains a generator biased toward end-anchored shapes before the strategy
+is trusted; and word-boundary asserts read the byte on the far side, which in reverse is
+the byte *before* the scan position — the same contextEnd-class window edge R1 just
+harmonised, to be handled with the same care.
+
+**Phase 5 — `ReverseSuffix`, deferred and recorded.** Scan forward for a distinguishing
+suffix literal (the `=` in key=value), verify the key backwards from each hit — the
+strategy closest to how DS's reverse feature is actually used, and the reason the
+key=value benchmark row exists. It needs Phase 4's reverse program as a prerequisite, so
+it stays a recorded row until that exists and a workload asks. Prior art:
+rust regex-automata's `ReverseSuffix`, Hyperscan's suffix acceleration.
+
+The corpus today still contains no pattern that would move — win_sec's `(.+)$` fields are
+all `(?m)` line-ends (`END_LINE` earns nothing from either feature: line ends are
+everywhere), and `filename_extract` is cold. That is why Phase 0 is the gate and not a
+formality: the general-purpose argument earns the programme its phases; only its numbers
+earn each phase a change.
