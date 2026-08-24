@@ -211,6 +211,23 @@ the clamp lives in the unanchored branches or precomputes pattern-side is decide
 gate, both anchored suites either side. Expected shape of the win: a 256 KiB miss stops
 scanning the region and inspects a few dozen tail bytes.
 
+*Landed 2026-08-24*, and the gate earned its keep twice on the way. First it convicted the
+plan itself: the WEBLOG tail this section had called "bounded" since 2026-08-20 is not —
+`\d+` has no maximum — so none of the gate's original six shapes could jump at all, and the
+first after-run measured the phase against rows it could never move. The benchmark gained
+`BOUNDED_*` rows (`(\d{3}) (\d{1,9})$`, the same shape with the bound stated), and the
+fixture now checks every shape's boundedness claim against the published facts
+(`BytePattern.maxLength()`, made public for exactly that) instead of trusting a label.
+Second, it priced the clamp: one predicted-false branch ahead of the dispatcher
+(`ByteMatcher.tailFrom`, the one site) costs −7–9% on the 3–9 ns `anchored_miss`
+instant-rejection rows and nothing anywhere real work happens — accepted in the module's
+`ISSUES.md`, with the reasoning that no placement escapes the cycle. What it buys: the
+bounded rows went from ~520 ops/s to 3.35–5.07M ops/s across all three engines — three to
+four orders of magnitude, the JDK control unmoved at ~500 — and `TailWindowTest` pins the
+off-by-one edges and every exclusion (line anchors, unbounded, anchored questions, growing
+windows). Evidence: `-anchored-p2-{before,after}.json`,
+`-endanchored-p2-{before,after}.json`, same boot, adjacent runs.
+
 **Phase 3 — the decision.** Phase 0's unbounded rows, before and after Phase 2, say
 whether reverse matching is worth an architecture piece. The corpus alone never justified
 it; the key=value row may.

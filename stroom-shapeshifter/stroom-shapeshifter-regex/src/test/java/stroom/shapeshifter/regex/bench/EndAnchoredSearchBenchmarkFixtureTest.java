@@ -22,6 +22,7 @@ import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.Engine;
 import stroom.shapeshifter.regex.Flag;
 import stroom.shapeshifter.regex.MatchLimitException;
+import stroom.shapeshifter.regex.TrailingAnchor;
 
 import org.junit.jupiter.api.Test;
 import org.openjdk.jmh.annotations.Param;
@@ -73,6 +74,23 @@ class EndAnchoredSearchBenchmarkFixtureTest {
             assertThat(java.find())
                     .as("%s on the JDK", shape)
                     .isEqualTo(shape.matches());
+        }
+    }
+
+    /** Every shape's tail-window claim must agree with the published facts — the gate once
+     * believed the WEBLOG tail was bounded when {@code \d+} is not, and measured a phase
+     * against rows it could never move. The facts are the arbiter, not the label. */
+    @Test
+    void tailWindowClaimsAgreeWithThePublishedFacts() {
+        for (final EndAnchoredSearchBenchmark.Shape shape
+                : EndAnchoredSearchBenchmark.Shape.values()) {
+            final BytePattern compiled = BytePattern.compile(shape.pattern());
+            assertThat(compiled.trailingAnchor())
+                    .as("%s trailing anchor", shape)
+                    .isEqualTo(TrailingAnchor.INPUT);
+            assertThat(compiled.maxLength() != Integer.MAX_VALUE)
+                    .as("%s bounded", shape)
+                    .isEqualTo(shape.tailWindowed());
         }
     }
 

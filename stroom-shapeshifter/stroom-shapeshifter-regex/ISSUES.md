@@ -27,6 +27,18 @@ record.
 
 ## Accepted costs — measured, kept, and why
 
+**The tail-window jump costs one cycle per match on patterns that never jump
+(`accepted`, 2026-08-24).** §6 Phase 2's clamp is a single guarded check ahead of the
+engine dispatcher (`ByteMatcher.tailFrom`); for every pattern without an END_INPUT anchor
+and a finite maximum it is one predicted-false branch, which is invisible everywhere real
+work happens and −7–9% on `anchored_miss` — rows whose whole operation is a 3–9 ns instant
+rejection. No cheaper placement exists: the engine prologues would pay the same cycle in
+the same rows, and per-pattern code selection is not this codebase. What the cycle buys:
+the bounded end-anchored rows moved from ~520 ops/s to 3.4–5.2M ops/s — three to four
+orders of magnitude — while the JDK control stood still. Evidence:
+`2026-08-24-14xx-*-anchored-p2-{before,after}.json` and
+`-endanchored-p2-{before,after}.json`, same boot, adjacent runs.
+
 **R1 (gate harmonisation, resolved 2026-08-24) carries −2–4% on the tree engine's
 nearly-free rows (`accepted`).** The window-edge gate is now one designed thing:
 `Utf8.splitsCharacter` is the single start gate all four engines ask, `contextEnd` bounds

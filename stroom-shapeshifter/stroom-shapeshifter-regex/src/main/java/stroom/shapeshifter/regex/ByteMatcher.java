@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.regex;
 
+import stroom.shapeshifter.regex.internal.Analysis;
 import stroom.shapeshifter.regex.internal.Backtracker;
 import stroom.shapeshifter.regex.internal.FancyBacktracker;
 import stroom.shapeshifter.regex.internal.Hir;
@@ -71,6 +72,13 @@ public final class ByteMatcher {
     private final int groupCount;
     private final int[] slots;
 
+    /** The tail-window span: for an END_INPUT-anchored pattern of finite maximum length,
+     * the most bytes a match can span — so no unanchored candidate start exists before
+     * {@code regionTo - tailSpan} ({@code Analysis.byteLength}'s theorem, the same one that
+     * makes bounded lookbehind implementable). -1 when the pattern earns no jump
+     * ({@code design/06-performance-plan.md} §6 Phase 2). */
+    private final int tailSpan;
+
     private byte[] data;
     private int regionFrom;
     private int regionTo;
@@ -117,6 +125,10 @@ public final class ByteMatcher {
                 : plan != null
                 ? plan.slotCount()
                 : pattern.nfa().slotCount()];
+        this.tailSpan = pattern.trailingAnchor() == TrailingAnchor.INPUT
+                        && pattern.maxLength() != Analysis.UNBOUNDED_LENGTH
+                ? pattern.maxLength()
+                : -1;
     }
 
     /** The pattern this matcher was created from. */
@@ -148,7 +160,7 @@ public final class ByteMatcher {
         this.contextEnd = window.contextEnd();
         this.complete = window.complete();
         this.matched = false;
-        return run(from, anchoring);
+        return run(tailFrom(from, anchoring), anchoring);
     }
 
     /** Matches at exactly {@code from}. */
@@ -176,7 +188,22 @@ public final class ByteMatcher {
         this.contextEnd = data.length;
         this.complete = true;
         this.matched = false;
-        return run(from, anchoring) == MatchOutcome.MATCH;
+        return run(tailFrom(from, anchoring), anchoring) == MatchOutcome.MATCH;
+    }
+
+    /**
+     * The tail-window jump (§6 Phase 2): an unanchored search for an END_INPUT-anchored
+     * pattern of finite maximum length starts at {@code regionTo - tailSpan} — no earlier
+     * candidate can produce a match ending at the region end, so leftmost within the window
+     * is leftmost overall and captures are untouched. One site, ahead of the dispatcher, so
+     * the five search loops stay byte-identical; excluded on a growing window, whose
+     * NEED_MORE bookkeeping needs the full walk (and whose {@code to} is not final anyway).
+     */
+    private int tailFrom(final int from, final Anchoring anchoring) {
+        return tailSpan >= 0 && complete && anchoring != Anchoring.ANCHORED
+               && regionTo - from > tailSpan
+                ? regionTo - tailSpan
+                : from;
     }
 
     private MatchOutcome run(final int from, final Anchoring anchoring) {

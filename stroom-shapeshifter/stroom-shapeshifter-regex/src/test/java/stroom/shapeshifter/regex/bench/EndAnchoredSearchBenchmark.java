@@ -89,10 +89,17 @@ public class EndAnchoredSearchBenchmark {
 
     /** A shape is a real pattern plus a region built to hit or miss at its far end. */
     public enum Shape {
-        /** Bounded tail, present: the region's last line ends in status and size. */
+        /** The corpus tail as written, present — unbounded: {@code \d+} has no maximum,
+         * so only reverse matching (Phase 4) can move this row. */
         WEBLOG_HIT("(\\d{3}) (\\d+)$", true),
-        /** Bounded tail, absent: the region ends in a quoted agent string instead. */
+        /** The corpus tail as written, absent. */
         WEBLOG_MISS("(\\d{3}) (\\d+)$", false),
+        /** The bounded tail, present: the same shape with the bound stated, which is what
+         * the tail-window jump (Phase 2) needs — and what a config author who knows a size
+         * field's width would write. */
+        BOUNDED_HIT("(\\d{3}) (\\d{1,9})$", true),
+        /** The bounded tail, absent. */
+        BOUNDED_MISS("(\\d{3}) (\\d{1,9})$", false),
         /** Unbounded tail, present: a filename follows the last backslash. */
         FILENAME_HIT("([^\\\\]+)$", true),
         /** Unbounded tail, absent: the region ends on a backslash. */
@@ -125,18 +132,26 @@ public class EndAnchoredSearchBenchmark {
             return this != FILENAME_HIT && this != FILENAME_MISS;
         }
 
+        /** Whether this shape's pattern qualifies for the tail-window jump: END_INPUT
+         * trailing anchor and a finite maximum. Only the {@code BOUNDED_*} rows do — the
+         * fixture test verifies the claim against the published facts, so the benchmark can
+         * never again believe a row is bounded when the analysis knows better. */
+        public boolean tailWindowed() {
+            return this == BOUNDED_HIT || this == BOUNDED_MISS;
+        }
+
         /** The region, deterministic and without a trailing newline (so the JDK's {@code $}
          * and this dialect's {@code END_INPUT} ask the same question). */
         public byte[] data() {
             final StringBuilder text = new StringBuilder(TARGET_SIZE + 128);
             switch (this) {
-                case WEBLOG_HIT, WEBLOG_MISS -> {
+                case WEBLOG_HIT, WEBLOG_MISS, BOUNDED_HIT, BOUNDED_MISS -> {
                     final String line = "10.31.2.7 - - [24/Aug/2026:08:00:00 +0000] "
                             + "\"GET /store/item?id=1934 HTTP/1.1\" 200 5120\n";
                     while (text.length() < TARGET_SIZE) {
                         text.append(line);
                     }
-                    text.append(this == WEBLOG_HIT
+                    text.append(this == WEBLOG_HIT || this == BOUNDED_HIT
                             ? "10.31.2.7 - - [24/Aug/2026:08:00:01 +0000] "
                               + "\"GET /store/item?id=1935 HTTP/1.1\" 200 12345"
                             : "10.31.2.7 - - [24/Aug/2026:08:00:01 +0000] "
@@ -173,8 +188,8 @@ public class EndAnchoredSearchBenchmark {
     @State(Scope.Benchmark)
     public static class AllShapes {
 
-        @Param({"WEBLOG_HIT", "WEBLOG_MISS", "FILENAME_HIT", "FILENAME_MISS",
-                "KV_HIT", "KV_MISS"})
+        @Param({"WEBLOG_HIT", "WEBLOG_MISS", "BOUNDED_HIT", "BOUNDED_MISS",
+                "FILENAME_HIT", "FILENAME_MISS", "KV_HIT", "KV_MISS"})
         public Shape shape;
 
         byte[] data;
@@ -200,7 +215,8 @@ public class EndAnchoredSearchBenchmark {
     @State(Scope.Benchmark)
     public static class TreeShapes {
 
-        @Param({"WEBLOG_HIT", "WEBLOG_MISS", "KV_HIT", "KV_MISS"})
+        @Param({"WEBLOG_HIT", "WEBLOG_MISS", "BOUNDED_HIT", "BOUNDED_MISS",
+                "KV_HIT", "KV_MISS"})
         public Shape shape;
 
         byte[] data;

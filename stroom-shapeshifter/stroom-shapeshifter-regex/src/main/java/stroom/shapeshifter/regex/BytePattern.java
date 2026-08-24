@@ -77,6 +77,13 @@ public final class BytePattern {
     /** The parser's trailing-anchor conclusion, computed once from the normalised parse and
      * published through {@link #trailingAnchor()} — the mirror of the leading fact. */
     private final TrailingAnchor trailingAnchor;
+
+    /** The maximum bytes a match can span ({@code Analysis.byteLength}'s upper bound, with
+     * its unbounded sentinel), computed once from the normalised parse beside the trailing
+     * anchor. Together they license the tail-window jump: an END_INPUT match must end at the
+     * region end and spans at most this, so no candidate start exists before
+     * {@code regionTo - maxLength}. */
+    private final int maxLength;
     private final Plan plan;
     private final Nfa nfa;
     private final List<Analysis.Violation> ambiguities;
@@ -100,30 +107,34 @@ public final class BytePattern {
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
                         final TrailingAnchor trailingAnchor,
+                        final int maxLength,
                         final Plan plan,
                         final Nfa nfa,
                         final List<Analysis.Violation> ambiguities,
                         final List<String> warnings,
                         final List<String> groupNames) {
-        this(pattern, flags, trailingAnchor, plan, nfa, ambiguities, warnings, groupNames, null);
+        this(pattern, flags, trailingAnchor, maxLength, plan, nfa, ambiguities, warnings,
+                groupNames, null);
     }
 
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
                         final TrailingAnchor trailingAnchor,
+                        final int maxLength,
                         final Plan plan,
                         final Nfa nfa,
                         final List<Analysis.Violation> ambiguities,
                         final List<String> warnings,
                         final List<String> groupNames,
                         final Engine forced) {
-        this(pattern, flags, trailingAnchor, plan, nfa, ambiguities, warnings, groupNames,
-                forced, null);
+        this(pattern, flags, trailingAnchor, maxLength, plan, nfa, ambiguities, warnings,
+                groupNames, forced, null);
     }
 
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
                         final TrailingAnchor trailingAnchor,
+                        final int maxLength,
                         final Plan plan,
                         final Nfa nfa,
                         final List<Analysis.Violation> ambiguities,
@@ -136,6 +147,7 @@ public final class BytePattern {
         this.pattern = pattern;
         this.flags = flags;
         this.trailingAnchor = trailingAnchor;
+        this.maxLength = maxLength;
         this.plan = plan;
         this.nfa = nfa;
         this.ambiguities = ambiguities;
@@ -192,7 +204,8 @@ public final class BytePattern {
             final Nfa nfa = NfaCompiler.compileFancy(root, groupCount, multiline, description);
             // The tree engine is the primary for fancy patterns (D31); the flat engine stays
             // as the structural fallback when recursion depth gives out.
-            return new BytePattern(description, copy, trailing(root), null, nfa,
+            return new BytePattern(description, copy, trailing(root),
+                    Analysis.byteLength(root)[1], null, nfa,
                     List.of(), Analysis.warnings(root), groupNames, null,
                     NodeTree.compile(
                             root, groupCount, description));
@@ -204,13 +217,15 @@ public final class BytePattern {
         final List<Analysis.Violation> violations = Analysis.onePassViolations(root);
         if (violations.isEmpty()) {
             final Plan plan = PlanCompiler.compile(root, groupCount, multiline, description);
-            return new BytePattern(description, copy, trailing(root), plan, null,
+            return new BytePattern(description, copy, trailing(root),
+                    Analysis.byteLength(root)[1], plan, null,
                     violations, warnings, groupNames);
         }
         final Nfa nfa = NfaCompiler.compile(root, groupCount, multiline, description);
         // Ambiguous patterns carry the tree too: it takes the searches the bounded
         // backtracker's budget refuses, with the simulation as the linear-time fallback (D31).
-        return new BytePattern(description, copy, trailing(root), null, nfa,
+        return new BytePattern(description, copy, trailing(root),
+                Analysis.byteLength(root)[1], null, nfa,
                 violations, warnings, groupNames,
                 null, NodeTree.compile(
                         root, groupCount, description));
@@ -266,7 +281,8 @@ public final class BytePattern {
             final NodeTree.Compiled tree =
                     NodeTree.compile(
                             root, parsed.groupCount(), pattern);
-            return new BytePattern(pattern, copyFlags(flags), trailing(root), null, null,
+            return new BytePattern(pattern, copyFlags(flags), trailing(root),
+                    Analysis.byteLength(root)[1], null, null,
                     List.of(), Analysis.warnings(root), parsed.groupNames(), engine, tree);
         }
         final BytePattern compiled = compileNfa(pattern, flags);
@@ -276,7 +292,7 @@ public final class BytePattern {
                     + pattern);
         }
         return new BytePattern(compiled.pattern, compiled.flags, compiled.trailingAnchor,
-                null, compiled.nfa,
+                compiled.maxLength, null, compiled.nfa,
                 compiled.ambiguities, compiled.warnings, compiled.groupNames, engine);
     }
 
@@ -301,6 +317,7 @@ public final class BytePattern {
         return new BytePattern(pattern,
                 copyFlags(flags),
                 trailing(root),
+                Analysis.byteLength(root)[1],
                 null,
                 nfa,
                 Analysis.onePassViolations(root),
@@ -373,6 +390,17 @@ public final class BytePattern {
      */
     public TrailingAnchor trailingAnchor() {
         return trailingAnchor;
+    }
+
+    /**
+     * The maximum bytes a match can span, or {@link Integer#MAX_VALUE} as the "no finite
+     * bound" sentinel — the other half of the tail-window licence ({@link #trailingAnchor()}):
+     * a pattern qualifies for the end-anchored jump only when both facts hold, and a caller
+     * (or fixture) can check the qualification instead of assuming it. The same static-length
+     * reasoning the JDK applies to lookbehind, published rather than re-derived.
+     */
+    public int maxLength() {
+        return maxLength;
     }
 
     private static TrailingAnchor trailing(final Hir root) {
