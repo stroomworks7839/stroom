@@ -1026,3 +1026,31 @@ its author's own ruling. Migration cannot silently convert lax to strict: DS3's 
 selection is template-priority-over-position, a strict group with an eater is
 position-priority-over-template, so conversion is an authoring act with audited output
 changes.
+
+## D37 — Complete inputs only: the streaming surface retires
+
+**Ruled by Jon, 2026-08-24.** The regex library supports byte arrays and byte slices —
+complete views, always — and the streaming machinery (`StreamMatcher`, growing
+`ByteWindow`s, `MatchOutcome.NEED_MORE_INPUT`, the `complete` flag threaded through every
+engine, the `edge`/`hitEnd` latches) retires. The project began as a streams-of-data
+design; the verdict, in the author's words, is that this "turned out to be nonsense and
+could also never work" for end-anchored matching — and the code agreed before the ruling
+did: the executor, the library's only production consumer, buffers and refills at the
+window level itself and has never once called the streaming entry. Every one of
+2026-08-24's features paid the growing-window toll for that zero-consumer mode (the tail
+window, the reverse finder, the harmonised gate, the endgame dispatch all carry
+exclusions), and the engines' hottest signatures carry a `complete` argument on frames
+where a single extra value measured −8.6%.
+
+What stays, deliberately: `contextEnd` and the beyond-region probe are **slice**
+semantics, not streaming — a slice can end mid-character while real bytes continue — so
+R1's gate survives intact. The fancy engine's `recordEdge`/`requireEnd` seam is partly
+lookaround machinery and is separated with care, not bulk-deleted. If resume-mid-input is
+ever genuinely needed, the Pike VM's self-contained thread state remains the natural seed
+and this ledger holds the design; the option is kept in escrow, not in live code.
+
+Execution (planned 2026-08-25): delete the stream-only surface and its tests; strip
+`complete`/`NEED_MORE`/edge bookkeeping from the five engines as a measured change —
+AnchoredSearchBenchmark and EndAnchoredSearchBenchmark either side, with the signature
+shrink (8 values back to 7) a plausible win on exactly the frames that have hurt all
+week; then the standing eight-angle audit, since the diff crosses the five hottest files.
