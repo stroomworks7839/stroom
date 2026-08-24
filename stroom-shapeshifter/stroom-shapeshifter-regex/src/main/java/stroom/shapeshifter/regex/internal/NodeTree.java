@@ -190,6 +190,7 @@ public final class NodeTree {
                           final boolean anchored,
                           final boolean complete,
                           final int[] slots) {
+            assert contextEnd >= to : "setContextEnd must bind the window before search";
             ctx.data = data;
             ctx.regionFrom = regionFrom;
             ctx.to = to;
@@ -968,6 +969,8 @@ public final class NodeTree {
                     if (at < pos && Utf8.isContinuation(ctx.data[at])) {
                         // No regionFrom exemption: the search gate has none, and a region that
                         // opens mid-character is no better a place to start a lookbehind body.
+                        // Deliberately not Utf8.splitsCharacter: at < pos keeps the probe inside
+                        // consumed input, so the beyond-region clause can never apply here.
                         continue;
                     }
                     if (sub.match(ctx, at)) {

@@ -94,7 +94,8 @@ public final class PikeVm {
     }
 
     /**
-     * Searches for a match.
+     * Searches for a match. The window's contextEnd must be bound via {@link #setContextEnd}
+     * before each call, or the answer at the region edge is wrong.
      *
      * @param anchored true to require the match to begin at {@code start}.
      * @param complete whether the window can still grow.
@@ -109,6 +110,9 @@ public final class PikeVm {
                       final boolean anchored,
                       final boolean complete,
                       final int[] slots) {
+        // No bind assert here, unlike the other three engines: the ~18 bytes it adds to this
+        // method measured -2% on anchored_hit and destabilised its forks (2026-08-24), so the
+        // contract sentence above carries the guard alone.
         current.clear();
         next.clear();
         hasMatch = false;

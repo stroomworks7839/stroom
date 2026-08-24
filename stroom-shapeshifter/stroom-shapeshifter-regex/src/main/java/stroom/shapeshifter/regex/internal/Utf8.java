@@ -101,11 +101,11 @@ public final class Utf8 {
      * what makes the read safe: on a stream window, bytes past the fill are stale garbage), and
      * never on a window that can still grow, where that byte has not arrived.
      *
-     * <p>The one shared start gate: every engine asks this question at every candidate start,
-     * and four private spellings of it had drifted into three behaviours — one consulting
-     * {@code data.length} where only {@code contextEnd} is safe, three not consulting beyond
-     * the region at all and so seeding empty matches mid-character at the region end that the
-     * simulation refuses.
+     * <p>The one shared search-start gate: every engine asks this question at every candidate
+     * match start — four private spellings had drifted into three behaviours before it (the
+     * audit ledger's R1 section holds the record). The two lookbehind body gates deliberately
+     * stay hand-rolled: a body start is probed at an offset below the cursor, always inside
+     * consumed input, so the beyond-region clause can never apply there.
      */
     public static boolean splitsCharacter(final byte[] data,
                                           final int at,

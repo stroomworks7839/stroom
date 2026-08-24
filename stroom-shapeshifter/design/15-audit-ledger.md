@@ -241,3 +241,40 @@ The benchmark gate earned its keep twice:
   joins 2026-08-22's: on these paths the *shape of the call* is a measured quantity — a
   parameter is not free, a field is not free, and the only way to know which one a row
   can afford is to run the benchmark either side.
+
+## The audit of R1's diff (2026-08-24) — eight angles, no defects, seven polishes
+
+`3538ef8c08` was reviewed by eight independent angles (line-by-line, removed-behavior,
+cross-file trace, reuse, simplification, altitude, efficiency, conventions). No correctness
+finding survived. The verdicts worth keeping:
+
+- **The lookbehind exemption removal is behavior-neutral for any compilable pattern.** The
+  line-by-line scan constructed the one nameable scenario — a lookbehind body whose first
+  byte is a bare continuation byte, over binary input — and the removed-behavior audit
+  refuted it: every compiled node's first byte is ASCII or a UTF-8 lead byte (chars ≥ 0x80
+  compile lead-byte-first; captures start on character boundaries), so no body could ever
+  have matched at a continuation byte. The old exemption was dead code wearing a comment.
+- **The `at == to` tightening in the three formerly-`at < to` engines is the unification's
+  point, not a regression**: an empty match can no longer seed mid-character at a complete
+  region's edge, which is the answer the simulation and the plan path already gave.
+- **Call-site discipline verified independently three times**: all six `search` sites bind
+  `setContextEnd` in the same basic block; no test, benchmark, or other production code
+  reaches an engine directly.
+
+Seven polishes were applied on the back of it, none touching behaviour: the six-site bind
+convention is now stated in `PikeVm#search`'s contract and enforced by
+`assert contextEnd >= to` in three engines (free under JIT, fatal under the test JVM's
+`-ea` — a forgotten seventh call site now fails loudly instead of silently reproducing the
+pre-R1 gate). `PikeVm` is exempted by measurement: the ~18 bytes the assert adds to
+`search` cost −2% on `anchored_hit` and destabilised its forks
+(`-anchored-r1-audit-fixes*.json`), so there the contract sentence carries the guard
+alone — the week's recurring lesson, that method size on these paths is a measured
+quantity, demonstrated once more; `ByteMatcher`'s `validTo` is renamed `contextEnd`, ending the one-class
+vocabulary seam; the wrapper's duplicate contract javadoc now points at
+`Utf8.splitsCharacter`, which owns it; that javadoc's "every engine" claim is scoped to
+search starts and names the two deliberately hand-rolled lookbehind gates (their probe
+sits below the cursor, inside consumed input, so the beyond-region clause cannot apply);
+the field-and-setter block sits in the same place in all four engines; and
+`FancyBacktracker`'s setter says what the cross-file trace proved — root only, children
+never search. The batch went through the anchored gate like everything else on these
+paths.

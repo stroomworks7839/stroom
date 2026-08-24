@@ -75,8 +75,9 @@ public final class ByteMatcher {
     private int regionFrom;
     private int regionTo;
     private boolean complete = true;
-    /** One past the last byte that may be consulted as context — the window's contextEnd. */
-    private int validTo;
+    /** One past the last byte that may be consulted as context — the window's contextEnd,
+     * bound into the engine before each search. */
+    private int contextEnd;
     private boolean matched;
 
     ByteMatcher(final BytePattern pattern) {
@@ -144,7 +145,7 @@ public final class ByteMatcher {
         this.data = window.array();
         this.regionFrom = window.start();
         this.regionTo = window.end();
-        this.validTo = window.contextEnd();
+        this.contextEnd = window.contextEnd();
         this.complete = window.complete();
         this.matched = false;
         return run(from, anchoring);
@@ -172,7 +173,7 @@ public final class ByteMatcher {
         this.data = data;
         this.regionFrom = from;
         this.regionTo = to;
-        this.validTo = data.length;
+        this.contextEnd = data.length;
         this.complete = true;
         this.matched = false;
         return run(from, anchoring) == MatchOutcome.MATCH;
@@ -206,7 +207,7 @@ public final class ByteMatcher {
     private MatchOutcome runPinnedTree(final int from, final boolean anchored) {
         Arrays.fill(slots, -1);
         try {
-            tree.setContextEnd(validTo);
+            tree.setContextEnd(contextEnd);
             final int end = tree.search(data, regionFrom, from, regionTo,
                     anchored, complete, slots);
             matched = end >= 0;
@@ -227,7 +228,7 @@ public final class ByteMatcher {
         Arrays.fill(slots, -1);
         if (tree != null) {
             try {
-                tree.setContextEnd(validTo);
+                tree.setContextEnd(contextEnd);
                 final int end = tree.search(data, regionFrom, from, regionTo,
                         anchored, complete, slots);
                 matched = end >= 0;
@@ -236,7 +237,7 @@ public final class ByteMatcher {
                 Arrays.fill(slots, -1); // a clean rerun, not a resume
             }
         }
-        fancy.setContextEnd(validTo);
+        fancy.setContextEnd(contextEnd);
         final int end = fancy.search(data, regionFrom, from, regionTo,
                 anchored, complete, slots);
         matched = end >= 0;
@@ -258,7 +259,7 @@ public final class ByteMatcher {
                         "backtracking was pinned but cannot run this pattern over "
                         + (regionTo - regionFrom) + " bytes");
             }
-            backtracker.setContextEnd(validTo);
+            backtracker.setContextEnd(contextEnd);
             final int end = backtracker.search(
                     data, regionFrom, from, regionTo, anchored, complete, slots);
             matched = end >= 0;
@@ -266,7 +267,7 @@ public final class ByteMatcher {
         }
         if (tree != null) {
             try {
-                tree.setContextEnd(validTo);
+                tree.setContextEnd(contextEnd);
                 final int end = tree.search(data, regionFrom, from, regionTo,
                         anchored, complete, slots);
                 matched = end >= 0;
@@ -277,7 +278,7 @@ public final class ByteMatcher {
         }
         // The VM searches for the leftmost match itself, advancing every live thread
         // together, rather than restarting an attempt at each offset.
-        vm.setContextEnd(validTo);
+        vm.setContextEnd(contextEnd);
         final int end = vm.search(data, regionFrom, from, regionTo,
                 anchored, complete, slots);
         matched = end >= 0;
@@ -338,17 +339,10 @@ public final class ByteMatcher {
                && data[start - 1] == '\n';
     }
 
-    /**
-     * Whether an offset falls inside a character, and so cannot begin a match — not even an empty
-     * one, which is the only kind that could. An offset that splits a character is of no use to a
-     * caller reading the text back.
-     * <p>
-     * The byte after the region is consulted when there is one and the window is complete, since a
-     * region can end inside a character; on a window that can still grow, the byte beyond it has
-     * not arrived and must not be read.
-     */
+    /** Asks {@link Utf8#splitsCharacter} — the contract lives there — with this matcher's
+     * bound window. */
     private boolean splitsCharacter(final int at) {
-        return Utf8.splitsCharacter(data, at, regionTo, complete, validTo);
+        return Utf8.splitsCharacter(data, at, regionTo, complete, contextEnd);
     }
 
     private MatchOutcome outcome(final int end) {

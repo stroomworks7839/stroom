@@ -116,6 +116,17 @@ public final class FancyBacktracker {
     private int[] undoValue = new int[64];
     private int undoSize;
 
+    /** One past the last consultable byte — bound window state, not a search argument;
+     * {@code PikeVm}'s field note records the measured reason. */
+    private int contextEnd;
+
+    /** Binds the window's contextEnd: one past the last byte {@code search} may consult.
+     * Root only: children run {@code attempt}/{@code matchBehind}, never {@code search},
+     * and are never bound. */
+    public void setContextEnd(final int contextEnd) {
+        this.contextEnd = contextEnd;
+    }
+
     public FancyBacktracker(final Nfa nfa) {
         this(nfa, new Context());
     }
@@ -145,15 +156,6 @@ public final class FancyBacktracker {
         this.markPos = new int[marks];
     }
 
-    /** One past the last consultable byte — bound window state, not a search argument;
-     * {@code PikeVm}'s field note records the measured reason. */
-    private int contextEnd;
-
-    /** Binds the window's contextEnd: one past the last byte {@code search} may consult. */
-    public void setContextEnd(final int contextEnd) {
-        this.contextEnd = contextEnd;
-    }
-
     /**
      * Searches for a match, with the same contract as {@link PikeVm#search}.
      *
@@ -167,6 +169,7 @@ public final class FancyBacktracker {
                       final boolean anchored,
                       final boolean complete,
                       final int[] slots) {
+        assert contextEnd >= to : "setContextEnd must bind the window before search";
         context.steps = STEP_BUDGET;
         context.hitEnd = false;
         context.searchStart = start;
@@ -518,6 +521,8 @@ public final class FancyBacktracker {
                 // A sub-match may not begin inside a character either. No regionFrom
                 // exemption: the search gate has none, and a region that opens mid-character
                 // is no better a place to start a lookbehind body than to start a match.
+                // Deliberately not Utf8.splitsCharacter: at < cursor keeps the probe inside
+                // consumed input, so the beyond-region clause can never apply here.
                 continue;
             }
             if (children[sub].attempt(data, regionFrom, at, to, cursor, recordEdge, slots) >= 0) {

@@ -99,6 +99,15 @@ public final class Backtracker {
 
     private boolean hitEnd;
 
+    /** One past the last consultable byte — bound window state, not a search argument;
+     * {@code PikeVm}'s field note records the measured reason. */
+    private int contextEnd;
+
+    /** Binds the window's contextEnd: one past the last byte {@code search} may consult. */
+    public void setContextEnd(final int contextEnd) {
+        this.contextEnd = contextEnd;
+    }
+
     public Backtracker(final Nfa nfa) {
         this.nfa = nfa;
         this.firstBytes = nfa.firstBytes();
@@ -118,15 +127,6 @@ public final class Backtracker {
         return supported && (long) nfa.size() * (length + 1) <= budgetBytes;
     }
 
-    /** One past the last consultable byte — bound window state, not a search argument;
-     * {@code PikeVm}'s field note records the measured reason. */
-    private int contextEnd;
-
-    /** Binds the window's contextEnd: one past the last byte {@code search} may consult. */
-    public void setContextEnd(final int contextEnd) {
-        this.contextEnd = contextEnd;
-    }
-
     /**
      * Searches for a match, with the same contract as {@link PikeVm#search}.
      *
@@ -139,6 +139,7 @@ public final class Backtracker {
                       final boolean anchored,
                       final boolean complete,
                       final int[] slots) {
+        assert contextEnd >= to : "setContextEnd must bind the window before search";
         prepare(regionFrom, to);
         hitEnd = false;
 
