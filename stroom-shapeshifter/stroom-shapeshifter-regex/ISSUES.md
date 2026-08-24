@@ -19,12 +19,6 @@ kept knowingly, with the reason.
 
 ---
 
-## R3 — Residual fully-qualified names
-
-**`open` (low, style).** `CharClass`, `Utf8`, `NfaCompiler` and `Normalise` still spell
-`java.util.*`/`java.nio.*` inline where the rest of the module imports. These four files were
-outside the audit's cleaned set; same treatment when next touched.
-
 ## R4 — `compileForcingNfa` is deprecated but not yet retired
 
 **`open` (low).** `BytePattern.compileForcingNfa` is `@Deprecated` in favour of

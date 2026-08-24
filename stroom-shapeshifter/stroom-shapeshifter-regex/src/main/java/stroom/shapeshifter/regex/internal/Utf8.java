@@ -16,7 +16,9 @@
 
 package stroom.shapeshifter.regex.internal;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 
@@ -175,7 +177,7 @@ public final class Utf8 {
     }
 
     public static byte[] encode(final int codePoint) {
-        return new String(Character.toChars(codePoint)).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return new String(Character.toChars(codePoint)).getBytes(StandardCharsets.UTF_8);
     }
 
     // -----------------------------------------------------------------------------------
@@ -274,13 +276,13 @@ public final class Utf8 {
 
     private static byte[] minTail(final int length) {
         final byte[] bytes = new byte[length];
-        java.util.Arrays.fill(bytes, (byte) 0x80);
+        Arrays.fill(bytes, (byte) 0x80);
         return bytes;
     }
 
     private static byte[] maxTail(final int length) {
         final byte[] bytes = new byte[length];
-        java.util.Arrays.fill(bytes, (byte) 0xBF);
+        Arrays.fill(bytes, (byte) 0xBF);
         return bytes;
     }
 

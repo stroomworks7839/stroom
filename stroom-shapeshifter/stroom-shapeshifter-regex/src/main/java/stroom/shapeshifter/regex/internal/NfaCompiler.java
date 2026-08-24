@@ -20,10 +20,12 @@ import stroom.shapeshifter.regex.PatternCompileException;
 import stroom.shapeshifter.regex.PatternCompileException.Reason;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.IntConsumer;
 
 /**
  * Compiles {@link Hir} into a Thompson NFA program.
@@ -380,7 +382,7 @@ public final class NfaCompiler {
         // different continuations — which happens when two code point ranges produce overlapping
         // lead ranges with different tails, and is rare enough to leave on the branch path.
         final int[] successors = new int[256];
-        java.util.Arrays.fill(successors, -1);
+        Arrays.fill(successors, -1);
         boolean disjoint = true;
         for (final int[] transition : dispatch) {
             for (final int value : bytesOf(transition)) {
@@ -494,7 +496,7 @@ public final class NfaCompiler {
     /**
      * Emits {@code count} alternatives in preference order, each ending in a jump past the rest.
      */
-    private void emitBranches(final int count, final java.util.function.IntConsumer emitBranch) {
+    private void emitBranches(final int count, final IntConsumer emitBranch) {
         final List<Integer> exitJumps = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             if (i < count - 1) {

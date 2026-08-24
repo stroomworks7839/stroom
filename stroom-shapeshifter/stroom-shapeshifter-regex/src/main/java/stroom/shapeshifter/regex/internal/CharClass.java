@@ -16,6 +16,9 @@
 
 package stroom.shapeshifter.regex.internal;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * A character class compiled for matching: the byte-range sequences that accept exactly its
  * members, plus a lead-byte table for fast rejection.
@@ -65,9 +68,9 @@ public final class CharClass {
 
         this.byLeadByte = new int[256][][];
         if (!asciiOnly) {
-            final java.util.List<java.util.List<int[]>> buckets = new java.util.ArrayList<>(256);
+            final List<List<int[]>> buckets = new ArrayList<>(256);
             for (int b = 0; b < 256; b++) {
-                buckets.add(new java.util.ArrayList<>(1));
+                buckets.add(new ArrayList<>(1));
             }
             for (final int[] sequence : sequences) {
                 for (int b = sequence[0]; b <= sequence[1]; b++) {

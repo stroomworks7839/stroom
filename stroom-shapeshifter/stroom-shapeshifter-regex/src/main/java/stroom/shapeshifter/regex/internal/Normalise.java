@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.regex.internal;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -134,7 +135,7 @@ public final class Normalise {
                 yield codePoint < 0
                         ? null
                         : new String(Character.toChars(codePoint))
-                                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                                .getBytes(StandardCharsets.UTF_8);
             }
             default -> null;
         };
