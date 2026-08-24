@@ -213,16 +213,22 @@ public final class Plan {
     private static String renderBranch(final int[] table) {
         final StringBuilder sb = new StringBuilder();
         int shown = 0;
-        for (int i = 0; i < 256 && shown < 6; i++) {
-            if (table[i] != NO_TARGET) {
+        int at = 0;
+        for (; at < 256 && shown < 6; at++) {
+            if (table[at] != NO_TARGET) {
                 if (shown++ > 0) {
                     sb.append(", ");
                 }
-                sb.append(render(i)).append("->").append(table[i]);
+                sb.append(render(at)).append("->").append(table[at]);
             }
         }
-        if (shown == 6) {
-            sb.append(", ...");
+        // The ellipsis claims elision, so it appears only when an entry actually went unshown —
+        // a table of exactly six is rendered whole.
+        for (; at < 256; at++) {
+            if (table[at] != NO_TARGET) {
+                sb.append(", ...");
+                break;
+            }
         }
         sb.append(" default->").append(table[BRANCH_DEFAULT] == NO_TARGET
                 ? "fail"

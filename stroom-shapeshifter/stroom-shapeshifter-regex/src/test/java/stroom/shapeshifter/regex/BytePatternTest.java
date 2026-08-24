@@ -350,4 +350,16 @@ class BytePatternTest {
         assertThat(BytePattern.compile("^(\\S+) (\\S+)").explain()).contains("tier:    0");
         assertThat(BytePattern.compile("[a-z]+=[^,]+").explain()).contains("tier:    0");
     }
+
+    @Test
+    void elidesBranchEntriesOnlyWhenSomethingIsElided() {
+        // Exactly six mapped bytes fill the cap: the table is rendered whole, no ellipsis.
+        assertThat(BytePattern.compile("^(aa|bb|cc|dd|ee|ff)x").explain())
+                .contains("'f'->13 default->fail")
+                .doesNotContain(", ...");
+
+        // A seventh entry is elided, and the ellipsis says so.
+        assertThat(BytePattern.compile("^(aa|bb|cc|dd|ee|ff|gg)x").explain())
+                .contains("'f'->13, ... default->fail");
+    }
 }

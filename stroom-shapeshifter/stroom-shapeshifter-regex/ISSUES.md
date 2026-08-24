@@ -19,12 +19,6 @@ kept knowingly, with the reason.
 
 ---
 
-## R2 — `Plan.describe` prints an ellipsis for exactly six branches
-
-**`open` (low).** `Plan.java`: the dispatch-table renderer shows at most six entries and
-appends `", ..."` whenever `shown == 6` — including when the table has exactly six, eliding
-nothing. Diagnostics-only output; the fix is remembering whether the loop stopped early.
-
 ## R3 — Residual fully-qualified names
 
 **`open` (low, style).** `CharClass`, `Utf8`, `NfaCompiler` and `Normalise` still spell
