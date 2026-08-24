@@ -143,6 +143,34 @@ class EngineBehaviourTest {
     }
 
     @Test
+    void refusesAnEndAnchoredMatchAgainstAFullBuffersEdge() {
+        // For an end-of-input-anchored pattern the full-buffer warning case is not a maybe:
+        // every match ends exactly at the region end, so matching to the edge of a full
+        // buffer with input unread has provably matched the wrong end. The published
+        // trailing-anchor fact upgrades the warning to an error.
+        final Run result = run("""
+                {
+                  "name": "endanchored", "version": 3,
+                  "source": {"buffer_size": 4, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "tail", "mode": "row",
+                     "match": {"regex": {"pattern": "([a-z]+)$"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}
+                  ]
+                }
+                """, "abcdefgh");
+        assertThat(result.messages()).isNotEmpty();
+        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.ERROR);
+        assertThat(result.messages().getFirst().text())
+                .contains("anchored to the end of input")
+                .contains("buffer_size");
+    }
+
+    @Test
     void doesNotWarnWhenTheBufferMerelyRanOut() {
         // The last buffer of a stream is short, and consuming all of it means the input ended —
         // not that a record was cut in half.

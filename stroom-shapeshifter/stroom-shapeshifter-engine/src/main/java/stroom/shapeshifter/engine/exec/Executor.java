@@ -35,6 +35,7 @@ import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
+import stroom.shapeshifter.regex.TrailingAnchor;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -580,6 +581,22 @@ public final class Executor {
             }
 
             if (end == filled && !eof) {
+                // For an end-of-input-anchored pattern this is not a maybe: every match ends
+                // exactly at the region end, so a full-buffer match with input unread has
+                // provably matched the buffer's end, not the input's. The library publishes
+                // the fact (BytePattern.trailingAnchor(), single-sourced from its parser, as
+                // D35 established for the leading anchor), so the refusal is certain, not a
+                // sniff.
+                if (candidate.match() instanceof CompiledMatch.Regex regex
+                    && regex.pattern().trailingAnchor() == TrailingAnchor.INPUT) {
+                    messages.add(new Message(Severity.ERROR,
+                            "Template '" + template.name() + "' is anchored to the end of "
+                            + "input but matched to the end of a full buffer with input still "
+                            + "unread — the match is against the buffer's edge, not the "
+                            + "input's end. Increase source buffer_size (currently "
+                            + capacity + ")."));
+                    break;
+                }
                 messages.add(new Message(Severity.WARNING, "Expressions consumed entire buffer ("
                                                            + match.advance()
                                                            + " bytes). If data is truncated, increase source "

@@ -424,6 +424,68 @@ public final class Analysis {
     public static final int UNBOUNDED_LENGTH = Integer.MAX_VALUE;
 
     /**
+     * The trailing anchor every match of this node ends on: {@link Hir.Kind#END_INPUT},
+     * {@link Hir.Kind#END_LINE}, or null for none — the mirror of the leading-anchor
+     * analysis, published through {@code BytePattern.trailingAnchor()}.
+     *
+     * <p>Conservative in the leading analysis's manner: the backward walk through a concat
+     * looks only through <em>pure zero-width</em> items ({@code max == 0}). Looking through
+     * an empty-capable item that can also consume — {@code a$x?} — would be sound for
+     * {@code END_INPUT}, where nothing can be consumed past the region end, but is provably
+     * unsound for {@code END_LINE}: {@code (?m)a$\n?} can end just past a line end. One rule,
+     * the safe direction; null loses a caller a fast path, never a match.
+     */
+    public static Hir.Kind trailingAnchor(final Hir node) {
+        return switch (node) {
+            case Hir.Assertion assertion ->
+                    assertion.kind() == Hir.Kind.END_INPUT || assertion.kind() == Hir.Kind.END_LINE
+                            ? assertion.kind()
+                            : null;
+            case Hir.Group group -> trailingAnchor(group.body());
+            case Hir.Atomic atomic -> trailingAnchor(atomic.body());
+            case Hir.Concat concat -> {
+                for (int i = concat.items().size() - 1; i >= 0; i--) {
+                    final Hir item = concat.items().get(i);
+                    final Hir.Kind kind = trailingAnchor(item);
+                    if (kind != null) {
+                        yield kind;
+                    }
+                    if (byteLength(item)[1] > 0) {
+                        yield null;
+                    }
+                }
+                yield null;
+            }
+            case Hir.Alt alt -> {
+                // The weakest branch governs: INPUT only if every branch is INPUT, LINE if
+                // every branch is at least LINE, null the moment any branch is unanchored.
+                Hir.Kind weakest = Hir.Kind.END_INPUT;
+                for (final Hir branch : alt.branches()) {
+                    final Hir.Kind kind = trailingAnchor(branch);
+                    if (kind == null) {
+                        yield null;
+                    }
+                    if (kind == Hir.Kind.END_LINE) {
+                        weakest = Hir.Kind.END_LINE;
+                    }
+                }
+                yield weakest;
+            }
+            // Every iteration ends with a full match of the body, so the last one carries the
+            // body's anchor — unless zero iterations are allowed, when a match can be empty
+            // and end anywhere.
+            case Hir.Repeat repeat -> repeat.min() >= 1
+                    ? trailingAnchor(repeat.body())
+                    : null;
+            case Hir.Empty ignored -> null;
+            case Hir.Look ignored -> null;
+            case Hir.Bytes ignored -> null;
+            case Hir.CharClass ignored -> null;
+            case Hir.Backref ignored -> null;
+        };
+    }
+
+    /**
      * The minimum and maximum number of bytes a match of this node can span, with
      * {@link #UNBOUNDED_LENGTH} for "no maximum". What makes bounded lookbehind implementable:
      * the candidate start positions for a match ending at the cursor are exactly

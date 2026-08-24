@@ -182,6 +182,22 @@ is guaranteed to mean "matched end of buffer, not end of stream", and the fact l
 executor upgrade that warning to an error for exactly those patterns, with the leading
 anchor's D35 usage as the precedent.
 
+*Landed 2026-08-24.* `Analysis.trailingAnchor` walks the normalised parse; the published
+`BytePattern.trailingAnchor()` is computed once there, so every artifact agrees by
+construction (`TrailingAnchorTest` pins it on all four forced engines). The pins include
+the one deliberate conservatism, with its reason spelled out: the backward concat walk
+looks only through pure zero-width tails, because looking through an empty-capable
+consumer — sound for `END_INPUT`, where nothing is consumable past the region end — is
+provably unsound for `END_LINE` (`(?m)a$
+?` can end just past a line end); one rule, the
+safe direction. Unlike its mirror, the analysis does look through alternations — the
+weakest branch governs. And the executor customer landed with it: an end-anchored match
+consuming a full buffer with input unread is now an error naming the certainty, not a
+warning hedging it (`EngineBehaviourTest.refusesAnEndAnchoredMatchAgainstAFullBuffersEdge`).
+No benchmark gate was run, with reason: the fact is computed at compile time, and the
+executor branch sits inside the already-cold truncation case — nothing here touches a
+measured path.
+
 **Phase 2 — the tail-window jump.** Unanchored search, complete window,
 `trailingAnchor == INPUT`, finite `max`: the first candidate start becomes
 `max(from, to − max)`. Soundness is `byteLength`'s own theorem — no match ending at `to`

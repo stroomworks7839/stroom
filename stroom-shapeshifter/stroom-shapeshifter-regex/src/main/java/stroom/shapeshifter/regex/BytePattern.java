@@ -73,6 +73,10 @@ public final class BytePattern {
 
     private final String pattern;
     private final Set<Flag> flags;
+
+    /** The parser's trailing-anchor conclusion, computed once from the normalised parse and
+     * published through {@link #trailingAnchor()} — the mirror of the leading fact. */
+    private final TrailingAnchor trailingAnchor;
     private final Plan plan;
     private final Nfa nfa;
     private final List<Analysis.Violation> ambiguities;
@@ -95,27 +99,31 @@ public final class BytePattern {
 
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
+                        final TrailingAnchor trailingAnchor,
                         final Plan plan,
                         final Nfa nfa,
                         final List<Analysis.Violation> ambiguities,
                         final List<String> warnings,
                         final List<String> groupNames) {
-        this(pattern, flags, plan, nfa, ambiguities, warnings, groupNames, null);
+        this(pattern, flags, trailingAnchor, plan, nfa, ambiguities, warnings, groupNames, null);
     }
 
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
+                        final TrailingAnchor trailingAnchor,
                         final Plan plan,
                         final Nfa nfa,
                         final List<Analysis.Violation> ambiguities,
                         final List<String> warnings,
                         final List<String> groupNames,
                         final Engine forced) {
-        this(pattern, flags, plan, nfa, ambiguities, warnings, groupNames, forced, null);
+        this(pattern, flags, trailingAnchor, plan, nfa, ambiguities, warnings, groupNames,
+                forced, null);
     }
 
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
+                        final TrailingAnchor trailingAnchor,
                         final Plan plan,
                         final Nfa nfa,
                         final List<Analysis.Violation> ambiguities,
@@ -127,6 +135,7 @@ public final class BytePattern {
         this.forced = forced;
         this.pattern = pattern;
         this.flags = flags;
+        this.trailingAnchor = trailingAnchor;
         this.plan = plan;
         this.nfa = nfa;
         this.ambiguities = ambiguities;
@@ -183,7 +192,7 @@ public final class BytePattern {
             final Nfa nfa = NfaCompiler.compileFancy(root, groupCount, multiline, description);
             // The tree engine is the primary for fancy patterns (D31); the flat engine stays
             // as the structural fallback when recursion depth gives out.
-            return new BytePattern(description, copy, null, nfa,
+            return new BytePattern(description, copy, trailing(root), null, nfa,
                     List.of(), Analysis.warnings(root), groupNames, null,
                     NodeTree.compile(
                             root, groupCount, description));
@@ -195,12 +204,14 @@ public final class BytePattern {
         final List<Analysis.Violation> violations = Analysis.onePassViolations(root);
         if (violations.isEmpty()) {
             final Plan plan = PlanCompiler.compile(root, groupCount, multiline, description);
-            return new BytePattern(description, copy, plan, null, violations, warnings, groupNames);
+            return new BytePattern(description, copy, trailing(root), plan, null,
+                    violations, warnings, groupNames);
         }
         final Nfa nfa = NfaCompiler.compile(root, groupCount, multiline, description);
         // Ambiguous patterns carry the tree too: it takes the searches the bounded
         // backtracker's budget refuses, with the simulation as the linear-time fallback (D31).
-        return new BytePattern(description, copy, null, nfa, violations, warnings, groupNames,
+        return new BytePattern(description, copy, trailing(root), null, nfa,
+                violations, warnings, groupNames,
                 null, NodeTree.compile(
                         root, groupCount, description));
     }
@@ -255,7 +266,7 @@ public final class BytePattern {
             final NodeTree.Compiled tree =
                     NodeTree.compile(
                             root, parsed.groupCount(), pattern);
-            return new BytePattern(pattern, copyFlags(flags), null, null,
+            return new BytePattern(pattern, copyFlags(flags), trailing(root), null, null,
                     List.of(), Analysis.warnings(root), parsed.groupNames(), engine, tree);
         }
         final BytePattern compiled = compileNfa(pattern, flags);
@@ -264,7 +275,8 @@ public final class BytePattern {
                     "the pattern needs the unbounded backtracker, which cannot be overridden: "
                     + pattern);
         }
-        return new BytePattern(compiled.pattern, compiled.flags, null, compiled.nfa,
+        return new BytePattern(compiled.pattern, compiled.flags, compiled.trailingAnchor,
+                null, compiled.nfa,
                 compiled.ambiguities, compiled.warnings, compiled.groupNames, engine);
     }
 
@@ -288,6 +300,7 @@ public final class BytePattern {
         final Nfa nfa = NfaCompiler.compile(root, parsed.groupCount(), multiline, pattern);
         return new BytePattern(pattern,
                 copyFlags(flags),
+                trailing(root),
                 null,
                 nfa,
                 Analysis.onePassViolations(root),
@@ -346,6 +359,27 @@ public final class BytePattern {
         return anchor == Nfa.ANCHOR_INPUT
                 ? LeadingAnchor.INPUT
                 : anchor == Nfa.ANCHOR_LINE ? LeadingAnchor.LINE : LeadingAnchor.NONE;
+    }
+
+    /**
+     * The trailing anchor the parser found — the mirror of {@link #leadingAnchor()}, computed
+     * once from the normalised parse, so every compiled artifact carries the same conclusion.
+     *
+     * <p>Every match of a {@link TrailingAnchor#INPUT} pattern ends exactly at the region
+     * end. A dispatching caller matching such a pattern against a buffer it knows to be a
+     * partial view can therefore refuse an edge-touching match outright — it matched the
+     * buffer's end, not the input's — and the search shortcuts of the end-anchor programme
+     * ({@code design/06-performance-plan.md} §6) are licensed by the same fact.
+     */
+    public TrailingAnchor trailingAnchor() {
+        return trailingAnchor;
+    }
+
+    private static TrailingAnchor trailing(final Hir root) {
+        final Hir.Kind kind = Analysis.trailingAnchor(root);
+        return kind == null
+                ? TrailingAnchor.NONE
+                : kind == Hir.Kind.END_LINE ? TrailingAnchor.LINE : TrailingAnchor.INPUT;
     }
 
     public String pattern() {
