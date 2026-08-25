@@ -15,27 +15,70 @@ behind `EndAnchoredSearchBenchmark`). Behavioural divergences from `java.util.re
 repetition) and the two that turned out to be defects and are now pinned agreements.
 
 **Status** is one of: `open` — decided against nothing yet; `accepted` — a measured cost,
-kept knowingly, with the reason.
+kept knowingly, with the reason; `superseded` — an accepted cost whose reasoning a later
+measurement overturned, kept in place with the correction above it, because an entry that
+was believed and acted on is part of the record.
 
-As of 2026-08-24 nothing is `open`: R1 landed with its benchmark gate (accepted costs
-below), R2 and R3 were fixed outright, and R4's two callers were migrated to
-`compileForcing(Engine.SIMULATE, ...)` — machine-for-machine identical for every affected
-pattern — and the deprecated method deleted. What remains in this file is the accepted-cost
-record.
+As of 2026-08-25 one item is `open`: the tail-window machinery's cost on buffer
+workloads, found by the first full-suite run since Phase 2 landed and bisected to it. R1
+landed with its benchmark gate (accepted costs below), R2 and R3 were fixed outright, and
+R4's two callers were migrated to `compileForcing(Engine.SIMULATE, ...)` —
+machine-for-machine identical for every affected pattern — and the deprecated method
+deleted. What remains in this file is the accepted-cost record and the one open item.
 
 ---
 
 ## Accepted costs — measured, kept, and why
 
+**The tail-window machinery costs −12–14% on buffer workloads that never jump
+(`open`, measured 2026-08-25 — supersedes the accepted entry below).** The nightly
+gate's first full-suite run since Phase 2 found buffer CSV at −11.3%, per-match `quoted`
+−8.0%, `datetime` −5.0%, with `shapeshifterTree` and every JDK row flat on the same
+workloads; an independent re-check pair reproduced it (−12.7%, −4.4%, −3.8%). A
+per-commit bisect of the day put the whole step on Phase 2 (`986453c675`): 3,475–3,507
+ops/s through R1, R4, Phase 0 and Phase 1, then 3,017, and flat after. CSV is
+`^([^,]+),([^,]+),([^,]+),([^,]+)$` under MULTILINE — no END_INPUT anchor, no finite
+maximum — so it can never jump. It pays and buys nothing.
+
+The cost is not the branch, and the accepted entry below is wrong about where it lives.
+Six variants, measured back to back: stripping both entry points to the pre-Phase-2
+`run(from, anchoring)` gives 3,026; the early-return hoist 3,069; the three fields moved
+below the mutable ones 3,101; one boolean in place of three fields 3,044; control 3,121.
+Removing the machinery from `ByteMatcher` entirely — fields, constructor computation,
+`endgameSearch`, entry ternary — restores it exactly: 3,512 ±10 against the pre-Phase-2
+3,488 ±13. The discriminator is a pair with identical hot-path bytecode: the strip build
+and the fields-out build both compile `match(byte[],int,int,Anchoring)` to 81 bytecodes,
+and differ only in three instance fields — 3,026 against 3,512.
+
+`PrintInlining` across a fast build and a slow one returns the same verdict for every
+method in the hot chain — `run` (110 bytes), `searchPlan` (204), `attempt` (64),
+`PlanRunner::run` (992) — so no inlining decision flips; only `match` itself grows 82→114
+bytecodes when the ternary is present, and the strip build shows that growth is not the
+cost either. What the per-fork numbers show is a mode change: before Phase 2, 3483 3470
+3507 3481 3499; machinery out, 3511 3516 3499 3511 3523; control, 3046 3187 3022 3184
+3168 — two clusters, the higher one still short of clean. It is R1's ninth argument
+again, one layer down: instance state this time rather than a stack slot.
+
+Not a revert — the jump still buys the bounded end-anchored rows three to four orders of
+magnitude. A fix is a design question: get the end-anchored state off the common
+matcher's shape, which is the option the entry below dismissed as "per-pattern code
+selection". Evidence: `2026-08-24-2117`/`-2252` (the gate pair), `2026-08-25-01xx`
+(re-checks), `2026-08-25-07xx/08xx-*-bisect-csv.json` (the bisect),
+`2026-08-25-09xx-*-variant-*.json` (the six variants).
+
 **The tail-window jump costs one cycle per match on patterns that never jump
-(`accepted`, 2026-08-24).** §6 Phase 2's clamp is a single guarded check ahead of the
-engine dispatcher (`ByteMatcher.tailFrom`); for every pattern without an END_INPUT anchor
-and a finite maximum it is one predicted-false branch, which is invisible everywhere real
-work happens and −7–9% on `anchored_miss` — rows whose whole operation is a 3–9 ns instant
-rejection. No cheaper placement exists: the engine prologues would pay the same cycle in
-the same rows, and per-pattern code selection is not this codebase. What the cycle buys:
-the bounded end-anchored rows moved from ~520 ops/s to 3.4–5.2M ops/s — three to four
-orders of magnitude — while the JDK control stood still. Evidence:
+(`superseded`, 2026-08-24).** *Kept as recorded: what follows was true of the rows it
+measured and wrong in its reach — the sentence "invisible everywhere real work happens"
+was written from a gate that ran the anchored and end-anchored suites and never re-ran
+`CorpusBenchmark`. D32's lesson, arriving a third time: confirm the tiers a change
+touched, not the workloads it aimed at.* §6 Phase 2's clamp is a single guarded check
+ahead of the engine dispatcher (`ByteMatcher.tailFrom`); for every pattern without an
+END_INPUT anchor and a finite maximum it is one predicted-false branch, which is invisible
+everywhere real work happens and −7–9% on `anchored_miss` — rows whose whole operation is
+a 3–9 ns instant rejection. No cheaper placement exists: the engine prologues would pay
+the same cycle in the same rows, and per-pattern code selection is not this codebase. What
+the cycle buys: the bounded end-anchored rows moved from ~520 ops/s to 3.4–5.2M ops/s —
+three to four orders of magnitude — while the JDK control stood still. Evidence:
 `2026-08-24-14xx-*-anchored-p2-{before,after}.json` and
 `-endanchored-p2-{before,after}.json`, same boot, adjacent runs.
 
