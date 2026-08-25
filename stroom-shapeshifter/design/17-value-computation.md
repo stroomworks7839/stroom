@@ -605,6 +605,22 @@ a missing marker, `format-number`'s ordinary pictures and one documented edge. C
 `arithmetic`, `value_types`, `string_functions` extended.
 *Exit: the three cases byte-identical to Saxon live, messages clean.*
 
+*Audited 2026-08-25, diff-scoped, landed as `d0b7f66a52`. One defect found and fixed same
+day: Java's long division wraps its single unrepresentable case silently — `MIN_VALUE / -1`
+is `MIN_VALUE`, a negative "answer" for a positive quotient, the plausible wrong number §11
+exists to prevent — where the exact folds get an `ArithmeticException` to catch; `divide`
+now guards the pair and promotes, pinned in `TransformsTest` beside its modulus twin (which
+has a long answer, 0, and keeps it). Phase 1's hand-forward completed: the instructions that
+first bind non-`Bytes` are `number` and the nine arithmetic ops (`Int`/`Real`), the three
+predicates (`Bool`) and `string-length` (`Int`); every store reader routes through
+`Refs.lookup` and the casts, none pattern-matches `Bytes` exclusively, and the one
+`toString` in reach is a `StringBuilder`, so no output path can leak a record rendering.
+Two scope notes: `value_types`' challenger guards on `[0-9]` where the stylesheet guards on
+`castable as` — equivalent over the authored input, not in general, which is a catalogue
+case's licence; and tonight's §13 comparison must exclude the `string_functions` row —
+its input grew a marker-absent row, so the workload moved with the feature — along with the
+two new rows, which have no before.*
+
 **Phase 3 — the comparison spine.**
 §8 in full: the strict rule and `Int`↔`Real` promotion through `Conditions`, the operand
 `as`-cast, the `eq`/`ne`/`lt`/`le`/`gt`/`ge` spellings with the legacy aliases carrying

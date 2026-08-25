@@ -192,6 +192,12 @@ public final class Transforms {
             if (longs[1] == 0) {
                 return null;
             }
+            if (longs[0] == Long.MIN_VALUE && longs[1] == -1) {
+                // The one long division with no long answer: Java's / wraps it silently to
+                // MIN_VALUE — a negative result for a positive quotient. Promotion, not
+                // wrapping (§11), exactly as the exact folds already do via ArithmeticException.
+                return new TypedValue.Real(-(double) Long.MIN_VALUE);
+            }
             return longs[0] % longs[1] == 0
                     ? new TypedValue.Int(longs[0] / longs[1])
                     : new TypedValue.Real((double) longs[0] / longs[1]);

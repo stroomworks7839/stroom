@@ -140,6 +140,17 @@ class TransformsTest {
     }
 
     @Test
+    void divideOfMinValueByMinusOnePromotesRatherThanWrapping() {
+        // Java's long / wraps this one silently: MIN / -1 == MIN, a negative "answer" for a
+        // positive quotient. Found by the phase 2 audit; the promotion rule covers it (§11).
+        final TypedValue result = Transforms.divide(vals(String.valueOf(Long.MIN_VALUE), "-1"));
+        assertThat(result).isInstanceOf(TypedValue.Real.class);
+        assertThat(result.asNumber()).isEqualTo(-(double) Long.MIN_VALUE);
+        // Its modulus twin has a long answer and keeps it.
+        assertThat(text(Transforms.mod(vals(String.valueOf(Long.MIN_VALUE), "-1")))).isEqualTo("0");
+    }
+
+    @Test
     void modSignFollowsTheDividend() {
         assertThat(text(Transforms.mod(vals("7", "3")))).isEqualTo("1");
         // XPath's mod and Java's %: -7 mod 3 is -1, not 2.
