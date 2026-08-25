@@ -633,6 +633,25 @@ byte-wise string comparison agreeing with decoded comparison on multi-byte input
 *Exit: the corpus byte-identical (the legacy-alias proof); evening comparison against
 baseline indistinguishable on non-new rows; 16's phase 2 unblocks.*
 
+*Audited 2026-08-25, diff-scoped, landed as `b124bb6064`. One finding, same shape as phase
+1's and its completion: the alias mapping preserved legacy behaviour for present values and
+missed the legacy **absent** rule. The old evaluator read an absent side as the empty
+string, so `not-equals($missing, "x")` was true, `equals($missing, "")` was an absence
+test, and `ref-equals` with both sides absent was true — three truth tables the strict
+`eq`/`ne` (absent never compares) would have silently flipped. The corpus never exercises
+any of them, which is why every golden held and also why no gate would ever have caught it.
+The aliases now spell the legacy rule out in existing vocabulary — `not-equals` is
+`not(eq(...))`, an empty literal becomes an `exists` test, `ref-equals` carries its
+both-absent case as an explicit disjunct — and all four truth tables are pinned in
+`CompareSpineTest`, including the proof that the new spellings do **not** inherit the old
+rule. Verified beside it: the unsigned byte comparison (signed would say é < m), the exact
+`Int`/`Int` path above 2^53, cast identity on already-`Bytes` strings (no allocation on the
+guard path), literal JSON typing round-tripping `Whole` against `Fractional`, and the lint
+walking guards, `if`, `choose`, `switch` bodies and `variable` bodies. One perf watch:
+a literal `Text` operand materialises its bytes per evaluation; conditions stay authored by
+design (10-engine-compilation), so this is the interning candidate if tonight's numbers
+ask.*
+
 **Phase 4 — dates.**
 §9: the `Instant` variant, `parse-date`/`format-date` with the formatter compiled once and
 the reserved names bypassing it, the `reference` mechanism, the yearless compile-time error.

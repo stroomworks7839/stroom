@@ -801,9 +801,18 @@ public final class ProjectJson {
             }
             case "ref-equals" -> {
                 checkFields(body, "ref-equals", "left", "right");
-                yield new Condition.Compare(Condition.Compare.Op.EQ,
-                        new Condition.Operand(readRef(required(body, "left", "ref-equals")), null, Cast.STRING),
-                        new Condition.Operand(readRef(required(body, "right", "ref-equals")), null, Cast.STRING));
+                // Legacy ref-equals read both sides through "absent counts as empty", so two
+                // absent sides were equal. The strict eq says absent never compares — the
+                // both-absent case rides alongside explicitly (the phase 3 audit's finding).
+                final RefExpression left = readRef(required(body, "left", "ref-equals"));
+                final RefExpression right = readRef(required(body, "right", "ref-equals"));
+                yield new Condition.Or(List.of(
+                        new Condition.Compare(Condition.Compare.Op.EQ,
+                                new Condition.Operand(left, null, Cast.STRING),
+                                new Condition.Operand(right, null, Cast.STRING)),
+                        new Condition.And(List.of(
+                                new Condition.Not(new Condition.Exists(left)),
+                                new Condition.Not(new Condition.Exists(right))))));
             }
             case "matches" -> {
                 checkFields(body, "matches", "select", "pattern");
@@ -850,13 +859,27 @@ public final class ProjectJson {
                 readOperand(required(body, "right", "comparison")));
     }
 
-    /** A legacy equality: string forms compared, whatever the types (design/17 §8). */
+    /**
+     * A legacy equality: string forms compared, whatever the types (design/17 §8) — with the
+     * legacy absent rule preserved exactly (the phase 3 audit's finding). The old evaluator
+     * read an absent side as the empty string, so {@code equals($x, "")} was an absence test
+     * and {@code not-equals($x, "v")} was true on a missing field. The strict {@code eq}
+     * says absent never compares, so the aliases spell those cases out: an empty literal
+     * becomes an {@code exists} test, and {@code not-equals} becomes {@code not(eq(...))},
+     * which is true on absence exactly as the old reading was.
+     */
     private static Condition stringEquality(final Condition.Compare.Op op,
                                             final RefExpression select,
                                             final String value) {
-        return new Condition.Compare(op,
+        if (value.isEmpty()) {
+            // Empty is absent: matching "" is exactly "there is no value".
+            final Condition missing = new Condition.Not(new Condition.Exists(select));
+            return op == Condition.Compare.Op.EQ ? missing : new Condition.Exists(select);
+        }
+        final Condition equal = new Condition.Compare(Condition.Compare.Op.EQ,
                 new Condition.Operand(select, null, Cast.STRING),
                 new Condition.Operand(null, new Condition.Literal.Text(value), Cast.STRING));
+        return op == Condition.Compare.Op.EQ ? equal : new Condition.Not(equal);
     }
 
     /** A legacy ordering: the numeric parse it always performed, made visible. */
@@ -892,7 +915,7 @@ public final class ProjectJson {
         // The literal's JSON type is its declared type (design/17 §8).
         final JsonNode value = node.get("value");
         final Condition.Literal literal;
-        if (value.isTextual()) {
+        if (value.isString()) {
             literal = new Condition.Literal.Text(value.asString());
         } else if (value.isBoolean()) {
             literal = new Condition.Literal.Truth(value.asBoolean());

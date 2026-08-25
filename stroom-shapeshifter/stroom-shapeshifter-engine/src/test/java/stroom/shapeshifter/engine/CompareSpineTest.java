@@ -157,6 +157,63 @@ class CompareSpineTest {
     }
 
     // -----------------------------------------------------------------------------------
+    // The legacy absent rule, preserved through the aliases (the phase 3 audit's finding).
+    // The old evaluator read an absent side as the empty string; the strict rule says
+    // absent never compares. The aliases carry the difference so the corpus cannot notice.
+    // -----------------------------------------------------------------------------------
+
+    private static boolean evaluate(final Condition condition) {
+        // No match, no variables: every reference is absent.
+        return stroom.shapeshifter.engine.exec.Conditions.evaluate(condition,
+                stroom.shapeshifter.engine.exec.MatchResult.empty(), 1,
+                new stroom.shapeshifter.engine.exec.VarRegistry(),
+                stroom.shapeshifter.engine.text.Encoding.UTF_8, java.util.Map.of());
+    }
+
+    private static final String MISSING_REF =
+            "{\"parts\": [{\"capture\": {\"var_id\": \"missing\", \"group\": 0}}]}";
+
+    @Test
+    void legacyNotEqualsIsTrueOnAnAbsentField() {
+        // Old reading: "" != "x". The plain ne would say false; the alias spells not(eq).
+        final Condition condition = readGuard(
+                "{\"not-equals\": {\"select\": " + MISSING_REF + ", \"value\": \"x\"}}");
+        assertThat(condition).isInstanceOf(Condition.Not.class);
+        assertThat(evaluate(condition)).isTrue();
+    }
+
+    @Test
+    void legacyEqualsWithAnEmptyLiteralIsAnAbsenceTest() {
+        // Old reading: text("") equals "" — true exactly when the field is missing, because
+        // empty is absent. The alias spells it as what it is: not(exists).
+        final Condition condition = readGuard(
+                "{\"equals\": {\"select\": " + MISSING_REF + ", \"value\": \"\"}}");
+        assertThat(condition).isEqualTo(new Condition.Not(new Condition.Exists(
+                new stroom.shapeshifter.engine.config.RefExpression(java.util.List.of(
+                        new stroom.shapeshifter.engine.config.RefExpression.RefPart.Capture(
+                                "missing", 0, null))))));
+        assertThat(evaluate(condition)).isTrue();
+    }
+
+    @Test
+    void legacyRefEqualsIsTrueWhenBothSidesAreAbsent() {
+        // Old reading: "" equals "". The strict eq alone would say false; the both-absent
+        // case rides alongside explicitly.
+        final Condition condition = readGuard(
+                "{\"ref-equals\": {\"left\": " + MISSING_REF + ", \"right\": " + MISSING_REF + "}}");
+        assertThat(condition).isInstanceOf(Condition.Or.class);
+        assertThat(evaluate(condition)).isTrue();
+    }
+
+    @Test
+    void theNewSpellingsKeepTheStrictRuleOnAbsence() {
+        // The aliases preserve the old world; the new vocabulary does not inherit it.
+        final Condition condition = readGuard(
+                "{\"ne\": {\"left\": {\"ref\": " + MISSING_REF + "}, \"right\": {\"value\": \"x\"}}}");
+        assertThat(evaluate(condition)).isFalse();
+    }
+
+    // -----------------------------------------------------------------------------------
     // The lint, and the date refusal
     // -----------------------------------------------------------------------------------
 
