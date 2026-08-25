@@ -36,7 +36,13 @@ failure shape measured permanently.
 the tiers it *touched*, not only the workloads it targeted. D32's confirmation measured its
 target categories and shipped a silent 24% regression on buffer CSV — an inlining cliff from
 `ByteMatcher.run()`'s accumulated growth — caught only when the audit's guard re-ran
-plan-owned workloads. Guards per touched tier, every batch.
+plan-owned workloads. Guards per touched tier, every batch. *Ruled into standing practice
+(2026-08-25), after the lesson arrived a third time:* Phase 2's gate ran the anchored and
+end-anchored suites and shipped −12–14% on buffer CSV, invisible for a day until the
+nightly full-suite pair caught it (the ledger's 2026-08-25 section holds the bisect). Any
+change that touches `ByteMatcher` or an engine's search path gates on **buffer CSV and
+per-match datetime** — the two canaries that have now caught three regressions the
+targeted suites missed — alongside whatever suite the change aims at.
 
 **A second method note (2026-08-20):** never compare a probe number against a JMH number —
 the NETWORK "distributed cost" diagnosis made exactly that error and had to be retracted.

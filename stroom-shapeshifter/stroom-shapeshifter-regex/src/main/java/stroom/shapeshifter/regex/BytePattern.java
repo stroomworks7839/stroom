@@ -57,9 +57,8 @@ import java.util.stream.Collectors;
  *       run a pattern — {@link #explain()} reports which was chosen, and {@link #analyse}
  *       explains why a pattern was ambiguous, which is often an authoring mistake worth
  *       seeing.</li>
- *   <li>Complete and streaming input alike: matching a window that can still grow answers
- *       {@code NEED_MORE_INPUT} whenever more bytes could change the result, and the caller
- *       extends the window and asks again.</li>
+ *   <li>Complete inputs only: byte arrays and byte slices, never a window that can still
+ *       grow (D37 retired the streaming surface).</li>
  * </ul>
  *
  * <h2>Characters, not bytes</h2>

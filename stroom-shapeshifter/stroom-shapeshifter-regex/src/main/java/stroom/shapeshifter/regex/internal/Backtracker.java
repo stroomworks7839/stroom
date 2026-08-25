@@ -49,14 +49,6 @@ import java.util.Arrays;
  * differential test, as the correctness argument's third witness from a second algorithm
  * family.
  *
- * <h2>Streaming</h2>
- * On a window that can still grow, this engine reports {@link PlanRunner#NEED_MORE} whenever any
- * path it explored reached the end of the available bytes — even if it also found a match. The
- * simulation can be exact here, because live threads tell it directly whether more input could
- * change the answer; depth-first search discards that information as it backtracks. Being
- * undetermined more often than strictly necessary costs a caller another chunk; being determined
- * when it should not be would silently truncate a match.
- *
  * <h2>What it will not run</h2>
  * A program containing the empty-iteration guard ({@link Nfa#MARK} and {@link Nfa#PROGRESS}).
  * Those make the future depend on where the current iteration began, not only on the instruction
@@ -97,7 +89,6 @@ public final class Backtracker {
     private int[] undoValue = new int[64];
     private int undoSize;
 
-    private boolean hitEnd;
 
     /** One past the last consultable byte — bound window state, not a search argument;
      * {@code PikeVm}'s field note records the measured reason. */
@@ -130,41 +121,35 @@ public final class Backtracker {
     /**
      * Searches for a match, with the same contract as {@link PikeVm#search}.
      *
-     * @return the match end offset, or {@link PlanRunner#NO_MATCH}, or {@link PlanRunner#NEED_MORE}.
+     * @return the match end offset, or {@link PlanRunner#NO_MATCH}.
      */
     public int search(final byte[] data,
                       final int regionFrom,
                       final int start,
                       final int to,
                       final boolean anchored,
-                      final boolean complete,
                       final int[] slots) {
         assert contextEnd >= to : "setContextEnd must bind the window before search";
         prepare(regionFrom, to);
-        hitEnd = false;
 
-        // A complete window can stop attempting once fewer bytes remain than the shortest
-        // match spans; a growing one keeps the edge iterations for their NEED_MORE bookkeeping.
-        int lastStart = complete
-                ? to - nfa.minLength
-                : to;
-        // An input-anchored pattern cannot start past the region start, so on a window that
-        // cannot grow the walk ends there. Decided once, out here, so the line-anchored walk
-        // pays nothing for it; a growing window keeps its edge iterations.
-        if (complete && startAnchor == Nfa.ANCHOR_INPUT) {
+        // Attempting stops once fewer bytes remain than the shortest match spans.
+        int lastStart = to - nfa.minLength;
+        // An input-anchored pattern cannot start past the region start, so the walk ends
+        // there. Decided once, out here, so the line-anchored walk pays nothing for it.
+        if (startAnchor == Nfa.ANCHOR_INPUT) {
             lastStart = Math.min(lastStart, regionFrom);
         }
         for (int at = start; at <= lastStart; at++) {
             if (at < to && at > regionFrom && startAnchor != Nfa.ANCHOR_NONE
                 && (startAnchor == Nfa.ANCHOR_INPUT || data[at - 1] != '\n')) {
                 // See the fancy engine: the cheapest and, for anchored patterns, the most
-                // selective gate. The at == to iteration keeps its edge bookkeeping.
+                // selective gate.
                 if (anchored) {
                     break;
                 }
                 continue;
             }
-            if (Utf8.splitsCharacter(data, at, to, complete, contextEnd)) {
+            if (Utf8.splitsCharacter(data, at, contextEnd)) {
                 // A match may not begin inside a character — and an anchored search may not
                 // begin anywhere else, so it is over (as the simulation already answers).
                 if (anchored) {
@@ -173,9 +158,6 @@ public final class Backtracker {
                 continue;
             }
             if (firstBytes != null && (at == to || firstBytes[data[at] & 0xFF] == 0)) {
-                if (at == to) {
-                    hitEnd = true;
-                }
                 if (anchored) {
                     break;
                 }
@@ -183,24 +165,13 @@ public final class Backtracker {
             }
             Arrays.fill(slots, -1);
             if (attempt(data, regionFrom, at, to, slots)) {
-                // A match is only final if nothing explored reached the edge of a window that can
-                // still grow. The simulation knows this precisely, from whether threads are still
-                // live; a depth-first search does not, so it answers conservatively — more input
-                // might extend this match or enable a preferred one, and saying "undetermined"
-                // when it might is the only safe direction to be wrong in.
-                // A match ending exactly at the edge could be extended by the next byte, which
-                // is the simulation's rule too.
-                return !complete && (hitEnd || slots[1] == to)
-                        ? PlanRunner.NEED_MORE
-                        : slots[1];
+                return slots[1];
             }
             if (anchored) {
                 break;
             }
         }
-        return !complete && hitEnd
-                ? PlanRunner.NEED_MORE
-                : PlanRunner.NO_MATCH;
+        return PlanRunner.NO_MATCH;
     }
 
     /** One start position, explored depth first in preference order. */
@@ -218,27 +189,21 @@ public final class Backtracker {
             if (visit(pc, pos, regionFrom)) {
                 switch (nfa.op[pc]) {
                     case Nfa.BYTE_RANGE -> {
-                        if (pos >= to) {
-                            hitEnd = true;
-                        } else if ((data[pos] & 0xFF) >= nfa.a[pc] && (data[pos] & 0xFF) <= nfa.b[pc]) {
+                        if (pos < to && (data[pos] & 0xFF) >= nfa.a[pc] && (data[pos] & 0xFF) <= nfa.b[pc]) {
                             pc = nfa.next[pc];
                             pos++;
                             continue;
                         }
                     }
                     case Nfa.BYTE_CLASS -> {
-                        if (pos >= to) {
-                            hitEnd = true;
-                        } else if (nfa.classes[nfa.a[pc]][data[pos] & 0xFF] != 0) {
+                        if (pos < to && nfa.classes[nfa.a[pc]][data[pos] & 0xFF] != 0) {
                             pc = nfa.next[pc];
                             pos++;
                             continue;
                         }
                     }
                     case Nfa.BYTE_DISPATCH -> {
-                        if (pos >= to) {
-                            hitEnd = true;
-                        } else {
+                        if (pos < to) {
                             final int successor = nfa.dispatch[nfa.a[pc]][data[pos] & 0xFF];
                             if (successor >= 0) {
                                 pc = successor;
@@ -265,13 +230,6 @@ public final class Backtracker {
                         continue;
                     }
                     case Nfa.ASSERT -> {
-                        // An assertion at the edge of a window that can still grow is not
-                        // answerable yet, whichever way it came out: $ holds at the end of the
-                        // bytes in hand and may not hold once more arrive. So the edge is
-                        // recorded whether it held or not.
-                        if (pos >= to) {
-                            hitEnd = true;
-                        }
                         if (Words.assertionHolds(Hir.Kind.VALUES[nfa.a[pc]],
                                 data, regionFrom, to, pos)) {
                             pc++;

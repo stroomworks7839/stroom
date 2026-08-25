@@ -92,8 +92,6 @@ public final class NodeTree {
         int[] groupStart;
         int[] locals;
         int loopDepth;
-        boolean hitEnd;
-        boolean recordEdge;
         long steps;
         int searchStart;
         int requireEnd;
@@ -136,12 +134,6 @@ public final class NodeTree {
                         + "backtracks catastrophically and needs restructuring");
             }
         }
-
-        void edge() {
-            if (recordEdge) {
-                hitEnd = true;
-            }
-        }
     }
 
     public abstract static class Node {
@@ -180,36 +172,29 @@ public final class NodeTree {
         }
 
         /**
-         * @return the match end offset, or {@link PlanRunner#NO_MATCH}, or
-         * {@link PlanRunner#NEED_MORE}.
+         * @return the match end offset, or {@link PlanRunner#NO_MATCH}.
          */
         public int search(final byte[] data,
                           final int regionFrom,
                           final int start,
                           final int to,
                           final boolean anchored,
-                          final boolean complete,
                           final int[] slots) {
             assert contextEnd >= to : "setContextEnd must bind the window before search";
             ctx.data = data;
             ctx.regionFrom = regionFrom;
             ctx.to = to;
             ctx.slots = slots;
-            ctx.hitEnd = false;
-            ctx.recordEdge = true;
             ctx.steps = STEP_BUDGET;
             ctx.searchStart = start;
             ctx.requireEnd = -1;
 
             final byte[] firstBytes = compiled.firstBytes();
             final int anchor = compiled.startAnchor();
-            int lastStart = complete
-                    ? to - compiled.minLength()
-                    : to;
-            // An input-anchored pattern cannot start past the region start, so on a window
-            // that cannot grow the walk ends there. Decided once, out here, so the
-            // line-anchored walk pays nothing for it.
-            if (complete && anchor == Nfa.ANCHOR_INPUT) {
+            int lastStart = to - compiled.minLength();
+            // An input-anchored pattern cannot start past the region start, so the walk ends
+            // there. Decided once, out here, so the line-anchored walk pays nothing for it.
+            if (anchor == Nfa.ANCHOR_INPUT) {
                 lastStart = Math.min(lastStart, regionFrom);
             }
 
@@ -221,7 +206,7 @@ public final class NodeTree {
                     }
                     continue;
                 }
-                if (Utf8.splitsCharacter(data, at, to, complete, contextEnd)) {
+                if (Utf8.splitsCharacter(data, at, contextEnd)) {
                     // A match may not begin inside a character; anchored searches stop here.
                     if (anchored) {
                         break;
@@ -229,9 +214,6 @@ public final class NodeTree {
                     continue;
                 }
                 if (firstBytes != null && (at == to || firstBytes[data[at] & 0xFF] == 0)) {
-                    if (at == to) {
-                        ctx.hitEnd = true;
-                    }
                     if (anchored) {
                         break;
                     }
@@ -252,17 +234,13 @@ public final class NodeTree {
                 if (matchedHere) {
                     slots[0] = at;
                     slots[1] = ctx.end;
-                    return !complete && (ctx.hitEnd || ctx.end == to)
-                            ? PlanRunner.NEED_MORE
-                            : ctx.end;
+                    return ctx.end;
                 }
                 if (anchored) {
                     break;
                 }
             }
-            return !complete && ctx.hitEnd
-                    ? PlanRunner.NEED_MORE
-                    : PlanRunner.NO_MATCH;
+            return PlanRunner.NO_MATCH;
         }
     }
 
@@ -465,7 +443,6 @@ public final class NodeTree {
                 }
             }
             if (value.length > available) {
-                ctx.edge(); // every byte in hand agreed; more input could complete it
                 return false;
             }
             return next.match(ctx, pos + value.length);
@@ -496,7 +473,6 @@ public final class NodeTree {
         /** How many bytes the character at {@code pos} occupies if the class accepts it. */
         int accept(final Ctx ctx, final int pos) {
             if (pos >= ctx.to) {
-                ctx.edge();
                 return 0;
             }
             final int lead = ctx.data[pos] & 0xFF;
@@ -507,9 +483,6 @@ public final class NodeTree {
             }
             final int codePoint = Utf8.decode(ctx.data, pos, ctx.to);
             if (codePoint < 0) {
-                if (pos + Utf8.sequenceLength(lead) > ctx.to) {
-                    ctx.edge(); // truncated by the window, not malformed
-                }
                 return 0;
             }
             return set.contains(codePoint)
@@ -728,7 +701,6 @@ public final class NodeTree {
                     end += advanced;
                 }
             }
-            ctx.edge(); // the run reached the window's end
             return end;
         }
 
@@ -835,9 +807,6 @@ public final class NodeTree {
 
         @Override
         boolean match(final Ctx ctx, final int pos) {
-            if (pos >= ctx.to) {
-                ctx.edge();
-            }
             final boolean holds = kind == Hir.Kind.PREVIOUS_MATCH_END
                     ? pos == ctx.searchStart
                     : Words.assertionHolds(kind, ctx.data, ctx.regionFrom, ctx.to, pos);
@@ -869,7 +838,6 @@ public final class NodeTree {
             final int consumed = Backrefs.compare(ctx.data, pos, ctx.to, from, until,
                     fold, unicode);
             if (consumed == Backrefs.TRUNCATED) {
-                ctx.edge();
                 return false;
             }
             return consumed >= 0 && next.match(ctx, pos + consumed);
@@ -955,10 +923,7 @@ public final class NodeTree {
          * The body can overrun the cursor while exploring, though never match past it. Starts
          * are tried from {@code cursor - min} back to {@code cursor - max}, and from any start
          * nearer than the farthest a consuming path can overshoot the cursor by up to
-         * {@code max - min} before the end-pin fails it. {@code recordEdge} therefore stays
-         * live for two kinds of contact: a nested lookahead's, which is genuine, and an
-         * overshooting path's, which is conservative — more bytes cannot make that path end at
-         * the cursor, so the latch merely defers the answer until the window grows or completes.
+         * {@code max - min} before the end-pin fails it.
          */
         private boolean matchBehind(final Ctx ctx, final int pos) {
             final int savedRequire = ctx.requireEnd;

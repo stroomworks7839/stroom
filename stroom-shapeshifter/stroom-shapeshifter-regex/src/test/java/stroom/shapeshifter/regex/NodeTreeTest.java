@@ -76,17 +76,6 @@ class NodeTreeTest {
     }
 
     @Test
-    void keepsTheStreamingContract() {
-        final ByteMatcher matcher = matcher("(a+)-\\1");
-        assertThat(matcher.match(ByteWindow.partial(bytes("aa-a"), 0, 4), 0, Anchoring.ANCHORED))
-                .isEqualTo(MatchOutcome.NEED_MORE_INPUT);
-        assertThat(matcher.match(ByteWindow.of("aa-aa"), 0, Anchoring.ANCHORED))
-                .isEqualTo(MatchOutcome.MATCH);
-        assertThat(matcher.match(ByteWindow.partial(bytes("aa-b"), 0, 4), 0, Anchoring.ANCHORED))
-                .isEqualTo(MatchOutcome.NO_MATCH);
-    }
-
-    @Test
     void deepLoopsBailOutToTheSimulation() {
         // Ambiguous (the repeated part and what follows both start with 'a'), a region too
         // large for the bounded backtracker, and more loop iterations than the tree engine's

@@ -99,9 +99,9 @@ public final class Utf8 {
      * use to a caller reading the text back.
      *
      * <p>A region can end inside a character, so at {@code at == to} the byte just past the
-     * region is consulted — but only when the window is complete ({@code at < contextEnd} is
-     * what makes the read safe: on a stream window, bytes past the fill are stale garbage), and
-     * never on a window that can still grow, where that byte has not arrived.
+     * region is consulted — {@code at < contextEnd} is what makes the read safe: bytes at and
+     * beyond {@code contextEnd} are not the caller's data (a reused buffer's stale tail, or the
+     * array's end).
      *
      * <p>The one shared search-start gate: every engine asks this question at every candidate
      * match start — four private spellings had drifted into three behaviours before it (the
@@ -111,10 +111,8 @@ public final class Utf8 {
      */
     public static boolean splitsCharacter(final byte[] data,
                                           final int at,
-                                          final int to,
-                                          final boolean complete,
                                           final int contextEnd) {
-        return (at < to || (complete && at < contextEnd)) && isContinuation(data[at]);
+        return at < contextEnd && isContinuation(data[at]);
     }
 
     /** The length in bytes of the UTF-8 sequence a lead byte starts, or 0 if it cannot start one. */

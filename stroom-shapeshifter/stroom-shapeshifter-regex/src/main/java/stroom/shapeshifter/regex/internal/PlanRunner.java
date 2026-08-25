@@ -22,21 +22,11 @@ package stroom.shapeshifter.regex.internal;
  * A single forward pass with no backtracking: every op either consumes bytes and continues, or
  * fails the whole attempt. That is what the one-pass analysis buys, and it is why the plan can
  * be a loop over flat arrays rather than a thread list.
- *
- * <h2>Running out of input</h2>
- * Every operation that stops because it reached the end of the window, rather than because the
- * input told it to stop, sets a flag. If the window may still grow, the attempt then reports
- * {@link #NEED_MORE} rather than a verdict — including when it <em>succeeded</em>, because a
- * greedy scan that halted at the edge would have consumed more had more been there. Reporting
- * that short match instead is exactly how a streaming parser truncates a record.
  */
 public final class PlanRunner {
 
-    /** No match, and more input could not change that. */
+    /** No match. */
     public static final int NO_MATCH = -1;
-
-    /** Undetermined: the attempt was limited by the end of the window. */
-    public static final int NEED_MORE = -2;
 
     private PlanRunner() {
     }
@@ -49,16 +39,14 @@ public final class PlanRunner {
      *                   must still refer to where the region began, or a start-anchored pattern
      *                   would match at any offset.
      * @param start      the offset this attempt begins at.
-     * @param complete   whether the window can still grow.
      * @param slots      capture slots, which the caller must fill with -1 before each attempt.
-     * @return the end offset of the match, or {@link #NO_MATCH}, or {@link #NEED_MORE}.
+     * @return the end offset of the match, or {@link #NO_MATCH}.
      */
     public static int run(final Plan plan,
                           final byte[] data,
                           final int regionFrom,
                           final int start,
                           final int to,
-                          final boolean complete,
                           final int[] slots) {
         final int[] op = plan.op;
         final int[] a = plan.a;
@@ -67,14 +55,12 @@ public final class PlanRunner {
 
         int pc = 0;
         int cursor = start;
-        // Set whenever an operation is cut short by the window edge rather than by the data.
-        boolean hitEnd = false;
 
         while (true) {
             switch (op[pc]) {
                 case Plan.MATCH_BYTE -> {
                     if (cursor >= to) {
-                        return undetermined(complete);
+                        return NO_MATCH;
                     }
                     if ((data[cursor] & 0xFF) != a[pc]) {
                         return NO_MATCH;
@@ -92,7 +78,7 @@ public final class PlanRunner {
                         }
                     }
                     if (available < literal.length) {
-                        return undetermined(complete); // ran out part way through
+                        return NO_MATCH; // ran out part way through
                     }
                     cursor += literal.length;
                     pc++;
@@ -100,7 +86,7 @@ public final class PlanRunner {
 
                 case Plan.MATCH_CLASS -> {
                     if (cursor >= to) {
-                        return undetermined(complete);
+                        return NO_MATCH;
                     }
                     if (plan.classes[a[pc]][data[cursor] & 0xFF] == 0) {
                         return NO_MATCH;
@@ -117,13 +103,8 @@ public final class PlanRunner {
                         cursor++;
                         count++;
                     }
-                    if (cursor == to && count < max) {
-                        hitEnd = true; // more of the same could have followed
-                    }
                     if (count < b[pc]) {
-                        return hitEnd
-                                ? undetermined(complete)
-                                : NO_MATCH;
+                        return NO_MATCH;
                     }
                     pc++;
                 }
@@ -136,13 +117,8 @@ public final class PlanRunner {
                         cursor++;
                         count++;
                     }
-                    if (cursor == to && count < max) {
-                        hitEnd = true; // the terminator may simply not have arrived yet
-                    }
                     if (count < b[pc]) {
-                        return hitEnd
-                                ? undetermined(complete)
-                                : NO_MATCH;
+                        return NO_MATCH;
                     }
                     pc++;
                 }
@@ -155,13 +131,9 @@ public final class PlanRunner {
                         cursor++;
                         count++;
                     }
-                    if (cursor == to && count < max) {
-                        hitEnd = true;
-                    }
+
                     if (count < b[pc]) {
-                        return hitEnd
-                                ? undetermined(complete)
-                                : NO_MATCH;
+                        return NO_MATCH;
                     }
                     pc++;
                 }
@@ -169,10 +141,7 @@ public final class PlanRunner {
                 case Plan.MATCH_CHAR -> {
                     final int length = plan.charClasses[a[pc]].matchAt(data, cursor, to);
                     if (length < 0) {
-                        // A character may simply be split across the window edge.
-                        return cursor >= to || plan.charClasses[a[pc]].mayContinue(data, cursor, to)
-                                ? undetermined(complete)
-                                : NO_MATCH;
+                        return NO_MATCH;
                     }
                     cursor += length;
                     pc++;
@@ -190,14 +159,8 @@ public final class PlanRunner {
                         cursor += length;
                         count++;
                     }
-                    if (count < max
-                        && (cursor >= to || charClass.mayContinue(data, cursor, to))) {
-                        hitEnd = true;
-                    }
                     if (count < b[pc]) {
-                        return hitEnd
-                                ? undetermined(complete)
-                                : NO_MATCH;
+                        return NO_MATCH;
                     }
                     pc++;
                 }
@@ -208,11 +171,6 @@ public final class PlanRunner {
                 }
 
                 case Plan.BRANCH -> {
-                    if (cursor >= to && !complete) {
-                        // The byte that would choose a branch may not have arrived. Taking the
-                        // default now would silently prefer the empty alternative.
-                        return NEED_MORE;
-                    }
                     final int[] table = plan.branchTables[a[pc]];
                     final int target = cursor < to
                             ? table[data[cursor] & 0xFF]
@@ -230,10 +188,6 @@ public final class PlanRunner {
 
                 case Plan.ASSERT -> {
                     final Hir.Kind kind = Hir.Kind.VALUES[a[pc]];
-                    if (!complete && cursor == to && endRelated(kind)) {
-                        // Whether this is the end is not yet knowable.
-                        return NEED_MORE;
-                    }
                     // \G makes a pattern fancy, and a fancy pattern is never one-pass, so the
                     // shared evaluation's \G refusal is unreachable from here.
                     if (!Words.assertionHolds(kind, data, regionFrom, to, cursor)) {
@@ -243,10 +197,7 @@ public final class PlanRunner {
                 }
 
                 case Plan.ACCEPT -> {
-                    // A match that ended at the edge may not be the whole match.
-                    return hitEnd && !complete
-                            ? NEED_MORE
-                            : cursor;
+                    return cursor;
                 }
 
                 default -> throw new IllegalStateException("Unknown opcode " + op[pc]);
@@ -254,23 +205,4 @@ public final class PlanRunner {
         }
     }
 
-    private static int undetermined(final boolean complete) {
-        return complete
-                ? NO_MATCH
-                : NEED_MORE;
-    }
-
-    private static boolean endRelated(final Hir.Kind kind) {
-        // A word boundary depends on the byte after the cursor as much as the one before, so at
-        // the edge of a growing window it is just as undetermined as an end anchor. The ASCII
-        // spellings were missing from this list once, and (?-u)foo\b reported a match on a
-        // window that "food" would have contradicted — the exact truncation this exists to
-        // prevent.
-        return kind == Hir.Kind.END_INPUT
-               || kind == Hir.Kind.END_LINE
-               || kind == Hir.Kind.WORD_BOUNDARY
-               || kind == Hir.Kind.NOT_WORD_BOUNDARY
-               || kind == Hir.Kind.WORD_BOUNDARY_ASCII
-               || kind == Hir.Kind.NOT_WORD_BOUNDARY_ASCII;
-    }
 }

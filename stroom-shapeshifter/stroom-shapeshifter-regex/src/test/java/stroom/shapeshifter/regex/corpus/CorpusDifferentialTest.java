@@ -19,9 +19,7 @@ package stroom.shapeshifter.regex.corpus;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
-import stroom.shapeshifter.regex.ByteWindow;
 import stroom.shapeshifter.regex.JdkOracle;
-import stroom.shapeshifter.regex.MatchOutcome;
 import stroom.shapeshifter.regex.PatternCompileException;
 
 import org.junit.jupiter.api.Test;
@@ -95,49 +93,6 @@ class CorpusDifferentialTest {
         // A corpus this size that produced no comparisons would mean the engine had rejected
         // everything, which the counts above would hide.
         assertThat(comparisons).isGreaterThan(500);
-    }
-
-    /**
-     * The same corpus replayed through a partial window, checking that an incomplete view is
-     * never mistaken for a decided one. Any pattern that can still match must say so rather than
-     * report the short answer it can see.
-     */
-    @Test
-    void noAcceptedPatternDecidesEarlyOnAPartialWindow() {
-        int checked = 0;
-        for (final PatternCorpus.Category category : PatternCorpus.categories()) {
-            for (final String pattern : category.patterns()) {
-                final BytePattern compiled;
-                try {
-                    compiled = BytePattern.compile(pattern);
-                } catch (final PatternCompileException e) {
-                    continue;
-                }
-                final ByteMatcher matcher = compiled.matcher();
-                final Pattern reference = JdkOracle.compile(pattern);
-
-                for (final String input : category.inputs()) {
-                    final byte[] data = input.getBytes(StandardCharsets.UTF_8);
-                    final boolean matchesWhole = reference.matcher(input).find();
-
-                    for (int prefix = 0; prefix < data.length; prefix++) {
-                        final MatchOutcome outcome = matcher.match(
-                                ByteWindow.partial(data, 0, prefix), 0, Anchoring.UNANCHORED);
-                        if (outcome != MatchOutcome.MATCH) {
-                            continue;
-                        }
-                        // A match reported on a prefix must be a match the whole input also has,
-                        // and must be the same one — otherwise the engine has truncated.
-                        assertThat(matchesWhole)
-                                .as("pattern=%s prefix=%d of \"%s\" matched, but the whole input "
-                                    + "does not match", pattern, prefix, input)
-                                .isTrue();
-                        checked++;
-                    }
-                }
-            }
-        }
-        assertThat(checked).isGreaterThan(0);
     }
 
     private static void assertAgree(final BytePattern bytePattern,

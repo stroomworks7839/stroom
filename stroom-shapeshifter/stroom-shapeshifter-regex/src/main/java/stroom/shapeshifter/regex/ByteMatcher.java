@@ -91,7 +91,6 @@ public final class ByteMatcher {
     private byte[] data;
     private int regionFrom;
     private int regionTo;
-    private boolean complete = true;
     /** One past the last byte that may be consulted as context — the window's contextEnd,
      * bound into the engine before each search. */
     private int contextEnd;
@@ -158,25 +157,29 @@ public final class ByteMatcher {
     }
 
     /**
-     * Matches within a window that may not hold all the input yet.
-     * <p>
-     * This is the streaming entry point: unlike the boolean methods, it can answer
-     * {@link MatchOutcome#NEED_MORE_INPUT}, which the caller resolves by extending the window
-     * and asking again.
+     * Matches within {@code [regionFrom, to)}, searching from {@code from} — the find-next
+     * spelling: the region stays fixed while the search position advances, so a zero-width
+     * assertion at {@code from} still sees the byte before it. Collapsing the two (passing
+     * {@code from} as the region start) would make every iteration look like a fresh input,
+     * and {@code \b} would report a boundary that is not there.
      */
-    public MatchOutcome match(final ByteWindow window, final int from, final Anchoring anchoring) {
-        if (from < window.start() || from > window.end()) {
+    public boolean match(final byte[] data,
+                         final int regionFrom,
+                         final int from,
+                         final int to,
+                         final Anchoring anchoring) {
+        if (regionFrom < 0 || to > data.length || regionFrom > to
+            || from < regionFrom || from > to) {
             throw new IndexOutOfBoundsException(
-                    "offset " + from + " outside window [" + window.start() + ", "
-                    + window.end() + "]");
+                    "search from " + from + " within region [" + regionFrom + ", " + to
+                    + ") outside array of length " + data.length);
         }
-        this.data = window.array();
-        this.regionFrom = window.start();
-        this.regionTo = window.end();
-        this.contextEnd = window.contextEnd();
-        this.complete = window.complete();
+        this.data = data;
+        this.regionFrom = regionFrom;
+        this.regionTo = to;
+        this.contextEnd = data.length;
         this.matched = false;
-        return endgame && complete && anchoring != Anchoring.ANCHORED
+        return endgame && anchoring != Anchoring.ANCHORED
                 ? endgameSearch(from, anchoring)
                 : run(from, anchoring);
     }
@@ -204,11 +207,10 @@ public final class ByteMatcher {
         this.regionFrom = from;
         this.regionTo = to;
         this.contextEnd = data.length;
-        this.complete = true;
         this.matched = false;
-        return (endgame && complete && anchoring != Anchoring.ANCHORED
+        return endgame && anchoring != Anchoring.ANCHORED
                 ? endgameSearch(from, anchoring)
-                : run(from, anchoring)) == MatchOutcome.MATCH;
+                : run(from, anchoring);
     }
 
     /**
@@ -219,8 +221,7 @@ public final class ByteMatcher {
      * captures are untouched. An unbounded one asks the reverse finder for the leftmost
      * start and verifies it with a forward anchored attempt — the proven machinery gives
      * the authoritative match and captures; a refused proposal is never trusted as
-     * NO_MATCH, only a finder miss is. Both excluded on a growing window, whose NEED_MORE
-     * bookkeeping needs the full walk (and whose {@code to} is not final anyway).
+     * NO_MATCH, only a finder miss is.
      *
      * <p>This body lives out of line deliberately: both entry points test the one
      * {@code endgame} flag inline and call this only when it holds, so the
@@ -228,7 +229,7 @@ public final class ByteMatcher {
      * bought — Phase 4's first cut routed every match through a grown dispatch method and
      * the scan-plan rows paid up to -46% to the documented cliff.
      */
-    private MatchOutcome endgameSearch(final int from, final Anchoring anchoring) {
+    private boolean endgameSearch(final int from, final Anchoring anchoring) {
         if (tailSpan >= 0) {
             return run(regionTo - from > tailSpan
                     ? regionTo - tailSpan
@@ -237,17 +238,16 @@ public final class ByteMatcher {
         final int start = reverse.findStart(data, regionFrom, from, regionTo, contextEnd);
         if (start < 0) {
             matched = false;
-            return MatchOutcome.NO_MATCH;
+            return false;
         }
-        final MatchOutcome outcome = run(start, Anchoring.ANCHORED);
-        if (outcome == MatchOutcome.MATCH) {
-            return outcome;
+        if (run(start, Anchoring.ANCHORED)) {
+            return true;
         }
         // The safety valve: fall through to the unaccelerated scan.
         return run(from, anchoring);
     }
 
-    private MatchOutcome run(final int from, final Anchoring anchoring) {
+    private boolean run(final int from, final Anchoring anchoring) {
         // One small dispatcher, one method per engine. Kept deliberately tiny: this method and
         // the search loops it calls are the hottest call sites in the library, and letting
         // them grow into one another once cost the CSV workload 24% to a JIT inlining cliff —
@@ -264,22 +264,20 @@ public final class ByteMatcher {
             return runLinear(from, anchored);
         }
         if (anchored) {
-            return splitsCharacter(from)
-                    ? MatchOutcome.NO_MATCH
-                    : outcome(attempt(from));
+            return !splitsCharacter(from) && attempt(from) >= 0;
         }
         return searchPlan(from);
     }
 
     /** Pinned to the tree engine: a structural bailout is contained, not fallen from. */
-    private MatchOutcome runPinnedTree(final int from, final boolean anchored) {
+    private boolean runPinnedTree(final int from, final boolean anchored) {
         Arrays.fill(slots, -1);
         try {
             tree.setContextEnd(contextEnd);
             final int end = tree.search(data, regionFrom, from, regionTo,
-                    anchored, complete, slots);
+                    anchored, slots);
             matched = end >= 0;
-            return outcome(end);
+            return matched;
         } catch (final NodeTree.Bailout e) {
             throw new MatchLimitException(
                     "the tree engine was pinned but the input stacks more loop iterations "
@@ -292,24 +290,24 @@ public final class ByteMatcher {
      * fancy workload — with the flat backtracker as the structural fallback when recursion
      * depth gives out (D31). Both share the step budget's contract.
      */
-    private MatchOutcome runFancy(final int from, final boolean anchored) {
+    private boolean runFancy(final int from, final boolean anchored) {
         Arrays.fill(slots, -1);
         if (tree != null) {
             try {
                 tree.setContextEnd(contextEnd);
                 final int end = tree.search(data, regionFrom, from, regionTo,
-                        anchored, complete, slots);
+                        anchored, slots);
                 matched = end >= 0;
-                return outcome(end);
+                return matched;
             } catch (final NodeTree.Bailout e) {
                 Arrays.fill(slots, -1); // a clean rerun, not a resume
             }
         }
         fancy.setContextEnd(contextEnd);
         final int end = fancy.search(data, regionFrom, from, regionTo,
-                anchored, complete, slots);
+                anchored, slots);
         matched = end >= 0;
-        return outcome(end);
+        return matched;
     }
 
     /**
@@ -319,7 +317,7 @@ public final class ByteMatcher {
      * finishes in linear time. A pinned bounded backtracker still runs here, which is what
      * keeps it under differential test.
      */
-    private MatchOutcome runLinear(final int from, final boolean anchored) {
+    private boolean runLinear(final int from, final boolean anchored) {
         Arrays.fill(slots, -1);
         if (backtracker != null) {
             if (!backtracker.canRun(regionTo - regionFrom, BACKTRACK_BUDGET_BYTES)) {
@@ -329,17 +327,17 @@ public final class ByteMatcher {
             }
             backtracker.setContextEnd(contextEnd);
             final int end = backtracker.search(
-                    data, regionFrom, from, regionTo, anchored, complete, slots);
+                    data, regionFrom, from, regionTo, anchored, slots);
             matched = end >= 0;
-            return outcome(end);
+            return matched;
         }
         if (tree != null) {
             try {
                 tree.setContextEnd(contextEnd);
                 final int end = tree.search(data, regionFrom, from, regionTo,
-                        anchored, complete, slots);
+                        anchored, slots);
                 matched = end >= 0;
-                return outcome(end);
+                return matched;
             } catch (final NodeTree.Bailout | MatchLimitException e) {
                 Arrays.fill(slots, -1); // the linear engine answers instead
             }
@@ -348,26 +346,23 @@ public final class ByteMatcher {
         // together, rather than restarting an attempt at each offset.
         vm.setContextEnd(contextEnd);
         final int end = vm.search(data, regionFrom, from, regionTo,
-                anchored, complete, slots);
+                anchored, slots);
         matched = end >= 0;
-        return outcome(end);
+        return matched;
     }
 
     /** The scan plan's unanchored search: the leftmost start whose attempt succeeds. */
-    private MatchOutcome searchPlan(final int from) {
+    private boolean searchPlan(final int from) {
         final byte[] firstBytes = plan.firstBytes();
         final var leadingAnchor = plan.leadingAnchor();
         // The minimum-length gate earns its keep on short unanchored searches — per-match
         // datetime fell 43% the day it was removed on buffer-CSV evidence alone, a lesson in
         // guarding both suites — and since the dispatcher split it no longer costs CSV its
-        // inlining cliff. Complete windows only, or NEED_MORE would be lost.
-        int lastStart = complete
-                ? regionTo - plan.minLength()
-                : regionTo;
-        // An input-anchored pattern cannot start past the region start, so on a window that
-        // cannot grow the scan ends there. Decided once, out here, so the line-anchored scan
-        // pays nothing for it; a growing window keeps its edge iterations.
-        if (complete && leadingAnchor != null && leadingAnchor != Hir.Kind.START_LINE) {
+        // inlining cliff.
+        int lastStart = regionTo - plan.minLength();
+        // An input-anchored pattern cannot start past the region start, so the scan ends
+        // there. Decided once, out here, so the line-anchored scan pays nothing for it.
+        if (leadingAnchor != null && leadingAnchor != Hir.Kind.START_LINE) {
             lastStart = Math.min(lastStart, regionFrom);
         }
         for (int start = from; start <= lastStart; start++) {
@@ -385,17 +380,11 @@ public final class ByteMatcher {
                 // first-byte table, and every offset has to be tried.
                 continue;
             }
-            final int end = attempt(start);
-            if (end >= 0 || end == PlanRunner.NEED_MORE) {
-                // An undetermined attempt has to stop the search: a later start position could
-                // only produce a match this one would have preferred.
-                return outcome(end);
+            if (attempt(start) >= 0) {
+                return true;
             }
         }
-        // Nothing matched, but a match beginning near the edge may simply be incomplete.
-        return !complete && plan.firstBytes() != null
-                ? MatchOutcome.NEED_MORE_INPUT
-                : MatchOutcome.NO_MATCH;
+        return false;
     }
 
     private boolean isAnchorPosition(final Hir.Kind anchor,
@@ -410,21 +399,12 @@ public final class ByteMatcher {
     /** Asks {@link Utf8#splitsCharacter} — the contract lives there — with this matcher's
      * bound window. */
     private boolean splitsCharacter(final int at) {
-        return Utf8.splitsCharacter(data, at, regionTo, complete, contextEnd);
-    }
-
-    private MatchOutcome outcome(final int end) {
-        if (end == PlanRunner.NEED_MORE) {
-            return MatchOutcome.NEED_MORE_INPUT;
-        }
-        return end >= 0
-                ? MatchOutcome.MATCH
-                : MatchOutcome.NO_MATCH;
+        return Utf8.splitsCharacter(data, at, contextEnd);
     }
 
     private int attempt(final int start) {
         Arrays.fill(slots, -1);
-        final int end = PlanRunner.run(plan, data, regionFrom, start, regionTo, complete, slots);
+        final int end = PlanRunner.run(plan, data, regionFrom, start, regionTo, slots);
         if (end < 0) {
             return end;
         }

@@ -98,17 +98,14 @@ public final class PikeVm {
      * before each call, or the answer at the region edge is wrong.
      *
      * @param anchored true to require the match to begin at {@code start}.
-     * @param complete whether the window can still grow.
      * @param slots    filled with the winning capture slots when a match is found.
-     * @return the match end offset, or {@link PlanRunner#NO_MATCH}, or
-     * {@link PlanRunner#NEED_MORE}.
+     * @return the match end offset, or {@link PlanRunner#NO_MATCH}.
      */
     public int search(final byte[] data,
                       final int regionFrom,
                       final int start,
                       final int to,
                       final boolean anchored,
-                      final boolean complete,
                       final int[] slots) {
         // No bind assert here, unlike the other three engines: the ~18 bytes it adds to this
         // method measured -2% on anchored_hit and destabilised its forks (2026-08-24), so the
@@ -116,21 +113,13 @@ public final class PikeVm {
         current.clear();
         next.clear();
         hasMatch = false;
-        // Latched when the window's edge withheld an answer: a live thread needed a byte that
-        // has not arrived, or a start at the edge could not be judged. On a complete window it
-        // is meaningless and ignored.
-        boolean edge = false;
 
-        // On a complete window, no thread seeded where fewer bytes remain than the shortest
-        // match spans can reach MATCH, so seeding — and the loop, once nothing is live —
-        // stops there.
-        int lastSeed = complete
-                ? to - nfa.minLength
-                : to;
-        // An input-anchored pattern cannot start past the region start, so on a window that
-        // cannot grow the seeding ends there. Decided once, out here, so the line-anchored scan
-        // pays nothing for it; a growing window keeps its edge iterations.
-        if (complete && startAnchor == Nfa.ANCHOR_INPUT) {
+        // No thread seeds where fewer bytes remain than the shortest match spans, so seeding —
+        // and the loop, once nothing is live — stops there.
+        int lastSeed = to - nfa.minLength;
+        // An input-anchored pattern cannot start past the region start, so the seeding ends
+        // there. Decided once, out here, so the line-anchored scan pays nothing for it.
+        if (startAnchor == Nfa.ANCHOR_INPUT) {
             lastSeed = Math.min(lastSeed, regionFrom);
         }
 
@@ -139,12 +128,9 @@ public final class PikeVm {
                 break; // nothing live can beat the match already found
             }
             if (!hasMatch && (!anchored || pos == start) && pos <= lastSeed) {
-                if (canStartAt(data, regionFrom, to, complete, pos)) {
+                if (canStartAt(data, regionFrom, to, pos)) {
                     // A new attempt starting here, at lowest priority so earlier starts win.
                     addThread(current, 0, seed, data, regionFrom, to, pos);
-                } else if (!complete && pos == to && anchorHoldsAt(data, regionFrom, to, pos)) {
-                    // Rejected only because the deciding byte has not arrived.
-                    edge = true;
                 }
             }
             if (current.size == 0 && (anchored || pos > to || pos > lastSeed)) {
@@ -163,25 +149,19 @@ public final class PikeVm {
                 final int[] threadSlots = current.slots[i];
                 switch (nfa.op[pc]) {
                     case Nfa.BYTE_RANGE -> {
-                        if (value < 0) {
-                            edge = true;
-                        } else if (value >= nfa.a[pc] && value <= nfa.b[pc]) {
+                        if (value >= 0 && value >= nfa.a[pc] && value <= nfa.b[pc]) {
                             addThread(next, nfa.next[pc], threadSlots, data, regionFrom, to,
                                     pos + 1);
                         }
                     }
                     case Nfa.BYTE_CLASS -> {
-                        if (value < 0) {
-                            edge = true;
-                        } else if (nfa.classes[nfa.a[pc]][value] != 0) {
+                        if (value >= 0 && nfa.classes[nfa.a[pc]][value] != 0) {
                             addThread(next, nfa.next[pc], threadSlots, data, regionFrom, to,
                                     pos + 1);
                         }
                     }
                     case Nfa.BYTE_DISPATCH -> {
-                        if (value < 0) {
-                            edge = true;
-                        } else {
+                        if (value >= 0) {
                             final int successor = nfa.dispatch[nfa.a[pc]][value];
                             if (successor >= 0) {
                                 addThread(next, successor, threadSlots, data, regionFrom, to,
@@ -213,11 +193,6 @@ public final class PikeVm {
             }
         }
 
-        // An edge event means the answer is not yet decided; so is a match that ended exactly
-        // at the edge, since more input could extend it.
-        if (!complete && (edge || (hasMatch && matched[1] == to))) {
-            return PlanRunner.NEED_MORE;
-        }
         if (!hasMatch) {
             return PlanRunner.NO_MATCH;
         }
@@ -240,12 +215,11 @@ public final class PikeVm {
     private boolean canStartAt(final byte[] data,
                                final int regionFrom,
                                final int to,
-                               final boolean complete,
                                final int pos) {
         if (!anchorHoldsAt(data, regionFrom, to, pos)) {
             return false;
         }
-        if (Utf8.splitsCharacter(data, pos, to, complete, contextEnd)) {
+        if (Utf8.splitsCharacter(data, pos, contextEnd)) {
             return false;
         }
         if (firstBytes == null) {

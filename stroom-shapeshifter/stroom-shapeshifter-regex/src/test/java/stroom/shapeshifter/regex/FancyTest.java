@@ -282,23 +282,6 @@ class FancyTest {
         assertThat(splitter.groupString(0)).isEqualTo("INFO first thing ");
     }
 
-    // -----------------------------------------------------------------------------------
-    // Streaming
-    // -----------------------------------------------------------------------------------
-
-    @Test
-    void backrefTruncatedByTheWindowIsUndetermined() {
-        final ByteMatcher matcher = BytePattern.compile("(a+)-\\1").matcher();
-        // Every byte in hand agrees with the reference, so more input could complete it.
-        assertThat(matcher.match(ByteWindow.partial(bytes("aa-a"), 0, 4), 0, Anchoring.ANCHORED))
-                .isEqualTo(MatchOutcome.NEED_MORE_INPUT);
-        assertThat(matcher.match(ByteWindow.of("aa-aa"), 0, Anchoring.ANCHORED))
-                .isEqualTo(MatchOutcome.MATCH);
-        // A byte that already disagrees is a determined no-match, however much input follows.
-        assertThat(matcher.match(ByteWindow.partial(bytes("aa-b"), 0, 4), 0, Anchoring.ANCHORED))
-                .isEqualTo(MatchOutcome.NO_MATCH);
-    }
-
     private static byte[] bytes(final String text) {
         return text.getBytes(StandardCharsets.UTF_8);
     }

@@ -27,10 +27,9 @@
  * published by the pattern itself, never re-derived from its text.
  *
  * <p>{@link stroom.shapeshifter.regex.BytePattern} compiles,
- * {@link stroom.shapeshifter.regex.ByteMatcher} matches over arrays and
- * {@link stroom.shapeshifter.regex.ByteWindow}s,
- * {@link stroom.shapeshifter.regex.StreamMatcher} matches over a stream with an exact
- * need-more-input contract. Known behavioural divergences from {@code java.util.regex} are
+ * {@link stroom.shapeshifter.regex.ByteMatcher} matches over byte arrays and slices —
+ * complete views, always (D37 retired the streaming surface).
+ * Known behavioural divergences from {@code java.util.regex} are
  * pinned in {@code KnownDivergenceTest}, and the module's open issues in {@code ISSUES.md}
  * beside it.
  */

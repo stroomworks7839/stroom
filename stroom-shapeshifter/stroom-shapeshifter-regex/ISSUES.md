@@ -66,6 +66,17 @@ selection". Evidence: `2026-08-24-2117`/`-2252` (the gate pair), `2026-08-25-01x
 (re-checks), `2026-08-25-07xx/08xx-*-bisect-csv.json` (the bisect),
 `2026-08-25-09xx-*-variant-*.json` (the six variants).
 
+*D37's datapoint (2026-08-25 evening):* the streaming retirement removed a field from
+`ByteMatcher` and an argument from every engine signature, and the coin flipped again —
+default-dispatch CSV −6.0%, DATETIME −5.1%, while forced-tree CSV moved +13.8% on the
+identical workload (`-d37-before-corpus`/`-d37-after-corpus`). Same engine underneath,
+opposite movement, the difference being only the dispatch wrapper: consistent with this
+entry's mechanism and further evidence it is the class's shape, not any one member. Two
+follow-ups also recorded from the same gate: the simulation's 256 KiB full-scan rows
+(`simulate floating_miss`/`line_miss`) paid −8.2–8.6%, with the branch reshape and the
+arity both cleared by probe (`-d37-pike-branchshape-probe`, `-d37-pike-dummyarg-probe`)
+— D21 alignment disease by elimination, R1's precedent, recorded not chased.
+
 **The tail-window jump costs one cycle per match on patterns that never jump
 (`superseded`, 2026-08-24).** *Kept as recorded: what follows was true of the rows it
 measured and wrong in its reach — the sentence "invisible everywhere real work happens"

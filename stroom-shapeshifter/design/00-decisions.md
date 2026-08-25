@@ -1054,3 +1054,26 @@ Execution (planned 2026-08-25): delete the stream-only surface and its tests; st
 AnchoredSearchBenchmark and EndAnchoredSearchBenchmark either side, with the signature
 shrink (8 values back to 7) a plausible win on exactly the frames that have hurt all
 week; then the standing eight-angle audit, since the diff crosses the five hottest files.
+
+**Executed 2026-08-25** (`-d37-before-*`/`-d37-after-*`, same boot, idle box, corpus
+CSV+DATETIME added to the gate per the new standing rule). Deleted outright:
+`StreamMatcher`, `ByteWindow`, `MatchOutcome`, `StreamingTest`, the corpus prefix
+differential, and every latch — with one addition the deletion exposed: the window entry
+was the only spelling of a fixed region with an advancing search position (the find-next
+shape, `\b` at the iteration cursor needing the byte before it — RustCorpusTest pins it),
+so `ByteMatcher` gained the five-argument `match(data, regionFrom, from, to, anchoring)`
+and the hot four-argument entry is untouched. What stayed stayed: `contextEnd` and the
+beyond-region probe everywhere, `requireEnd` and the lookbehind overshoot logic whole,
+`ReverseScanner`, and zero engine-module edits.
+
+The predicted win materialised where predicted: `anchored_miss` +8.7% on both the scan
+plan and the tree, scan-plan `anchored_hit` +3.7%, WEBLOG hit rows +9.6–10.3%, scan-plan
+BOUNDED_MISS +12.2%, forced-tree buffer CSV +13.8%. The costs, recorded not chased: the
+simulation's full-scan rows paid −8.2–8.6% (`floating_miss`/`line_miss`), and two probes
+cleared both nameable suspects — the inner-loop branch reshape (shape-preserving spelling:
+identical numbers) and the arity itself (a dummy eighth argument restored: identical
+numbers) — leaving D21's alignment disease with R1's own precedent ("recorded not
+chased"); and the default-dispatch corpus rows moved −5–6% while the forced-tree rows on
+identical workloads *gained* 5–14%, which is the ByteMatcher-shape coin the open
+ISSUES.md item already tracks, flipped again by a class reshape that removed a field.
+Suites green both modules, 524 tests.

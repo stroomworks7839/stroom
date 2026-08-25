@@ -19,9 +19,7 @@ package stroom.shapeshifter.regex.corpus;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
-import stroom.shapeshifter.regex.ByteWindow;
 import stroom.shapeshifter.regex.Flag;
-import stroom.shapeshifter.regex.MatchOutcome;
 import stroom.shapeshifter.regex.PatternCompileException;
 
 import org.junit.jupiter.api.Test;
@@ -159,20 +157,18 @@ class RustCorpusTest {
                 ? testCase.boundsEnd()
                 : data.length;
 
-        // The window carries the whole haystack while the search advances within it, so that a
-        // zero-width assertion at the search position can still see the byte before it. Passing
-        // the position as a region start instead would make every iteration look like a fresh
-        // input, and \b would report a boundary that is not there.
-        final ByteWindow window = ByteWindow.complete(data, from, to);
+        // The region carries the whole haystack while the search advances within it, so that a
+        // zero-width assertion at the search position can still see the byte before it — the
+        // find-next entry keeps the region fixed for exactly this.
         final ByteMatcher matcher = pattern.matcher();
         final List<List<Span>> actual = new ArrayList<>();
         int pos = from;
         int previousEnd = -1;
 
         while (pos <= to && actual.size() <= testCase.expected().size() + 4) {
-            if (matcher.match(window, pos, testCase.anchored()
+            if (!matcher.match(data, from, pos, to, testCase.anchored()
                     ? Anchoring.ANCHORED
-                    : Anchoring.UNANCHORED) != MatchOutcome.MATCH) {
+                    : Anchoring.UNANCHORED)) {
                 break;
             }
             if (matcher.start() == matcher.end() && matcher.start() == previousEnd) {

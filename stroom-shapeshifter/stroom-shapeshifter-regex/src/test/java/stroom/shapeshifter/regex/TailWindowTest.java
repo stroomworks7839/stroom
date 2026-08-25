@@ -105,18 +105,6 @@ class TailWindowTest {
     }
 
     @Test
-    void growingWindowsKeepTheirNeedMoreAnswer() {
-        // On a window that can still grow, the jump is excluded: the region end is not the
-        // input end yet, and the edge bookkeeping needs its walk.
-        final ByteMatcher m = matcher("a{1,4}$");
-        final byte[] data = "bbaa".getBytes(StandardCharsets.UTF_8);
-        assertThat(m.match(ByteWindow.partial(data, 0, 4), 0, Anchoring.UNANCHORED))
-                .isEqualTo(MatchOutcome.NEED_MORE_INPUT);
-        assertThat(m.match(ByteWindow.complete(data), 0, Anchoring.UNANCHORED))
-                .isEqualTo(MatchOutcome.MATCH);
-    }
-
-    @Test
     void searchStartAnchorsNeverJump() {
         // \G holds where the search started; moving the start moves the anchor, and the
         // audit produced \Ga{1,2}$ matching where the JDK refuses. Bounded and end-anchored,

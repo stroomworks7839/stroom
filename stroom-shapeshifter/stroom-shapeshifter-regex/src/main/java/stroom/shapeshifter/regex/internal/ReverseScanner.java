@@ -68,7 +68,7 @@ public final class ReverseScanner {
         int best = -1;
         for (int pos = to; ; pos--) {
             if (current.matchLive
-                && !Utf8.splitsCharacter(data, pos, to, true, contextEnd)) {
+                && !Utf8.splitsCharacter(data, pos, contextEnd)) {
                 best = pos; // positions only decrease, so the last recorded is the smallest
             }
             if (pos <= from || current.size == 0) {
