@@ -236,10 +236,23 @@ public sealed interface CompiledOp {
                 case OutputNode.Substring value -> {
                     // The version gate (design/17 §7, ruled): 1-based from version 5,
                     // 0-based before — Dispatch.effective's precedent, applied to the base.
-                    // A version-5 start below 1 clamps to the first position.
-                    final int start = project.version() >= 5 ? value.start() - 1 : value.start();
-                    yield transform(single("substring", value.select()),
-                            value.name(), inputs -> Transforms.substring(inputs, start, value.length()));
+                    // A version-5 start below 1 follows XPath's rule: the window is
+                    // [start, start + length) intersected with the string, so the length
+                    // shrinks by the part that fell before position 1 (phase 5 audit) —
+                    // substring(x, 0, 3) is the first two characters, not three.
+                    int start = value.start();
+                    Integer length = value.length();
+                    if (project.version() >= 5) {
+                        start = start - 1;
+                        if (start < 0 && length != null) {
+                            length = Math.max(0, length + start);
+                        }
+                        start = Math.max(0, start);
+                    }
+                    final int effectiveStart = start;
+                    final Integer effectiveLength = length;
+                    yield transform(single("substring", value.select()), value.name(),
+                            inputs -> Transforms.substring(inputs, effectiveStart, effectiveLength));
                 }
                 case OutputNode.Tokenize value -> transform(single("tokenize", value.select()),
                         value.name(), inputs -> Transforms.tokenize(inputs, value.delimiter()));

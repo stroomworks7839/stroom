@@ -155,6 +155,19 @@ class DiagnosticsTest {
         assertThat(run(config(5, "", SUBSTRING_BODY), "abcdef\n").output()).isEqualTo("abc");
     }
 
+    private static final String SUBSTRING_ZERO_BODY =
+            "{\"substring\": {\"select\": [{\"parts\": [{\"capture\": {\"var_id\": \"field\","
+            + " \"group\": 0}}]}], \"start\": 0, \"length\": 3}}";
+
+    @Test
+    void versionFiveStartBelowOneShrinksTheWindowLikeXpath() {
+        // XPath: substring("abcdef", 0, 3) is "ab" — the window [0,3) intersected with the
+        // string, not three characters from the front. Found by the phase 5 audit.
+        assertThat(run(config(5, "", SUBSTRING_ZERO_BODY), "abcdef\n").output()).isEqualTo("ab");
+        // Version 4 keeps the ported 0-based reading untouched: three from the front.
+        assertThat(run(config(4, "", SUBSTRING_ZERO_BODY), "abcdef\n").output()).isEqualTo("abc");
+    }
+
     @Test
     void theBumpWarningFiresBelowFiveAndOnlyThere() {
         assertThat(run(config(4, "", SUBSTRING_BODY), "abcdef\n").messages())

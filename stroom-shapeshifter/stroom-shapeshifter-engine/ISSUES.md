@@ -505,6 +505,11 @@ copy under `e17/` is patched identically, since its subject is stranding, not re
 The check that found this stands down for configurations with key-value captures, whose
 names are read out of the data and cannot be known statically.
 
+*The phase 5 audit added the second layer: the six trim templates' repaired reads bind
+names that nothing reads either — the artifact ran in both directions, display-name reads
+and unread binds — which is why their repair was provably output-neutral. The trims stay
+as faithful ported shape; deleting them is beyond the repair ruling's scope.*
+
 ### E22 — Charset fallback chains substitute near-equivalents silently
 **`resolved` 2026-08-21: pinned and made loud, per the user's ruling.** ds-rs parity is no
 longer a constraint — the port is done, and divergence from here is a choice this

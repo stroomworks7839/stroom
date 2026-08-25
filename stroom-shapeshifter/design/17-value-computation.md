@@ -697,6 +697,21 @@ captures bind names read out of the data, so the check stands down for configura
 contain one. The bump warning fires below version 5, once per configuration; no fixture
 message golden moves, because the projects family asserts output only.*
 
+*Audited 2026-08-25, diff-scoped, landed as `9b17bbaa90`. One defect found and fixed: the
+version-5 gate's degenerate edge diverged from the XPath it claims alignment with —
+`substring(x, 0, 3)` at version 5 gave three characters where XPath's window rule
+([start, start+length) intersected with the string) gives two; the length now shrinks by
+the part that fell before position 1, pinned from both versions. One stale document
+corrected: `OutputNode.Substring`'s javadoc still carried E21's documented-not-aligned
+ruling, which this phase superseded — it now states the gate. The repair's own audit:
+the cleaning-chain mappings are proven by the golden diff; the six trim mappings are
+output-neutral for a reason now verified — their bound names are read by nothing, so the
+trims were doubly dead (display-name reads and unread binds), and stay as harmless
+faithful shape rather than being deleted beyond the ruling's scope, recorded in E25.
+Coverage verified: no match-side type carries a `RefExpression`, so the checker's read walk
+is complete; `strict_values` ignores absent inputs and typed non-numerics that cast
+(`Bool`, `Instant`) draw no false warning; the wire round-trips both values of the flag.*
+
 **Phase 6 — fixture migration to 1-based, and the new-feature test sweep.**
 Phase 0's five-config list, migrated: version bumped to 5, every `substring` start +1. **The
 trap this phase exists to not fall into: a version bump moves two defaults, not one** — the

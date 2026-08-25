@@ -205,10 +205,12 @@ public sealed interface OutputNode {
     }
 
     /**
-     * Take part of a value. XSLT: {@code substring()} — but note the trap: {@code start} is
-     * <b>0-based</b> where XSLT's is 1-based. {@code substring(x, 1, 2)} here is XSLT's
-     * {@code substring(x, 2, 2)}. Ruled 2026-08-21 (E21): documented, not aligned — the
-     * 0-based form is faithful to the ported transform library and existing configurations.
+     * Take part of a value. XSLT: {@code substring()} — and the base is <b>version-gated</b>
+     * (design/17 §7, superseding E21's documented-not-aligned ruling): below version 5
+     * {@code start} is 0-based, faithful to the ported library and existing configurations;
+     * from version 5 it is 1-based, XSLT's own reading, with a start below 1 shrinking the
+     * window per XPath's rule. The compiler warns, once per configuration, on any
+     * pre-version-5 configuration a bump would change.
      */
     record Substring(List<RefExpression> select,
                      int start,
