@@ -91,8 +91,8 @@ public final class ByteMatcher {
     private byte[] data;
     private int regionFrom;
     private int regionTo;
-    /** One past the last byte that may be consulted as context — the window's contextEnd,
-     * bound into the engine before each search. */
+    /** One past the last byte that may be consulted as context — the array's end, bound
+     * into the engine before each search. */
     private int contextEnd;
     private boolean matched;
 
@@ -162,6 +162,13 @@ public final class ByteMatcher {
      * assertion at {@code from} still sees the byte before it. Collapsing the two (passing
      * {@code from} as the region start) would make every iteration look like a fresh input,
      * and {@code \b} would report a boundary that is not there.
+     *
+     * <p>The binding block repeats the four-argument entry's on purpose: that entry's call
+     * shape is a measured quantity ({@code ISSUES.md}, the class-shape item), so neither
+     * entry delegates to the other.
+     *
+     * @param anchoring whether the match must begin at {@code from} or may be searched for.
+     * @return true if a match was found; group accessors are then valid until the next call.
      */
     public boolean match(final byte[] data,
                          final int regionFrom,
@@ -397,7 +404,7 @@ public final class ByteMatcher {
     }
 
     /** Asks {@link Utf8#splitsCharacter} — the contract lives there — with this matcher's
-     * bound window. */
+     * bound region and context. */
     private boolean splitsCharacter(final int at) {
         return Utf8.splitsCharacter(data, at, contextEnd);
     }

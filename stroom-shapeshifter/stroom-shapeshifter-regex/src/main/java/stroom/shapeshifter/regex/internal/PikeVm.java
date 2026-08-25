@@ -29,9 +29,9 @@ import java.util.Arrays;
  *       merely unlikely, it is unrepresentable.</li>
  *   <li><b>No recursion.</b> The failure mode Stroom's current DS3 catches — a
  *       {@code StackOverflowError} from a deep backtracking search — cannot arise.</li>
- *   <li><b>Self-contained state.</b> The thread list is the entire execution state. Streaming
- *       today re-runs a search when the window grows; if resuming mid-input is ever worth
- *       building, this is the engine that can, and the property is why.</li>
+ *   <li><b>Self-contained state.</b> The thread list is the entire execution state. D37
+ *       retired streaming but keeps resume-mid-input in escrow on exactly this property: if
+ *       it is ever worth building, this is the engine that can, and this is why.</li>
  * </ul>
  * Threads are held in priority order and the first to reach {@code MATCH} wins, with all
  * lower-priority threads discarded. That produces leftmost-first (Perl) semantics, matching
@@ -76,7 +76,7 @@ public final class PikeVm {
      * (−2–4%, accepted in ISSUES.md). */
     private int contextEnd;
 
-    /** Binds the window's contextEnd: one past the last byte {@link #search} may consult. */
+    /** Binds the context: one past the last byte {@link #search} may consult. */
     public void setContextEnd(final int contextEnd) {
         this.contextEnd = contextEnd;
     }
@@ -94,8 +94,8 @@ public final class PikeVm {
     }
 
     /**
-     * Searches for a match. The window's contextEnd must be bound via {@link #setContextEnd}
-     * before each call, or the answer at the region edge is wrong.
+     * Searches for a match. The context must be bound via {@link #setContextEnd} before
+     * each call, or the answer at the region edge is wrong.
      *
      * @param anchored true to require the match to begin at {@code start}.
      * @param slots    filled with the winning capture slots when a match is found.

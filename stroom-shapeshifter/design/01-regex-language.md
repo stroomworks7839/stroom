@@ -519,6 +519,9 @@ each covers the other's weakness.
 
 ## 7. Streaming semantics
 
+*(Retired design: D37, 2026-08-25 — the library is complete-inputs-only; kept as the
+draft record.)*
+
 Every match returns one of three outcomes:
 
 | Outcome | Meaning |

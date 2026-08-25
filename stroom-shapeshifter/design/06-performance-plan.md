@@ -154,7 +154,7 @@ regex library's streaming API — no `ByteWindow`, no `NEED_MORE` handling anywh
 every production input is a complete view. Both features below therefore exclude growing
 windows outright, at zero production cost. (The streaming surface itself is exercised only
 by the library's own tests; whether to retire it is a decision for its own D-number, not
-assumed here.)
+assumed here. Since ruled: D37, executed 2026-08-25 — the surface retired.)
 
 **Phase 0 — `EndAnchoredSearchBenchmark`, the gate and the decision point.** The
 failure-shaped twin of `AnchoredSearchBenchmark`, per the 2026-08-20 method note: both

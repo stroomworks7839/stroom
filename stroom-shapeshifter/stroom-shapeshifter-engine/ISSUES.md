@@ -338,8 +338,9 @@ cost gets the usual treatment: benchmark either side.
 
 Input is read in buffers and a match never crosses one, so a configuration's buffer size is also
 the largest record it can handle. This is ds-rs's limitation, kept on purpose so that golden
-parity meant something — and the matching layer underneath already answers
-`NEED_MORE_INPUT` for exactly this case.
+parity meant something. (The matching layer's `NEED_MORE_INPUT` answer that once served
+exactly this case retired with D37; a sliding-refill fix now has to detect the boundary
+itself, which the executor's own buffering already does.)
 
 Pinned by `EngineBehaviourTest`, so the current behaviour is a test rather than an assumption,
 which is what makes the change safe to attempt.

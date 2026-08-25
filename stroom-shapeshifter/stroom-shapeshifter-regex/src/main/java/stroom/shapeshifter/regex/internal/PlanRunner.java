@@ -74,7 +74,7 @@ public final class PlanRunner {
                     final int available = Math.min(literal.length, to - cursor);
                     for (int i = 0; i < available; i++) {
                         if (data[cursor + i] != literal[i]) {
-                            return NO_MATCH; // a real mismatch, whatever else arrives
+                            return NO_MATCH; // a real mismatch
                         }
                     }
                     if (available < literal.length) {
@@ -131,7 +131,6 @@ public final class PlanRunner {
                         cursor++;
                         count++;
                     }
-
                     if (count < b[pc]) {
                         return NO_MATCH;
                     }
@@ -204,5 +203,4 @@ public final class PlanRunner {
             }
         }
     }
-
 }

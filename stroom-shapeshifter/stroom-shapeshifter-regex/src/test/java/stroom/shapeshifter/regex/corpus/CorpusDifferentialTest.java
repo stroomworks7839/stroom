@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.regex.corpus;
 
-import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.JdkOracle;

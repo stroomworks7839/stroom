@@ -78,9 +78,10 @@ class RustCorpusTest {
      * <p>
      * Rust restricts a search to a span while still letting look-around see the bytes outside it,
      * so {@code \b} at the span start can see the word character before it. This engine has no
-     * notion of context outside its region: the region start <em>is</em> the start of the input,
-     * which is what makes a streaming window self-contained. Worth revisiting if a caller ever
-     * needs to re-scan a buffer from a mid-point without losing the boundary before it.
+     * notion of context outside its region: the region start <em>is</em> the start of the input.
+     * The five-argument {@code match(data, regionFrom, from, to, anchoring)} covers the adjacent
+     * need — searching from a mid-point without losing the boundary before it — but a span whose
+     * <em>region</em> is clipped while look-around sees outside it remains unrepresentable.
      */
     private static final String SPAN_CONTEXT =
             "Rust evaluates look-around against the whole haystack even when the search is "

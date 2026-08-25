@@ -81,6 +81,8 @@ matching layer can do better — `StreamMatcher`'s three-way outcome exists prec
 signal on all 48 in-scope fixtures. Real streaming becomes a decision of its own once the
 port is green and the semantics are pinned by tests. It is the single most valuable
 follow-up this port sets up, and it should not be smuggled in during the port.
+*(That decision has since been made the other way: D37, 2026-08-25 — the streaming surface
+retired; resume-mid-input stays in escrow in 00-decisions.md.)*
 
 **The goldens are frozen, and the regenerators do not come with them.** Eleven of the
 eighteen `projects` goldens were produced by `gen_native_fixture_outputs` from ds-rs's own

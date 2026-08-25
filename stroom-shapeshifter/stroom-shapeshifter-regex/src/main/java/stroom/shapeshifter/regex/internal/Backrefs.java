@@ -25,10 +25,12 @@ package stroom.shapeshifter.regex.internal;
  */
 final class Backrefs {
 
-    /** Every byte in hand agreed, but the window ended before the reference did. */
+    /** Every byte in hand agreed, but the region ended before the reference did. Callers
+     * treat it as a plain failure since D37 retired the edge reporting; the constant records
+     * the cause. */
     static final int TRUNCATED = -2;
 
-    /** The input does not match the captured span, whatever else arrives. */
+    /** The input does not match the captured span. */
     static final int MISMATCH = -1;
 
     private Backrefs() {
@@ -38,8 +40,8 @@ final class Backrefs {
      * Matches the captured span {@code [from, until)} against the input at {@code pos}.
      *
      * @return the number of input bytes consumed, which under folding can differ from the
-     * span's length; or {@link #MISMATCH}; or {@link #TRUNCATED}, which the caller reports as
-     * window-edge contact.
+     * span's length; or {@link #MISMATCH}; or {@link #TRUNCATED}, which callers treat as a
+     * plain failure.
      */
     static int compare(final byte[] data,
                        final int pos,

@@ -117,9 +117,50 @@ bars everywhere the operation does real work. `PikeVm`'s NEED_MORE edge latch co
 `simulate anchored_hit` and is the fix for detection that was previously unreachable — the
 engine was wrong at full speed. No real-workload row pays either cost. Evidence:
 `design/benchmarks/2026-08-22-*-anchored-*.json` and the ledger's benchmark-gate section.
+*(D37 note, 2026-08-25: the `PikeVm` NEED_MORE edge latch was deleted with the streaming
+surface, so its −2.3% no longer accrues; the stale-byte-window store survives as the
+contextEnd bind.)*
 
 **`scan_plan floating_miss` −4.1% is code-layout sensitivity, not a defect (`accepted`).**
 The commit charged with it provably does not touch that loop. Recorded rather than chased:
 tuning method order against one microbench is a game with no winning move. If the number
 matters later, the investigation starts from the ledger's method note — at single-digit
 nanoseconds, compare across boots only through a same-boot control at the baseline commit.
+
+**The D37 audit's measure-first follow-ups (`open`, 2026-08-25).** The eight-angle audit
+of the streaming retirement cleared the diff of correctness defects (line-by-line: none;
+every fold's `!complete` guard verified) and left a list of candidate simplifications in
+the hot loops, none applied because each changes a measured method's shape:
+
+- The `at == to` / `start == regionTo` disjunct in all four first-byte gates
+  (`ByteMatcher.searchPlan`, `Backtracker`, `FancyBacktracker`, `NodeTree`) is provably
+  dead — `firstBytes != null` implies a non-nullable pattern, so `minLength >= 1` and the
+  loop bound stops at `to − 1`. Three angles proved it independently. Removing it also
+  exposes `at < to` for bounds-check elision.
+- The anchor gates' `at < to &&` exemption survives its deleted reason (the edge
+  iteration's bookkeeping); dropping it only forces one doomed attempt fewer on
+  `minLength == 0` patterns.
+- `PikeVm`: the `pos > to ||` exit disjunct is subsumed by `pos > lastSeed`;
+  `canStartAt`'s `pos < to &&` is constant-true; BYTE_RANGE's `value >= 0 &&` is subsumed
+  by the range compare (BYTE_CLASS/BYTE_DISPATCH must keep theirs — −1 would index a
+  table).
+- `PlanRunner` MATCH_LITERAL still compares bytes of a literal that cannot fit before
+  failing; an up-front length check is simpler and skips the doomed loop.
+- `contextEnd` is now constant-per-call equal to `data.length` on every path, so the
+  per-engine field, five binding stores, and `ReverseScanner`'s fifth argument plumb a
+  value the engines could read off `data` — **but deleting the seam forecloses the
+  tighter-context bound below, so it needs the ruling first.**
+- The engines' int-end returns feed nothing but `end >= 0` (every engine already publishes
+  the end through `slots[1]`), so `search` could return boolean; `Backrefs.TRUNCATED` is
+  indistinguishable from `MISMATCH` at both call sites and could collapse.
+
+**A complete view with a clipped context is inexpressible (`open` — needs a ruling,
+2026-08-25).** Both surviving entries bind `contextEnd = data.length`; the deleted window
+entry was the only way to pin the context at a reused buffer's fill point, so the
+beyond-region probe can consult stale bytes past the fill (a stale continuation byte at
+`data[to]` falsely vetoes a legal match at the region end). The executor's records rarely
+abut the fill, and pre-D37 array-entry callers had the same exposure — D37 removed the
+*expression* of the tighter bound, not the safety of existing callers. Options if ruled
+worth fixing: a `contextEnd` overload on the five-argument entry, or the
+constant-propagation above in the opposite direction. Recorded by the D37 audit's
+removed-behavior angle.

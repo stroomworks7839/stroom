@@ -35,9 +35,10 @@ is the check that would have caught the false 7% result described in
 | `PatternCorpusBenchmark` | All 106 accepted corpus patterns, short inputs | Per-match overhead across the breadth the correctness suite covers, at the tier mix a real config would have |
 | `MatchingBaselineBenchmark` | Hand-written scanners vs `java.util.regex` | The pre-engine baseline from [03-baseline-results.md](../03-baseline-results.md) |
 | `BranchOrderBenchmark` | Alternation branch ordering | Whether branch order is worth optimising |
+| `AnchoredSearchBenchmark` | Four failure/hit shapes (`anchored_hit`/`anchored_miss`/`line_miss`/`floating_miss`) per engine over 256 KiB | The failure-path gate (the 2026-08-20 method note): what a dispatching caller's doomed searches cost; the standing gate for `ByteMatcher`/engine-path changes |
 | `XmlBaselineBenchmark` | The events workload at 10k/100k/1M records | The XML head-to-head's decomposition: SAX floor, Saxon identity, Saxon proper, shapeshifter (design/13) |
 | `CaseCatalogueBenchmark` | Seven catalogue cases amplified to ~10k/~100k units | Per-capability-family A/B, Saxon vs shapeshifter, parity-licensed by `CaseAmplifierTest` |
-| `EndAnchoredSearchBenchmark` | Three end-anchored shapes (bounded WEBLOG tail, unbounded filename, key=value), hit- and miss-shaped over 256 KiB | The end-anchor programme's gate (06 §6): what the tail window and reverse matching would buy; `javaRegex` rows are the drift control; tree engine absent from the filename rows by its own step budget, pinned by the fixture test |
+| `EndAnchoredSearchBenchmark` | Three end-anchored shapes (bounded WEBLOG tail, unbounded filename, key=value), hit- and miss-shaped over 256 KiB | The end-anchor programme's gate (06 §6): what the tail window and reverse matching bought; `javaRegex` rows are the drift control; tree engine absent from the filename rows by its own step budget, pinned by the fixture test |
 
 Runs are machine-specific. Compare files from the same machine, or not at all.
 

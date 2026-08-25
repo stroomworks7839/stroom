@@ -26,8 +26,8 @@ import stroom.shapeshifter.regex.internal.NodeTree;
 import stroom.shapeshifter.regex.internal.Normalise;
 import stroom.shapeshifter.regex.internal.Parser;
 import stroom.shapeshifter.regex.internal.Plan;
-import stroom.shapeshifter.regex.internal.Reverse;
 import stroom.shapeshifter.regex.internal.PlanCompiler;
+import stroom.shapeshifter.regex.internal.Reverse;
 
 import java.util.Collections;
 import java.util.EnumSet;

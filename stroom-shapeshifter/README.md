@@ -22,8 +22,8 @@ if (matcher.find(bytes)) {
 }
 ```
 
-Supported now: the whole RE2 subset plus the constructs beyond it, over UTF-8 input, complete
-or streaming, on engines chosen automatically. An unambiguous pattern becomes a straight-line
+Supported now: the whole RE2 subset plus the constructs beyond it, over UTF-8 input —
+complete views, always (D37) — on engines chosen automatically. An unambiguous pattern becomes a straight-line
 scan plan with no automaton. Anything else runs a tree-walking backtracker first —
 `java.util.regex`'s own architecture, rebuilt over bytes, which measured at or ahead of the
 JDK across the corpus — with a linear-time Pike VM simulation beneath it as both fallback and
@@ -57,9 +57,10 @@ choices and the refusals are listed in [design/01-regex-language.md](design/01-r
 fancy tier — a backtracking engine's own corpus, dense in exactly the constructs the Rust one
 deliberately has none of.
 
-Also built: streaming (`StreamMatcher`, and a three-way `MATCH`/`NO_MATCH`/`NEED_MORE_INPUT`
-outcome so a partial window is never mistaken for a decided one) and the combinator layer
-(`comb.Matchers`), which flattens to the same plans as the equivalent regex.
+Also built: the combinator layer (`comb.Matchers`), which flattens to the same plans as the
+equivalent regex. A streaming surface (`StreamMatcher`, a three-way outcome) was built and
+then retired by D37 (2026-08-25): the executor never consumed it, and the library is
+complete-inputs-only — byte arrays and slices.
 
 Not yet built: encodings other than UTF-8 and the `transcode` stage. (A delegated
 `java.util.regex` dialect was once planned and is deliberately gone — D27 made it unnecessary.)
@@ -84,8 +85,8 @@ The design drafts, the decisions and the measurements:
 - [01-regex-language.md](design/01-regex-language.md) — the matching language: RE2-style
   regex dialect, encoding-aware character classes, atoms and nom-style combinators.
 - [02-engine-design.md](design/02-engine-design.md) — engine architecture: the encoding
-  compiler, the one-pass scan plan and Pike VM execution tiers, streaming, and the test
-  strategy.
+  compiler, the one-pass scan plan and Pike VM execution tiers, streaming (since retired:
+  D37), and the test strategy.
 - [03-baseline-results.md](design/03-baseline-results.md) — JMH measurements taken before any
   engine code, confirming one design assumption and refuting two.
 - [04-corpus-analysis.md](design/04-corpus-analysis.md) — which execution tier real DS3

@@ -98,10 +98,11 @@ public final class Utf8 {
      * empty one, which is the only kind that could. An offset that splits a character is of no
      * use to a caller reading the text back.
      *
-     * <p>A region can end inside a character, so at {@code at == to} the byte just past the
-     * region is consulted — {@code at < contextEnd} is what makes the read safe: bytes at and
-     * beyond {@code contextEnd} are not the caller's data (a reused buffer's stale tail, or the
-     * array's end).
+     * <p>A region can end inside a character, so the byte just past the region may be
+     * consulted — {@code at < contextEnd} is what makes the read safe: bytes at and beyond
+     * {@code contextEnd} are not the caller's data. Since D37 both public entries bind the
+     * context to the array's end; a tighter bound (a reused buffer's stale tail) is currently
+     * inexpressible, recorded in {@code ISSUES.md}.
      *
      * <p>The one shared search-start gate: every engine asks this question at every candidate
      * match start — four private spellings had drifted into three behaviours before it (the

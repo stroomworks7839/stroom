@@ -157,7 +157,7 @@ public final class FancyBacktracker {
                       final int to,
                       final boolean anchored,
                       final int[] slots) {
-        assert contextEnd >= to : "setContextEnd must bind the window before search";
+        assert contextEnd >= to : "setContextEnd must bind the context before search";
         context.steps = STEP_BUDGET;
         context.searchStart = start;
 
@@ -427,9 +427,9 @@ public final class FancyBacktracker {
                 while (grown < to && Utf8.isContinuation(data[grown])) {
                     grown++;
                 }
-                // Refuse only a character truncated by the window edge; on malformed input,
+                // Refuse only a character truncated by the region edge; on malformed input,
                 // byte granularity matches what the greedy scan does. A whole character ends
-                // before the window does, ends on a non-continuation byte, or spans exactly
+                // before the region does, ends on a non-continuation byte, or spans exactly
                 // its lead byte's announced length.
                 final boolean truncatedByEdge = grown == to
                         && Utf8.isContinuation(data[grown - 1])
@@ -454,7 +454,7 @@ public final class FancyBacktracker {
      *
      * <p>The cursor pins where the body must end, and nothing more: the body keeps the region's
      * own {@code to}, so an assertion or a nested lookahead inside it reads the input past the
-     * cursor exactly as it would outside. Handing it {@code cursor} as its window instead made
+     * cursor exactly as it would outside. Handing it {@code cursor} as its view instead made
      * {@code (?<=a(?=bc))bc} fail and {@code (?<=a$)b} match, neither of which is what the
      * construct means.
      */

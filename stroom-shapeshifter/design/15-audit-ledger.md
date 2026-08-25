@@ -357,3 +357,45 @@ Adjudicated, not changed: the silent end of processing after a full-window match
 by the downgrade. With this pass, every diff in the module's tree has been through the
 same eight angles, the issue list is empty, and the end-anchor programme stands at Phase 4
 with Phase 5 recorded behind a workload.
+
+## The D37 audit (2026-08-25) — eight angles over the retirement, no defects, the docs owed the truth
+
+`083cdfd3fd` was reviewed by the standing eight angles. Line-by-line found nothing; the
+removed-behavior angle verified every fold's proof — each deleted latch read was
+`!complete`-guarded, each NEED_MORE return folded exactly, every complete-window assertion
+in the deleted tests still covered elsewhere — and the cross-file signature sweep found all
+five changed signatures consistent at every caller. No correctness finding survived.
+
+What the angles did find, and what was done:
+
+- **Two deletions the fold orphaned, now deleted:** `CharClass.mayContinue` (its only
+  callers were PlanRunner's removed edge paths) and CorpusDifferentialTest's `Anchoring`
+  import. The house standard is delete dead vocabulary, and the fold missed both.
+- **The docs owed the truth in fifteen places, now paid:** the module README still sold
+  `StreamMatcher` and "complete or streaming" as shipped; PikeVm's header had streaming
+  "today"; NodeTree claimed a shared "streaming conservatism" neither engine has;
+  `Backrefs` promised edge reporting no caller does; `Utf8.splitsCharacter`'s fresh javadoc
+  referenced its own deleted parameter and a stale-tail case no entry can express;
+  TailWindowTest promised a deleted pin; the retired "window" vocabulary survived in field
+  comments and three assert strings; design/06's scope note still called the retirement
+  undecided; design/01 §7 and design/02 §7 got retirement banners; design/07's streaming
+  recommendation got its overtaken note; the engine module's buffer-boundary item pointed a
+  future implementer at the deleted NEED_MORE answer; and the benchmarks README gained the
+  `AnchoredSearchBenchmark` row it had always lacked.
+- **Polish:** the new five-argument entry gained its `@param`/`@return` tags and — the
+  reuse angle's point — a sentence recording that its binding block repeats the
+  four-argument entry's *on purpose* (the call shape is measured; no delegation). Batch 2's
+  accepted-cost entry gained its D37 supersession note. Whitespace residue where the
+  latches were excised, and BytePattern's import order, fixed.
+- **Not fixed, recorded:** the measure-first list (dead edge tests in four first-byte
+  gates, PikeVm's subsumed compares, MATCH_LITERAL's doomed compare loop, contextEnd
+  constant-propagation, boolean engine returns, the TRUNCATED collapse) and the
+  clipped-context inexpressibility — both now open items in the module's ISSUES.md, the
+  second needing a ruling.
+
+Confirmation: suites green both modules after the fixes; the anchored gate re-ran flat to
+a row against the D37 after-file, and corpus CSV+DATETIME flat on every row but one —
+forced-tree CSV read +30.4% with a ±700 error bar on 3,412, the same bimodal coin the D37
+gate had already caught moving (+13.8%), credited to nothing (comment and markdown edits,
+with the three assert strings the only bytecode change, on failure paths). Evidence:
+`2026-08-25-2143-*-d37-audit-anchored.json`, `2026-08-25-2151-*-d37-audit-corpus.json`.

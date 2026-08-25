@@ -469,6 +469,9 @@ Consequences worth stating:
 
 ## 7. Streaming
 
+*(Retired design: D37, 2026-08-25 — the library is complete-inputs-only; kept as the
+draft record.)*
+
 ### 7.1 Window model
 
 ```java

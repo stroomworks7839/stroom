@@ -41,7 +41,7 @@ import java.util.List;
  * compiler's primary for every fancy pattern, since D32 the first try for every ambiguous
  * search — with the flat engines as fallback where its one structural limit, recursion depth,
  * gives out ({@code Bailout}), and the simulation preserving the linear-time promise beneath
- * it. Same dialect, same byte offsets, same streaming conservatism, same step budget
+ * it. Same dialect, same byte offsets, same step budget
  * ({@link MatchLimitException}) as the flat unbounded backtracker.
  */
 public final class NodeTree {
@@ -160,7 +160,7 @@ public final class NodeTree {
          * {@code PikeVm}'s field note records the measured reason. */
         private int contextEnd;
 
-        /** Binds the window's contextEnd: one past the last byte {@code search} may consult. */
+        /** Binds the context: one past the last byte {@code search} may consult. */
         public void setContextEnd(final int contextEnd) {
             this.contextEnd = contextEnd;
         }
@@ -180,7 +180,7 @@ public final class NodeTree {
                           final int to,
                           final boolean anchored,
                           final int[] slots) {
-            assert contextEnd >= to : "setContextEnd must bind the window before search";
+            assert contextEnd >= to : "setContextEnd must bind the context before search";
             ctx.data = data;
             ctx.regionFrom = regionFrom;
             ctx.to = to;
@@ -911,12 +911,12 @@ public final class NodeTree {
         }
 
         /**
-         * A lookbehind pins where its body must <em>end</em>, and nothing else. The window it
+         * A lookbehind pins where its body must <em>end</em>, and nothing else. The view it
          * sees stays the whole region: an assertion or a nested lookahead in the body reads the
          * input past the cursor, exactly as it would outside — {@code (?<=a(?=bc))bc} matches
          * and {@code (?<=a$)b} does not, both of which need bytes the cursor would have hidden.
          * <p>
-         * Pinning the window instead of the end used to do both jobs at once, and got the second
+         * Pinning the view instead of the end used to do both jobs at once, and got the second
          * one wrong in both directions: a nested lookahead could never see its own text, and
          * {@code $} read the cursor as the end of the input and matched there.
          * <p>

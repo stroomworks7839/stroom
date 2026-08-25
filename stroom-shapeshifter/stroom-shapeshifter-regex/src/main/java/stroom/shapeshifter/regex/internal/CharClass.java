@@ -141,42 +141,6 @@ public final class CharClass {
         return -1;
     }
 
-    /**
-     * Whether the bytes at {@code pos} could be the beginning of a member that the window has
-     * cut short — the difference between "this character is not in the class" and "this
-     * character has not fully arrived".
-     */
-    public boolean mayContinue(final byte[] data, final int pos, final int to) {
-        if (pos >= to) {
-            return true;
-        }
-        final int lead = data[pos] & 0xFF;
-        if (leadTable[lead] == 0) {
-            return false;
-        }
-        if (asciiOnly || lead < 0x80) {
-            return false; // one byte, and it was there, so a failure here is a real one
-        }
-        for (final int[] sequence : byLeadByte[lead]) {
-            final int length = sequence.length / 2;
-            if (pos + length <= to) {
-                continue; // fully available, so it was genuinely tested
-            }
-            boolean consistent = true;
-            for (int i = 1; pos + i < to; i++) {
-                final int value = data[pos + i] & 0xFF;
-                if (value < sequence[2 * i] || value > sequence[2 * i + 1]) {
-                    consistent = false;
-                    break;
-                }
-            }
-            if (consistent) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     @Override
     public String toString() {
         return label + " (" + sequences.length + " sequence"

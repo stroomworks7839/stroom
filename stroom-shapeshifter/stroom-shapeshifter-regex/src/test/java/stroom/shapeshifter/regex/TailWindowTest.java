@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code regionTo - max}, because no earlier candidate can produce a match ending at the
  * region end. The jump must be invisible — same matches, same captures, same misses — so
  * these pins are the edges where an off-by-one would show, and the exclusions that must
- * never jump: line anchors, unbounded patterns, anchored questions, growing windows.
+ * never jump: line anchors, unbounded patterns, anchored questions.
  */
 class TailWindowTest {
 
