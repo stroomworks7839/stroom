@@ -26,6 +26,7 @@ import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.exec.Transforms;
+import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
@@ -141,7 +142,7 @@ public sealed interface CompiledOp {
      */
     record Transform(List<CompiledRef> select,
                      String name,
-                     Function<List<String>, String> function) implements CompiledOp {
+                     Function<List<TypedValue>, TypedValue> function) implements CompiledOp {
 
     }
 
@@ -222,7 +223,7 @@ public sealed interface CompiledOp {
 
     private static Transform transform(final List<RefExpression> select,
                                        final String name,
-                                       final Function<List<String>, String> function) {
+                                       final Function<List<TypedValue>, TypedValue> function) {
         return new Transform(select.stream().map(CompiledRef::of).toList(), name, function);
     }
 
@@ -254,7 +255,8 @@ public sealed interface CompiledOp {
         return transform(value.select(), value.name(),
                 inputs -> inputs.isEmpty()
                         ? null
-                        : Transforms.replaceRegex(pattern, inputs.getFirst(), value.replacement()));
+                        : TypedValue.of(Transforms.replaceRegex(
+                                pattern, inputs.getFirst().asString(), value.replacement())));
     }
 
     /** True if an expression is exactly "group 0 of this match, whichever one that is". */

@@ -26,28 +26,38 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
- * The function library: the string operations a configuration can apply to a value.
+ * The function library: the operations a configuration can apply to a value.
  *
  * <p>They are pure, which is why they live here rather than in the executor. Every one takes the
  * resolved inputs and returns the result, or null to mean "produced nothing" — and producing
- * nothing is different from producing an empty string, because the caller writes one and skips
+ * nothing is different from producing an empty value, because the caller writes one and skips
  * the other.
+ *
+ * <p>Inputs and results are {@link TypedValue} end to end (design/17 §3.2): the string
+ * functions cast to text at the top and wrap their result — identical behaviour, one
+ * indirection — so that a typed value survives the pipeline until a function genuinely needs
+ * characters.
  */
 public final class Transforms {
 
     private Transforms() {
     }
 
+    /** The first input as text, or null when there is none — the string functions' way in. */
+    private static String first(final List<TypedValue> inputs) {
+        return inputs.isEmpty() ? null : inputs.getFirst().asString();
+    }
+
     /** Substitute, one search string at a time, in order. XSLT's {@code translate()}. */
-    public static String translate(final List<String> inputs, final List<String> from, final List<String> to) {
+    public static TypedValue translate(final List<TypedValue> inputs, final List<String> from, final List<String> to) {
         if (inputs.isEmpty()) {
-            return "";
+            return TypedValue.of("");
         }
-        String result = inputs.getFirst();
+        String result = inputs.getFirst().asString();
         for (int i = 0; i < from.size(); i++) {
             result = result.replace(from.get(i), i < to.size() ? to.get(i) : "");
         }
-        return result;
+        return TypedValue.of(result);
     }
 
     /**
@@ -56,37 +66,46 @@ public final class Transforms {
      * <p>Skipping empties rather than joining them is what stops a missing middle field turning
      * {@code a, b, c} into {@code a, , c}.
      */
-    public static String stringJoin(final List<String> inputs, final String separator) {
-        final List<String> present = inputs.stream().filter(input -> !input.isEmpty()).toList();
-        return present.isEmpty() ? null : String.join(separator == null ? "" : separator, present);
+    public static TypedValue stringJoin(final List<TypedValue> inputs, final String separator) {
+        final List<String> present = inputs.stream()
+                .map(TypedValue::asString)
+                .filter(input -> !input.isEmpty())
+                .toList();
+        return present.isEmpty()
+                ? null
+                : TypedValue.of(String.join(separator == null ? "" : separator, present));
     }
 
     /** Replace a literal. */
-    public static String replaceLiteral(final List<String> inputs, final String pattern, final String replacement) {
-        return inputs.isEmpty() ? null : inputs.getFirst().replace(pattern, replacement);
+    public static TypedValue replaceLiteral(final List<TypedValue> inputs,
+                                            final String pattern,
+                                            final String replacement) {
+        final String input = first(inputs);
+        return input == null ? null : TypedValue.of(input.replace(pattern, replacement));
     }
 
     /** Lower-case, in the root locale so that the result does not depend on where it ran. */
-    public static String lowerCase(final List<String> inputs) {
-        return inputs.isEmpty() ? null : inputs.getFirst().toLowerCase(Locale.ROOT);
+    public static TypedValue lowerCase(final List<TypedValue> inputs) {
+        final String input = first(inputs);
+        return input == null ? null : TypedValue.of(input.toLowerCase(Locale.ROOT));
     }
 
     /** Upper-case, in the root locale. */
-    public static String upperCase(final List<String> inputs) {
-        return inputs.isEmpty() ? null : inputs.getFirst().toUpperCase(Locale.ROOT);
+    public static TypedValue upperCase(final List<TypedValue> inputs) {
+        final String input = first(inputs);
+        return input == null ? null : TypedValue.of(input.toUpperCase(Locale.ROOT));
     }
 
     /** Collapse each run of whitespace to one space, and drop it at the ends. */
-    public static String normalizeSpace(final List<String> inputs) {
-        if (inputs.isEmpty()) {
-            return null;
-        }
-        return String.join(" ", inputs.getFirst().trim().split("\\s+"));
+    public static TypedValue normalizeSpace(final List<TypedValue> inputs) {
+        final String input = first(inputs);
+        return input == null ? null : TypedValue.of(String.join(" ", input.trim().split("\\s+")));
     }
 
     /** Strip whitespace from both ends. */
-    public static String trim(final List<String> inputs) {
-        return inputs.isEmpty() ? null : inputs.getFirst().trim();
+    public static TypedValue trim(final List<TypedValue> inputs) {
+        final String input = first(inputs);
+        return input == null ? null : TypedValue.of(input.trim());
     }
 
     /**
@@ -95,24 +114,25 @@ public final class Transforms {
      * <p>Characters, because a configuration saying "the first eight" means eight of what a
      * person would count, and a multi-byte character would otherwise be cut in half.
      */
-    public static String substring(final List<String> inputs, final int start, final Integer length) {
-        if (inputs.isEmpty()) {
+    public static TypedValue substring(final List<TypedValue> inputs, final int start, final Integer length) {
+        final String input = first(inputs);
+        if (input == null) {
             return null;
         }
-        final int[] codePoints = inputs.getFirst().codePoints().toArray();
+        final int[] codePoints = input.codePoints().toArray();
         final int begin = Math.min(Math.max(0, start), codePoints.length);
         final int end = length == null
                 ? codePoints.length
                 : Math.min(begin + Math.max(0, length), codePoints.length);
-        return new String(codePoints, begin, end - begin);
+        return TypedValue.of(new String(codePoints, begin, end - begin));
     }
 
     /** Split on a delimiter, one piece per line. */
-    public static String tokenize(final List<String> inputs, final String delimiter) {
-        if (inputs.isEmpty()) {
-            return null;
-        }
-        return String.join("\n", inputs.getFirst().split(Pattern.quote(delimiter), -1));
+    public static TypedValue tokenize(final List<TypedValue> inputs, final String delimiter) {
+        final String input = first(inputs);
+        return input == null
+                ? null
+                : TypedValue.of(String.join("\n", input.split(Pattern.quote(delimiter), -1)));
     }
 
     /**
@@ -121,15 +141,19 @@ public final class Transforms {
      * <p>Whether it is read as a whole number or a fractional one depends on whether it is
      * written with a point, so {@code 5} stays {@code 5} rather than becoming {@code 5.0}.
      */
-    public static String number(final List<String> inputs) {
-        if (inputs.isEmpty()) {
+    public static TypedValue number(final List<TypedValue> inputs) {
+        final String input = first(inputs);
+        if (input == null) {
             return null;
         }
-        final String trimmed = inputs.getFirst().trim();
+        final String trimmed = input.trim();
         try {
-            return trimmed.contains(".")
+            // The rendering is the ported one, kept exactly — including Double.toString's
+            // trailing .0, which TypedValue's own Rust-style format would drop. Making this
+            // the typed cast instruction is phase 2's change, taken against goldens there.
+            return TypedValue.of(trimmed.contains(".")
                     ? Double.toString(Double.parseDouble(trimmed))
-                    : Long.toString(Long.parseLong(trimmed));
+                    : Long.toString(Long.parseLong(trimmed)));
         } catch (final NumberFormatException e) {
             return null;
         }

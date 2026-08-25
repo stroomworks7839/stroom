@@ -83,6 +83,38 @@ public final class Refs {
         return wrote;
     }
 
+    /**
+     * The value of an expression with its type preserved, or null if it resolves to nothing.
+     *
+     * <p>Only a single-part capture reference can carry a type (design/17 §3.1): literal text
+     * and a multi-part expression are strings by construction. The encoding rule is
+     * {@link #resolve}'s: a slice of the current match converts, a stored value passes through.
+     */
+    public static TypedValue resolveValue(final RefExpression expression,
+                                          final MatchResult match,
+                                          final int matchCount,
+                                          final VarRegistry vars,
+                                          final Encoding encoding) {
+        if (expression == null || expression.parts().isEmpty()) {
+            return null;
+        }
+        if (expression.parts().size() == 1
+            && expression.parts().getFirst() instanceof RefPart.Capture capture) {
+            final TypedValue value = lookup(capture, match, matchCount, vars);
+            if (value == null || value.isEmpty()) {
+                return null;
+            }
+            if (capture.varId() == null
+                && value instanceof TypedValue.Bytes
+                && !encoding.isUtf8Compatible()) {
+                return TypedValue.of(bytes(value, encoding));
+            }
+            return value;
+        }
+        final byte[] resolved = resolve(expression, match, matchCount, vars, encoding);
+        return resolved == null ? null : TypedValue.of(resolved);
+    }
+
     /** The value of an expression as bytes, or null if it resolves to nothing. */
     public static byte[] resolve(final RefExpression expression,
                                  final MatchResult match,

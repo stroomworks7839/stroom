@@ -34,57 +34,67 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class TransformsTest {
 
+    /** Wrap plain text as the typed inputs the library now takes (design/17 §3.2). */
+    private static List<TypedValue> vals(final String... values) {
+        return List.of(values).stream().map(v -> TypedValue.of(v)).toList();
+    }
+
+    /** A result's text, for asserting — null stays null. */
+    private static String text(final TypedValue value) {
+        return value == null ? null : value.asString();
+    }
+
     @Test
     void translateSubstitutesEachPairInOrder() {
-        assertThat(Transforms.translate(List.of("a-b-c"), List.of("-"), List.of("_")))
+        assertThat(text(Transforms.translate(vals("a-b-c"), List.of("-"), List.of("_"))))
                 .isEqualTo("a_b_c");
-        assertThat(Transforms.translate(List.of("abc"), List.of("a", "b"), List.of("1", "2")))
+        assertThat(text(Transforms.translate(vals("abc"), List.of("a", "b"), List.of("1", "2"))))
                 .isEqualTo("12c");
         // A search with no replacement deletes.
-        assertThat(Transforms.translate(List.of("a-b"), List.of("-"), List.of()))
+        assertThat(text(Transforms.translate(vals("a-b"), List.of("-"), List.of())))
                 .isEqualTo("ab");
     }
 
     @Test
     void stringJoinSkipsWhatIsNotThere() {
-        assertThat(Transforms.stringJoin(List.of("a", "b"), ", ")).isEqualTo("a, b");
+        assertThat(text(Transforms.stringJoin(vals("a", "b"), ", "))).isEqualTo("a, b");
         // The point of skipping: a missing middle must not leave "a, , c".
-        assertThat(Transforms.stringJoin(List.of("a", "", "c"), ", ")).isEqualTo("a, c");
-        assertThat(Transforms.stringJoin(List.of("", ""), ", ")).isNull();
-        assertThat(Transforms.stringJoin(List.of(), ", ")).isNull();
+        assertThat(text(Transforms.stringJoin(vals("a", "", "c"), ", "))).isEqualTo("a, c");
+        assertThat(text(Transforms.stringJoin(vals("", ""), ", "))).isNull();
+        assertThat(text(Transforms.stringJoin(vals(), ", "))).isNull();
     }
 
     @Test
     void normalizeSpaceCollapsesRunsAndEnds() {
-        assertThat(Transforms.normalizeSpace(List.of("  a \t\n b  "))).isEqualTo("a b");
-        assertThat(Transforms.normalizeSpace(List.of("single"))).isEqualTo("single");
+        assertThat(text(Transforms.normalizeSpace(vals("  a \t\n b  ")))).isEqualTo("a b");
+        assertThat(text(Transforms.normalizeSpace(vals("single")))).isEqualTo("single");
     }
 
     @Test
     void substringCountsCharactersNotBytes() {
-        assertThat(Transforms.substring(List.of("abcdef"), 1, 3)).isEqualTo("bcd");
-        assertThat(Transforms.substring(List.of("abcdef"), 3, null)).isEqualTo("def");
+        assertThat(text(Transforms.substring(vals("abcdef"), 1, 3))).isEqualTo("bcd");
+        assertThat(text(Transforms.substring(vals("abcdef"), 3, null))).isEqualTo("def");
         // Past the end is the end, not an exception.
-        assertThat(Transforms.substring(List.of("abc"), 1, 99)).isEqualTo("bc");
-        assertThat(Transforms.substring(List.of("abc"), 99, 1)).isEmpty();
+        assertThat(text(Transforms.substring(vals("abc"), 1, 99))).isEqualTo("bc");
+        assertThat(text(Transforms.substring(vals("abc"), 99, 1))).isEmpty();
         // Multi-byte characters count as one each, and are never cut in half.
-        assertThat(Transforms.substring(List.of("héllo wörld"), 0, 5)).isEqualTo("héllo");
-        assertThat(Transforms.substring(List.of("😀😀😀"), 1, 1)).isEqualTo("😀");
+        assertThat(text(Transforms.substring(vals("héllo wörld"), 0, 5))).isEqualTo("héllo");
+        assertThat(text(Transforms.substring(vals("😀😀😀"), 1, 1))).isEqualTo("😀");
     }
 
     @Test
     void tokenizeKeepsEmptyPieces() {
-        assertThat(Transforms.tokenize(List.of("a,b,c"), ",")).isEqualTo("a\nb\nc");
-        assertThat(Transforms.tokenize(List.of("a,,c"), ",")).isEqualTo("a\n\nc");
+        assertThat(text(Transforms.tokenize(vals("a,b,c"), ","))).isEqualTo("a\nb\nc");
+        assertThat(text(Transforms.tokenize(vals("a,,c"), ","))).isEqualTo("a\n\nc");
         // The delimiter is a literal, not a pattern.
-        assertThat(Transforms.tokenize(List.of("a.b"), ".")).isEqualTo("a\nb");
+        assertThat(text(Transforms.tokenize(vals("a.b"), "."))).isEqualTo("a\nb");
     }
 
     @Test
     void numberKeepsWholeNumbersWhole() {
-        assertThat(Transforms.number(List.of(" 42 "))).isEqualTo("42");
-        assertThat(Transforms.number(List.of("42.5"))).isEqualTo("42.5");
-        assertThat(Transforms.number(List.of("not a number"))).isNull();
+        assertThat(text(Transforms.number(vals(" 42 ")))).isEqualTo("42");
+        assertThat(text(Transforms.number(vals("42.5")))).isEqualTo("42.5");
+        assertThat(text(Transforms.number(vals("not a number")))).isNull();
     }
 
     // -----------------------------------------------------------------------------------

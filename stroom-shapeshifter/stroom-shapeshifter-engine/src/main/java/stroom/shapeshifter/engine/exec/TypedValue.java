@@ -68,6 +68,11 @@ public sealed interface TypedValue {
         return new Bytes(value);
     }
 
+    /** Wrap text, as UTF-8 bytes — the engine's internal form. */
+    static TypedValue of(final String value) {
+        return new Bytes(value.getBytes(StandardCharsets.UTF_8));
+    }
+
     /** True if this value has no content. Empty captures are treated as absent by references. */
     default boolean isEmpty() {
         return this instanceof Bytes bytes && bytes.value().length == 0;
@@ -111,6 +116,54 @@ public sealed interface TypedValue {
                     yield null;
                 }
             }
+        };
+    }
+
+    /**
+     * The value as a whole number, or null when it is not one (design/17 §3.1).
+     *
+     * <p>A {@code Real} with a fraction is <b>absent, not truncated</b> — silent truncation is
+     * how a total of 9.99 becomes 9. An author who wants a whole number says which one:
+     * {@code round}, {@code floor} or {@code ceiling}.
+     */
+    default Long asInteger() {
+        return switch (this) {
+            case Int value -> value.value();
+            case Real value -> value.value() == Math.rint(value.value())
+                               && !Double.isInfinite(value.value())
+                               && Math.abs(value.value()) < 0x1p63
+                    ? (long) value.value()
+                    : null;
+            case Bool value -> value.value() ? 1L : 0L;
+            case Bytes bytes -> {
+                try {
+                    yield Long.valueOf(new String(bytes.value(), StandardCharsets.UTF_8).trim());
+                } catch (final NumberFormatException e) {
+                    yield null;
+                }
+            }
+        };
+    }
+
+    /**
+     * The value as a boolean, or null when it is not one (design/17 §3.1).
+     *
+     * <p>Text follows XPath's <i>constructor</i> rule — {@code true}/{@code 1} and
+     * {@code false}/{@code 0}, anything else absent — not its effective-boolean-value rule
+     * (non-emptiness, under which the string {@code "false"} would be true). The engine's
+     * only consumer of this cast is an explicit {@code as: "boolean"} read, and a cast is
+     * what {@code as} says; non-emptiness has no call site here at all.
+     */
+    default Boolean asBoolean() {
+        return switch (this) {
+            case Int value -> value.value() != 0;
+            case Real value -> value.value() != 0.0;
+            case Bool value -> value.value();
+            case Bytes bytes -> switch (new String(bytes.value(), StandardCharsets.UTF_8).trim()) {
+                case "true", "1" -> true;
+                case "false", "0" -> false;
+                default -> null;
+            };
         };
     }
 

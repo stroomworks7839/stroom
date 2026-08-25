@@ -1056,7 +1056,7 @@ public final class Executor {
                     if (mapped == null) {
                         mapped = value.defaultValue();
                     }
-                    emit(mapped == null ? "" : mapped, value.name(), matchCount, sink);
+                    emit(TypedValue.of(mapped == null ? "" : mapped), value.name(), matchCount, sink);
                 }
                 case CompiledOp.Transform value -> transform(value.select(), value.name(), match,
                         matchCount, sink, value.function(), contentEncoding);
@@ -1099,27 +1099,29 @@ public final class Executor {
                            final MatchResult match,
                            final int matchCount,
                            final OutputSink sink,
-                           final Function<List<String>, String> function,
+                           final Function<List<TypedValue>, TypedValue> function,
                            final Encoding contentEncoding) {
-        final List<String> inputs = new ArrayList<>(select.size());
+        final List<TypedValue> inputs = new ArrayList<>(select.size());
         for (final CompiledRef ref : select) {
-            final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars, contentEncoding);
+            final TypedValue resolved = CompiledRefs.resolveValue(ref, match, matchCount, vars, contentEncoding);
             if (resolved != null) {
                 inputs.add(resolved);
             }
         }
-        final String result = function.apply(inputs);
+        final TypedValue result = function.apply(inputs);
         if (result != null) {
             emit(result, name, matchCount, sink);
         }
     }
 
     /** Write a produced value, or bind it to a variable if the instruction named one. */
-    private void emit(final String value, final String name, final int matchCount, final OutputSink sink) {
+    private void emit(final TypedValue value, final String name, final int matchCount, final OutputSink sink) {
         if (name == null) {
-            sink.write(value);
+            sink.write(value.asBytes());
         } else {
-            vars.store(name).set(matchCount, TypedValue.of(value.getBytes(StandardCharsets.UTF_8)));
+            // The typed value binds as itself — no re-encode, and the type survives to any
+            // later typed read (design/17 §3.2).
+            vars.store(name).set(matchCount, value);
         }
     }
 

@@ -79,40 +79,61 @@ final class CompiledRefs {
         }
     }
 
+    /**
+     * The value of a reference with its type preserved, or null if it resolves to nothing.
+     *
+     * <p>Only a single capture can carry a type (design/17 §3.1): literal text and a
+     * multi-part composite are strings by construction. A slice of the current match is
+     * converted from the content encoding on the way out; a stored value was normalised at
+     * capture and passes through untouched (E3).
+     */
+    static TypedValue resolveValue(final CompiledRef ref,
+                                   final MatchResult match,
+                                   final int matchCount,
+                                   final VarRegistry vars,
+                                   final Encoding encoding) {
+        switch (ref) {
+            case CompiledRef.Empty ignored -> {
+                return null;
+            }
+            case CompiledRef.Bytes bytes -> {
+                return bytes.value().length == 0 ? null : TypedValue.of(bytes.value());
+            }
+            case CompiledRef.Composite composite -> {
+                final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                boolean any = false;
+                for (final CompiledRef part : composite.parts()) {
+                    final TypedValue resolved = resolveValue(part, match, matchCount, vars, encoding);
+                    if (resolved != null) {
+                        buffer.writeBytes(resolved.asBytes());
+                        any = true;
+                    }
+                }
+                return any ? TypedValue.of(buffer.toByteArray()) : null;
+            }
+            default -> {
+                final TypedValue value = value(ref, match, matchCount, vars);
+                if (value == null || value.isEmpty()) {
+                    return null;
+                }
+                if (ref instanceof CompiledRef.LocalGroup
+                    && value instanceof TypedValue.Bytes
+                    && !encoding.isUtf8Compatible()) {
+                    return TypedValue.of(Refs.bytes(value, encoding));
+                }
+                return value;
+            }
+        }
+    }
+
     /** The value of a reference as bytes, or null if it resolves to nothing. */
     static byte[] resolve(final CompiledRef ref,
                           final MatchResult match,
                           final int matchCount,
                           final VarRegistry vars,
                           final Encoding encoding) {
-        switch (ref) {
-            case CompiledRef.Empty ignored -> {
-                return null;
-            }
-            case CompiledRef.Bytes bytes -> {
-                return bytes.value().length == 0 ? null : bytes.value();
-            }
-            case CompiledRef.Composite composite -> {
-                final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                boolean any = false;
-                for (final CompiledRef part : composite.parts()) {
-                    final byte[] resolved = resolve(part, match, matchCount, vars, encoding);
-                    if (resolved != null) {
-                        buffer.writeBytes(resolved);
-                        any = true;
-                    }
-                }
-                return any ? buffer.toByteArray() : null;
-            }
-            default -> {
-                final TypedValue value = value(ref, match, matchCount, vars);
-                return value == null || value.isEmpty()
-                        ? null
-                        : ref instanceof CompiledRef.LocalGroup
-                                ? Refs.bytes(value, encoding)
-                                : value.asBytes();
-            }
-        }
+        final TypedValue value = resolveValue(ref, match, matchCount, vars, encoding);
+        return value == null ? null : value.asBytes();
     }
 
     /** The value of a reference as text, or null. */
