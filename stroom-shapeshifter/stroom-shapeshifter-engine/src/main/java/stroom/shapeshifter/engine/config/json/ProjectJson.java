@@ -983,6 +983,62 @@ public final class ProjectJson {
                         optionalText(body, "name"));
             }
             case "number" -> new OutputNode.Number(selectList(body, "number"), optionalText(body, "name"));
+            case "add" -> new OutputNode.Add(selectList(body, "add"), optionalText(body, "name"));
+            case "subtract" -> new OutputNode.Subtract(
+                    selectList(body, "subtract"), optionalText(body, "name"));
+            case "multiply" -> new OutputNode.Multiply(
+                    selectList(body, "multiply"), optionalText(body, "name"));
+            case "divide" -> new OutputNode.Divide(selectList(body, "divide"), optionalText(body, "name"));
+            case "mod" -> new OutputNode.Mod(selectList(body, "mod"), optionalText(body, "name"));
+            case "round" -> new OutputNode.Round(selectList(body, "round"), optionalText(body, "name"));
+            case "floor" -> new OutputNode.Floor(selectList(body, "floor"), optionalText(body, "name"));
+            case "ceiling" -> new OutputNode.Ceiling(
+                    selectList(body, "ceiling"), optionalText(body, "name"));
+            case "abs" -> new OutputNode.Abs(selectList(body, "abs"), optionalText(body, "name"));
+            case "string-length" -> new OutputNode.StringLength(
+                    selectList(body, "string-length"), optionalText(body, "name"));
+            case "substring-before" -> {
+                checkFields(body, "substring-before", "select", "marker", "name");
+                yield new OutputNode.SubstringBefore(
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        text(body, "marker", "substring-before"),
+                        optionalText(body, "name"));
+            }
+            case "substring-after" -> {
+                checkFields(body, "substring-after", "select", "marker", "name");
+                yield new OutputNode.SubstringAfter(
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        text(body, "marker", "substring-after"),
+                        optionalText(body, "name"));
+            }
+            case "starts-with" -> {
+                checkFields(body, "starts-with", "select", "prefix", "name");
+                yield new OutputNode.StartsWith(
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        text(body, "prefix", "starts-with"),
+                        optionalText(body, "name"));
+            }
+            case "ends-with" -> {
+                checkFields(body, "ends-with", "select", "suffix", "name");
+                yield new OutputNode.EndsWith(
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        text(body, "suffix", "ends-with"),
+                        optionalText(body, "name"));
+            }
+            case "contains" -> {
+                checkFields(body, "contains", "select", "substring", "name");
+                yield new OutputNode.Contains(
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        text(body, "substring", "contains"),
+                        optionalText(body, "name"));
+            }
+            case "format-number" -> {
+                checkFields(body, "format-number", "select", "picture", "name");
+                yield new OutputNode.FormatNumber(
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        text(body, "picture", "format-number"),
+                        optionalText(body, "name"));
+            }
             default -> throw new ConfigException("Unknown output node: " + tagged.name());
         };
     }
@@ -1097,7 +1153,49 @@ public final class ProjectJson {
                 yield wrap("tokenize", body);
             }
             case OutputNode.Number value -> wrap("number", selectAndName(value.select(), value.name()));
+            case OutputNode.Add value -> wrap("add", selectAndName(value.select(), value.name()));
+            case OutputNode.Subtract value ->
+                    wrap("subtract", selectAndName(value.select(), value.name()));
+            case OutputNode.Multiply value ->
+                    wrap("multiply", selectAndName(value.select(), value.name()));
+            case OutputNode.Divide value -> wrap("divide", selectAndName(value.select(), value.name()));
+            case OutputNode.Mod value -> wrap("mod", selectAndName(value.select(), value.name()));
+            case OutputNode.Round value -> wrap("round", selectAndName(value.select(), value.name()));
+            case OutputNode.Floor value -> wrap("floor", selectAndName(value.select(), value.name()));
+            case OutputNode.Ceiling value ->
+                    wrap("ceiling", selectAndName(value.select(), value.name()));
+            case OutputNode.Abs value -> wrap("abs", selectAndName(value.select(), value.name()));
+            case OutputNode.StringLength value ->
+                    wrap("string-length", selectAndName(value.select(), value.name()));
+            case OutputNode.SubstringBefore value ->
+                    wrap("substring-before", selectAndMarker(value.select(), "marker",
+                            value.marker(), value.name()));
+            case OutputNode.SubstringAfter value ->
+                    wrap("substring-after", selectAndMarker(value.select(), "marker",
+                            value.marker(), value.name()));
+            case OutputNode.StartsWith value ->
+                    wrap("starts-with", selectAndMarker(value.select(), "prefix",
+                            value.prefix(), value.name()));
+            case OutputNode.EndsWith value ->
+                    wrap("ends-with", selectAndMarker(value.select(), "suffix",
+                            value.suffix(), value.name()));
+            case OutputNode.Contains value ->
+                    wrap("contains", selectAndMarker(value.select(), "substring",
+                            value.substring(), value.name()));
+            case OutputNode.FormatNumber value ->
+                    wrap("format-number", selectAndMarker(value.select(), "picture",
+                            value.picture(), value.name()));
         };
+    }
+
+    /** A one-input transform with one string parameter beside its select. */
+    private static ObjectNode selectAndMarker(final List<RefExpression> select,
+                                              final String field,
+                                              final String parameter,
+                                              final String name) {
+        final ObjectNode body = selectAndName(select, name);
+        body.put(field, parameter);
+        return body;
     }
 
     private static ObjectNode selectAndName(final List<RefExpression> select, final String name) {

@@ -45,7 +45,9 @@ final class CaseCorpus {
             "string_functions", Pattern.compile("  <row [^\n]*\n"),
             "analyze_string", Pattern.compile("  <m [^\n]*\n"),
             "modes", Pattern.compile("(?s)  <Event [^\n]*\n.*?\n  </Event>\n"),
-            "reference", Pattern.compile("(?s)  <record>\n.*?\n  </record>\n"));
+            "reference", Pattern.compile("(?s)  <record>\n.*?\n  </record>\n"),
+            "arithmetic", Pattern.compile("  <order [^\n]*\n"),
+            "value_types", Pattern.compile("  <val [^\n]*\n"));
 
     private CaseCorpus() {
     }

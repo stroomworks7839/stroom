@@ -13,6 +13,10 @@
       <sub><xsl:value-of select="substring(@v, 1, 3)"/></sub>
       <num><xsl:value-of select="number(@n)"/></num>
       <has><xsl:value-of select="contains(@v, 'BETA')"/></has>
+      <len><xsl:value-of select="string-length(@v)"/></len>
+      <sb><xsl:value-of select="substring-before(@code, '-')"/></sb>
+      <sa><xsl:value-of select="substring-after(@code, '-')"/></sa>
+      <fn><xsl:value-of select="format-number(@n, '#,##0.00')"/></fn>
     </r>
   </xsl:template>
 </xsl:stylesheet>

@@ -98,6 +98,125 @@ class TransformsTest {
     }
 
     // -----------------------------------------------------------------------------------
+    // Arithmetic (design/17 §§5, 11) — each function's edges, per the phase plan
+    // -----------------------------------------------------------------------------------
+
+    @Test
+    void addFoldsExactlyOverWholeNumbers() {
+        assertThat(text(Transforms.add(vals("2", "3", "4")))).isEqualTo("9");
+        // Exact long arithmetic where doubles would round: 2^53 + 1 survives.
+        assertThat(text(Transforms.add(vals("9007199254740992", "1"))))
+                .isEqualTo("9007199254740993");
+    }
+
+    @Test
+    void addOverflowPromotesToRealRatherThanWrapping() {
+        final TypedValue result = Transforms.add(vals(String.valueOf(Long.MAX_VALUE), "1"));
+        assertThat(result).isInstanceOf(TypedValue.Real.class);
+        assertThat(result.asNumber()).isEqualTo((double) Long.MAX_VALUE + 1);
+    }
+
+    @Test
+    void anyNonNumericInputMakesTheResultAbsent() {
+        assertThat(Transforms.add(vals("2", "n/a"))).isNull();
+        assertThat(Transforms.multiply(vals("n/a", "3"))).isNull();
+    }
+
+    @Test
+    void subtractAndMultiply() {
+        assertThat(text(Transforms.subtract(vals("10", "4")))).isEqualTo("6");
+        assertThat(text(Transforms.multiply(vals("2.5", "4")))).isEqualTo("10");
+        final TypedValue product = Transforms.multiply(vals("2.5", "4"));
+        assertThat(product).isInstanceOf(TypedValue.Real.class);
+    }
+
+    @Test
+    void divideIsWholeWhenExactAndAbsentOnZero() {
+        assertThat(Transforms.divide(vals("10", "2"))).isInstanceOf(TypedValue.Int.class);
+        assertThat(text(Transforms.divide(vals("10", "2")))).isEqualTo("5");
+        assertThat(text(Transforms.divide(vals("10", "4")))).isEqualTo("2.5");
+        assertThat(Transforms.divide(vals("10", "0"))).isNull();
+        assertThat(Transforms.divide(vals("10.0", "0.0"))).isNull();
+    }
+
+    @Test
+    void modSignFollowsTheDividend() {
+        assertThat(text(Transforms.mod(vals("7", "3")))).isEqualTo("1");
+        // XPath's mod and Java's %: -7 mod 3 is -1, not 2.
+        assertThat(text(Transforms.mod(vals("-7", "3")))).isEqualTo("-1");
+        assertThat(Transforms.mod(vals("7", "0"))).isNull();
+    }
+
+    @Test
+    void roundIsHalfUpOnTheNegativeTie() {
+        assertThat(text(Transforms.round(vals("2.5")))).isEqualTo("3");
+        // XPath's round, not Math.round-on-negatives: -2.5 rounds toward positive infinity.
+        assertThat(text(Transforms.round(vals("-2.5")))).isEqualTo("-2");
+        assertThat(text(Transforms.round(vals("7")))).isEqualTo("7");
+    }
+
+    @Test
+    void floorCeilingAbs() {
+        assertThat(text(Transforms.floor(vals("2.7")))).isEqualTo("2");
+        assertThat(text(Transforms.ceiling(vals("2.1")))).isEqualTo("3");
+        assertThat(text(Transforms.abs(vals("-9")))).isEqualTo("9");
+        // The one long with no positive twin promotes rather than staying negative.
+        assertThat(Transforms.abs(vals(String.valueOf(Long.MIN_VALUE))))
+                .isInstanceOf(TypedValue.Real.class);
+    }
+
+    @Test
+    void numberIsNowTheTypedCast() {
+        // Phase 2: the point decides the kind, and the result is a number, not a rendering.
+        assertThat(Transforms.number(vals("42"))).isInstanceOf(TypedValue.Int.class);
+        assertThat(Transforms.number(vals("42.5"))).isInstanceOf(TypedValue.Real.class);
+        // The visible rendering change from the ported form: a whole Real drops its .0.
+        assertThat(text(Transforms.number(vals("5.0")))).isEqualTo("5");
+    }
+
+    // -----------------------------------------------------------------------------------
+    // The string additions (design/17 §6)
+    // -----------------------------------------------------------------------------------
+
+    @Test
+    void stringLengthCountsCodePointsNotBytes() {
+        assertThat(text(Transforms.stringLength(vals("abc")))).isEqualTo("3");
+        // Two characters, three bytes and four bytes: still 2.
+        assertThat(text(Transforms.stringLength(vals("é😀")))).isEqualTo("2");
+        assertThat(Transforms.stringLength(vals("abc"))).isInstanceOf(TypedValue.Int.class);
+    }
+
+    @Test
+    void substringBeforeIsAbsentNotEmptyOnAMissingMarker() {
+        assertThat(text(Transforms.substringBefore(vals("a|b"), "|"))).isEqualTo("a");
+        assertThat(text(Transforms.substringAfter(vals("a|b"), "|"))).isEqualTo("b");
+        // Absent, not "" — so exists can tell "no marker" from "nothing before it".
+        assertThat(Transforms.substringBefore(vals("ab"), "|")).isNull();
+        assertThat(Transforms.substringAfter(vals("ab"), "|")).isNull();
+    }
+
+    @Test
+    void predicateValuesBindAsBooleans() {
+        assertThat(Transforms.startsWith(vals("alpha"), "al")).isEqualTo(new TypedValue.Bool(true));
+        assertThat(Transforms.endsWith(vals("alpha"), "ha")).isEqualTo(new TypedValue.Bool(true));
+        assertThat(Transforms.contains(vals("alpha"), "ph")).isEqualTo(new TypedValue.Bool(true));
+        assertThat(text(Transforms.contains(vals("alpha"), "xx"))).isEqualTo("false");
+    }
+
+    @Test
+    void formatNumberOrdinaryPicturesAndOneEdge() {
+        final var format = new java.text.DecimalFormat("#,##0.00",
+                java.text.DecimalFormatSymbols.getInstance(java.util.Locale.ROOT));
+        assertThat(text(Transforms.formatNumber(vals("1234.5"), format))).isEqualTo("1,234.50");
+        assertThat(text(Transforms.formatNumber(vals("-3"), format))).isEqualTo("-3.00");
+        assertThat(Transforms.formatNumber(vals("n/a"), format)).isNull();
+        // The documented edge: DecimalFormat renders infinity as ∞ where XSLT says Infinity.
+        assertThat(text(Transforms.formatNumber(
+                List.of(new TypedValue.Real(Double.POSITIVE_INFINITY)), format)))
+                .isEqualTo("∞");
+    }
+
+    // -----------------------------------------------------------------------------------
     // Regex replacement — no fixture reaches this
     // -----------------------------------------------------------------------------------
 

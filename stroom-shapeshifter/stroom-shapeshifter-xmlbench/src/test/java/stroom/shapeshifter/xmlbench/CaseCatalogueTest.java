@@ -55,7 +55,9 @@ class CaseCatalogueTest {
             "string_functions",
             "analyze_string",
             "modes",
-            "reference");
+            "reference",
+            "arithmetic",
+            "value_types");
 
     /**
      * The walls: cases whose stylesheet runs but for which no challenger exists — executable

@@ -148,15 +148,249 @@ public final class Transforms {
         }
         final String trimmed = input.trim();
         try {
-            // The rendering is the ported one, kept exactly — including Double.toString's
-            // trailing .0, which TypedValue's own Rust-style format would drop. Making this
-            // the typed cast instruction is phase 2's change, taken against goldens there.
-            return TypedValue.of(trimmed.contains(".")
-                    ? Double.toString(Double.parseDouble(trimmed))
-                    : Long.toString(Long.parseLong(trimmed)));
+            // Phase 2 made this the typed cast (design/17 §3.1): the point decides the kind,
+            // exactly as the ported reading did, but the result is now a number rather than a
+            // rendering of one. No configuration in the corpus uses it, so no golden moved;
+            // the visible difference from the ported Double.toString is that a whole Real
+            // renders without its trailing .0 — the engine's own format, ruled in §16.8.
+            return trimmed.contains(".")
+                    ? new TypedValue.Real(Double.parseDouble(trimmed))
+                    : new TypedValue.Int(Long.parseLong(trimmed));
         } catch (final NumberFormatException e) {
             return null;
         }
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Arithmetic (design/17 §§5, 11). Whole numbers first: when every input has an integral
+    // reading the work is exact long arithmetic, and overflow promotes to a double rather
+    // than wrapping — a wrapped result is a plausible wrong number, a promoted one is an
+    // approximate right one that says so by its type. Any input with no numeric reading
+    // makes the result absent. Arity is the compiled instruction's check, not these
+    // functions': they fold what they are given.
+    // -----------------------------------------------------------------------------------
+
+    /** Fold {@code +}. */
+    public static TypedValue add(final List<TypedValue> inputs) {
+        return fold(inputs, Math::addExact, Double::sum);
+    }
+
+    /** {@code a - b}. */
+    public static TypedValue subtract(final List<TypedValue> inputs) {
+        return fold(inputs, Math::subtractExact, (a, b) -> a - b);
+    }
+
+    /** Fold {@code *}. */
+    public static TypedValue multiply(final List<TypedValue> inputs) {
+        return fold(inputs, Math::multiplyExact, (a, b) -> a * b);
+    }
+
+    /** {@code a / b} — whole when exact, fractional otherwise; division by zero is absent. */
+    public static TypedValue divide(final List<TypedValue> inputs) {
+        final long[] longs = integers(inputs);
+        if (longs != null) {
+            if (longs[1] == 0) {
+                return null;
+            }
+            return longs[0] % longs[1] == 0
+                    ? new TypedValue.Int(longs[0] / longs[1])
+                    : new TypedValue.Real((double) longs[0] / longs[1]);
+        }
+        final double[] doubles = numbers(inputs);
+        if (doubles == null || doubles[1] == 0.0) {
+            return null;
+        }
+        return new TypedValue.Real(doubles[0] / doubles[1]);
+    }
+
+    /** {@code a mod b} — the sign follows the dividend (XPath's {@code mod}, Java's {@code %}). */
+    public static TypedValue mod(final List<TypedValue> inputs) {
+        final long[] longs = integers(inputs);
+        if (longs != null) {
+            return longs[1] == 0 ? null : new TypedValue.Int(longs[0] % longs[1]);
+        }
+        final double[] doubles = numbers(inputs);
+        if (doubles == null || doubles[1] == 0.0) {
+            return null;
+        }
+        return new TypedValue.Real(doubles[0] % doubles[1]);
+    }
+
+    /** Round half-up on ties — XPath's rule, {@code floor(x + 0.5)}: {@code -2.5} rounds to {@code -2}. */
+    public static TypedValue round(final List<TypedValue> inputs) {
+        return unary(inputs, x -> Math.floor(x + 0.5));
+    }
+
+    /** XPath's {@code floor()}. */
+    public static TypedValue floor(final List<TypedValue> inputs) {
+        return unary(inputs, Math::floor);
+    }
+
+    /** XPath's {@code ceiling()}. */
+    public static TypedValue ceiling(final List<TypedValue> inputs) {
+        return unary(inputs, Math::ceil);
+    }
+
+    /** XPath's {@code abs()}. */
+    public static TypedValue abs(final List<TypedValue> inputs) {
+        if (inputs.size() != 1) {
+            return null;
+        }
+        final Long whole = inputs.getFirst().asInteger();
+        if (whole != null) {
+            // Math.absExact would throw on MIN_VALUE; the promotion rule applies (§11).
+            return whole == Long.MIN_VALUE
+                    ? new TypedValue.Real(Math.abs((double) whole))
+                    : new TypedValue.Int(Math.abs(whole));
+        }
+        final Double value = inputs.getFirst().asNumber();
+        return value == null ? null : new TypedValue.Real(Math.abs(value));
+    }
+
+    /** A rounding operation: identity on a whole number, the rule on a fractional one. */
+    private static TypedValue unary(final List<TypedValue> inputs,
+                                    final java.util.function.DoubleUnaryOperator operation) {
+        if (inputs.size() != 1) {
+            return null;
+        }
+        final Long whole = inputs.getFirst().asInteger();
+        if (whole != null) {
+            return new TypedValue.Int(whole);
+        }
+        final Double value = inputs.getFirst().asNumber();
+        if (value == null) {
+            return null;
+        }
+        final double result = operation.applyAsDouble(value);
+        return result == Math.rint(result) && !Double.isInfinite(result) && Math.abs(result) < 0x1p63
+                ? new TypedValue.Int((long) result)
+                : new TypedValue.Real(result);
+    }
+
+    private static TypedValue fold(final List<TypedValue> inputs,
+                                   final java.util.function.LongBinaryOperator exact,
+                                   final java.util.function.DoubleBinaryOperator approximate) {
+        if (inputs.isEmpty()) {
+            return null;
+        }
+        final long[] longs = integers(inputs);
+        if (longs != null) {
+            try {
+                long result = longs[0];
+                for (int i = 1; i < longs.length; i++) {
+                    result = exact.applyAsLong(result, longs[i]);
+                }
+                return new TypedValue.Int(result);
+            } catch (final ArithmeticException overflow) {
+                // Fall through to the approximate fold: promotion, not wrapping (§11).
+            }
+        }
+        final double[] doubles = numbers(inputs);
+        if (doubles == null) {
+            return null;
+        }
+        double result = doubles[0];
+        for (int i = 1; i < doubles.length; i++) {
+            result = approximate.applyAsDouble(result, doubles[i]);
+        }
+        return new TypedValue.Real(result);
+    }
+
+    /** Every input's integral reading, or null if any input lacks one. */
+    private static long[] integers(final List<TypedValue> inputs) {
+        final long[] values = new long[inputs.size()];
+        for (int i = 0; i < inputs.size(); i++) {
+            final Long value = inputs.get(i).asInteger();
+            if (value == null) {
+                return null;
+            }
+            values[i] = value;
+        }
+        return values;
+    }
+
+    /** Every input's numeric reading, or null if any input lacks one. */
+    private static double[] numbers(final List<TypedValue> inputs) {
+        final double[] values = new double[inputs.size()];
+        for (int i = 0; i < inputs.size(); i++) {
+            final Double value = inputs.get(i).asNumber();
+            if (value == null) {
+                return null;
+            }
+            values[i] = value;
+        }
+        return values;
+    }
+
+    // -----------------------------------------------------------------------------------
+    // The string additions (design/17 §6)
+    // -----------------------------------------------------------------------------------
+
+    /** Length in code points, as a whole number. XSLT: {@code string-length()}. */
+    public static TypedValue stringLength(final List<TypedValue> inputs) {
+        final String input = first(inputs);
+        return input == null
+                ? null
+                : new TypedValue.Int(input.codePointCount(0, input.length()));
+    }
+
+    /**
+     * The part before the first occurrence of a marker — <b>absent when not found</b>, where
+     * XSLT returns the empty string. The written output is identical (both write nothing);
+     * the testable value is not, and absent is the engine's word for "no answer".
+     */
+    public static TypedValue substringBefore(final List<TypedValue> inputs, final String marker) {
+        final String input = first(inputs);
+        if (input == null) {
+            return null;
+        }
+        final int at = input.indexOf(marker);
+        return at < 0 ? null : TypedValue.of(input.substring(0, at));
+    }
+
+    /** The part after the first occurrence of a marker; absent when not found, as above. */
+    public static TypedValue substringAfter(final List<TypedValue> inputs, final String marker) {
+        final String input = first(inputs);
+        if (input == null) {
+            return null;
+        }
+        final int at = input.indexOf(marker);
+        return at < 0 ? null : TypedValue.of(input.substring(at + marker.length()));
+    }
+
+    /** {@code starts-with()} as a value. */
+    public static TypedValue startsWith(final List<TypedValue> inputs, final String prefix) {
+        final String input = first(inputs);
+        return input == null ? null : new TypedValue.Bool(input.startsWith(prefix));
+    }
+
+    /** {@code ends-with()} as a value. */
+    public static TypedValue endsWith(final List<TypedValue> inputs, final String suffix) {
+        final String input = first(inputs);
+        return input == null ? null : new TypedValue.Bool(input.endsWith(suffix));
+    }
+
+    /** {@code contains()} as a value. */
+    public static TypedValue contains(final List<TypedValue> inputs, final String substring) {
+        final String input = first(inputs);
+        return input == null ? null : new TypedValue.Bool(input.contains(substring));
+    }
+
+    /**
+     * Format a number through a compiled picture. The format instance belongs to the compiled
+     * instruction and the engine runs one execution at a time (D35), which is what makes the
+     * stateful {@code DecimalFormat} safe to reuse.
+     */
+    public static TypedValue formatNumber(final List<TypedValue> inputs, final java.text.DecimalFormat format) {
+        if (inputs.isEmpty()) {
+            return null;
+        }
+        final Long whole = inputs.getFirst().asInteger();
+        if (whole != null) {
+            return TypedValue.of(format.format((long) whole));
+        }
+        final Double value = inputs.getFirst().asNumber();
+        return value == null ? null : TypedValue.of(format.format((double) value));
     }
 
     // -----------------------------------------------------------------------------------

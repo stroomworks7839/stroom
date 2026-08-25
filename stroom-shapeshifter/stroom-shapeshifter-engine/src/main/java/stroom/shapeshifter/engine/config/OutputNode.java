@@ -237,6 +237,161 @@ public sealed interface OutputNode {
     }
 
     // -----------------------------------------------------------------------------------
+    // Arithmetic (design/17 §5). Inputs cast per the table; any absent or non-numeric
+    // input makes the whole result absent — not zero, and not a partial fold.
+    // -----------------------------------------------------------------------------------
+
+    /** Fold {@code +} over the inputs. Whole numbers stay exact; overflow promotes (§11). */
+    record Add(List<RefExpression> select, String name) implements OutputNode {
+
+        public Add {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** {@code a - b}, exactly two inputs. */
+    record Subtract(List<RefExpression> select, String name) implements OutputNode {
+
+        public Subtract {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** Fold {@code *} over the inputs. */
+    record Multiply(List<RefExpression> select, String name) implements OutputNode {
+
+        public Multiply {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** {@code a / b}. Whole when exact, fractional otherwise; division by zero is absent. */
+    record Divide(List<RefExpression> select, String name) implements OutputNode {
+
+        public Divide {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** {@code a mod b}, the sign following the dividend — XPath's {@code mod}, Java's {@code %}. */
+    record Mod(List<RefExpression> select, String name) implements OutputNode {
+
+        public Mod {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** Round half-up on ties — XPath's {@code round()}: {@code round(-2.5)} is {@code -2}. */
+    record Round(List<RefExpression> select, String name) implements OutputNode {
+
+        public Round {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** XSLT: {@code floor()}. */
+    record Floor(List<RefExpression> select, String name) implements OutputNode {
+
+        public Floor {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** XSLT: {@code ceiling()}. */
+    record Ceiling(List<RefExpression> select, String name) implements OutputNode {
+
+        public Ceiling {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** XPath: {@code abs()}. */
+    record Abs(List<RefExpression> select, String name) implements OutputNode {
+
+        public Abs {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    // -----------------------------------------------------------------------------------
+    // The string additions (design/17 §6)
+    // -----------------------------------------------------------------------------------
+
+    /** Length in code points — what a person would count. XSLT: {@code string-length()}. */
+    record StringLength(List<RefExpression> select, String name) implements OutputNode {
+
+        public StringLength {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /**
+     * The part before the first occurrence of a marker, <b>absent when the marker is not
+     * found</b> — not the empty string, so a condition can tell the two apart (§6). XSLT
+     * returns {@code ""} for both; the written output is identical, the testable value is not.
+     */
+    record SubstringBefore(List<RefExpression> select,
+                           String marker,
+                           String name) implements OutputNode {
+
+        public SubstringBefore {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** The part after the first occurrence of a marker; absent when not found, as above. */
+    record SubstringAfter(List<RefExpression> select,
+                          String marker,
+                          String name) implements OutputNode {
+
+        public SubstringAfter {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** {@code starts-with()} as a value — for binding and for choosing on a computed flag. */
+    record StartsWith(List<RefExpression> select, String prefix, String name) implements OutputNode {
+
+        public StartsWith {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** {@code ends-with()} as a value. */
+    record EndsWith(List<RefExpression> select, String suffix, String name) implements OutputNode {
+
+        public EndsWith {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /** {@code contains()} as a value. The condition of the same name stays; this one binds. */
+    record Contains(List<RefExpression> select, String substring, String name) implements OutputNode {
+
+        public Contains {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /**
+     * Format a number through a picture string — {@code java.text.DecimalFormat} under
+     * {@code Locale.ROOT}, which matches XSLT's default decimal format for the ordinary
+     * pictures and diverges on the edges (per-mille, explicit {@code +}, infinity); the
+     * boundary is recorded by the proving case. XSLT: {@code format-number()}.
+     */
+    record FormatNumber(List<RefExpression> select,
+                        String picture,
+                        String name) implements OutputNode {
+
+        public FormatNumber {
+            select = select == null ? List.of() : List.copyOf(select);
+            if (picture == null || picture.isEmpty()) {
+                throw new ConfigException("A format-number needs a picture");
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------------------
     // Supporting shapes
     // -----------------------------------------------------------------------------------
 

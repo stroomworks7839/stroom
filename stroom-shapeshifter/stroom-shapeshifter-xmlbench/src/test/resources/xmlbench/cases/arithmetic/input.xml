@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<orders>
+  <order id="1" qty="3" price="19.5" weight="-2.5"/>
+  <order id="2" qty="10" price="4.25" weight="7.25"/>
+  <order id="3" qty="7" price="12.5" weight="0.5"/>
+</orders>

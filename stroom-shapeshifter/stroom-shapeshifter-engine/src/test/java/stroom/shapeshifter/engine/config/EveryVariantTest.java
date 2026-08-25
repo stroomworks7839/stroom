@@ -181,6 +181,7 @@ class EveryVariantTest {
     /** A template carrying every output node, every condition and the other match expressions. */
     private static Template everyOutput() {
         final List<RefExpression> select = List.of(ref());
+        final List<RefExpression> twoSelects = List.of(ref(), ref());
         final List<OutputNode> body = new ArrayList<>(List.of(
                 new OutputNode.Text("literal"),
                 new OutputNode.ValueOf(ref()),
@@ -210,7 +211,23 @@ class EveryVariantTest {
                 new OutputNode.Substring(select, 2, 5, null),
                 new OutputNode.Substring(select, 2, null, "toEnd"),
                 new OutputNode.Tokenize(select, ",", null),
-                new OutputNode.Number(select, null)));
+                new OutputNode.Number(select, null),
+                new OutputNode.Add(twoSelects, "sum"),
+                new OutputNode.Subtract(twoSelects, null),
+                new OutputNode.Multiply(twoSelects, "product"),
+                new OutputNode.Divide(twoSelects, null),
+                new OutputNode.Mod(twoSelects, null),
+                new OutputNode.Round(select, null),
+                new OutputNode.Floor(select, null),
+                new OutputNode.Ceiling(select, null),
+                new OutputNode.Abs(select, "magnitude"),
+                new OutputNode.StringLength(select, "length"),
+                new OutputNode.SubstringBefore(select, "|", null),
+                new OutputNode.SubstringAfter(select, "|", "tail"),
+                new OutputNode.StartsWith(select, "pre", null),
+                new OutputNode.EndsWith(select, "post", null),
+                new OutputNode.Contains(select, "mid", "flag"),
+                new OutputNode.FormatNumber(select, "#,##0.00", null)));
 
         // The remaining conditions, each inside its own guard-shaped instruction so that the
         // walker sees them all.

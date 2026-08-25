@@ -30,8 +30,11 @@ import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -215,6 +218,43 @@ public sealed interface CompiledOp {
                         value.name(), inputs -> Transforms.tokenize(inputs, value.delimiter()));
                 case OutputNode.Number value ->
                         transform(single("number", value.select()), value.name(), Transforms::number);
+                case OutputNode.Add value ->
+                        arithmetic("add", value.select(), value.name(), 1, Transforms::add);
+                case OutputNode.Subtract value ->
+                        arithmetic("subtract", value.select(), value.name(), 2, Transforms::subtract);
+                case OutputNode.Multiply value ->
+                        arithmetic("multiply", value.select(), value.name(), 1, Transforms::multiply);
+                case OutputNode.Divide value ->
+                        arithmetic("divide", value.select(), value.name(), 2, Transforms::divide);
+                case OutputNode.Mod value ->
+                        arithmetic("mod", value.select(), value.name(), 2, Transforms::mod);
+                case OutputNode.Round value ->
+                        arithmetic("round", value.select(), value.name(), 1, Transforms::round);
+                case OutputNode.Floor value ->
+                        arithmetic("floor", value.select(), value.name(), 1, Transforms::floor);
+                case OutputNode.Ceiling value ->
+                        arithmetic("ceiling", value.select(), value.name(), 1, Transforms::ceiling);
+                case OutputNode.Abs value ->
+                        arithmetic("abs", value.select(), value.name(), 1, Transforms::abs);
+                case OutputNode.StringLength value ->
+                        transform(single("string-length", value.select()), value.name(),
+                                Transforms::stringLength);
+                case OutputNode.SubstringBefore value ->
+                        transform(single("substring-before", value.select()), value.name(),
+                                inputs -> Transforms.substringBefore(inputs, value.marker()));
+                case OutputNode.SubstringAfter value ->
+                        transform(single("substring-after", value.select()), value.name(),
+                                inputs -> Transforms.substringAfter(inputs, value.marker()));
+                case OutputNode.StartsWith value ->
+                        transform(single("starts-with", value.select()), value.name(),
+                                inputs -> Transforms.startsWith(inputs, value.prefix()));
+                case OutputNode.EndsWith value ->
+                        transform(single("ends-with", value.select()), value.name(),
+                                inputs -> Transforms.endsWith(inputs, value.suffix()));
+                case OutputNode.Contains value ->
+                        transform(single("contains", value.select()), value.name(),
+                                inputs -> Transforms.contains(inputs, value.substring()));
+                case OutputNode.FormatNumber value -> formatNumber(value);
             };
             ops.add(op);
         }
@@ -225,6 +265,45 @@ public sealed interface CompiledOp {
                                        final String name,
                                        final Function<List<TypedValue>, TypedValue> function) {
         return new Transform(select.stream().map(CompiledRef::of).toList(), name, function);
+    }
+
+    /**
+     * An arithmetic instruction: arity checked at compile time against the shape the
+     * operation has, and again at run time against what actually resolved — an absent input
+     * shrinks the resolved list, and §5's rule is that any absent input makes the whole
+     * result absent, so a short list is an answer, not an error.
+     *
+     * @param arity the required select count; {@code add}/{@code multiply} fold and take
+     *              {@code arity} as a minimum instead
+     */
+    private static Transform arithmetic(final String what,
+                                        final List<RefExpression> select,
+                                        final String name,
+                                        final int arity,
+                                        final Function<List<TypedValue>, TypedValue> function) {
+        final boolean fold = what.equals("add") || what.equals("multiply");
+        if (fold ? select.size() < arity : select.size() != arity) {
+            throw new ConfigException("A " + what + " takes "
+                                      + (fold ? "at least " : "exactly ") + arity
+                                      + (arity == 1 ? " select" : " selects")
+                                      + ", but has " + select.size());
+        }
+        final int expected = select.size();
+        return transform(select, name,
+                inputs -> inputs.size() == expected ? function.apply(inputs) : null);
+    }
+
+    /** A format-number closes over its picture, compiled once and refused at compile time. */
+    private static Transform formatNumber(final OutputNode.FormatNumber value) {
+        final DecimalFormat format;
+        try {
+            format = new DecimalFormat(value.picture(), DecimalFormatSymbols.getInstance(Locale.ROOT));
+        } catch (final IllegalArgumentException e) {
+            throw new ConfigException("A format-number picture will not compile: "
+                                      + value.picture() + " (" + e.getMessage() + ")");
+        }
+        return transform(single("format-number", value.select()), value.name(),
+                inputs -> Transforms.formatNumber(inputs, format));
     }
 
     /**
