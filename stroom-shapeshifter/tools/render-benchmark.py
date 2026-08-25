@@ -19,13 +19,20 @@ from collections import OrderedDict
 
 
 def load(path):
-    """{(benchmark, param): (score, error)} keyed by the short method name and its @Param."""
+    """{(class, label, method): (score, error)}, the label joining every @Param value.
+
+    Every value, not the first: a benchmark declaring two params — AnchoredSearchBenchmark's
+    engine and shape — keyed eleven of its twelve rows onto labels they shared, so each
+    engine's four shapes overwrote one another and the table printed whichever shape JMH
+    happened to write last, with nothing to say the rest had gone. The failure-path benchmark
+    the performance plan leans on was the one being under-reported.
+    """
     out = OrderedDict()
     for entry in json.load(open(path)):
         method = entry["benchmark"].rsplit(".", 1)[-1]
         klass = entry["benchmark"].rsplit(".", 2)[-2]
         params = entry.get("params") or {}
-        label = next(iter(params.values()), "")
+        label = "/".join(str(value) for value in params.values())
         metric = entry["primaryMetric"]
         error = metric.get("scoreError")
         # JMH emits the string "NaN" when there is only one fork — there is nothing to take a
@@ -88,6 +95,17 @@ def render_comparison(before_path, after_path):
         verdict = ("better" if change > 0 else "worse") if separated else "indistinguishable"
         print(f"| {method} | {label or klass} | {b[0]:.0f} ± {b[1]:.0f} | {a[0]:.0f} ± {a[1]:.0f} "
               f"| {change:+.1f}% | {verdict} |")
+    # A row measured on only one side cannot be compared, but dropping it in silence is how a
+    # whole benchmark class — one the change under test introduced, which is exactly when it
+    # matters — disappears from the table without anyone noticing it was ever there.
+    for side, keys in (("after", [k for k in after if k not in before]),
+                       ("before", [k for k in before if k not in after])):
+        if keys:
+            counts = OrderedDict()
+            for klass, _, _ in keys:
+                counts[klass] = counts.get(klass, 0) + 1
+            listed = ", ".join(f"{klass} ({n})" for klass, n in counts.items())
+            print(f"\n{len(keys)} row(s) present only in the {side} file, not compared: {listed}")
 
 
 if __name__ == "__main__":
