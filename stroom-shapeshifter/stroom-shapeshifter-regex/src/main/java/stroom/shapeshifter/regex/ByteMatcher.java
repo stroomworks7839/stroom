@@ -382,9 +382,12 @@ public final class ByteMatcher {
             if (splitsCharacter(start)) {
                 continue;
             }
-            if (firstBytes != null && (start == regionTo || firstBytes[data[start] & 0xFF] == 0)) {
+            if (firstBytes != null && firstBytes[data[start] & 0xFF] == 0) {
                 // Skip offsets that cannot begin a match. A pattern that can match empty has no
-                // first-byte table, and every offset has to be tried.
+                // first-byte table, and every offset has to be tried; a pattern with one is not
+                // nullable, so minLength >= 1 caps the loop at regionTo - 1 and the read is in
+                // bounds (the D37 audit's proof — the start == regionTo test it replaced was
+                // the deleted edge iteration's, dead since complete views).
                 continue;
             }
             if (attempt(start) >= 0) {
