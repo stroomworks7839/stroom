@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shapeshifter — trace editor mockup (design/18-editor-ui.md §5)</title>
+<style>
+  :root {
+    --bg: #f7f8fa; --panel: #ffffff; --border: #d8dde4; --text: #1f2733;
+    --muted: #6b7686; --accent: #2563b0;
+    /* per-template hues */
+    --c-record: #4a6fa5; --c-kv: #b06f2e; --c-iso: #2e7d5b;
+    --c-quoted: #8a4f9e; --c-mac: #8a94a3;
+    /* per-capture hues */
+    --cap-0: #b3452e; --cap-1: #2e6db3; --cap-2: #2e7d5b; --cap-3: #8a4f9e;
+    font-size: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, "Segoe UI", sans-serif; height: 100vh;
+    display: flex; flex-direction: column;
+  }
+  code, .mono { font-family: "JetBrains Mono", Consolas, monospace; }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 8px 14px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header .doctype { color: var(--muted); font-weight: 400; }
+  header .spacer { flex: 1; }
+  button {
+    font: inherit; border: 1px solid var(--border); background: var(--panel);
+    border-radius: 5px; padding: 4px 12px; cursor: pointer; color: var(--text);
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { color: #fff; filter: brightness(1.1); }
+  button[disabled] { opacity: .45; cursor: default; }
+  .mocknote {
+    background: #fdf6e3; border-bottom: 1px solid #e8d9a0; color: #7a6520;
+    padding: 4px 14px; font-size: 12px;
+  }
+
+  /* ---------- layout ---------- */
+  main { flex: 1; display: grid; min-height: 0;
+    grid-template-columns: 220px 1fr 1fr;
+    grid-template-rows: minmax(0, 5fr) auto minmax(0, 4fr);
+    grid-template-areas: "tpls data data" "tpls crumb crumb" "tpls detail output"; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    margin: 6px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .panel > h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin: 0; padding: 7px 10px 5px; }
+  .panel > .body { flex: 1; overflow: auto; min-height: 0; }
+
+  /* ---------- template panel ---------- */
+  #tpls { grid-area: tpls; }
+  .mode-head { font-size: 11px; color: var(--muted); padding: 8px 10px 2px; }
+  .tpl-row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; cursor: pointer; }
+  .tpl-row:hover { background: #eef2f7; }
+  .tpl-row.sel { background: #e3ecf7; }
+  .chip { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .tpl-row .name { flex: 1; }
+  .tpl-row .count { color: var(--muted); font-size: 12px; }
+  .tpl-row.zero { opacity: .55; }
+  .tpl-row.zero .count { color: #b3452e; }
+
+  /* ---------- data pane ---------- */
+  #data { grid-area: data; }
+  #dataText { padding: 10px 12px; white-space: pre-wrap; word-break: break-all;
+    font-family: Consolas, monospace; font-size: 13px; line-height: 2.1; }
+  .m { cursor: pointer; border-radius: 2px; transition: opacity .12s; }
+  .m.tpl-record { background: color-mix(in srgb, var(--c-record) 9%, transparent);
+    box-shadow: inset 3px 0 0 var(--c-record); padding: 2px 1px; }
+  .m.tpl-kv  { background: color-mix(in srgb, var(--c-kv) 14%, transparent);
+    border-bottom: 2px solid var(--c-kv); }
+  .m.tpl-iso { background: color-mix(in srgb, var(--c-iso) 18%, transparent);
+    border-bottom: 2px solid var(--c-iso); }
+  .m.tpl-quoted { background: color-mix(in srgb, var(--c-quoted) 18%, transparent);
+    border-bottom: 2px solid var(--c-quoted); }
+  /* focus model: when a cursor exists, everything off the active path dims */
+  #dataText.focused .m { opacity: .4; }
+  #dataText.focused .m.onpath, #dataText.focused .m.cursor,
+  #dataText.focused .m.cursor .m { opacity: 1; }
+  .m.cursor { outline: 2px solid var(--text); outline-offset: 1px; }
+  .gap { cursor: pointer; border-radius: 2px; }
+  .gap:hover { background: #f3d9d3; box-shadow: 0 2px 0 #b3452e; }
+  .cap { border-bottom: 1px dotted currentColor; }
+  .cap.hot { outline: 2px solid currentColor; outline-offset: 1px; border-radius: 2px; }
+
+  /* ---------- breadcrumb ---------- */
+  #crumb { grid-area: crumb; display: flex; align-items: center; gap: 4px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    margin: 0 6px; padding: 5px 10px; flex-wrap: wrap; }
+  #crumb .seg { display: flex; align-items: center; gap: 3px; }
+  #crumb .seg .name { font-weight: 600; cursor: pointer; padding: 1px 6px; border-radius: 4px; }
+  #crumb .seg .name:hover { background: #eef2f7; }
+  #crumb .seg .idx { color: var(--muted); font-size: 12px; }
+  #crumb .arrow { border: none; background: none; padding: 0 3px; font-size: 12px;
+    color: var(--muted); cursor: pointer; }
+  #crumb .arrow:hover:not([disabled]) { color: var(--accent); }
+  #crumb .sep { color: var(--muted); margin: 0 2px; }
+  #crumb .down { font-size: 12px; }
+  #crumb .empty { color: var(--muted); font-style: italic; }
+  #gapInfo { flex-basis: 100%; font-size: 12.5px; color: #7a3b2b; background: #fbeeea;
+    border-radius: 4px; padding: 4px 8px; margin-top: 4px; }
+
+  /* ---------- detail pane ---------- */
+  #detail { grid-area: detail; }
+  #detail .body { padding: 8px 12px; font-size: 13px; }
+  #detail dl { display: grid; grid-template-columns: 78px 1fr; gap: 4px 10px; margin: 0 0 8px; }
+  #detail dt { color: var(--muted); }
+  #detail dd { margin: 0; }
+  table.caps { border-collapse: collapse; width: 100%; margin: 4px 0 10px; }
+  table.caps td { padding: 3px 8px 3px 0; vertical-align: top; }
+  table.caps tr { cursor: default; }
+  table.caps tr:hover { background: #f2f5f9; }
+  .capname { font-weight: 600; }
+  .stepper { display: flex; align-items: center; gap: 8px; color: var(--muted);
+    border-top: 1px solid var(--border); padding-top: 8px; font-size: 12.5px; }
+  .note0 { color: #b3452e; font-size: 12.5px; }
+
+  /* ---------- output pane ---------- */
+  #output { grid-area: output; }
+  #outText { padding: 10px 12px; white-space: pre; font-family: Consolas, monospace;
+    font-size: 13px; line-height: 1.7; }
+  .o { border-radius: 2px; cursor: pointer; }
+  .o.tpl-record { color: var(--c-record); }
+  .o.tpl-kv { color: var(--c-kv); }
+  .o.tpl-iso { color: var(--c-iso); font-weight: 600; }
+  .o.tpl-quoted { color: var(--c-quoted); font-weight: 600; }
+  #outText.focused .o { opacity: .45; }
+  #outText.focused .o.hot { opacity: 1; background: #fff3d6; outline: 1px solid var(--c-kv); }
+  #outText.focused .o.onpath { opacity: 1; }
+  footer { padding: 3px 14px; font-size: 11.5px; color: var(--muted);
+    border-top: 1px solid var(--border); background: var(--panel); }
+  kbd { background: #eef1f5; border: 1px solid var(--border); border-radius: 3px;
+    padding: 0 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="mocknote">Design mockup for <b>design/18-editor-ui.md §5</b> — the trace is hand-built in this page, there is no engine behind it. Click highlights, step the breadcrumb, hover captures, click output.</div>
+<header>
+  <h1>apache-audit <span class="doctype">(Shapeshifter · Design tab)</span></h1>
+  <div class="spacer"></div>
+  <button class="primary" id="runBtn">&#9654; Run</button>
+  <button disabled title="Not in this mockup">&#9202; Profile</button>
+</header>
+
+<main>
+  <section class="panel" id="tpls"><h2>Templates</h2><div class="body" id="tplList"></div></section>
+  <section class="panel" id="data"><h2>Data</h2><div class="body"><div id="dataText"></div></div></section>
+  <div id="crumb"></div>
+  <section class="panel" id="detail"><h2>Template</h2><div class="body" id="detailBody"></div></section>
+  <section class="panel" id="output"><h2>Output</h2><div class="body"><div id="outText"></div></div></section>
+</main>
+
+<footer>Navigate: click any highlight or output span &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&larr;</kbd>/<kbd>&rarr;</kbd> sideways within parent &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&uarr;</kbd> parent &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&darr;</kbd> first child &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd>/<kbd>&rarr;</kbd> same template, whole input</footer>
+
+<script>
+"use strict";
+
+/* ================= sample + config (what the doc would hold) ================= */
+
+const SAMPLE =
+`ip address=192.168.2.245 name=bob create time=2026-08-21T11:41:34.001Z action=login
+ip address=10.0.0.7 name="alice smith" create time=2026-08-21T11:41:35.120Z action=logout
+ip address=172.16.4.1 name=carol create time=2026-08-21T11:41:36.500Z action=login`;
+
+const TPL = {
+  record: { name: "record",   mode: null,     color: "var(--c-record)",
+            pattern: "^.+$", caps: [] },
+  kv:     { name: "kv-pair",  mode: "fields", color: "var(--c-kv)",
+            pattern: '([A-Za-z][A-Za-z ]*?)=("[^"]*"|\\S+)', caps: ["key", "value"] },
+  iso:    { name: "iso-time", mode: "values", color: "var(--c-iso)",
+            pattern: "^\\d{4}-\\d{2}-\\d{2}T[\\d:.]+Z$", caps: ["instant"] },
+  quoted: { name: "quoted",   mode: "values", color: "var(--c-quoted)",
+            pattern: '^"([^"]*)"$', caps: ["text"] },
+  mac:    { name: "mac-addr", mode: "values", color: "var(--c-mac)",
+            pattern: "^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$", caps: ["mac"] },
+};
+const MODE_ORDER = [[null, "root"], ["fields", "mode: fields"], ["values", "mode: values"]];
+
+/* ================= build the trace (stands in for the preview endpoint) ================= */
+
+const matches = [];           // {id, tpl, parent, start, len, children:[], captures:[{name,value,span}]}
+const byTpl = {};             // tplId -> [match] in input order
+const attempts = { mac: 12 }; // failed-attempt counts for zero-match rows (G3 stand-in)
+
+function addMatch(tpl, parent, start, len, captures) {
+  const m = { id: matches.length, tpl, parent, start, len, children: [], captures };
+  matches.push(m);
+  (byTpl[tpl] = byTpl[tpl] || []).push(m);
+  if (parent) parent.children.push(m);
+  return m;
+}
+
+let lineStart = 0;
+for (const line of SAMPLE.split("\n")) {
+  const rec = addMatch("record", null, lineStart, line.length, []);
+  const kvRe = /([A-Za-z][A-Za-z ]*?)=("[^"]*"|\S+)/g;
+  let hit;
+  while ((hit = kvRe.exec(line)) !== null) {
+    const [whole, key, raw] = hit;
+    const kvStart = lineStart + hit.index;
+    const valStart = kvStart + key.length + 1;
+    const kv = addMatch("kv", rec, kvStart, whole.length, [
+      { name: "key",   value: key, span: [kvStart, key.length] },
+      { name: "value", value: raw, span: [valStart, raw.length] },
+    ]);
+    if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
+      addMatch("iso", kv, valStart, raw.length,
+        [{ name: "instant", value: isoNanos(raw), span: [valStart, raw.length] }]);
+    } else if (raw.startsWith('"')) {
+      addMatch("quoted", kv, valStart, raw.length,
+        [{ name: "text", value: raw.slice(1, -1), span: [valStart + 1, raw.length - 2] }]);
+    }
+  }
+  lineStart += line.length + 1;
+}
+function isoNanos(v) { return v.replace(/\.(\d{3})Z$/, ".$1000000Z"); }
+
+/* output with attribution: segments of {text, m} where m is the writing match (null = document) */
+const outSegs = [];
+const emit = (text, m) => outSegs.push({ text, m });
+emit("<records>\n", null);
+for (const rec of byTpl.record) {
+  emit("  <record>\n", rec);
+  for (const kv of rec.children) {
+    const key = kv.captures[0].value, raw = kv.captures[1].value;
+    const child = kv.children[0];
+    emit(`    <data name="${key}" value="`, kv);
+    if (child) emit(child.captures[0].value, child);
+    else emit(raw, kv);
+    emit('"/>\n', kv);
+  }
+  emit("  </record>\n", rec);
+}
+emit("</records>\n", null);
+
+/* ================= cursor state ================= */
+
+let cursor = null;     // a match, or null
+let selTpl = null;     // template shown in the detail pane (follows cursor)
+let gapMsg = null;     // gap-inspector text, shown under the breadcrumb
+
+function chainOf(m) { const c = []; for (let x = m; x; x = x.parent) c.unshift(x); return c; }
+function siblings(m) {           // same-template siblings under the same parent
+  return (m.parent ? m.parent.children : byTpl[m.tpl].filter(x => !x.parent))
+    .filter(x => x.tpl === m.tpl);
+}
+function setCursor(m, keepGap) {
+  cursor = m; selTpl = m ? m.tpl : selTpl;
+  if (!keepGap) gapMsg = null;
+  render();
+}
+function selectTemplate(tplId) {
+  selTpl = tplId; gapMsg = null;
+  const first = (byTpl[tplId] || [])[0];
+  cursor = first || cursor;
+  render();
+}
+
+/* ================= rendering ================= */
+
+const $ = id => document.getElementById(id);
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+/* --- data pane: recursive nested spans --- */
+function renderData() {
+  const root = $("dataText");
+  root.textContent = "";
+  root.classList.toggle("focused", !!cursor);
+  const tops = matches.filter(m => !m.parent);
+  renderRange(root, 0, SAMPLE.length, tops, null);
+  if (cursor) {
+    const onpath = new Set(chainOf(cursor).map(m => m.id));
+    for (const s of root.querySelectorAll(".m")) {
+      const id = +s.dataset.id;
+      s.classList.toggle("cursor", id === cursor.id);
+      s.classList.toggle("onpath", onpath.has(id) && id !== cursor.id);
+    }
+    const cur = root.querySelector(".m.cursor");
+    if (cur) cur.scrollIntoView({ block: "nearest" });
+  }
+}
+
+function renderRange(container, start, end, children, parent) {
+  let pos = start;
+  for (const child of children) {
+    if (child.start > pos) addPlain(container, pos, child.start, parent);
+    const s = el("span", "m tpl-" + child.tpl);
+    s.dataset.id = child.id;
+    s.title = `${TPL[child.tpl].name} — match ${byTpl[child.tpl].indexOf(child) + 1} of ${byTpl[child.tpl].length} (bytes ${child.start}–${child.start + child.len})`;
+    s.addEventListener("click", ev => { ev.stopPropagation(); setCursor(child); });
+    renderMatchInner(s, child);
+    container.appendChild(s);
+    pos = child.start + child.len;
+  }
+  if (pos < end) addPlain(container, pos, end, parent);
+}
+
+function renderMatchInner(container, m) {
+  /* kv matches render their captures as sub-spans so capture-hover can link to them */
+  if (m.tpl === "kv") {
+    const [key, val] = m.captures;
+    const kEl = el("span", "cap", SAMPLE.slice(key.span[0], key.span[0] + key.span[1]));
+    kEl.style.color = "var(--cap-0)"; kEl.dataset.cap = m.id + ":0";
+    container.appendChild(kEl);
+    container.appendChild(document.createTextNode("="));
+    const vEl = el("span", "cap");
+    vEl.style.color = "var(--cap-1)"; vEl.dataset.cap = m.id + ":1";
+    renderRange(vEl, val.span[0], val.span[0] + val.span[1], m.children, m);
+    container.appendChild(vEl);
+  } else {
+    renderRange(container, m.start, m.start + m.len, m.children, m);
+  }
+}
+
+function addPlain(container, from, to, parent) {
+  const text = SAMPLE.slice(from, to);
+  if (parent && parent.tpl === "record" && text.trim() === "") {
+    /* an unmatched gap inside a record: first-class and clickable (G3) */
+    const g = el("span", "gap", text);
+    g.title = "Nothing matched here — click to see what was tried";
+    g.addEventListener("click", ev => {
+      ev.stopPropagation();
+      gapMsg = `No template matched bytes ${from}–${to} (inside record ${byTpl.record.indexOf(parent) + 1}). ` +
+               `Tried in mode “fields”: kv-pair ✗. In a real trace this comes from per-attempt positions (engine ask G3).`;
+      setCursor(parent, true);
+    });
+    container.appendChild(g);
+  } else {
+    container.appendChild(document.createTextNode(text));
+  }
+}
+
+/* --- breadcrumb: every segment is a stepper --- */
+function renderCrumb() {
+  const c = $("crumb");
+  c.textContent = "";
+  const src = el("span", "seg");
+  src.appendChild(el("span", "name", "source"));
+  c.appendChild(src);
+  if (!cursor) {
+    c.appendChild(el("span", "sep", "›"));
+    c.appendChild(el("span", "empty", "no match selected — click a highlight above"));
+  } else {
+    for (const seg of chainOf(cursor)) {
+      c.appendChild(el("span", "sep", "›"));
+      const sibs = siblings(seg), i = sibs.indexOf(seg);
+      const s = el("span", "seg");
+      const name = el("span", "name", TPL[seg.tpl].name);
+      name.style.color = TPL[seg.tpl].color;
+      name.title = "Make this match the cursor";
+      name.addEventListener("click", () => setCursor(seg));
+      const back = el("button", "arrow", "◀");
+      back.disabled = i === 0;
+      back.addEventListener("click", () => setCursor(sibs[i - 1]));
+      const fwd = el("button", "arrow", "▶");
+      fwd.disabled = i === sibs.length - 1;
+      fwd.addEventListener("click", () => setCursor(sibs[i + 1]));
+      s.append(name, back, el("span", "idx", `${i + 1}/${sibs.length}`), fwd);
+      c.appendChild(s);
+    }
+    if (cursor.children.length) {
+      c.appendChild(el("span", "sep", "›"));
+      const d = el("button", "arrow down", `… ${cursor.children.length} child${cursor.children.length > 1 ? "ren" : ""} ▾`);
+      d.title = cursor.children.map(ch => TPL[ch.tpl].name).join(", ");
+      d.addEventListener("click", () => setCursor(cursor.children[0]));
+      c.appendChild(d);
+    }
+  }
+  if (gapMsg) c.appendChild(el("div", "", gapMsg)).id = "gapInfo";
+}
+
+/* --- template panel --- */
+function renderTpls() {
+  const list = $("tplList");
+  list.textContent = "";
+  for (const [mode, label] of MODE_ORDER) {
+    list.appendChild(el("div", "mode-head", label));
+    for (const [id, t] of Object.entries(TPL)) {
+      if (t.mode !== mode) continue;
+      const n = (byTpl[id] || []).length;
+      const row = el("div", "tpl-row" + (n === 0 ? " zero" : "") + (selTpl === id ? " sel" : ""));
+      const chip = el("span", "chip"); chip.style.background = t.color;
+      row.append(chip, el("span", "name mono", t.name),
+        el("span", "count", n === 0 ? `0 · ${attempts[id] || 0} tries` : String(n)));
+      row.addEventListener("click", () => selectTemplate(id));
+      list.appendChild(row);
+    }
+  }
+}
+
+/* --- detail pane --- */
+function renderDetail() {
+  const b = $("detailBody");
+  b.textContent = "";
+  if (!selTpl) { b.appendChild(el("div", "", "Select a template or click a highlight.")); return; }
+  const t = TPL[selTpl];
+  const all = byTpl[selTpl] || [];
+  const cur = cursor && cursor.tpl === selTpl ? cursor : null;
+
+  const dl = el("dl");
+  const add = (k, v, mono) => { dl.appendChild(el("dt", "", k)); const d = el("dd", mono ? "mono" : ""); d.textContent = v; dl.appendChild(d); };
+  add("template", t.name, true);
+  add("mode", t.mode || "(root)");
+  add("match", "regex  " + t.pattern, true);
+  add("dispatched", t.mode === null ? "document" : t.mode === "fields" ? "from record (body pos 1)" : "from kv-pair (body pos 2)");
+  b.appendChild(dl);
+
+  if (t.caps.length) {
+    const tbl = el("table", "caps");
+    t.caps.forEach((cap, i) => {
+      const tr = el("tr");
+      const chip = el("span", "chip"); chip.style.background = `var(--cap-${i})`; chip.style.display = "inline-block";
+      const td0 = el("td"); td0.appendChild(chip);
+      const nameTd = el("td", "capname mono", cap); nameTd.style.color = `var(--cap-${i})`;
+      const valTd = el("td", "mono", cur ? JSON.stringify(cur.captures[i] ? cur.captures[i].value : "—") : "—");
+      tr.append(td0, nameTd, valTd);
+      /* hover a capture row -> light its span in the data pane (kv has cap sub-spans) */
+      tr.addEventListener("mouseenter", () => setCapHot(cur, i, true));
+      tr.addEventListener("mouseleave", () => setCapHot(cur, i, false));
+      tbl.appendChild(tr);
+    });
+    b.appendChild(tbl);
+  }
+
+  const st = el("div", "stepper");
+  if (all.length === 0) {
+    st.appendChild(el("span", "note0",
+      `no matches — tried at ${attempts[selTpl] || 0} positions, matched none`));
+  } else {
+    const i = cur ? all.indexOf(cur) : -1;
+    const back = el("button", "", "◀"); back.disabled = i <= 0;
+    back.addEventListener("click", () => setCursor(all[i - 1]));
+    const fwd = el("button", "", "▶"); fwd.disabled = i === all.length - 1;
+    fwd.addEventListener("click", () => setCursor(i < 0 ? all[0] : all[i + 1]));
+    st.append(back, el("span", "", `match ${i < 0 ? "–" : i + 1} of ${all.length} (whole input)`), fwd);
+    if (cur) st.appendChild(el("span", "", `· bytes ${cur.start}–${cur.start + cur.len}`));
+  }
+  b.appendChild(st);
+}
+
+function setCapHot(cur, i, on) {
+  if (!cur) return;
+  const s = document.querySelector(`[data-cap="${cur.id}:${i}"]`);
+  if (s) s.classList.toggle("hot", on);
+}
+
+/* --- output pane with attribution --- */
+function renderOutput() {
+  const o = $("outText");
+  o.textContent = "";
+  o.classList.toggle("focused", !!cursor);
+  const onpath = cursor ? new Set(chainOf(cursor).map(m => m.id)) : new Set();
+  for (const seg of outSegs) {
+    if (!seg.m) { o.appendChild(document.createTextNode(seg.text)); continue; }
+    const s = el("span", "o tpl-" + seg.m.tpl, seg.text);
+    s.title = `written by ${TPL[seg.m.tpl].name} — click to jump to the match`;
+    if (cursor) {
+      if (seg.m.id === cursor.id) s.classList.add("hot");
+      else if (onpath.has(seg.m.id)) s.classList.add("onpath");
+    }
+    s.addEventListener("click", () => setCursor(seg.m));
+    o.appendChild(s);
+  }
+  const hot = o.querySelector(".o.hot");
+  if (hot) hot.scrollIntoView({ block: "nearest" });
+}
+
+function render() { renderTpls(); renderData(); renderCrumb(); renderDetail(); renderOutput(); }
+
+/* ================= keyboard ================= */
+
+document.addEventListener("keydown", ev => {
+  if (!ev.altKey || !cursor) return;
+  const all = byTpl[cursor.tpl], gi = all.indexOf(cursor);
+  const sibs = siblings(cursor), i = sibs.indexOf(cursor);
+  let next = null;
+  if (ev.key === "ArrowLeft")  next = ev.shiftKey ? all[gi - 1] : sibs[i - 1];
+  if (ev.key === "ArrowRight") next = ev.shiftKey ? all[gi + 1] : sibs[i + 1];
+  if (ev.key === "ArrowUp")    next = cursor.parent;
+  if (ev.key === "ArrowDown")  next = cursor.children[0];
+  if (next) { ev.preventDefault(); setCursor(next); }
+});
+
+$("runBtn").addEventListener("click", () => {
+  /* the real button re-runs the preview; here the trace is static, so just re-render */
+  const b = $("runBtn");
+  b.textContent = "✓ Ran";
+  setTimeout(() => { b.innerHTML = "&#9654; Run"; }, 700);
+  render();
+});
+
+/* initial position: the quoted value in record 2 — three levels deep, shows the whole idea */
+setCursor(byTpl.quoted[0]);
+</script>
+</body>
+</html>
