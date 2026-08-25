@@ -156,7 +156,10 @@ public final class Backtracker {
                 }
                 continue;
             }
-            if (firstBytes != null && (at == to || firstBytes[data[at] & 0xFF] == 0)) {
+            // A table exists only for a non-nullable pattern, so minLength >= 1 caps the loop
+            // at to - 1: at == to is unreachable and the read is in bounds (the D37 audit's
+            // proof; the dropped test was the deleted edge iteration's).
+            if (firstBytes != null && firstBytes[data[at] & 0xFF] == 0) {
                 if (anchored) {
                     break;
                 }

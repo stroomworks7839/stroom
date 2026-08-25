@@ -225,7 +225,9 @@ public final class PikeVm {
         if (firstBytes == null) {
             return true; // the pattern can match empty, so it could start anywhere
         }
-        return pos < to && firstBytes[data[pos] & 0xFF] != 0;
+        // A table exists only for a non-nullable pattern, so minLength >= 1 caps seeding at
+        // to - 1: pos < to always holds here and the read is in bounds (the D37 audit's proof).
+        return firstBytes[data[pos] & 0xFF] != 0;
     }
 
     /**
