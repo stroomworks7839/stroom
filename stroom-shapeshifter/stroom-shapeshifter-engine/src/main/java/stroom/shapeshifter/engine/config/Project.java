@@ -61,8 +61,15 @@ public record Project(String name,
      * @param encoding     the input encoding, or {@code auto} to detect it from a byte-order mark
      * @param dispatch     the default dispatch mode for every level (D36), or null to let the
      *                     configuration's version decide: strict from version 4, lax before
+     * @param strictValues warn when a non-numeric value reaches an arithmetic instruction
+     *                     (design/17 §10) — off by default, because messy data is the normal
+     *                     case; on when "why is this element empty" needs evidence
      */
-    public record SourceConfig(int bufferSize, boolean ignoreErrors, String encoding, Dispatch dispatch) {
+    public record SourceConfig(int bufferSize,
+                               boolean ignoreErrors,
+                               String encoding,
+                               Dispatch dispatch,
+                               boolean strictValues) {
 
         /** The buffer size a configuration gets if it does not ask for one. */
         public static final int DEFAULT_BUFFER_SIZE = 20_000;
@@ -79,7 +86,7 @@ public record Project(String name,
 
         /** The settings an input gets when a configuration says nothing about it. */
         public static SourceConfig defaults() {
-            return new SourceConfig(DEFAULT_BUFFER_SIZE, false, AUTO, null);
+            return new SourceConfig(DEFAULT_BUFFER_SIZE, false, AUTO, null, false);
         }
     }
 }

@@ -931,7 +931,7 @@
         "parts": [
          {
           "Store": {
-           "var_id": "Var: privilegesClean",
+           "var_id": "27b7fa43-4fce-49a1-a283-0ce909c31de3",
            "group": 0,
            "match_index": null
           }
@@ -951,7 +951,7 @@
         "parts": [
          {
           "Store": {
-           "var_id": "Var: privilegesClean",
+           "var_id": "27b7fa43-4fce-49a1-a283-0ce909c31de3",
            "group": 0,
            "match_index": null
           }
@@ -991,7 +991,7 @@
         "parts": [
          {
           "Store": {
-           "var_id": "Var: accessesClean",
+           "var_id": "d37d61ef-893c-441f-a490-1aea60d3594c",
            "group": 0,
            "match_index": null
           }
@@ -1011,7 +1011,7 @@
         "parts": [
          {
           "Store": {
-           "var_id": "Var: accessesClean",
+           "var_id": "d37d61ef-893c-441f-a490-1aea60d3594c",
            "group": 0,
            "match_index": null
           }
@@ -3918,7 +3918,7 @@
         "parts": [
          {
           "Store": {
-           "var_id": "Var: subjectSID",
+           "var_id": "SecurityID",
            "group": 0,
            "match_index": null
           }
@@ -3975,7 +3975,7 @@
         "parts": [
          {
           "Store": {
-           "var_id": "Var: subjectAccountName",
+           "var_id": "AccountName",
            "group": 0,
            "match_index": null
           }
@@ -4032,7 +4032,7 @@
         "parts": [
          {
           "Store": {
-           "var_id": "Var: subjectDomainName",
+           "var_id": "AccountDomain",
            "group": 0,
            "match_index": null
           }
@@ -4089,7 +4089,7 @@
         "parts": [
          {
           "Store": {
-           "var_id": "Var: subjectLogonId",
+           "var_id": "LogonID",
            "group": 0,
            "match_index": null
           }
@@ -4146,7 +4146,7 @@
         "parts": [
          {
           "Store": {
-           "var_id": "Var: logonType",
+           "var_id": "LogonType",
            "group": 0,
            "match_index": null
           }
@@ -4203,7 +4203,7 @@
         "parts": [
          {
           "Store": {
-           "var_id": "Var: elevatedToken",
+           "var_id": "ElevatedToken",
            "group": 0,
            "match_index": null
           }

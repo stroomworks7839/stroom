@@ -145,6 +145,12 @@ fields. Promoted to `PASS`.
 `Member` alone looked right and produced a newline inside an attribute; only the diff showed
 it.*
 
+*Corrected 2026-08-25 by E25: this note's "two remaining multi-line attribute values
+(`Privileges`, `Accesses`) ... are genuine multi-valued Windows fields" observed the output
+of a broken cleaning chain, not an authored rendering — the configuration's own
+newline-and-tab replaces read a name nothing wrote. The fields are genuinely multi-valued;
+their multi-line spelling was a defect, now repaired and re-frozen.*
+
 ### E16 — `win_sec`'s templates were listed out of data order
 **`resolved` 2026-08-20, both halves: `win_sec` by reordering, `win_sec_xml` by anchoring —
 the two fixes D34's dispatch offers, each matched to its configuration's shape.**
@@ -478,6 +484,26 @@ where the deleted shape is recorded.
 The same ruling settled the case's second finding: **`substring` stays 0-based, documented,
 not aligned** to XSLT's 1-based — faithful to the ported transform library and existing
 configurations. The trap note lives in `OutputNode.Substring`'s javadoc and the matrix.
+
+### E25 — The win_sec family read names nothing wrote; the cleaning chains were dead
+**`resolved` 2026-08-25, found by design/17 §10's unknown-reference check on its first corpus
+run — repaired at the configurations and re-frozen, per the user's ruling.** All three
+win_sec configurations carried reads of ds-rs node-editor display names — `Var:
+privilegesClean`, `Var: subjectSID` and eight more, 24 read sites — where the port should
+have carried the variable ids they aliased. Every one read absent for ever: the
+privilege/access cleaning chains (newlines to a space, tabs deleted) had been authored,
+ported, and dead the whole time, and the six trim templates trimmed nothing. The output
+consequence was exactly the multi-line attribute values E6's audit note called "genuine
+multi-valued Windows fields ... in the old golden too" — true about the fields, wrong about
+the spelling: the cleaner that would have flattened them was broken, in ds-rs as here, so
+both engines agreed on defective output and the golden froze it. Repaired by mapping each
+display name to its intended source (the adjacent UUID variable for the cleaning chains, the
+template's own capture for the trims), goldens regenerated and diffed: the only movement is
+the four multi-line values collapsing to clean single lines — the trim repairs are
+output-neutral because the capture groups already exclude the whitespace. The historical
+copy under `e17/` is patched identically, since its subject is stranding, not references.
+The check that found this stands down for configurations with key-value captures, whose
+names are read out of the data and cannot be known statically.
 
 ### E22 — Charset fallback chains substitute near-equivalents silently
 **`resolved` 2026-08-21: pinned and made loud, per the user's ruling.** ds-rs parity is no

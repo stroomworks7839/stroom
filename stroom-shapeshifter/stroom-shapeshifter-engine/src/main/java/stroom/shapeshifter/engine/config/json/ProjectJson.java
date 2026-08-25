@@ -119,12 +119,14 @@ public final class ProjectJson {
     }
 
     private static SourceConfig readSource(final JsonNode node) {
-        checkFields(node, "source", "buffer_size", "ignore_errors", "encoding", "dispatch");
+        checkFields(node, "source", "buffer_size", "ignore_errors", "encoding", "dispatch",
+                "strict_values");
         return new SourceConfig(
                 node.path("buffer_size").asInt(SourceConfig.DEFAULT_BUFFER_SIZE),
                 node.path("ignore_errors").asBoolean(false),
                 node.has("encoding") ? node.get("encoding").asString() : SourceConfig.AUTO,
-                readDispatch(node));
+                readDispatch(node),
+                node.path("strict_values").asBoolean(false));
     }
 
     /** The dispatch mode, spelt lowercase, or null to inherit (D36). */
@@ -152,6 +154,9 @@ public final class ProjectJson {
         node.put("ignore_errors", source.ignoreErrors());
         writeDispatch(node, source.dispatch());
         node.put("encoding", source.encoding());
+        if (source.strictValues()) {
+            node.put("strict_values", true);
+        }
         return node;
     }
 

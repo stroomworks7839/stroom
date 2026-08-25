@@ -114,7 +114,7 @@ class EveryVariantTest {
         return new Project(
                 "every variant",
                 3,
-                new SourceConfig(1024, true, "windows-1252", Dispatch.LEXER),
+                new SourceConfig(1024, true, "windows-1252", Dispatch.LEXER, true),
                 templates,
                 List.of(new CombinatorPattern(ID, "reusable", List.of(new MatchStep.Tag("x")))));
     }

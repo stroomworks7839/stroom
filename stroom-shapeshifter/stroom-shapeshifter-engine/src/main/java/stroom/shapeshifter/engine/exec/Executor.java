@@ -81,6 +81,14 @@ public final class Executor {
     private final VarRegistry vars = new VarRegistry();
 
     /**
+     * The arithmetic sites that have already drawn a strict_values warning this run — once
+     * per instruction site, because once per record on a million-record input is not a
+     * diagnostic, it is a flood (design/17 §10).
+     */
+    private final java.util.Set<CompiledOp.Transform> warnedNumeric =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+    /**
      * The encoding in force. Starts as whatever the configuration declared, and is replaced if
      * the input opens with a byte-order mark, which is better evidence than a declaration.
      */
@@ -1058,8 +1066,8 @@ public final class Executor {
                     }
                     emit(TypedValue.of(mapped == null ? "" : mapped), value.name(), matchCount, sink);
                 }
-                case CompiledOp.Transform value -> transform(value.select(), value.name(), match,
-                        matchCount, sink, value.function(), contentEncoding);
+                case CompiledOp.Transform value ->
+                        transform(value, match, matchCount, sink, contentEncoding);
                 case CompiledOp.ParseDate value -> {
                     final TypedValue input = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars, contentEncoding);
@@ -1113,13 +1121,14 @@ public final class Executor {
      * two of which one is blank. And a function returning nothing writes nothing — which is what
      * makes a join of no values disappear instead of leaving a stray separator.
      */
-    private void transform(final List<CompiledRef> select,
-                           final String name,
+    private void transform(final CompiledOp.Transform op,
                            final MatchResult match,
                            final int matchCount,
                            final OutputSink sink,
-                           final Function<List<TypedValue>, TypedValue> function,
                            final Encoding contentEncoding) {
+        final List<CompiledRef> select = op.select();
+        final String name = op.name();
+        final Function<List<TypedValue>, TypedValue> function = op.function();
         final List<TypedValue> inputs = new ArrayList<>(select.size());
         for (final CompiledRef ref : select) {
             final TypedValue resolved = CompiledRefs.resolveValue(ref, match, matchCount, vars, contentEncoding);
@@ -1127,10 +1136,31 @@ public final class Executor {
                 inputs.add(resolved);
             }
         }
+        if (op.numericKind() != null && compiled.project().source().strictValues()
+            && !warnedNumeric.contains(op)) {
+            // A present value with no numeric reading — a missing field is normal and stays
+            // quiet; a value that is there and is not a number is the evidence strict_values
+            // exists to surface (design/17 §10).
+            for (final TypedValue input : inputs) {
+                if (input.asNumber() == null) {
+                    warnedNumeric.add(op);
+                    messages.add(new Message(Severity.WARNING,
+                            "strict_values: a non-numeric value reached " + op.numericKind()
+                            + ": [" + preview(input) + "]"));
+                    break;
+                }
+            }
+        }
         final TypedValue result = function.apply(inputs);
         if (result != null) {
             emit(result, name, matchCount, sink);
         }
+    }
+
+    /** A short, printable slice of an offending value for the strict_values message. */
+    private static String preview(final TypedValue value) {
+        final String text = value.asString();
+        return text.length() > 40 ? text.substring(0, 40) + "…" : text;
     }
 
     /** Write a produced value, or bind it to a variable if the instruction named one. */

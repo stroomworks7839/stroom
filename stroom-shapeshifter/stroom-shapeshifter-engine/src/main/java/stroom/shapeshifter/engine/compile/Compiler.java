@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.CombinatorPattern;
 import stroom.shapeshifter.engine.config.Condition;
@@ -27,6 +28,7 @@ import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
+import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.exec.Codecs;
 import stroom.shapeshifter.engine.text.Encoding;
@@ -122,7 +124,279 @@ public final class Compiler {
         resolveTemplateNames(project);
         dispatchChecks(project, templates, warnings);
         comparisonChecks(project, warnings);
+        referenceChecks(project);
+        substringVersionCheck(project, warnings);
         return new CompiledProject(project, templates, patterns, encoding, warnings);
+    }
+
+    /**
+     * Design/17 §10's unknown-reference refusal: a read of a name that nothing writes — no
+     * capture, no {@code variable}, no transform bind, no parameter — is a compile-time
+     * error naming the reference and its template. This is where typos actually are, and it
+     * costs nothing at run time; the alternative is a configuration that appears to work and
+     * quietly reads absence for ever.
+     */
+    private static void referenceChecks(final Project project) {
+        // A key-value capture binds names read out of the data itself, so the writable set
+        // is not statically knowable: the check stands down for the whole configuration
+        // rather than accusing every data-driven read. The common shape keeps the error.
+        for (final Template template : project.templates()) {
+            for (final CaptureBinding capture : template.captures()) {
+                if (capture.select() instanceof CaptureBinding.CaptureSource.KeyValue) {
+                    return;
+                }
+            }
+        }
+        final Set<String> writable = new HashSet<>();
+        writable.add("__match_count");
+        writable.add("__match_idx");
+        for (final Template template : project.templates()) {
+            for (final CaptureBinding capture : template.captures()) {
+                writable.add(capture.name());
+            }
+            for (final Template.ParamDecl declared : template.param()) {
+                writable.add(declared.name());
+            }
+            collectWrites(template.body(), writable);
+        }
+        for (final Template template : project.templates()) {
+            final List<RefExpression> reads = new ArrayList<>();
+            if (template.guard() != null) {
+                collectConditionRefs(template.guard(), reads);
+            }
+            for (final CaptureBinding capture : template.captures()) {
+                switch (capture.select()) {
+                    case CaptureBinding.CaptureSource.Select select -> reads.add(select.select());
+                    case CaptureBinding.CaptureSource.KeyValue keyValue -> {
+                        reads.add(keyValue.keyRef());
+                        reads.add(keyValue.valueRef());
+                    }
+                    default -> {
+                    }
+                }
+            }
+            collectReads(template.body(), reads);
+            for (final RefExpression read : reads) {
+                checkRead(read, writable, template.name());
+            }
+        }
+    }
+
+    /** Every name a body can write: variable binds, transform binds, call arguments. */
+    private static void collectWrites(final List<OutputNode> body, final Set<String> writable) {
+        for (final OutputNode node : body) {
+            switch (node) {
+                case OutputNode.Variable value -> {
+                    writable.add(value.name());
+                    collectWrites(value.body(), writable);
+                }
+                case OutputNode.If value -> collectWrites(value.then(), writable);
+                case OutputNode.Choose value -> {
+                    value.when().forEach(branch -> collectWrites(branch.body(), writable));
+                    collectWrites(value.otherwise(), writable);
+                }
+                case OutputNode.Switch value -> {
+                    value.cases().forEach(c -> collectWrites(c.body(), writable));
+                    collectWrites(value.defaultBody(), writable);
+                }
+                case OutputNode.ApplyTemplates value ->
+                        value.directive().withParam().forEach(param -> writable.add(param.name()));
+                case OutputNode.CallTemplate value ->
+                        value.withParam().forEach(param -> writable.add(param.name()));
+                case OutputNode.ValueMap value -> addBind(value.name(), writable);
+                case OutputNode.Translate value -> addBind(value.name(), writable);
+                case OutputNode.StringJoin value -> addBind(value.name(), writable);
+                case OutputNode.Replace value -> addBind(value.name(), writable);
+                case OutputNode.LowerCase value -> addBind(value.name(), writable);
+                case OutputNode.UpperCase value -> addBind(value.name(), writable);
+                case OutputNode.NormalizeSpace value -> addBind(value.name(), writable);
+                case OutputNode.Trim value -> addBind(value.name(), writable);
+                case OutputNode.Substring value -> addBind(value.name(), writable);
+                case OutputNode.Tokenize value -> addBind(value.name(), writable);
+                case OutputNode.Number value -> addBind(value.name(), writable);
+                case OutputNode.Add value -> addBind(value.name(), writable);
+                case OutputNode.Subtract value -> addBind(value.name(), writable);
+                case OutputNode.Multiply value -> addBind(value.name(), writable);
+                case OutputNode.Divide value -> addBind(value.name(), writable);
+                case OutputNode.Mod value -> addBind(value.name(), writable);
+                case OutputNode.Round value -> addBind(value.name(), writable);
+                case OutputNode.Floor value -> addBind(value.name(), writable);
+                case OutputNode.Ceiling value -> addBind(value.name(), writable);
+                case OutputNode.Abs value -> addBind(value.name(), writable);
+                case OutputNode.StringLength value -> addBind(value.name(), writable);
+                case OutputNode.SubstringBefore value -> addBind(value.name(), writable);
+                case OutputNode.SubstringAfter value -> addBind(value.name(), writable);
+                case OutputNode.StartsWith value -> addBind(value.name(), writable);
+                case OutputNode.EndsWith value -> addBind(value.name(), writable);
+                case OutputNode.Contains value -> addBind(value.name(), writable);
+                case OutputNode.FormatNumber value -> addBind(value.name(), writable);
+                case OutputNode.ParseDate value -> addBind(value.name(), writable);
+                case OutputNode.FormatDate value -> addBind(value.name(), writable);
+                default -> {
+                }
+            }
+        }
+    }
+
+    private static void addBind(final String name, final Set<String> writable) {
+        if (name != null) {
+            writable.add(name);
+        }
+    }
+
+    /** Every expression a body can read. */
+    private static void collectReads(final List<OutputNode> body, final List<RefExpression> reads) {
+        for (final OutputNode node : body) {
+            switch (node) {
+                case OutputNode.Text ignored -> {
+                }
+                case OutputNode.ValueOf value -> reads.add(value.select());
+                case OutputNode.EmitError value -> reads.add(value.message());
+                case OutputNode.If value -> {
+                    collectConditionRefs(value.test(), reads);
+                    collectReads(value.then(), reads);
+                }
+                case OutputNode.Choose value -> {
+                    for (final OutputNode.WhenBranch branch : value.when()) {
+                        collectConditionRefs(branch.test(), reads);
+                        collectReads(branch.body(), reads);
+                    }
+                    collectReads(value.otherwise(), reads);
+                }
+                case OutputNode.Switch value -> {
+                    reads.add(value.select());
+                    value.cases().forEach(c -> collectReads(c.body(), reads));
+                    collectReads(value.defaultBody(), reads);
+                }
+                case OutputNode.ApplyTemplates value -> {
+                    reads.add(value.directive().select());
+                    value.directive().withParam().forEach(param -> reads.add(param.value()));
+                }
+                case OutputNode.CallTemplate value ->
+                        value.withParam().forEach(param -> reads.add(param.value()));
+                case OutputNode.Variable value -> collectReads(value.body(), reads);
+                case OutputNode.ValueMap value -> reads.add(value.select());
+                case OutputNode.Translate value -> reads.addAll(value.select());
+                case OutputNode.StringJoin value -> reads.addAll(value.select());
+                case OutputNode.Replace value -> reads.addAll(value.select());
+                case OutputNode.LowerCase value -> reads.addAll(value.select());
+                case OutputNode.UpperCase value -> reads.addAll(value.select());
+                case OutputNode.NormalizeSpace value -> reads.addAll(value.select());
+                case OutputNode.Trim value -> reads.addAll(value.select());
+                case OutputNode.Substring value -> reads.addAll(value.select());
+                case OutputNode.Tokenize value -> reads.addAll(value.select());
+                case OutputNode.Number value -> reads.addAll(value.select());
+                case OutputNode.Add value -> reads.addAll(value.select());
+                case OutputNode.Subtract value -> reads.addAll(value.select());
+                case OutputNode.Multiply value -> reads.addAll(value.select());
+                case OutputNode.Divide value -> reads.addAll(value.select());
+                case OutputNode.Mod value -> reads.addAll(value.select());
+                case OutputNode.Round value -> reads.addAll(value.select());
+                case OutputNode.Floor value -> reads.addAll(value.select());
+                case OutputNode.Ceiling value -> reads.addAll(value.select());
+                case OutputNode.Abs value -> reads.addAll(value.select());
+                case OutputNode.StringLength value -> reads.addAll(value.select());
+                case OutputNode.SubstringBefore value -> reads.addAll(value.select());
+                case OutputNode.SubstringAfter value -> reads.addAll(value.select());
+                case OutputNode.StartsWith value -> reads.addAll(value.select());
+                case OutputNode.EndsWith value -> reads.addAll(value.select());
+                case OutputNode.Contains value -> reads.addAll(value.select());
+                case OutputNode.FormatNumber value -> reads.addAll(value.select());
+                case OutputNode.ParseDate value -> {
+                    reads.addAll(value.select());
+                    if (value.reference() != null) {
+                        reads.add(value.reference());
+                    }
+                }
+                case OutputNode.FormatDate value -> reads.addAll(value.select());
+            }
+        }
+    }
+
+    private static void collectConditionRefs(final Condition condition, final List<RefExpression> reads) {
+        switch (condition) {
+            case Condition.Compare value -> {
+                if (value.left().ref() != null) {
+                    reads.add(value.left().ref());
+                }
+                if (value.right().ref() != null) {
+                    reads.add(value.right().ref());
+                }
+            }
+            case Condition.Matches value -> reads.add(value.select());
+            case Condition.Contains value -> reads.add(value.select());
+            case Condition.StartsWith value -> reads.add(value.select());
+            case Condition.Exists value -> reads.add(value.select());
+            case Condition.And value -> value.conditions().forEach(c -> collectConditionRefs(c, reads));
+            case Condition.Or value -> value.conditions().forEach(c -> collectConditionRefs(c, reads));
+            case Condition.Not value -> collectConditionRefs(value.condition(), reads);
+        }
+    }
+
+    private static void checkRead(final RefExpression read,
+                                  final Set<String> writable,
+                                  final String templateName) {
+        if (read == null) {
+            return;
+        }
+        for (final RefExpression.RefPart part : read.parts()) {
+            if (part instanceof RefExpression.RefPart.Capture capture) {
+                if (capture.varId() != null && !writable.contains(capture.varId())) {
+                    throw new ConfigException("Template '" + templateName
+                            + "' reads '" + capture.varId() + "', which nothing writes —"
+                            + " no capture, variable, transform bind or parameter has that"
+                            + " name. A misspelt name would otherwise read as absent for"
+                            + " ever.");
+                }
+                if (capture.matchIndex() != null && capture.matchIndex().varRef() != null
+                    && !writable.contains(capture.matchIndex().varRef())) {
+                    throw new ConfigException("Template '" + templateName
+                            + "' indexes by '" + capture.matchIndex().varRef()
+                            + "', which nothing writes.");
+                }
+            }
+        }
+    }
+
+    /**
+     * Design/17 §7's bump warning, once per configuration: below version 5 a
+     * {@code substring} start is 0-based, from version 5 it is 1-based, and a version bump
+     * silently changes every one of them — so the configurations a bump would change are
+     * told so while they still say the old thing.
+     */
+    private static void substringVersionCheck(final Project project, final List<Message> warnings) {
+        if (project.version() >= 5) {
+            return;
+        }
+        int count = 0;
+        for (final Template template : project.templates()) {
+            count += countSubstrings(template.body());
+        }
+        if (count > 0) {
+            warnings.add(new Message(Severity.WARNING, "This configuration's " + count
+                    + " substring instruction" + (count == 1 ? " reads" : "s read")
+                    + " start as 0-based; version 5 reads it as 1-based. Add 1 to each start"
+                    + " when bumping the version."));
+        }
+    }
+
+    private static int countSubstrings(final List<OutputNode> body) {
+        int count = 0;
+        for (final OutputNode node : body) {
+            count += switch (node) {
+                case OutputNode.Substring ignored -> 1;
+                case OutputNode.If value -> countSubstrings(value.then());
+                case OutputNode.Choose value -> value.when().stream()
+                        .mapToInt(branch -> countSubstrings(branch.body())).sum()
+                        + countSubstrings(value.otherwise());
+                case OutputNode.Switch value -> value.cases().stream()
+                        .mapToInt(c -> countSubstrings(c.body())).sum()
+                        + countSubstrings(value.defaultBody());
+                case OutputNode.Variable value -> countSubstrings(value.body());
+                default -> 0;
+            };
+        }
+        return count;
     }
 
     /**

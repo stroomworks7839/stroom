@@ -688,6 +688,15 @@ once per instruction site; **the same `substring` config at version 4 and versio
 producing outputs one position apart** — the gate's semantics pinned from both sides.
 *Exit: both bases under test; the v4 warning fires on exactly the audit list's configs.*
 
+*Landed 2026-08-25. The unknown-reference check earned its place on its first corpus run:
+it found the win_sec family reading 24 ds-rs display names nothing writes — the
+privilege-cleaning chains dead since the port, the defect E6's audit note had observed
+without recognising (E25 in ISSUES, repaired and re-frozen under diff review, ruled by the
+user). One accommodation was learned from the corpus rather than designed: key-value
+captures bind names read out of the data, so the check stands down for configurations that
+contain one. The bump warning fires below version 5, once per configuration; no fixture
+message golden moves, because the projects family asserts output only.*
+
 **Phase 6 — fixture migration to 1-based, and the new-feature test sweep.**
 Phase 0's five-config list, migrated: version bumped to 5, every `substring` start +1. **The
 trap this phase exists to not fall into: a version bump moves two defaults, not one** — the

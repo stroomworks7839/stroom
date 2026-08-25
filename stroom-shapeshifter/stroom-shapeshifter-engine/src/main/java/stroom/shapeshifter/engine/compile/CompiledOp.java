@@ -143,10 +143,14 @@ public sealed interface CompiledOp {
      * {@code substring} and the rest, as one instruction with its parameters already closed
      * over. What kind it was matters at authoring time; at run time there is only "resolve the
      * selects, apply the function, write or bind the result".
+     *
+     * @param numericKind the instruction's name when it is arithmetic — the hook for the
+     *                    {@code strict_values} diagnostic (design/17 §10) — or null
      */
     record Transform(List<CompiledRef> select,
                      String name,
-                     Function<List<TypedValue>, TypedValue> function) implements CompiledOp {
+                     Function<List<TypedValue>, TypedValue> function,
+                     String numericKind) implements CompiledOp {
 
     }
 
@@ -229,8 +233,14 @@ public sealed interface CompiledOp {
                         single("normalize-space", value.select()), value.name(), Transforms::normalizeSpace);
                 case OutputNode.Trim value ->
                         transform(single("trim", value.select()), value.name(), Transforms::trim);
-                case OutputNode.Substring value -> transform(single("substring", value.select()),
-                        value.name(), inputs -> Transforms.substring(inputs, value.start(), value.length()));
+                case OutputNode.Substring value -> {
+                    // The version gate (design/17 §7, ruled): 1-based from version 5,
+                    // 0-based before — Dispatch.effective's precedent, applied to the base.
+                    // A version-5 start below 1 clamps to the first position.
+                    final int start = project.version() >= 5 ? value.start() - 1 : value.start();
+                    yield transform(single("substring", value.select()),
+                            value.name(), inputs -> Transforms.substring(inputs, start, value.length()));
+                }
                 case OutputNode.Tokenize value -> transform(single("tokenize", value.select()),
                         value.name(), inputs -> Transforms.tokenize(inputs, value.delimiter()));
                 case OutputNode.Number value ->
@@ -307,7 +317,7 @@ public sealed interface CompiledOp {
     private static Transform transform(final List<RefExpression> select,
                                        final String name,
                                        final Function<List<TypedValue>, TypedValue> function) {
-        return new Transform(select.stream().map(CompiledRef::of).toList(), name, function);
+        return new Transform(select.stream().map(CompiledRef::of).toList(), name, function, null);
     }
 
     /**
@@ -332,8 +342,8 @@ public sealed interface CompiledOp {
                                       + ", but has " + select.size());
         }
         final int expected = select.size();
-        return transform(select, name,
-                inputs -> inputs.size() == expected ? function.apply(inputs) : null);
+        return new Transform(select.stream().map(CompiledRef::of).toList(), name,
+                inputs -> inputs.size() == expected ? function.apply(inputs) : null, what);
     }
 
     /** A format-number closes over its picture, compiled once and refused at compile time. */
