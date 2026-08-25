@@ -282,7 +282,11 @@ public final class Dates {
         return switch (formatter.kind()) {
             case ISO -> TypedValue.of(new TypedValue.Instant(
                     value.epochSecond(), value.nano(), renderOffset(formatter, value)).asString());
-            case EPOCH_MILLIS -> TypedValue.of(Long.toString(value.asInteger()));
+            case EPOCH_MILLIS -> {
+                final Long millis = value.asInteger();
+                // An instant too wide for exact millis has no epoch-millis rendering: absent.
+                yield millis == null ? null : TypedValue.of(Long.toString(millis));
+            }
             case EPOCH_SECONDS -> TypedValue.of(Long.toString(value.epochSecond()));
             case PATTERN -> {
                 final ZoneId zone = formatter.zone() != null

@@ -142,7 +142,11 @@ public sealed interface TypedValue {
             }
             // Epoch milliseconds, documented lossy: the escape hatch that keeps date
             // arithmetic ordinary without every numeric site learning about nanoseconds.
-            case Instant value -> (double) millis(value);
+            // In doubles, because approximation is a double's whole job — an instant too
+            // wide for exact millis still has a numeric reading (phase 4 audit). The nano
+            // division stays integral first: the table says milliseconds truncate, and the
+            // two numeric casts must agree wherever both answer.
+            case Instant value -> value.epochSecond() * 1000.0 + value.nano() / 1_000_000;
         };
     }
 
@@ -169,6 +173,8 @@ public sealed interface TypedValue {
                     yield null;
                 }
             }
+            // Absent when exact millis do not fit a long — the same refusal as a Real too
+            // wide for the cast: unrepresentable is absent, never a throw (§2).
             case Instant value -> millis(value);
         };
     }
@@ -208,9 +214,14 @@ public sealed interface TypedValue {
         return Double.toString(value);
     }
 
-    /** Epoch milliseconds, truncating nanos — the documented lossy numeric cast (§3.1). */
-    private static long millis(final Instant value) {
-        return Math.addExact(Math.multiplyExact(value.epochSecond(), 1000L), value.nano() / 1_000_000);
+    /** Exact epoch milliseconds, truncating nanos, or null when a long cannot hold them. */
+    private static Long millis(final Instant value) {
+        try {
+            return Math.addExact(Math.multiplyExact(value.epochSecond(), 1000L),
+                    value.nano() / 1_000_000);
+        } catch (final ArithmeticException tooWide) {
+            return null;
+        }
     }
 
     /**
@@ -225,8 +236,14 @@ public sealed interface TypedValue {
         final java.time.OffsetDateTime dateTime =
                 java.time.OffsetDateTime.ofInstant(value.toJavaInstant(), offset);
         final StringBuilder out = new StringBuilder(35);
+        // The sign is written separately: %04d would spend the field width on it and render
+        // year -44 as "-044" (phase 4 audit).
+        final int year = dateTime.getYear();
+        if (year < 0) {
+            out.append('-');
+        }
         out.append(String.format("%04d-%02d-%02dT%02d:%02d:%02d",
-                dateTime.getYear(), dateTime.getMonthValue(), dateTime.getDayOfMonth(),
+                Math.abs(year), dateTime.getMonthValue(), dateTime.getDayOfMonth(),
                 dateTime.getHour(), dateTime.getMinute(), dateTime.getSecond()));
         if (value.nano() != 0) {
             String fraction = String.format(".%09d", value.nano());

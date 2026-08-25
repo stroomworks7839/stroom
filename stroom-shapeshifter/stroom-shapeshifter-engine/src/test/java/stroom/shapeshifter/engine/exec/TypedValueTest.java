@@ -151,6 +151,25 @@ class TypedValueTest {
         assertThat(new TypedValue.Instant(0L, 0, null).asBoolean()).isNull();
     }
 
+    @Test
+    void anInstantTooWideForExactMillisIsAbsentNotAThrow() {
+        // Reachable from config and input: epoch-seconds parses any long. Every cast is
+        // total and never throws (§2) — found by the phase 4 audit as an ArithmeticException
+        // escaping asInteger mid-record.
+        final TypedValue extreme = new TypedValue.Instant(Long.MAX_VALUE, 0, null);
+        assertThat(extreme.asInteger()).isNull();
+        // The double reading survives: approximation is what a double is for.
+        assertThat(extreme.asNumber()).isEqualTo((double) Long.MAX_VALUE * 1000.0);
+    }
+
+    @Test
+    void negativeYearsRenderTheirSignOutsideTheWidth() {
+        // %04d would render year -44 as "-044" — the sign eating the field width.
+        final long seconds = java.time.OffsetDateTime.parse("-0044-03-15T00:00:00Z").toEpochSecond();
+        assertThat(new TypedValue.Instant(seconds, 0, null).asString())
+                .isEqualTo("-0044-03-15T00:00:00Z");
+    }
+
     // -----------------------------------------------------------------------------------
     // The boundary conventions the casts rest on
     // -----------------------------------------------------------------------------------

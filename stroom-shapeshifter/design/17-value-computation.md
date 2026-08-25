@@ -662,6 +662,24 @@ boundaries; the yearless-without-reference refusal naming the instruction. Case:
 *Exit: `dates` passes against Saxon; its per-record parse cost measured and recorded (§13 —
 recorded, not gated).*
 
+*Audited 2026-08-25, diff-scoped, landed as `8f43632bd2`. Two defects found and fixed same
+day, both on the new row's edges and both reachable from configuration plus hostile input.
+First, the never-throws contract (§2) had a hole: `epoch-seconds` parses any long, and an
+extreme instant's millis cast went through `Math.multiplyExact` — an `ArithmeticException`
+escaping `asInteger` mid-record, aborting a run on data. Now the double reading computes in
+doubles (approximation is a double's whole job, truncation kept so the two numeric casts
+agree) and the exact reading returns absent when a long cannot hold it, `format-date`'s
+`epoch-millis` rendering absent with it — the same refusal as a `Real` too wide. Second,
+the ISO rendering spent its field width on the sign: year −44 rendered `-044`, malformed;
+the sign now writes outside the width. Both pinned in `TypedValueTest`. Verified beside
+them: `floorDiv`/`floorMod` handle negative epoch millis correctly; the resolver's failures
+inside pattern extraction all land in the absent path; `Instant` values in stores render
+ISO through every reader. Three behaviours recorded as deliberate rather than accidental:
+DST gaps shift forward and overlaps take the earlier offset (Java's resolution,
+deterministic); a nearest-year tie takes the earlier candidate; and a pattern with a year
+but no month or day silently defaults them to January 1st — an authoring trap noted for a
+future lint, case-driven per the usual rule.*
+
 **Phase 5 — diagnostics and version 5.**
 §10's compile-time unknown-reference error and `strict_values`; §7's ruling executed —
 version 5 opened, `substring` 1-based from it, the version-4 warning on affected
