@@ -126,6 +126,32 @@ class TypedValueTest {
     }
 
     // -----------------------------------------------------------------------------------
+    // Instant — the phase 4 row
+    // -----------------------------------------------------------------------------------
+
+    @Test
+    void instantToStringIsIsoInTheCarriedOffset() {
+        // 2026-08-25T10:00:00.5+01:00 — seconds always present, trailing zero nanos trimmed.
+        final TypedValue value = new TypedValue.Instant(1787648400L, 500_000_000, 3600);
+        assertThat(value.asString()).isEqualTo("2026-08-25T10:00:00.5+01:00");
+        // No carried offset renders Z, and zero nanos render nothing.
+        assertThat(new TypedValue.Instant(1787648400L, 0, null).asString())
+                .isEqualTo("2026-08-25T09:00:00Z");
+    }
+
+    @Test
+    void instantToNumberIsEpochMillisDocumentedLossy() {
+        final TypedValue value = new TypedValue.Instant(10L, 123_456_789, null);
+        assertThat(value.asNumber()).isEqualTo(10123.0);
+        assertThat(value.asInteger()).isEqualTo(10123L);
+    }
+
+    @Test
+    void instantToBooleanIsAbsent() {
+        assertThat(new TypedValue.Instant(0L, 0, null).asBoolean()).isNull();
+    }
+
+    // -----------------------------------------------------------------------------------
     // The boundary conventions the casts rest on
     // -----------------------------------------------------------------------------------
 

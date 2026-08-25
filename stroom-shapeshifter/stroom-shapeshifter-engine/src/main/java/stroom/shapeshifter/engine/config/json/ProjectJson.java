@@ -1141,6 +1141,25 @@ public final class ProjectJson {
                         text(body, "picture", "format-number"),
                         optionalText(body, "name"));
             }
+            case "parse-date" -> {
+                checkFields(body, "parse-date", "select", "pattern", "timezone", "reference", "name");
+                yield new OutputNode.ParseDate(
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        text(body, "pattern", "parse-date"),
+                        optionalText(body, "timezone"),
+                        body.has("reference") && !body.get("reference").isNull()
+                                ? readRef(body.get("reference"))
+                                : null,
+                        optionalText(body, "name"));
+            }
+            case "format-date" -> {
+                checkFields(body, "format-date", "select", "pattern", "timezone", "name");
+                yield new OutputNode.FormatDate(
+                        list(body.get("select"), "select", ProjectJson::readRef),
+                        text(body, "pattern", "format-date"),
+                        optionalText(body, "timezone"),
+                        optionalText(body, "name"));
+            }
             default -> throw new ConfigException("Unknown output node: " + tagged.name());
         };
     }
@@ -1287,6 +1306,21 @@ public final class ProjectJson {
             case OutputNode.FormatNumber value ->
                     wrap("format-number", selectAndMarker(value.select(), "picture",
                             value.picture(), value.name()));
+            case OutputNode.ParseDate value -> {
+                final ObjectNode body = selectAndMarker(value.select(), "pattern",
+                        value.pattern(), value.name());
+                putIfPresent(body, "timezone", value.timezone());
+                if (value.reference() != null) {
+                    body.set("reference", writeRef(value.reference()));
+                }
+                yield wrap("parse-date", body);
+            }
+            case OutputNode.FormatDate value -> {
+                final ObjectNode body = selectAndMarker(value.select(), "pattern",
+                        value.pattern(), value.name());
+                putIfPresent(body, "timezone", value.timezone());
+                yield wrap("format-date", body);
+            }
         };
     }
 

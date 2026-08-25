@@ -392,6 +392,51 @@ public sealed interface OutputNode {
     }
 
     // -----------------------------------------------------------------------------------
+    // Dates (design/17 §9): the composed pair the 2026-08-21 ruling chose over
+    // stroom:format-date's conflated signature
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * Parse text into an instant. The pattern is a {@code DateTimeFormatter} pattern under
+     * the root locale, or one of the reserved names {@code iso}, {@code epoch-millis},
+     * {@code epoch-seconds}. The timezone supplies the placement only when the pattern
+     * parses no offset; a parsed offset always wins and is carried. A pattern with no year
+     * needs a {@code reference} date — the nearest-year rule, Stroom's own with the input
+     * made explicit — and is refused at compile time without one.
+     */
+    record ParseDate(List<RefExpression> select,
+                     String pattern,
+                     String timezone,
+                     RefExpression reference,
+                     String name) implements OutputNode {
+
+        public ParseDate {
+            select = select == null ? List.of() : List.copyOf(select);
+            if (pattern == null || pattern.isEmpty()) {
+                throw new ConfigException("A parse-date needs a pattern");
+            }
+        }
+    }
+
+    /**
+     * Render an instant. Zone precedence: the instruction's {@code timezone} if given, else
+     * the instant's own carried offset, else UTC — a value round-trips through its original
+     * offset unless the author says otherwise.
+     */
+    record FormatDate(List<RefExpression> select,
+                      String pattern,
+                      String timezone,
+                      String name) implements OutputNode {
+
+        public FormatDate {
+            select = select == null ? List.of() : List.copyOf(select);
+            if (pattern == null || pattern.isEmpty()) {
+                throw new ConfigException("A format-date needs a pattern");
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------------------
     // Supporting shapes
     // -----------------------------------------------------------------------------------
 

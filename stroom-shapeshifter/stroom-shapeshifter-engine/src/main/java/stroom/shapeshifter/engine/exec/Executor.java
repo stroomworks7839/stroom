@@ -1060,6 +1060,25 @@ public final class Executor {
                 }
                 case CompiledOp.Transform value -> transform(value.select(), value.name(), match,
                         matchCount, sink, value.function(), contentEncoding);
+                case CompiledOp.ParseDate value -> {
+                    final TypedValue input = CompiledRefs.resolveValue(
+                            value.select(), match, matchCount, vars, contentEncoding);
+                    if (input != null) {
+                        // The reference is a date read like any other (design/17 §9.2): a
+                        // captured field today, D10's context seam tomorrow. Absent when the
+                        // pattern needs it means an absent result, never a guessed year.
+                        final TypedValue reference = value.reference() == null
+                                ? null
+                                : Comparisons.cast(CompiledRefs.resolveValue(
+                                        value.reference(), match, matchCount, vars, contentEncoding),
+                                        stroom.shapeshifter.engine.config.Cast.DATE);
+                        final TypedValue result = Dates.parse(value.parser(), input.asString(),
+                                (TypedValue.Instant) reference);
+                        if (result != null) {
+                            emit(result, value.name(), matchCount, sink);
+                        }
+                    }
+                }
                 case CompiledOp.EmitError value -> {
                     final String text = CompiledRefs.resolveText(
                             value.message(), match, matchCount, vars, encoding);

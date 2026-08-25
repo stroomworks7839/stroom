@@ -63,6 +63,28 @@ public sealed interface TypedValue {
 
     }
 
+    /**
+     * A point on the timeline (design/17 §§3, 9): epoch second and nanosecond, plus the
+     * offset the value arrived with — carried as formatting provenance and <b>inert in
+     * comparison and arithmetic</b>. Two parses of one moment through different offsets are
+     * equal, sort together and subtract to zero; the offset's sole job is being
+     * {@code format-date}'s default rendering zone. A null offset means none was parsed and
+     * none is claimed.
+     */
+    record Instant(long epochSecond, int nano, Integer offsetSeconds) implements TypedValue {
+
+        public Instant {
+            if (nano < 0 || nano > 999_999_999) {
+                throw new IllegalArgumentException("Nanos out of range: " + nano);
+            }
+        }
+
+        /** The timeline point, for the {@code java.time} boundary. */
+        public java.time.Instant toJavaInstant() {
+            return java.time.Instant.ofEpochSecond(epochSecond, nano);
+        }
+    }
+
     /** Wrap bytes. */
     static TypedValue of(final byte[] value) {
         return new Bytes(value);
@@ -90,6 +112,7 @@ public sealed interface TypedValue {
             case Int value -> Long.toString(value.value()).getBytes(StandardCharsets.US_ASCII);
             case Real value -> format(value.value()).getBytes(StandardCharsets.US_ASCII);
             case Bool value -> Boolean.toString(value.value()).getBytes(StandardCharsets.US_ASCII);
+            case Instant value -> iso(value).getBytes(StandardCharsets.US_ASCII);
         };
     }
 
@@ -100,6 +123,7 @@ public sealed interface TypedValue {
             case Int value -> Long.toString(value.value());
             case Real value -> format(value.value());
             case Bool value -> Boolean.toString(value.value());
+            case Instant value -> iso(value);
         };
     }
 
@@ -116,6 +140,9 @@ public sealed interface TypedValue {
                     yield null;
                 }
             }
+            // Epoch milliseconds, documented lossy: the escape hatch that keeps date
+            // arithmetic ordinary without every numeric site learning about nanoseconds.
+            case Instant value -> (double) millis(value);
         };
     }
 
@@ -142,6 +169,7 @@ public sealed interface TypedValue {
                     yield null;
                 }
             }
+            case Instant value -> millis(value);
         };
     }
 
@@ -164,6 +192,8 @@ public sealed interface TypedValue {
                 case "false", "0" -> false;
                 default -> null;
             };
+            // A timestamp has no boolean reading; absent beats a meaningless true.
+            case Instant ignored -> null;
         };
     }
 
@@ -176,5 +206,36 @@ public sealed interface TypedValue {
             return Long.toString((long) value);
         }
         return Double.toString(value);
+    }
+
+    /** Epoch milliseconds, truncating nanos — the documented lossy numeric cast (§3.1). */
+    private static long millis(final Instant value) {
+        return Math.addExact(Math.multiplyExact(value.epochSecond(), 1000L), value.nano() / 1_000_000);
+    }
+
+    /**
+     * ISO-8601, in the carried offset else {@code Z}, seconds always present, trailing zero
+     * nanos trimmed — a deterministic rendering rather than {@code java.time}'s, which drops
+     * {@code :00} seconds entirely.
+     */
+    private static String iso(final Instant value) {
+        final java.time.ZoneOffset offset = value.offsetSeconds() == null
+                ? java.time.ZoneOffset.UTC
+                : java.time.ZoneOffset.ofTotalSeconds(value.offsetSeconds());
+        final java.time.OffsetDateTime dateTime =
+                java.time.OffsetDateTime.ofInstant(value.toJavaInstant(), offset);
+        final StringBuilder out = new StringBuilder(35);
+        out.append(String.format("%04d-%02d-%02dT%02d:%02d:%02d",
+                dateTime.getYear(), dateTime.getMonthValue(), dateTime.getDayOfMonth(),
+                dateTime.getHour(), dateTime.getMinute(), dateTime.getSecond()));
+        if (value.nano() != 0) {
+            String fraction = String.format(".%09d", value.nano());
+            while (fraction.endsWith("0")) {
+                fraction = fraction.substring(0, fraction.length() - 1);
+            }
+            out.append(fraction);
+        }
+        out.append(offset.getTotalSeconds() == 0 ? "Z" : offset.getId());
+        return out.toString();
     }
 }

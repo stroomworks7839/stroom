@@ -38,17 +38,18 @@ import java.util.regex.Pattern;
 final class CaseCorpus {
 
     /** The cases with challengers, each with the pattern matching one repeating unit. */
-    static final Map<String, Pattern> UNITS = Map.of(
-            "nasty_xml", Pattern.compile("(?s)  <batch [^\n]*\n.*?\n  </batch>\n"),
-            "computed_names", Pattern.compile("  <(?:item|raw)\\b[^\n]*\n"),
-            "adjacent_groups", Pattern.compile("  <[he]\\b[^\n]*\n"),
-            "string_functions", Pattern.compile("  <row [^\n]*\n"),
-            "analyze_string", Pattern.compile("  <m [^\n]*\n"),
-            "modes", Pattern.compile("(?s)  <Event [^\n]*\n.*?\n  </Event>\n"),
-            "reference", Pattern.compile("(?s)  <record>\n.*?\n  </record>\n"),
-            "arithmetic", Pattern.compile("  <order [^\n]*\n"),
-            "value_types", Pattern.compile("  <val [^\n]*\n"),
-            "comparison", Pattern.compile("  <c [^\n]*\n"));
+    static final Map<String, Pattern> UNITS = Map.ofEntries(
+            Map.entry("nasty_xml", Pattern.compile("(?s)  <batch [^\n]*\n.*?\n  </batch>\n")),
+            Map.entry("computed_names", Pattern.compile("  <(?:item|raw)\\b[^\n]*\n")),
+            Map.entry("adjacent_groups", Pattern.compile("  <[he]\\b[^\n]*\n")),
+            Map.entry("string_functions", Pattern.compile("  <row [^\n]*\n")),
+            Map.entry("analyze_string", Pattern.compile("  <m [^\n]*\n")),
+            Map.entry("modes", Pattern.compile("(?s)  <Event [^\n]*\n.*?\n  </Event>\n")),
+            Map.entry("reference", Pattern.compile("(?s)  <record>\n.*?\n  </record>\n")),
+            Map.entry("arithmetic", Pattern.compile("  <order [^\n]*\n")),
+            Map.entry("value_types", Pattern.compile("  <val [^\n]*\n")),
+            Map.entry("comparison", Pattern.compile("  <c [^\n]*\n")),
+            Map.entry("dates", Pattern.compile("  <e [^\n]*\n")));
 
     private CaseCorpus() {
     }

@@ -18,7 +18,6 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Severity;
-import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.CombinatorPattern;
 import stroom.shapeshifter.engine.config.Condition;
@@ -130,10 +129,7 @@ public final class Compiler {
      * Design/17 §8's comparison checks. The lint: a typed literal compared against an uncast
      * reference is the strict rule's one foot-gun — captures are text, so the comparison is
      * false on every record, silently — and it is statically visible, so it draws a warning
-     * (D36's tier: warnings until a lint can prove confusion rather than suspect it). The
-     * refusal: {@code as: "date"} names a value kind this build does not have yet, and a
-     * configuration that names it does not compile — better than an absent that looks like
-     * data.
+     * (D36's tier: warnings until a lint can prove confusion rather than suspect it).
      */
     private static void comparisonChecks(final Project project, final List<Message> warnings) {
         for (final Template template : project.templates()) {
@@ -178,8 +174,6 @@ public final class Compiler {
                                        final List<Message> warnings) {
         switch (condition) {
             case Condition.Compare value -> {
-                refuseDate(value.left());
-                refuseDate(value.right());
                 if (mismatch(value.left(), value.right()) || mismatch(value.right(), value.left())) {
                     warnings.add(new Message(Severity.WARNING, "Template '" + templateName
                             + "' compares a typed literal against an uncast reference:"
@@ -207,13 +201,7 @@ public final class Compiler {
                && refSide.as() == null;
     }
 
-    private static void refuseDate(final Condition.Operand operand) {
-        if (operand.as() == Cast.DATE) {
-            throw new ConfigException(
-                    "as: \"date\" names a value kind this build does not have yet — the"
-                    + " Instant work is design/17 phase 4");
-        }
-    }
+
 
     /**
      * D36's dispatch lint: a line-anchored pattern in a strict or lexer level draws a warning —

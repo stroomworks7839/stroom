@@ -19,7 +19,6 @@ package stroom.shapeshifter.engine;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
-import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.exec.Comparisons;
@@ -28,7 +27,6 @@ import stroom.shapeshifter.engine.exec.TypedValue;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The comparison spine (design/17 §8), tested directly: the strict rule over every kind
@@ -259,11 +257,15 @@ class CompareSpineTest {
     }
 
     @Test
-    void dateCastIsRefusedByName() {
-        assertThatThrownBy(() -> compileGuard(
-                "{\"eq\": {\"left\": {\"ref\": {\"parts\": [{\"capture\": {\"group\": 1}}]},"
-                + " \"as\": \"date\"}, \"right\": {\"value\": \"2026-01-01\"}}}"))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("date");
+    void dateCastsCompareOnTheTimelineAcrossOffsets() {
+        // Phase 4 delivered the Instant: as:date now reads ISO, and two offsets of one
+        // moment are equal — the offset is inert in comparison (design/17 §3).
+        final TypedValue paris = Comparisons.cast(TypedValue.of("2026-08-25T10:00:00+01:00"),
+                Cast.DATE);
+        final TypedValue utc = Comparisons.cast(TypedValue.of("2026-08-25T09:00:00Z"), Cast.DATE);
+        assertThat(Comparisons.compare(paris, utc)).isZero();
+        assertThat(Comparisons.cast(TypedValue.of("not a date"), Cast.DATE)).isNull();
+        // No offset, no reading: a local date-time goes through parse-date, which has a zone.
+        assertThat(Comparisons.cast(TypedValue.of("2026-08-25T09:00:00"), Cast.DATE)).isNull();
     }
 }

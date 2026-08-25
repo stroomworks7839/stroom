@@ -58,7 +58,8 @@ class CaseCatalogueTest {
             "reference",
             "arithmetic",
             "value_types",
-            "comparison");
+            "comparison",
+            "dates");
 
     /**
      * The walls: cases whose stylesheet runs but for which no challenger exists — executable

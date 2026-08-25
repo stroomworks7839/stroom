@@ -17,8 +17,9 @@
 package stroom.shapeshifter.engine.exec;
 
 import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.ConfigException;
 
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 
 /**
@@ -67,8 +68,22 @@ public final class Comparisons {
                 final Boolean truth = value.asBoolean();
                 yield truth == null ? null : new TypedValue.Bool(truth);
             }
-            case DATE -> throw new ConfigException(
-                    "date casts arrive with the Instant work; this build has no date value");
+            case DATE -> switch (value) {
+                case TypedValue.Instant instant -> instant;
+                // The ISO reading, offset or Z required — anything less goes through
+                // parse-date, which has a pattern and a zone. A number has no date reading
+                // here either: a unit must be named, which is parse-date's epoch-millis.
+                case TypedValue.Bytes bytes -> {
+                    try {
+                        final OffsetDateTime parsed = OffsetDateTime.parse(value.asString().trim());
+                        yield new TypedValue.Instant(parsed.toEpochSecond(), parsed.getNano(),
+                                parsed.getOffset().getTotalSeconds());
+                    } catch (final DateTimeParseException e) {
+                        yield null;
+                    }
+                }
+                default -> null;
+            };
         };
     }
 
@@ -93,6 +108,11 @@ public final class Comparisons {
         }
         if (left instanceof TypedValue.Bool a && right instanceof TypedValue.Bool b) {
             return Boolean.compare(a.value(), b.value());
+        }
+        if (left instanceof TypedValue.Instant a && right instanceof TypedValue.Instant b) {
+            // The timeline, and nothing else: the carried offset is inert (design/17 §3).
+            final int seconds = Long.compare(a.epochSecond(), b.epochSecond());
+            return seconds != 0 ? seconds : Integer.compare(a.nano(), b.nano());
         }
         return null;
     }

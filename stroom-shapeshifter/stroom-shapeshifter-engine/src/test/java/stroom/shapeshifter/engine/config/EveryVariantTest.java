@@ -237,7 +237,11 @@ class EveryVariantTest {
                 new OutputNode.StartsWith(select, "pre", null),
                 new OutputNode.EndsWith(select, "post", null),
                 new OutputNode.Contains(select, "mid", "flag"),
-                new OutputNode.FormatNumber(select, "#,##0.00", null)));
+                new OutputNode.FormatNumber(select, "#,##0.00", null),
+                new OutputNode.ParseDate(select, "MMM d HH:mm:ss", "Europe/London", ref(), "when"),
+                new OutputNode.ParseDate(select, "iso", null, null, null),
+                new OutputNode.FormatDate(select, "uuuu-MM-dd", "UTC", null),
+                new OutputNode.FormatDate(select, "epoch-millis", null, "ms")));
 
         // The remaining conditions, each inside its own guard-shaped instruction so that the
         // walker sees them all.

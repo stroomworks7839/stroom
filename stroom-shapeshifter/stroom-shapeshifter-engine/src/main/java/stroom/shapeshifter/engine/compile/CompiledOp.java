@@ -25,6 +25,7 @@ import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
+import stroom.shapeshifter.engine.exec.Dates;
 import stroom.shapeshifter.engine.exec.Transforms;
 import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
@@ -150,6 +151,22 @@ public sealed interface CompiledOp {
     }
 
     /**
+     * Parse text into an instant (design/17 §9). Its own instruction rather than a
+     * {@link Transform}, because the reference date resolves against the match at run time —
+     * threading it through the select list would let an absent input shift positions, and a
+     * reference read as an input is a wrong date that looks right.
+     *
+     * @param reference the reference date's ref, or null; required at compile time when the
+     *                  pattern has no year
+     */
+    record ParseDate(CompiledRef select,
+                     CompiledRef reference,
+                     Dates.Parser parser,
+                     String name) implements CompiledOp {
+
+    }
+
+    /**
      * Compile a body.
      *
      * @param patterns the project's interned patterns, already collected — a regex replace
@@ -255,6 +272,32 @@ public sealed interface CompiledOp {
                         transform(single("contains", value.select()), value.name(),
                                 inputs -> Transforms.contains(inputs, value.substring()));
                 case OutputNode.FormatNumber value -> formatNumber(value);
+                case OutputNode.ParseDate value -> {
+                    final Dates.Parser parser = Dates.compileParser(
+                            value.pattern(), value.timezone(), value.reference() != null, "parse-date");
+                    yield new ParseDate(
+                            CompiledRef.of(single("parse-date", value.select()).getFirst()),
+                            value.reference() == null ? null : CompiledRef.of(value.reference()),
+                            parser,
+                            value.name());
+                }
+                case OutputNode.FormatDate value -> {
+                    final Dates.Formatter formatter = Dates.compileFormatter(
+                            value.pattern(), value.timezone(), "format-date");
+                    yield transform(single("format-date", value.select()), value.name(),
+                            inputs -> {
+                                if (inputs.isEmpty()) {
+                                    return null;
+                                }
+                                // The input is an Instant or anything the date cast reads —
+                                // ISO bytes pass straight through (design/17 §9.1).
+                                final TypedValue instant = stroom.shapeshifter.engine.exec.Comparisons
+                                        .cast(inputs.getFirst(), stroom.shapeshifter.engine.config.Cast.DATE);
+                                return instant == null
+                                        ? null
+                                        : Dates.format(formatter, (TypedValue.Instant) instant);
+                            });
+                }
             };
             ops.add(op);
         }
