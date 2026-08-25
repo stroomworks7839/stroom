@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine.config.json;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
+import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.CombinatorPattern;
 import stroom.shapeshifter.engine.config.Condition;
@@ -776,21 +777,33 @@ public final class ProjectJson {
         final Tagged tagged = tag(node, "condition");
         final JsonNode body = tagged.body();
         return switch (tagged.name()) {
+            // The six comparisons, and beneath them the five legacy spellings, kept for
+            // ever as aliases (the Store/capture precedent). Each alias carries the cast its
+            // semantics always implied: as-string on both sides for the equality trio — the
+            // engine's counters are already typed Int, and legacy equality compares string
+            // forms — and as-number on the left for the ordered pair (design/17 §8, the
+            // phase 1 audit's correction).
+            case "eq" -> readCompare(body, Condition.Compare.Op.EQ);
+            case "ne" -> readCompare(body, Condition.Compare.Op.NE);
+            case "lt" -> readCompare(body, Condition.Compare.Op.LT);
+            case "le" -> readCompare(body, Condition.Compare.Op.LE);
+            case "gt" -> readCompare(body, Condition.Compare.Op.GT);
+            case "ge" -> readCompare(body, Condition.Compare.Op.GE);
             case "equals" -> {
                 checkFields(body, "equals", "select", "value");
-                yield new Condition.Equals(
+                yield stringEquality(Condition.Compare.Op.EQ,
                         readRef(required(body, "select", "equals")), text(body, "value", "equals"));
             }
             case "not-equals" -> {
                 checkFields(body, "not-equals", "select", "value");
-                yield new Condition.NotEquals(
+                yield stringEquality(Condition.Compare.Op.NE,
                         readRef(required(body, "select", "not-equals")), text(body, "value", "not-equals"));
             }
             case "ref-equals" -> {
                 checkFields(body, "ref-equals", "left", "right");
-                yield new Condition.RefEquals(
-                        readRef(required(body, "left", "ref-equals")),
-                        readRef(required(body, "right", "ref-equals")));
+                yield new Condition.Compare(Condition.Compare.Op.EQ,
+                        new Condition.Operand(readRef(required(body, "left", "ref-equals")), null, Cast.STRING),
+                        new Condition.Operand(readRef(required(body, "right", "ref-equals")), null, Cast.STRING));
             }
             case "matches" -> {
                 checkFields(body, "matches", "select", "pattern");
@@ -809,13 +822,13 @@ public final class ProjectJson {
             }
             case "greater-than" -> {
                 checkFields(body, "greater-than", "select", "value");
-                yield new Condition.GreaterThan(
+                yield numericOrdering(Condition.Compare.Op.GT,
                         readRef(required(body, "select", "greater-than")),
                         required(body, "value", "greater-than").asDouble());
             }
             case "less-than" -> {
                 checkFields(body, "less-than", "select", "value");
-                yield new Condition.LessThan(
+                yield numericOrdering(Condition.Compare.Op.LT,
                         readRef(required(body, "select", "less-than")),
                         required(body, "value", "less-than").asDouble());
             }
@@ -830,34 +843,100 @@ public final class ProjectJson {
         };
     }
 
+    private static Condition readCompare(final JsonNode body, final Condition.Compare.Op op) {
+        checkFields(body, "comparison", "left", "right");
+        return new Condition.Compare(op,
+                readOperand(required(body, "left", "comparison")),
+                readOperand(required(body, "right", "comparison")));
+    }
+
+    /** A legacy equality: string forms compared, whatever the types (design/17 §8). */
+    private static Condition stringEquality(final Condition.Compare.Op op,
+                                            final RefExpression select,
+                                            final String value) {
+        return new Condition.Compare(op,
+                new Condition.Operand(select, null, Cast.STRING),
+                new Condition.Operand(null, new Condition.Literal.Text(value), Cast.STRING));
+    }
+
+    /** A legacy ordering: the numeric parse it always performed, made visible. */
+    private static Condition numericOrdering(final Condition.Compare.Op op,
+                                             final RefExpression select,
+                                             final double value) {
+        return new Condition.Compare(op,
+                new Condition.Operand(select, null, Cast.NUMBER),
+                new Condition.Operand(null, new Condition.Literal.Fractional(value), null));
+    }
+
+    private static Condition.Operand readOperand(final JsonNode node) {
+        checkFields(node, "operand", "ref", "value", "as");
+        final Cast as;
+        if (node.has("as") && !node.get("as").isNull()) {
+            final String label = node.get("as").asString();
+            try {
+                as = Cast.valueOf(label.toUpperCase(Locale.ROOT));
+            } catch (final IllegalArgumentException e) {
+                throw new ConfigException("Unknown cast: " + label);
+            }
+        } else {
+            as = null;
+        }
+        final boolean hasRef = node.has("ref") && !node.get("ref").isNull();
+        final boolean hasValue = node.has("value") && !node.get("value").isNull();
+        if (hasRef == hasValue) {
+            throw new ConfigException("An operand is a ref or a value, exactly one");
+        }
+        if (hasRef) {
+            return new Condition.Operand(readRef(node.get("ref")), null, as);
+        }
+        // The literal's JSON type is its declared type (design/17 §8).
+        final JsonNode value = node.get("value");
+        final Condition.Literal literal;
+        if (value.isTextual()) {
+            literal = new Condition.Literal.Text(value.asString());
+        } else if (value.isBoolean()) {
+            literal = new Condition.Literal.Truth(value.asBoolean());
+        } else if (value.isIntegralNumber()) {
+            literal = new Condition.Literal.Whole(value.asLong());
+        } else if (value.isNumber()) {
+            literal = new Condition.Literal.Fractional(value.asDouble());
+        } else {
+            throw new ConfigException("An operand value must be a string, number or boolean");
+        }
+        return new Condition.Operand(null, literal, as);
+    }
+
+    private static JsonNode writeOperand(final Condition.Operand operand) {
+        final ObjectNode node = NODES.objectNode();
+        if (operand.ref() != null) {
+            node.set("ref", writeRef(operand.ref()));
+        } else {
+            switch (operand.literal()) {
+                case Condition.Literal.Text value -> node.put("value", value.value());
+                case Condition.Literal.Whole value -> node.put("value", value.value());
+                case Condition.Literal.Fractional value -> node.put("value", value.value());
+                case Condition.Literal.Truth value -> node.put("value", value.value());
+            }
+        }
+        if (operand.as() != null) {
+            node.put("as", operand.as().name().toLowerCase(Locale.ROOT));
+        }
+        return node;
+    }
+
     private static JsonNode writeCondition(final Condition condition) {
         return switch (condition) {
-            case Condition.Equals value -> wrap("equals", selectAnd("value", value.select(), value.value()));
-            case Condition.NotEquals value ->
-                    wrap("not-equals", selectAnd("value", value.select(), value.value()));
-            case Condition.RefEquals value -> {
+            case Condition.Compare value -> {
                 final ObjectNode body = NODES.objectNode();
-                body.set("left", writeRef(value.left()));
-                body.set("right", writeRef(value.right()));
-                yield wrap("ref-equals", body);
+                body.set("left", writeOperand(value.left()));
+                body.set("right", writeOperand(value.right()));
+                yield wrap(value.op().name().toLowerCase(Locale.ROOT), body);
             }
             case Condition.Matches value -> wrap("matches", selectAnd("pattern", value.select(), value.pattern()));
             case Condition.Contains value ->
                     wrap("contains", selectAnd("substring", value.select(), value.substring()));
             case Condition.StartsWith value ->
                     wrap("starts-with", selectAnd("prefix", value.select(), value.prefix()));
-            case Condition.GreaterThan value -> {
-                final ObjectNode body = NODES.objectNode();
-                body.set("select", writeRef(value.select()));
-                body.put("value", value.value());
-                yield wrap("greater-than", body);
-            }
-            case Condition.LessThan value -> {
-                final ObjectNode body = NODES.objectNode();
-                body.set("select", writeRef(value.select()));
-                body.put("value", value.value());
-                yield wrap("less-than", body);
-            }
             case Condition.And value -> wrap("and", array(value.conditions(), ProjectJson::writeCondition));
             case Condition.Or value -> wrap("or", array(value.conditions(), ProjectJson::writeCondition));
             case Condition.Not value -> wrap("not", writeCondition(value.condition()));

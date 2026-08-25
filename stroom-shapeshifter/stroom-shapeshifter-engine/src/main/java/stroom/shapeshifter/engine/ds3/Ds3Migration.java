@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.ds3;
 
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
+import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.MatchExpression;
@@ -597,10 +598,16 @@ public final class Ds3Migration {
         if (onlyMatch == null || onlyMatch.isEmpty()) {
             return null;
         }
+        // The guard reads __match_idx, which the engine binds as Int — the exact case that
+        // makes legacy equality mean "compare string forms": both sides read as strings
+        // (design/17 §8, the phase 1 audit's correction).
         final List<Condition> conditions = onlyMatch.stream()
-                .map(index -> (Condition) new Condition.Equals(
-                        new RefExpression(List.of(new RefPart.Capture("__match_idx", 0, null))),
-                        Integer.toString(index - 1)))
+                .map(index -> (Condition) new Condition.Compare(Condition.Compare.Op.EQ,
+                        new Condition.Operand(
+                                new RefExpression(List.of(new RefPart.Capture("__match_idx", 0, null))),
+                                null, Cast.STRING),
+                        new Condition.Operand(null,
+                                new Condition.Literal.Text(Integer.toString(index - 1)), Cast.STRING)))
                 .toList();
         return conditions.size() == 1 ? conditions.getFirst() : new Condition.Or(conditions);
     }

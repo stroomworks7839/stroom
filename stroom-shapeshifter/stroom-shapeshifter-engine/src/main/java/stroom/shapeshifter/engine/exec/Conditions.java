@@ -26,10 +26,10 @@ import java.util.Map;
 /**
  * Deciding whether a condition holds.
  *
- * <p>Two rules run through all of it. An expression that resolves to nothing counts as the empty
- * string, so a comparison against a missing field is false rather than an error — which is what
- * a configuration written against messy data needs. And a numeric comparison against something
- * that is not a number is false, not an exception, for the same reason.
+ * <p>Two rules run through all of it. A comparison that cannot be made — a side absent, a cast
+ * that fails, a cross-kind pair — is false rather than an error, which is what a configuration
+ * written against messy data needs. And the predicates treat an expression that resolves to
+ * nothing as the empty string, for the same reason.
  *
  * <p>{@code Exists} is the one that distinguishes them: it asks whether there was a value at
  * all, which is a different question from whether the value equals something.
@@ -51,13 +51,24 @@ public final class Conditions {
                                    final Encoding encoding,
                                    final Map<String, BytePattern> patterns) {
         return switch (condition) {
-            case Condition.Equals value ->
-                    text(value.select(), match, matchCount, vars, encoding).equals(value.value());
-            case Condition.NotEquals value ->
-                    !text(value.select(), match, matchCount, vars, encoding).equals(value.value());
-            case Condition.RefEquals value ->
-                    text(value.left(), match, matchCount, vars, encoding)
-                            .equals(text(value.right(), match, matchCount, vars, encoding));
+            case Condition.Compare value -> {
+                final TypedValue left = operand(value.left(), match, matchCount, vars, encoding);
+                final TypedValue right = operand(value.right(), match, matchCount, vars, encoding);
+                final Integer order = Comparisons.compare(left, right);
+                if (order == null) {
+                    // Absent, or a cross-kind pair: the comparison cannot be made, and a
+                    // comparison that cannot be made is false — ne included (design/17 §8).
+                    yield false;
+                }
+                yield switch (value.op()) {
+                        case EQ -> order == 0;
+                        case NE -> order != 0;
+                        case LT -> order < 0;
+                        case LE -> order <= 0;
+                        case GT -> order > 0;
+                        case GE -> order >= 0;
+                    };
+            }
             case Condition.Matches value -> {
                 final BytePattern pattern = patterns.get(value.pattern());
                 if (pattern == null) {
@@ -70,14 +81,6 @@ public final class Conditions {
                     text(value.select(), match, matchCount, vars, encoding).contains(value.substring());
             case Condition.StartsWith value ->
                     text(value.select(), match, matchCount, vars, encoding).startsWith(value.prefix());
-            case Condition.GreaterThan value -> {
-                final Double number = number(value.select(), match, matchCount, vars, encoding);
-                yield number != null && number > value.value();
-            }
-            case Condition.LessThan value -> {
-                final Double number = number(value.select(), match, matchCount, vars, encoding);
-                yield number != null && number < value.value();
-            }
             case Condition.And value -> value.conditions().stream()
                     .allMatch(child -> evaluate(child, match, matchCount, vars, encoding, patterns));
             case Condition.Or value -> value.conditions().stream()
@@ -99,15 +102,23 @@ public final class Conditions {
         return resolved == null ? "" : resolved;
     }
 
-    private static Double number(final stroom.shapeshifter.engine.config.RefExpression expression,
-                                 final MatchResult match,
-                                 final int matchCount,
-                                 final VarRegistry vars,
-                                 final Encoding encoding) {
-        try {
-            return Double.valueOf(text(expression, match, matchCount, vars, encoding).trim());
-        } catch (final NumberFormatException e) {
-            return null;
+    /** One side of a comparison: resolve or materialise, then the explicit cast, if any. */
+    private static TypedValue operand(final Condition.Operand operand,
+                                      final MatchResult match,
+                                      final int matchCount,
+                                      final VarRegistry vars,
+                                      final Encoding encoding) {
+        if (operand.ref() != null) {
+            return Comparisons.cast(
+                    Refs.resolveValue(operand.ref(), match, matchCount, vars, encoding),
+                    operand.as());
         }
+        final TypedValue value = switch (operand.literal()) {
+            case Condition.Literal.Text text -> TypedValue.of(text.value());
+            case Condition.Literal.Whole whole -> new TypedValue.Int(whole.value());
+            case Condition.Literal.Fractional fraction -> new TypedValue.Real(fraction.value());
+            case Condition.Literal.Truth truth -> new TypedValue.Bool(truth.value());
+        };
+        return Comparisons.cast(value, operand.as());
     }
 }

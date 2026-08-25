@@ -30,19 +30,67 @@ import java.util.List;
  */
 public sealed interface Condition {
 
-    /** The value equals a literal. */
-    record Equals(RefExpression select, String value) implements Condition {
+    /**
+     * A strict typed comparison — {@code eq}/{@code ne}/{@code lt}/{@code le}/{@code gt}/
+     * {@code ge}, XPath 2.0's value-comparison operators (design/17 §8). Same kind compares
+     * natively ({@code Int}↔{@code Real} promoting within the numeric kind), a cross-kind
+     * comparison is <b>false</b>, and the cast is explicit on the operand — there is no
+     * coercion. The legacy spellings {@code equals}, {@code not-equals}, {@code ref-equals},
+     * {@code greater-than} and {@code less-than} read for ever as aliases carrying the casts
+     * their semantics always implied: {@code as: "string"} on both sides for the equality
+     * trio — the engine's counters are already typed, and legacy equality compares string
+     * forms — and {@code as: "number"} on the left for the ordered pair.
+     */
+    record Compare(Op op, Operand left, Operand right) implements Condition {
 
+        public Compare {
+            if (op == null || left == null || right == null) {
+                throw new ConfigException("A comparison needs an operator and two operands");
+            }
+        }
+
+        /** The six operators. */
+        public enum Op {
+            EQ, NE, LT, LE, GT, GE
+        }
     }
 
-    /** The value does not equal a literal. */
-    record NotEquals(RefExpression select, String value) implements Condition {
+    /**
+     * One side of a {@link Compare}: a reference or a literal, optionally read through a
+     * cast. A literal's JSON type is its declared type — a JSON string is untyped bytes, a
+     * JSON number is whole or fractional, a JSON boolean is a boolean.
+     */
+    record Operand(RefExpression ref, Literal literal, Cast as) {
 
+        public Operand {
+            if ((ref == null) == (literal == null)) {
+                throw new ConfigException("An operand is a ref or a literal, exactly one");
+            }
+        }
     }
 
-    /** Two values are equal to each other. */
-    record RefEquals(RefExpression left, RefExpression right) implements Condition {
+    /** A literal operand, carrying its declared type. */
+    sealed interface Literal {
 
+        /** A string literal — untyped, like a capture. */
+        record Text(String value) implements Literal {
+
+        }
+
+        /** A whole-number literal. */
+        record Whole(long value) implements Literal {
+
+        }
+
+        /** A fractional literal. */
+        record Fractional(double value) implements Literal {
+
+        }
+
+        /** A boolean literal. */
+        record Truth(boolean value) implements Literal {
+
+        }
     }
 
     /**
@@ -62,16 +110,6 @@ public sealed interface Condition {
 
     /** The value starts with a prefix. */
     record StartsWith(RefExpression select, String prefix) implements Condition {
-
-    }
-
-    /** The value, read as a number, is greater than a threshold. */
-    record GreaterThan(RefExpression select, double value) implements Condition {
-
-    }
-
-    /** The value, read as a number, is less than a threshold. */
-    record LessThan(RefExpression select, double value) implements Condition {
 
     }
 

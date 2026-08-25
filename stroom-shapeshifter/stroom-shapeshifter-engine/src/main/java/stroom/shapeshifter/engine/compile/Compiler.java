@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.CombinatorPattern;
 import stroom.shapeshifter.engine.config.Condition;
@@ -121,7 +122,97 @@ public final class Compiler {
         }
         resolveTemplateNames(project);
         dispatchChecks(project, templates, warnings);
+        comparisonChecks(project, warnings);
         return new CompiledProject(project, templates, patterns, encoding, warnings);
+    }
+
+    /**
+     * Design/17 §8's comparison checks. The lint: a typed literal compared against an uncast
+     * reference is the strict rule's one foot-gun — captures are text, so the comparison is
+     * false on every record, silently — and it is statically visible, so it draws a warning
+     * (D36's tier: warnings until a lint can prove confusion rather than suspect it). The
+     * refusal: {@code as: "date"} names a value kind this build does not have yet, and a
+     * configuration that names it does not compile — better than an absent that looks like
+     * data.
+     */
+    private static void comparisonChecks(final Project project, final List<Message> warnings) {
+        for (final Template template : project.templates()) {
+            if (template.guard() != null) {
+                checkCondition(template.guard(), template.name(), warnings);
+            }
+            collectConditions(template.body(), template.name(), warnings);
+        }
+    }
+
+    private static void collectConditions(final List<OutputNode> body,
+                                          final String templateName,
+                                          final List<Message> warnings) {
+        for (final OutputNode node : body) {
+            switch (node) {
+                case OutputNode.If value -> {
+                    checkCondition(value.test(), templateName, warnings);
+                    collectConditions(value.then(), templateName, warnings);
+                }
+                case OutputNode.Choose value -> {
+                    for (final OutputNode.WhenBranch branch : value.when()) {
+                        checkCondition(branch.test(), templateName, warnings);
+                        collectConditions(branch.body(), templateName, warnings);
+                    }
+                    collectConditions(value.otherwise(), templateName, warnings);
+                }
+                case OutputNode.Switch value -> {
+                    for (final OutputNode.SwitchCase switchCase : value.cases()) {
+                        collectConditions(switchCase.body(), templateName, warnings);
+                    }
+                    collectConditions(value.defaultBody(), templateName, warnings);
+                }
+                case OutputNode.Variable value -> collectConditions(value.body(), templateName, warnings);
+                default -> {
+                }
+            }
+        }
+    }
+
+    private static void checkCondition(final Condition condition,
+                                       final String templateName,
+                                       final List<Message> warnings) {
+        switch (condition) {
+            case Condition.Compare value -> {
+                refuseDate(value.left());
+                refuseDate(value.right());
+                if (mismatch(value.left(), value.right()) || mismatch(value.right(), value.left())) {
+                    warnings.add(new Message(Severity.WARNING, "Template '" + templateName
+                            + "' compares a typed literal against an uncast reference:"
+                            + " captures are text, so this is false on every record."
+                            + " Add as: \"number\" (or the intended cast) to the reference"
+                            + " if a typed comparison is meant."));
+                }
+            }
+            case Condition.And value ->
+                    value.conditions().forEach(child -> checkCondition(child, templateName, warnings));
+            case Condition.Or value ->
+                    value.conditions().forEach(child -> checkCondition(child, templateName, warnings));
+            case Condition.Not value -> checkCondition(value.condition(), templateName, warnings);
+            default -> {
+            }
+        }
+    }
+
+    /** A typed literal on one side, an uncast reference on the other. */
+    private static boolean mismatch(final Condition.Operand literalSide, final Condition.Operand refSide) {
+        return literalSide.literal() != null
+               && !(literalSide.literal() instanceof Condition.Literal.Text)
+               && literalSide.as() == null
+               && refSide.ref() != null
+               && refSide.as() == null;
+    }
+
+    private static void refuseDate(final Condition.Operand operand) {
+        if (operand.as() == Cast.DATE) {
+            throw new ConfigException(
+                    "as: \"date\" names a value kind this build does not have yet — the"
+                    + " Instant work is design/17 phase 4");
+        }
     }
 
     /**

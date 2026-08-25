@@ -57,7 +57,8 @@ class CaseCatalogueTest {
             "modes",
             "reference",
             "arithmetic",
-            "value_types");
+            "value_types",
+            "comparison");
 
     /**
      * The walls: cases whose stylesheet runs but for which no challenger exists — executable

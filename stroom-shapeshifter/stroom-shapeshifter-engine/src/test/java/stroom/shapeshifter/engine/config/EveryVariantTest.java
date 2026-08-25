@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.config;
 
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
+import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.OutputNode.Entry;
@@ -58,6 +59,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * fails with its own name, rather than waiting for the fixture that happens to use it.
  */
 class EveryVariantTest {
+
+    /** A string equality in the new spelling — the shape the legacy "equals" alias maps to. */
+    private static Condition eq(final RefExpression select, final String value) {
+        return new Condition.Compare(Condition.Compare.Op.EQ,
+                new Condition.Operand(select, null, Cast.STRING),
+                new Condition.Operand(null, new Condition.Literal.Text(value), Cast.STRING));
+    }
 
     private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-0000000000ff");
 
@@ -185,9 +193,11 @@ class EveryVariantTest {
         final List<OutputNode> body = new ArrayList<>(List.of(
                 new OutputNode.Text("literal"),
                 new OutputNode.ValueOf(ref()),
-                new OutputNode.If(new Condition.Equals(ref(), "x"), List.of(new OutputNode.Text("then"))),
+                new OutputNode.If(eq(ref(), "x"), List.of(new OutputNode.Text("then"))),
                 new OutputNode.Choose(
-                        List.of(new WhenBranch(new Condition.NotEquals(ref(), "y"),
+                        List.of(new WhenBranch(new Condition.Compare(Condition.Compare.Op.NE,
+                                new Condition.Operand(ref(), null, Cast.STRING),
+                                new Condition.Operand(null, new Condition.Literal.Text("y"), Cast.STRING)),
                                 List.of(new OutputNode.Text("when")))),
                         List.of(new OutputNode.Text("otherwise"))),
                 new OutputNode.Switch(ref(),
@@ -232,12 +242,27 @@ class EveryVariantTest {
         // The remaining conditions, each inside its own guard-shaped instruction so that the
         // walker sees them all.
         for (final Condition condition : List.of(
-                new Condition.RefEquals(ref(), ref()),
+                new Condition.Compare(Condition.Compare.Op.EQ,
+                        new Condition.Operand(ref(), null, Cast.STRING),
+                        new Condition.Operand(ref(), null, Cast.STRING)),
+                new Condition.Compare(Condition.Compare.Op.NE,
+                        new Condition.Operand(ref(), null, null),
+                        new Condition.Operand(null, new Condition.Literal.Text("x"), null)),
+                new Condition.Compare(Condition.Compare.Op.LE,
+                        new Condition.Operand(ref(), null, Cast.NUMBER),
+                        new Condition.Operand(null, new Condition.Literal.Whole(5), null)),
+                new Condition.Compare(Condition.Compare.Op.GE,
+                        new Condition.Operand(ref(), null, Cast.BOOLEAN),
+                        new Condition.Operand(null, new Condition.Literal.Truth(true), null)),
                 new Condition.Matches(ref(), "^\\w+$"),
                 new Condition.Contains(ref(), "sub"),
                 new Condition.StartsWith(ref(), "pre"),
-                new Condition.GreaterThan(ref(), 1.5),
-                new Condition.LessThan(ref(), -2.25),
+                new Condition.Compare(Condition.Compare.Op.GT,
+                        new Condition.Operand(ref(), null, Cast.NUMBER),
+                        new Condition.Operand(null, new Condition.Literal.Fractional(1.5), null)),
+                new Condition.Compare(Condition.Compare.Op.LT,
+                        new Condition.Operand(ref(), null, Cast.NUMBER),
+                        new Condition.Operand(null, new Condition.Literal.Fractional(-2.25), null)),
                 new Condition.And(List.of(new Condition.Exists(ref()))),
                 new Condition.Or(List.of(new Condition.StartsWith(ref(), "or-pre"))),
                 new Condition.Not(new Condition.Exists(ref())))) {
