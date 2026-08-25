@@ -87,7 +87,7 @@ function or comparison asks for that kind*.
 
 | | → string | → number (`Real`) | → integer (`Int`) | → boolean |
 |---|---|---|---|---|
-| **`Bytes`** | decode UTF-8 | parse trimmed; **absent** if not a number | parse trimmed; **absent** if not integral | lexical: `true`/`1` → true, `false`/`0` → false, else **absent** |
+| **`Bytes`** | decode UTF-8 | parse trimmed; **absent** if not a number | parse trimmed; **absent** if not integral | lexical, trimmed: `true`/`1` → true, `false`/`0` → false, else **absent** |
 | **`Int`** | decimal | the value | the value | `!= 0` |
 | **`Real`** | whole numbers without `.0` (existing `TypedValue.format`) | the value | **absent** unless integral | `!= 0.0` |
 | **`Bool`** | `true` / `false` | `1.0` / `0.0` | `1` / `0` | the value |
@@ -299,22 +299,30 @@ vocabulary this engine's authors already read. Each takes `left` and `right`, an
 is a reference or a literal, with **the literal's JSON type as its declared type**: a JSON
 string is untyped (`Bytes`), a JSON number is `Int` or `Real`, a JSON boolean is `Bool` —
 and either operand may carry an `as`. Six uniform conditions therefore subsume all three
-existing shapes: `equals` (ref against string literal) is `eq`; `ref-equals` is `eq` with
-two refs; `greater-than`/`less-than` (ref against numeric literal) are `gt`/`lt` with
-**`as: "number"` on the left** — which is exactly the numeric parse those conditions perform
-today, preserved *visibly* in the mapped form rather than by an invisible rule. The old
-spellings **stay readable for ever as aliases** — the format's own precedent is
-`Store`/`capture` in `ProjectJson.readRefPart`. The writer emits the new spellings. The
+existing shapes: `equals`/`not-equals`/`ref-equals` are `eq`/`ne` with **`as: "string"` on
+both operands**; `greater-than`/`less-than` (ref against numeric literal) are `gt`/`lt` with
+**`as: "number"` on the left**. In each case the alias carries the cast the old condition's
+semantics always implied, preserved *visibly* in the mapped form rather than by an invisible
+rule. The old spellings **stay readable for ever as aliases** — the format's own precedent
+is `Store`/`capture` in `ProjectJson.readRefPart`. The writer emits the new spellings. The
 non-comparison conditions — `matches`, `contains`, `starts-with`, `exists`, the boolean
 connectives — keep their names; they are predicates, not comparisons, and have no operator
 to borrow.
 
-Corpus safety is by construction: `equals`/`not-equals`/`ref-equals` map with no casts — two
-`Bytes`, string comparison, exactly today's behaviour — and `greater-than`/`less-than` map
-with the `as: "number"` their semantics always implied, false on an unparseable value as
-they are false today. Nothing shifts silently anywhere, which is the point of strictness:
-a typed value meeting bytes without a cast reads false, never a guess. The proving case
-(§14's `comparison`) pins both halves: the unchanged legacy behaviour and the strict rule.
+**Why the equality aliases carry `as: "string"` rather than no cast — a phase 1 audit
+finding (2026-08-25), and the corpus-safety argument corrected.** The draft claimed every
+value is `Bytes` today, so uncast `eq` would preserve legacy `equals`. False: the engine's
+own counters are already typed — `__match_count`/`__match_idx` bind as `Int`, binary-step
+captures bind as `Int`/`Real` — and today's `Conditions.evaluate` compares their *string
+forms* via `resolveText` (an `Int` 42 renders `"42"` and matches the literal). An uncast
+`eq` would read `Int` against a string literal as cross-kind, always false — breaking,
+among other things, the documented `equals`-on-`__match_count` idiom that `adjacent_groups`
+proves. `as: "string"` is the total cast, so the alias compares string forms for every type,
+which is exactly what the legacy conditions do. `greater-than`/`less-than` map with
+`as: "number"`, the numeric parse they already perform, false on an unparseable value as
+today. Nothing shifts silently anywhere, which is the point of strictness. The proving case
+(§14's `comparison`) pins both halves — including a legacy `equals` against a typed counter
+surviving the mapping.
 
 **The failure mode, and its lint.** Strictness moves the foot-gun: coercion's failure was a
 silent wrong guess; strict's is a forgotten cast reading always-false — `gt` of a captured
@@ -542,7 +550,7 @@ drift on untouched rows before reading any moved one.
 | `value_types` | casting table end to end: numeric strings, non-numeric input going absent, the boolean lexical cast through `as: "boolean"` (`"1"` true, `"yes"` absent, a false flag equalling the literal `"false"`), `Real`→integer refusing to truncate | new |
 | `arithmetic` | `add`/`subtract`/`multiply`/`divide`/`mod`, `round`/`floor`/`ceiling`/`abs`, divide-by-zero absent, overflow promotion | new |
 | `dates` | `parse-date`/`format-date` round trip preserving nanoseconds and the original offset, two offsets of one instant comparing equal, a real syslog line with `reference` supplying the year from a captured field, one duration by subtraction | new |
-| `comparison` | §8's strict rule: two `Bytes` still comparing as strings (the corpus-safety half), cross-kind without a cast reading false, `as: "number"` making the same pair compare numerically, a failed cast reading false, absent sorting last in both directions; plus one legacy-spelt `greater-than` reading as its `gt`+`as:number` alias unchanged, and the uncast-against-typed-literal lint firing | new |
+| `comparison` | §8's strict rule: two `Bytes` still comparing as strings (the corpus-safety half), cross-kind without a cast reading false, `as: "number"` making the same pair compare numerically, a failed cast reading false, absent sorting last in both directions; plus legacy `greater-than` reading as its `gt`+`as:number` alias unchanged, legacy `equals` against a typed counter (`__match_count`) surviving its `as:string` alias, and the uncast-against-typed-literal lint firing | new |
 
 The catalogue's contract is unchanged: byte-identical to Saxon run live, engine messages clean,
 and each case amplifiable under `CaseAmplifierTest` before it earns a benchmark row. The
@@ -574,6 +582,20 @@ work-list, frozen here so the migration can be checked complete against it.
 §3.1**, including every absent; `Transforms` signature round-trips.
 *Exit: no golden moves — the whole fixture corpus byte-identical; evening comparison against
 phase 0 indistinguishable on every row (§13 gate).*
+
+*Audited 2026-08-25, diff-scoped, landed as `71860c17a8`. Code clean: every hunk checked
+equivalent (all four `LocalGroup` encoding sub-cases, composite contribution sets, the
+`ValueMap`/`emit` re-wrap, the test rewrap 1:1). The phase is provably inert — every
+`Transforms` return is `null` or wrapped text, so no non-`Bytes` value can reach a store
+through `emit` yet; the typed-bind surface wakes in phase 2, whose audit should inventory
+which instructions first bind non-`Bytes`. One material finding, in the design rather than
+the code: §8's legacy-alias mapping said `equals` aliases uncast, on the premise that every
+value is `Bytes` today — but the store-writer inventory shows `__match_count`/`__match_idx`
+and binary captures already bind `Int`, and legacy `equals` compares string forms; the
+equality aliases therefore carry `as: "string"`, corrected in §8 with the evidence. Two
+notes: `asBoolean` trims before the lexical match, now documented in §3.1's cell; and
+`resolve` now allocates a wrapper on the literal and composite paths — expected
+scalar-replaceable, tonight's comparison decides, a fast path is the fix if a row moves.*
 
 **Phase 2 — arithmetic and the string additions.**
 §§5–6 and §11's overflow rules. Tests, direct: each function's edges — overflow promoting to
@@ -657,9 +679,11 @@ rewritten to the rulings.
    `sort`/`min`/`max` take the same `as` and `data_type` dissolves; an uncast sort key
    orders by string forms, the one total cast. **The comparisons are named
    `eq`/`ne`/`lt`/`le`/`gt`/`ge`** — XPath 2.0's value-comparison operators — each taking
-   `left` and `right` as ref-or-typed-literal; `equals`, `not-equals`, `ref-equals` alias
-   with no casts and `greater-than`/`less-than` alias with `as: "number"` on the left (their
-   semantics today, made visible), per the `Store`/`capture` precedent. A typed literal
+   `left` and `right` as ref-or-typed-literal; the equality trio aliases with
+   `as: "string"` on both sides and `greater-than`/`less-than` with `as: "number"` on the
+   left — the casts their semantics always implied, made visible (the string cast corrected
+   from "no casts" by the phase 1 audit: the engine's counters are already `Int`, and legacy
+   `equals` compares string forms), per the `Store`/`capture` precedent. A typed literal
    against an uncast ref is a compile-time warning.
 4. **`tokenize` binds a sequence when it binds a name**, keeping the joined rendering when it
    writes. No fixture uses it, so the change is free. **Ruled: yes**, as recommended.
