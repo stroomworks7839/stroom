@@ -2,146 +2,300 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Shapeshifter — trace editor mockup (design/18-editor-ui.md §5)</title>
+<title>Shapeshifter — frame navigator mockup (design/18-editor-ui.md §5)</title>
 <style>
+  /*
+   * Dark theme lifted from the Stroom GWT UI:
+   *   stroom-app/src/main/resources/ui/css/theme-dark.css   (.stroom-theme-dark vars)
+   *   stroom-app/src/main/resources/ui/css/material_design_colors.css
+   *   stroom-app/src/main/resources/ui/css/font.css         (Roboto stack)
+   * Variable names kept close to the originals so the mapping back is obvious.
+   */
   :root {
-    --bg: #f7f8fa; --panel: #ffffff; --border: #d8dde4; --text: #1f2733;
-    --muted: #6b7686; --accent: #2563b0;
-    /* per-template hues */
-    --c-record: #4a6fa5; --c-kv: #b06f2e; --c-iso: #2e7d5b;
-    --c-quoted: #8a4f9e; --c-mac: #8a94a3;
+    --regular-font: Roboto, "Arial Unicode MS", Arial, tahoma, verdana, sans-serif;
+    --mono-font: "Roboto Mono", Consolas, "Courier New", monospace;
+
+    --text-color: #dce4e5;
+    --text-color--hover: #e5eaeb;
+    --text-color--selected: #fff;
+    --text-color--disabled: #999;
+    --muted: #9aa4a8;
+    --border-color: #353944;
+
+    --app__background-color: #020202;
+    --page__background-color: #22252c;
+    --navigation__background-color: #19171d;
+    --control__background-color: #15161b;
+    --control__border-color: #505050;
+
+    --row__background-color--hovered: rgba(255, 255, 255, .1);
+    --row__background-color--selected: rgb(0, 101, 167);
+    --row__background-color--selected--hovered: rgb(0, 120, 199);
+    --row__focus-ring: #81cdff;
+
+    --button__background-color: #333436;
+    --button__border-color: #000;
+    --button__background-color--hover: #383d49;
+    --button__border-color--hover: #14161b;
+
+    --primary: #2196f3;          /* blue-500 */
+    --blue-300: #64b5f6;
+    --blue-800: #1565c0;
+    --link__text-color: #3aaaff;
+    --heading-color: var(--blue-300);
+    --valid: #28a745;            /* bootstrap-success */
+    --warn-c: #ffc107;           /* bootstrap-warning */
+    --error-c: #dc3545;          /* bootstrap-error */
+    --red-200: #ef9a9a;
+    --code-editor__highlight: #1164a3;
+
+    --dialog__background-color: #22252c;
+    --dialog__border-color: #2c2f35;
+    --dialog__shadow: 0 0 20px 5px rgba(0, 0, 0, .8);
+    --transparency__background-color: rgba(34, 37, 44, .8);
+    --scrollbar-thumb: #5c5c5c;
+    --scrollbar-thumb--hover: #8d8d8d;
+
+    /* per-template hues (material palette, as the GWT UI's icon colours use) */
+    --c-source: #b0bec5; --c-record: #42a5f5; --c-kv: #ffb74d;
+    --c-iso: #66bb6a; --c-quoted: #ba68c8; --c-mac: #78909c;
     /* per-capture hues */
-    --cap-0: #b3452e; --cap-1: #2e6db3; --cap-2: #2e7d5b; --cap-3: #8a4f9e;
+    --cap-0: #e57373; --cap-1: #64b5f6; --cap-2: #81c784; --cap-3: #ce93d8;
+    /* body-card category hues (output green, data pink, invoke orange) */
+    --k-text: #66bb6a; --k-value: #f06292; --k-apply: #ffb74d;
     font-size: 14px;
   }
   * { box-sizing: border-box; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb--hover); }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font-family: system-ui, "Segoe UI", sans-serif; height: 100vh;
+    margin: 0; background: var(--app__background-color); color: var(--text-color);
+    font-family: var(--regular-font); height: 100vh;
     display: flex; flex-direction: column;
   }
-  code, .mono { font-family: "JetBrains Mono", Consolas, monospace; }
+  .mono { font-family: var(--mono-font); }
 
   /* ---------- header ---------- */
   header {
     display: flex; align-items: center; gap: 12px; padding: 8px 14px;
-    background: var(--panel); border-bottom: 1px solid var(--border);
+    background: var(--navigation__background-color); border-bottom: 1px solid var(--border-color);
   }
-  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 500; }
   header .doctype { color: var(--muted); font-weight: 400; }
   header .spacer { flex: 1; }
   button {
-    font: inherit; border: 1px solid var(--border); background: var(--panel);
-    border-radius: 5px; padding: 4px 12px; cursor: pointer; color: var(--text);
+    font: inherit; border: 1px solid var(--button__border-color);
+    background: var(--button__background-color);
+    border-radius: 5px; padding: 4px 12px; cursor: pointer; color: var(--text-color);
   }
-  button:hover { border-color: var(--accent); color: var(--accent); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  button.primary:hover { color: #fff; filter: brightness(1.1); }
-  button[disabled] { opacity: .45; cursor: default; }
+  button:hover { background: var(--button__background-color--hover);
+    border-color: var(--button__border-color--hover); color: var(--text-color--hover); }
+  button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  button.primary:hover { color: #fff; filter: brightness(1.12); }
+  button.primary.stale { background: var(--warn-c); border-color: var(--warn-c); color: #1f2733; }
+  button[disabled] { opacity: .45; cursor: default; color: var(--text-color--disabled); }
   .mocknote {
-    background: #fdf6e3; border-bottom: 1px solid #e8d9a0; color: #7a6520;
+    background: #2e2a12; border-bottom: 1px solid #55491c; color: #d9c86a;
     padding: 4px 14px; font-size: 12px;
   }
 
-  /* ---------- layout ---------- */
-  main { flex: 1; display: grid; min-height: 0;
+  /* ---------- layout: data on top, definition below ---------- */
+  main { flex: 1; display: grid; min-height: 0; gap: 6px; padding: 6px;
     grid-template-columns: 220px 1fr 1fr;
-    grid-template-rows: minmax(0, 5fr) auto minmax(0, 4fr);
-    grid-template-areas: "tpls data data" "tpls crumb crumb" "tpls detail output"; }
-  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
-    margin: 6px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "tpls crumb crumb" "tpls invars outvars" "tpls tstrip tstrip"; }
+  .panel { background: var(--page__background-color); border: 1px solid var(--border-color);
+    border-radius: 6px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
   .panel > h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
     color: var(--muted); margin: 0; padding: 7px 10px 5px; }
   .panel > .body { flex: 1; overflow: auto; min-height: 0; }
 
-  /* ---------- template panel ---------- */
-  #tpls { grid-area: tpls; }
+  /* ---------- template panel (left list: navigation-pane styling) ---------- */
+  #tpls { grid-area: tpls; background: var(--navigation__background-color); }
   .mode-head { font-size: 11px; color: var(--muted); padding: 8px 10px 2px; }
   .tpl-row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; cursor: pointer; }
-  .tpl-row:hover { background: #eef2f7; }
-  .tpl-row.sel { background: #e3ecf7; }
+  .tpl-row:hover { background: var(--row__background-color--hovered); }
+  .tpl-row.sel { background: var(--row__background-color--selected); color: var(--text-color--selected); }
+  .tpl-row.sel:hover { background: var(--row__background-color--selected--hovered); }
+  .tpl-row.sel .count { color: rgba(255, 255, 255, .75); }
   .chip { width: 10px; height: 10px; border-radius: 3px; flex: none; }
   .tpl-row .name { flex: 1; }
   .tpl-row .count { color: var(--muted); font-size: 12px; }
-  .tpl-row.zero { opacity: .55; }
-  .tpl-row.zero .count { color: #b3452e; }
-
-  /* ---------- data pane ---------- */
-  #data { grid-area: data; }
-  #dataText { padding: 10px 12px; white-space: pre-wrap; word-break: break-all;
-    font-family: Consolas, monospace; font-size: 13px; line-height: 2.1; }
-  .m { cursor: pointer; border-radius: 2px; transition: opacity .12s; }
-  .m.tpl-record { background: color-mix(in srgb, var(--c-record) 9%, transparent);
-    box-shadow: inset 3px 0 0 var(--c-record); padding: 2px 1px; }
-  .m.tpl-kv  { background: color-mix(in srgb, var(--c-kv) 14%, transparent);
-    border-bottom: 2px solid var(--c-kv); }
-  .m.tpl-iso { background: color-mix(in srgb, var(--c-iso) 18%, transparent);
-    border-bottom: 2px solid var(--c-iso); }
-  .m.tpl-quoted { background: color-mix(in srgb, var(--c-quoted) 18%, transparent);
-    border-bottom: 2px solid var(--c-quoted); }
-  /* focus model: when a cursor exists, everything off the active path dims */
-  #dataText.focused .m { opacity: .4; }
-  #dataText.focused .m.onpath, #dataText.focused .m.cursor,
-  #dataText.focused .m.cursor .m { opacity: 1; }
-  .m.cursor { outline: 2px solid var(--text); outline-offset: 1px; }
-  .gap { cursor: pointer; border-radius: 2px; }
-  .gap:hover { background: #f3d9d3; box-shadow: 0 2px 0 #b3452e; }
-  .cap { border-bottom: 1px dotted currentColor; }
-  .cap.hot { outline: 2px solid currentColor; outline-offset: 1px; border-radius: 2px; }
+  .tpl-row.zero { opacity: .65; }
+  .tpl-row.zero .count { color: var(--red-200); }
 
   /* ---------- breadcrumb ---------- */
   #crumb { grid-area: crumb; display: flex; align-items: center; gap: 4px;
-    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
-    margin: 0 6px; padding: 5px 10px; flex-wrap: wrap; }
+    background: var(--page__background-color); border: 1px solid var(--border-color);
+    border-radius: 6px; padding: 5px 10px; flex-wrap: wrap; }
   #crumb .seg { display: flex; align-items: center; gap: 3px; }
   #crumb .seg .name { font-weight: 600; cursor: pointer; padding: 1px 6px; border-radius: 4px; }
-  #crumb .seg .name:hover { background: #eef2f7; }
+  #crumb .seg .name:hover { background: var(--row__background-color--hovered); }
   #crumb .seg .idx { color: var(--muted); font-size: 12px; }
   #crumb .arrow { border: none; background: none; padding: 0 3px; font-size: 12px;
     color: var(--muted); cursor: pointer; }
-  #crumb .arrow:hover:not([disabled]) { color: var(--accent); }
+  #crumb .arrow:hover:not([disabled]) { color: var(--blue-300); background: none; }
+  #crumb .arrow[disabled] { opacity: .35; cursor: default; }
   #crumb .sep { color: var(--muted); margin: 0 2px; }
   #crumb .down { font-size: 12px; }
-  #crumb .empty { color: var(--muted); font-style: italic; }
-  #gapInfo { flex-basis: 100%; font-size: 12.5px; color: #7a3b2b; background: #fbeeea;
-    border-radius: 4px; padding: 4px 8px; margin-top: 4px; }
+  #gapInfo { flex-basis: 100%; font-size: 12.5px; color: var(--red-200);
+    background: rgba(220, 53, 69, .12); border-radius: 4px; padding: 4px 8px; margin-top: 4px; }
 
-  /* ---------- detail pane ---------- */
-  #detail { grid-area: detail; }
-  #detail .body { padding: 8px 12px; font-size: 13px; }
-  #detail dl { display: grid; grid-template-columns: 78px 1fr; gap: 4px 10px; margin: 0 0 8px; }
-  #detail dt { color: var(--muted); }
-  #detail dd { margin: 0; }
-  table.caps { border-collapse: collapse; width: 100%; margin: 4px 0 10px; }
-  table.caps td { padding: 3px 8px 3px 0; vertical-align: top; }
-  table.caps tr { cursor: default; }
-  table.caps tr:hover { background: #f2f5f9; }
-  .capname { font-weight: 600; }
-  .stepper { display: flex; align-items: center; gap: 8px; color: var(--muted);
-    border-top: 1px solid var(--border); padding-top: 8px; font-size: 12.5px; }
-  .note0 { color: #b3452e; font-size: 12.5px; }
+  /* ---------- variable panes (top) ---------- */
+  #invars { grid-area: invars; }
+  #outvars { grid-area: outvars; }
+  .var-section { padding: 2px 0 6px; }
+  .var-section > h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--muted); margin: 0; padding: 8px 12px 4px; font-weight: 600; }
+  .var-section > h3 .hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .var-row { display: grid; grid-template-columns: 16px minmax(64px, auto) auto auto 1fr auto;
+    align-items: baseline; gap: 8px; padding: 3px 12px; font-size: 13px; }
+  .var-row:hover { background: var(--row__background-color--hovered); }
+  .var-row .chip { align-self: center; }
+  .var-row .vname { font-weight: 600; }
+  .var-row .src { color: var(--muted); font-size: 12px; }
+  .var-row .vval { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .var-row .edit { border: none; background: none; color: var(--muted); cursor: pointer;
+    font-size: 12px; padding: 0 2px; visibility: hidden; }
+  .var-row:hover .edit { visibility: visible; }
+  .var-row .edit:hover { color: var(--blue-300); background: none; }
+  .var-row.expandable { cursor: pointer; }
+  .type { font-size: 10.5px; color: var(--muted); background: rgba(255, 255, 255, .08);
+    border: 1px solid var(--control__border-color); border-radius: 3px; padding: 0 5px;
+    white-space: nowrap; }
+  .seq-entries { padding: 0 12px 4px 36px; font-size: 12.5px; color: var(--muted); }
+  .none { color: var(--muted); font-style: italic; padding: 2px 12px; font-size: 12.5px; }
 
-  /* ---------- output pane ---------- */
-  #output { grid-area: output; }
-  #outText { padding: 10px 12px; white-space: pre; font-family: Consolas, monospace;
-    font-size: 13px; line-height: 1.7; }
+  /* ---------- content renderer (a variable's expanded value) ---------- */
+  .content-box { margin: 4px 12px 6px; padding: 8px 10px; border: 1px solid var(--border-color);
+    border-radius: 5px; background: var(--control__background-color);
+    white-space: pre-wrap; word-break: break-all;
+    font-family: var(--mono-font); font-size: 13px; line-height: 2.1; }
+  .m { cursor: pointer; border-radius: 2px; }
+  .m:hover { filter: brightness(1.25); }
+  .m.tpl-record { background: color-mix(in srgb, var(--c-record) 14%, transparent);
+    box-shadow: inset 3px 0 0 var(--c-record); padding: 2px 1px; }
+  .m.tpl-kv  { background: color-mix(in srgb, var(--c-kv) 18%, transparent);
+    border-bottom: 2px solid var(--c-kv); }
+  .m.tpl-iso { background: color-mix(in srgb, var(--c-iso) 22%, transparent);
+    border-bottom: 2px solid var(--c-iso); }
+  .m.tpl-quoted { background: color-mix(in srgb, var(--c-quoted) 22%, transparent);
+    border-bottom: 2px solid var(--c-quoted); }
+  .gap { cursor: pointer; border-radius: 2px; }
+  .gap:hover { background: rgba(220, 53, 69, .25); box-shadow: 0 2px 0 var(--error-c); }
+  .cap { border-bottom: 1px dotted currentColor; }
+  .cap.hot { outline: 2px solid currentColor; outline-offset: 1px; border-radius: 2px; }
+
+  /* ---------- wrote -> output ---------- */
+  .out-box { margin: 4px 12px 8px; padding: 8px 10px; border: 1px solid var(--border-color);
+    border-radius: 5px; background: var(--control__background-color); white-space: pre;
+    font-family: var(--mono-font); font-size: 13px; line-height: 1.7; overflow: auto; }
   .o { border-radius: 2px; cursor: pointer; }
+  .o:hover { background: var(--row__background-color--hovered); }
+  .o.tpl-source { color: var(--c-source); }
   .o.tpl-record { color: var(--c-record); }
   .o.tpl-kv { color: var(--c-kv); }
   .o.tpl-iso { color: var(--c-iso); font-weight: 600; }
   .o.tpl-quoted { color: var(--c-quoted); font-weight: 600; }
-  #outText.focused .o { opacity: .45; }
-  #outText.focused .o.hot { opacity: 1; background: #fff3d6; outline: 1px solid var(--c-kv); }
-  #outText.focused .o.onpath { opacity: 1; }
+  .o.own { background: var(--code-editor__highlight); color: var(--text-color--selected); }
+
+  /* ---------- template strip (bottom: the definition, trace-annotated) ---------- */
+  #tstrip { grid-area: tstrip; background: var(--page__background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px; display: flex; flex-direction: column;
+    max-height: 38vh; min-height: 0; }
+  #tshead { display: flex; align-items: center; gap: 14px; padding: 7px 12px;
+    border-bottom: 1px solid var(--border-color); flex: none; }
+  #tshead .fname { font-weight: 700; }
+  #tshead .fmode, #tshead .fnote { color: var(--muted); font-size: 12.5px; }
+  #tshead .spacer { flex: 1; }
+  #tshead .stepper { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; }
+  #tsbody { overflow: auto; min-height: 0; padding: 6px 0 10px; }
+  .strip-line { display: flex; align-items: center; gap: 10px; padding: 4px 12px; font-size: 12.5px; }
+  .strip-line .k { color: var(--muted); min-width: 44px; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .match-chip { display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--control__border-color);
+    border-radius: 5px; background: var(--control__background-color); padding: 4px 10px;
+    cursor: pointer; max-width: 100%; overflow: hidden; }
+  .match-chip:hover { border-color: var(--blue-300); }
+  .match-chip .mtype { font-weight: 600; color: var(--muted); font-size: 12px; }
+  .match-chip .mpat { font-family: var(--mono-font); font-size: 12.5px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .match-chip .wb { color: var(--link__text-color); font-size: 12px; white-space: nowrap; }
+
+  /* body cards (pipeline-element-box flavour) */
+  .cards { padding: 2px 12px 0 56px; }
+  .card { display: flex; align-items: baseline; gap: 8px; margin: 4px 0;
+    padding: 4px 8px; background: #2c303a; border: 1px solid var(--border-color);
+    border-radius: 5px; border-left-width: 3px; font-size: 12.5px; }
+  .card .num { color: var(--muted); font-size: 11px; min-width: 12px; }
+  .card .kind { font-weight: 600; white-space: nowrap; }
+  .card .lit { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card.k-text  { border-left-color: var(--k-text); }  .card.k-text  .kind { color: var(--k-text); }
+  .card.k-value { border-left-color: var(--k-value); } .card.k-value .kind { color: var(--k-value); }
+  .card.k-apply { border-left-color: var(--k-apply); flex-direction: column; align-items: stretch; gap: 2px; }
+  .card.k-apply .aphead { display: flex; gap: 8px; align-items: baseline; }
+  .card.k-apply .kind { color: var(--k-apply); }
+  .disp-row { display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 22px; font-size: 12.5px; }
+  .disp-row .name { flex: 1; }
+  .disp-row.hit { cursor: pointer; border-radius: 4px; }
+  .disp-row.hit:hover { background: var(--row__background-color--hovered); }
+  .disp-row.hit .go { color: var(--link__text-color); font-size: 12px; }
+  .disp-row.miss .count { color: var(--red-200); font-size: 12px; }
+  .disp-row.skip { opacity: .5; }
+  .disp-row.skip .count { color: var(--muted); font-size: 12px; }
+  .disp-note { padding: 2px 4px 2px 22px; font-size: 11.5px; color: var(--muted); font-style: italic; }
+
+  /* ---------- pattern workbench popup (Stroom dialog styling) ---------- */
+  #wbOverlay { position: fixed; inset: 0; background: var(--transparency__background-color);
+    backdrop-filter: saturate(2) blur(20px);
+    display: flex; align-items: center; justify-content: center; z-index: 10; }
+  #wbOverlay[hidden] { display: none; }
+  #wb { width: min(680px, 92vw); max-height: 86vh; overflow: auto;
+    background: var(--dialog__background-color);
+    border: 1px solid var(--dialog__border-color); border-radius: 8px;
+    box-shadow: var(--dialog__shadow); }
+  #wb .wb-title { display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color); font-weight: 600; color: var(--heading-color); }
+  #wb .tabs { display: flex; gap: 2px; padding: 8px 14px 0; }
+  #wb .tab { padding: 4px 12px; border: 1px solid var(--border-color); border-bottom: none;
+    border-radius: 6px 6px 0 0; font-size: 12.5px; color: var(--muted);
+    background: var(--control__background-color); }
+  #wb .tab.active { background: var(--dialog__background-color); color: var(--text-color); font-weight: 600; }
+  #wb .wb-sec { padding: 8px 14px; }
+  #wb .wb-sec h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--muted); }
+  #wb label { font-size: 12.5px; }
+  #wbPat { width: 100%; font-family: var(--mono-font); font-size: 13px;
+    padding: 6px 8px; border: 1px solid var(--control__border-color); border-radius: 5px;
+    resize: vertical; background: var(--control__background-color); color: var(--text-color); }
+  #wbPat:focus { outline: none; border-color: var(--blue-800);
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, .08), 0 0 8px rgba(33, 150, 243, .6); }
+  #wbErr { color: var(--red-200); font-size: 12.5px; padding-top: 4px; min-height: 18px; }
+  .wb-groups { font-size: 12.5px; }
+  .wb-groups .g { display: flex; gap: 8px; align-items: center; padding: 2px 0; }
+  .wb-test { border: 1px solid var(--border-color); border-radius: 5px;
+    background: var(--control__background-color);
+    padding: 6px 8px; font-family: var(--mono-font); font-size: 12.5px;
+    white-space: pre-wrap; word-break: break-all; }
+  .wb-test mark { background: var(--code-editor__highlight); color: var(--text-color--selected);
+    border-bottom: 2px solid var(--c-kv); }
+  .wb-lint { color: var(--muted); font-size: 12px; font-style: italic; }
+  #wb .wb-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 14px;
+    border-top: 1px solid var(--border-color); }
+
   footer { padding: 3px 14px; font-size: 11.5px; color: var(--muted);
-    border-top: 1px solid var(--border); background: var(--panel); }
-  kbd { background: #eef1f5; border: 1px solid var(--border); border-radius: 3px;
-    padding: 0 4px; font-size: 11px; }
+    border-top: 1px solid var(--border-color); background: var(--navigation__background-color); }
+  kbd { background: var(--button__background-color); border: 1px solid var(--button__border-color);
+    border-radius: 3px; padding: 0 4px; font-size: 11px; }
 </style>
 </head>
 <body>
 
-<div class="mocknote">Design mockup for <b>design/18-editor-ui.md §5</b> — the trace is hand-built in this page, there is no engine behind it. Click highlights, step the breadcrumb, hover captures, click output.</div>
+<div class="mocknote">Design mockup for <b>design/18-editor-ui.md §5</b> (frame/variable model) — the trace is hand-built in this page, there is no engine behind it. Theme: Stroom GWT dark (<span class="mono">theme-dark.css</span>). Click highlights and apply-site rows, step the breadcrumb, hover/rename captures, open the pattern workbench.</div>
 <header>
   <h1>apache-audit <span class="doctype">(Shapeshifter · Design tab)</span></h1>
   <div class="spacer"></div>
@@ -151,13 +305,46 @@
 
 <main>
   <section class="panel" id="tpls"><h2>Templates</h2><div class="body" id="tplList"></div></section>
-  <section class="panel" id="data"><h2>Data</h2><div class="body"><div id="dataText"></div></div></section>
   <div id="crumb"></div>
-  <section class="panel" id="detail"><h2>Template</h2><div class="body" id="detailBody"></div></section>
-  <section class="panel" id="output"><h2>Output</h2><div class="body"><div id="outText"></div></div></section>
+  <section class="panel" id="invars"><h2>Input vars</h2><div class="body" id="inBody"></div></section>
+  <section class="panel" id="outvars"><h2>Output vars</h2><div class="body" id="outBody"></div></section>
+  <div id="tstrip"><div id="tshead"></div><div id="tsbody"></div></div>
 </main>
 
-<footer>Navigate: click any highlight or output span &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&larr;</kbd>/<kbd>&rarr;</kbd> sideways within parent &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&uarr;</kbd> parent &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&darr;</kbd> first child &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd>/<kbd>&rarr;</kbd> same template, whole input</footer>
+<footer>Navigate: click any highlight, apply-site row or output span &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&larr;</kbd>/<kbd>&rarr;</kbd> sideways within parent &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&uarr;</kbd> parent frame &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&darr;</kbd> first child frame &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd>/<kbd>&rarr;</kbd> same template, whole input</footer>
+
+<div id="wbOverlay" hidden>
+  <div id="wb">
+    <div class="wb-title">Pattern workbench — <span id="wbName" class="mono"></span></div>
+    <div class="tabs">
+      <span class="tab active">regex</span>
+      <span class="tab" title="Not in this mockup — the delimiter editor lives here">delimiter</span>
+      <span class="tab" title="Not in this mockup — the progressive/combinator step builder lives here">progressive steps</span>
+    </div>
+    <div class="wb-sec">
+      <h4>Pattern</h4>
+      <textarea id="wbPat" rows="2" spellcheck="false"></textarea>
+      <div id="wbErr"></div>
+      <label><input type="checkbox"> dot-all</label>
+      <label style="margin-left:10px"><input type="checkbox"> case-insensitive</label>
+    </div>
+    <div class="wb-sec">
+      <h4>Groups <span style="text-transform:none; letter-spacing:0">(captures auto-sync — PatternInfo)</span></h4>
+      <div id="wbGroups" class="wb-groups"></div>
+    </div>
+    <div class="wb-sec">
+      <h4>Test against current frame content</h4>
+      <div id="wbTest" class="wb-test"></div>
+    </div>
+    <div class="wb-sec">
+      <div class="wb-lint" id="wbLint">explain(): straight-line scan &nbsp;·&nbsp; ambiguities(): none &nbsp;·&nbsp; (illustrative — real lint comes from the engine)</div>
+    </div>
+    <div class="wb-foot">
+      <button id="wbCancel">Cancel</button>
+      <button class="primary" id="wbApply">Apply</button>
+    </div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -170,7 +357,9 @@ ip address=10.0.0.7 name="alice smith" create time=2026-08-21T11:41:35.120Z acti
 ip address=172.16.4.1 name=carol create time=2026-08-21T11:41:36.500Z action=login`;
 
 const TPL = {
-  record: { name: "record",   mode: null,     color: "var(--c-record)",
+  source: { name: "source",   mode: null,     color: "var(--c-source)",
+            pattern: "(document)", caps: [] },
+  record: { name: "record",   mode: "(root)", color: "var(--c-record)",
             pattern: "^.+$", caps: [] },
   kv:     { name: "kv-pair",  mode: "fields", color: "var(--c-kv)",
             pattern: '([A-Za-z][A-Za-z ]*?)=("[^"]*"|\\S+)', caps: ["key", "value"] },
@@ -181,25 +370,56 @@ const TPL = {
   mac:    { name: "mac-addr", mode: "values", color: "var(--c-mac)",
             pattern: "^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$", caps: ["mac"] },
 };
-const MODE_ORDER = [[null, "root"], ["fields", "mode: fields"], ["values", "mode: values"]];
+const CAP_TYPE = { key: "string", value: "string", instant: "instant", text: "string", mac: "string" };
+const MODE_ORDER = [["(root)", "root"], ["fields", "mode: fields"], ["values", "mode: values"]];
+const CANDIDATES = { "(root)": ["record"], fields: ["kv"], values: ["iso", "quoted", "mac"] };
+/* where each template can be dispatched from (the static mode graph, for the strip header) */
+const DISPATCHED_FROM = { source: "—", record: "the document", kv: "record (body pos 2)",
+  iso: "kv-pair (body pos 4)", quoted: "kv-pair (body pos 4)", mac: "kv-pair (body pos 4)" };
+
+/* each template's body: the child structure (output nodes), apply sites included */
+const BODY = {
+  source: [
+    { k: "text",  lit: '"<records>\\n"' },
+    { k: "apply", mode: "(root)" },
+    { k: "text",  lit: '"</records>\\n"' },
+  ],
+  record: [
+    { k: "text",  lit: '"  <record>\\n"' },
+    { k: "apply", mode: "fields" },
+    { k: "text",  lit: '"  </record>\\n"' },
+  ],
+  kv: [
+    { k: "text",     lit: '"    <data name=\\""' },
+    { k: "value-of", lit: "$key" },
+    { k: "text",     lit: '"\\" value=\\""' },
+    { k: "apply",    mode: "values", sel: "$value", note: "no match → value-of $value" },
+    { k: "text",     lit: '"\\"/>\\n"' },
+  ],
+  iso:    [{ k: "value-of", lit: "$instant" }],
+  quoted: [{ k: "value-of", lit: "$text" }],
+  mac:    [{ k: "value-of", lit: "$mac" }],
+};
 
 /* ================= build the trace (stands in for the preview endpoint) ================= */
 
-const matches = [];           // {id, tpl, parent, start, len, children:[], captures:[{name,value,span}]}
-const byTpl = {};             // tplId -> [match] in input order
-const attempts = { mac: 12 }; // failed-attempt counts for zero-match rows (G3 stand-in)
+const matches = [];   // frames: {id, tpl, parent, start, len, children:[], captures:[{name,value,span?}], tries:[]}
+const byTpl = {};     // tplId -> [frame] in input order
+
+const SOURCE = { id: -1, tpl: "source", parent: null, start: 0, len: SAMPLE.length,
+                 children: [], captures: [], tries: [] };
 
 function addMatch(tpl, parent, start, len, captures) {
-  const m = { id: matches.length, tpl, parent, start, len, children: [], captures };
+  const m = { id: matches.length, tpl, parent, start, len, children: [], captures, tries: [] };
   matches.push(m);
   (byTpl[tpl] = byTpl[tpl] || []).push(m);
-  if (parent) parent.children.push(m);
+  parent.children.push(m);
   return m;
 }
 
 let lineStart = 0;
 for (const line of SAMPLE.split("\n")) {
-  const rec = addMatch("record", null, lineStart, line.length, []);
+  const rec = addMatch("record", SOURCE, lineStart, line.length, []);
   const kvRe = /([A-Za-z][A-Za-z ]*?)=("[^"]*"|\S+)/g;
   let hit;
   while ((hit = kvRe.exec(line)) !== null) {
@@ -210,23 +430,31 @@ for (const line of SAMPLE.split("\n")) {
       { name: "key",   value: key, span: [kvStart, key.length] },
       { name: "value", value: raw, span: [valStart, raw.length] },
     ]);
+    /* ordered choice over mode "values": iso, then quoted, then mac; failures recorded (G3) */
     if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
       addMatch("iso", kv, valStart, raw.length,
         [{ name: "instant", value: isoNanos(raw), span: [valStart, raw.length] }]);
     } else if (raw.startsWith('"')) {
+      kv.tries.push("iso");
       addMatch("quoted", kv, valStart, raw.length,
         [{ name: "text", value: raw.slice(1, -1), span: [valStart + 1, raw.length - 2] }]);
+    } else {
+      kv.tries.push("iso", "quoted", "mac");
     }
   }
   lineStart += line.length + 1;
 }
 function isoNanos(v) { return v.replace(/\.(\d{3})Z$/, ".$1000000Z"); }
 
-/* output with attribution: segments of {text, m} where m is the writing match (null = document) */
+/* global failed-attempt totals per template (for the panel's "0 · N tries" rows) */
+const triesTotal = {};
+for (const m of matches) for (const t of m.tries) triesTotal[t] = (triesTotal[t] || 0) + 1;
+
+/* output with attribution: segments of {text, m} where m is the writing frame */
 const outSegs = [];
 const emit = (text, m) => outSegs.push({ text, m });
-emit("<records>\n", null);
-for (const rec of byTpl.record) {
+emit("<records>\n", SOURCE);
+for (const rec of SOURCE.children) {
   emit("  <record>\n", rec);
   for (const kv of rec.children) {
     const key = kv.captures[0].value, raw = kv.captures[1].value;
@@ -238,35 +466,35 @@ for (const rec of byTpl.record) {
   }
   emit("  </record>\n", rec);
 }
-emit("</records>\n", null);
+emit("</records>\n", SOURCE);
 
 /* ================= cursor state ================= */
 
-let cursor = null;     // a match, or null
-let selTpl = null;     // template shown in the detail pane (follows cursor)
-let gapMsg = null;     // gap-inspector text, shown under the breadcrumb
+let cursor = SOURCE;   // the selected frame; SOURCE is the root frame
+let selTpl = "source"; // the template shown in the strip (follows the cursor)
+let gapMsg = null;
+let stale = false;     // config edited since the trace was built
 
 function chainOf(m) { const c = []; for (let x = m; x; x = x.parent) c.unshift(x); return c; }
-function siblings(m) {           // same-template siblings under the same parent
-  return (m.parent ? m.parent.children : byTpl[m.tpl].filter(x => !x.parent))
-    .filter(x => x.tpl === m.tpl);
+function siblings(m) {   // same-template siblings under the same parent frame
+  return m.parent ? m.parent.children.filter(x => x.tpl === m.tpl) : [m];
 }
+function isDescendant(m, of) { for (let x = m; x; x = x.parent) if (x === of) return true; return false; }
 function setCursor(m, keepGap) {
-  cursor = m; selTpl = m ? m.tpl : selTpl;
+  cursor = m; selTpl = m.tpl;
   if (!keepGap) gapMsg = null;
   render();
 }
-function selectTemplate(tplId) {
-  selTpl = tplId; gapMsg = null;
-  const first = (byTpl[tplId] || [])[0];
-  cursor = first || cursor;
+function selectTemplate(tid) {   // zero-match templates: show the definition, keep the frame
+  selTpl = tid; gapMsg = null;
+  const first = (byTpl[tid] || [])[0];
+  if (first) { cursor = first; }
   render();
 }
 
 /* ================= rendering ================= */
 
 const $ = id => document.getElementById(id);
-
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -274,115 +502,7 @@ function el(tag, cls, text) {
   return e;
 }
 
-/* --- data pane: recursive nested spans --- */
-function renderData() {
-  const root = $("dataText");
-  root.textContent = "";
-  root.classList.toggle("focused", !!cursor);
-  const tops = matches.filter(m => !m.parent);
-  renderRange(root, 0, SAMPLE.length, tops, null);
-  if (cursor) {
-    const onpath = new Set(chainOf(cursor).map(m => m.id));
-    for (const s of root.querySelectorAll(".m")) {
-      const id = +s.dataset.id;
-      s.classList.toggle("cursor", id === cursor.id);
-      s.classList.toggle("onpath", onpath.has(id) && id !== cursor.id);
-    }
-    const cur = root.querySelector(".m.cursor");
-    if (cur) cur.scrollIntoView({ block: "nearest" });
-  }
-}
-
-function renderRange(container, start, end, children, parent) {
-  let pos = start;
-  for (const child of children) {
-    if (child.start > pos) addPlain(container, pos, child.start, parent);
-    const s = el("span", "m tpl-" + child.tpl);
-    s.dataset.id = child.id;
-    s.title = `${TPL[child.tpl].name} — match ${byTpl[child.tpl].indexOf(child) + 1} of ${byTpl[child.tpl].length} (bytes ${child.start}–${child.start + child.len})`;
-    s.addEventListener("click", ev => { ev.stopPropagation(); setCursor(child); });
-    renderMatchInner(s, child);
-    container.appendChild(s);
-    pos = child.start + child.len;
-  }
-  if (pos < end) addPlain(container, pos, end, parent);
-}
-
-function renderMatchInner(container, m) {
-  /* kv matches render their captures as sub-spans so capture-hover can link to them */
-  if (m.tpl === "kv") {
-    const [key, val] = m.captures;
-    const kEl = el("span", "cap", SAMPLE.slice(key.span[0], key.span[0] + key.span[1]));
-    kEl.style.color = "var(--cap-0)"; kEl.dataset.cap = m.id + ":0";
-    container.appendChild(kEl);
-    container.appendChild(document.createTextNode("="));
-    const vEl = el("span", "cap");
-    vEl.style.color = "var(--cap-1)"; vEl.dataset.cap = m.id + ":1";
-    renderRange(vEl, val.span[0], val.span[0] + val.span[1], m.children, m);
-    container.appendChild(vEl);
-  } else {
-    renderRange(container, m.start, m.start + m.len, m.children, m);
-  }
-}
-
-function addPlain(container, from, to, parent) {
-  const text = SAMPLE.slice(from, to);
-  if (parent && parent.tpl === "record" && text.trim() === "") {
-    /* an unmatched gap inside a record: first-class and clickable (G3) */
-    const g = el("span", "gap", text);
-    g.title = "Nothing matched here — click to see what was tried";
-    g.addEventListener("click", ev => {
-      ev.stopPropagation();
-      gapMsg = `No template matched bytes ${from}–${to} (inside record ${byTpl.record.indexOf(parent) + 1}). ` +
-               `Tried in mode “fields”: kv-pair ✗. In a real trace this comes from per-attempt positions (engine ask G3).`;
-      setCursor(parent, true);
-    });
-    container.appendChild(g);
-  } else {
-    container.appendChild(document.createTextNode(text));
-  }
-}
-
-/* --- breadcrumb: every segment is a stepper --- */
-function renderCrumb() {
-  const c = $("crumb");
-  c.textContent = "";
-  const src = el("span", "seg");
-  src.appendChild(el("span", "name", "source"));
-  c.appendChild(src);
-  if (!cursor) {
-    c.appendChild(el("span", "sep", "›"));
-    c.appendChild(el("span", "empty", "no match selected — click a highlight above"));
-  } else {
-    for (const seg of chainOf(cursor)) {
-      c.appendChild(el("span", "sep", "›"));
-      const sibs = siblings(seg), i = sibs.indexOf(seg);
-      const s = el("span", "seg");
-      const name = el("span", "name", TPL[seg.tpl].name);
-      name.style.color = TPL[seg.tpl].color;
-      name.title = "Make this match the cursor";
-      name.addEventListener("click", () => setCursor(seg));
-      const back = el("button", "arrow", "◀");
-      back.disabled = i === 0;
-      back.addEventListener("click", () => setCursor(sibs[i - 1]));
-      const fwd = el("button", "arrow", "▶");
-      fwd.disabled = i === sibs.length - 1;
-      fwd.addEventListener("click", () => setCursor(sibs[i + 1]));
-      s.append(name, back, el("span", "idx", `${i + 1}/${sibs.length}`), fwd);
-      c.appendChild(s);
-    }
-    if (cursor.children.length) {
-      c.appendChild(el("span", "sep", "›"));
-      const d = el("button", "arrow down", `… ${cursor.children.length} child${cursor.children.length > 1 ? "ren" : ""} ▾`);
-      d.title = cursor.children.map(ch => TPL[ch.tpl].name).join(", ");
-      d.addEventListener("click", () => setCursor(cursor.children[0]));
-      c.appendChild(d);
-    }
-  }
-  if (gapMsg) c.appendChild(el("div", "", gapMsg)).id = "gapInfo";
-}
-
-/* --- template panel --- */
+/* --- template panel (left list) --- */
 function renderTpls() {
   const list = $("tplList");
   list.textContent = "";
@@ -394,115 +514,433 @@ function renderTpls() {
       const row = el("div", "tpl-row" + (n === 0 ? " zero" : "") + (selTpl === id ? " sel" : ""));
       const chip = el("span", "chip"); chip.style.background = t.color;
       row.append(chip, el("span", "name mono", t.name),
-        el("span", "count", n === 0 ? `0 · ${attempts[id] || 0} tries` : String(n)));
+        el("span", "count", n === 0 ? `0 · ${triesTotal[id] || 0} tries` : String(n)));
+      row.title = n === 0
+        ? `No matches — tried at ${triesTotal[id] || 0} positions across the input; click to see its definition`
+        : `${n} matches over the whole input — click for the first`;
       row.addEventListener("click", () => selectTemplate(id));
       list.appendChild(row);
     }
   }
 }
 
-/* --- detail pane --- */
-function renderDetail() {
-  const b = $("detailBody");
-  b.textContent = "";
-  if (!selTpl) { b.appendChild(el("div", "", "Select a template or click a highlight.")); return; }
+/* --- breadcrumb: every segment is a stepper --- */
+function renderCrumb() {
+  const c = $("crumb");
+  c.textContent = "";
+  chainOf(cursor).forEach((seg, k) => {
+    if (k > 0) c.appendChild(el("span", "sep", "›"));
+    const s = el("span", "seg");
+    const name = el("span", "name", TPL[seg.tpl].name);
+    name.style.color = TPL[seg.tpl].color;
+    name.title = "Make this frame the cursor";
+    name.addEventListener("click", () => setCursor(seg));
+    s.appendChild(name);
+    if (seg !== SOURCE) {
+      const sibs = siblings(seg), i = sibs.indexOf(seg);
+      const back = el("button", "arrow", "◀");
+      back.disabled = i === 0;
+      back.addEventListener("click", () => setCursor(sibs[i - 1]));
+      const fwd = el("button", "arrow", "▶");
+      fwd.disabled = i === sibs.length - 1;
+      fwd.addEventListener("click", () => setCursor(sibs[i + 1]));
+      s.append(back, el("span", "idx", `${i + 1}/${sibs.length}`), fwd);
+    }
+    c.appendChild(s);
+  });
+  if (cursor.children.length) {
+    c.appendChild(el("span", "sep", "›"));
+    const d = el("button", "arrow down",
+      `… ${cursor.children.length} child frame${cursor.children.length > 1 ? "s" : ""} ▾`);
+    d.title = cursor.children.map(ch => TPL[ch.tpl].name).join(", ");
+    d.addEventListener("click", () => setCursor(cursor.children[0]));
+    c.appendChild(d);
+  }
+  if (gapMsg) c.appendChild(el("div", "", gapMsg)).id = "gapInfo";
+}
+
+/* --- template strip (bottom): identity + match chip + body cards --- */
+function renderStrip() {
   const t = TPL[selTpl];
   const all = byTpl[selTpl] || [];
-  const cur = cursor && cursor.tpl === selTpl ? cursor : null;
+  const onFrame = cursor.tpl === selTpl;   // annotations only when a frame of this template is selected
 
-  const dl = el("dl");
-  const add = (k, v, mono) => { dl.appendChild(el("dt", "", k)); const d = el("dd", mono ? "mono" : ""); d.textContent = v; dl.appendChild(d); };
-  add("template", t.name, true);
-  add("mode", t.mode || "(root)");
-  add("match", "regex  " + t.pattern, true);
-  add("dispatched", t.mode === null ? "document" : t.mode === "fields" ? "from record (body pos 1)" : "from kv-pair (body pos 2)");
-  b.appendChild(dl);
-
-  if (t.caps.length) {
-    const tbl = el("table", "caps");
-    t.caps.forEach((cap, i) => {
-      const tr = el("tr");
-      const chip = el("span", "chip"); chip.style.background = `var(--cap-${i})`; chip.style.display = "inline-block";
-      const td0 = el("td"); td0.appendChild(chip);
-      const nameTd = el("td", "capname mono", cap); nameTd.style.color = `var(--cap-${i})`;
-      const valTd = el("td", "mono", cur ? JSON.stringify(cur.captures[i] ? cur.captures[i].value : "—") : "—");
-      tr.append(td0, nameTd, valTd);
-      /* hover a capture row -> light its span in the data pane (kv has cap sub-spans) */
-      tr.addEventListener("mouseenter", () => setCapHot(cur, i, true));
-      tr.addEventListener("mouseleave", () => setCapHot(cur, i, false));
-      tbl.appendChild(tr);
-    });
-    b.appendChild(tbl);
-  }
-
-  const st = el("div", "stepper");
-  if (all.length === 0) {
-    st.appendChild(el("span", "note0",
-      `no matches — tried at ${attempts[selTpl] || 0} positions, matched none`));
+  /* header: identity + whole-input stepper */
+  const h = $("tshead");
+  h.textContent = "";
+  const name = el("span", "fname", t.name);
+  name.style.color = t.color;
+  h.append(name,
+    el("span", "fmode", selTpl === "source" ? "document" : "mode " + t.mode),
+    el("span", "fnote", "dispatched from " + DISPATCHED_FROM[selTpl]),
+    el("span", "spacer"));
+  if (selTpl === "source") {
+    /* the document frame has no stepper */
+  } else if (all.length === 0) {
+    h.appendChild(el("span", "stepper", `no matches · tried ${triesTotal[selTpl] || 0} positions`));
   } else {
-    const i = cur ? all.indexOf(cur) : -1;
+    const i = onFrame ? all.indexOf(cursor) : -1;
+    const st = el("span", "stepper");
     const back = el("button", "", "◀"); back.disabled = i <= 0;
     back.addEventListener("click", () => setCursor(all[i - 1]));
     const fwd = el("button", "", "▶"); fwd.disabled = i === all.length - 1;
     fwd.addEventListener("click", () => setCursor(i < 0 ? all[0] : all[i + 1]));
-    st.append(back, el("span", "", `match ${i < 0 ? "–" : i + 1} of ${all.length} (whole input)`), fwd);
-    if (cur) st.appendChild(el("span", "", `· bytes ${cur.start}–${cur.start + cur.len}`));
+    st.append(back, el("span", "", `match ${i < 0 ? "–" : i + 1} of ${all.length} · whole input`), fwd);
+    h.appendChild(st);
   }
-  b.appendChild(st);
+
+  const b = $("tsbody");
+  b.textContent = "";
+
+  /* match: read-only summary chip -> pattern workbench popup */
+  const mline = el("div", "strip-line");
+  mline.appendChild(el("span", "k", "match"));
+  if (selTpl === "source") {
+    mline.appendChild(el("span", "none", "(the document — matches the whole content)"));
+  } else {
+    const chip = el("span", "match-chip");
+    chip.append(el("span", "mtype", "regex"), el("span", "mpat", t.pattern),
+      el("span", "wb", "✎ workbench"));
+    chip.title = "Open the pattern workbench — editing, validation, group sync, live test";
+    chip.addEventListener("click", () => openWorkbench(selTpl));
+    mline.appendChild(chip);
+    mline.appendChild(el("span", "none", "guard (none) · limits (none)"));
+  }
+  b.appendChild(mline);
+
+  /* body: the child structure, apply sites annotated with this frame's dispatches */
+  const bline = el("div", "strip-line");
+  bline.appendChild(el("span", "k", "body"));
+  b.appendChild(bline);
+  const cards = el("div", "cards");
+  BODY[selTpl].forEach((node, i) => {
+    if (node.k === "apply") {
+      const card = el("div", "card k-apply");
+      const head = el("div", "aphead");
+      head.append(el("span", "num", String(i + 1)), el("span", "kind", "apply-templates"),
+        el("span", "lit mono", `mode="${node.mode}"` + (node.sel ? ` select=${node.sel}` : "")));
+      card.appendChild(head);
+      /* the matching child templates AT THIS SITE, for the current frame */
+      for (const tid of CANDIDATES[node.mode]) {
+        const kids = onFrame ? cursor.children.filter(ch => ch.tpl === tid) : [];
+        const tried = onFrame && cursor.tries.includes(tid);
+        const row = el("div", "disp-row " + (kids.length ? "hit" : tried ? "miss" : "skip"));
+        const chip = el("span", "chip"); chip.style.background = TPL[tid].color;
+        row.append(chip, el("span", "name mono", TPL[tid].name));
+        if (!onFrame) {
+          row.append(el("span", "count", "candidate"));
+          row.title = "Static candidate from the mode graph — select a frame of this template for live counts";
+        } else if (kids.length) {
+          row.append(el("span", "count", `${kids.length} match${kids.length > 1 ? "es" : ""}`),
+            el("span", "go", "→ descend"));
+          row.title = "Click to descend into the first match";
+          row.addEventListener("click", () => setCursor(kids[0]));
+        } else if (tried) {
+          row.append(el("span", "count", "✗ tried, no match"));
+          row.title = "Attempted here by ordered choice and failed (G3 signal)";
+        } else {
+          row.append(el("span", "count", "— not tried"));
+          row.title = "An earlier template in the ordered choice matched first";
+        }
+        card.appendChild(row);
+      }
+      if (node.note) card.appendChild(el("div", "disp-note", node.note));
+      cards.appendChild(card);
+    } else {
+      const card = el("div", "card k-" + (node.k === "value-of" ? "value" : node.k));
+      card.append(el("span", "num", String(i + 1)), el("span", "kind", node.k),
+        el("span", "lit mono", node.lit));
+      cards.appendChild(card);
+    }
+  });
+  b.appendChild(cards);
 }
 
-function setCapHot(cur, i, on) {
-  if (!cur) return;
-  const s = document.querySelector(`[data-cap="${cur.id}:${i}"]`);
+/* --- the content renderer: a text variable's value with its child matches lit --- */
+function renderContentBox(frame) {
+  const box = el("div", "content-box");
+  renderFrameContent(box, frame);
+  return box;
+}
+
+/* frame's own capture spans render as dotted `cap` spans (hover-linked from the output
+   pane); child frames nest inside wherever their span falls */
+function renderFrameContent(container, frame) {
+  const caps = (frame.captures || []).filter(c => c.span);
+  const regions = caps.map(c => ({ start: c.span[0], len: c.span[1], cap: c }))
+    .sort((a, b) => a.start - b.start);
+  let pos = frame.start;
+  const end = frame.start + frame.len;
+  for (const r of regions) {
+    if (r.start > pos) renderRange(container, pos, r.start, childrenWithin(frame, pos, r.start), frame);
+    const capEl = el("span", "cap");
+    capEl.style.color = `var(--cap-${frame.captures.indexOf(r.cap)})`;
+    capEl.dataset.cap = frame.id + ":" + frame.captures.indexOf(r.cap);
+    renderRange(capEl, r.start, r.start + r.len, childrenWithin(frame, r.start, r.start + r.len), frame);
+    container.appendChild(capEl);
+    pos = r.start + r.len;
+  }
+  if (pos < end) renderRange(container, pos, end, childrenWithin(frame, pos, end), frame);
+}
+
+function childrenWithin(frame, from, to) {
+  return frame.children.filter(ch => ch.start >= from && ch.start + ch.len <= to);
+}
+
+function renderRange(container, start, end, children, parent) {
+  let pos = start;
+  for (const child of children) {
+    if (child.start > pos) addPlain(container, pos, child.start, parent);
+    const s = el("span", "m tpl-" + child.tpl);
+    s.title = `${TPL[child.tpl].name} — match ${siblings(child).indexOf(child) + 1} of ${siblings(child).length} here — click to descend`;
+    s.addEventListener("click", ev => { ev.stopPropagation(); setCursor(child); });
+    renderFrameContent(s, child);
+    container.appendChild(s);
+    pos = child.start + child.len;
+  }
+  if (pos < end) addPlain(container, pos, end, parent);
+}
+
+function addPlain(container, from, to, parent) {
+  const text = SAMPLE.slice(from, to);
+  if (parent.tpl === "record" && text.trim() === "") {
+    /* an unmatched gap in this frame's content: first-class and clickable (G3) */
+    const g = el("span", "gap", text);
+    g.title = "Nothing matched here — click to see what was tried";
+    g.addEventListener("click", ev => {
+      ev.stopPropagation();
+      gapMsg = `No template matched bytes ${from}–${to} of this record's content. ` +
+               `Tried in mode “fields”: kv-pair ✗. In a real trace this comes from per-attempt positions (engine ask G3).`;
+      setCursor(parent, true);
+    });
+    container.appendChild(g);
+  } else {
+    container.appendChild(document.createTextNode(text));
+  }
+}
+
+/* --- variable rows --- */
+function varRow(hue, name, src, type, value, title) {
+  const row = el("div", "var-row");
+  const chip = el("span", "chip");
+  chip.style.background = hue || "transparent";
+  const nameEl = el("span", "vname mono", name);
+  if (hue) nameEl.style.color = hue;
+  row.append(chip, nameEl, el("span", "src", src || ""), el("span", "type", type),
+    el("span", "vval mono", value));
+  if (title) row.title = title;
+  return row;
+}
+
+/* --- input vars pane --- */
+function renderInVars() {
+  const b = $("inBody");
+  b.textContent = "";
+
+  /* content: the value this frame matched against, children lit inside it */
+  const sec = el("div", "var-section");
+  sec.appendChild(el("h3", "", "content"));
+  sec.appendChild(varRow(null, "content", "", `bytes[${cursor.len}]`,
+    cursor === SOURCE ? "(the whole buffer)" : "(matched value, shown below)",
+    "The distinguished value this frame matched against"));
+  sec.appendChild(renderContentBox(cursor));
+  b.appendChild(sec);
+
+  const psec = el("div", "var-section");
+  psec.appendChild(el("h3", "", "params"));
+  psec.appendChild(el("div", "none", "(none declared)"));
+  b.appendChild(psec);
+
+  /* in scope: ancestor bindings at this frame's moment, plus child stores as sequences */
+  const ssec = el("div", "var-section");
+  ssec.appendChild(el("h3", "", "in scope"));
+  let any = false;
+  for (const anc of chainOf(cursor).slice(0, -1)) {
+    anc.captures.forEach((c, i) => {
+      any = true;
+      ssec.appendChild(varRow(`var(--cap-${i})`, "$" + c.name, "", CAP_TYPE[c.name] || "string",
+        JSON.stringify(c.value), `bound by ${TPL[anc.tpl].name} (ancestor frame)`));
+    });
+  }
+  const stores = childStores(cursor);
+  for (const [nm, vals] of stores) {
+    any = true;
+    const row = varRow(null, "$" + nm, "", `seq[${vals.length}]`, "(store after this level's run)",
+      "Child-level captures accumulate in a store the parent sees as a sequence — click to expand");
+    row.classList.add("expandable");
+    const entries = el("div", "seq-entries mono");
+    entries.style.display = "none";
+    entries.textContent = vals.map((v, i) => `[${i + 1}] ${JSON.stringify(v)}`).join("\n");
+    entries.style.whiteSpace = "pre";
+    row.addEventListener("click", () =>
+      entries.style.display = entries.style.display === "none" ? "block" : "none");
+    ssec.append(row, entries);
+  }
+  if (!any) ssec.appendChild(el("div", "none", "(nothing bound yet at this frame)"));
+  b.appendChild(ssec);
+}
+
+function childStores(frame) {
+  const map = new Map();
+  for (const ch of frame.children) for (const c of ch.captures) {
+    if (!map.has(c.name)) map.set(c.name, []);
+    map.get(c.name).push(c.value);
+  }
+  return map;
+}
+
+/* --- output vars pane --- */
+function renderOutVars() {
+  const b = $("outBody");
+  b.textContent = "";
+
+  /* captures: declaration AND value in one row — name/binding edit in place */
+  const csec = el("div", "var-section");
+  const head = el("h3", "", "captures ");
+  head.appendChild(el("span", "hint", "(rows are the declarations — rename in place)"));
+  csec.appendChild(head);
+  if (cursor.captures.length === 0) {
+    csec.appendChild(el("div", "none", cursor === SOURCE ? "(the document binds nothing)" : "(none)"));
+  } else {
+    cursor.captures.forEach((c, i) => {
+      const row = varRow(`var(--cap-${i})`, c.name, `← $${i + 1}`, CAP_TYPE[c.name] || "string",
+        JSON.stringify(c.value));
+      const pen = el("button", "edit", "✎");
+      pen.title = "Rename this capture (edits the template's declaration)";
+      pen.addEventListener("click", ev => { ev.stopPropagation(); renameCapture(cursor.tpl, i); });
+      row.appendChild(pen);
+      row.addEventListener("mouseenter", () => setCapHot(i, true));
+      row.addEventListener("mouseleave", () => setCapHot(i, false));
+      csec.appendChild(row);
+    });
+  }
+  b.appendChild(csec);
+
+  /* wrote -> output: this frame's fragment, attributed */
+  const osec = el("div", "var-section");
+  osec.appendChild(el("h3", "", "wrote → output"));
+  const box = el("div", "out-box");
+  for (const seg of outSegs) {
+    if (!isDescendant(seg.m, cursor)) continue;
+    const s = el("span", "o tpl-" + seg.m.tpl, seg.text);
+    if (seg.m === cursor) s.classList.add("own");
+    s.title = `written by ${TPL[seg.m.tpl].name} — click to jump to that frame`;
+    s.addEventListener("click", () => setCursor(seg.m));
+    box.appendChild(s);
+  }
+  osec.appendChild(box);
+  b.appendChild(osec);
+}
+
+function renameCapture(tid, i) {
+  const oldName = TPL[tid].caps[i];
+  const newName = prompt(`Rename capture "${oldName}" (declaration of ${TPL[tid].name}):`, oldName);
+  if (!newName || newName === oldName) return;
+  TPL[tid].caps[i] = newName;
+  CAP_TYPE[newName] = CAP_TYPE[oldName];
+  for (const m of byTpl[tid] || []) m.captures[i].name = newName;
+  render();
+}
+
+function setCapHot(i, on) {
+  const s = document.querySelector(`[data-cap="${cursor.id}:${i}"]`);
   if (s) s.classList.toggle("hot", on);
 }
 
-/* --- output pane with attribution --- */
-function renderOutput() {
-  const o = $("outText");
-  o.textContent = "";
-  o.classList.toggle("focused", !!cursor);
-  const onpath = cursor ? new Set(chainOf(cursor).map(m => m.id)) : new Set();
-  for (const seg of outSegs) {
-    if (!seg.m) { o.appendChild(document.createTextNode(seg.text)); continue; }
-    const s = el("span", "o tpl-" + seg.m.tpl, seg.text);
-    s.title = `written by ${TPL[seg.m.tpl].name} — click to jump to the match`;
-    if (cursor) {
-      if (seg.m.id === cursor.id) s.classList.add("hot");
-      else if (onpath.has(seg.m.id)) s.classList.add("onpath");
-    }
-    s.addEventListener("click", () => setCursor(seg.m));
-    o.appendChild(s);
-  }
-  const hot = o.querySelector(".o.hot");
-  if (hot) hot.scrollIntoView({ block: "nearest" });
+function render() { renderTpls(); renderCrumb(); renderStrip(); renderInVars(); renderOutVars(); renderRunBtn(); }
+
+function renderRunBtn() {
+  const b = $("runBtn");
+  b.classList.toggle("stale", stale);
+  b.title = stale ? "Config changed — re-run to refresh the trace (mockup: trace stays static)" : "";
 }
 
-function render() { renderTpls(); renderData(); renderCrumb(); renderDetail(); renderOutput(); }
+/* ================= pattern workbench ================= */
+
+let wbTpl = null;
+
+function openWorkbench(tid) {
+  wbTpl = tid;
+  $("wbName").textContent = TPL[tid].name;
+  $("wbPat").value = TPL[tid].pattern;
+  updateWb();
+  $("wbOverlay").hidden = false;
+  $("wbPat").focus();
+}
+
+function updateWb() {
+  const pat = $("wbPat").value;
+  const err = $("wbErr"), groups = $("wbGroups"), test = $("wbTest");
+  groups.textContent = ""; test.textContent = "";
+  let re = null;
+  try { re = new RegExp(pat); err.textContent = ""; }
+  catch (e) { err.textContent = String(e.message || e); }
+  if (!re) { groups.appendChild(el("div", "none", "—")); return; }
+
+  /* group count via the exec-on-empty trick; names from (?<name>...) syntax */
+  const count = new RegExp(pat + "|").exec("").length - 1;
+  const names = [...pat.matchAll(/\(\?<([A-Za-z_][A-Za-z0-9_]*)>/g)].map(m => m[1]);
+  if (count === 0) groups.appendChild(el("div", "none", "(no capturing groups)"));
+  for (let i = 1; i <= count; i++) {
+    const g = el("div", "g");
+    const chip = el("span", "chip"); chip.style.background = `var(--cap-${i - 1})`;
+    g.append(chip, el("span", "mono", "$" + i),
+      el("span", "", names[i - 1] ? `→ capture "${names[i - 1]}"` : `→ capture "${(TPL[wbTpl].caps || [])[i - 1] || "(unnamed)"}"`));
+    groups.appendChild(g);
+  }
+
+  /* live test against the current frame's content */
+  const frame = cursor.tpl === wbTpl ? cursor : (byTpl[wbTpl] || [])[0];
+  if (!frame) { test.textContent = "(no matching frame in the trace — the real editor lets you paste test content)"; return; }
+  const content = SAMPLE.slice(frame.start, frame.start + frame.len);
+  const m = re.exec(content);
+  if (!m) { test.textContent = content + "\n\n✗ no match against this frame's content"; return; }
+  test.append(document.createTextNode(content.slice(0, m.index)));
+  const mk = document.createElement("mark"); mk.textContent = m[0];
+  test.appendChild(mk);
+  test.append(document.createTextNode(content.slice(m.index + m[0].length)));
+  const gl = el("div", "", m.slice(1).map((v, i) => `$${i + 1} = ${JSON.stringify(v ?? null)}`).join("   "));
+  gl.style.marginTop = "6px"; gl.style.color = "var(--muted)";
+  test.appendChild(gl);
+}
+
+$("wbPat").addEventListener("input", updateWb);
+$("wbCancel").addEventListener("click", () => { $("wbOverlay").hidden = true; });
+$("wbOverlay").addEventListener("click", ev => { if (ev.target === $("wbOverlay")) $("wbOverlay").hidden = true; });
+$("wbApply").addEventListener("click", () => {
+  TPL[wbTpl].pattern = $("wbPat").value;
+  stale = true;
+  $("wbOverlay").hidden = true;
+  render();
+});
 
 /* ================= keyboard ================= */
 
 document.addEventListener("keydown", ev => {
-  if (!ev.altKey || !cursor) return;
-  const all = byTpl[cursor.tpl], gi = all.indexOf(cursor);
-  const sibs = siblings(cursor), i = sibs.indexOf(cursor);
+  if (ev.key === "Escape" && !$("wbOverlay").hidden) { $("wbOverlay").hidden = true; return; }
+  if (!ev.altKey) return;
   let next = null;
-  if (ev.key === "ArrowLeft")  next = ev.shiftKey ? all[gi - 1] : sibs[i - 1];
-  if (ev.key === "ArrowRight") next = ev.shiftKey ? all[gi + 1] : sibs[i + 1];
-  if (ev.key === "ArrowUp")    next = cursor.parent;
-  if (ev.key === "ArrowDown")  next = cursor.children[0];
+  if (cursor !== SOURCE) {
+    const all = byTpl[cursor.tpl], gi = all.indexOf(cursor);
+    const sibs = siblings(cursor), i = sibs.indexOf(cursor);
+    if (ev.key === "ArrowLeft")  next = ev.shiftKey ? all[gi - 1] : sibs[i - 1];
+    if (ev.key === "ArrowRight") next = ev.shiftKey ? all[gi + 1] : sibs[i + 1];
+    if (ev.key === "ArrowUp")    next = cursor.parent;
+  }
+  if (ev.key === "ArrowDown") next = cursor.children[0];
   if (next) { ev.preventDefault(); setCursor(next); }
 });
 
 $("runBtn").addEventListener("click", () => {
   /* the real button re-runs the preview; here the trace is static, so just re-render */
+  stale = false;
   const b = $("runBtn");
   b.textContent = "✓ Ran";
   setTimeout(() => { b.innerHTML = "&#9654; Run"; }, 700);
   render();
 });
 
-/* initial position: the quoted value in record 2 — three levels deep, shows the whole idea */
+/* initial position: the quoted value in record 2 — three levels down, shows the whole idea */
 setCursor(byTpl.quoted[0]);
 </script>
 </body>
