@@ -569,7 +569,18 @@ The baseline pins to a **commit**, not to the working tree: this plan's own comm
 pre-implementation reference, so implementation may begin ahead of the run. Tonight's evening
 slot then runs the full engine suite and `CaseCatalogueBenchmark` **checked out at that
 commit**, recorded to `design/benchmarks/` under its hash — the *before* of every later
-comparison (§13). The
+comparison (§13).
+
+*Landed 2026-08-26. Run in an isolated `git worktree` pinned to `8286556d1d`, so implementation
+already on the branch was neither disturbed nor allowed to leak into the numbers — the `jmh`
+task's own commit-hash naming did the rest, no manual bookkeeping needed. Two files:
+`2026-08-26-1803-8286556d1d-engine.json` (`EngineBenchmark`, the fixture corpus, 25 forks) and
+`2026-08-26-1815-8286556d1d-xml.json` (`CaseCatalogueBenchmark` at 10k/100k plus
+`XmlBaselineBenchmark` at 10k/100k/1M, 10 forks). Both builds clean, no errors. **One row to
+flag before it is used as a comparison anchor:** `CaseCatalogueBenchmark.shapeshifterTransform`
+on `nasty_xml` at 100k reports ±515 ms on a 1183 ms score (~44% relative) against single-digit
+neighbours — a D21-shaped anomaly. Re-run in isolation before trusting a phase-3/7 delta on
+that specific row; every other row's error bars are unremarkable.* The
 `substring` audit is already taken (2026-08-25): **five configs** carry the 0-based form —
 four fixtures, all version 3 (`apache_httpd` ×29, `xml_to_json`/`_attrs`/`_unified` ×1
 each), and the `string_functions` challenger at version 4 (×1). That list is phase 6's
