@@ -1078,7 +1078,7 @@ public final class ProjectJson {
                 checkFields(body, "substring", "select", "start", "length", "name");
                 yield new OutputNode.Substring(
                         list(body.get("select"), "select", ProjectJson::readRef),
-                        body.path("start").asInt(0),
+                        body.has("start") && !body.get("start").isNull() ? body.get("start").asInt() : null,
                         body.has("length") && !body.get("length").isNull() ? body.get("length").asInt() : null,
                         optionalText(body, "name"));
             }
@@ -1264,7 +1264,9 @@ public final class ProjectJson {
             case OutputNode.Substring value -> {
                 final ObjectNode body = NODES.objectNode();
                 body.set("select", array(value.select(), ProjectJson::writeRef));
-                body.put("start", value.start());
+                if (value.start() != null) {
+                    body.put("start", value.start());
+                }
                 if (value.length() != null) {
                     body.put("length", value.length());
                 }

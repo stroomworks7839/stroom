@@ -239,10 +239,11 @@ public sealed interface CompiledOp {
                     // A version-5 start below 1 follows XPath's rule: the window is
                     // [start, start + length) intersected with the string, so the length
                     // shrinks by the part that fell before position 1 (phase 5 audit) —
-                    // substring(x, 0, 3) is the first two characters, not three.
-                    int start = value.start();
+                    // substring(x, 0, 3) is the first two characters, not three. An
+                    // omitted start is "from the beginning" under either base.
+                    int start = value.start() == null ? 0 : value.start();
                     Integer length = value.length();
-                    if (project.version() >= 5) {
+                    if (project.version() >= 5 && value.start() != null) {
                         start = start - 1;
                         if (start < 0 && length != null) {
                             length = Math.max(0, length + start);

@@ -1,6 +1,6 @@
 {
  "name": "string_functions",
- "version": 4,
+ "version": 5,
  "source": {
   "buffer_size": 100000,
   "ignore_errors": false,
@@ -192,7 +192,7 @@
         ]
        }
       ],
-      "start": 0,
+      "start": 1,
       "length": 3
      }
     },

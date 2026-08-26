@@ -727,6 +727,32 @@ the sweep the ruling asked for: every §16 ruling has a test that names it — t
 gate maps semantics exactly; the ledger records the migration; the §16 sweep finds no
 untested ruling.*
 
+*Landed 2026-08-26, under the user's standing constraint that DS3 compatibility is
+untouched — held by construction: the audit list contains no DS3 artifact, no `legacy/`
+input moved, and `Ds3Migration` emits version 3 hard-coded, so imported configurations stay
+in their era permanently. The migration was smaller than planned, for a reason worth the
+note: the four fixtures' substrings **omit** `start` entirely, which surfaced the real rule —
+an omitted start means "from the beginning" under either base — so `Substring.start` became
+nullable rather than defaulting to a number whose meaning moves at the gate, and the
+fixtures needed only the version bump with `"dispatch": "lax"` pinned first (the
+two-defaults trap, §15). All four goldens byte-identical at version 5; the challenger's one
+explicit `start: 0` became `start: 1` and holds Saxon parity; the bump warning is gone from
+all five and `MigrationWarningCheck` pins that permanently. The planned keep-one-at-v4
+fixture is satisfied by `DiagnosticsTest` instead, which pins the 0-based reading directly at
+version 4 — the engine's own rule that what fixtures cannot reach is tested directly.*
+
+*The §16 sweep, ruling by ruling: (1) instructions-not-expressions is structural — no
+expression parser exists — with the vocabulary pinned by `TransformsTest` and
+`EveryVariantTest`; (2) the version gate by `DiagnosticsTest` from both bases plus the
+XPath edge, and now by the migration itself; (3) strict comparison, the `as`-casts, the
+`eq`–`ge` naming and the aliases with their absent rule by `CompareSpineTest` and the
+`comparison` case; (4) **tokenize-binds-a-sequence is the sweep's one open item — it awaits
+design 16's sequence store, deliberately, and is recorded here rather than skipped**;
+(5) the parameter deferral needs no test beyond `Shapeshifter.run`'s unchanged signature;
+(6) the diagnostics by `DiagnosticsTest`, with E25 as the field evidence; (7) the `Instant`
+by `TypedValueTest`, `DatesTest` and the `dates` case; (8) the `Real` rendering by
+`TypedValueTest` and the `value_types` case against Saxon live.*
+
 **Phase 7 — close.**
 The full evening A/B against phase 0 (§13), the write-up recorded like every measured
 change. [14-xslt-coverage-matrix.md](14-xslt-coverage-matrix.md) updated: the

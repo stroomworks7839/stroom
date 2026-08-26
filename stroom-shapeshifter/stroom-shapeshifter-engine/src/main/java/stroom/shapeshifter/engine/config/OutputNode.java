@@ -209,11 +209,13 @@ public sealed interface OutputNode {
      * (design/17 §7, superseding E21's documented-not-aligned ruling): below version 5
      * {@code start} is 0-based, faithful to the ported library and existing configurations;
      * from version 5 it is 1-based, XSLT's own reading, with a start below 1 shrinking the
-     * window per XPath's rule. The compiler warns, once per configuration, on any
+     * window per XPath's rule. An <b>omitted</b> start means "from the beginning" under
+     * either base — which is why it is nullable rather than defaulting to a number that
+     * would change meaning at the gate. The compiler warns, once per configuration, on any
      * pre-version-5 configuration a bump would change.
      */
     record Substring(List<RefExpression> select,
-                     int start,
+                     Integer start,
                      Integer length,
                      String name) implements OutputNode {
 
