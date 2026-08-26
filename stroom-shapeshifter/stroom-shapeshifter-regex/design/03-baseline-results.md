@@ -143,7 +143,7 @@ deliberately polymorphic call site is needed before drawing conclusions about th
 | 4 | 10–100 MB fixtures | Whether the byte footprint advantage appears once out of cache |
 | 5 | SWAR/Vector API scan kernels | The ceiling of the tier 0 approach, versus the floor measured here |
 | 6 | The real DS3 parser end to end | What fraction of a whole parse is regex at all — the number that decides whether any of this matters in production |
-| 7 | `String`/`char[]` → `byte[]` at the pipeline boundary | The cost of insisting on byte input when an upstream element supplies characters. This is the scenario behind the rejected character mode ([D13](00-decisions.md)); expected to be cheap for ASCII for the same compact-string reason as §4.2, but it is the measurement that would reopen the decision |
+| 7 | `String`/`char[]` → `byte[]` at the pipeline boundary | The cost of insisting on byte input when an upstream element supplies characters. This is the scenario behind the rejected character mode ([D13](../../design/00-decisions.md)); expected to be cheap for ASCII for the same compact-string reason as §4.2, but it is the measurement that would reopen the decision |
 
 Follow-up 6 is the one that could most change the plan: if regex is a small share of total DS3
 parse time, a 3× faster matcher is worth correspondingly less, and the streaming/composability

@@ -2,8 +2,8 @@
 
 The test corpus of the Rust `shapeshifter` project, vendored from `ds-rs` at commit
 `996aa7acb9c0820cd7617d62cc799ca37160e0f1` on 2026-08-20. It is the acceptance test for the
-port ([D33](../../../../design/00-decisions.md),
-[07-engine-port-plan.md](../../../../design/07-engine-port-plan.md)).
+port ([D33](../../../../../design/00-decisions.md),
+[07-engine-port-plan.md](../../../../../design/07-engine-port-plan.md)).
 
 `status.txt` is the index and the ratchet. Every fixture the suite knows about has a line
 there; nothing is discovered by walking directories, so a fixture cannot be vendored and then
@@ -57,7 +57,7 @@ messages found, which is what justified recording them.
 from ds-rs's own output and never checked. All four have since been diagnosed, fixed at the
 configuration, and re-frozen under review: `win_sec` and `win_sec_xml` (E6, E16),
 `apache_httpd` (E7) and `xml_to_json` (E8). Every one was a configuration defect. The evidence
-is in [08-fixture-audit.md](../../../../design/08-fixture-audit.md) and
+is in [08-fixture-audit.md](../../../../../design/08-fixture-audit.md) and
 [ISSUES.md](../../../../ISSUES.md).
 
 ## What was left behind

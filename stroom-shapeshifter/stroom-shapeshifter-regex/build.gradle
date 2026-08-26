@@ -57,7 +57,7 @@ tasks.named('check') { dependsOn 'verifyZeroDependencies' }
 // That is deliberate: a throughput figure that exists only in a terminal scrollback cannot be
 // compared with the next one, and comparing runs is the whole point — see decision D21, where a
 // single-fork harness was shown to move 25% between runs of the same binary. The markdown tables
-// in design/05-engine-benchmarks.md are rendered from these files by tools/render-benchmark.py
+// in design/05-engine-benchmarks.md are rendered from these files by ../tools/render-benchmark.py
 // rather than transcribed by hand.
 tasks.register('jmh', JavaExec) {
     group = 'verification'

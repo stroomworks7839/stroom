@@ -78,7 +78,7 @@ Full `java.util.regex` compatibility is explicitly future work (§8).
 ### 2.3 Beyond the RE2 subset: the fancy tier
 
 The constructs that are not regular compile and run natively, on the unbounded backtracker
-([D27](00-decisions.md)) — a fourth engine that only patterns containing one of these
+([D27](../../design/00-decisions.md)) — a fourth engine that only patterns containing one of these
 constructs ever reach. Writing the construct is the opt-in; `explain()` names the engine; and
 the price is stated in §8: the linear-time guarantee becomes a step budget, so a pathological
 pattern-input pair raises `MatchLimitException` instead of hanging.
@@ -552,9 +552,9 @@ The invariant that matters, and that the test suite exists to defend:
 
 ## 8. The second dialect: delegating to `java.util.regex`
 
-> **Superseded by [D27](00-decisions.md).** The constructs this section delegates —
+> **Superseded by [D27](../../design/00-decisions.md).** The constructs this section delegates —
 > backreferences, lookaround, atomic groups — now compile natively to the fancy tier (§2.3):
-> once [D25](00-decisions.md) had built a bounded backtracker, the unbounded one stopped being
+> once [D25](../../design/00-decisions.md) had built a bounded backtracker, the unbounded one stopped being
 > "the single largest item it is possible to remove" and became a few hundred lines over the
 > same program representation. One dialect, no decode boundary, and the containment this
 > section designs (§8.3) survives as the step budget. The section is kept as the record of

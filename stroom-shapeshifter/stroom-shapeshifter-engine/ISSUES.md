@@ -295,7 +295,7 @@ gap list of what is interpreted rather than compiled, is
 
 Correct as far as 198 tests can show, and entirely unmeasured. The matching layer has a benchmark
 suite, checked-in results and a scoreboard ([D21](../design/00-decisions.md),
-[05-engine-benchmarks.md](../design/05-engine-benchmarks.md)); this layer has none of it. D33
+[05-engine-benchmarks.md](../stroom-shapeshifter-regex/design/05-engine-benchmarks.md)); this layer has none of it. D33
 deferred it until the suite was green, which it now is.
 
 Known costs nobody has measured, listed so they are not re-derived: `Tag` steps encode their text

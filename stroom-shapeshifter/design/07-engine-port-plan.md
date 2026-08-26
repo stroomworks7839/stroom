@@ -1,6 +1,6 @@
 # Engine port plan — ds-rs to `stroom-shapeshifter-engine`
 
-The matching layer is finished and measured ([05](05-engine-benchmarks.md), [06](06-performance-plan.md)).
+The matching layer is finished and measured ([05](../stroom-shapeshifter-regex/design/05-engine-benchmarks.md), [06](../stroom-shapeshifter-regex/design/06-performance-plan.md)).
 This is the plan for the layer above it: porting the `shapeshifter` crate from `ds-rs`
 (`/mnt/shared/ds-rs/engine`) into `stroom-shapeshifter-engine`, together with its whole test
 corpus. It is the work D12 promised — "the whole engine comes to Java eventually" — and it is

@@ -75,7 +75,7 @@ import java.util.concurrent.TimeUnit;
  * {@code MB/s = ops/s × fixture bytes ÷ 1,048,576}. The fixture size is reported by
  * {@code fixtureBytes()} to make that conversion possible.
  *
- * <p>Results: see {@code stroom-shapeshifter/design/03-baseline-results.md}.
+ * <p>Results: see {@code design/03-baseline-results.md}.
  */
 @Fork(1)
 @BenchmarkMode(Mode.Throughput)

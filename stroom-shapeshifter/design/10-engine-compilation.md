@@ -259,7 +259,7 @@ baseline.
 ## 9. Change 4, measured: the engine forgets what anchoring is
 
 The regex library now exits early for input-anchored patterns on its own parsed knowledge
-([06-performance-plan.md §1, Done 2026-08-21](06-performance-plan.md)), so change 1's
+([06-performance-plan.md §1, Done 2026-08-21](../stroom-shapeshifter-regex/design/06-performance-plan.md)), so change 1's
 caller-side sniff retired: `CompiledMatch.Regex` lost its `anchoring` field, and the executor
 asks the one honest question every time — DS3's own shape, restored on evidence. Correctness
 gate unchanged (52/52, 242 tests). Measured against a fresh same-night baseline

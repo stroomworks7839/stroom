@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Render a JMH JSON result file as the markdown table used in design/05-engine-benchmarks.md.
+"""Render a JMH JSON result file as the markdown table used in
+stroom-shapeshifter-regex/design/05-engine-benchmarks.md.
 
     tools/render-benchmark.py design/benchmarks/2026-08-18-1030-abc1234.json
 

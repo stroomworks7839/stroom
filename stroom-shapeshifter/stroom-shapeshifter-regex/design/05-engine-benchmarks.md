@@ -1,6 +1,6 @@
 # Engine vs `java.util.regex` — corpus coverage and throughput
 
-Run: 2026-08-17, re-run after the dialect moved to Rust semantics ([D19](00-decisions.md)).
+Run: 2026-08-17, re-run after the dialect moved to Rust semantics ([D19](../../design/00-decisions.md)).
 JMH 1.37, JDK 25, **5 forks**, 3×1s warmup, 5×1s measurement, one machine.
 
 > **Read §2.0 before quoting any number below.** The forks are not a detail: measured with one
@@ -30,7 +30,7 @@ and possessive quantifiers. That is worth comparing with the
 38% measured over this repository's own DS3 test fixtures
 ([04-corpus-analysis.md](04-corpus-analysis.md)): those fixtures are unusually heavy in `.*` and
 optional-prefix ambiguity, and are not representative of realistic patterns. It also weakens the
-urgency of [D18](00-decisions.md), since the slow tier turns out to be a smaller share of real
+urgency of [D18](../../design/00-decisions.md), since the slow tier turns out to be a smaller share of real
 work than the fixtures suggested.
 
 **All 1,377 pattern/input comparisons agree with `java.util.regex` exactly** — same match, same
@@ -45,7 +45,7 @@ since been implemented, which is why the `UNSUPPORTED` count is now zero:
 - **`\p{...}`** covers general categories by short code and long name, the `Is` names and
   scripts, built by asking the JDK about every code point once and caching. The ASCII POSIX
   classes are spelt `[[:alpha:]]` and only that way; `\p{Alpha}` is refused rather than given
-  one of its two possible meanings ([D19](00-decisions.md)).
+  one of its two possible meanings ([D19](../../design/00-decisions.md)).
 
 The tier 0 share fell from 77% to 74% with the dialect change, for a reason worth stating: a
 repetition followed by `\b` is no longer judged one-pass. It never was — a greedy scan runs past
@@ -105,9 +105,9 @@ Each workload runs a realistic pattern over 2,000 records and extracts every cap
 
 Errors are JMH's, spanning five forks; the ratio band is the worst and best pairing of the two
 intervals. Geometric mean over the eight tier 0 workloads: **1.53×**. Rendered from
-`benchmarks/2026-08-18-1255-de1341be20.json`.
+`../../design/benchmarks/2026-08-18-1255-de1341be20.json`.
 <p>
-Tier 0 is unchanged from before [D23](00-decisions.md) and [D24](00-decisions.md) — every one of
+Tier 0 is unchanged from before [D23](../../design/00-decisions.md) and [D24](../../design/00-decisions.md) — every one of
 those eight is *indistinguishable* run to run, which is the control working, since a scan plan
 never touches the NFA. Tier 1 moved by 3.4× and 2.4×.
 
@@ -158,7 +158,7 @@ That is a fair description of the engine's weak case and worth keeping visible.
 
 ### 2.1a What Unicode-by-default cost, and what got it back
 
-Making `\w \d \s` Unicode ([D19](00-decisions.md)) is not free in a byte engine. An ASCII
+Making `\w \d \s` Unicode ([D19](../../design/00-decisions.md)) is not free in a byte engine. An ASCII
 `\d` is ten entries in a 256-byte table and a scan over it is one lookup per byte; a Unicode
 `\d` is `\p{Nd}`, which compiles to dozens of UTF-8 byte-range sequences and has to be scanned
 per *character*. The first measurement after the change:
@@ -177,7 +177,7 @@ consulted. Input that is overwhelmingly ASCII — which log data is, even when i
 accented text — then costs one table lookup per character again.
 
 What remains is a real 10–20% against the ASCII-only engine, and it is
-[D18](00-decisions.md)'s argument restated: a DFA over bytes does not care how many sequences a
+[D18](../../design/00-decisions.md)'s argument restated: a DFA over bytes does not care how many sequences a
 class expands to, so the cost disappears entirely on the tier it would replace.
 
 ### 2.2 One defect found and fixed by this benchmark
@@ -193,7 +193,7 @@ Most real DS3 patterns are `^`-anchored, so this applies broadly.
 
 ### 2.3 The tier 1 cliff is confirmed on realistic patterns
 
-27× and 71× slower than the JDK. This is the same gap [D18](00-decisions.md) records, now
+27× and 71× slower than the JDK. This is the same gap [D18](../../design/00-decisions.md) records, now
 measured on realistic patterns rather than a synthetic one. Set against §1, the picture is:
 **the cliff is severe but applies to roughly a fifth of accepted patterns**, and an author can
 be told which side they are on, because the engine reports the tier and the reason.
@@ -270,7 +270,7 @@ path may close a target off now.
 ## 6. The Rust `regex` corpus
 
 Adopted under Apache-2.0 (`src/test/resources/rust-regex/`, converted from the upstream TOML by
-`tools/convert-rust-corpus.py` so the module keeps zero dependencies).
+`../../tools/convert-rust-corpus.py` so the module keeps zero dependencies).
 
 **665 of its 771 cases convert; 645 load and 409 execute.** The conversion drops only tests that
 ask a *different question* — leftmost-longest semantics, earliest/overlapping search, match
@@ -281,7 +281,7 @@ visible instead of being filtered away. The refusals are dominated by `(?R)` (10
 `\b{...}` (90), both Rust-only, plus ten quantified zero-width assertions this engine declines
 on purpose.
 
-Adopting Rust's semantics ([D19](00-decisions.md)) is what raised the comparable count from 306:
+Adopting Rust's semantics ([D19](../../design/00-decisions.md)) is what raised the comparable count from 306:
 the previous conversion excluded 180 non-ASCII cases and 34 Unicode-shorthand cases purely
 because the dialect then disagreed about them.
 
@@ -374,7 +374,7 @@ most important measurement in this document.
 | structured | 112338 ± 352 | 255637 ± 4454 | **0.44×** | 0.07× | 0.003× |
 | identifiers | 85585 ± 466 | 201984 ± 1529 | **0.42×** | 0.34× | 0.33× |
 
-Rendered from `benchmarks/2026-08-18-1255-de1341be20.json` by `tools/render-benchmark.py`,
+Rendered from `../../design/benchmarks/2026-08-18-1255-de1341be20.json` by `../../tools/render-benchmark.py`,
 against `2026-08-18-0920` and `2026-08-18-0752` for the last two columns.
 Compilation is in `@Setup` on both sides, matchers are built there too and the JDK's are reused
 with `reset`, so this times execution only, warm. An earlier run that built our matcher inside the
@@ -423,7 +423,7 @@ sequences, tested against the input — rather than as branches in a program.
 
 ### 7.3 Why the existing benchmarks could not see it
 
-This is a regression introduced by [D19](00-decisions.md) making the shorthands Unicode, and it
+This is a regression introduced by [D19](../../design/00-decisions.md) making the shorthands Unicode, and it
 went unmeasured for a straightforward reason: `CorpusBenchmark`'s two tier 1 workloads use `.`,
 `[^"]` and `[^ ]`, none of which expand, while every workload that uses `\w` or `\d` happens to
 be tier 0. The benchmark set had no member that was both tier 1 and Unicode-classed. Ten patterns
@@ -433,7 +433,7 @@ unflattering did, immediately.
 ### 7.4 What was done about it
 
 Classes now compile to a **byte-range trie with shared tails** rather than a flat alternation
-([D23](00-decisions.md)). Sharing suffixes alone would not have been enough — the `SPLIT` dispatch
+([D23](../../design/00-decisions.md)). Sharing suffixes alone would not have been enough — the `SPLIT` dispatch
 is itself one instruction per sequence — so the trie shares at both ends, and ranges reaching the
 same subtree without being adjacent merge into one table-driven branch rather than one branch each.
 
@@ -472,7 +472,7 @@ from its lead bytes, so 31 threads advance in lockstep at every input position.
 
 ### 7.6 Collapsing the width: one dispatch per class
 
-The width *was* the cost, so it was attacked directly ([D24](00-decisions.md)): a trie node whose
+The width *was* the cost, so it was attacked directly ([D24](../../design/00-decisions.md)): a trie node whose
 branches are disjoint — nearly always — becomes a single instruction carrying a 256-entry
 byte-to-successor table, instead of one branch per range.
 
@@ -494,8 +494,8 @@ measurement in §7.5 is what pointed at the width, and the width is what moved.
 
 ## 8. Where tier 1's time actually goes
 
-Written to settle [D18](00-decisions.md), whose case for a lazy DFA rested on numbers that
-[D23](00-decisions.md) and [D24](00-decisions.md) had made obsolete.
+Written to settle [D18](../../design/00-decisions.md), whose case for a lazy DFA rested on numbers that
+[D23](../../design/00-decisions.md) and [D24](../../design/00-decisions.md) had made obsolete.
 
 **The sampling profiler was misleading.** It attributed roughly half of the identified samples to
 `ThreadList.add`, which copies a thread's capture-slot row on every step. Removing that copy
@@ -516,7 +516,7 @@ and the attribution that remained pointed at the wrong thing. **Capture copying 
 **Tier 1 costs a flat 21–27 ns per input byte whatever the pattern**, against 1.5–9.5 for tier 0.
 That constancy is the finding: it is fixed overhead per input *position* — the outer loop, the
 thread-list swap and generation stamp, the closure array indirections, the slot bookkeeping — and
-not anything that scales with the pattern. Since [D24](00-decisions.md) put the thread width at 1,
+not anything that scales with the pattern. Since [D24](../../design/00-decisions.md) put the thread width at 1,
 there is no longer any thread multiplicity to blame. Mean penalty 10.5×.
 
 ### 8.1 What this means for the DFA
@@ -537,13 +537,13 @@ the case Rust keeps one for.
 
 **Recommendation: a bounded backtracker, not a lazy DFA.** It targets the measured 24 ns/byte
 rather than a thread-width problem that no longer exists, it needs none of
-[D18.1](00-decisions.md)'s state-cache machinery, and it does the thing the DFA cannot.
+[D18.1](../../design/00-decisions.md)'s state-cache machinery, and it does the thing the DFA cannot.
 
 ---
 
 ## 9. The backtracker, measured
 
-Written to close [D25](00-decisions.md): the recommendation at the end of §8 was built, and this
+Written to close [D25](../../design/00-decisions.md): the recommendation at the end of §8 was built, and this
 section records what it actually bought. A note on numbering, since the engine count changed
 under this document: §§1–8 say "tier 1" for the NFA simulation, because there were two tiers when
 they were written. With the backtracker between the scan plan and the simulation, the simulation
@@ -573,7 +573,7 @@ determined-wrongly would silently truncate a match.
 ### 9.1 The first measurement was mixed, and the prediction wrong
 
 §8 predicted "several times faster on the short records this engine is meant for". The first run
-(`benchmarks/2026-08-18-1900-a7d06f2236.json` against the `1255` baseline) said otherwise: csv
+(`../../design/benchmarks/2026-08-18-1900-a7d06f2236.json` against the `1255` baseline) said otherwise: csv
 +54.7%, weblog +37.4%, structured +19.0% — but syslog **−12.5%**, TIER1_GREEDY **−11.4%**, quoted
 −4.7%, fixedwidth −4.6%. A wash with large variance by workload is not a win, and it was not
 committed as one.
@@ -589,7 +589,7 @@ proportional to the *input*, and on short inputs the program is the larger of th
 The fix: one byte per cell instead of one bit, stamped with the search's generation rather than
 cleared between searches. Zeroing now happens once every 127 searches, and an eightfold size
 increase buys its removal from the per-search path. Re-measured
-(`benchmarks/2026-08-18-1948-a7d06f2236.json` against the same baseline), the whole-corpus suite
+(`../../design/benchmarks/2026-08-18-1948-a7d06f2236.json` against the same baseline), the whole-corpus suite
 on short records reads:
 
 | Category | Before | After | Change | Verdict |
@@ -620,7 +620,7 @@ The buffer-scale suite (`CorpusBenchmark`, 2,000-record buffers) is structurally
 its searches pass the whole remaining buffer as the region, the budget arithmetic sends those to
 the simulation, and the backtracker runs only in the last kilobyte or so. Its scores moved most
 on the two workloads with the largest recorded fork spread (QUOTED's baseline error bar is ±10%;
-see §2.0 and [D21](00-decisions.md)), which is spread, not effect.
+see §2.0 and [D21](../../design/00-decisions.md)), which is spread, not effect.
 
 ### 9.3 Where this leaves the engine against the JDK
 
@@ -662,7 +662,7 @@ never does. The visited set bounds it; it does not remove it. Three options were
 - **Revert the default** — the position §9.1 would have taken had the re-measurement stayed
   mixed. It did not.
 
-Recorded as [D26](00-decisions.md). The engine's cost model is now: scan plan 1.5–9.5 ns/byte
+Recorded as [D26](../../design/00-decisions.md). The engine's cost model is now: scan plan 1.5–9.5 ns/byte
 where the pattern is one-pass, backtracking a few ns/byte typical on short records where the
 budget admits it, simulation at 21–27 ns/byte as the floor under everything — and all three
 provably agreeing, which is what `compileForcing` and the three-way differential exist to keep
@@ -672,8 +672,8 @@ true.
 
 ## 10. The fancy tier, measured
 
-The first numbers for [D27](00-decisions.md)'s engine, from
-`benchmarks/2026-08-19-1028-ba6a94e719.json` — three workloads in `CorpusBenchmark`, each a
+The first numbers for [D27](../../design/00-decisions.md)'s engine, from
+`../../design/benchmarks/2026-08-19-1028-ba6a94e719.json` — three workloads in `CorpusBenchmark`, each a
 construct only the fancy tier and the JDK can run. This is the one comparison in this document
 where the JDK plays at home: both engines backtrack, so there is no algorithm-family advantage
 to collect, and the only edges available are byte-level execution against a decoded `String`
@@ -702,7 +702,7 @@ One cross-run caveat, in the D21 tradition: this run's machine was not idle.
 `javaRegexFromBytes` — code no commit touched — moved −5.0% against the `1948` baseline while
 `javaRegex` was flat, so the small negative drift on this run's other shapeshifter rows
 measures the machine, not the engine. The ratios above are within-run and unaffected; the
-comparability note is in `benchmarks/README.md`.
+comparability note is in `../../design/benchmarks/README.md`.
 
 ### 10.1 The fancy tier, optimised
 
@@ -764,12 +764,12 @@ fancy workloads (dense, line-anchored matches), so they wait for a workload that
 **The structural difference: a pattern-shaped compilation unit.** Not the existence of a
 tree — this engine parses to the same tree (the HIR: atoms, alternation, groups), and the
 composition layer is a second one. The difference is its fate: here the tree is an
-intermediate representation that [D8](00-decisions.md) deliberately compiles away, and a flat
+intermediate representation that [D8](../../design/00-decisions.md) deliberately compiles away, and a flat
 program executes; in the JDK the tree *is* the runtime, walked through virtual `match()`
 calls. That is only possible because backtracking is the one algorithm whose execution
 structure is a tree walk — a breadth-first simulation has no call shape, a suspendable
 streaming state cannot be a Java call stack, and the three-engine correctness argument
-([D27](00-decisions.md)) needs one shared program that no engine owns. The flattening is
+([D27](../../design/00-decisions.md)) needs one shared program that no engine owns. The flattening is
 load-bearing here, not a missed trick.
 
 `Pattern.compile` builds a
@@ -862,7 +862,7 @@ already on the plan.
 **Per-match suite** (`PatternCorpusBenchmark`): **10 ahead, 3 behind.** The tree engine sweeps
 here — syslog 1.31×, stress 1.41×, fancy 1.50× ahead of the JDK per match — which, with the
 buffer results, makes it the best engine on 18 of the 29 variants and materially strengthens
-[D30](00-decisions.md)'s case. Behind: datetime 0.67×, network 0.89×, fixedwidth 0.86×.
+[D30](../../design/00-decisions.md)'s case. Behind: datetime 0.67×, network 0.89×, fixedwidth 0.86×.
 
 **What the new workloads found on their first outing:**
 
@@ -889,7 +889,7 @@ next session caught both before any code was "fixed". The workload's first spell
 `^([\p{L}0-9]+): (.*) (\d+)$` — is ambiguous (`.*` and the space after it overlap), so it
 never reached the scan plan at all: 501 ops/s over that buffer is ~22 ns/byte, the
 simulation's §8 flat cost to the nanosecond, with nothing Unicode about it. That data point
-folds into [D30](00-decisions.md)'s existing case, where the tree engine already answers it.
+folds into [D30](../../design/00-decisions.md)'s existing case, where the tree engine already answers it.
 
 The workload now says what its javadoc always claimed — one-pass, so the bill lands on the
 scan plan — and the corrected measurement (`2026-08-19-1735`) reads: **scan plan 3,531 ± 61,

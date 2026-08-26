@@ -449,7 +449,7 @@ its select resolved to a name at compile time. Nothing is looked up per iteratio
 have been looked up once.
 
 Costs, stated as expectations to be measured rather than claims (D21, and
-[06-performance-plan.md](06-performance-plan.md)'s method notes):
+[06-performance-plan.md](../stroom-shapeshifter-regex/design/06-performance-plan.md)'s method notes):
 
 - A configuration that uses none of this should measure **unchanged**. The instructions are new
   `CompiledOp` variants in a `switch` that is already a jump table; nothing on the existing

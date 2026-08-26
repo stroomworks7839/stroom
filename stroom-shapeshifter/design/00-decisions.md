@@ -10,7 +10,7 @@ Decisions taken during design, with their consequences. Newest last.
 lookaround, atomic groups or possessive quantifiers, and a linear-time guarantee.
 
 **Consequences:** enables the Pike VM, which is what makes streaming suspendable at a chunk
-boundary; enables the one-pass analysis behind tier 0. See [01-regex-language.md §2](01-regex-language.md).
+boundary; enables the one-pass analysis behind tier 0. See [01-regex-language.md §2](../stroom-shapeshifter-regex/design/01-regex-language.md).
 
 Superseded in part by [D7](#d7--javautilregex-is-a-supported-second-dialect).
 
@@ -22,8 +22,8 @@ Superseded in part by [D7](#d7--javautilregex-is-a-supported-second-dialect).
 class into byte-sequence alternations for the target encoding.
 
 **Consequences:** `\w` matches `0xE9` under Latin-1, which neither Rust's byte regex nor a
-`(?-u)` workaround can express. See [01-regex-language.md §4](01-regex-language.md) and
-[02-engine-design.md Appendix A](02-engine-design.md).
+`(?-u)` workaround can express. See [01-regex-language.md §4](../stroom-shapeshifter-regex/design/01-regex-language.md) and
+[02-engine-design.md Appendix A](../stroom-shapeshifter-regex/design/02-engine-design.md).
 
 ---
 
@@ -34,7 +34,7 @@ unbounded sources.
 
 **Consequences:** constrains the VM design (state must be suspendable); rules out a
 backtracking engine as the primary tier; requires a window manager with a caller-supplied
-maximum. See [01-regex-language.md §7](01-regex-language.md).
+maximum. See [01-regex-language.md §7](../stroom-shapeshifter-regex/design/01-regex-language.md).
 
 ---
 
@@ -43,7 +43,7 @@ maximum. See [01-regex-language.md §7](01-regex-language.md).
 *2026-08-17.* No obligation to run existing DS3 patterns unchanged, but they are harvested as
 a differential-test corpus against `java.util.regex`.
 
-**Consequences:** [02-engine-design.md §9.2, §9.6](02-engine-design.md).
+**Consequences:** [02-engine-design.md §9.2, §9.6](../stroom-shapeshifter-regex/design/02-engine-design.md).
 
 ---
 
@@ -56,7 +56,7 @@ stage instead.
 **Consequences:** removed the variable-width class enumeration, the self-synchronisation
 machinery and the ISO-2022-JP rejection from the engine entirely; added a scoped stage with a
 checkpointed offset map and an explicit malformed-input policy. The dividing line is offset
-preservation, not difficulty. See [02-engine-design.md §4](02-engine-design.md).
+preservation, not difficulty. See [02-engine-design.md §4](../stroom-shapeshifter-regex/design/02-engine-design.md).
 
 ---
 
@@ -79,7 +79,7 @@ delegates to the JDK engine, rather than the project building a backtracking eng
 (reuses the transcode machinery), conservative streaming via `hitEnd()`/`requireEnd()`, and
 containment via a `charAt`-counting budget plus catching `StackOverflowError`. **Never
 selected automatically** — a distinct element type, gated by a deployment capability, with a
-compiler warning when a pattern did not need it. See [01-regex-language.md §8](01-regex-language.md).
+compiler warning when a pattern did not need it. See [01-regex-language.md §8](../stroom-shapeshifter-regex/design/01-regex-language.md).
 
 Superseded by [D27](#d27--the-fancy-tier-backreferences-and-lookaround-run-natively): once D25
 had built a bounded backtracker, building the unbounded one stopped being the largest item on
@@ -94,7 +94,7 @@ compiled to one flat plan — not a tree of `Matcher` objects walked at runtime.
 
 **Consequences:** composability costs nothing at runtime; a readable composition and an
 equivalent dense regex compile to the same plan. This is the Java substitute for the
-monomorphisation that makes nom fast in Rust. See [02-engine-design.md §6.5](02-engine-design.md).
+monomorphisation that makes nom fast in Rust. See [02-engine-design.md §6.5](../stroom-shapeshifter-regex/design/02-engine-design.md).
 
 ---
 
@@ -103,7 +103,7 @@ monomorphisation that makes nom fast in Rust. See [02-engine-design.md §6.5](02
 *2026-08-17.* First code written is the JMH baseline, not the engine.
 
 **Consequences:** confirmed the tier 0 thesis (2.7–4.0×) and refuted two representation
-assumptions before they were built on. See [03-baseline-results.md](03-baseline-results.md).
+assumptions before they were built on. See [03-baseline-results.md](../stroom-shapeshifter-regex/design/03-baseline-results.md).
 Vindicated the ordering: both refuted claims were in the design as motivating arguments.
 
 ---
@@ -139,7 +139,7 @@ realised when imported or exported.
   pipelines, feeds and XSLTs.
 - Reference resolution therefore has two stages: *authoring* (a reference stays a reference)
   and *compilation* (references are inlined with cycle detection, as ds-rs does — see
-  [01-regex-language.md §6.5](01-regex-language.md)). The engine only ever sees the resolved
+  [01-regex-language.md §6.5](../stroom-shapeshifter-regex/design/01-regex-language.md)). The engine only ever sees the resolved
   form.
 - A pattern's definition can change under a config that references it. Versioning or pinning
   needs a decision; unversioned references mean a library edit can silently alter every
@@ -158,7 +158,7 @@ theory that always insisting on bytes might carry a performance penalty. Rejecte
 
 1. **The penalty is not established.** The baseline measured byte scanning 6% behind char
    scanning on unoptimised loops with ASCII data and near-overlapping error bars
-   ([03-baseline-results.md §4.1](03-baseline-results.md)). Vectorised scanning gives bytes
+   ([03-baseline-results.md §4.1](../stroom-shapeshifter-regex/design/03-baseline-results.md)). Vectorised scanning gives bytes
    twice the lanes per register, and non-ASCII input inflates a `String` to UTF-16 while UTF-8
    bytes do not. Both push that figure the other way.
 2. **The abstraction costs more than the penalty.** In Java, being generic over the input
@@ -187,7 +187,7 @@ part of the model. Note that today's `DS3Parser` takes `InputSource.getCharacter
 (`DS3Parser.java:122`), so this is a departure from how the current parser is wired, not from
 what the pipeline supports.
 
-**Revisit if:** follow-up 7 in [03-baseline-results.md](03-baseline-results.md) shows the
+**Revisit if:** follow-up 7 in [03-baseline-results.md](../stroom-shapeshifter-regex/design/03-baseline-results.md) shows the
 char-to-byte boundary cost is material, or if vectorised scanning fails to close the 6%.
 
 ---
@@ -195,7 +195,7 @@ char-to-byte boundary cost is material, or if vectorised scanning fails to close
 ## D14 — Tier 0 is interpreted, with flat opcodes and byte-table classes
 
 *2026-08-17.* Settled by prototype measurement rather than argument
-([03-baseline-results.md §7](03-baseline-results.md)):
+([03-baseline-results.md §7](../stroom-shapeshifter-regex/design/03-baseline-results.md)):
 
 - **Interpret, do not generate bytecode.** An interpreted plan reached 100–103% of
   hand-written specialised code, because per-op dispatch amortises against the per-byte work
@@ -281,7 +281,7 @@ is the epsilon-closure walk re-derived at every input byte, which is what a plai
 and why RE2 uses a lazy DFA to find match bounds before running the simulation for captures.
 
 **Consequences:** both cheaper options have since been tried and neither closes the gap
-([03-baseline-results.md §8.4](03-baseline-results.md)). Widening tier 0 turned out to be
+([03-baseline-results.md §8.4](../stroom-shapeshifter-regex/design/03-baseline-results.md)). Widening tier 0 turned out to be
 largely unavailable — tier 1's population is mostly genuine ambiguity, and the estimate that
 `SCAN_TO_LAST` would move half of it was wrong by an order of magnitude. Precomputed closures
 made no measurable difference. A first-byte prefilter gained 45%, leaving the gap at ~54×.
@@ -358,7 +358,7 @@ Four changes, all of which the corpus can now check:
    follows the `u` flag.
 
 Rust's own warts were declined and are listed in
-[01-regex-language.md §2.4](01-regex-language.md): `(?U)` swap-greed, `\b{start}`, `(?R)`, and
+[01-regex-language.md §2.4](../stroom-shapeshifter-regex/design/01-regex-language.md): `(?U)` swap-greed, `\b{start}`, `(?R)`, and
 the second spelling `(?P<name>)`.
 
 **Consequences and costs, both real:**
@@ -431,7 +431,7 @@ JVM — it says one set of JIT decisions was stable, not that the figure reprodu
 - `CorpusBenchmark` runs `@Fork(5)`. Anything used to justify a change must be measured that way.
 - A change below roughly 25% could not have been detected by the old harness, which retrospectively
   covers several of the finer-grained numbers in
-  [05-engine-benchmarks.md](05-engine-benchmarks.md); the section now says which claims survive.
+  [05-engine-benchmarks.md](../stroom-shapeshifter-regex/design/05-engine-benchmarks.md); the section now says which claims survive.
   The large ones do — a 50× cliff and a 3.5× fix are not fork noise.
 - The general lesson is the one this project keeps relearning: an error bar measures the spread of
   whatever was varied, and if the thing that actually varies between builds was held fixed, the
@@ -603,7 +603,7 @@ rather than cleared, zeroed once every 127 searches) fixed it: nine of twelve co
 categories improved, up to +62%, with csv reaching parity with the JDK. TIER1_GREEDY's
 regression — diagnosed at the time as *inherent* to depth-first greedy repetition — was also
 the clearing, and recovered to +2.6%. One more entry for the list of confident diagnoses that
-measurement overturned. See [05-engine-benchmarks.md §9](05-engine-benchmarks.md).
+measurement overturned. See [05-engine-benchmarks.md §9](../stroom-shapeshifter-regex/design/05-engine-benchmarks.md).
 
 **Consequences:** selection is per search, not per pattern — backtracking where its visited
 set fits a 128 KB budget, simulation otherwise — so the linear-time guarantee and the
@@ -643,7 +643,7 @@ none of the observed gap. All three now compile natively.
 **Consequences:**
 
 - One dialect. The `javaRegex` element, its decoding boundary and its capability gate are no
-  longer needed; [01-regex-language.md §8](01-regex-language.md) is kept as the record of the
+  longer needed; [01-regex-language.md §8](../stroom-shapeshifter-regex/design/01-regex-language.md) is kept as the record of the
   superseded design.
 - Entry to the tier is the pattern's own syntax, never a fallback: no cost model, no surprise.
   `explain()` names it, and the linear-time guarantee now reads "every pattern without a fancy
@@ -694,7 +694,7 @@ a reference dialect gives meaning to, and each now a refusal instead:
 there) and `(?m)` is translated to this dialect's `(?s)`, both recorded in the corpus README.
 The three `FANCY_*` workloads added to `CorpusBenchmark` at the same time are the fancy tier's
 first performance measurement against the JDK — results in
-[05-engine-benchmarks.md §10](05-engine-benchmarks.md).
+[05-engine-benchmarks.md §10](../stroom-shapeshifter-regex/design/05-engine-benchmarks.md).
 
 ---
 
@@ -702,7 +702,7 @@ first performance measurement against the JDK — results in
 
 *2026-08-19.* Five measured steps took FANCY_LOOKAHEAD from 0.15× of the JDK's backtracker to
 statistical parity (0.94×, CI crossing 1.0), with FANCY_BACKREF and FANCY_ATOMIC at ~0.7×.
-The ledger is [05-engine-benchmarks.md §10.1](05-engine-benchmarks.md); the wins were an ASCII
+The ledger is [05-engine-benchmarks.md §10.1](../stroom-shapeshifter-regex/design/05-engine-benchmarks.md); the wins were an ASCII
 fast path in the word-boundary test, `CLASS_STAR` (an unbounded byte-safe class repeat as one
 instruction with an O(1) backoff frame, fancy programs only), and its mostly-ASCII hybrid for
 classes like `\w`.
@@ -728,7 +728,7 @@ on record.
 
 ## D30 — `Engine.TREE`: the JDK's architecture, built to be measured
 
-*2026-08-19.* [05-engine-benchmarks.md §10.2](05-engine-benchmarks.md) analysed why
+*2026-08-19.* [05-engine-benchmarks.md §10.2](../stroom-shapeshifter-regex/design/05-engine-benchmarks.md) analysed why
 `java.util.regex` can be fast — the JIT specialises a per-pattern node tree, which a
 shared-program interpreter structurally cannot have — and the analysis stayed a hypothesis
 until an engine existed to test it. So one was built as a fifth, deliberately exploratory
@@ -736,7 +736,7 @@ tier: the HIR compiled to node objects with recursion as the undo log, over this
 byte input, **never selected by the compiler**, reached only through `compileForcing`, and
 held to identical results by the differential suite.
 
-Both halves of the hypothesis got their answer ([§10.3](05-engine-benchmarks.md)):
+Both halves of the hypothesis got their answer ([§10.3](../stroom-shapeshifter-regex/design/05-engine-benchmarks.md)):
 
 - **The specialisation is real and priced**: 1.05–1.9× over the flat fancy engine, parity to
   1.2× against the JDK on its home turf — and 5.5×/12.5× over the simulation on the two

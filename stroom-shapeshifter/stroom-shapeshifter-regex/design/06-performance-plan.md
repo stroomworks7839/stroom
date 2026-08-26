@@ -2,7 +2,7 @@
 
 The open performance work, recorded after the 2026-08-19 session so that any future session
 starts from this list rather than from folklore. Statuses move here as work lands; evidence
-citations are the benchmark files in [benchmarks/](benchmarks) and the sections of
+citations are the benchmark files in [../../design/benchmarks/](../../design/benchmarks) and the sections of
 [05-engine-benchmarks.md](05-engine-benchmarks.md). The method is fixed and non-negotiable:
 one change at a time, a measurement after each, same machine, checked-in results —
 the discipline that took FANCY_LOOKAHEAD from 0.15× to parity (§10.1) and that refuted
@@ -101,7 +101,7 @@ number, and UNICODE found a 5× scan-plan gap nobody suspected.
 post-restoration): 29 of 30 measured variants ahead outright — all fourteen per-match
 categories among them, 1.23× to 2.29× — and the only sub-parity line anywhere is buffer
 NETWORK, the diagnosed JMH-conditions artifact that measures at raw parity. The README's
-charts render from these two runs via `tools/render-scoreboard.py`.**
+charts render from these two runs via `../../tools/render-scoreboard.py`.**
 
 **Standing after the 2026-08-20 round: no engine deficit remains anywhere.** NETWORK — the
 scoreboard's last behind-line — measures at parity under controlled fork-per-side comparison;

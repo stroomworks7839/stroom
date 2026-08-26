@@ -8,7 +8,7 @@ audit's regex findings against the tree: of the sixteen listed pending, twelve w
 the audit batches, and what follows is what survives.
 
 Performance candidates are deliberately **not** here — they live in
-[design/06-performance-plan.md](../design/06-performance-plan.md) (§6 holds the end-anchor
+[design/06-performance-plan.md](design/06-performance-plan.md) (§6 holds the end-anchor
 programme: the tail window and reverse matching, planned in phases on 2026-08-24 and gated
 behind `EndAnchoredSearchBenchmark`). Behavioural divergences from `java.util.regex` live in
 `KnownDivergenceTest`, which pins the one that remains (captures under doubly-nested

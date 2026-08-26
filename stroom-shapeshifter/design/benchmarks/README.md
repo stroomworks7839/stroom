@@ -7,7 +7,7 @@ They are checked in on purpose. A throughput figure that exists only in a termin
 cannot be compared with the next one, and comparing runs is the entire point:
 [D21](../00-decisions.md) records a case where a single-fork harness moved 25% between runs of the
 same binary, which was only visible because the earlier numbers could be re-read. Keeping the raw
-files also means the tables in [05-engine-benchmarks.md](../05-engine-benchmarks.md) are rendered
+files also means the tables in [05-engine-benchmarks.md](../../stroom-shapeshifter-regex/design/05-engine-benchmarks.md) are rendered
 rather than transcribed, so a number in the prose can always be traced back to the run that
 produced it.
 
@@ -25,7 +25,7 @@ produced it.
 
 The comparison form marks any difference whose error bars overlap as **indistinguishable**, which
 is the check that would have caught the false 7% result described in
-[05-engine-benchmarks.md §2.0](../05-engine-benchmarks.md).
+[05-engine-benchmarks.md §2.0](../../stroom-shapeshifter-regex/design/05-engine-benchmarks.md).
 
 ## What each benchmark measures
 
@@ -33,7 +33,7 @@ is the check that would have caught the false 7% result described in
 |---|---|---|
 | `CorpusBenchmark` | 10 hand-picked patterns, 2,000-record buffers | Sustained scanning on realistic records |
 | `PatternCorpusBenchmark` | All 106 accepted corpus patterns, short inputs | Per-match overhead across the breadth the correctness suite covers, at the tier mix a real config would have |
-| `MatchingBaselineBenchmark` | Hand-written scanners vs `java.util.regex` | The pre-engine baseline from [03-baseline-results.md](../03-baseline-results.md) |
+| `MatchingBaselineBenchmark` | Hand-written scanners vs `java.util.regex` | The pre-engine baseline from [03-baseline-results.md](../../stroom-shapeshifter-regex/design/03-baseline-results.md) |
 | `BranchOrderBenchmark` | Alternation branch ordering | Whether branch order is worth optimising |
 | `AnchoredSearchBenchmark` | Four failure/hit shapes (`anchored_hit`/`anchored_miss`/`line_miss`/`floating_miss`) per engine over 256 KiB | The failure-path gate (the 2026-08-20 method note): what a dispatching caller's doomed searches cost; the standing gate for `ByteMatcher`/engine-path changes |
 | `XmlBaselineBenchmark` | The events workload at 10k/100k/1M records | The XML head-to-head's decomposition: SAX floor, Saxon identity, Saxon proper, shapeshifter (design/13) |

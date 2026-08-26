@@ -52,7 +52,7 @@ A match never begins inside a character, not even an empty one.
 The dialect follows Rust's `regex` rather than Perl's inheritance: `$` is the end of the input,
 `\w \d \s \b` are Unicode unless `(?-u)` says otherwise, `\p{...}` means Unicode properties
 and the ASCII POSIX classes are spelt `[[:alpha:]]`. Rust's own warts are declined, and both the
-choices and the refusals are listed in [design/01-regex-language.md](design/01-regex-language.md)
+choices and the refusals are listed in [design/01-regex-language.md](stroom-shapeshifter-regex/design/01-regex-language.md)
 §2.4. Rust's test corpus runs as part of the suite, and Oniguruma's UTF-8 suite covers the
 fancy tier — a backtracking engine's own corpus, dense in exactly the constructs the Rust one
 deliberately has none of.
@@ -79,23 +79,31 @@ A pattern outside the dialect is rejected with the reason — never matched appr
 
 ## Design
 
-The design drafts, the decisions and the measurements:
+The design drafts, the decisions and the measurements. Spanning both modules:
 
 - [00-decisions.md](design/00-decisions.md) — decision log, with consequences.
-- [01-regex-language.md](design/01-regex-language.md) — the matching language: RE2-style
+- [15-audit-ledger.md](design/15-audit-ledger.md) — the adversarial audit record.
+- [benchmarks/](design/benchmarks/README.md) — every JMH run, checked in on purpose.
+
+The regex library's design record lives with the module it describes, indexed at
+[stroom-shapeshifter-regex/design/](stroom-shapeshifter-regex/design/README.md):
+
+- [01-regex-language.md](stroom-shapeshifter-regex/design/01-regex-language.md) — the matching language: RE2-style
   regex dialect, encoding-aware character classes, atoms and nom-style combinators.
-- [02-engine-design.md](design/02-engine-design.md) — engine architecture: the encoding
+- [02-engine-design.md](stroom-shapeshifter-regex/design/02-engine-design.md) — engine architecture: the encoding
   compiler, the one-pass scan plan and Pike VM execution tiers, streaming (since retired:
   D37), and the test strategy.
-- [03-baseline-results.md](design/03-baseline-results.md) — JMH measurements taken before any
+- [03-baseline-results.md](stroom-shapeshifter-regex/design/03-baseline-results.md) — JMH measurements taken before any
   engine code, confirming one design assumption and refuting two.
-- [04-corpus-analysis.md](design/04-corpus-analysis.md) — which execution tier real DS3
+- [04-corpus-analysis.md](stroom-shapeshifter-regex/design/04-corpus-analysis.md) — which execution tier real DS3
   patterns would land on, and why.
-- [05-engine-benchmarks.md](design/05-engine-benchmarks.md) — the engine measured against
+- [05-engine-benchmarks.md](stroom-shapeshifter-regex/design/05-engine-benchmarks.md) — the engine measured against
   `java.util.regex` on realistic patterns, what the pattern corpora cover, and every
   divergence found so far.
-- [06-performance-plan.md](design/06-performance-plan.md) — the performance work and its
+- [06-performance-plan.md](stroom-shapeshifter-regex/design/06-performance-plan.md) — the performance work and its
   standing, the per-tier audit record, and the method notes; future sessions start here.
+The template engine's, in the parent design folder:
+
 - [07-engine-port-plan.md](design/07-engine-port-plan.md) — the port of the ds-rs template
   engine into `stroom-shapeshifter-engine`: inventory, the eight phases and what each found,
   what is deliberately absent, and the findings and decisions it leaves open. Complete.
@@ -134,7 +142,7 @@ configuration would have, plus the whole corpus in one JVM.
 Against `java.util.regex` reading the same bytes, same run, best engine chosen automatically —
 **ahead on 29 of 30 measured variants**, every per-match category included; the one sub-parity
 line (buffer `NETWORK`) measures at parity in controlled fork-per-side comparison and is a
-documented harness artifact ([06-performance-plan.md](design/06-performance-plan.md)).
+documented harness artifact ([06-performance-plan.md](stroom-shapeshifter-regex/design/06-performance-plan.md)).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="design/benchmarks/charts/buffer-dark.svg">

@@ -34,7 +34,7 @@ which execution tier it would land on.
 All eight tier 0 patterns are anchored at the start, so they run directly at a cursor with no
 unanchored search.
 
-The `java dialect` patterns vindicate [D7](00-decisions.md) — even this small sample contains
+The `java dialect` patterns vindicate [D7](../../design/00-decisions.md) — even this small sample contains
 constructs the RE2 engine will never support, and they are not exotic:
 
 ```

@@ -1,7 +1,7 @@
 # Strict dispatch — the cursor moves only by matching at it
 
 Status: **decided 2026-08-21, in full** ([D36](00-decisions.md)). Written out of the
-anchoring investigation ([06-performance-plan.md §1](06-performance-plan.md),
+anchoring investigation ([06-performance-plan.md §1](../stroom-shapeshifter-regex/design/06-performance-plan.md),
 [10-engine-compilation.md §§6–10](10-engine-compilation.md)); the rulings at the end are the
 user's. Implementation tracked as E20.
 

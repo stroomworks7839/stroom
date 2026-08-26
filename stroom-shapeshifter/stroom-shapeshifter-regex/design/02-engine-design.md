@@ -765,7 +765,7 @@ overlapping `choice` first-sets) are collected on the compiled artefact rather t
 
 ## 13. Phasing
 
-Reordered after [D15](00-decisions.md): `java.util.regex` is the oracle for the shared subset,
+Reordered after [D15](../../design/00-decisions.md): `java.util.regex` is the oracle for the shared subset,
 so the scan plan no longer has to wait for the Pike VM to be checked against.
 
 | Phase | Deliverable | Done when | Status |
