@@ -1,76 +1,44 @@
-# Benchmark results
+# Benchmark results — the engine and the XML head-to-head
 
-One JSON file per JMH run, written automatically by the `jmh` Gradle task and named
-`<date>-<time>-<commit>.json`.
+One JSON file per JMH run, written automatically by the `jmh` Gradle task of
+`stroom-shapeshifter-engine` (suffix `-engine`) or `stroom-shapeshifter-xmlbench` (suffix
+`-xml`), and named `<date>-<time>-<commit>-<suffix>.json`.
 
 They are checked in on purpose. A throughput figure that exists only in a terminal scrollback
 cannot be compared with the next one, and comparing runs is the entire point:
-[D21](../00-decisions.md) records a case where a single-fork harness moved 25% between runs of the
-same binary, which was only visible because the earlier numbers could be re-read. Keeping the raw
-files also means the tables in [05-engine-benchmarks.md](../../stroom-shapeshifter-regex/design/05-engine-benchmarks.md) are rendered
-rather than transcribed, so a number in the prose can always be traced back to the run that
-produced it.
+[D21](../00-decisions.md) records a case where a single-fork harness moved 25% between runs of
+the same binary, which was only visible because the earlier numbers could be re-read.
 
 ```
-# run everything, recording a new file here
-./gradlew :stroom-shapeshifter:stroom-shapeshifter-regex:jmh
-
-# one class only
-./gradlew :stroom-shapeshifter:stroom-shapeshifter-regex:jmh --args='.*PatternCorpus.*'
+# the engine suite, or the XML head-to-head
+./gradlew :stroom-shapeshifter:stroom-shapeshifter-engine:jmh
+./gradlew :stroom-shapeshifter:stroom-shapeshifter-xmlbench:jmh
 
 # render one run, or compare two
-../tools/render-benchmark.py design/benchmarks/<file>.json
-../tools/render-benchmark.py design/benchmarks/<before>.json design/benchmarks/<after>.json
+../../tools/render-benchmark.py design/benchmarks/<file>.json
+../../tools/render-benchmark.py design/benchmarks/<before>.json design/benchmarks/<after>.json
 ```
 
-The comparison form marks any difference whose error bars overlap as **indistinguishable**, which
-is the check that would have caught the false 7% result described in
-[05-engine-benchmarks.md §2.0](../../stroom-shapeshifter-regex/design/05-engine-benchmarks.md).
+The comparison form marks any difference whose error bars overlap as **indistinguishable**.
 
 ## What each benchmark measures
 
 | Class | Shape | Answers |
 |---|---|---|
-| `CorpusBenchmark` | 10 hand-picked patterns, 2,000-record buffers | Sustained scanning on realistic records |
-| `PatternCorpusBenchmark` | All 106 accepted corpus patterns, short inputs | Per-match overhead across the breadth the correctness suite covers, at the tier mix a real config would have |
-| `MatchingBaselineBenchmark` | Hand-written scanners vs `java.util.regex` | The pre-engine baseline from [03-baseline-results.md](../../stroom-shapeshifter-regex/design/03-baseline-results.md) |
-| `BranchOrderBenchmark` | Alternation branch ordering | Whether branch order is worth optimising |
-| `AnchoredSearchBenchmark` | Four failure/hit shapes (`anchored_hit`/`anchored_miss`/`line_miss`/`floating_miss`) per engine over 256 KiB | The failure-path gate (the 2026-08-20 method note): what a dispatching caller's doomed searches cost; the standing gate for `ByteMatcher`/engine-path changes |
-| `XmlBaselineBenchmark` | The events workload at 10k/100k/1M records | The XML head-to-head's decomposition: SAX floor, Saxon identity, Saxon proper, shapeshifter (design/13) |
+| `EngineBenchmark` | Whole fixture configurations over their own inputs, repeated to a fixed volume (D22), plus `compile` | Throughput on real configurations, with pairs chosen to isolate questions — `win_sec`/`win_sec_xml` A/B dispatch cost, `apache_httpd` the heaviest bodies, `progressive` the step interpreter alone; the *before* for [10-engine-compilation.md](../10-engine-compilation.md)'s optimisation work |
+| `XmlBaselineBenchmark` | The events workload at 10k/100k/1M records | The XML head-to-head's decomposition: SAX floor, Saxon identity, Saxon proper, shapeshifter ([13](../13-xml-xslt-benchmark.md)) |
 | `CaseCatalogueBenchmark` | Seven catalogue cases amplified to ~10k/~100k units | Per-capability-family A/B, Saxon vs shapeshifter, parity-licensed by `CaseAmplifierTest` |
-| `EndAnchoredSearchBenchmark` | Three end-anchored shapes (bounded WEBLOG tail, unbounded filename, key=value), hit- and miss-shaped over 256 KiB | The end-anchor programme's gate (06 §6): what the tail window and reverse matching bought; `javaRegex` rows are the drift control; tree engine absent from the filename rows by its own step budget, pinned by the fixture test |
 
 Runs are machine-specific. Compare files from the same machine, or not at all.
 
 ## Comparability breaks
 
-Changes that alter what a benchmark measures, so scores from either side of them are not
-comparable even on the same machine:
-
-- **D27 (the fancy tier)** added the three `FANCY_*` workloads to `CorpusBenchmark`; runs
-  recorded before it have no rows for them. The corpus's newly-accepted fancy patterns all
-  sat in the `unsupported` category, which `PatternCorpusBenchmark` did not measure, so the
-  measured categories were unchanged — first believed otherwise, corrected after checking the
-  per-category buckets in `CorpusDifferentialTest`'s report. That category has since been
-  renamed `fancy` and added to the benchmark, so files recorded after that commit carry a
-  thirteenth `PatternCorpusBenchmark` workload that every earlier file — including
-  `2026-08-19-1028` — lacks.
-- **The 2026-08-19 audit** added the `shapeshifterTree` methods (`Engine.TREE`, forced) to
-  both corpus benchmarks, and the `SPARSE`, `LONG_RECORD` and `UNICODE` workloads to
-  `CorpusBenchmark` — closing the dense-match/short-record/ASCII-only blind spot recorded in
-  `06-performance-plan.md` §4. Earlier files lack all of those rows.
-- **D31 redrew the default engine selection** (2026-08-19): the `shapeshifter` methods'
-  scores on fancy and TIER1 workloads are not comparable across that commit — the default
-  path changed engines, which was the point. A 14th per-match workload, `everything`, runs
-  the whole corpus in one JVM.
-- **The UNICODE workload was redefined on 2026-08-19** (ambiguous first spelling measured
-  the simulation, not the scan plan — 05 §10.5): its rows in `2026-08-19-1601` and earlier
-  are not comparable with `2026-08-19-1735` onward.
-- **2026-08-19-1028** ran on a non-idle machine: `javaRegexFromBytes` — code no commit
-  touched — moved −5.0% against the previous run while `javaRegex` was flat. Cross-run
-  comparisons against it measure the machine, not the engine; within-run ratios stand.
 - **2026-08-21-1555 ran on a non-idle machine**: `saxParse` — code no commit touched —
   sat −55% against both its neighbours (`2026-08-21-1543` before, `2026-08-21-1753` after,
   which agree with each other within ~2% on every untouched row), with error bars to match
   (±204 on a 484 ms score; identity at 1M ±5094 on 8225). Cross-run comparisons against it
   measure the machine, not the engine; within-run ratios stand.
+
+The regex library's runs — the corpus, baseline, anchored and end-anchored suites, and the
+scoreboard charts — live with their module, in
+[stroom-shapeshifter-regex/design/benchmarks/](../../stroom-shapeshifter-regex/design/benchmarks/README.md).

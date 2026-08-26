@@ -83,7 +83,7 @@ The design drafts, the decisions and the measurements. Spanning both modules:
 
 - [00-decisions.md](design/00-decisions.md) — decision log, with consequences.
 - [15-audit-ledger.md](design/15-audit-ledger.md) — the adversarial audit record.
-- [benchmarks/](design/benchmarks/README.md) — every JMH run, checked in on purpose.
+- [benchmarks/](stroom-shapeshifter-regex/design/benchmarks/README.md) — every JMH run, checked in on purpose.
 
 The regex library's design record lives with the module it describes, indexed at
 [stroom-shapeshifter-regex/design/](stroom-shapeshifter-regex/design/README.md):
@@ -145,13 +145,13 @@ line (buffer `NETWORK`) measures at parity in controlled fork-per-side compariso
 documented harness artifact ([06-performance-plan.md](stroom-shapeshifter-regex/design/06-performance-plan.md)).
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="design/benchmarks/charts/buffer-dark.svg">
-  <img alt="Buffer-scanning throughput relative to java.util.regex, per workload" src="design/benchmarks/charts/buffer-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="stroom-shapeshifter-regex/design/benchmarks/charts/buffer-dark.svg">
+  <img alt="Buffer-scanning throughput relative to java.util.regex, per workload" src="stroom-shapeshifter-regex/design/benchmarks/charts/buffer-light.svg">
 </picture>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="design/benchmarks/charts/permatch-dark.svg">
-  <img alt="Per-match throughput relative to java.util.regex, per corpus category" src="design/benchmarks/charts/permatch-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="stroom-shapeshifter-regex/design/benchmarks/charts/permatch-dark.svg">
+  <img alt="Per-match throughput relative to java.util.regex, per corpus category" src="stroom-shapeshifter-regex/design/benchmarks/charts/permatch-light.svg">
 </picture>
 
 The charts are rendered from the checked-in runs by `tools/render-scoreboard.py`, the same

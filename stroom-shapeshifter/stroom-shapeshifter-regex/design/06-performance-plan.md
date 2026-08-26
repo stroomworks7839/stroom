@@ -2,7 +2,7 @@
 
 The open performance work, recorded after the 2026-08-19 session so that any future session
 starts from this list rather than from folklore. Statuses move here as work lands; evidence
-citations are the benchmark files in [../../design/benchmarks/](../../design/benchmarks) and the sections of
+citations are the benchmark files in [benchmarks/](benchmarks) and the sections of
 [05-engine-benchmarks.md](05-engine-benchmarks.md). The method is fixed and non-negotiable:
 one change at a time, a measurement after each, same machine, checked-in results —
 the discipline that took FANCY_LOOKAHEAD from 0.15× to parity (§10.1) and that refuted

@@ -3,10 +3,10 @@
 
     tools/render-scoreboard.py <buffer-run.json> <per-match-run.json>
 
-Writes SVGs to design/benchmarks/charts/, light and dark variants of each, so the
+Writes SVGs to stroom-shapeshifter-regex/design/benchmarks/charts/, light and dark variants of each, so the
 README can select on prefers-color-scheme. Regenerate whenever the cited runs change;
 the charts are rendered, never drawn by hand — the same rule as the tables
-(design/benchmarks/README.md).
+(stroom-shapeshifter-regex/design/benchmarks/README.md).
 
 Ratios are shapeshifter (auto-selected engines) over javaRegexFromBytes from the SAME
 run — the honest comparison for a byte pipeline, per 05-engine-benchmarks.md §7.
@@ -107,7 +107,7 @@ def render(title, subtitle, order, rows, mode, out):
 
 def main():
     buffer_json, permatch_json = sys.argv[1], sys.argv[2]
-    out_dir = Path("design/benchmarks/charts")
+    out_dir = Path("stroom-shapeshifter-regex/design/benchmarks/charts")
     out_dir.mkdir(parents=True, exist_ok=True)
     buffer_rows = load(buffer_json, "buffer")
     permatch_rows = load(permatch_json, "permatch")

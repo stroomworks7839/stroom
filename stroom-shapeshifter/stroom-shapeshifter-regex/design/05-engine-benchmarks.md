@@ -105,7 +105,7 @@ Each workload runs a realistic pattern over 2,000 records and extracts every cap
 
 Errors are JMH's, spanning five forks; the ratio band is the worst and best pairing of the two
 intervals. Geometric mean over the eight tier 0 workloads: **1.53×**. Rendered from
-`../../design/benchmarks/2026-08-18-1255-de1341be20.json`.
+`benchmarks/2026-08-18-1255-de1341be20.json`.
 <p>
 Tier 0 is unchanged from before [D23](../../design/00-decisions.md) and [D24](../../design/00-decisions.md) — every one of
 those eight is *indistinguishable* run to run, which is the control working, since a scan plan
@@ -374,7 +374,7 @@ most important measurement in this document.
 | structured | 112338 ± 352 | 255637 ± 4454 | **0.44×** | 0.07× | 0.003× |
 | identifiers | 85585 ± 466 | 201984 ± 1529 | **0.42×** | 0.34× | 0.33× |
 
-Rendered from `../../design/benchmarks/2026-08-18-1255-de1341be20.json` by `../../tools/render-benchmark.py`,
+Rendered from `benchmarks/2026-08-18-1255-de1341be20.json` by `../../tools/render-benchmark.py`,
 against `2026-08-18-0920` and `2026-08-18-0752` for the last two columns.
 Compilation is in `@Setup` on both sides, matchers are built there too and the JDK's are reused
 with `reset`, so this times execution only, warm. An earlier run that built our matcher inside the
@@ -573,7 +573,7 @@ determined-wrongly would silently truncate a match.
 ### 9.1 The first measurement was mixed, and the prediction wrong
 
 §8 predicted "several times faster on the short records this engine is meant for". The first run
-(`../../design/benchmarks/2026-08-18-1900-a7d06f2236.json` against the `1255` baseline) said otherwise: csv
+(`benchmarks/2026-08-18-1900-a7d06f2236.json` against the `1255` baseline) said otherwise: csv
 +54.7%, weblog +37.4%, structured +19.0% — but syslog **−12.5%**, TIER1_GREEDY **−11.4%**, quoted
 −4.7%, fixedwidth −4.6%. A wash with large variance by workload is not a win, and it was not
 committed as one.
@@ -589,7 +589,7 @@ proportional to the *input*, and on short inputs the program is the larger of th
 The fix: one byte per cell instead of one bit, stamped with the search's generation rather than
 cleared between searches. Zeroing now happens once every 127 searches, and an eightfold size
 increase buys its removal from the per-search path. Re-measured
-(`../../design/benchmarks/2026-08-18-1948-a7d06f2236.json` against the same baseline), the whole-corpus suite
+(`benchmarks/2026-08-18-1948-a7d06f2236.json` against the same baseline), the whole-corpus suite
 on short records reads:
 
 | Category | Before | After | Change | Verdict |
@@ -673,7 +673,7 @@ true.
 ## 10. The fancy tier, measured
 
 The first numbers for [D27](../../design/00-decisions.md)'s engine, from
-`../../design/benchmarks/2026-08-19-1028-ba6a94e719.json` — three workloads in `CorpusBenchmark`, each a
+`benchmarks/2026-08-19-1028-ba6a94e719.json` — three workloads in `CorpusBenchmark`, each a
 construct only the fancy tier and the JDK can run. This is the one comparison in this document
 where the JDK plays at home: both engines backtrack, so there is no algorithm-family advantage
 to collect, and the only edges available are byte-level execution against a decoded `String`
@@ -702,7 +702,7 @@ One cross-run caveat, in the D21 tradition: this run's machine was not idle.
 `javaRegexFromBytes` — code no commit touched — moved −5.0% against the `1948` baseline while
 `javaRegex` was flat, so the small negative drift on this run's other shapeshifter rows
 measures the machine, not the engine. The ratios above are within-run and unaffected; the
-comparability note is in `../../design/benchmarks/README.md`.
+comparability note is in `benchmarks/README.md`.
 
 ### 10.1 The fancy tier, optimised
 

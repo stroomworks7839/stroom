@@ -2,7 +2,7 @@
 """Render a JMH JSON result file as the markdown table used in
 stroom-shapeshifter-regex/design/05-engine-benchmarks.md.
 
-    tools/render-benchmark.py design/benchmarks/2026-08-18-1030-abc1234.json
+    tools/render-benchmark.py stroom-shapeshifter-regex/design/benchmarks/2026-08-18-1030-abc1234.json
 
 Given two files it renders a comparison instead, which is the form to use when arguing that a
 change helped:

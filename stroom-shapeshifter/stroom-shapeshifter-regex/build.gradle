@@ -53,7 +53,7 @@ tasks.named('check') { dependsOn 'verifyZeroDependencies' }
 //   ./gradlew :stroom-shapeshifter:stroom-shapeshifter-regex:jmh --args='-prof gc'
 //   ./gradlew :stroom-shapeshifter:stroom-shapeshifter-regex:jmh --args='.*PatternCorpus.*'
 //
-// Every run writes its full results to design/benchmarks as JSON, named by date and commit.
+// Every run writes its full results to this module's design/benchmarks as JSON, named by date and commit.
 // That is deliberate: a throughput figure that exists only in a terminal scrollback cannot be
 // compared with the next one, and comparing runs is the whole point — see decision D21, where a
 // single-fork harness was shown to move 25% between runs of the same binary. The markdown tables
@@ -67,7 +67,7 @@ tasks.register('jmh', JavaExec) {
     args = ['stroom.shapeshifter.regex..*Benchmark.*']
 
     doFirst {
-        final def results = file("${project.projectDir}/../design/benchmarks")
+        final def results = file("${project.projectDir}/design/benchmarks")
         results.mkdirs()
         final def stamp = new java.text.SimpleDateFormat('yyyy-MM-dd-HHmm').format(new Date())
         final def commit = providers.exec {

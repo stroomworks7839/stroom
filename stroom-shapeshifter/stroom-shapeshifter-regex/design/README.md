@@ -13,16 +13,17 @@ buildable — on its own, so its design record lives here rather than one direct
 | [05-engine-benchmarks.md](05-engine-benchmarks.md) | The engine against `java.util.regex`, corpus coverage and throughput. Tables here are rendered from the run files, never transcribed. |
 | [06-performance-plan.md](06-performance-plan.md) | The open performance work, its method notes, and the standing benchmark-gate rules. The first thing to read before touching a hot path. |
 
+And beneath them, [benchmarks/](benchmarks/README.md): every JMH run this module has recorded,
+one file per run, checked in so that any number in the prose above can be traced to the run that
+produced it — plus the scoreboard charts the top-level README displays.
+
 Beside them, in the module root: [ISSUES.md](../ISSUES.md) — the open items and the accepted
 costs, each with the measurement that priced it.
 
 ## What stayed shared, and why
 
-Three things describe both this module and the engine module that consumes it, so they live
+Two things describe both this module and the engine module that consumes it, so they live
 in the parent design folder:
 
 - [00-decisions.md](../../design/00-decisions.md) — the decision log, D1–D37, spanning both.
 - [15-audit-ledger.md](../../design/15-audit-ledger.md) — the adversarial audit record, likewise.
-- [benchmarks/](../../design/benchmarks) — one directory of JMH result files, written by the
-  `jmh` task of all three benchmarking modules and read by `../../tools/render-benchmark.py`.
-  Splitting it would mean three build files pointing three ways at one comparison tool.
