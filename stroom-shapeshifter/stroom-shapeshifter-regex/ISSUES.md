@@ -132,11 +132,13 @@ of the streaming retirement cleared the diff of correctness defects (line-by-lin
 every fold's `!complete` guard verified) and left a list of candidate simplifications in
 the hot loops, none applied because each changes a measured method's shape:
 
-- The `at == to` / `start == regionTo` disjunct in all four first-byte gates
-  (`ByteMatcher.searchPlan`, `Backtracker`, `FancyBacktracker`, `NodeTree`) is provably
-  dead — `firstBytes != null` implies a non-nullable pattern, so `minLength >= 1` and the
-  loop bound stops at `to − 1`. Three angles proved it independently. Removing it also
-  exposes `at < to` for bounds-check elision.
+- ~~The `at == to` / `start == regionTo` disjunct in all four first-byte gates~~ —
+  **landed 2026-08-26** as three single-engine commits with per-commit overnight gates:
+  scan-plan `floating_miss` +25.7%, tree `floating_miss` +50.3% and `anchored_miss`
+  +11.5%, real-workload weblog +8.0% / structured +5.0%; costs where the coin lives —
+  tree `anchored_hit` −5.4%, tree `BOUNDED_*` −5.5/−7.5%, simulate `line_miss` −7.7%
+  (the row's fourth ±8% flip this week). Bracketing full pair
+  `2026-08-26-0039`/`-0236-*-edge-*-full.json`; per-commit files `*-edge-<sha>-*.json`.
 - The anchor gates' `at < to &&` exemption survives its deleted reason (the edge
   iteration's bookkeeping); dropping it only forces one doomed attempt fewer on
   `minLength == 0` patterns.
