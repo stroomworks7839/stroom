@@ -399,3 +399,18 @@ forced-tree CSV read +30.4% with a ±700 error bar on 3,412, the same bimodal co
 gate had already caught moving (+13.8%), credited to nothing (comment and markdown edits,
 with the three assert strings the only bytecode change, on failure paths). Evidence:
 `2026-08-25-2143-*-d37-audit-anchored.json`, `2026-08-25-2151-*-d37-audit-corpus.json`.
+
+## The tail audit (2026-08-26) — two angles over four commits, nothing found
+
+The D37 audit's fix commit and the three edge-test commits it spawned (`2285945f11`,
+`f8a343c10a`, `b16894c3b2`, `62babdda4d`) had been verified by their author, gated
+per-commit overnight, and never independently reviewed — so the two correctness angles ran
+over the 425-line tail, proportionate to a diff that is mostly comments around ten
+executable lines. Line-by-line verified the dead-test proof's premises at every first-byte
+table constructor (PlanCompiler, Nfa.computeFirstBytes, NodeTree's Compiled — including
+that sub-programs' minLength 0 never meets a search gate) and every call site's bound.
+Removed-behavior attacked the proof's edges — empty-branch alternations, {0,n} repeats,
+backref-only paths where nullable() and byteLength's lower bound might disagree, empty
+regions, anchored entries, the input-anchored clamp at regionFrom == to — and found no
+input that reaches any removed branch. No findings from either angle; suites green. Every
+diff in the module's tree is again through review.
