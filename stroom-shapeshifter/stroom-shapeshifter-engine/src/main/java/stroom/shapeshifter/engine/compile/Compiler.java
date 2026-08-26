@@ -361,8 +361,11 @@ public final class Compiler {
     /**
      * Design/17 §7's bump warning, once per configuration: below version 5 a
      * {@code substring} start is 0-based, from version 5 it is 1-based, and a version bump
-     * silently changes every one of them — so the configurations a bump would change are
-     * told so while they still say the old thing.
+     * silently changes every <b>explicit</b> one — so the configurations a bump would change
+     * are told so while they still say the old thing. An omitted start means "from the
+     * beginning" under either base and is bump-safe, so it earns no warning: the phase 6
+     * migration proved that with four byte-identical goldens, and a warning that cries on
+     * safe configurations teaches authors to ignore it.
      */
     private static void substringVersionCheck(final Project project, final List<Message> warnings) {
         if (project.version() >= 5) {
@@ -384,7 +387,7 @@ public final class Compiler {
         int count = 0;
         for (final OutputNode node : body) {
             count += switch (node) {
-                case OutputNode.Substring ignored -> 1;
+                case OutputNode.Substring value -> value.start() != null ? 1 : 0;
                 case OutputNode.If value -> countSubstrings(value.then());
                 case OutputNode.Choose value -> value.when().stream()
                         .mapToInt(branch -> countSubstrings(branch.body())).sum()

@@ -753,6 +753,20 @@ design 16's sequence store, deliberately, and is recorded here rather than skipp
 by `TypedValueTest`, `DatesTest` and the `dates` case; (8) the `Real` rendering by
 `TypedValueTest` and the `value_types` case against Saxon live.*
 
+*Audited 2026-08-26, diff-scoped, landed as `c41f182de6`. One inconsistency found and
+fixed, created by the phase's own discovery: once an omitted start means "from the
+beginning" under either base, the bump warning's claim — "a bump changes their meaning" —
+became false for omitted-start substrings, which are exactly the configurations it fired
+loudest on (the four fixtures, whose byte-identical goldens are the proof of safety). The
+warning now counts explicit starts only, with the omitted form pinned bump-safe from both
+sides of the gate; phase 5's "fires on exactly the audit list" exit is corrected by this to
+"fires on what a bump would actually change". Verified beside it: the version-gated
+semantics are exactly the two known gates (dispatch at 4, substring at 5), so the pinned
+`lax` covers the whole delta; explicit `start: 0` round-trips distinct from omitted, which
+is the distinction version 5 makes real; `Ds3Migration` emits no substring, so the nullable
+start cannot reach a DS3-imported configuration; and the challenger's re-proof against live
+Saxon covers the explicit-start conversion.*
+
 **Phase 7 — close.**
 The full evening A/B against phase 0 (§13), the write-up recorded like every measured
 change. [14-xslt-coverage-matrix.md](14-xslt-coverage-matrix.md) updated: the

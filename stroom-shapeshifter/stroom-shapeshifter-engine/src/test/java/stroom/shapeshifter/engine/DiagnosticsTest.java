@@ -179,6 +179,18 @@ class DiagnosticsTest {
     }
 
     @Test
+    void omittedStartIsBumpSafeAndDrawsNoWarning() {
+        // An omitted start means "from the beginning" under either base — the phase 6
+        // migration proved it with byte-identical goldens — so no warning fires for it.
+        final String body = "{\"substring\": {\"select\": [{\"parts\": [{\"capture\":"
+                + " {\"var_id\": \"field\", \"group\": 0}}]}], \"length\": 3}}";
+        assertThat(run(config(4, "", body), "abcdef\n").output()).isEqualTo("abc");
+        assertThat(run(config(5, "", body), "abcdef\n").output()).isEqualTo("abc");
+        assertThat(run(config(4, "", body), "abcdef\n").messages())
+                .noneMatch(m -> m.text().contains("0-based"));
+    }
+
+    @Test
     void configurationWithoutSubstringDrawsNoBumpWarning() {
         final String body = "{\"value-of\": {\"parts\": [{\"capture\": {\"var_id\": \"field\", \"group\": 0}}]}}";
         assertThat(run(config(4, "", body), "a\n").messages())
