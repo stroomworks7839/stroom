@@ -608,6 +608,17 @@ notes: `asBoolean` trims before the lexical match, now documented in §3.1's cel
 `resolve` now allocates a wrapper on the literal and composite paths — expected
 scalar-replaceable, tonight's comparison decides, a fast path is the fix if a row moves.*
 
+*Benchmarked 2026-08-27, `8286556d1d` (baseline) vs `fce1fcd725` (phase 1, post-audit), each
+run in its own isolated worktree so neither the branch's later commits nor each other's
+runs could leak into the numbers. **Every `run` row — the only ones that execute the typed
+path — reads indistinguishable**, engine and xmlbench alike; three `compile` rows
+(`ausearch`, `win_sec_strict`, `win_sec_xml`) show 1–2% "better," with no plausible causal
+link to a diff that touches only value resolution, so read as measurement noise rather than
+a real effect. `resolve`'s wrapper allocation therefore did not need the scalar-replaceable
+bet to pay off — nothing moved either way. The `nasty_xml`/100k row phase 0 flagged for its
+inflated error bar reads tight here (967 ± 3 ms), confirming that flag was the anomaly, not
+this engine.*
+
 **Phase 2 — arithmetic and the string additions.**
 §§5–6 and §11's overflow rules. Tests, direct: each function's edges — overflow promoting to
 `Real` not wrapping, `divide` by zero absent, `round` half-up on the negative tie, `mod`'s
@@ -662,6 +673,34 @@ walking guards, `if`, `choose`, `switch` bodies and `variable` bodies. One perf 
 a literal `Text` operand materialises its bytes per evaluation; conditions stay authored by
 design (10-engine-compilation), so this is the interning candidate if tonight's numbers
 ask.*
+
+*Benchmarked 2026-08-27, `8286556d1d` vs `8326a048b6` (phase 3, post-audit), same
+worktree-isolated method. **Every `run` row reads indistinguishable except one, and that
+one has no causal path**: `csv_header` shows -1.5% (146.5 → 144.3 ops/s), a genuinely
+tight non-overlap, but its fixture's only condition is an `if`/`exists` guard —
+`Exists` never touches `Comparisons.cast`, so nothing phase 3 changed runs on this fixture's
+hot path. Read as noise crossing a tight bar, not a regression. **`compile` shows two real,
+explained, and inconsequential increases**: `comparisonChecks`' new full-body-tree walk
+adds +86ns to `csv_header` (1008→1094ns) and +15ns to `progressive` (203→218ns) —
+proportionally visible only because these are the two fastest-compiling fixtures in the
+corpus; every fixture where regex compilation dominates (`apache_httpd`, the `win_sec`
+family) is indistinguishable, and compile is a one-time per-load cost by design (the
+engine's own "compile once, run per input"), so nanoseconds here are not a concern. The
+xmlbench comparison is otherwise clean; `string_functions` moved by design (phase 2 grew
+its workload — new functions in both the XSLT and the challenger — so more time per op
+measures more work, not slower work, exactly phase 2's own predicted exclusion) and is
+excluded from the gate rather than read as a regression.*
+
+*A tooling defect found while reading these results, not caused by this work:
+`tools/render-benchmark.py` labels any positive percentage change "better," with no
+awareness of the JMH `Mode` a benchmark runs under. That is correct for `EngineBenchmark`
+(`Throughput`, ops/s, higher is better) and **backwards** for every row from
+`CaseCatalogueBenchmark`/`XmlBaselineBenchmark` (`SampleTime`, ms/op, lower is better) — a
+`string_functions` row reading "+50%, better" above actually means 50% slower.
+"Indistinguishable" verdicts are unaffected, since they never depend on direction — only
+"better"/"worse" labels on xmlbench output should be re-derived by hand until the tool is
+fixed. Not fixed here, since it is shared infrastructure outside this phase's scope; flagged
+for a decision on where it should be repaired.*
 
 **Phase 4 — dates.**
 §9: the `Instant` variant, `parse-date`/`format-date` with the formatter compiled once and
