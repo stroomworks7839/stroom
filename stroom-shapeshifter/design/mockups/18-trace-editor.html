@@ -102,6 +102,7 @@
   }
 
   /* ---------- layout: data on top, definition below ---------- */
+  main[hidden] { display: none; }   /* author display:grid would otherwise beat the UA's [hidden] rule */
   main { flex: 1; display: grid; min-height: 0; gap: 6px; padding: 6px;
     grid-template-columns: 220px 1fr 1fr;
     grid-template-rows: auto minmax(0, 1fr) auto;
@@ -115,8 +116,14 @@
   /* ---------- template panel (left list: navigation-pane styling) ---------- */
   #tpls { grid-area: tpls; background: var(--navigation__background-color); }
   .mode-head { font-size: 11px; color: var(--muted); padding: 8px 10px 2px; }
-  .tpl-row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; cursor: pointer; }
+  .tpl-row { padding: 4px 10px 5px; cursor: pointer; }
+  .tpl-row .line { display: flex; align-items: center; gap: 8px; }
   .tpl-row:hover { background: var(--row__background-color--hovered); }
+  /* heat bar: length = share of total run time, colour = per-attempt cost */
+  .heat-track { height: 3px; margin-top: 3px; background: rgba(255, 255, 255, .06);
+    border-radius: 2px; }
+  .heat-fill { height: 100%; border-radius: 2px; }
+  .strip-heat { display: inline-block; width: 90px; margin: 0; vertical-align: middle; flex: none; }
   .tpl-row.sel { background: var(--row__background-color--selected); color: var(--text-color--selected); }
   .tpl-row.sel:hover { background: var(--row__background-color--selected--hovered); }
   .tpl-row.sel .count { color: rgba(255, 255, 255, .75); }
@@ -138,6 +145,10 @@
     color: var(--muted); cursor: pointer; }
   #crumb .arrow:hover:not([disabled]) { color: var(--blue-300); background: none; }
   #crumb .arrow[disabled] { opacity: .35; cursor: default; }
+  /* within-parent steppers demoted: counts always visible, arrows only on segment hover
+     (whole-input stepping in the strip is the primary control; Alt+arrows still work) */
+  #crumb .seg .arrow { visibility: hidden; }
+  #crumb .seg:hover .arrow { visibility: visible; }
   #crumb .sep { color: var(--muted); margin: 0 2px; }
   #crumb .down { font-size: 12px; }
   #gapInfo { flex-basis: 100%; font-size: 12.5px; color: var(--red-200);
@@ -249,30 +260,95 @@
   .disp-row.skip .count { color: var(--muted); font-size: 12px; }
   .disp-note { padding: 2px 4px 2px 22px; font-size: 11.5px; color: var(--muted); font-style: italic; }
 
-  /* ---------- pattern workbench popup (Stroom dialog styling) ---------- */
-  #wbOverlay { position: fixed; inset: 0; background: var(--transparency__background-color);
-    backdrop-filter: saturate(2) blur(20px);
-    display: flex; align-items: center; justify-content: center; z-index: 10; }
+  /* body-card editing: hover actions, inline editors, contextual add menu */
+  .card .actions { margin-left: auto; display: flex; gap: 2px; visibility: hidden; }
+  .card:hover .actions { visibility: visible; }
+  .card .act { border: none; background: none; color: var(--muted); padding: 0 3px;
+    font-size: 12px; cursor: pointer; }
+  .card .act:hover { color: var(--blue-300); background: none; }
+  .card .act.del:hover { color: var(--error-c); }
+  .card .act.ok { color: var(--valid); }
+  .card .act[disabled] { opacity: .3; cursor: default; }
+  .card input.edit-in, .card select.edit-in {
+    background: var(--control__background-color); border: 1px solid var(--control__border-color);
+    color: var(--text-color); font-family: var(--mono-font); font-size: 12.5px;
+    padding: 2px 6px; border-radius: 4px; flex: 1; min-width: 60px; }
+  .card select.edit-in { flex: none; }
+  .card input.edit-in:focus { outline: none; border-color: var(--blue-800);
+    box-shadow: 0 0 8px rgba(33, 150, 243, .5); }
+  .card.k-other { border-left-color: #78909c; }
+  .card.k-other .kind { color: #90a4ae; }
+  .addline { padding: 2px 0 6px; }
+  .addbtn2 { border: none; background: none; color: var(--muted); font-size: 12px;
+    padding: 0 3px; cursor: pointer; }
+  .addbtn2:hover { color: var(--blue-300); background: none; }
+  .add-menu { margin-top: 4px; background: var(--dialog__background-color);
+    border: 1px solid var(--dialog__border-color); border-radius: 6px;
+    box-shadow: 0 0 10px 1px rgba(0, 0, 0, .9); padding: 6px 0; width: 190px; }
+  .add-menu .grp { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--muted); padding: 4px 12px 2px; }
+  .add-menu .opt { padding: 3px 16px; cursor: pointer; font-size: 12.5px; }
+  .add-menu .opt:hover { background: var(--row__background-color--hovered); }
+
+  /* workbench: step builder + editable group names */
+  #wb input.edit-in, #wb select.edit-in {
+    background: var(--control__background-color); border: 1px solid var(--control__border-color);
+    color: var(--text-color); font-family: var(--mono-font); font-size: 12.5px;
+    padding: 2px 6px; border-radius: 4px; }
+  #wb input.edit-in:focus { outline: none; border-color: var(--blue-800);
+    box-shadow: 0 0 8px rgba(33, 150, 243, .5); }
+  #wb .act { border: none; background: none; color: var(--muted); padding: 0 3px;
+    font-size: 12px; cursor: pointer; }
+  #wb .act:hover { color: var(--blue-300); background: none; }
+  #wb .act.del:hover { color: var(--error-c); }
+  #wb .act[disabled] { opacity: .3; cursor: default; }
+  .step-row { display: flex; gap: 6px; align-items: center; padding: 3px 0; }
+  .step-row .num-s { color: var(--muted); font-size: 11px; min-width: 14px; }
+  .step-row .arg { flex: 1; }
+  .step-row .cap { width: 110px; }
+  .wb-groups .g .cap-name { width: 140px; }
+  .wb-verdict { font-size: 12.5px; padding-top: 6px; }
+  .lim-label { color: var(--muted); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .05em; min-width: 36px; }
+  .lim-in { width: 64px !important; flex: none !important; }
+
+  /* ---------- pattern workbench: full-screen surface below the title bar (not a dialog) ---------- */
+  #wbOverlay { flex: 1; display: flex; min-height: 0; padding: 6px; }
   #wbOverlay[hidden] { display: none; }
-  #wb { width: min(680px, 92vw); max-height: 86vh; overflow: auto;
-    background: var(--dialog__background-color);
-    border: 1px solid var(--dialog__border-color); border-radius: 8px;
-    box-shadow: var(--dialog__shadow); }
-  #wb .wb-title { display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-    border-bottom: 1px solid var(--border-color); font-weight: 600; color: var(--heading-color); }
+  #wb { flex: 1; display: grid; min-height: 0; min-width: 0;
+    background: var(--page__background-color);
+    border: 1px solid var(--border-color); border-radius: 6px;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto minmax(0, 1fr) minmax(0, auto) auto;
+    grid-template-areas: "head head" "left right" "details details" "foot foot"; }
+  #wb .wb-title { grid-area: head; display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; border-bottom: 1px solid var(--border-color);
+    font-weight: 600; color: var(--heading-color); }
+  #wb .wb-title .spacer, #wb .wb-foot .spacer { flex: 1; }
+  #wbLeft { grid-area: left; display: flex; flex-direction: column; min-height: 0;
+    border-right: 1px solid var(--border-color); overflow: auto; }
+  #wbRight { grid-area: right; min-height: 0; min-width: 0; overflow: auto; }
+  #wbDetails { grid-area: details; display: grid; grid-template-columns: 1fr 1fr;
+    border-top: 1px solid var(--border-color); max-height: 34vh; min-height: 0; }
+  #wbDetails > div { overflow: auto; min-height: 0; }
+  #wbDetails > div:first-child { border-right: 1px solid var(--border-color); }
+  .det-head { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--muted); padding: 8px 14px 4px; }
+  #wb .wb-foot { grid-area: foot; display: flex; gap: 8px; align-items: center;
+    padding: 8px 14px; border-top: 1px solid var(--border-color); }
   #wb .tabs { display: flex; gap: 2px; padding: 8px 14px 0; }
   #wb .tab { padding: 4px 12px; border: 1px solid var(--border-color); border-bottom: none;
     border-radius: 6px 6px 0 0; font-size: 12.5px; color: var(--muted);
-    background: var(--control__background-color); }
-  #wb .tab.active { background: var(--dialog__background-color); color: var(--text-color); font-weight: 600; }
+    background: var(--control__background-color); cursor: pointer; }
+  #wb .tab.active { background: var(--page__background-color); color: var(--text-color); font-weight: 600; }
   #wb .wb-sec { padding: 8px 14px; }
   #wb .wb-sec h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase;
     letter-spacing: .05em; color: var(--muted); }
   #wb label { font-size: 12.5px; }
-  #wbPat { width: 100%; font-family: var(--mono-font); font-size: 13px;
+  #wbPat, #wbSample { width: 100%; font-family: var(--mono-font); font-size: 13px;
     padding: 6px 8px; border: 1px solid var(--control__border-color); border-radius: 5px;
     resize: vertical; background: var(--control__background-color); color: var(--text-color); }
-  #wbPat:focus { outline: none; border-color: var(--blue-800);
+  #wbPat:focus, #wbSample:focus { outline: none; border-color: var(--blue-800);
     box-shadow: inset 0 1px 1px rgba(0, 0, 0, .08), 0 0 8px rgba(33, 150, 243, .6); }
   #wbErr { color: var(--red-200); font-size: 12.5px; padding-top: 4px; min-height: 18px; }
   .wb-groups { font-size: 12.5px; }
@@ -280,12 +356,24 @@
   .wb-test { border: 1px solid var(--border-color); border-radius: 5px;
     background: var(--control__background-color);
     padding: 6px 8px; font-family: var(--mono-font); font-size: 12.5px;
-    white-space: pre-wrap; word-break: break-all; }
-  .wb-test mark { background: var(--code-editor__highlight); color: var(--text-color--selected);
-    border-bottom: 2px solid var(--c-kv); }
+    white-space: pre-wrap; word-break: break-all; line-height: 2; }
+  .wb-info { margin-top: 6px; color: var(--muted); font-family: var(--regular-font); }
+  mark.wb-outer { background: rgba(255, 255, 255, .06); color: inherit;
+    outline: 1px solid rgba(255, 255, 255, .18); border-radius: 2px; }
+  .wb-g { border-radius: 2px; }
+  #wbPatMap { margin: 6px 0 0; padding: 6px 8px; border: 1px dashed var(--border-color);
+    border-radius: 5px; font-family: var(--mono-font); font-size: 13px;
+    word-break: break-all; white-space: pre-wrap; }
+  #wbPatMap .pm-g { cursor: pointer; border-radius: 2px; }
+  .det-row { display: flex; gap: 10px; align-items: baseline; padding: 3px 14px;
+    font-size: 12.5px; flex-wrap: wrap; }
+  .det-row .det-n { color: var(--muted); min-width: 26px; }
+  .det-row .det-range { color: var(--muted); }
+  .det-row .det-desc { color: var(--muted); }
+  .det-click { cursor: pointer; }
+  .det-click:hover { background: var(--row__background-color--hovered); }
+  .det-click.sel { background: rgba(24, 94, 144, .3); }
   .wb-lint { color: var(--muted); font-size: 12px; font-style: italic; }
-  #wb .wb-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 14px;
-    border-top: 1px solid var(--border-color); }
 
   footer { padding: 3px 14px; font-size: 11.5px; color: var(--muted);
     border-top: 1px solid var(--border-color); background: var(--navigation__background-color); }
@@ -299,11 +387,10 @@
 <header>
   <h1>apache-audit <span class="doctype">(Shapeshifter · Design tab)</span></h1>
   <div class="spacer"></div>
-  <button class="primary" id="runBtn">&#9654; Run</button>
-  <button disabled title="Not in this mockup">&#9202; Profile</button>
+  <button class="primary" id="runBtn" title="Every run profiles — there is no separate profile mode">&#9654; Run</button>
 </header>
 
-<main>
+<main id="appMain">
   <section class="panel" id="tpls"><h2>Templates</h2><div class="body" id="tplList"></div></section>
   <div id="crumb"></div>
   <section class="panel" id="invars"><h2>Input vars</h2><div class="body" id="inBody"></div></section>
@@ -311,40 +398,85 @@
   <div id="tstrip"><div id="tshead"></div><div id="tsbody"></div></div>
 </main>
 
-<footer>Navigate: click any highlight, apply-site row or output span &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&larr;</kbd>/<kbd>&rarr;</kbd> sideways within parent &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&uarr;</kbd> parent frame &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&darr;</kbd> first child frame &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd>/<kbd>&rarr;</kbd> same template, whole input</footer>
-
+<!-- The pattern workbench: a full-screen mode of the Design tab, not a dialog.
+     Sample left, matcher right, match details + explanation below. -->
 <div id="wbOverlay" hidden>
   <div id="wb">
-    <div class="wb-title">Pattern workbench — <span id="wbName" class="mono"></span></div>
-    <div class="tabs">
-      <span class="tab active">regex</span>
-      <span class="tab" title="Not in this mockup — the delimiter editor lives here">delimiter</span>
-      <span class="tab" title="Not in this mockup — the progressive/combinator step builder lives here">progressive steps</span>
+    <div class="wb-title">Pattern workbench — <span id="wbName" class="mono"></span>
+      <span class="spacer"></span>
+      <button id="wbClose" title="Close (Esc)">✕</button>
     </div>
-    <div class="wb-sec">
-      <h4>Pattern</h4>
-      <textarea id="wbPat" rows="2" spellcheck="false"></textarea>
-      <div id="wbErr"></div>
-      <label><input type="checkbox"> dot-all</label>
-      <label style="margin-left:10px"><input type="checkbox"> case-insensitive</label>
+    <div id="wbLeft">
+      <div class="wb-sec">
+        <h4>Sample <span style="text-transform:none; letter-spacing:0">(editable — seeded from the current frame's content; experiment freely)</span></h4>
+        <textarea id="wbSample" rows="4" spellcheck="false"></textarea>
+      </div>
+      <div class="wb-sec" style="flex:1; min-height:0">
+        <h4>Matches <span style="text-transform:none; letter-spacing:0">(live, from the active matcher — the same sample whichever mechanism is used)</span></h4>
+        <div id="wbMatches" class="wb-test"></div>
+      </div>
     </div>
-    <div class="wb-sec">
-      <h4>Groups <span style="text-transform:none; letter-spacing:0">(captures auto-sync — PatternInfo)</span></h4>
-      <div id="wbGroups" class="wb-groups"></div>
+    <div id="wbRight">
+      <div class="tabs">
+        <span class="tab" id="wbTabRegex">regex</span>
+        <span class="tab" title="Not in this mockup — the delimiter editor lives here; it shows its matches against the same sample">delimiter</span>
+        <span class="tab" id="wbTabProg" title="Compose byte consumers into a combinator sequence">progressive steps</span>
+      </div>
+      <div id="wbRegex">
+        <div class="wb-sec">
+          <h4>Pattern</h4>
+          <textarea id="wbPat" rows="2" spellcheck="false"></textarea>
+          <div id="wbPatMap" title="The pattern, group spans coloured — click a group to isolate its matches in the sample"></div>
+          <div id="wbErr"></div>
+          <label><input type="checkbox"> dot-all</label>
+          <label style="margin-left:10px"><input type="checkbox"> case-insensitive</label>
+        </div>
+        <div class="wb-sec">
+          <h4>Groups <span style="text-transform:none; letter-spacing:0">(names editable — these are the capture declarations)</span></h4>
+          <div id="wbGroups" class="wb-groups"></div>
+        </div>
+        <div class="wb-sec">
+          <div class="wb-lint">explain(): straight-line scan &nbsp;·&nbsp; ambiguities(): none &nbsp;·&nbsp; (illustrative — real lint comes from the engine)</div>
+        </div>
+      </div>
+      <div id="wbProg" hidden>
+        <div class="wb-sec">
+          <h4>Steps <span style="text-transform:none; letter-spacing:0">(byte consumers in sequence — each may capture)</span></h4>
+          <div id="wbSteps"></div>
+          <button class="addbtn2" id="wbAddStep">+ step</button>
+        </div>
+        <div class="wb-sec">
+          <div class="wb-lint">Steps compose literal tags, take-until/while, numeric reads, embedded <b>regex</b> patterns, and library references (patterns or stored combinators); repeat/choice/peek contain other steps. Captures declared here become the template's captures, exactly as regex groups do.</div>
+        </div>
+      </div>
+      <!-- guard and limits are mechanism-independent (mode → guard → match → limits),
+           so like the sample they belong to the workbench, not to any tab -->
+      <div class="wb-sec">
+        <h4>Guard <span style="text-transform:none; letter-spacing:0">(evaluated before matching, against in-scope vars)</span></h4>
+        <div id="wbGuard"></div>
+        <button class="addbtn2" id="wbAddClause">+ clause</button>
+        <div id="wbGuardVerdict" class="wb-verdict"></div>
+      </div>
+      <div class="wb-sec">
+        <h4>Limits</h4>
+        <div id="wbLimits"></div>
+      </div>
     </div>
-    <div class="wb-sec">
-      <h4>Test against current frame content</h4>
-      <div id="wbTest" class="wb-test"></div>
-    </div>
-    <div class="wb-sec">
-      <div class="wb-lint" id="wbLint">explain(): straight-line scan &nbsp;·&nbsp; ambiguities(): none &nbsp;·&nbsp; (illustrative — real lint comes from the engine)</div>
+    <div id="wbDetails">
+      <div><h4 class="det-head">Match details</h4><div id="wbDetTable"></div></div>
+      <div><h4 class="det-head">Explanation</h4><div id="wbExplain"></div></div>
     </div>
     <div class="wb-foot">
+      <span class="wb-lint">Pattern facts and explanations come from the engine (PatternInfo, explain()) in the real editor — this page approximates them.</span>
+      <span class="spacer"></span>
       <button id="wbCancel">Cancel</button>
       <button class="primary" id="wbApply">Apply</button>
     </div>
   </div>
 </div>
+
+<footer>Navigate: click any highlight, apply-site row or output span &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&larr;</kbd>/<kbd>&rarr;</kbd> sideways within parent &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&uarr;</kbd> parent frame &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>&darr;</kbd> first child frame &nbsp;·&nbsp; <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd>/<kbd>&rarr;</kbd> same template, whole input</footer>
+
 
 <script>
 "use strict";
@@ -401,6 +533,53 @@ const BODY = {
   mac:    [{ k: "value-of", lit: "$mac" }],
 };
 
+/* progressive/combinator step builder: byte consumers in sequence (the engine's MatchStep vocabulary) */
+const STEP_KINDS = ["tag", "take-until", "take-while", "take-bytes", "read-numeric",
+  "regex", "named", "repeat", "choice", "peek"];
+/* reusable library entries (CombinatorPattern) — plain patterns AND whole combinators,
+   both referenceable from Named matches and library steps (DocRef-based in Stroom, D11).
+   `impl` is a mockup-only regex equivalent so the sample evaluator can run them. */
+const PATTERN_LIB = [
+  { name: "quoted-string", kind: "pattern",    impl: '"[^"]*"' },
+  { name: "iso-instant",   kind: "pattern",    impl: "\\d{4}-\\d{2}-\\d{2}T[\\d:.]+Z" },
+  { name: "ip-address",    kind: "combinator", impl: "(?:\\d{1,3}\\.){3}\\d{1,3}" },
+];
+function libEntry(name) { return PATTERN_LIB.find(p => p.name === name); }
+const PROG = {
+  /* a worked example: kv-pair expressed as a combinator instead of a regex */
+  kv: [
+    { kind: "take-while", arg: "[A-Za-z ]", cap: "key" },
+    { kind: "tag", arg: '"="', cap: "" },
+    { kind: "choice", arg: 'named(quoted-string) | take-until(" ")', cap: "value" },
+  ],
+};
+function progSteps(tid) { return PROG[tid] || (PROG[tid] = []); }
+
+/* guard and limits: mechanism-independent parts of the match stage (mode → guard → match → limits) */
+const GUARD_VARS = ["$key", "$value", "$instant", "$text", "$mac", "depth"];
+const GUARD_OPS = ["exists", "==", "!=", "matches", ">", "<"];
+const GUARD = {
+  /* worked example: quoted only applies where the field's key is "name" */
+  quoted: [{ v: "$key", op: "==", val: "name" }],
+};
+const LIMITS = {};
+function guardOf(tid) { return GUARD[tid] || (GUARD[tid] = []); }
+function limitsOf(tid) { return LIMITS[tid] || (LIMITS[tid] = { min: "", max: "", only: "" }); }
+function guardSummary(tid) {
+  const g = guardOf(tid);
+  return g.length
+    ? "guard " + g.map(c => c.op === "exists" ? `${c.v} exists` : `${c.v} ${c.op} ${JSON.stringify(c.val)}`).join(" and ")
+    : "guard (none)";
+}
+function limitsSummary(tid) {
+  const l = limitsOf(tid);
+  const parts = [];
+  if (l.min) parts.push("min " + l.min);
+  if (l.max) parts.push("max " + l.max);
+  if (l.only) parts.push("only " + l.only);
+  return parts.length ? "limits " + parts.join(", ") : "limits (none)";
+}
+
 /* ================= build the trace (stands in for the preview endpoint) ================= */
 
 const matches = [];   // frames: {id, tpl, parent, start, len, children:[], captures:[{name,value,span?}], tries:[]}
@@ -450,6 +629,36 @@ function isoNanos(v) { return v.replace(/\.(\d{3})Z$/, ".$1000000Z"); }
 const triesTotal = {};
 for (const m of matches) for (const t of m.tries) triesTotal[t] = (triesTotal[t] || 0) + 1;
 
+/* profiling: every run profiles — Instrument timing rides the same run, so there is no
+   separate mode. Numbers are hand-authored here; avg µs per attempt drives heat colour. */
+const AVG_US = { record: 2.1, kv: 5.8, iso: 3.9, quoted: 2.7, mac: 41.0 };
+function prof(tid) {
+  const matched = (byTpl[tid] || []).length;
+  const fails = tid === "kv" ? 9 : (triesTotal[tid] || 0);   // kv fails once per inter-field gap
+  const attempts = matched + fails;
+  const avgUs = AVG_US[tid] || 0;
+  return { attempts, matched, avgUs, totalUs: attempts * avgUs };
+}
+const RUN_TOTAL_US = Object.keys(AVG_US).reduce((a, t) => a + prof(t).totalUs, 0);
+const RUN_ATTEMPTS = Object.keys(AVG_US).reduce((a, t) => a + prof(t).attempts, 0);
+function heatColor(avgUs) {
+  return avgUs >= 20 ? "var(--error-c)" : avgUs >= 5 ? "var(--warn-c)" : "var(--valid)";
+}
+function heatTrack(p, wide) {
+  const track = el("div", "heat-track" + (wide ? " strip-heat" : ""));
+  const fill = el("div", "heat-fill");
+  fill.style.width = Math.max(2, Math.round(p.totalUs / RUN_TOTAL_US * 100)) + "%";
+  fill.style.background = heatColor(p.avgUs);
+  track.appendChild(fill);
+  return track;
+}
+function fmtUs(us) { return us >= 1000 ? (us / 1000).toFixed(1) + " ms" : Math.round(us) + " µs"; }
+function profTitle(p) {
+  return `${p.matched} matched of ${p.attempts} attempts · ${p.avgUs.toFixed(1)} µs/attempt · ` +
+    `${fmtUs(p.totalUs)} total (${Math.round(p.totalUs / RUN_TOTAL_US * 100)}% of run) — ` +
+    `single-run timing: diagnostic, not a benchmark`;
+}
+
 /* output with attribution: segments of {text, m} where m is the writing frame */
 const outSegs = [];
 const emit = (text, m) => outSegs.push({ text, m });
@@ -474,6 +683,8 @@ let cursor = SOURCE;   // the selected frame; SOURCE is the root frame
 let selTpl = "source"; // the template shown in the strip (follows the cursor)
 let gapMsg = null;
 let stale = false;     // config edited since the trace was built
+let editing = null;    // index of the body card being edited (in selTpl's body)
+let addMenuOpen = false;
 
 function chainOf(m) { const c = []; for (let x = m; x; x = x.parent) c.unshift(x); return c; }
 function siblings(m) {   // same-template siblings under the same parent frame
@@ -482,11 +693,13 @@ function siblings(m) {   // same-template siblings under the same parent frame
 function isDescendant(m, of) { for (let x = m; x; x = x.parent) if (x === of) return true; return false; }
 function setCursor(m, keepGap) {
   cursor = m; selTpl = m.tpl;
+  editing = null; addMenuOpen = false;
   if (!keepGap) gapMsg = null;
   render();
 }
 function selectTemplate(tid) {   // zero-match templates: show the definition, keep the frame
   selTpl = tid; gapMsg = null;
+  editing = null; addMenuOpen = false;
   const first = (byTpl[tid] || [])[0];
   if (first) { cursor = first; }
   render();
@@ -512,15 +725,33 @@ function renderTpls() {
       if (t.mode !== mode) continue;
       const n = (byTpl[id] || []).length;
       const row = el("div", "tpl-row" + (n === 0 ? " zero" : "") + (selTpl === id ? " sel" : ""));
+      const line = el("div", "line");
       const chip = el("span", "chip"); chip.style.background = t.color;
-      row.append(chip, el("span", "name mono", t.name),
+      line.append(chip, el("span", "name mono", t.name),
         el("span", "count", n === 0 ? `0 · ${triesTotal[id] || 0} tries` : String(n)));
-      row.title = n === 0
+      row.appendChild(line);
+      const p = prof(id);
+      if (p.attempts) row.appendChild(heatTrack(p, false));
+      row.title = (n === 0
         ? `No matches — tried at ${triesTotal[id] || 0} positions across the input; click to see its definition`
-        : `${n} matches over the whole input — click for the first`;
+        : `${n} matches over the whole input — click for the first`) + "\n" + profTitle(p);
       row.addEventListener("click", () => selectTemplate(id));
       list.appendChild(row);
     }
+  }
+  /* the pattern library: named CombinatorPatterns — plain patterns and whole combinators */
+  list.appendChild(el("div", "mode-head", "patterns"));
+  for (const p of PATTERN_LIB) {
+    const row = el("div", "tpl-row zero");
+    const line = el("div", "line");
+    const chip = el("span", "chip");
+    chip.style.background = "transparent"; chip.style.border = "1px solid var(--muted)";
+    line.append(chip, el("span", "name mono", p.name),
+      el("span", "count", p.kind === "combinator" ? "comb" : "pat"));
+    row.appendChild(line);
+    row.title = `Library ${p.kind} (CombinatorPattern) — referenced by Named match expressions ` +
+      "and chosen from the workbench's library-step picker; a DocRef-based library in Stroom (D11)";
+    list.appendChild(row);
   }
 }
 
@@ -599,27 +830,81 @@ function renderStrip() {
     mline.appendChild(el("span", "none", "(the document — matches the whole content)"));
   } else {
     const chip = el("span", "match-chip");
-    chip.append(el("span", "mtype", "regex"), el("span", "mpat", t.pattern),
+    const prog = t.mtype === "progressive";
+    const summary = prog ? progSteps(selTpl).map(s => s.kind).join(" · ") : t.pattern;
+    chip.append(el("span", "mtype", prog ? "steps" : "regex"), el("span", "mpat", summary),
       el("span", "wb", "✎ workbench"));
     chip.title = "Open the pattern workbench — editing, validation, group sync, live test";
     chip.addEventListener("click", () => openWorkbench(selTpl));
     mline.appendChild(chip);
-    mline.appendChild(el("span", "none", "guard (none) · limits (none)"));
+    const gl = el("span", "none", guardSummary(selTpl) + " · " + limitsSummary(selTpl));
+    gl.title = "Guard and limits — click to edit in the workbench";
+    gl.style.cursor = "pointer";
+    gl.addEventListener("click", () => openWorkbench(selTpl));
+    mline.appendChild(gl);
   }
   b.appendChild(mline);
+
+  /* profile: always present — every run times every attempt (no separate mode) */
+  const pline = el("div", "strip-line");
+  pline.appendChild(el("span", "k", "profile"));
+  if (selTpl === "source") {
+    pline.appendChild(el("span", "none",
+      `run ${fmtUs(RUN_TOTAL_US)} · ${RUN_ATTEMPTS} attempts across ${Object.keys(AVG_US).length} templates · ` +
+      `every run profiles (single-run timing — diagnostic, not a benchmark)`));
+  } else {
+    const p = prof(selTpl);
+    pline.appendChild(heatTrack(p, true));
+    const rate = p.attempts ? Math.round(p.matched / p.attempts * 100) : 0;
+    const share = p.attempts ? Math.round(p.totalUs / RUN_TOTAL_US * 100) : 0;
+    pline.appendChild(el("span", "none",
+      p.attempts === 0 ? "(never attempted in this run)" :
+      `${p.avgUs.toFixed(1)} µs/attempt · ${p.attempts} attempts, ${p.matched} matched (${rate}%) · ` +
+      `${fmtUs(p.totalUs)} total · ${share}% of run`));
+  }
+  b.appendChild(pline);
 
   /* body: the child structure, apply sites annotated with this frame's dispatches */
   const bline = el("div", "strip-line");
   bline.appendChild(el("span", "k", "body"));
   b.appendChild(bline);
   const cards = el("div", "cards");
-  BODY[selTpl].forEach((node, i) => {
-    if (node.k === "apply") {
-      const card = el("div", "card k-apply");
-      const head = el("div", "aphead");
-      head.append(el("span", "num", String(i + 1)), el("span", "kind", "apply-templates"),
-        el("span", "lit mono", `mode="${node.mode}"` + (node.sel ? ` select=${node.sel}` : "")));
-      card.appendChild(head);
+  BODY[selTpl].forEach((node, i) => cards.appendChild(renderBodyCard(node, i, onFrame)));
+  /* contextual add: instruction kinds grouped by category (ds-rs's Add-Child popup) */
+  const addLine = el("div", "addline");
+  const addBtn = el("button", "addbtn2", addMenuOpen ? "− instruction" : "+ instruction");
+  addBtn.title = "Add an instruction to this template's body";
+  addBtn.addEventListener("click", () => { addMenuOpen = !addMenuOpen; editing = null; render(); });
+  addLine.appendChild(addBtn);
+  if (addMenuOpen) addLine.appendChild(renderAddMenu());
+  cards.appendChild(addLine);
+  b.appendChild(cards);
+}
+
+/* --- body cards: display, inline edit, reorder, delete --- */
+function renderBodyCard(node, i, onFrame) {
+  const isEditing = editing === i;
+  if (node.k === "apply") {
+    const card = el("div", "card k-apply");
+    const head = el("div", "aphead");
+    head.append(el("span", "num", String(i + 1)), el("span", "kind", "apply-templates"));
+    if (isEditing) {
+      const modeSel = document.createElement("select"); modeSel.className = "edit-in";
+      for (const m of Object.keys(CANDIDATES)) {
+        const o = document.createElement("option");
+        o.value = m; o.textContent = `mode="${m}"`; o.selected = m === node.mode;
+        modeSel.appendChild(o);
+      }
+      const selIn = mkEditInput(node.sel || "", "select=$var");
+      const commit = () => { node.mode = modeSel.value; node.sel = selIn.value || undefined; endEdit(true); };
+      wireEnter(selIn, commit);
+      head.append(modeSel, selIn, mkOk(commit), mkCancel());
+    } else {
+      head.append(el("span", "lit mono", `mode="${node.mode}"` + (node.sel ? ` select=${node.sel}` : "")));
+      head.appendChild(cardActions(i));
+    }
+    card.appendChild(head);
+    if (!isEditing) {
       /* the matching child templates AT THIS SITE, for the current frame */
       for (const tid of CANDIDATES[node.mode]) {
         const kids = onFrame ? cursor.children.filter(ch => ch.tpl === tid) : [];
@@ -645,15 +930,100 @@ function renderStrip() {
         card.appendChild(row);
       }
       if (node.note) card.appendChild(el("div", "disp-note", node.note));
-      cards.appendChild(card);
-    } else {
-      const card = el("div", "card k-" + (node.k === "value-of" ? "value" : node.k));
-      card.append(el("span", "num", String(i + 1)), el("span", "kind", node.k),
-        el("span", "lit mono", node.lit));
-      cards.appendChild(card);
     }
+    return card;
+  }
+  const kindCls = node.k === "text" ? "k-text" : node.k === "value-of" ? "k-value" : "k-other";
+  const card = el("div", "card " + kindCls);
+  card.append(el("span", "num", String(i + 1)), el("span", "kind", node.k));
+  if (isEditing) {
+    const input = mkEditInput(node.lit, "");
+    const commit = () => { node.lit = input.value; endEdit(true); };
+    wireEnter(input, commit);
+    card.append(input, mkOk(commit), mkCancel());
+    setTimeout(() => input.focus(), 0);
+  } else {
+    card.append(el("span", "lit mono", node.lit));
+    card.appendChild(cardActions(i));
+  }
+  return card;
+}
+
+function cardActions(i) {
+  const acts = el("span", "actions");
+  const edit = el("button", "act", "✎"); edit.title = "Edit this instruction";
+  edit.addEventListener("click", () => { editing = i; addMenuOpen = false; render(); });
+  const up = el("button", "act", "↑"); up.title = "Move up"; up.disabled = i === 0;
+  up.addEventListener("click", () => {
+    const body = BODY[selTpl]; [body[i - 1], body[i]] = [body[i], body[i - 1]];
+    editing = null; stale = true; render();
   });
-  b.appendChild(cards);
+  const down = el("button", "act", "↓"); down.title = "Move down";
+  down.disabled = i === BODY[selTpl].length - 1;
+  down.addEventListener("click", () => {
+    const body = BODY[selTpl]; [body[i + 1], body[i]] = [body[i], body[i + 1]];
+    editing = null; stale = true; render();
+  });
+  const del = el("button", "act del", "✕"); del.title = "Delete this instruction";
+  del.addEventListener("click", () => {
+    BODY[selTpl].splice(i, 1);
+    editing = null; stale = true; render();
+  });
+  acts.append(edit, up, down, del);
+  return acts;
+}
+
+function mkEditInput(val, ph) {
+  const inp = document.createElement("input");
+  inp.className = "edit-in mono"; inp.value = val; inp.placeholder = ph;
+  return inp;
+}
+function wireEnter(input, commit) {
+  input.addEventListener("keydown", ev => {
+    ev.stopPropagation();
+    if (ev.key === "Enter") commit();
+    if (ev.key === "Escape") endEdit(false);
+  });
+}
+function mkOk(commit) {
+  const b = el("button", "act ok", "✓");
+  b.title = "Apply (config edit — re-run to refresh the trace)";
+  b.addEventListener("click", commit);
+  return b;
+}
+function mkCancel() {
+  const b = el("button", "act", "✕"); b.title = "Cancel";
+  b.addEventListener("click", () => endEdit(false));
+  return b;
+}
+function endEdit(changed) { editing = null; if (changed) stale = true; render(); }
+
+/* instruction kinds for the add menu, grouped by category */
+const ADD_KINDS = [
+  ["output",    [["text", '""'], ["value-of", "$"]]],
+  ["invoke",    [["apply-templates", null], ["call-template", "(name)"]]],
+  ["control",   [["if", "(condition)"], ["choose", "(…)"]]],
+  ["transform", [["replace", '/…/ → "…"'], ["format-date", "(picture)"]]],
+];
+function renderAddMenu() {
+  const menu = el("div", "add-menu");
+  for (const [grp, kinds] of ADD_KINDS) {
+    menu.appendChild(el("div", "grp", grp));
+    for (const [kind, lit] of kinds) {
+      const opt = el("div", "opt mono", kind);
+      if (kind === "if" || kind === "choose") {
+        opt.title = "Containers drill down breadcrumb-style in the real editor (flat card here)";
+      }
+      opt.addEventListener("click", () => {
+        const node = kind === "apply-templates" ? { k: "apply", mode: "values" } : { k: kind, lit };
+        BODY[selTpl].push(node);
+        addMenuOpen = false; editing = BODY[selTpl].length - 1; stale = true;
+        render();
+      });
+      menu.appendChild(opt);
+    }
+  }
+  return menu;
 }
 
 /* --- the content renderer: a text variable's value with its child matches lit --- */
@@ -858,66 +1228,596 @@ function renderRunBtn() {
 /* ================= pattern workbench ================= */
 
 let wbTpl = null;
+let wbTab = "regex";
+let wbNames = [];       // group-name edits in the workbench — the capture declarations
+let wbSelGroup = null;  // clicked group in the pattern map: isolate its spans in the sample
+let wbSelStep = null;   // clicked step in the details: isolate its consumed spans
+let wbMatchData = [];   // regex matches of the last render (for the details table)
+let wbStepCounts = [];  // per-step consumption counts of the last step run
 
 function openWorkbench(tid) {
   wbTpl = tid;
+  wbTab = TPL[tid].mtype === "progressive" ? "prog" : "regex";
+  wbNames = [...TPL[tid].caps];
+  wbSelGroup = null; wbSelStep = null;
   $("wbName").textContent = TPL[tid].name;
   $("wbPat").value = TPL[tid].pattern;
-  updateWb();
+  /* the shared sample: seeded from the current frame's content, freely editable to experiment */
+  const frame = cursor.tpl === tid ? cursor : (byTpl[tid] || [])[0];
+  $("wbSample").value = frame ? SAMPLE.slice(frame.start, frame.start + frame.len) : SAMPLE;
+  renderWbTab();
+  /* full-screen: the workbench replaces the editor panes below the title bar */
+  $("appMain").hidden = true;
   $("wbOverlay").hidden = false;
-  $("wbPat").focus();
+  if (wbTab === "regex") $("wbPat").focus();
+}
+
+function closeWorkbench() {
+  $("wbOverlay").hidden = true;
+  $("appMain").hidden = false;
+}
+
+function renderWbTab() {
+  $("wbTabRegex").className = "tab" + (wbTab === "regex" ? " active" : "");
+  $("wbTabProg").className = "tab" + (wbTab === "prog" ? " active" : "");
+  $("wbRegex").hidden = wbTab !== "regex";
+  $("wbProg").hidden = wbTab !== "prog";
+  wbSelGroup = null; wbSelStep = null;
+  if (wbTab === "regex") updateWb(); else renderSteps();
+  renderGuard();
+  renderLimits();
+}
+
+/* config edited live (guard/limits/steps mutate shared state) — the trace is stale until re-run */
+function touchConfig() { stale = true; renderRunBtn(); }
+
+function mkSelect(options, value, onChange) {
+  const s = document.createElement("select");
+  s.className = "edit-in";
+  for (const o of options) {
+    const opt = document.createElement("option");
+    opt.value = o; opt.textContent = o; opt.selected = o === value;
+    s.appendChild(opt);
+  }
+  s.addEventListener("change", () => onChange(s.value));
+  return s;
+}
+
+/* ---- guard: a condition builder with a live verdict at the current frame ---- */
+
+function renderGuard() {
+  const box = $("wbGuard");
+  box.textContent = "";
+  const clauses = guardOf(wbTpl);
+  if (!clauses.length) {
+    box.appendChild(el("div", "none", "(no guard — the template is tried whenever its mode applies)"));
+  }
+  clauses.forEach((c, i) => {
+    const row = el("div", "step-row");
+    const v = mkSelect(GUARD_VARS, c.v, val => { c.v = val; touchConfig(); renderGuard(); });
+    const op = mkSelect(GUARD_OPS, c.op, val => { c.op = val; touchConfig(); renderGuard(); });
+    const val = mkEditInput(c.val || "", "value");
+    val.classList.add("arg");
+    val.disabled = c.op === "exists";
+    val.addEventListener("input", () => { c.val = val.value; touchConfig(); renderGuardVerdict(); });
+    const del = el("button", "act del", "✕");
+    del.title = "Remove this clause";
+    del.addEventListener("click", () => { clauses.splice(i, 1); touchConfig(); renderGuard(); });
+    row.append(el("span", "num-s", i ? "and" : ""), v, op, val, del);
+    box.appendChild(row);
+  });
+  renderGuardVerdict();
+}
+
+function renderGuardVerdict() {
+  const out = $("wbGuardVerdict");
+  const clauses = guardOf(wbTpl);
+  if (!clauses.length) { out.textContent = ""; return; }
+  /* the workbench always has a frame — so a guard can be judged, not just written */
+  const env = {};
+  const frame = cursor.tpl === wbTpl ? cursor : (byTpl[wbTpl] || [])[0];
+  if (!frame) { out.textContent = "(no frame to evaluate against)"; out.style.color = "var(--muted)"; return; }
+  for (const anc of chainOf(frame).slice(0, -1)) {
+    for (const c of anc.captures) env["$" + c.name] = c.value;
+  }
+  env.depth = String(chainOf(frame).length - 1);
+  const pass = clauses.every(c => {
+    const val = env[c.v];
+    switch (c.op) {
+      case "exists": return val !== undefined;
+      case "==": return val === c.val;
+      case "!=": return val !== c.val;
+      case "matches": try { return val !== undefined && new RegExp(c.val).test(val); } catch (e) { return false; }
+      case ">": return Number(val) > Number(c.val);
+      case "<": return Number(val) < Number(c.val);
+      default: return false;
+    }
+  });
+  out.textContent = (pass ? "✓ guard passes at the current frame" : "✗ guard fails at the current frame") +
+    " — in scope: " + (Object.keys(env).length ? Object.keys(env).map(k => `${k}=${JSON.stringify(env[k])}`).join(", ") : "(nothing)");
+  out.style.color = pass ? "var(--valid)" : "var(--red-200)";
+}
+
+/* ---- limits: min / max / only, semantics stated inline ---- */
+
+function renderLimits() {
+  const box = $("wbLimits");
+  box.textContent = "";
+  const lim = limitsOf(wbTpl);
+  const mk = (key, label, hint) => {
+    const row = el("div", "step-row");
+    const inp = mkEditInput(lim[key], "—");
+    inp.classList.add("lim-in");
+    inp.addEventListener("input", () => { lim[key] = inp.value; touchConfig(); });
+    row.append(el("span", "lim-label", label), inp, el("span", "det-desc", hint));
+    box.appendChild(row);
+  };
+  mk("min", "min", "fewer matches than this is reported (a message, not a failure)");
+  mk("max", "max", "stop matching this template after N matches");
+  mk("only", "only", "process only the Nth match");
+}
+
+/* the step builder: compose byte consumers — regex patterns and library patterns are step kinds */
+function renderSteps() {
+  const box = $("wbSteps");
+  box.textContent = "";
+  const steps = progSteps(wbTpl);
+  if (!steps.length) box.appendChild(el("div", "none", "(no steps yet — add byte consumers below)"));
+  steps.forEach((s, i) => {
+    const row = el("div", "step-row");
+    const kind = document.createElement("select"); kind.className = "edit-in";
+    for (const k of STEP_KINDS) {
+      const o = document.createElement("option");
+      o.value = k; o.textContent = k; o.selected = k === s.kind;
+      kind.appendChild(o);
+    }
+    kind.addEventListener("change", () => { s.kind = kind.value; renderSteps(); });
+    let arg;
+    if (s.kind === "named") {
+      /* library reuse is a chooser, not free text — patterns and stored combinators alike */
+      arg = document.createElement("select");
+      arg.className = "edit-in arg";
+      arg.title = "Reuse a stored pattern or combinator from the library";
+      if (!s.arg) {
+        const o = document.createElement("option");
+        o.value = ""; o.textContent = "(choose from library…)"; o.selected = true;
+        arg.appendChild(o);
+      }
+      const og1 = document.createElement("optgroup"); og1.label = "patterns";
+      const og2 = document.createElement("optgroup"); og2.label = "combinators";
+      for (const p of PATTERN_LIB) {
+        const o = document.createElement("option");
+        o.value = p.name; o.textContent = p.name; o.selected = p.name === s.arg;
+        (p.kind === "combinator" ? og2 : og1).appendChild(o);
+      }
+      arg.append(og1, og2);
+      arg.addEventListener("change", () => { s.arg = arg.value; renderMatches(); });
+    } else {
+      arg = mkEditInput(s.arg, s.kind === "regex" ? "embedded regex pattern" : "argument");
+      arg.classList.add("arg");
+      if (s.kind === "repeat" || s.kind === "choice" || s.kind === "peek") {
+        arg.title = "Containers hold sub-steps — inline text here; structured sub-lists in the real editor";
+      }
+      arg.addEventListener("input", () => { s.arg = arg.value; renderMatches(); });
+    }
+    const cap = mkEditInput(s.cap, "capture as…");
+    cap.classList.add("cap");
+    cap.title = "Name this step's captured bytes — becomes a capture declaration like a regex group";
+    cap.addEventListener("input", () => { s.cap = cap.value; renderMatches(); });
+    const up = el("button", "act", "↑"); up.disabled = i === 0;
+    up.addEventListener("click", () => { [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]]; renderSteps(); });
+    const down = el("button", "act", "↓"); down.disabled = i === steps.length - 1;
+    down.addEventListener("click", () => { [steps[i + 1], steps[i]] = [steps[i], steps[i + 1]]; renderSteps(); });
+    const del = el("button", "act del", "✕");
+    del.addEventListener("click", () => { steps.splice(i, 1); renderSteps(); });
+    row.append(el("span", "num-s", String(i + 1)), kind, arg, cap, up, down, del);
+    box.appendChild(row);
+  });
+  renderMatches();
 }
 
 function updateWb() {
   const pat = $("wbPat").value;
-  const err = $("wbErr"), groups = $("wbGroups"), test = $("wbTest");
-  groups.textContent = ""; test.textContent = "";
+  const err = $("wbErr"), groups = $("wbGroups");
+  groups.textContent = "";
   let re = null;
   try { re = new RegExp(pat); err.textContent = ""; }
   catch (e) { err.textContent = String(e.message || e); }
-  if (!re) { groups.appendChild(el("div", "none", "—")); return; }
+  if (!re) { groups.appendChild(el("div", "none", "—")); renderPatMap(); renderMatches(); return; }
 
-  /* group count via the exec-on-empty trick; names from (?<name>...) syntax */
+  /* group count via the exec-on-empty trick; names from (?<name>...) syntax.
+     Each group row is an editable capture declaration — same rows as the output vars pane. */
   const count = new RegExp(pat + "|").exec("").length - 1;
-  const names = [...pat.matchAll(/\(\?<([A-Za-z_][A-Za-z0-9_]*)>/g)].map(m => m[1]);
+  const syntaxNames = [...pat.matchAll(/\(\?<([A-Za-z_][A-Za-z0-9_]*)>/g)].map(m => m[1]);
   if (count === 0) groups.appendChild(el("div", "none", "(no capturing groups)"));
   for (let i = 1; i <= count; i++) {
     const g = el("div", "g");
     const chip = el("span", "chip"); chip.style.background = `var(--cap-${i - 1})`;
-    g.append(chip, el("span", "mono", "$" + i),
-      el("span", "", names[i - 1] ? `→ capture "${names[i - 1]}"` : `→ capture "${(TPL[wbTpl].caps || [])[i - 1] || "(unnamed)"}"`));
+    const inp = mkEditInput(wbNames[i - 1] ?? syntaxNames[i - 1] ?? "", "capture name");
+    inp.classList.add("cap-name");
+    inp.title = "The capture declaration for this group — same as the row in Output vars";
+    inp.addEventListener("input", () => { wbNames[i - 1] = inp.value; });
+    g.append(chip, el("span", "mono", "$" + i), el("span", "", "→"), inp);
     groups.appendChild(g);
   }
 
-  /* live test against the current frame's content */
-  const frame = cursor.tpl === wbTpl ? cursor : (byTpl[wbTpl] || [])[0];
-  if (!frame) { test.textContent = "(no matching frame in the trace — the real editor lets you paste test content)"; return; }
-  const content = SAMPLE.slice(frame.start, frame.start + frame.len);
-  const m = re.exec(content);
-  if (!m) { test.textContent = content + "\n\n✗ no match against this frame's content"; return; }
-  test.append(document.createTextNode(content.slice(0, m.index)));
-  const mk = document.createElement("mark"); mk.textContent = m[0];
-  test.appendChild(mk);
-  test.append(document.createTextNode(content.slice(m.index + m[0].length)));
-  const gl = el("div", "", m.slice(1).map((v, i) => `$${i + 1} = ${JSON.stringify(v ?? null)}`).join("   "));
-  gl.style.marginTop = "6px"; gl.style.color = "var(--muted)";
-  test.appendChild(gl);
+  renderPatMap();
+  renderMatches();
+}
+
+/* ---- the pattern map: the pattern with group spans coloured and clickable ---- */
+
+/* find capture-group spans in the pattern text (escape- and class-aware) */
+function parseGroups(pat) {
+  const groups = [];
+  const stack = [];
+  let idx = 0, inClass = false;
+  for (let i = 0; i < pat.length; i++) {
+    const c = pat[i];
+    if (c === "\\") { i++; continue; }
+    if (inClass) { if (c === "]") inClass = false; continue; }
+    if (c === "[") { inClass = true; continue; }
+    if (c === "(") {
+      const rest = pat.slice(i + 1);
+      let name = null, capturing = true;
+      if (rest.startsWith("?")) {
+        const nm = /^\?<([A-Za-z_][A-Za-z0-9_]*)>/.exec(rest);
+        if (nm) name = nm[1]; else capturing = false;
+      }
+      stack.push(capturing ? { idx: ++idx, start: i, name } : null);
+      continue;
+    }
+    if (c === ")") {
+      const g = stack.pop();
+      if (g) { g.end = i + 1; groups.push(g); }
+    }
+  }
+  return groups.sort((a, b) => a.start - b.start);
+}
+
+function renderPatMap() {
+  const map = $("wbPatMap");
+  map.textContent = "";
+  const pat = $("wbPat").value;
+  let groups = [];
+  try { new RegExp(pat); groups = parseGroups(pat); } catch (e) { map.textContent = pat; return; }
+  let run = { g: undefined, text: "" };
+  const flush = () => {
+    if (!run.text) return;
+    if (!run.g) { map.append(document.createTextNode(run.text)); }
+    else {
+      const g = run.g;
+      const s = el("span", "pm-g", run.text);
+      const hue = `var(--cap-${(g.idx - 1) % 4})`;
+      const sel = wbSelGroup === g.idx;
+      s.style.background = `color-mix(in srgb, ${hue} ${sel ? 40 : 18}%, transparent)`;
+      s.style.borderBottom = `2px solid ${hue}`;
+      if (sel) s.style.outline = `1px solid ${hue}`;
+      s.title = `group $${g.idx}${g.name ? ` <${g.name}>` : ""} — click to isolate its matches in the sample`;
+      s.addEventListener("click", () => {
+        wbSelGroup = wbSelGroup === g.idx ? null : g.idx;
+        renderPatMap(); renderMatches();
+      });
+      map.appendChild(s);
+    }
+    run = { g: undefined, text: "" };
+  };
+  for (let i = 0; i < pat.length; i++) {
+    /* colour each char by its innermost containing capture group (regex101's inner/outer) */
+    let inner = undefined;
+    for (const g of groups) {
+      if (i >= g.start && i < g.end && (!inner || (g.end - g.start) < (inner.end - inner.start))) inner = g;
+    }
+    if ((inner && run.g && inner.idx !== run.g.idx) || (!!inner !== !!run.g)) flush();
+    run.g = inner; run.text += pat[i];
+  }
+  flush();
+}
+
+/* ---- the shared match display: the sample is consumed by whichever tab is active ---- */
+
+function renderMatches() {
+  const box = $("wbMatches");
+  box.textContent = "";
+  const text = $("wbSample").value;
+  if (wbTab === "regex") renderRegexMatches(box, text);
+  else renderStepMatches(box, text);
+}
+
+function renderRegexMatches(box, text) {
+  wbMatchData = [];
+  let re = null;
+  try { re = new RegExp($("wbPat").value, "gd"); }   // 'd': group indices for inner/outer spans
+  catch (e) { box.textContent = "(fix the pattern to see matches)"; renderDetails(); return; }
+  let pos = 0, m;
+  while ((m = re.exec(text)) !== null && wbMatchData.length < 100) {
+    if (m.index > pos) box.append(document.createTextNode(text.slice(pos, m.index)));
+    box.appendChild(renderMatchSpan(text, m));
+    wbMatchData.push(m);
+    pos = m.index + m[0].length;
+    if (m[0] === "") re.lastIndex++;   // avoid stalling on empty matches
+  }
+  box.append(document.createTextNode(text.slice(pos)));
+  box.appendChild(el("div", "wb-info", wbMatchData.length === 0 ? "✗ no matches" :
+    `${wbMatchData.length} match${wbMatchData.length > 1 ? "es" : ""} — click a group in the pattern to isolate it`));
+  renderDetails();
+}
+
+/* one match: outer span outlined, capture groups nested inside in their hues (regex101's
+   inner/outer colouring); a selected group stays saturated while the rest fade */
+function renderMatchSpan(text, m) {
+  const outer = document.createElement("mark");
+  outer.className = "wb-outer";
+  const base = m.index;
+  const nodes = [];
+  if (m.indices) {
+    for (let gi = 1; gi < m.indices.length; gi++) {
+      const r = m.indices[gi];
+      if (r) nodes.push({ gi, s: r[0] - base, e: r[1] - base });
+    }
+  }
+  nodes.sort((a, b) => a.s - b.s || b.e - a.e);
+  const roots = []; const stack = [];
+  for (const n of nodes) {          // groups nest properly, so a stack builds the forest
+    n.children = [];
+    while (stack.length && n.s >= stack[stack.length - 1].e) stack.pop();
+    if (stack.length) stack[stack.length - 1].children.push(n); else roots.push(n);
+    stack.push(n);
+  }
+  const renderInto = (container, from, to, kids) => {
+    let p = from;
+    for (const k of kids) {
+      if (k.s > p) container.append(document.createTextNode(text.slice(base + p, base + k.s)));
+      const hue = `var(--cap-${(k.gi - 1) % 4})`;
+      const sel = wbSelGroup === k.gi, dim = wbSelGroup !== null && !sel;
+      const s = el("span", "wb-g");
+      s.style.background = `color-mix(in srgb, ${hue} ${sel ? 45 : dim ? 6 : 22}%, transparent)`;
+      s.style.borderBottom = dim ? "none" : `2px solid ${hue}`;
+      if (sel) s.style.outline = `1px solid ${hue}`;
+      s.title = `$${k.gi} = ${JSON.stringify(text.slice(base + k.s, base + k.e))}`;
+      renderInto(s, k.s, k.e, k.children);
+      container.appendChild(s);
+      p = k.e;
+    }
+    if (p < to) container.append(document.createTextNode(text.slice(base + p, base + to)));
+  };
+  renderInto(outer, 0, m[0].length, roots);
+  return outer;
+}
+
+/* minimal step evaluator — mockup stand-in; the engine is the real oracle */
+function stepRegex(s) {
+  switch (s.kind) {
+    case "tag": { const lit = unq(s.arg); return lit ? escRe(lit) : null; }
+    case "take-while": return s.arg ? `(?:${s.arg})+` : null;               // arg: char class
+    case "take-until": { const lit = unq(s.arg); return lit ? `(?:(?!${escRe(lit)}).)+` : null; }
+    case "regex": return s.arg || null;
+    case "named": { const e = libEntry(s.arg); return e ? e.impl : null; }
+    case "choice": {
+      const alts = (s.arg || "").split("|").map(a => a.trim()).map(a => {
+        const m = /^([a-z-]+)\((.*)\)$/.exec(a);
+        return m ? stepRegex({ kind: m[1], arg: m[2] }) : null;
+      });
+      return alts.length && alts.every(Boolean) ? alts.map(a => `(?:${a})`).join("|") : null;
+    }
+    default: return null;   // take-bytes / read-numeric / repeat / peek: not simulated
+  }
+}
+function unq(v) { const m = /^"(.*)"$/.exec((v || "").trim()); return m ? m[1] : (v || "").trim() || null; }
+function escRe(v) { return v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+function renderStepMatches(box, text) {
+  const steps = progSteps(wbTpl);
+  const compiled = steps.map(s => {
+    const src = stepRegex(s);
+    let re = null;
+    if (src) { try { re = new RegExp("^(?:" + src + ")"); } catch (e) { re = null; } }
+    return { s, re };
+  });
+  const unsim = compiled.filter(c => !c.re).map(c => c.s.kind);
+  const spans = [];   // {start, end, stepIdx}
+  wbStepCounts = steps.map(() => 0);
+  let pos = 0, runs = 0;
+  while (pos < text.length && runs < 200 && compiled.length && unsim.length === 0) {
+    let p = pos; const local = []; let ok = true;
+    for (let i = 0; i < compiled.length; i++) {
+      const m = compiled[i].re.exec(text.slice(p));
+      if (!m || m[0] === "") { ok = false; break; }
+      local.push({ start: p, end: p + m[0].length, stepIdx: i });
+      p += m[0].length;
+    }
+    if (ok && p > pos) { spans.push(...local); local.forEach(l => wbStepCounts[l.stepIdx]++); pos = p; runs++; }
+    else pos++;
+  }
+  const capSteps = steps.filter(x => x.cap);
+  let cur = 0;
+  for (const sp of spans) {
+    if (sp.start > cur) box.append(document.createTextNode(text.slice(cur, sp.start)));
+    const stepDef = compiled[sp.stepIdx].s;
+    const span = document.createElement("span");
+    span.textContent = text.slice(sp.start, sp.end);
+    const capIdx = stepDef.cap ? capSteps.indexOf(stepDef) : -1;
+    const hue = capIdx >= 0 ? `var(--cap-${capIdx % 4})` : "var(--muted)";
+    const sel = wbSelStep === sp.stepIdx, dim = wbSelStep !== null && !sel;
+    span.style.background = `color-mix(in srgb, ${hue} ${sel ? 45 : dim ? 5 : 22}%, transparent)`;
+    span.style.borderBottom = dim ? "none" : `2px solid ${hue}`;
+    if (sel) span.style.outline = `1px solid ${hue}`;
+    span.style.borderRadius = "2px";
+    span.title = `step ${sp.stepIdx + 1} ${stepDef.kind}` + (stepDef.cap ? ` → $${stepDef.cap}` : "");
+    box.appendChild(span);
+    cur = sp.end;
+  }
+  box.append(document.createTextNode(text.slice(cur)));
+  box.appendChild(el("div", "wb-info",
+    !steps.length ? "(no steps yet)" :
+    unsim.length ? `(${unsim.join(", ")} not simulated in this mockup — the engine is the real oracle)` :
+    runs === 0 ? "✗ the step sequence matched nowhere" :
+    `${runs} sequence match${runs > 1 ? "es" : ""} — click a step in the details to isolate its spans`));
+  renderDetails();
+}
+
+/* ---- the details band: match table + explanation, below sample and matcher ---- */
+
+const STEP_DESC = {
+  "tag": "consume an exact literal",
+  "take-until": "consume up to (not including) the delimiter",
+  "take-while": "consume while characters match the class",
+  "take-bytes": "consume a fixed byte count",
+  "read-numeric": "consume and parse a number",
+  "regex": "consume what the embedded regex matches",
+  "named": "consume via a library pattern or stored combinator",
+  "repeat": "repeat the contained steps",
+  "choice": "first matching alternative wins (ordered choice)",
+  "peek": "look ahead without consuming",
+};
+
+function renderDetails() {
+  const tbl = $("wbDetTable"), ex = $("wbExplain");
+  tbl.textContent = ""; ex.textContent = "";
+  const text = $("wbSample").value;
+  if (wbTab === "regex") {
+    if (!wbMatchData.length) tbl.appendChild(el("div", "none", "(no matches)"));
+    wbMatchData.slice(0, 50).forEach((m, i) => {
+      const row = el("div", "det-row");
+      row.append(el("span", "det-n", `#${i + 1}`),
+        el("span", "det-range mono", `${m.index}–${m.index + m[0].length}`));
+      for (let gi = 1; gi < m.length; gi++) {
+        const v = el("span", "mono", `$${gi}=${JSON.stringify(m[gi] ?? null)}`);
+        v.style.color = `var(--cap-${(gi - 1) % 4})`;
+        if (wbSelGroup === gi) v.style.fontWeight = "700";
+        row.appendChild(v);
+      }
+      tbl.appendChild(row);
+    });
+    /* part-by-part explanation; group tokens click through to the sample like the map */
+    for (const tok of explainRegex($("wbPat").value)) {
+      const row = el("div", "det-row");
+      const t = el("span", "mono", tok.text);
+      if (tok.gi) {
+        t.style.color = `var(--cap-${(tok.gi - 1) % 4})`;
+        t.style.cursor = "pointer";
+        t.addEventListener("click", () => {
+          wbSelGroup = wbSelGroup === tok.gi ? null : tok.gi;
+          renderPatMap(); renderMatches();
+        });
+      }
+      row.append(t, el("span", "det-desc", tok.desc));
+      ex.appendChild(row);
+    }
+  } else {
+    const steps = progSteps(wbTpl);
+    if (!steps.length) tbl.appendChild(el("div", "none", "(no steps)"));
+    steps.forEach((s, i) => {
+      const row = el("div", "det-row det-click" + (wbSelStep === i ? " sel" : ""));
+      row.append(el("span", "det-n", `#${i + 1}`),
+        el("span", "det-range mono", `${wbStepCounts[i] || 0}×`),
+        el("span", "mono", s.kind + (s.arg ? `(${s.arg})` : "")),
+        el("span", "det-desc", STEP_DESC[s.kind] || ""),
+        el("span", "mono", s.cap ? `→ $${s.cap}` : ""));
+      row.title = "Click to isolate this step's consumed spans in the sample";
+      row.addEventListener("click", () => {
+        wbSelStep = wbSelStep === i ? null : i;
+        renderMatches();
+      });
+      tbl.appendChild(row);
+    });
+    ex.appendChild(el("div", "det-row det-desc",
+      "Each step is a byte consumer; the sequence anchors where the previous step ended. " +
+      "Step semantics come from the engine's Progressive matcher — the simulation here is illustrative."));
+  }
+}
+
+/* a lightweight part-by-part regex explainer (illustrative — PatternInfo/explain() is the real source) */
+function explainRegex(pat) {
+  const toks = [];
+  let groups = [];
+  try { new RegExp(pat); groups = parseGroups(pat); } catch (e) { return toks; }
+  const CLASSES = { d: "a digit", D: "a non-digit", w: "a word character", W: "a non-word character",
+    s: "whitespace", S: "non-whitespace", b: "a word boundary", n: "a newline", t: "a tab" };
+  let i = 0;
+  while (i < pat.length) {
+    const c = pat[i];
+    if (c === "(") {
+      const g = groups.find(x => x.start === i);
+      if (g) { toks.push({ text: "( … )", gi: g.idx, desc: `capture group $${g.idx}${g.name ? ` — named "${g.name}"` : ""}` }); i++; continue; }
+      const la = /^\(\?(:|=|!|<=|<!)/.exec(pat.slice(i));
+      toks.push({ text: "(?" + (la ? la[1] : ""), desc: la
+        ? ({ ":": "non-capturing group", "=": "lookahead", "!": "negative lookahead",
+             "<=": "lookbehind", "<!": "negative lookbehind" })[la[1]]
+        : "group" });
+      i += la ? la[0].length : 1; continue;
+    }
+    if (c === ")") { i++; continue; }
+    if (c === "\\") { const n = pat[i + 1]; toks.push({ text: "\\" + n, desc: CLASSES[n] || `literal "${n}"` }); i += 2; continue; }
+    if (c === "[") { const j = pat.indexOf("]", i + 1); const cls = pat.slice(i, j + 1);
+      toks.push({ text: cls, desc: cls[1] === "^" ? "any character NOT in the set" : "any character in the set" });
+      i = j + 1; continue; }
+    if ("*+?".includes(c)) { const lazy = pat[i + 1] === "?";
+      toks.push({ text: c + (lazy ? "?" : ""), desc: ({ "*": "zero or more", "+": "one or more", "?": "optional" })[c] + (lazy ? " (lazy)" : " (greedy)") });
+      i += lazy ? 2 : 1; continue; }
+    if (c === "{") { const j = pat.indexOf("}", i); toks.push({ text: pat.slice(i, j + 1), desc: "counted repeat" }); i = j + 1; continue; }
+    if (c === "|") { toks.push({ text: "|", desc: "alternation — try left, then right" }); i++; continue; }
+    if (c === "^") { toks.push({ text: "^", desc: "start anchor" }); i++; continue; }
+    if (c === "$") { toks.push({ text: "$", desc: "end anchor" }); i++; continue; }
+    let j = i;
+    while (j < pat.length && !"()[\\*+?{|^$".includes(pat[j])) j++;
+    toks.push({ text: pat.slice(i, j), desc: `literal "${pat.slice(i, j)}"` });
+    i = j;
+  }
+  return toks;
 }
 
 $("wbPat").addEventListener("input", updateWb);
-$("wbCancel").addEventListener("click", () => { $("wbOverlay").hidden = true; });
-$("wbOverlay").addEventListener("click", ev => { if (ev.target === $("wbOverlay")) $("wbOverlay").hidden = true; });
+$("wbSample").addEventListener("input", renderMatches);
+$("wbTabRegex").addEventListener("click", () => { wbTab = "regex"; renderWbTab(); });
+$("wbTabProg").addEventListener("click", () => { wbTab = "prog"; renderWbTab(); });
+$("wbAddStep").addEventListener("click", () => {
+  progSteps(wbTpl).push({ kind: "tag", arg: "", cap: "" });
+  renderSteps();
+});
+$("wbAddClause").addEventListener("click", () => {
+  guardOf(wbTpl).push({ v: "$key", op: "exists", val: "" });
+  touchConfig();
+  renderGuard();
+});
+$("wbCancel").addEventListener("click", closeWorkbench);
+$("wbClose").addEventListener("click", closeWorkbench);
 $("wbApply").addEventListener("click", () => {
-  TPL[wbTpl].pattern = $("wbPat").value;
+  const t = TPL[wbTpl];
+  if (wbTab === "regex") {
+    t.mtype = "regex";
+    t.pattern = $("wbPat").value;
+    /* commit the group rows as the capture declarations */
+    let count = t.caps.length;
+    try { count = new RegExp(t.pattern + "|").exec("").length - 1; } catch (e) { /* keep old */ }
+    const names = [];
+    for (let i = 0; i < count; i++) names.push(wbNames[i] || t.caps[i] || `group${i + 1}`);
+    for (const m of byTpl[wbTpl] || []) {
+      for (let i = 0; i < Math.min(names.length, m.captures.length); i++) m.captures[i].name = names[i];
+    }
+    names.forEach(n => { if (!(n in CAP_TYPE)) CAP_TYPE[n] = "string"; });
+    t.caps = names;
+  } else {
+    t.mtype = "progressive";
+    /* capturing steps become the capture declarations, exactly as regex groups do */
+    const capNames = progSteps(wbTpl).filter(s => s.cap).map(s => s.cap);
+    if (capNames.length) {
+      capNames.forEach(n => { if (!(n in CAP_TYPE)) CAP_TYPE[n] = "string"; });
+      for (const m of byTpl[wbTpl] || []) {
+        for (let i = 0; i < Math.min(capNames.length, m.captures.length); i++) m.captures[i].name = capNames[i];
+      }
+      t.caps = capNames;
+    }
+  }
   stale = true;
-  $("wbOverlay").hidden = true;
+  closeWorkbench();
   render();
 });
 
 /* ================= keyboard ================= */
 
 document.addEventListener("keydown", ev => {
-  if (ev.key === "Escape" && !$("wbOverlay").hidden) { $("wbOverlay").hidden = true; return; }
+  if (ev.key === "Escape" && !$("wbOverlay").hidden) { closeWorkbench(); return; }
   if (!ev.altKey) return;
   let next = null;
   if (cursor !== SOURCE) {

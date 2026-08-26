@@ -218,27 +218,27 @@ stepper**:
 source  ›  record ◀ 2/3 ▶  ›  kv-pair ◀ 2/4 ▶  ›  quoted ◀ 1/1 ▶
 ```
 
-Each segment: template name, `i/n` where n counts *same-template siblings under that
-parent frame*, and ◀ ▶ arrows. This one widget is the whole navigation model:
+Each segment: template name and `i/n`, where n counts *same-template siblings under that
+parent frame*. This one widget is the whole navigation model:
 
-- **Sideways** — step a segment's arrows: move to the previous/next match of that template
-  under the same parent. Stepping a non-leaf segment re-roots everything below it (the
-  descendant indices reset to first-child), like an odometer.
+- **Sideways** — move to the previous/next match of that template under the same parent.
+  Stepping a non-leaf segment re-roots everything below it (the descendant indices reset
+  to first-child), like an odometer.
 - **Up** — click an ancestor segment: that frame becomes the cursor. `source` is the root
   frame, always present.
 - **Down** — a trailing `› …` affordance descends into the cursor's child frames; the
-  output side's dispatches list is the richer version of the same move.
+  body's dispatch rows are the richer version of the same move.
 
-Two stepper scopes are wanted at different moments: *within this parent* (the breadcrumb
-arrows) and *across the whole input* (jump to the next match of this template anywhere,
-skipping parents with none). The frame header's stepper (§5.6) does the latter; the
-breadcrumb does the former. Both existed in ds-rs users' muscle memory as the single
-"n / total" bar — splitting them is deliberate and needs to survive a usability check
-(Q5).
-
-Keyboard: `Alt+←/→` sideways within parent, `Alt+↑` to parent frame, `Alt+↓` to first
-child frame, `Alt+Shift+←/→` across the whole input. (Stroom's stepper uses toolbar
-buttons; these are additive.)
+Two stepper scopes exist: *within this parent* and *across the whole input* (jump to the
+next match of this template anywhere, skipping parents with none). Per Jon's concern
+(2026-08-26) that a pair of arrows on every segment competes with the one stepper that
+matters, the within-parent controls are **demoted, not deleted**: the `i/n` counts stay
+always visible (information without load), a segment's ◀ ▶ arrows appear only on hover,
+and the strip's whole-input stepper (§5.6) is the single always-visible stepping
+control. Keyboard keeps both scopes: `Alt+←/→` within parent, `Alt+Shift+←/→` whole
+input, `Alt+↑` parent, `Alt+↓` first child. If hover-reveal still reads as clutter in
+practice, full deletion is the fallback — the counts and keyboard carry the capability.
+(Stroom's stepper uses toolbar buttons; the keyboard bindings are additive.)
 
 ### 5.4 The content renderer — highlights live inside a variable
 
@@ -295,18 +295,73 @@ name, mode, where it is dispatched from (the mode-graph strip), and the whole-in
 stepper (`match 6 of 12 · whole input ◀ ▶`). Two parts:
 
 - **Match summary** — the match expression as a read-only summary chip (type + pattern
-  text, flags, guard, limits). Clicking it opens the **pattern workbench**: a popup that
-  gives pattern editing the room and the helper context an inline field never had —
-  live `PatternInfo` validation with the error shown as you type, group list with
-  capture sync, `explain()`/`ambiguities()` lint, and a test panel that runs the
-  candidate pattern **against the current frame's content** so the edit→see loop closes
-  inside the dialog before a full re-run. The workbench is per-match-type: the regex
-  editor, the delimiter editor and the progressive/combinator **step builder** are its
-  tabs — the step builder in particular needs dialog-scale space and never had a
-  plausible inline home. Popups are Stroom's native idiom for exactly this.
+  text, flags), followed by guard and limits summaries; the chip and the summaries all
+  click through to the **pattern workbench** — not a
+  dialog but a **full-screen mode**: it fills the work area below the application title
+  bar, replacing the editor panes while open (per Jon, 2026-08-26 — first-class, which
+  is what buys the room for regex101-grade detail), and exits via Apply, Cancel or
+  Escape back to the Design tab.
+
+  Its layout is regex101's, adapted: the editable **sample** on the left (seeded from
+  the current frame's content, freely editable to experiment) with the live match
+  display beneath it; the **matcher** on the right; **match details and explanation**
+  below, full width. The sample belongs to the workbench, not to any one tab: the text
+  to be consumed is present whichever consumption mechanism is active, and regex,
+  delimiter and step sequences each show their matches against the same text, so
+  switching mechanism never loses the experiment.
+
+  The regex matcher renders the pattern twice: the editable text, and beneath it a
+  **pattern map** — the same pattern with each capture group's span coloured in its
+  capture hue. **Clicking a group in the map isolates that group's spans inside the
+  sample's matches**, regex101's inner/outer colouring: matches render as outlined
+  outer spans with nested group spans inside, and a selected group stays saturated
+  while the others fade. The details band shows a per-match table (offsets, group
+  values in their hues) and a part-by-part **explanation** of the pattern — group
+  entries there click through to the sample the same way. Explanations and pattern
+  facts come from the engine (`PatternInfo`, `explain()`/`ambiguities()`) — the owning
+  parser publishes them; the UI never derives them itself. Validation is live, the
+  error shown as you type. The **Groups panel is the capture-declaration editor**: one
+  editable row per group (`$1 → name`), appearing and disappearing as the pattern is
+  typed, seeded from `(?<name>…)` syntax where present — the same declarations as the
+  capture rows in the output vars pane (§5.5), editable in both. The step builder gets
+  the symmetric treatment: its details rows show each step's kind, consumption count
+  and semantics, and **clicking a step isolates its consumed spans** in the sample.
+
+  **Guard and limits edit here too**, beneath the mechanism tabs — and like the sample
+  they belong to the workbench, not to any tab, because they are mechanism-independent:
+  the engine's dispatch order is mode → guard → match → limits whatever the match kind.
+  The guard is a condition builder (clause rows: variable · operator · value, joined),
+  and because the workbench always has a current frame it shows a **live verdict** —
+  "✓ guard passes at the current frame", evaluated against that frame's in-scope vars —
+  so guard authoring gets the same data-present feedback loop as pattern authoring.
+  Limits are three fields (min / max / only) with their semantics stated inline: fewer
+  matches than *min* is reported, matching stops after *max*, *only* processes just the
+  Nth match.
+
+  The workbench is per-match-type, as tabs: the regex editor, the delimiter editor, and
+  the progressive/combinator **step builder** — the answer to "how do I build a
+  combinator?". The builder is an ordered list of steps from the engine's `MatchStep`
+  vocabulary (tag, take-until, take-while, take-bytes, read-numeric, …) where **a whole
+  regex pattern is just a step kind**, as is a **library reference chosen from a
+  picker** — the library stores both plain patterns and whole combinators, and reusing
+  either is the same act. Containers (repeat, choice, peek) hold sub-steps; any step can
+  capture, and those captures become the template's declarations exactly as regex
+  groups do. So composing byte consumers — a take-while, a literal tag, a choice
+  between a library pattern and a take-until — is assembling rows in one place, not
+  learning a second language, and the shared sample alongside shows each step's
+  consumed span as you build. The step builder needs this much space and never had a
+  plausible inline home — which is half of why the workbench is a full screen and not
+  a popup.
 - **Body** — the child structure: the output-node list as a breadcrumb card list
   (ds-rs's shape — text, value-of, apply-templates, call, if/choose, transforms),
-  full width. This is where the trace lands on the definition: every `apply-templates`
+  full width. The cards are the body *editor*, not just its display: each card carries
+  hover actions (edit in place, reorder, delete), editing swaps the card's summary for
+  its per-kind inline editor, and a contextual **"+ instruction"** popup — grouped by
+  category (output, invoke, control, transform), ds-rs's Add-Child popup reborn —
+  inserts a new card and opens it for editing. Container nodes (if/choose) drill down
+  breadcrumb-style rather than nesting cards, exactly as the ds-rs body editor did.
+  Any body edit marks the trace stale until the next run.
+  This is also where the trace lands on the definition: every `apply-templates`
   card expands with the **matching child templates at that site for the current
   frame** — colour chip, name, match count (→ descend), or `✗ tried` / `— not tried`
   under the ordered choice; a tried-and-failed row renders in warning colour because
@@ -331,11 +386,16 @@ revisit — the information is the same trace either way.
 The **template panel** (left) stays: the config's own structure, grouped by mode, in
 dispatch order (order within a mode is dispatch priority — D34's ordered choice — so
 list order *is* semantics and supports drag-reorder). Each row: colour chip, name, match
-count over the whole input, attempt count when it tells a story, timing badge after a
-profile run. Zero-match templates render dimmed, not hidden — finding them is half the
+count over the whole input, attempt count when it tells a story, and a **heat bar**
+(§5.8) — always present, since every run profiles. Zero-match templates render dimmed,
+not hidden — finding them is half the
 point. The panel header for the selected template shows the mode-graph strip
 ("dispatched from: `record` (body pos 2)") — the static complement to breadcrumb
-ancestry, and the answer when there are no matches to navigate.
+ancestry, and the answer when there are no matches to navigate. Below the templates, the
+**pattern library** lists the config's named `CombinatorPattern`s — plain patterns and
+whole step sequences alike (ds-rs's PatternLibrary carried forward; DocRef-based
+libraries in Stroom per D11) — these are what `Named` match expressions and the
+workbench's library-reference steps choose from.
 
 ### 5.7 Empty states are the front door
 
@@ -351,13 +411,43 @@ Because nothing works without data, the empty states are designed, not accidenta
   applies into mode `values`" vs "tried 212 times — nearest failed attempts here, here,
   here"), which is G3 earning its keep.
 
-### 5.8 Messages and profiling
+### 5.8 Messages, and profiling that is always on
 
 Messages (`Severity` INFO→FATAL, collected not thrown) get the Stroom treatment: a log
 pane, and — where a message carries a position — marks inside the owning frame's content
 renderer and a severity tint on the owning template's row, mirroring how stepping colours
-its pipeline tree. Profiling reuses the attempt/timing trace: the ds-rs table plus its
-sidebar badges, with `invocation_count` and `match_rate` actually displayed this time.
+its pipeline tree.
+
+**Profiling has no mode: every editor run profiles** (proposed 2026-08-26). The ds-rs UI
+had a separate Profile button because its profiling was a second run against a separate
+timing endpoint. Our seam has no such shape: the preview already runs with a recording
+`Instrument`, and `startTiming()`/`stopTiming()` ride the same run at one clock-read
+pair per attempt — one run yields trace *and* timing, so a profiling mode would be a
+distinction with no cost behind it. Production is untouched (`Instrument.NONE` returns
+zero and the clock is never read), keeping this inside D35's decoration rule: the
+editor simply always opts in. Run is the only action; timing is always in the trace and
+always on screen.
+
+Display, in three altitudes:
+
+- **Template panel heat bars** — every row carries a thin bar whose **length is that
+  template's share of total run time** and whose **colour is its per-attempt cost**
+  (green/amber/red). Two metrics, one glyph — and their composition is the diagnostic:
+  a zero-match template with a long red bar reads "matched nothing, consumed half the
+  run", which is the Instrument javadoc's own reason for timing failed attempts ("a
+  template that never matches but is tried at every position is exactly the thing worth
+  finding").
+- **The opened template's strip** — a profile line with the full numbers: attempts,
+  matched (hit rate), µs per attempt, total time, share of run. At the `source` frame
+  the same line shows the whole run's totals.
+- **Per-frame cost** — attempt timing is per match, so a frame can show what *this*
+  match cost; tooltip-level detail, not a pane.
+
+One honest caveat, stated in the UI as in this document: single-run timing under
+instrumentation is a **diagnostic, not a benchmark** — JIT warmup and recorder overhead
+make absolute numbers jittery, so the display leads with shares, ratios and heat, and
+keeps absolutes as detail. Performance claims stay with the JMH gates; the editor
+profiler exists to answer "which template, and why", not "how fast".
 
 ### 5.9 Superseded: the privileged source pane
 
@@ -421,7 +511,9 @@ and it makes the Design tab's scope a quality decision rather than a blocking on
 3. **G3**: failed attempts with positions (extend `stopTiming` or a new instrumented-only
    callback), so unmatched gaps in a frame's content can name their failed candidates.
 4. `preview` and `patternInfo` need server endpoints in the Stroom app (Phase B) — thin
-   wrappers over `Shapeshifter.run` with a recorder and `PatternInfo.inspect`.
+   wrappers over `Shapeshifter.run` with a recorder and `PatternInfo.inspect`. The
+   preview payload **always** carries per-template timing (attempts, matched, total
+   nanos) — profiling is not a separate request (§5.8).
 5. Value types on the wire: captures should carry their doc-17 type (string, number,
    instant…) so the variable panes can badge them without guessing.
 6. Nice-to-have: `BytePattern.explain()`/`ambiguities()` surfaced as pattern-editor lint.
@@ -438,7 +530,7 @@ the GWT UI's dark theme, its colour values lifted directly from
 previews how the editor sits inside the real application.
 
 ```
-┌ apache-audit (Shapeshifter) ──────────────────────────── [▶ Run] [⏱ Profile] ┐
+┌ apache-audit (Shapeshifter) ──────────────────────────────────────── [▶ Run] ┐
 │ ┌ Templates ──────┐ ┌ source › record ◀2/3▶ › kv-pair ◀2/4▶ › … 1 child ▾  ┐ │
 │ │ root            │ ├ Input vars ─────────────┬ Output vars ───────────────┤ │
 │ │ ● record    3   │ │ ▾ content  bytes[19]    │ ▾ captures    (editable)   │ │
@@ -456,7 +548,7 @@ previews how the editor sits inside the real application.
 │ │                 │ │                             ○ iso-time ✗ tried       │ │
 │ │                 │ │        4 text "\"/>"                                 │ │
 │ └─────────────────┘ └──────────────────────────────────────────────────────┘ │
-│ ▸ Messages (0)  ▸ Profile                                                    │
+│ ▸ Messages (0)   · every run profiles — heat bars in the list, detail in strip│
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -482,7 +574,7 @@ breadcrumb moves within the record.
 | Q2 | Where does sample data live? | In the `ShapeshifterDoc` (survives import/export, ds-rs lost this), with a "grab from stream" action to populate it; size-capped. |
 | Q3 | G1 answer: ordering contract or explicit parent in `onMatch`? | Explicit parent identity — one parameter now beats a javadoc contract forever. |
 | Q4 | Phase A's editing surface: raw JSON acceptable as the *only* editor until Phase B? | Yes — steppable and honest beats a rushed forms UI. |
-| Q5 | Two stepper scopes (breadcrumb: within-parent; frame header: whole-input) — keep both, or collapse to one? | Keep both; revisit after mockup use. |
+| Q5 | Two stepper scopes (breadcrumb: within-parent; strip: whole-input) — resolved in direction 2026-08-26: within-parent demoted to hover-revealed arrows + keyboard (§5.3). Remaining question: is hover-reveal enough, or delete the arrows outright? | Ship hover-reveal; delete if it still reads as clutter in use. |
 | Q6 | Auto-run on edit (debounced) or manual run? | Auto with a size threshold that flips to manual. |
 | Q7 | Does Phase C replace the generic stepping panes for ShapeshifterParser, or add a fifth "Trace" pane beside them? | Replace — the frame navigator subsumes Input/Output; keep Log. |
 | Q8 | Content renderer depth: direct children only, or all descendants nested? | All descendants, direct children prominent, deeper levels quieter — the survey view needs it at the root frame. |
