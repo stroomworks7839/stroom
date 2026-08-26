@@ -139,6 +139,8 @@ the hot loops, none applied because each changes a measured method's shape:
   tree `anchored_hit` −5.4%, tree `BOUNDED_*` −5.5/−7.5%, simulate `line_miss` −7.7%
   (the row's fourth ±8% flip this week). Bracketing full pair
   `2026-08-26-0039`/`-0236-*-edge-*-full.json`; per-commit files `*-edge-<sha>-*.json`.
+  The tree's hit trade **ruled kept by Jon (2026-08-26)**: the wins are mechanism, the
+  costs are the layout coin, and real workloads are miss-dominated.
 - The anchor gates' `at < to &&` exemption survives its deleted reason (the edge
   iteration's bookkeeping); dropping it only forces one doomed attempt fewer on
   `minLength == 0` patterns.
