@@ -95,6 +95,18 @@ stroom.shapeshifter.regex
 └── (root)         BytePattern, ByteMatcher, MatchResult, ByteSpan, Flags
 ```
 
+> **The shipped layout is not this one.** The draft planned seven packages; the module has
+> two — `internal/` (parser, HIR, analysis, the plan compiler and all five engines) and
+> `comb/` (the combinator layer) — beneath a root of published types: `BytePattern`,
+> `ByteMatcher`, `ByteSpan`, `Anchoring`, `Engine`, `Flag`, `LeadingAnchor`,
+> `TrailingAnchor`, `MatchLimitException`, `PatternCompileException`. Of the names above,
+> `Parser` and `Hir` exist in `internal/`; `Ast`, `Bir`, `ByteCompiler`, `ByteEncoding`,
+> `ScanPlan`, `NfaProgram`, `CompiledMatcher`, `MatchResult` and `Flags` never shipped under
+> those names — they are the draft's vocabulary, and the prose below uses them throughout — and `stream/`'s `ByteWindow`/`ByteSource` were built and then retired by
+> [D37](../../design/00-decisions.md). The engine set the draft plans here was redrawn by
+> D25, D26, D30, D31 and D32. For what is actually there, read `package-info.java` and the
+> module's [design index](README.md).
+
 ---
 
 ## 4. Encodings
