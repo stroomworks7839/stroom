@@ -2,6 +2,12 @@
 
 Status: **draft for discussion**. Nothing here is implemented yet.
 
+> **Retired design: streaming.** This document specifies a growing-window model —
+> `ByteWindow`, `NEED_MORE_INPUT`, resumption across chunks — that was built and then
+> retired by [D37](../../design/00-decisions.md) on 2026-08-25. The library takes complete
+> views only: byte arrays and slices. Read every streaming passage below as the design of
+> the day, not as the contract.
+
 Companion to [01-regex-language.md](01-regex-language.md), which defines the language this
 engine executes. This document covers architecture, the encoding compiler, the execution
 tiers, streaming, and the test strategy.

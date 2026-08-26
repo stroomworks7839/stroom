@@ -3,6 +3,10 @@
 Run: 2026-08-17, re-run after the dialect moved to Rust semantics ([D19](../../design/00-decisions.md)).
 JMH 1.37, JDK 25, **5 forks**, 3×1s warmup, 5×1s measurement, one machine.
 
+> **Streaming has since retired ([D37](../../design/00-decisions.md), 2026-08-25).** The
+> inventories below — the `StreamMatcher` divergence, the `StreamingTest` suite, §9's
+> conservative `NEED_MORE_INPUT` contract — record what existed when each run was taken.
+
 > **Read §2.0 before quoting any number below.** The forks are not a detail: measured with one
 > fork, as these were until this run, the per-workload figures move by up to 25% between runs of
 > the *same binary*.
@@ -339,8 +343,9 @@ papered over real disagreement would turn the differential suite into a tautolog
 ## 5. What to do with these numbers
 
 1. **Quote 1.5×, not 4×.** Tier 0 beats the JDK on realistic patterns by a useful but modest
-   margin, and the honest case for this engine rests on streaming, byte-native operation,
+   margin, and the honest case for this engine rests on byte-native operation,
    composability and binary support — not on being several times faster at regex.
+   (Streaming was on that list until D37 retired it; the case did not depend on it.)
 2. ~~**Word boundaries are the top feature gap.**~~ Implemented, along with `\p{...}`. No
    realistic pattern in the corpus is now refused for want of a feature.
 3. **The tier 1 cliff is real but bounded.** Roughly a quarter of accepted patterns, with the
