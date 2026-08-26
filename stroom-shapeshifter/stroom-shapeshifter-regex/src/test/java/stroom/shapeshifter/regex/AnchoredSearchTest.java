@@ -29,8 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Each is stated per engine, because each engine owns its own search loop and each will
  * carry its own exit. The {@code ^}-at-region-start rule matters most: {@code ^} holds at the
- * {@code from} a search is given, wherever that is in the array — the template engine's
- * dispatch relies on it — so an early exit may conclude "nowhere past the first viable
+ * {@code from} a search is given, wherever that is in the array — a dispatching caller's
+ * cursor relies on it — so an early exit may conclude "nowhere past the first viable
  * position", never "nowhere at all".
  */
 class AnchoredSearchTest {
@@ -72,7 +72,7 @@ class AnchoredSearchTest {
 
     @Test
     void caretHoldsAtTheRegionStartWhereverItIs() {
-        // The template engine hands a mid-array cursor as a search's from, and ^ holds there.
+        // A dispatching caller hands a mid-array cursor as a search's from, and ^ holds there.
         // An interior match must stay found after the exit lands.
         final byte[] data = bytes("consumed;BEGIN:rest\n");
         for (final Engine engine : ENGINES) {

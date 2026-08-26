@@ -1,7 +1,7 @@
 # Baseline Measurements — before any engine code
 
 Run: 2026-08-17. JMH 1.37, JDK 25, single fork, 3×1s warmup, 5×1s measurement, one machine,
-otherwise idle. Source: `stroom-shapeshifter-regex/src/test/java/stroom/shapeshifter/regex/bench/`.
+otherwise idle. Source: `src/test/java/stroom/shapeshifter/regex/bench/`.
 
 Reproduce with `./gradlew :stroom-shapeshifter:stroom-shapeshifter-regex:jmh`.
 

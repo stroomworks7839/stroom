@@ -8,7 +8,7 @@ JMH 1.37, JDK 25, **5 forks**, 3×1s warmup, 5×1s measurement, one machine.
 > the *same binary*.
 
 Production DS3 configurations were not available, so a corpus was written instead:
-`stroom-shapeshifter-regex/src/test/java/stroom/shapeshifter/regex/corpus/`. It was written to be
+`src/test/java/stroom/shapeshifter/regex/corpus/`. It was written to be
 **unflattering** — deliberately including constructs expected to be refused and shapes expected
 to land on the slow tier — because a corpus assembled by the same hand that wrote the engine
 otherwise measures only its author's expectations.

@@ -1,7 +1,7 @@
 # DS3 Pattern Corpus — how much does tier 0 actually cover?
 
 Run: 2026-08-17, against this repository's own DS3 configurations.
-Tool: `stroom-shapeshifter-regex/src/test/java/stroom/shapeshifter/regex/corpus/`.
+Tool: `src/test/java/stroom/shapeshifter/regex/corpus/`.
 
 **Updated:** the tool originally used a throwaway parser and analyser. It now runs patterns
 through the **real compiler**, so the report cannot drift from what the engine actually does.
