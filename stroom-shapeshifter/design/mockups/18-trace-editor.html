@@ -103,19 +103,44 @@
 
   /* ---------- layout: data on top, definition below ---------- */
   main[hidden] { display: none; }   /* author display:grid would otherwise beat the UA's [hidden] rule */
-  main { flex: 1; display: grid; min-height: 0; gap: 6px; padding: 6px;
-    grid-template-columns: 220px 1fr 1fr;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas: "tpls crumb crumb" "tpls invars outvars" "tpls tstrip tstrip"; }
-  .panel { background: var(--page__background-color); border: 1px solid var(--border-color);
-    border-radius: 6px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  main { flex: 1; display: grid; min-height: 0; gap: 0; padding: 0;
+    grid-template-columns: 220px 1px minmax(0, .5fr) 1px minmax(0, .5fr);
+    grid-template-rows: auto minmax(0, .5fr) 1px minmax(0, .5fr);
+    grid-template-areas:
+      "tpls hsplit crumb  crumb  crumb"
+      "tpls hsplit invars vsplit outvars"
+      "tpls hsplit rsplit rsplit rsplit"
+      "tpls hsplit tstrip tstrip tstrip"; }
+  .panel { background: var(--page__background-color); border: none;
+    border-radius: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  /* ThinSplitLayoutPanel splitters, as GWT actually builds them: a single visible pixel,
+     with a 5px drag band absolutely positioned over it via negative margin so the hit
+     target centres on the line and overlaps the neighbouring panels */
+  .splitter { background: var(--border-color); position: relative;
+    touch-action: none; user-select: none; z-index: 2; }
+  .splitter:hover, .splitter.dragging { background: var(--blue-300); }
+  .splitter::after { content: ""; position: absolute; z-index: 2; }
+  .splitter.v::after { top: 0; bottom: 0; left: 0; width: 5px; margin-left: -2px; cursor: col-resize; }
+  .splitter.h::after { left: 0; right: 0; top: 0; height: 5px; margin-top: -2px; cursor: row-resize; }
+  #splitTpls { grid-area: hsplit; }
+  #splitVars { grid-area: vsplit; }
+  #splitRow { grid-area: rsplit; }
   .panel > h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
     color: var(--muted); margin: 0; padding: 7px 10px 5px; }
   .panel > .body { flex: 1; overflow: auto; min-height: 0; }
 
   /* ---------- template panel (left list: navigation-pane styling) ---------- */
   #tpls { grid-area: tpls; background: var(--navigation__background-color); }
-  .mode-head { font-size: 11px; color: var(--muted); padding: 8px 10px 2px; }
+  .mode-head { font-size: 11px; color: var(--muted); padding: 8px 10px 2px;
+    display: flex; align-items: center; gap: 6px; }
+  .mode-head .edit { border: none; background: none; color: var(--muted); cursor: pointer;
+    font-size: 11px; padding: 0 2px; visibility: hidden; }
+  .mode-head:hover .edit { visibility: visible; }
+  .mode-head .edit:hover { color: var(--blue-300); background: none; }
+  #tpls .edit.del:hover, #tshead .edit.del:hover { color: var(--error-c); }
+  #tshead select.edit-in { background: var(--control__background-color);
+    border: 1px solid var(--control__border-color); color: var(--text-color);
+    font-family: var(--mono-font); font-size: 12px; padding: 1px 6px; border-radius: 4px; }
   .tpl-row { padding: 4px 10px 5px; cursor: pointer; }
   .tpl-row .line { display: flex; align-items: center; gap: 8px; }
   .tpl-row:hover { background: var(--row__background-color--hovered); }
@@ -132,11 +157,25 @@
   .tpl-row .count { color: var(--muted); font-size: 12px; }
   .tpl-row.zero { opacity: .65; }
   .tpl-row.zero .count { color: var(--red-200); }
+  .tpl-row .chip, #tshead .chip { cursor: pointer; }
+  .tpl-row .edit { border: none; background: none; color: var(--muted); cursor: pointer;
+    font-size: 12px; padding: 0 2px; visibility: hidden; }
+  .tpl-row:hover .edit { visibility: visible; }
+  .tpl-row .edit:hover { color: var(--blue-300); background: none; }
+  .tpl-add { padding: 1px 10px 6px; }
+  .palette { display: flex; gap: 4px; flex-wrap: wrap; padding: 4px 0 2px; }
+  .pal-swatch { width: 16px; height: 16px; border-radius: 4px; padding: 0;
+    border: 1px solid rgba(255, 255, 255, .25); cursor: pointer; }
+  .pal-swatch:hover { outline: 1px solid var(--blue-300); }
+  input.rename-in { background: var(--control__background-color);
+    border: 1px solid var(--control__border-color); color: var(--text-color);
+    font-family: var(--mono-font); font-size: 13px; padding: 1px 6px;
+    border-radius: 4px; width: 120px; }
 
   /* ---------- breadcrumb ---------- */
   #crumb { grid-area: crumb; display: flex; align-items: center; gap: 4px;
-    background: var(--page__background-color); border: 1px solid var(--border-color);
-    border-radius: 6px; padding: 5px 10px; flex-wrap: wrap; }
+    background: var(--page__background-color);
+    border-bottom: 1px solid var(--border-color); padding: 5px 10px; flex-wrap: wrap; }
   #crumb .seg { display: flex; align-items: center; gap: 3px; }
   #crumb .seg .name { font-weight: 600; cursor: pointer; padding: 1px 6px; border-radius: 4px; }
   #crumb .seg .name:hover { background: var(--row__background-color--hovered); }
@@ -213,10 +252,9 @@
   .o.own { background: var(--code-editor__highlight); color: var(--text-color--selected); }
 
   /* ---------- template strip (bottom: the definition, trace-annotated) ---------- */
+  /* the template strip owns 50% of the vertical split by default; the splitter decides otherwise */
   #tstrip { grid-area: tstrip; background: var(--page__background-color);
-    border: 1px solid var(--border-color);
-    border-radius: 6px; display: flex; flex-direction: column;
-    max-height: 38vh; min-height: 0; }
+    display: flex; flex-direction: column; min-height: 0; }
   #tshead { display: flex; align-items: center; gap: 14px; padding: 7px 12px;
     border-bottom: 1px solid var(--border-color); flex: none; }
   #tshead .fname { font-weight: 700; }
@@ -313,11 +351,11 @@
   .lim-in { width: 64px !important; flex: none !important; }
 
   /* ---------- pattern workbench: full-screen surface below the title bar (not a dialog) ---------- */
-  #wbOverlay { flex: 1; display: flex; min-height: 0; padding: 6px; }
+  #wbOverlay { flex: 1; display: flex; min-height: 0; padding: 0; }
   #wbOverlay[hidden] { display: none; }
   #wb { flex: 1; display: grid; min-height: 0; min-width: 0;
     background: var(--page__background-color);
-    border: 1px solid var(--border-color); border-radius: 6px;
+    border: none; border-radius: 0;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto minmax(0, 1fr) minmax(0, auto) auto;
     grid-template-areas: "head head" "left right" "details details" "foot foot"; }
@@ -392,9 +430,12 @@
 
 <main id="appMain">
   <section class="panel" id="tpls"><h2>Templates</h2><div class="body" id="tplList"></div></section>
+  <div class="splitter v" id="splitTpls" title="Drag to resize · double-click to reset"></div>
   <div id="crumb"></div>
   <section class="panel" id="invars"><h2>Input vars</h2><div class="body" id="inBody"></div></section>
+  <div class="splitter v" id="splitVars" title="Drag to resize · double-click to reset"></div>
   <section class="panel" id="outvars"><h2>Output vars</h2><div class="body" id="outBody"></div></section>
+  <div class="splitter h" id="splitRow" title="Drag to resize · double-click to reset (50/50)"></div>
   <div id="tstrip"><div id="tshead"></div><div id="tsbody"></div></div>
 </main>
 
@@ -580,6 +621,152 @@ function limitsSummary(tid) {
   return parts.length ? "limits " + parts.join(", ") : "limits (none)";
 }
 
+/* templates are created, renamed and recoloured in the editor. Colour is presentation,
+   not engine config: auto-assigned stably, overridable, stored as editor metadata in
+   the doc — never in the engine Project. */
+const PALETTE = ["#42a5f5", "#ffb74d", "#66bb6a", "#ba68c8", "#ef5350",
+  "#26c6da", "#d4e157", "#ff8a65", "#78909c", "#f06292"];
+const STOCK_HEX = { "var(--c-source)": "#b0bec5", "var(--c-record)": "#42a5f5",
+  "var(--c-kv)": "#ffb74d", "var(--c-iso)": "#66bb6a", "var(--c-quoted)": "#ba68c8",
+  "var(--c-mac)": "#78909c" };
+let tplSeq = 0;
+let renTpl = null;    // template whose name is in inline edit
+let pickTpl = null;   // template whose colour palette popover is open
+
+function addTemplate(mode) {
+  const id = "t" + (++tplSeq);
+  const used = new Set(Object.values(TPL).map(t => STOCK_HEX[t.color] || t.color));
+  TPL[id] = { name: "new-template", mode,
+    color: PALETTE.find(c => !used.has(c)) || PALETTE[tplSeq % PALETTE.length],
+    pattern: "", caps: [], mtype: "regex" };
+  BODY[id] = [];
+  DISPATCHED_FROM[id] = "apply sites with mode " + mode;
+  if (CANDIDATES[mode] && !CANDIDATES[mode].includes(id)) CANDIDATES[mode].push(id);
+  selTpl = id; renTpl = id; pickTpl = null;
+  touchConfig();   // a new template joins the ordered choice — the trace is stale
+  render();
+}
+
+function renameInput(tid) {
+  const inp = document.createElement("input");
+  inp.className = "rename-in";
+  inp.value = TPL[tid].name;
+  /* clicks inside the input must not bubble to the row — the row's click handler
+     re-renders and would replace this input mid-edit (the rename-not-working bug) */
+  inp.addEventListener("pointerdown", ev => ev.stopPropagation());
+  inp.addEventListener("click", ev => ev.stopPropagation());
+  const commit = () => {
+    if (renTpl !== tid) return;
+    if (inp.value.trim()) TPL[tid].name = inp.value.trim();
+    renTpl = null;
+    render();
+  };
+  inp.addEventListener("keydown", ev => {
+    ev.stopPropagation();
+    if (ev.key === "Enter") commit();
+    if (ev.key === "Escape") { renTpl = null; render(); }
+  });
+  inp.addEventListener("blur", commit);
+  setTimeout(() => inp.focus(), 0);
+  return inp;
+}
+
+function deleteTemplate(tid) {
+  const t = TPL[tid];
+  const n = (byTpl[tid] || []).length;
+  if (!confirm(`Delete template "${t.name}"?` +
+    (n ? ` It matched ${n} time${n > 1 ? "s" : ""} in the current trace; its frames (and their descendants) will be removed from the display.` : ""))) return;
+  /* prune its frames and their descendants from the trace so the display stays consistent */
+  const removed = new Set();
+  const mark = f => { removed.add(f); f.children.forEach(mark); };
+  (byTpl[tid] || []).forEach(mark);
+  for (const f of byTpl[tid] || []) {
+    if (f.parent) {
+      const i = f.parent.children.indexOf(f);
+      if (i >= 0) f.parent.children.splice(i, 1);
+    }
+  }
+  for (const [key, arr] of Object.entries(byTpl)) {
+    byTpl[key] = arr.filter(f => !removed.has(f));
+  }
+  delete byTpl[tid];
+  for (let i = outSegs.length - 1; i >= 0; i--) if (removed.has(outSegs[i].m)) outSegs.splice(i, 1);
+  if (chainOf(cursor).some(f => removed.has(f))) cursor = SOURCE;
+  if (CANDIDATES[t.mode]) {
+    const i = CANDIDATES[t.mode].indexOf(tid);
+    if (i >= 0) CANDIDATES[t.mode].splice(i, 1);
+  }
+  delete TPL[tid]; delete BODY[tid]; delete GUARD[tid]; delete LIMITS[tid]; delete PROG[tid];
+  if (selTpl === tid) selTpl = cursor.tpl;
+  renTpl = null; pickTpl = null;
+  touchConfig();
+  render();
+}
+
+/* ---- mode lifecycle: create, rename, delete, and per-template choice ---- */
+
+const NEW_MODE = "+ new mode…";
+function addMode(name) {
+  if (MODE_ORDER.some(m => m[0] === name)) return;
+  MODE_ORDER.push([name, "mode: " + name]);
+  CANDIDATES[name] = [];
+  touchConfig();
+}
+function moveTemplateMode(tid, mode) {
+  const old = TPL[tid].mode;
+  if (CANDIDATES[old]) {
+    const i = CANDIDATES[old].indexOf(tid);
+    if (i >= 0) CANDIDATES[old].splice(i, 1);
+  }
+  if (!CANDIDATES[mode]) CANDIDATES[mode] = [];
+  if (!CANDIDATES[mode].includes(tid)) CANDIDATES[mode].push(tid);
+  TPL[tid].mode = mode;
+  DISPATCHED_FROM[tid] = "apply sites with mode " + mode;
+  touchConfig();
+  render();
+}
+function renameMode(old, nw) {
+  const entry = MODE_ORDER.find(m => m[0] === old);
+  if (!entry || MODE_ORDER.some(m => m[0] === nw)) return;
+  entry[0] = nw; entry[1] = "mode: " + nw;
+  CANDIDATES[nw] = CANDIDATES[old] || [];
+  delete CANDIDATES[old];
+  for (const t of Object.values(TPL)) if (t.mode === old) t.mode = nw;
+  for (const body of Object.values(BODY)) {
+    for (const node of body) if (node.k === "apply" && node.mode === old) node.mode = nw;
+  }
+  touchConfig();
+  render();
+}
+function deleteMode(mode) {
+  if (Object.values(TPL).some(t => t.mode === mode)) return;   // only empty modes
+  const refs = Object.values(BODY).flat().filter(n => n.k === "apply" && n.mode === mode).length;
+  if (!confirm(`Delete mode "${mode}"?` +
+    (refs ? ` ${refs} apply site${refs > 1 ? "s" : ""} still reference it and will have no candidates.` : ""))) return;
+  const i = MODE_ORDER.findIndex(m => m[0] === mode);
+  if (i >= 0) MODE_ORDER.splice(i, 1);
+  delete CANDIDATES[mode];
+  touchConfig();
+  render();
+}
+
+function paletteFor(tid) {
+  const p = el("div", "palette");
+  for (const c of PALETTE) {
+    const b = el("button", "pal-swatch");
+    b.style.background = c;
+    b.title = c;
+    b.addEventListener("click", ev => {
+      ev.stopPropagation();
+      TPL[tid].color = c;   // presentation only — no stale flag
+      pickTpl = null;
+      render();
+    });
+    p.appendChild(b);
+  }
+  return p;
+}
+
 /* ================= build the trace (stands in for the preview endpoint) ================= */
 
 const matches = [];   // frames: {id, tpl, parent, start, len, children:[], captures:[{name,value,span?}], tries:[]}
@@ -719,17 +906,63 @@ function el(tag, cls, text) {
 function renderTpls() {
   const list = $("tplList");
   list.textContent = "";
+  /* the document itself heads the list — the root everything descends from */
+  const srcRow = el("div", "tpl-row" + (selTpl === "source" ? " sel" : ""));
+  const srcLine = el("div", "line");
+  const srcChip = el("span", "chip"); srcChip.style.background = TPL.source.color;
+  srcLine.append(srcChip, el("span", "name mono", "source"), el("span", "count", "doc"));
+  srcRow.appendChild(srcLine);
+  srcRow.title = "The document frame — the whole buffer; every template descends from here";
+  srcRow.addEventListener("click", () => setCursor(SOURCE));
+  list.appendChild(srcRow);
   for (const [mode, label] of MODE_ORDER) {
-    list.appendChild(el("div", "mode-head", label));
+    const head = el("div", "mode-head");
+    head.appendChild(el("span", "", label));
+    if (mode !== "(root)") {   // root dispatch is structural, not a named mode to manage
+      const ren = el("button", "edit", "✎");
+      ren.title = "Rename this mode (updates its templates and apply sites)";
+      ren.addEventListener("click", () => {
+        const nm = (prompt(`Rename mode "${mode}" to:`, mode) || "").trim();
+        if (nm && nm !== mode) renameMode(mode, nm);
+      });
+      head.appendChild(ren);
+      if (!Object.values(TPL).some(t => t.mode === mode)) {
+        const del = el("button", "edit del", "✕");
+        del.title = "Delete this empty mode";
+        del.addEventListener("click", () => deleteMode(mode));
+        head.appendChild(del);
+      }
+    }
+    list.appendChild(head);
     for (const [id, t] of Object.entries(TPL)) {
       if (t.mode !== mode) continue;
       const n = (byTpl[id] || []).length;
       const row = el("div", "tpl-row" + (n === 0 ? " zero" : "") + (selTpl === id ? " sel" : ""));
       const line = el("div", "line");
       const chip = el("span", "chip"); chip.style.background = t.color;
-      line.append(chip, el("span", "name mono", t.name),
-        el("span", "count", n === 0 ? `0 · ${triesTotal[id] || 0} tries` : String(n)));
+      chip.title = "Template colour — click to change";
+      chip.addEventListener("click", ev => {
+        ev.stopPropagation();
+        pickTpl = pickTpl === id ? null : id;
+        render();
+      });
+      line.appendChild(chip);
+      if (renTpl === id) {
+        line.appendChild(renameInput(id));
+      } else {
+        line.append(el("span", "name mono", t.name),
+          el("span", "count", n === 0 ? `0 · ${triesTotal[id] || 0} tries` : String(n)));
+        const pen = el("button", "edit", "✎");
+        pen.title = "Rename this template";
+        pen.addEventListener("click", ev => { ev.stopPropagation(); renTpl = id; pickTpl = null; render(); });
+        line.appendChild(pen);
+        const delB = el("button", "edit del", "✕");
+        delB.title = "Delete this template (asks for confirmation)";
+        delB.addEventListener("click", ev => { ev.stopPropagation(); deleteTemplate(id); });
+        line.appendChild(delB);
+      }
       row.appendChild(line);
+      if (pickTpl === id) row.appendChild(paletteFor(id));
       const p = prof(id);
       if (p.attempts) row.appendChild(heatTrack(p, false));
       row.title = (n === 0
@@ -738,6 +971,13 @@ function renderTpls() {
       row.addEventListener("click", () => selectTemplate(id));
       list.appendChild(row);
     }
+    /* templates are created in place: end of the mode group = end of its ordered choice */
+    const addRow = el("div", "tpl-add");
+    const addBtn = el("button", "addbtn2", "+ template");
+    addBtn.title = `Add a template to ${label} (dispatch order: last in the ordered choice)`;
+    addBtn.addEventListener("click", () => addTemplate(mode));
+    addRow.appendChild(addBtn);
+    list.appendChild(addRow);
   }
   /* the pattern library: named CombinatorPatterns — plain patterns and whole combinators */
   list.appendChild(el("div", "mode-head", "patterns"));
@@ -796,13 +1036,46 @@ function renderStrip() {
   const all = byTpl[selTpl] || [];
   const onFrame = cursor.tpl === selTpl;   // annotations only when a frame of this template is selected
 
-  /* header: identity + whole-input stepper */
+  /* header: identity (chip + name, both editable) + whole-input stepper */
   const h = $("tshead");
   h.textContent = "";
-  const name = el("span", "fname", t.name);
-  name.style.color = t.color;
-  h.append(name,
-    el("span", "fmode", selTpl === "source" ? "document" : "mode " + t.mode),
+  if (selTpl !== "source") {
+    const chip = el("span", "chip");
+    chip.style.background = t.color;
+    chip.title = "Template colour — click to change";
+    chip.addEventListener("click", () => { pickTpl = pickTpl === selTpl ? null : selTpl; render(); });
+    h.appendChild(chip);
+  }
+  if (renTpl === selTpl && selTpl !== "source") {
+    h.appendChild(renameInput(selTpl));
+  } else {
+    const name = el("span", "fname", t.name);
+    name.style.color = t.color;
+    if (selTpl !== "source") {
+      name.title = "Click to rename";
+      name.style.cursor = "pointer";
+      name.addEventListener("click", () => { renTpl = selTpl; render(); });
+    }
+    h.appendChild(name);
+  }
+  if (pickTpl === selTpl && selTpl !== "source") h.appendChild(paletteFor(selTpl));
+  if (selTpl === "source") {
+    h.appendChild(el("span", "fmode", "document"));
+  } else {
+    /* the template's mode is chosen here — existing modes, or create one in place */
+    h.appendChild(el("span", "fmode", "mode"));
+    const modeSel = mkSelect([...MODE_ORDER.map(m => m[0]), NEW_MODE], t.mode, val => {
+      if (val === NEW_MODE) {
+        const nm = (prompt("New mode name:") || "").trim();
+        if (nm) { addMode(nm); moveTemplateMode(selTpl, nm); } else render();
+      } else {
+        moveTemplateMode(selTpl, val);
+      }
+    });
+    modeSel.title = "Which apply-templates sites can dispatch this template";
+    h.appendChild(modeSel);
+  }
+  h.append(
     el("span", "fnote", "dispatched from " + DISPATCHED_FROM[selTpl]),
     el("span", "spacer"));
   if (selTpl === "source") {
@@ -906,7 +1179,7 @@ function renderBodyCard(node, i, onFrame) {
     card.appendChild(head);
     if (!isEditing) {
       /* the matching child templates AT THIS SITE, for the current frame */
-      for (const tid of CANDIDATES[node.mode]) {
+      for (const tid of CANDIDATES[node.mode] || []) {
         const kids = onFrame ? cursor.children.filter(ch => ch.tpl === tid) : [];
         const tried = onFrame && cursor.tries.includes(tid);
         const row = el("div", "disp-row " + (kids.length ? "hit" : tried ? "miss" : "skip"));
@@ -1062,6 +1335,17 @@ function renderRange(container, start, end, children, parent) {
   for (const child of children) {
     if (child.start > pos) addPlain(container, pos, child.start, parent);
     const s = el("span", "m tpl-" + child.tpl);
+    /* colour inline from the template's (editable) hue, so recolours and new templates
+       propagate — record-level matches band, deeper matches underline */
+    const hue = TPL[child.tpl].color;
+    if (child.parent === SOURCE) {
+      s.style.background = `color-mix(in srgb, ${hue} 10%, transparent)`;
+      s.style.boxShadow = `inset 3px 0 0 ${hue}`;
+      s.style.padding = "2px 1px";
+    } else {
+      s.style.background = `color-mix(in srgb, ${hue} 16%, transparent)`;
+      s.style.borderBottom = `2px solid ${hue}`;
+    }
     s.title = `${TPL[child.tpl].name} — match ${siblings(child).indexOf(child) + 1} of ${siblings(child).length} here — click to descend`;
     s.addEventListener("click", ev => { ev.stopPropagation(); setCursor(child); });
     renderFrameContent(s, child);
@@ -1193,6 +1477,7 @@ function renderOutVars() {
   for (const seg of outSegs) {
     if (!isDescendant(seg.m, cursor)) continue;
     const s = el("span", "o tpl-" + seg.m.tpl, seg.text);
+    s.style.color = TPL[seg.m.tpl].color;
     if (seg.m === cursor) s.classList.add("own");
     s.title = `written by ${TPL[seg.m.tpl].name} — click to jump to that frame`;
     s.addEventListener("click", () => setCursor(seg.m));
@@ -1839,6 +2124,55 @@ $("runBtn").addEventListener("click", () => {
   setTimeout(() => { b.innerHTML = "&#9654; Run"; }, 700);
   render();
 });
+
+/* ================= ThinSplit-style draggable splitters ================= */
+
+const layout = { tplsW: 220, varsSplit: 0.5, rowSplit: 0.5 };
+const clampN = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+function applyLayout() {
+  const m = $("appMain");
+  m.style.gridTemplateColumns =
+    `${layout.tplsW}px 1px minmax(0, ${layout.varsSplit}fr) 1px minmax(0, ${1 - layout.varsSplit}fr)`;
+  m.style.gridTemplateRows =
+    `auto minmax(0, ${layout.rowSplit}fr) 1px minmax(0, ${1 - layout.rowSplit}fr)`;
+}
+
+function initSplitter(id, measure, drag, reset) {
+  const s = $(id);
+  s.addEventListener("pointerdown", ev => {
+    ev.preventDefault();
+    if (s.setPointerCapture) s.setPointerCapture(ev.pointerId);
+    s.classList.add("dragging");
+    const start = { x: ev.clientX, y: ev.clientY, ...measure() };
+    const move = e => { drag(start, e); applyLayout(); };
+    const up = () => {
+      s.classList.remove("dragging");
+      s.removeEventListener("pointermove", move);
+      s.removeEventListener("pointerup", up);
+    };
+    s.addEventListener("pointermove", move);
+    s.addEventListener("pointerup", up);
+  });
+  s.addEventListener("dblclick", () => { reset(); applyLayout(); });
+}
+
+initSplitter("splitTpls",
+  () => ({ w: layout.tplsW }),
+  (st, e) => { layout.tplsW = clampN(st.w + (e.clientX - st.x), 140, 420); },
+  () => { layout.tplsW = 220; });
+
+initSplitter("splitVars",
+  () => ({ split: layout.varsSplit, size: $("invars").offsetWidth + $("outvars").offsetWidth + 1 }),
+  (st, e) => { layout.varsSplit = clampN(st.split + (e.clientX - st.x) / st.size, 0.15, 0.85); },
+  () => { layout.varsSplit = 0.5; });
+
+initSplitter("splitRow",
+  () => ({ split: layout.rowSplit, size: $("invars").offsetHeight + $("tstrip").offsetHeight + 1 }),
+  (st, e) => { layout.rowSplit = clampN(st.split + (e.clientY - st.y) / st.size, 0.15, 0.85); },
+  () => { layout.rowSplit = 0.5; });
+
+applyLayout();
 
 /* initial position: the quoted value in record 2 — three levels down, shows the whole idea */
 setCursor(byTpl.quoted[0]);

@@ -290,9 +290,16 @@ draft gave the template area, and with it the last duplication between "config" 
 ### 5.6 The template strip and the pattern workbench
 
 The frame answers "what happened"; the template strip holds "what it is". It sits full
-width **beneath** the variable panes, with the frame identity as its title bar: template
-name, mode, where it is dispatched from (the mode-graph strip), and the whole-input
-stepper (`match 6 of 12 · whole input ◀ ▶`). Two parts:
+width **beneath** the variable panes and **owns 50% of the vertical split by default**,
+with the boundary a draggable `ThinSplitLayoutPanel`-style splitter (Stroom's own idiom
+and its `--splitter__*` theme variables; double-click resets). Built as GWT actually
+builds it: the visible seam is a **single pixel**, and the drag target is an invisible
+**5px band absolutely positioned with a negative margin** so it centres over the line
+and overlaps the neighbouring panels — hairline visuals, hittable target. Panel
+boundaries throughout are thin splitters or single lines, never dead gaps — the
+template-list edge and the input/output vars divide drag the same way. The strip's title bar carries the
+frame identity: template name, mode, where it is dispatched from (the mode-graph
+strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Two parts:
 
 - **Match summary** — the match expression as a read-only summary chip (type + pattern
   text, flags), followed by guard and limits summaries; the chip and the summaries all
@@ -383,11 +390,29 @@ would also duplicate the breadcrumb's descend affordance and make the left panel
 two-purpose. If practice shows the strip's annotations are too far from the data,
 revisit — the information is the same trace either way.
 
-The **template panel** (left) stays: the config's own structure, grouped by mode, in
+The **template panel** (left) stays: headed by **`source` (the document) as its topmost
+item** — selecting it is selecting the root frame, so the panel lists everything the
+breadcrumb can reach — then the config's own structure, grouped by mode, in
 dispatch order (order within a mode is dispatch priority — D34's ordered choice — so
 list order *is* semantics and supports drag-reorder). Each row: colour chip, name, match
 count over the whole input, attempt count when it tells a story, and a **heat bar**
-(§5.8) — always present, since every run profiles. Zero-match templates render dimmed,
+(§5.8) — always present, since every run profiles. The panel is also where templates
+are **created**: a "+ template" row at the foot of each mode group adds one in place —
+at the end of that mode's ordered choice, since position is priority — and opens it
+straight into rename. Names edit inline (hover ✎ on the row, or click the name in the
+strip's title bar); the **colour chip is click-editable** via a small palette, in both
+places; templates **delete** from the row's hover ✕ with confirmation — the dialog
+states the consequence (its frames and their descendants leave the trace display, and
+the run is stale). **Modes are managed where they appear**: a template's mode is a
+dropdown in the strip's title bar (existing modes plus "+ new mode…", created in
+place); a mode group's header carries hover ✎ to rename — updating its templates and
+every `apply-templates` site that references it — and, when the mode is empty, hover ✕
+to delete (with a warning if apply sites still reference it, since those sites are then
+choices with no candidates). The root group is structural, not a named mode, and is
+protected from both. Colour is editor presentation, not engine config: auto-assigned stably from the
+palette, user-overridable, with overrides stored as editor metadata in the
+`ShapeshifterDoc` beside the sample data (Q2) — never in the engine `Project` or the
+compiled graph. Zero-match templates render dimmed,
 not hidden — finding them is half the
 point. The panel header for the selected template shows the mode-graph strip
 ("dispatched from: `record` (body pos 2)") — the static complement to breadcrumb
@@ -532,15 +557,15 @@ previews how the editor sits inside the real application.
 ```
 ┌ apache-audit (Shapeshifter) ──────────────────────────────────────── [▶ Run] ┐
 │ ┌ Templates ──────┐ ┌ source › record ◀2/3▶ › kv-pair ◀2/4▶ › … 1 child ▾  ┐ │
-│ │ root            │ ├ Input vars ─────────────┬ Output vars ───────────────┤ │
-│ │ ● record    3   │ │ ▾ content  bytes[19]    │ ▾ captures    (editable)   │ │
-│ │ mode: fields    │ │   ¦key¦=╔"alice smith"╗ │  ▪key   ←$1 string "name"  │ │
-│ │ ● kv-pair   12  │ │   ← child matches lit,  │  ▪value ←$2 string "\"al…" │ │
-│ │ mode: values    │ │     gaps clickable      │ ▾ wrote → output           │ │
-│ │ ● iso-time  3   │ │ ▸ params (none)         │   <data name="name"        │ │
-│ │ ● quoted    1   │ │ ▾ in scope              │     value="alice smith"/>  │ │
-│ │ ○ mac-addr 0·8t │ │   $ip string "10.0.0.7" │                            │ │
-│ │                 │ ├ kv-pair · mode fields · from record ─ match 6/12 ◀ ▶ ┤ │
+│ │ ● source   doc  │ ├ Input vars ─────────────┬ Output vars ───────────────┤ │
+│ │ root            │ │ ▾ content  bytes[19]    │ ▾ captures    (editable)   │ │
+│ │ ● record    3   │ │   ¦key¦=╔"alice smith"╗ │  ▪key   ←$1 string "name"  │ │
+│ │ mode: fields    │ │   ← child matches lit,  │  ▪value ←$2 string "\"al…" │ │
+│ │ ● kv-pair   12  │ │     gaps clickable      │ ▾ wrote → output           │ │
+│ │ mode: values    │ │ ▸ params (none)         │   <data name="name"        │ │
+│ │ ● iso-time  3   │ │ ▾ in scope              │     value="alice smith"/>  │ │
+│ │ ● quoted    1   │ │   $ip string "10.0.0.7" │                            │ │
+│ │ ○ mac-addr 0·8t │ ├ kv-pair · mode fields · from record ─ match 6/12 ◀ ▶ ┤ │
 │ │                 │ │ match  [ regex (\w[\w ]*?)=("[^"]*"|\S+)  ✎ workbench]│ │
 │ │                 │ │ body   1 text "<data name=\""                        │ │
 │ │                 │ │        2 value-of $key                               │ │
