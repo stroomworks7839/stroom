@@ -101,7 +101,8 @@ public final class Ds3Migration {
 
     private Project run(final Ds3Config root) {
         final SourceConfig source = root instanceof Ds3Config.Root document
-                ? new SourceConfig(document.bufferSize(), document.ignoreErrors(), SourceConfig.AUTO, null, false)
+                ? new SourceConfig(document.bufferSize(), document.ignoreErrors(), SourceConfig.AUTO,
+                        null, false, SourceConfig.DEFAULT_MAX_SEQUENCE_ENTRIES)
                 : SourceConfig.defaults();
 
         final List<Ds3Config> rootChildren = root.children();

@@ -120,13 +120,15 @@ public final class ProjectJson {
 
     private static SourceConfig readSource(final JsonNode node) {
         checkFields(node, "source", "buffer_size", "ignore_errors", "encoding", "dispatch",
-                "strict_values");
+                "strict_values", "max_sequence_entries");
         return new SourceConfig(
                 node.path("buffer_size").asInt(SourceConfig.DEFAULT_BUFFER_SIZE),
                 node.path("ignore_errors").asBoolean(false),
                 node.has("encoding") ? node.get("encoding").asString() : SourceConfig.AUTO,
                 readDispatch(node),
-                node.path("strict_values").asBoolean(false));
+                node.path("strict_values").asBoolean(false),
+                node.path("max_sequence_entries")
+                        .asInt(SourceConfig.DEFAULT_MAX_SEQUENCE_ENTRIES));
     }
 
     /** The dispatch mode, spelt lowercase, or null to inherit (D36). */
@@ -156,6 +158,9 @@ public final class ProjectJson {
         node.put("encoding", source.encoding());
         if (source.strictValues()) {
             node.put("strict_values", true);
+        }
+        if (source.maxSequenceEntries() != SourceConfig.DEFAULT_MAX_SEQUENCE_ENTRIES) {
+            node.put("max_sequence_entries", source.maxSequenceEntries());
         }
         return node;
     }

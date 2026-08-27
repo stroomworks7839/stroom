@@ -102,6 +102,18 @@ public final class Executor {
             java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 
     /**
+     * Whether the root reads the input in pieces whose counters restart (design/16 §10).
+     *
+     * <p>A {@code classify} or {@code any} root is dispatched chunk-at-a-time by repeated
+     * {@code level()} calls, so template counters reset and capture stores clear <b>per
+     * chunk</b>. An accumulation there would summarise the last chunk while presenting itself
+     * as a summary of the input — a wrong answer wearing the shape of a right one, which is
+     * the failure mode this whole section exists to refuse. A whole-buffer run takes the same
+     * code path with exactly one chunk, and is therefore fine.
+     */
+    private boolean chunkedRoot;
+
+    /**
      * The encoding in force. Starts as whatever the configuration declared, and is replaced if
      * the input opens with a byte-order mark, which is better evidence than a declaration.
      */
@@ -204,6 +216,8 @@ public final class Executor {
         final int bufferSize = wholeBuffer
                 ? Integer.MAX_VALUE
                 : Math.max(1, compiled.project().source().bufferSize());
+        chunkedRoot = !wholeBuffer
+                      && (rootDispatch == Dispatch.CLASSIFY || rootDispatch == Dispatch.ANY);
         if (wholeBuffer || rootDispatch == Dispatch.CLASSIFY || rootDispatch == Dispatch.ANY) {
             // Whole-buffer inputs are addressed in one piece, and the non-consuming root
             // dispatches work window-at-a-time; neither slides.
@@ -1112,10 +1126,13 @@ public final class Executor {
                     final TypedValue appended = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars, contentEncoding);
                     if (appended != null) {
+                        guardSequenceUse("Appends to sequence", value.name());
                         // Absent appends nothing rather than a hole: in a dense sequence an
                         // index is a position, so a gap would mean nothing at all.
                         final Store store = vars.store(value.name());
-                        store.set(Math.max(1, store.lastIndex() + 1), appended);
+                        final int at = Math.max(1, store.lastIndex() + 1);
+                        guardSequenceSize(value.name(), at);
+                        store.set(at, appended);
                     }
                 }
                 case CompiledOp.Fold value -> {
@@ -1271,8 +1288,36 @@ public final class Executor {
         }
     }
 
+    /**
+     * Design/16 §10's two refusals, both fatal, both for the same reason: an accumulation
+     * that is wrong is worse than one that stops. A truncated aggregate and a per-chunk
+     * summary are both numbers that look like answers.
+     */
+    private void guardSequenceUse(final String what, final String name) {
+        if (chunkedRoot) {
+            messages.add(new Message(Severity.FATAL, what + " '" + name + "' under a "
+                    + "classify or any root: the input is read in pieces whose counters "
+                    + "restart, so an accumulation would summarise only the last piece. Use "
+                    + "an ordered root dispatch, or read the input whole."));
+            throw new AbortRun();
+        }
+    }
+
+    /** The size a sequence may not exceed, and the stop when it does. */
+    private void guardSequenceSize(final String name, final int size) {
+        final int limit = compiled.project().source().maxSequenceEntries();
+        if (size > limit) {
+            messages.add(new Message(Severity.FATAL, "Sequence '" + name + "' exceeded "
+                    + "max_sequence_entries (" + limit + "). A truncated aggregate is a wrong "
+                    + "answer rather than a partial one, so the run stops here. Raise the "
+                    + "limit if the accumulation is genuinely this large."));
+            throw new AbortRun();
+        }
+    }
+
     /** The populated entries of a named sequence, in ascending index order, or empty. */
     private List<TypedValue> entries(final String name) {
+        guardSequenceUse("Reads sequence", name);
         final List<Store> stores = vars.get(name);
         if (stores == null || stores.isEmpty()) {
             return List.of();
@@ -1290,6 +1335,7 @@ public final class Executor {
 
     /** Bind values as a dense sequence, indexed from one — position, with no holes. */
     private void bindDense(final String name, final List<TypedValue> values) {
+        guardSequenceSize(name, values.size());
         final Store store = vars.store(name);
         store.clear();
         for (int i = 0; i < values.size(); i++) {
@@ -1360,6 +1406,7 @@ public final class Executor {
                                                final MatchResult match,
                                                final int matchCount,
                                                final Encoding contentEncoding) {
+        guardSequenceUse("Indexes sequence", select);
         final java.util.Map<String, Filed> members = new java.util.LinkedHashMap<>();
         final List<Store> stores = vars.get(select);
         if (stores == null || stores.isEmpty()) {
@@ -1569,6 +1616,7 @@ public final class Executor {
                          final boolean ignoreErrors,
                          final int depth,
                          final Encoding contentEncoding) {
+        guardSequenceUse("Walks sequence", op.select());
         final List<Store> stores = vars.get(op.select());
         if (stores == null || stores.isEmpty()) {
             return;

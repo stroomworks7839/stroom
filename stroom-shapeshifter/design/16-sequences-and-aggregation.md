@@ -732,6 +732,18 @@ not recovered, E27's entry says where to reopen from.
    consistency with XSLT here, because an author who groups by a missing field and then looks
    one up should get the same answer twice. Pinned.*
 6. **The contract.** `max_sequence_entries`, the fatal on overflow, the chunked-root refusal.
+
+   ***Landed 2026-08-27*** (`following`). The one genuinely architectural cost in this design,
+   enforced rather than described: a configuration that accumulates nothing keeps the sliding
+   window's bound exactly, and one that accumulates is bounded by `max_sequence_entries`
+   instead — 100,000 per sequence unless a configuration says otherwise — and says so when it
+   is not.
+
+   *Both refusals are **fatal**, for the same reason stated twice: a truncated aggregate and a
+   per-chunk summary are both numbers that look like answers. The chunked-root refusal turns
+   out to need a distinction the design's prose blurred — a whole-buffer run takes the same
+   code path as a `classify` or `any` root but with exactly **one** chunk, so it is safe, and
+   the guard is `!wholeBuffer && (classify || any)` rather than the dispatch mode alone.*
 7. **Close.** The A/B against the phase-0 measurement, then
    [14-xslt-coverage-matrix.md](14-xslt-coverage-matrix.md): every row of §2 and the
    aggregation and sequence rows of §§3–4 move out of *gap*, and **§5's first gap family

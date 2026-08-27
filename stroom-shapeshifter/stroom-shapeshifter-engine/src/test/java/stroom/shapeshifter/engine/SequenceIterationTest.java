@@ -180,6 +180,60 @@ class SequenceIterationTest {
     }
 
     // -----------------------------------------------------------------------------------
+    // The memory contract (design/16 §10)
+    // -----------------------------------------------------------------------------------
+
+    /** Runs without asserting the messages are clean, so a fatal can be inspected. */
+    private static List<Message> messagesFrom(final String json, final String input) {
+        return Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(json)),
+                new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
+                OutputSink.of(new ByteArrayOutputStream()));
+    }
+
+    private static String withSource(final String extra, final String epilogue) {
+        return config(epilogue, APPEND_FIELD)
+                .replace("\"version\": 5,", "\"version\": 5, \"source\": {" + extra + "},");
+    }
+
+    @Test
+    void sequenceOutgrowingItsLimitStopsTheRun() {
+        // Fatal rather than truncate-and-warn: a summary missing its tail is a wrong answer
+        // that looks right, which is worse than one that does not arrive.
+        final String json = withSource("\"max_sequence_entries\": 3", "{\"text\": \"\"}");
+        final List<Message> messages = messagesFrom(json, "a\nb\nc\nd\n");
+        assertThat(messages)
+                .anyMatch(m -> m.severity() == Severity.FATAL
+                               && m.text().contains("items")
+                               && m.text().contains("max_sequence_entries (3)"));
+    }
+
+    @Test
+    void sequenceInsideItsLimitIsUntouched() {
+        final String json = withSource("\"max_sequence_entries\": 3", "{\"count\": {\"select\": \"items\"}}");
+        assertThat(messagesFrom(json, "a\nb\nc\n"))
+                .noneMatch(m -> m.severity() == Severity.FATAL);
+    }
+
+    @Test
+    void accumulatingUnderAChunkedRootStopsTheRun() {
+        // A classify root is read in pieces whose counters restart, so an accumulation there
+        // would summarise the last piece while presenting itself as a summary of the input.
+        final String json = withSource(
+                "\"dispatch\": \"classify\", \"buffer_size\": 8", "{\"text\": \"\"}");
+        assertThat(messagesFrom(json, "aaaa\nbbbb\ncccc\ndddd\n"))
+                .anyMatch(m -> m.severity() == Severity.FATAL
+                               && m.text().contains("classify or any root"));
+    }
+
+    @Test
+    void orderedRootAccumulatesNormally() {
+        final String json = withSource("\"buffer_size\": 8", "{\"count\": {\"select\": \"items\"}}");
+        assertThat(messagesFrom(json, "aaaa\nbbbb\n"))
+                .noneMatch(m -> m.severity() == Severity.FATAL);
+    }
+
+    // -----------------------------------------------------------------------------------
     // Keys (design/16 §8)
     // -----------------------------------------------------------------------------------
 

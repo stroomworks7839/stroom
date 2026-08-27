@@ -64,15 +64,23 @@ public record Project(String name,
      * @param strictValues warn when a non-numeric value reaches an arithmetic instruction
      *                     (design/17 §10) — off by default, because messy data is the normal
      *                     case; on when "why is this element empty" needs evidence
+     * @param maxSequenceEntries how many entries one sequence may hold before the run is
+     *                     stopped (design/16 §10). A configuration that accumulates nothing
+     *                     keeps the sliding window's bound exactly; one that accumulates is
+     *                     bounded by this instead, and says so
      */
     public record SourceConfig(int bufferSize,
                                boolean ignoreErrors,
                                String encoding,
                                Dispatch dispatch,
-                               boolean strictValues) {
+                               boolean strictValues,
+                               int maxSequenceEntries) {
 
         /** The buffer size a configuration gets if it does not ask for one. */
         public static final int DEFAULT_BUFFER_SIZE = 20_000;
+
+        /** How many entries one sequence may hold before the run stops (design/16 §10). */
+        public static final int DEFAULT_MAX_SEQUENCE_ENTRIES = 100_000;
 
         /** The encoding label meaning "detect it". */
         public static final String AUTO = "auto";
@@ -82,11 +90,16 @@ public record Project(String name,
             if (bufferSize <= 0) {
                 throw new ConfigException("A buffer size must be positive: " + bufferSize);
             }
+            if (maxSequenceEntries <= 0) {
+                throw new ConfigException(
+                        "A max sequence entries must be positive: " + maxSequenceEntries);
+            }
         }
 
         /** The settings an input gets when a configuration says nothing about it. */
         public static SourceConfig defaults() {
-            return new SourceConfig(DEFAULT_BUFFER_SIZE, false, AUTO, null, false);
+            return new SourceConfig(DEFAULT_BUFFER_SIZE, false, AUTO, null, false,
+                    DEFAULT_MAX_SEQUENCE_ENTRIES);
         }
     }
 }
