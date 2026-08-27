@@ -6,7 +6,19 @@ this draft's original privileged input/output panes; the superseded framing is k
 Written 2026-08-25 from three surveys: the ds-rs Leptos editor as it actually shipped,
 the ds-rs redesign document that described what it should have been, and Stroom's GWT
 stepping UI as it exists today. Wireframes are in §8; an interactive HTML mockup of the
-central idea is at [mockups/18-trace-editor.html](mockups/18-trace-editor.html).
+central idea is at [mockups/18-trace-editor.html](mockups/18-trace-editor.html). A
+second, more complex prototype —
+[mockups/18b-event-xml-trace-editor.html](mockups/18b-event-xml-trace-editor.html) —
+runs the same UI against real data: 11 lines from the `apache_httpd` shapeshifter test
+fixture (`stroom-shapeshifter-engine/src/test/resources/fixtures/projects/apache_httpd/`),
+dispatched through nine templates into six distinct `EventDetail` shapes (View,
+Authenticate, Update, Delete, Export, Import), with output copied verbatim from the
+fixture's own golden `event-logging:3` XML — the shape Stroom pipelines normally
+produce via XSLT, reproduced byte-for-byte in every record the prototype includes.
+Where the first prototype shows the model, the second is the fidelity check: real
+regex captures, a real six-way ordered-choice route dispatch (with real tried-and-failed
+templates for the trace navigator's G3 story), and a real security narrative (a
+brute-force login lockout) sitting right in the sample data.
 
 ## 1. Why this UI is hard, said precisely
 
