@@ -70,7 +70,7 @@ public class CaseCatalogueBenchmark {
     // added here would simply never be measured. That is how arithmetic, value_types,
     // comparison and dates stayed unmeasured through four phases of work on exactly them.
     @Param({"adjacent_groups", "analyze_string", "arithmetic", "comparison", "computed_names",
-            "dates", "modes", "nasty_xml", "reference", "string_functions", "value_types"})
+            "dates", "modes", "nasty_xml", "reference", "sequence_basics", "string_functions", "value_types"})
     public String benchCase;
 
     @Param({"10000", "100000"})

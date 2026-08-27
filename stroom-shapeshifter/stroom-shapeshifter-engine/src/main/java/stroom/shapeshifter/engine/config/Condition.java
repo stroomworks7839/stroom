@@ -138,4 +138,23 @@ public sealed interface Condition {
     record Exists(RefExpression select) implements Condition {
 
     }
+
+    /**
+     * The current iteration is on its first entry — {@code __position == 1}.
+     *
+     * <p>Deleted by E21 as vocabulary nothing set, and restored by design/16's ruling with
+     * the iteration that sets it: E21's own words were "delete until a case needs for-each
+     * positional index and count semantics", and this is that case. Outside an iteration
+     * nothing sets {@code __position} and the condition is false, which is the hazard that
+     * got it deleted — so the compiler warns when it appears in a body with no enclosing
+     * {@code for-each}.
+     */
+    record IsFirst() implements Condition {
+
+    }
+
+    /** The current iteration is on its last entry — {@code __position == __last}. */
+    record IsLast() implements Condition {
+
+    }
 }

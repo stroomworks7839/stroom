@@ -396,6 +396,69 @@ public sealed interface OutputNode {
     }
 
     // -----------------------------------------------------------------------------------
+    // Sequences (design/16). A store is the sequence type — there is no new value kind —
+    // and these are the instructions that declare one, add to one, and walk one.
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * Declare a sequence, and empty it. XSLT has no equivalent: it is what makes a value
+     * captured in a nested level outlive the level, which nesting alone cannot do because a
+     * child level's stores are cleared on its first match of each new parent match (E19).
+     *
+     * <p>Declaring is required rather than implied. It is what puts the accumulation's
+     * lifetime where an author can see it, and it gives the compiler somewhere to stand:
+     * an {@code append} to a name no {@code sequence} declares is refused, and a name that
+     * collides with a capture is refused, because a template's first-match clearing would
+     * empty the accumulation underneath it mid-run (design/16 §9).
+     */
+    record Sequence(String name) implements OutputNode {
+
+        public Sequence {
+            if (name == null || name.isEmpty()) {
+                throw new ConfigException("A sequence needs a name");
+            }
+        }
+    }
+
+    /**
+     * Add a value to a declared sequence, at its next free index.
+     *
+     * <p>An absent value appends nothing — not a hole. A dense sequence's index is its
+     * position, so a hole in one would mean nothing at all; the sparse reading belongs to
+     * capture-indexed stores, where an index is a match number and a gap is meaningful.
+     */
+    record Append(String name, RefExpression select) implements OutputNode {
+
+        public Append {
+            if (name == null || name.isEmpty()) {
+                throw new ConfigException("An append needs the name of a sequence");
+            }
+        }
+    }
+
+    /**
+     * Walk a sequence, running a body once per populated entry — XSLT's {@code xsl:for-each},
+     * over what has been captured rather than over a tree.
+     *
+     * @param select the sequence's <b>name</b>, not a reference (design/16 §4.1, ruled): a
+     *               {@link RefExpression} resolves to exactly one value by construction, and
+     *               making it sometimes mean "all of them" would put a second reading into
+     *               the one type every instruction shares
+     * @param as     binds the item's value for the body, or null to read it by index alone
+     * @param body   what runs per entry, with {@code __index}, {@code __position} and
+     *               {@code __last} bound (§4.3)
+     */
+    record ForEach(String select, String as, List<OutputNode> body) implements OutputNode {
+
+        public ForEach {
+            if (select == null || select.isEmpty()) {
+                throw new ConfigException("A for-each needs the name of a sequence to walk");
+            }
+            body = body == null ? List.of() : List.copyOf(body);
+        }
+    }
+
+    // -----------------------------------------------------------------------------------
     // Dates (design/17 §9): the composed pair the 2026-08-21 ruling chose over
     // stroom:format-date's conflated signature
     // -----------------------------------------------------------------------------------

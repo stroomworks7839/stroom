@@ -241,7 +241,11 @@ class EveryVariantTest {
                 new OutputNode.ParseDate(select, "MMM d HH:mm:ss", "Europe/London", ref(), "when"),
                 new OutputNode.ParseDate(select, "iso", null, null, null),
                 new OutputNode.FormatDate(select, "uuuu-MM-dd", "UTC", null),
-                new OutputNode.FormatDate(select, "epoch-millis", null, "ms")));
+                new OutputNode.FormatDate(select, "epoch-millis", null, "ms"),
+                new OutputNode.Sequence("seq"),
+                new OutputNode.Append("seq", ref()),
+                new OutputNode.ForEach("seq", "item", List.of(new OutputNode.Text("each"))),
+                new OutputNode.ForEach("seq", null, List.of())));
 
         // The remaining conditions, each inside its own guard-shaped instruction so that the
         // walker sees them all.
@@ -255,6 +259,8 @@ class EveryVariantTest {
                 new Condition.Compare(Condition.Compare.Op.LE,
                         new Condition.Operand(ref(), null, Cast.NUMBER),
                         new Condition.Operand(null, new Condition.Literal.Whole(5), null)),
+                new Condition.IsFirst(),
+                new Condition.IsLast(),
                 new Condition.Compare(Condition.Compare.Op.GE,
                         new Condition.Operand(ref(), null, Cast.BOOLEAN),
                         new Condition.Operand(null, new Condition.Literal.Truth(true), null)),

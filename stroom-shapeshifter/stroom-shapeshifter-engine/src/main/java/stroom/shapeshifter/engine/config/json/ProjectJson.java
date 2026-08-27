@@ -849,6 +849,8 @@ public final class ProjectJson {
             case "and" -> new Condition.And(list(body, "and", ProjectJson::readCondition));
             case "or" -> new Condition.Or(list(body, "or", ProjectJson::readCondition));
             case "not" -> new Condition.Not(readCondition(body));
+            case "is-first" -> new Condition.IsFirst();
+            case "is-last" -> new Condition.IsLast();
             case "exists" -> {
                 checkFields(body, "exists", "select");
                 yield new Condition.Exists(readRef(required(body, "select", "exists")));
@@ -968,6 +970,8 @@ public final class ProjectJson {
             case Condition.And value -> wrap("and", array(value.conditions(), ProjectJson::writeCondition));
             case Condition.Or value -> wrap("or", array(value.conditions(), ProjectJson::writeCondition));
             case Condition.Not value -> wrap("not", writeCondition(value.condition()));
+            case Condition.IsFirst ignored -> wrap("is-first", NODES.objectNode());
+            case Condition.IsLast ignored -> wrap("is-last", NODES.objectNode());
             case Condition.Exists value -> {
                 final ObjectNode body = NODES.objectNode();
                 body.set("select", writeRef(value.select()));
@@ -1146,6 +1150,23 @@ public final class ProjectJson {
                         text(body, "picture", "format-number"),
                         optionalText(body, "name"));
             }
+            case "sequence" -> {
+                checkFields(body, "sequence", "name");
+                yield new OutputNode.Sequence(text(body, "name", "sequence"));
+            }
+            case "append" -> {
+                checkFields(body, "append", "name", "select");
+                yield new OutputNode.Append(
+                        text(body, "name", "append"),
+                        readRef(required(body, "select", "append")));
+            }
+            case "for-each" -> {
+                checkFields(body, "for-each", "select", "as", "body");
+                yield new OutputNode.ForEach(
+                        text(body, "select", "for-each"),
+                        optionalText(body, "as"),
+                        list(body.get("body"), "body", ProjectJson::readOutput));
+            }
             case "parse-date" -> {
                 checkFields(body, "parse-date", "select", "pattern", "timezone", "reference", "name");
                 yield new OutputNode.ParseDate(
@@ -1313,6 +1334,24 @@ public final class ProjectJson {
             case OutputNode.FormatNumber value ->
                     wrap("format-number", selectAndMarker(value.select(), "picture",
                             value.picture(), value.name()));
+            case OutputNode.Sequence value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("name", value.name());
+                yield wrap("sequence", body);
+            }
+            case OutputNode.Append value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("name", value.name());
+                body.set("select", writeRef(value.select()));
+                yield wrap("append", body);
+            }
+            case OutputNode.ForEach value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("select", value.select());
+                putIfPresent(body, "as", value.as());
+                body.set("body", array(value.body(), ProjectJson::writeOutput));
+                yield wrap("for-each", body);
+            }
             case OutputNode.ParseDate value -> {
                 final ObjectNode body = selectAndMarker(value.select(), "pattern",
                         value.pattern(), value.name());

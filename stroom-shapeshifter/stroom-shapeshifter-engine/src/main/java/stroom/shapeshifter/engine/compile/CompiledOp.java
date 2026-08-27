@@ -170,6 +170,21 @@ public sealed interface CompiledOp {
 
     }
 
+    /** Declare a sequence and empty it (design/16 §9). */
+    record Sequence(String name) implements CompiledOp {
+
+    }
+
+    /** Add a value to a declared sequence, at its next free index. */
+    record Append(String name, CompiledRef select) implements CompiledOp {
+
+    }
+
+    /** Walk a sequence, running a body per populated entry (design/16 §4). */
+    record ForEach(String select, String as, List<CompiledOp> body) implements CompiledOp {
+
+    }
+
     /**
      * Compile a body.
      *
@@ -305,6 +320,10 @@ public sealed interface CompiledOp {
                             parser,
                             value.name());
                 }
+                case OutputNode.Sequence value -> new Sequence(value.name());
+                case OutputNode.Append value -> new Append(value.name(), CompiledRef.of(value.select()));
+                case OutputNode.ForEach value -> new ForEach(value.select(), value.as(),
+                        compile(value.body(), patterns, project));
                 case OutputNode.FormatDate value -> {
                     final Dates.Formatter formatter = Dates.compileFormatter(
                             value.pattern(), value.timezone(), "format-date");

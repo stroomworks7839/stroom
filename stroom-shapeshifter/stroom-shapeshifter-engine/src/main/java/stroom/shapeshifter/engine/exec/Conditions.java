@@ -86,11 +86,33 @@ public final class Conditions {
             case Condition.Or value -> value.conditions().stream()
                     .anyMatch(child -> evaluate(child, match, matchCount, vars, encoding, patterns));
             case Condition.Not value -> !evaluate(value.condition(), match, matchCount, vars, encoding, patterns);
+            // Restored with the iteration that sets them (design/16 §4.3). Outside a
+            // for-each nothing sets __position, so both read false — E21's hazard, which the
+            // compiler now warns about rather than leaving to be discovered.
+            case Condition.IsFirst ignored -> {
+                final Long position = engineNumber(vars, EngineVars.POSITION);
+                yield position != null && position == 1L;
+            }
+            case Condition.IsLast ignored -> {
+                final Long position = engineNumber(vars, EngineVars.POSITION);
+                final Long last = engineNumber(vars, EngineVars.LAST);
+                yield position != null && position.equals(last);
+            }
             case Condition.Exists value -> {
                 final byte[] resolved = Refs.resolve(value.select(), match, matchCount, vars, encoding);
                 yield resolved != null && resolved.length > 0;
             }
         };
+    }
+
+    /** An engine variable's current whole-number value, or null when nothing has set it. */
+    private static Long engineNumber(final VarRegistry vars, final String name) {
+        final java.util.List<Store> stores = vars.get(name);
+        if (stores == null || stores.isEmpty()) {
+            return null;
+        }
+        final TypedValue value = stores.getFirst().latest();
+        return value == null ? null : value.asInteger();
     }
 
     private static String text(final stroom.shapeshifter.engine.config.RefExpression expression,

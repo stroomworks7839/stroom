@@ -31,6 +31,7 @@ import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.exec.Codecs;
+import stroom.shapeshifter.engine.exec.EngineVars;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.Flag;
@@ -166,6 +167,15 @@ public final class Compiler {
 
         private record Read(String templateName, RefExpression ref) {
 
+            Read(final String templateName, final String name) {
+                this(templateName, new RefExpression(
+                        List.of(new RefExpression.RefPart.Capture(name, 0, null))));
+            }
+
+            /** The single name this read is about, for the sequence checks. */
+            String name() {
+                return ((RefExpression.RefPart.Capture) ref.parts().getFirst()).varId();
+            }
         }
 
         private final Project project;
@@ -182,11 +192,21 @@ public final class Compiler {
         private int explicitSubstringStarts;
         private String templateName;
 
+        /** Sequence bookkeeping (design/16 §9): what is declared, what is captured, what is used. */
+        private final Set<String> declaredSequences = new HashSet<>();
+        private final Set<String> captureNames = new HashSet<>();
+        private final List<Read> sequenceUses = new ArrayList<>();
+        private final List<Read> appendTargets = new ArrayList<>();
+
+        /** How many {@code for-each} bodies enclose the node being visited. */
+        private int iterationDepth;
+
         BodyScan(final Project project, final List<Message> warnings) {
             this.project = project;
             this.warnings = warnings;
-            writable.add("__match_count");
-            writable.add("__match_idx");
+            // Every name the engine sets is writable by definition, named once in EngineVars
+            // so that setting, reading and refusing cannot drift apart.
+            writable.addAll(EngineVars.ALL);
         }
 
         void template(final Template template) {
@@ -199,6 +219,7 @@ public final class Compiler {
             }
             for (final CaptureBinding capture : template.captures()) {
                 writable.add(capture.name());
+                captureNames.add(capture.name());
                 switch (capture.select()) {
                     case CaptureBinding.CaptureSource.Select select -> read(select.select());
                     case CaptureBinding.CaptureSource.KeyValue keyValue -> {
@@ -302,6 +323,24 @@ public final class Compiler {
                     read(value.reference());
                 }
                 case OutputNode.FormatDate value -> transform(value.select(), value.name());
+                case OutputNode.Sequence value -> {
+                    declaredSequences.add(value.name());
+                    writable.add(value.name());
+                }
+                case OutputNode.Append value -> {
+                    appendTargets.add(new Read(templateName, value.name()));
+                    writable.add(value.name());
+                    read(value.select());
+                }
+                case OutputNode.ForEach value -> {
+                    sequenceUses.add(new Read(templateName, value.select()));
+                    if (value.as() != null) {
+                        writable.add(value.as());
+                    }
+                    iterationDepth++;
+                    body(value.body());
+                    iterationDepth--;
+                }
             }
         }
 
@@ -344,6 +383,21 @@ public final class Compiler {
                 case Condition.And value -> value.conditions().forEach(this::condition);
                 case Condition.Or value -> value.conditions().forEach(this::condition);
                 case Condition.Not value -> condition(value.condition());
+                case Condition.IsFirst ignored -> positional("is-first");
+                case Condition.IsLast ignored -> positional("is-last");
+            }
+        }
+
+        /**
+         * E21's hazard, caught rather than rediscovered: outside an iteration nothing sets
+         * {@code __position}, so these read false on every record — which is what got them
+         * deleted the first time. Inside one they are exact.
+         */
+        private void positional(final String spelling) {
+            if (iterationDepth == 0) {
+                warnings.add(new Message(Severity.WARNING, "Template '" + templateName
+                        + "' tests " + spelling + " outside any for-each: nothing sets a"
+                        + " position there, so it is false on every record."));
             }
         }
 
@@ -372,6 +426,32 @@ public final class Compiler {
             if (referencesKnowable) {
                 for (final Read read : reads) {
                     checkRead(read);
+                }
+            }
+            // Design/16 §9's two checks. An append to a name no sequence declares would
+            // create the store in the innermost scope and lose it on the way out — a
+            // configuration that appears to work and accumulates nothing.
+            for (final Read append : appendTargets) {
+                if (!declaredSequences.contains(append.name())) {
+                    throw new ConfigException("Template '" + append.templateName()
+                            + "' appends to '" + append.name() + "', which no sequence"
+                            + " declares. Declare it where the accumulation should live.");
+                }
+            }
+            // A sequence sharing a capture's name would be emptied mid-run by that
+            // template's first-match clearing (E19), which is not a thing an author can see.
+            for (final String declared : declaredSequences) {
+                if (captureNames.contains(declared)) {
+                    throw new ConfigException("Sequence '" + declared + "' has the same name"
+                            + " as a capture. A template's first match clears its captures,"
+                            + " which would empty the sequence underneath it mid-run.");
+                }
+            }
+            for (final Read use : sequenceUses) {
+                if (!writable.contains(use.name())) {
+                    throw new ConfigException("Template '" + use.templateName()
+                            + "' walks '" + use.name() + "', which nothing writes — no"
+                            + " sequence declares it and no capture binds it.");
                 }
             }
             if (project.version() < 5 && explicitSubstringStarts > 0) {

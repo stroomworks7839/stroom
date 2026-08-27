@@ -68,12 +68,6 @@ import java.util.function.Function;
  */
 public final class Executor {
 
-    /** The engine's own variable: how many times the current template has matched, 1-based. */
-    private static final String MATCH_COUNT = "__match_count";
-
-    /** The engine's own variable: the same count, 0-based, for the XSLT-shaped reading. */
-    private static final String MATCH_INDEX = "__match_idx";
-
     private final CompiledProject compiled;
     private final OutputSink output;
     private final Instrument instrument;
@@ -430,8 +424,8 @@ public final class Executor {
                     + "' failed to match from the start of the content. Skipped: ["
                     + preview(data, cursor, cursor + match.matchStart()) + "]"));
         }
-        vars.store(MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
-        vars.store(MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
+        vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
+        vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
         final boolean wanted = template.matchLimits().onlyMatch() == null
                                || template.matchLimits().onlyMatch().contains(matchCount);
         if (wanted) {
@@ -853,8 +847,8 @@ public final class Executor {
             if (match == null) {
                 continue;
             }
-            vars.store(MATCH_INDEX).set(1, new TypedValue.Int(0));
-            vars.store(MATCH_COUNT).set(1, new TypedValue.Int(1));
+            vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Int(0));
+            vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Int(1));
             final int contentGroup = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
             final TypedValue content = match.group(contentGroup) != null
                     ? match.group(contentGroup)
@@ -1089,6 +1083,25 @@ public final class Executor {
                 }
                 case CompiledOp.Transform value ->
                         transform(value, match, matchCount, sink, contentEncoding);
+                case CompiledOp.Sequence value -> {
+                    // Declared here, emptied here: an accumulation that outlived its previous
+                    // run would carry the last stream's values into this one.
+                    vars.shadow(value.name());
+                    vars.store(value.name()).clear();
+                }
+                case CompiledOp.Append value -> {
+                    final TypedValue appended = CompiledRefs.resolveValue(
+                            value.select(), match, matchCount, vars, contentEncoding);
+                    if (appended != null) {
+                        // Absent appends nothing rather than a hole: in a dense sequence an
+                        // index is a position, so a gap would mean nothing at all.
+                        final Store store = vars.store(value.name());
+                        store.set(Math.max(1, store.lastIndex() + 1), appended);
+                    }
+                }
+                case CompiledOp.ForEach value ->
+                        forEach(value, match, matchCount, content, sink,
+                                inputBase, ignoreErrors, depth, contentEncoding);
                 case CompiledOp.ParseDate value -> {
                     final TypedValue input = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars, contentEncoding);
@@ -1193,6 +1206,65 @@ public final class Executor {
             // later typed read (design/17 §3.2).
             vars.store(name).set(matchCount, value);
         }
+    }
+
+    /**
+     * Walk a sequence, running the body once per populated entry (design/16 §4).
+     *
+     * <p>Populated entries in ascending index order, which is the one rule that reads both
+     * indexing disciplines: a capture-indexed store's holes are skipped and its index still
+     * means the match that produced it, while a dense one has no holes to skip. Index and
+     * position are bound separately because they answer different questions — the index
+     * reaches sibling data at the same match, the position is what {@code position()} means.
+     *
+     * <p>The iteration runs in its own scope, so the bindings do not outlive it and a nested
+     * {@code for-each} shadows rather than overwrites the one around it.
+     */
+    private void forEach(final CompiledOp.ForEach op,
+                         final MatchResult match,
+                         final int matchCount,
+                         final byte[] content,
+                         final OutputSink sink,
+                         final long inputBase,
+                         final boolean ignoreErrors,
+                         final int depth,
+                         final Encoding contentEncoding) {
+        final List<Store> stores = vars.get(op.select());
+        if (stores == null || stores.isEmpty()) {
+            return;
+        }
+        final Store store = stores.getFirst();
+        final List<Integer> populated = new ArrayList<>();
+        for (int i = 0; i < store.size(); i++) {
+            if (store.get(i) != null) {
+                populated.add(i);
+            }
+        }
+        if (populated.isEmpty()) {
+            return;
+        }
+
+        vars.push();
+        if (op.as() != null) {
+            vars.shadow(op.as());
+        }
+        vars.shadow(EngineVars.INDEX);
+        vars.shadow(EngineVars.POSITION);
+        vars.shadow(EngineVars.LAST);
+        // Known before the first body runs, which is what makes a last-entry test cheap and
+        // correct — and is the fix for the trailing-empty-group limit adjacent_groups found.
+        vars.store(EngineVars.LAST).set(1, new TypedValue.Int(populated.size()));
+        for (int position = 0; position < populated.size(); position++) {
+            final int index = populated.get(position);
+            vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));
+            vars.store(EngineVars.POSITION).set(1, new TypedValue.Int(position + 1L));
+            if (op.as() != null) {
+                vars.store(op.as()).set(1, store.get(index));
+            }
+            body(op.body(), match, matchCount, content, sink,
+                    inputBase, ignoreErrors, depth, contentEncoding);
+        }
+        vars.pop();
     }
 
     /**
