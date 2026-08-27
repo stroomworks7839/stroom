@@ -50,7 +50,8 @@ final class CaseCorpus {
             Map.entry("value_types", Pattern.compile("  <val [^\n]*\n")),
             Map.entry("comparison", Pattern.compile("  <c [^\n]*\n")),
             Map.entry("dates", Pattern.compile("  <e [^\n]*\n")),
-            Map.entry("sequence_basics", Pattern.compile("  <item [^\n]*\n")));
+            Map.entry("sequence_basics", Pattern.compile("  <item [^\n]*\n")),
+            Map.entry("aggregate", Pattern.compile("  <row [^\n]*\n")));
 
     private CaseCorpus() {
     }

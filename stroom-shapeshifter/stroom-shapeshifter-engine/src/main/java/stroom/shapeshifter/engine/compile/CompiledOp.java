@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Dispatch;
@@ -185,6 +186,35 @@ public sealed interface CompiledOp {
 
     }
 
+    /** What a {@link Fold} does. The authored vocabulary is five instructions; this is one. */
+    enum FoldKind {
+        COUNT, SUM, AVG, MIN, MAX
+    }
+
+    /**
+     * Fold a sequence to one value (design/16 §8). Five authored instructions collapse here
+     * the way the transforms collapse to {@link Transform}: what kind it was matters at
+     * authoring time, and at run time there is only "read the sequence, fold it, write or
+     * bind the result".
+     */
+    record Fold(String select, FoldKind kind, Cast as, String name) implements CompiledOp {
+
+    }
+
+    /** The distinct entries of a sequence, bound as a dense one. */
+    record DistinctValues(String select, String name) implements CompiledOp {
+
+    }
+
+    /**
+     * Split a value. Its own instruction rather than a {@link Transform} because binding a
+     * name now means binding <b>N</b> values, which a transform's single result cannot do —
+     * design/17 §16.4's ruling, which has been waiting on sequences existing.
+     */
+    record Tokenize(CompiledRef select, String delimiter, String name) implements CompiledOp {
+
+    }
+
     /**
      * Compile a body.
      *
@@ -270,8 +300,9 @@ public sealed interface CompiledOp {
                     yield transform(single("substring", value.select()), value.name(),
                             inputs -> Transforms.substring(inputs, effectiveStart, effectiveLength));
                 }
-                case OutputNode.Tokenize value -> transform(single("tokenize", value.select()),
-                        value.name(), inputs -> Transforms.tokenize(inputs, value.delimiter()));
+                case OutputNode.Tokenize value -> new Tokenize(
+                        CompiledRef.of(single("tokenize", value.select()).getFirst()),
+                        value.delimiter(), value.name());
                 case OutputNode.Number value ->
                         transform(single("number", value.select()), value.name(), Transforms::number);
                 case OutputNode.Add value ->
@@ -320,6 +351,13 @@ public sealed interface CompiledOp {
                             parser,
                             value.name());
                 }
+                case OutputNode.Count value -> new Fold(value.select(), FoldKind.COUNT, null, value.name());
+                case OutputNode.Sum value -> new Fold(value.select(), FoldKind.SUM, null, value.name());
+                case OutputNode.Avg value -> new Fold(value.select(), FoldKind.AVG, null, value.name());
+                case OutputNode.Min value -> new Fold(value.select(), FoldKind.MIN, value.as(), value.name());
+                case OutputNode.Max value -> new Fold(value.select(), FoldKind.MAX, value.as(), value.name());
+                case OutputNode.DistinctValues value ->
+                        new DistinctValues(value.select(), value.name());
                 case OutputNode.Sequence value -> new Sequence(value.name());
                 case OutputNode.Append value -> new Append(value.name(), CompiledRef.of(value.select()));
                 case OutputNode.ForEach value -> new ForEach(value.select(), value.as(),

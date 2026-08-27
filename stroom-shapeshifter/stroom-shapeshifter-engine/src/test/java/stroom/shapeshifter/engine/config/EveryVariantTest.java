@@ -245,7 +245,13 @@ class EveryVariantTest {
                 new OutputNode.Sequence("seq"),
                 new OutputNode.Append("seq", ref()),
                 new OutputNode.ForEach("seq", "item", List.of(new OutputNode.Text("each"))),
-                new OutputNode.ForEach("seq", null, List.of())));
+                new OutputNode.ForEach("seq", null, List.of()),
+                new OutputNode.Count("seq", "n"),
+                new OutputNode.Sum("seq", "total"),
+                new OutputNode.Avg("seq", "mean"),
+                new OutputNode.Min("seq", Cast.NUMBER, "low"),
+                new OutputNode.Max("seq", null, "high"),
+                new OutputNode.DistinctValues("seq", "unique")));
 
         // The remaining conditions, each inside its own guard-shaped instruction so that the
         // walker sees them all.

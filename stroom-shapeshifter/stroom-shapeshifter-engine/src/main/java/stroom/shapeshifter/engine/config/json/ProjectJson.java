@@ -859,6 +859,38 @@ public final class ProjectJson {
         };
     }
 
+    /** A fold's body: a sequence name, and optionally a name to bind the result to. */
+    private static JsonNode sequenceBody(final JsonNode body, final String owner) {
+        checkFields(body, owner, "select", "name");
+        return body;
+    }
+
+    private static ObjectNode sequenceAndName(final String select, final String name) {
+        final ObjectNode body = NODES.objectNode();
+        body.put("select", select);
+        putIfPresent(body, "name", name);
+        return body;
+    }
+
+    /** An ordering's cast, spelt lowercase, or null for the uncast string reading. */
+    private static Cast readCast(final JsonNode body) {
+        if (!body.has("as") || body.get("as").isNull()) {
+            return null;
+        }
+        final String label = body.get("as").asString();
+        try {
+            return Cast.valueOf(label.toUpperCase(Locale.ROOT));
+        } catch (final IllegalArgumentException e) {
+            throw new ConfigException("Unknown cast: " + label);
+        }
+    }
+
+    private static void writeCast(final ObjectNode body, final Cast as) {
+        if (as != null) {
+            body.put("as", as.name().toLowerCase(Locale.ROOT));
+        }
+    }
+
     private static Condition readCompare(final JsonNode body, final Condition.Compare.Op op) {
         checkFields(body, "comparison", "left", "right");
         return new Condition.Compare(op,
@@ -1150,6 +1182,27 @@ public final class ProjectJson {
                         text(body, "picture", "format-number"),
                         optionalText(body, "name"));
             }
+            case "count" -> new OutputNode.Count(
+                    text(sequenceBody(body, "count"), "select", "count"), optionalText(body, "name"));
+            case "sum" -> new OutputNode.Sum(
+                    text(sequenceBody(body, "sum"), "select", "sum"), optionalText(body, "name"));
+            case "avg" -> new OutputNode.Avg(
+                    text(sequenceBody(body, "avg"), "select", "avg"), optionalText(body, "name"));
+            case "min" -> {
+                checkFields(body, "min", "select", "as", "name");
+                yield new OutputNode.Min(text(body, "select", "min"),
+                        readCast(body), optionalText(body, "name"));
+            }
+            case "max" -> {
+                checkFields(body, "max", "select", "as", "name");
+                yield new OutputNode.Max(text(body, "select", "max"),
+                        readCast(body), optionalText(body, "name"));
+            }
+            case "distinct-values" -> {
+                checkFields(body, "distinct-values", "select", "name");
+                yield new OutputNode.DistinctValues(
+                        text(body, "select", "distinct-values"), text(body, "name", "distinct-values"));
+            }
             case "sequence" -> {
                 checkFields(body, "sequence", "name");
                 yield new OutputNode.Sequence(text(body, "name", "sequence"));
@@ -1334,6 +1387,21 @@ public final class ProjectJson {
             case OutputNode.FormatNumber value ->
                     wrap("format-number", selectAndMarker(value.select(), "picture",
                             value.picture(), value.name()));
+            case OutputNode.Count value -> wrap("count", sequenceAndName(value.select(), value.name()));
+            case OutputNode.Sum value -> wrap("sum", sequenceAndName(value.select(), value.name()));
+            case OutputNode.Avg value -> wrap("avg", sequenceAndName(value.select(), value.name()));
+            case OutputNode.Min value -> {
+                final ObjectNode body = sequenceAndName(value.select(), value.name());
+                writeCast(body, value.as());
+                yield wrap("min", body);
+            }
+            case OutputNode.Max value -> {
+                final ObjectNode body = sequenceAndName(value.select(), value.name());
+                writeCast(body, value.as());
+                yield wrap("max", body);
+            }
+            case OutputNode.DistinctValues value ->
+                    wrap("distinct-values", sequenceAndName(value.select(), value.name()));
             case OutputNode.Sequence value -> {
                 final ObjectNode body = NODES.objectNode();
                 body.put("name", value.name());

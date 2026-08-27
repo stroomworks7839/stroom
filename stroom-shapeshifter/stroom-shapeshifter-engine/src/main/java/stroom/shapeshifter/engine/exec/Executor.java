@@ -26,6 +26,7 @@ import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.CompiledRef;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
 import stroom.shapeshifter.engine.config.CaptureBinding;
+import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.MatchExpression;
@@ -1099,6 +1100,25 @@ public final class Executor {
                         store.set(Math.max(1, store.lastIndex() + 1), appended);
                     }
                 }
+                case CompiledOp.Fold value -> {
+                    final TypedValue folded = fold(value);
+                    if (folded != null) {
+                        emit(folded, value.name(), matchCount, sink);
+                    }
+                }
+                case CompiledOp.DistinctValues value -> distinct(value);
+                case CompiledOp.Tokenize value -> {
+                    final TypedValue input = CompiledRefs.resolveValue(
+                            value.select(), match, matchCount, vars, contentEncoding);
+                    if (input != null) {
+                        if (value.name() == null) {
+                            // Written straight out, it keeps the joined rendering it always had.
+                            sink.write(Transforms.tokenize(List.of(input), value.delimiter()).asBytes());
+                        } else {
+                            bindDense(value.name(), Transforms.split(input, value.delimiter()));
+                        }
+                    }
+                }
                 case CompiledOp.ForEach value ->
                         forEach(value, match, matchCount, content, sink,
                                 inputBase, ignoreErrors, depth, contentEncoding);
@@ -1206,6 +1226,96 @@ public final class Executor {
             // later typed read (design/17 §3.2).
             vars.store(name).set(matchCount, value);
         }
+    }
+
+    /** The populated entries of a named sequence, in ascending index order, or empty. */
+    private List<TypedValue> entries(final String name) {
+        final List<Store> stores = vars.get(name);
+        if (stores == null || stores.isEmpty()) {
+            return List.of();
+        }
+        final Store store = stores.getFirst();
+        final List<TypedValue> values = new ArrayList<>(store.size());
+        for (int i = 0; i < store.size(); i++) {
+            final TypedValue value = store.get(i);
+            if (value != null) {
+                values.add(value);
+            }
+        }
+        return values;
+    }
+
+    /** Bind values as a dense sequence, indexed from one — position, with no holes. */
+    private void bindDense(final String name, final List<TypedValue> values) {
+        final Store store = vars.store(name);
+        store.clear();
+        for (int i = 0; i < values.size(); i++) {
+            store.set(i + 1, values.get(i));
+        }
+    }
+
+    /**
+     * Fold a sequence to one value (design/16 §8).
+     *
+     * <p>The empty sequence answers as XPath does, which is not the same answer twice:
+     * {@code sum(())} is zero and {@code avg(())} is empty. Zero is a real total of nothing;
+     * a mean of nothing is not a number, and returning zero for it would be a number that
+     * looks like an answer.
+     */
+    private TypedValue fold(final CompiledOp.Fold op) {
+        final List<TypedValue> values = entries(op.select());
+        return switch (op.kind()) {
+            case COUNT -> new TypedValue.Int(values.size());
+            case SUM -> values.isEmpty() ? new TypedValue.Int(0) : Transforms.add(values);
+            case AVG -> {
+                if (values.isEmpty()) {
+                    yield null;
+                }
+                final TypedValue total = Transforms.add(values);
+                final Double sum = total == null ? null : total.asNumber();
+                yield sum == null ? null : new TypedValue.Real(sum / values.size());
+            }
+            case MIN, MAX -> extreme(values, op.as(), op.kind() == CompiledOp.FoldKind.MIN);
+        };
+    }
+
+    /**
+     * The smallest or largest entry under §8's ordering. An entry whose cast fails does not
+     * participate — the same "this value did not participate" that reads false in a condition
+     * and sorts last in an ordering — and if none participates the answer is absent.
+     */
+    private static TypedValue extreme(final List<TypedValue> values,
+                                      final Cast as,
+                                      final boolean smallest) {
+        TypedValue best = null;
+        for (final TypedValue value : values) {
+            // Uncast, an ordering compares string forms: the one total reading (17 §8).
+            final TypedValue candidate = Comparisons.cast(value, as == null ? Cast.STRING : as);
+            if (candidate == null) {
+                continue;
+            }
+            if (best == null) {
+                best = candidate;
+                continue;
+            }
+            final Integer order = Comparisons.compare(candidate, best);
+            if (order != null && (smallest ? order < 0 : order > 0)) {
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    /** The distinct entries, first appearance kept, compared by string form. */
+    private void distinct(final CompiledOp.DistinctValues op) {
+        final java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        final List<TypedValue> distinct = new ArrayList<>();
+        for (final TypedValue value : entries(op.select())) {
+            if (seen.add(value.asString())) {
+                distinct.add(value);
+            }
+        }
+        bindDense(op.name(), distinct);
     }
 
     /**

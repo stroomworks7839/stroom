@@ -60,7 +60,8 @@ class CaseCatalogueTest {
             "value_types",
             "comparison",
             "dates",
-            "sequence_basics");
+            "sequence_basics",
+            "aggregate");
 
     /**
      * The walls: cases whose stylesheet runs but for which no challenger exists — executable

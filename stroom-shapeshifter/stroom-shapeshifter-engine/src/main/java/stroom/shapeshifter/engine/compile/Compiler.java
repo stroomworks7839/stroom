@@ -334,6 +334,15 @@ public final class Compiler {
                     writable.add(value.name());
                     read(value.select());
                 }
+                // The folds name a sequence rather than referencing one, so they join the
+                // same use list a for-each does — checked against what anything writes, not
+                // against the reference rules.
+                case OutputNode.Count value -> fold(value.select(), value.name());
+                case OutputNode.Sum value -> fold(value.select(), value.name());
+                case OutputNode.Avg value -> fold(value.select(), value.name());
+                case OutputNode.Min value -> fold(value.select(), value.name());
+                case OutputNode.Max value -> fold(value.select(), value.name());
+                case OutputNode.DistinctValues value -> fold(value.select(), value.name());
                 case OutputNode.ForEach value -> {
                     sequenceUses.add(new NamedUse(templateName, value.select()));
                     if (value.as() != null) {
@@ -343,6 +352,14 @@ public final class Compiler {
                     body(value.body());
                     iterationDepth--;
                 }
+            }
+        }
+
+        /** A fold: the named sequence is used, and the result may bind a name of its own. */
+        private void fold(final String select, final String name) {
+            sequenceUses.add(new NamedUse(templateName, select));
+            if (name != null) {
+                writable.add(name);
             }
         }
 

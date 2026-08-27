@@ -458,6 +458,79 @@ public sealed interface OutputNode {
         }
     }
 
+    /**
+     * The folds (design/16 §8). Each names a <b>sequence</b> rather than taking a reference,
+     * for §4.1's reason: a reference resolves to exactly one value by construction. Where a
+     * fold over computed values is wanted it is composed — walk the source, {@code append}
+     * the computed value, fold that.
+     */
+    record Count(String select, String name) implements OutputNode {
+
+        public Count {
+            requireSequence(select, "count");
+        }
+    }
+
+    /**
+     * Add up a sequence. Whole while every entry is whole and nothing overflows, promoting to
+     * fractional otherwise (design/17 §11); <b>zero</b> over an empty sequence, which is
+     * XPath's answer for {@code sum(())}.
+     */
+    record Sum(String select, String name) implements OutputNode {
+
+        public Sum {
+            requireSequence(select, "sum");
+        }
+    }
+
+    /**
+     * The mean. <b>Absent</b> over an empty sequence rather than zero — XPath's answer for
+     * {@code avg(())} too, and the engine's own word for "there was no value".
+     */
+    record Avg(String select, String name) implements OutputNode {
+
+        public Avg {
+            requireSequence(select, "avg");
+        }
+    }
+
+    /** The smallest entry, ordered by {@code as} — uncast orders by string form (17 §8). */
+    record Min(String select, Cast as, String name) implements OutputNode {
+
+        public Min {
+            requireSequence(select, "min");
+        }
+    }
+
+    /** The largest entry, under the same ordering. */
+    record Max(String select, Cast as, String name) implements OutputNode {
+
+        public Max {
+            requireSequence(select, "max");
+        }
+    }
+
+    /**
+     * The distinct entries of a sequence, bound as a dense one — first appearance order,
+     * compared by string form, which is the same total reading an uncast ordering uses.
+     */
+    record DistinctValues(String select, String name) implements OutputNode {
+
+        public DistinctValues {
+            requireSequence(select, "distinct-values");
+            if (name == null || name.isEmpty()) {
+                throw new ConfigException("A distinct-values needs a name to bind: it produces"
+                                          + " a sequence, which has nothing to write to output");
+            }
+        }
+    }
+
+    private static void requireSequence(final String select, final String what) {
+        if (select == null || select.isEmpty()) {
+            throw new ConfigException("A " + what + " needs the name of a sequence");
+        }
+    }
+
     // -----------------------------------------------------------------------------------
     // Dates (design/17 §9): the composed pair the 2026-08-21 ruling chose over
     // stroom:format-date's conflated signature

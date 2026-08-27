@@ -127,6 +127,19 @@ public final class Transforms {
         return TypedValue.of(new String(codePoints, begin, end - begin));
     }
 
+    /**
+     * Split on a delimiter, into the pieces themselves.
+     *
+     * <p>The joined form below is what a {@code tokenize} writes straight to output, and was
+     * all it could ever do before sequences existed: a sequence pretending to be a string,
+     * because there was nowhere to put a sequence (design/17 §6).
+     */
+    public static List<TypedValue> split(final TypedValue input, final String delimiter) {
+        return java.util.Arrays.stream(input.asString().split(Pattern.quote(delimiter), -1))
+                .map(TypedValue::of)
+                .toList();
+    }
+
     /** Split on a delimiter, one piece per line. */
     public static TypedValue tokenize(final List<TypedValue> inputs, final String delimiter) {
         final String input = first(inputs);

@@ -1,0 +1,276 @@
+{
+ "name": "aggregate_challenger",
+ "version": 5,
+ "source": {
+  "buffer_size": 4000000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><s>"
+    },
+    {
+     "sequence": {
+      "name": "vals"
+     }
+    },
+    {
+     "sequence": {
+      "name": "keys"
+     }
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "doc"
+     }
+    },
+    {
+     "text": "<n>"
+    },
+    {
+     "count": {
+      "select": "vals"
+     }
+    },
+    {
+     "text": "</n>"
+    },
+    {
+     "text": "<t>"
+    },
+    {
+     "sum": {
+      "select": "vals"
+     }
+    },
+    {
+     "text": "</t>"
+    },
+    {
+     "text": "<a>"
+    },
+    {
+     "avg": {
+      "select": "vals"
+     }
+    },
+    {
+     "text": "</a>"
+    },
+    {
+     "text": "<lo>"
+    },
+    {
+     "min": {
+      "select": "vals",
+      "as": "number"
+     }
+    },
+    {
+     "text": "</lo>"
+    },
+    {
+     "text": "<hi>"
+    },
+    {
+     "max": {
+      "select": "vals",
+      "as": "number"
+     }
+    },
+    {
+     "text": "</hi>"
+    },
+    {
+     "text": "<d>"
+    },
+    {
+     "distinct-values": {
+      "select": "keys",
+      "name": "uniq"
+     }
+    },
+    {
+     "for-each": {
+      "select": "uniq",
+      "as": "u",
+      "body": [
+       {
+        "text": "<k>"
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "u",
+            "group": 0
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "</k>"
+       }
+      ]
+     }
+    },
+    {
+     "text": "</d><p>"
+    },
+    {
+     "tokenize": {
+      "select": [
+       {
+        "parts": [
+         {
+          "text": "a|b|c"
+         }
+        ]
+       }
+      ],
+      "delimiter": "|",
+      "name": "pieces"
+     }
+    },
+    {
+     "for-each": {
+      "select": "pieces",
+      "as": "pc",
+      "body": [
+       {
+        "text": "<i>"
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "pc",
+            "group": 0
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "</i>"
+       }
+      ]
+     }
+    },
+    {
+     "text": "</p></s>"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "decl",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<\\?xml[^\\n]*\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "open",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<rows>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "row",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  <row k=\"([^\"]*)\" v=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "k",
+     "select": {
+      "group": 1
+     }
+    },
+    {
+     "name": "v",
+     "select": {
+      "group": 2
+     }
+    }
+   ],
+   "body": [
+    {
+     "append": {
+      "name": "keys",
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "k",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "append": {
+      "name": "vals",
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "v",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000005",
+   "name": "close",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "</rows>\\n"
+    }
+   },
+   "body": []
+  }
+ ]
+}

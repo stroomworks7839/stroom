@@ -180,6 +180,95 @@ class SequenceIterationTest {
     }
 
     // -----------------------------------------------------------------------------------
+    // The folds (design/16 §8)
+    // -----------------------------------------------------------------------------------
+
+    private static String fold(final String instruction, final String input) {
+        return run(config(instruction, APPEND_FIELD), input);
+    }
+
+    @Test
+    void countIsThePopulatedEntries() {
+        assertThat(fold("{\"count\": {\"select\": \"items\"}}", "a\nb\nc\n")).isEqualTo("3");
+    }
+
+    @Test
+    void sumIsExactOverWholeNumbersAndPromotesOverFractions() {
+        assertThat(fold("{\"sum\": {\"select\": \"items\"}}", "2\n3\n4\n")).isEqualTo("9");
+        assertThat(fold("{\"sum\": {\"select\": \"items\"}}", "1.5\n2.5\n")).isEqualTo("4");
+    }
+
+    @Test
+    void theEmptySequenceAnswersAsXpathDoes() {
+        // Not the same answer twice: a total of nothing is zero, a mean of nothing is not a
+        // number, and returning zero for it would be a number that looks like an answer.
+        assertThat(fold("{\"sum\": {\"select\": \"items\"}}", "")).isEqualTo("0");
+        assertThat(fold("{\"avg\": {\"select\": \"items\"}}", "")).isEmpty();
+        assertThat(fold("{\"count\": {\"select\": \"items\"}}", "")).isEqualTo("0");
+    }
+
+    @Test
+    void avgIsTheMean() {
+        assertThat(fold("{\"avg\": {\"select\": \"items\"}}", "1\n2\n3\n")).isEqualTo("2");
+        assertThat(fold("{\"avg\": {\"select\": \"items\"}}", "1\n2\n")).isEqualTo("1.5");
+    }
+
+    @Test
+    void nonNumericEntryMakesSumAndAvgAbsent() {
+        assertThat(fold("{\"sum\": {\"select\": \"items\"}}", "1\nn/a\n")).isEmpty();
+        assertThat(fold("{\"avg\": {\"select\": \"items\"}}", "1\nn/a\n")).isEmpty();
+    }
+
+    @Test
+    void minAndMaxOrderByStringFormUntilToldOtherwise() {
+        // Uncast is the string reading, where "9" is larger than "10" — the documented
+        // total ordering (17 §8), not a bug. as:number is how an author says otherwise.
+        assertThat(fold("{\"max\": {\"select\": \"items\"}}", "9\n10\n")).isEqualTo("9");
+        assertThat(fold("{\"max\": {\"select\": \"items\", \"as\": \"number\"}}", "9\n10\n"))
+                .isEqualTo("10");
+        assertThat(fold("{\"min\": {\"select\": \"items\", \"as\": \"number\"}}", "9\n10\n"))
+                .isEqualTo("9");
+    }
+
+    @Test
+    void anEntryThatFailsItsCastDoesNotParticipate() {
+        // The same "did not participate" that reads false in a condition and sorts last.
+        assertThat(fold("{\"max\": {\"select\": \"items\", \"as\": \"number\"}}", "5\nn/a\n7\n"))
+                .isEqualTo("7");
+        assertThat(fold("{\"max\": {\"select\": \"items\", \"as\": \"number\"}}", "n/a\n")).isEmpty();
+    }
+
+    @Test
+    void distinctValuesKeepsFirstAppearanceOrder() {
+        final String epilogue = """
+                {"distinct-values": {"select": "items", "name": "seen"}},
+                {"for-each": {"select": "seen", "as": "s", "body": [
+                  {"value-of": {"parts": [{"capture": {"var_id": "s", "group": 0}}]}},
+                  {"text": ","}]}}
+                """;
+        assertThat(run(config(epilogue, APPEND_FIELD), "b\na\nb\nc\na\n")).isEqualTo("b,a,c,");
+    }
+
+    @Test
+    void tokenizeBindsASequenceAndStillWritesJoined() {
+        // Design/17 §16.4's ruling, which has been waiting on sequences existing.
+        final String bindThenWalk = """
+                {"tokenize": {"select": [{"parts": [{"text": "a,b,c"}]}],
+                  "delimiter": ",", "name": "parts"}},
+                {"for-each": {"select": "parts", "as": "p", "body": [
+                  {"text": "<"},
+                  {"value-of": {"parts": [{"capture": {"var_id": "p", "group": 0}}]}},
+                  {"text": ">"}]}}
+                """;
+        assertThat(run(config(bindThenWalk, APPEND_FIELD), "x\n")).isEqualTo("<a><b><c>");
+        // Unnamed, it writes what it always wrote.
+        final String write = """
+                {"tokenize": {"select": [{"parts": [{"text": "a,b"}]}], "delimiter": ","}}
+                """;
+        assertThat(run(config(write, APPEND_FIELD), "x\n")).isEqualTo("a\nb");
+    }
+
+    // -----------------------------------------------------------------------------------
     // The checks that keep a lifetime visible (design/16 §9)
     // -----------------------------------------------------------------------------------
 

@@ -573,7 +573,22 @@ not recovered, E27's entry says where to reopen from.
    **`tokenize` binding a dense sequence**, which design/17 §16.4 ruled and left blocked on
    exactly this phase, its one open sweep item. Ordering comes from 17 §8's spine, which
    shipped.
-   Cases: `aggregate`, and `string_functions` extended to prove `tokenize`'s new shape.
+   Cases: `aggregate`.
+
+   ***Landed 2026-08-27*** (`following`). The five folds and `distinct-values` shipped as
+   six authored instructions collapsing to one `Fold` op, the way the transforms collapse to
+   one `Transform` — and `tokenize` became its own instruction rather than a transform,
+   because binding a name now means binding **N** values, which a transform's single result
+   cannot carry.
+
+   *The empty sequence answers as XPath does, which is not the same answer twice: `sum(())`
+   is zero and `avg(())` is empty. A total of nothing is zero; a mean of nothing is not a
+   number, and zero there would be a number that looks like an answer.*
+
+   *`tokenize`'s proof moved from `string_functions` to `aggregate`, deliberately:
+   `string_functions` is already a recorded comparability break for having grown its workload
+   mid-tranche, and extending it again would compound a break rather than add a measurement.
+   `aggregate` is new, so it has no *before* to spoil.*
 3. **Sorting.** `sort` on `for-each`, keyed by the `as` cast (§5) — not the draft's
    `data_type`, which 17's ruling replaced.
    Case: `sort`.
