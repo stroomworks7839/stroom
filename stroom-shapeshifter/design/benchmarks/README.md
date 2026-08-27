@@ -33,6 +33,25 @@ Runs are machine-specific. Compare files from the same machine, or not at all.
 
 ## Comparability breaks
 
+- **The case corpus itself moved during design/17's tranche, so some catalogue rows compare
+  different jobs — or nothing at all.** `CaseCatalogueBenchmark` measures whatever the case
+  directories say, and four phases of value-computation work changed what several of them
+  say. Two distinct effects, both of which make a cross-run delta meaningless:
+  - **`string_functions` grew its workload at phase 2** (`d0b7f66a52`): the case's XSLT and
+    challenger both gained `string-length`, `substring-before`, `substring-after` and
+    `format-number`, and its input gained a third row. Its ~+50% (Saxon) and ~+100%
+    (shapeshifter) against the `8286556d1d` baseline measure *more work*, not slower work.
+    Compare it across that boundary and the number is an artifact of the case, not the engine.
+  - **`arithmetic`, `value_types`, `comparison` and `dates` have no *before* and never can.**
+    They were authored during the tranche and use instructions — `add`, `parse-date`, the
+    `eq`–`ge` comparisons — that do not exist at the baseline commit, so the baseline engine
+    cannot run them at any scale. Their value is the *within-run* Saxon-versus-shapeshifter
+    ratio, which is self-contained and stands on its own.
+
+  The rule that follows: a cross-run comparison of catalogue rows is valid only where the case
+  definition did not move between the two commits. The first run at or after design/17's close
+  is the *before* for all of these rows going forward.
+
 - **2026-08-21-1555 ran on a non-idle machine**: `saxParse` — code no commit touched —
   sat −55% against both its neighbours (`2026-08-21-1543` before, `2026-08-21-1753` after,
   which agree with each other within ~2% on every untouched row), with error bars to match

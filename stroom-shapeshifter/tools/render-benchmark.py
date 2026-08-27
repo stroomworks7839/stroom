@@ -12,11 +12,23 @@ change helped:
 Ratios carry an interval derived from both sides' error bars — the worst and best pairings — so
 that a difference smaller than the measurement cannot be quoted as if it were a result. That is
 the whole reason this script exists rather than a person copying numbers out of a terminal.
+
+Which direction counts as better is read from the benchmark's JMH mode, never assumed: a
+throughput score in ops/s improves by rising, a sample- or single-shot time in ms/op improves
+by falling. Assuming the first was a real defect here — every "better" this script printed for
+CaseCatalogueBenchmark and XmlBaselineBenchmark, which are ms/op, meant its opposite.
 """
 
 import json
 import sys
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
+
+#: One measurement: the score, its error bar, and the JMH mode that says which way is up.
+Point = namedtuple("Point", "score error mode")
+
+#: The JMH modes where a bigger number is a better one. Everything else — avgt, sample, ss —
+#: measures time per operation, where smaller is better.
+HIGHER_IS_BETTER = {"thrpt"}
 
 
 def load(path):
@@ -41,13 +53,14 @@ def load(path):
         # error is unknown, not small. See D21.
         if not isinstance(error, (int, float)) or error != error:
             error = 0.0
-        out[(klass, label, method)] = (metric["score"], error)
+        out[(klass, label, method)] = Point(metric["score"], error, entry.get("mode", "thrpt"))
     return out
 
 
 def interval(a, b):
     """The ratio a/b as (low, high), taking both error bars into account."""
-    (a_score, a_err), (b_score, b_err) = a, b
+    a_score, a_err = a.score, a.error
+    b_score, b_err = b.score, b.error
     low = (a_score - a_err) / (b_score + b_err) if b_score + b_err else float("nan")
     high = (a_score + a_err) / (b_score - b_err) if b_score - b_err else float("nan")
     return low, high
@@ -70,14 +83,14 @@ def render_single(path):
                 continue
             cells = []
             for method in methods:
-                score, error = data[(klass, label, method)]
-                cells.append(f"{score:.0f} ± {error:.0f}")
+                point = data[(klass, label, method)]
+                cells.append(f"{point.score:.0f} ± {point.error:.0f}")
             line = f"| {label} | " + " | ".join(cells)
             if reference:
                 ours = data.get((klass, label, "shapeshifter"))
                 base = data[(klass, label, reference)]
                 low, high = interval(ours, base)
-                line += f" | **{ours[0] / base[0]:.2f}×** ({low:.2f}–{high:.2f})"
+                line += f" | **{ours.score / base.score:.2f}×** ({low:.2f}–{high:.2f})"
             print(line + " |")
 
 
@@ -90,12 +103,17 @@ def render_comparison(before_path, after_path):
             continue
         klass, label, method = key
         b, a = before[key], after[key]
-        change = (a[0] / b[0] - 1) * 100
+        change = (a.score / b.score - 1) * 100
         # Only a change whose intervals do not overlap is a result rather than an impression.
-        separated = (a[0] - a[1]) > (b[0] + b[1]) or (a[0] + a[1]) < (b[0] - b[1])
-        verdict = ("better" if change > 0 else "worse") if separated else "indistinguishable"
-        print(f"| {method} | {label or klass} | {b[0]:.0f} ± {b[1]:.0f} | {a[0]:.0f} ± {a[1]:.0f} "
-              f"| {change:+.1f}% | {verdict} |")
+        separated = (a.score - a.error) > (b.score + b.error) \
+            or (a.score + a.error) < (b.score - b.error)
+        # Up is better for throughput and worse for a time per operation, so the sign alone
+        # does not say which happened: the mode does.
+        rose = change > 0
+        improved = rose if a.mode in HIGHER_IS_BETTER else not rose
+        verdict = ("better" if improved else "worse") if separated else "indistinguishable"
+        print(f"| {method} | {label or klass} | {b.score:.0f} ± {b.error:.0f} "
+              f"| {a.score:.0f} ± {a.error:.0f} | {change:+.1f}% | {verdict} |")
     # A row measured on only one side cannot be compared, but dropping it in silence is how a
     # whole benchmark class — one the change under test introduced, which is exactly when it
     # matters — disappears from the table without anyone noticing it was ever there.

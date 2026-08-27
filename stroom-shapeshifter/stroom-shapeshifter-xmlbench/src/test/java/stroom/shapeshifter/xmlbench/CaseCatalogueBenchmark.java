@@ -64,8 +64,13 @@ import stroom.shapeshifter.engine.config.ProjectReader;
 @State(Scope.Benchmark)
 public class CaseCatalogueBenchmark {
 
-    @Param({"adjacent_groups", "analyze_string", "computed_names", "modes",
-            "nasty_xml", "reference", "string_functions"})
+    // Every challenger-backed case, kept in step with CaseCorpus.UNITS by
+    // CaseCatalogueBenchmarkParamsTest — JMH needs a compile-time constant here, so the list
+    // cannot read CaseCorpus.names() directly, and a case added to the corpus without being
+    // added here would simply never be measured. That is how arithmetic, value_types,
+    // comparison and dates stayed unmeasured through four phases of work on exactly them.
+    @Param({"adjacent_groups", "analyze_string", "arithmetic", "comparison", "computed_names",
+            "dates", "modes", "nasty_xml", "reference", "string_functions", "value_types"})
     public String benchCase;
 
     @Param({"10000", "100000"})
