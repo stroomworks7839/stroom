@@ -80,16 +80,23 @@ import java.util.regex.Pattern;
  * scales and to keep the failure path measured — the standing method note from the early-exit
  * miss is that every corpus workload measures searches that mostly match.
  *
- * <p><b>Which engines appear, and why not the others.</b> {@code SIMULATE} is the engine
- * {@code BytePattern.compile} naturally selects for all eight shapes, so it is the one the
- * real workload runs on and the one a fix has to move; {@code FANCY} is the second tier that
- * can take every shape. The other three are absent for stated reasons rather than by
- * oversight, each found while building this: {@code SCAN_PLAN} refuses the shape outright
- * ("pattern is not one-pass"), {@code BACKTRACK} runs the 269- and 612-byte blocks but
- * exhausts its bound at 64 KiB, and {@code TREE} raises {@code MatchLimitException} on the
- * line form at 64 KiB — a nested quantifier over that distance exceeds its step budget. That
- * last one is worth knowing on its own: the idiom that rescues the shape on the natural
- * engine is one the tree engine cannot run at size.
+ * <p><b>Read the {@code natural} row; the rest are diagnostics.</b> {@code natural} compiles
+ * the way a caller does, so it runs what the template engine runs — and what that is, is not
+ * what {@code BytePattern.engine()} reports. {@code engine()} answers {@code SIMULATE} for
+ * these patterns because the simulation is the linear-time <i>guarantee</i>, but
+ * {@code ByteMatcher.runLinear} takes <b>the tree engine first at every region size</b> (D32)
+ * and falls back to the simulation only on a bailout. A forced-{@code SIMULATE} row therefore
+ * measures an engine this workload reaches only when the tree gives up. That distinction cost
+ * this benchmark a first draft, and it is the reason the natural row exists.
+ *
+ * <p>The forced rows stay as diagnostics, because knowing which tier carries the cost is what
+ * a fix needs. {@code SCAN_PLAN} and {@code BACKTRACK} are absent for stated reasons rather
+ * than oversight: the scan plan refuses the shape outright ("pattern is not one-pass"), and
+ * the backtracker runs the 269- and 612-byte blocks but exhausts its bound at 64 KiB. A
+ * forced {@code TREE} row cannot exist either — pinned, it raises {@code MatchLimitException}
+ * on the line form at 64 KiB, where the natural path would simply fall back. That refusal is
+ * worth knowing on its own: the idiom that rescues this shape is one the tree engine cannot
+ * run at size unaided.
  *
  * <p>One operation is one anchored match. Blocks differ in size by shape, so <b>compare a row
  * against itself across runs</b>, not against its neighbours. The {@code javaRegex} rows are
@@ -198,6 +205,7 @@ public class LazyRunBenchmark {
         public Shape shape;
 
         byte[] data;
+        ByteMatcher naturalMatcher;
         ByteMatcher simulateMatcher;
         ByteMatcher fancyMatcher;
         Matcher javaMatcher;
@@ -206,6 +214,8 @@ public class LazyRunBenchmark {
         public void setup() {
             data = shape.data();
             final EnumSet<Flag> none = EnumSet.noneOf(Flag.class);
+            // Compiled the way a caller compiles: whatever this runs is what the workload runs.
+            naturalMatcher = BytePattern.compile(shape.pattern()).matcher();
             simulateMatcher =
                     BytePattern.compileForcing(Engine.SIMULATE, shape.pattern(), none).matcher();
             fancyMatcher =
@@ -213,6 +223,12 @@ public class LazyRunBenchmark {
             javaMatcher = Pattern.compile(shape.pattern())
                     .matcher(new String(data, StandardCharsets.UTF_8));
         }
+    }
+
+    /** The row that matters: the engine a caller actually gets. */
+    @Benchmark
+    public boolean natural(final AllShapes state) {
+        return state.naturalMatcher.match(state.data, 0, state.data.length, Anchoring.ANCHORED);
     }
 
     @Benchmark
