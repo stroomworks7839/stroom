@@ -303,6 +303,63 @@ on every match rather than once at compile time; `apply-templates` filters the t
 call instead of grouping by mode once; and every captured group is copied out of the buffer even
 when nothing reads it — which is what E10's optimiser was for.
 
+### E23 — Sequences: iteration, grouping, sorting and aggregation
+**`open` — designed and ruled in full 2026-08-25, unbuilt**
+([16-sequences-and-aggregation.md](../design/16-sequences-and-aggregation.md)). The coverage
+matrix's first gap family — `xsl:sort`, `for-each-group group-by`, `xsl:key`, `sum`/`count`/
+`avg`/`min`/`max`, `distinct-values` — designed as `for-each`, `for-each-group`, `key`/
+`key-get`, `append` and the folds, all over **store indices**. The design's own finding is
+why this is smaller than it looks: the accumulator the matrix said did not exist is the
+store, which has been there since the port, and post-`apply` ordering already works — what
+is missing is iteration. Sorting is an `int[]`, not a reorder buffer.
+
+Eight decisions ruled, two against the draft's recommendation (`xsl:key` built rather than
+deferred; the `is-first`/`is-last` conditions E21 deleted return alongside `__position`/
+`__last`). Seven implementation phases planned, none started. Blocked on nothing —
+[17](../design/17-value-computation.md)'s phase 3 landed the comparison spine it needs for
+`sort`/`min`/`max`.
+
+### E24 — Value computation: types, casting and the function library
+**`resolved` 2026-08-27 — designed, ruled, built, audited and measured**
+([17-value-computation.md](../design/17-value-computation.md)). The matrix's second gap
+family, closed. The engine's type system existed and was discarded at every boundary: four
+`TypedValue` variants, and every transform a `List<String> → String` that erased them. Seven
+phases, each audited before the next began:
+
+| Phase | What landed |
+|---|---|
+| 0 | Baseline at `8286556d1d`, pinned to a commit so implementation could start ahead of the run |
+| 1 | `TypedValue` through `Transforms`, `CompiledOp` and `emit`; **no golden moved** |
+| 2 | Arithmetic and the string additions; `arithmetic` and `value_types` cases |
+| 3 | The strict comparison spine, `as`-casts, the `eq`–`ge` naming, legacy aliases |
+| 4 | The `Instant` variant and the `parse-date`/`format-date` pair |
+| 5 | The unknown-reference refusal, `strict_values`, **version 5** |
+| 6 | Fixture migration to 1-based, and the §16 ruling-by-ruling sweep |
+| 7 | The A/B, this closure, and the matrix rescored |
+
+**What it cost to get right.** Each phase's audit found something the tests could not: the
+legacy-alias mapping was wrong twice — first on typed counters (`__match_count` binds `Int`,
+so equality must cast to string), then on the *absent* rule, where three legacy truth tables
+would have silently flipped and no golden could have caught it because the corpus never
+exercises them. `divide` wrapped silently on `MIN_VALUE / -1`, the one long division Java
+does not throw for. `asInteger` threw mid-record on an extreme `Instant`, against the
+never-throws contract. Version 5's degenerate `substring` start diverged from the XPath it
+exists to align with. And phase 5's unknown-reference check, on its first corpus run, found
+24 dead reads in the `win_sec` family — the privilege-cleaning chains dead since the port
+(E25).
+
+**What it is worth, measured** ([17](../design/17-value-computation.md) §13): the gate held —
+every configuration using none of this vocabulary measures unchanged — and of the four new
+catalogue cases, `dates` runs **8.78× faster than Saxon** and `arithmetic` **4× slower**. Two
+of the design's own predictions were refuted, which is why they were written down first.
+
+**What survives it, open:** E26 (the arithmetic exception, the one real loss) and E27 (three
+compile-time body walks). Neither is a capability gap; both want a ruling and their own
+measured change. Also open from the design's §16 sweep: `tokenize` is ruled to bind a
+sequence and cannot until E23 lands, and run-time parameters are deferred to D10 after the
+draft's premise was checked against the pipeline and found wrong — `XsltFilter` injects none,
+and Stroom's context arrives through extension functions.
+
 ### E26 — Arithmetic on fractional text pays a thrown exception per operand
 **`open` — found and priced 2026-08-27 by design/17's closing A/B**
 ([17-value-computation.md §13](../design/17-value-computation.md)). The `arithmetic`

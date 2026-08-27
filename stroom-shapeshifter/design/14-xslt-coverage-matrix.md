@@ -1,6 +1,7 @@
 # XSLT coverage matrix — what shapeshifter covers, can express, lacks, and refuses
 
-Status: living document, first drawn 2026-08-21. Organised by the XSLT 2.0 specification's
+Status: living document, first drawn 2026-08-21, last scored 2026-08-27 at the close of
+[17-value-computation.md](17-value-computation.md)'s tranche. Organised by the XSLT 2.0 specification's
 own structure plus the XPath 2.0 function library (3.0 additions noted), because that is the
 same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 
@@ -50,9 +51,9 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | XPath | Verdict | Mechanism / idiom / reason |
 |---|---|---|
 | Downward paths (`a/b/c`, predicates on structure) | **expressible** | nested levels, or a single pattern spanning the structure (nasty's five-deep pull) — proven ✓ |
-| `position()` / `last()` | **covered, proven** | `__match_count` works as position, tested with `equals`; the dead `is-first`/`is-last` conditions the case found were **deleted by E21's ruling** (2026-08-21) — count equality is the documented idiom until a case demands richer positional vocabulary | adjacent_groups ✓ |
+| `position()` / `last()` | **covered, proven** | `__match_count` works as position, tested with `equals`; the dead `is-first`/`is-last` conditions the case found were **deleted by E21's ruling** (2026-08-21) — count equality is the documented idiom. [16](16-sequences-and-aggregation.md) §4.3 has since ruled that iteration is the case E21 said to wait for, and that both the conditions and `__position`/`__last` return with it — ruled, not yet built (E23) | adjacent_groups ✓ |
 | Upward/sideways axes (`ancestor::`, `preceding-sibling::`) | **out of scope** | there is no tree to walk back up; state wanted from "above" is captured on the way down (the `batch` var in nasty is exactly `../@id`) — proven ✓ |
-| General/value comparisons, arithmetic | **partial** | conditions compare equality, ordering, existence, regex; arithmetic beyond `number()` is a **gap** (no expression language, by design — D35's model is declarative). Revisit only if cases demand computation |
+| General/value comparisons, arithmetic | **covered, proven** (2026-08-27) | comparisons are one strict typed vocabulary — `eq`/`ne`/`lt`/`le`/`gt`/`ge`, same-kind natively, cross-kind false, casts explicit on the operand (`as`), the legacy spellings kept as aliases carrying the casts their semantics implied. Arithmetic is `add`/`subtract`/`multiply`/`divide`/`mod`/`round`/`floor`/`ceiling`/`abs`, **as instructions rather than an expression language** — D35's declarative model is intact, and an expression front end could later compile *down* to these. [17](17-value-computation.md) §§5, 8; performance caveat in E26 | arithmetic ✓, comparison ✓, value_types ✓ |
 | Sequences, `distinct-values`, `index-of`, quantifiers | **gap** | store arrays exist; sequence *operations* over them do not |
 
 ## 4. The function library
@@ -60,16 +61,16 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | Function family | Verdict | Mechanism |
 |---|---|---|
 | `concat` | **covered** | multi-part refs |
-| `substring`, `substring-before/after` | **covered / proven** | `substring` (**0-based where XSLT is 1-based** — ruled 2026-08-21: documented as-is, faithful to the ported library; the trap note lives in `OutputNode.Substring`'s javadoc); before/after via capture patterns | string_functions ✓ |
+| `substring`, `substring-before/after` | **covered / proven** | `substring`'s base is **version-gated** (ruled 2026-08-27, superseding the 2026-08-21 documented-as-is ruling): 0-based below configuration version 5, 1-based from it — XSLT's own reading — with a start below 1 shrinking the window per XPath, an omitted start meaning "from the beginning" under either base, and a compile warning on any pre-5 configuration a bump would change. `substring-before`/`after` are now native instructions, **absent when the marker is missing** where XSLT returns `""` — the written output is identical, the testable value is not. [17](17-value-computation.md) §§6–7 | string_functions ✓ |
 | `translate` | **covered** | `translate` |
 | `upper-case`, `lower-case` | **covered** | same names |
 | `normalize-space` | **covered** | `normalize-space`, plus `trim` |
 | `replace` (regex), `matches`, `tokenize` | **covered** | same names, byte-level regex |
 | `string-join` | **covered** | `string-join` |
-| `string-length`, `starts-with`, `ends-with`, `contains` | **expressible, contains proven** | `matches` conditions (regex anchors give starts/ends); length-as-value stays a **gap** | string_functions ✓ |
-| `format-number` | **gap** | transforms emit what they were given; numeric formatting is a candidate transform if cases demand it |
-| `format-dateTime`, date/duration arithmetic | **gap** | the corpus dodged it (ISO passthrough); Stroom's real configs lean on `stroom:format-date` — this is the likeliest **first real gap** a production-shaped case hits. **Ruled 2026-08-21: not a verbatim port.** `stroom:format-date` conflates parsing and formatting in one call where the honest shape is a composed `format-date(parse-date())` pair; the vocabulary, when grown, should be that pair — design before code, shaped by the first case that hits it |
-| `sum`, `count`, `avg`, `min`, `max` | **gap** | aggregation over matches = accumulator territory; classify mode + stores get partway, nothing folds |
+| `string-length`, `starts-with`, `ends-with`, `contains` | **covered, proven** (2026-08-27) | all four are native value instructions now — `string-length` counts **code points**, the predicates bind `Bool`. The `matches`-condition idiom stays valid; what closed is length-as-a-value, and the three predicates as *values* rather than only as conditions | string_functions ✓ |
+| `format-number` | **covered, proven** (2026-08-27) | `format-number` with its picture compiled once, `DecimalFormat` under `Locale.ROOT` — which matches XSLT's default decimal format on the ordinary pictures and diverges at the edges (infinity renders `∞` where XSLT says `Infinity`), pinned as a documented divergence rather than discovered later | string_functions ✓ |
+| `format-dateTime`, date/duration arithmetic | **covered, proven** (2026-08-27) | the composed pair the 2026-08-21 ruling required, built: `parse-date` → a first-class `Instant` (epoch second, nanosecond, and the offset it arrived with, **inert** in comparison and arithmetic), `format-date` back out, patterns compiled once, `iso`/`epoch-millis`/`epoch-seconds` bypassing the formatter. Duration arithmetic falls out of the millis cast. The yearless syslog stamp — the case this row predicted would be hit first — takes its year from a **`reference` date supplied as data**, Stroom's nearest-year rule with the input made explicit, since the engine has no clock and must not acquire one. Measured **8.78× faster than Saxon**, with the disclosure that XSLT has no native nearest-year rule so the stylesheet builds one ([17](17-value-computation.md) §13) | dates ✓ |
+| `sum`, `count`, `avg`, `min`, `max` | **gap — designed, ruled, unbuilt** | aggregation over matches = accumulator territory; classify mode + stores get partway, nothing folds. [16](16-sequences-and-aggregation.md) §8 designs all five as folds over a store, ruled 2026-08-25; implementation is E23 |
 | `number()` | **covered** | `number` |
 | `generate-id`, `id()`, `document()`, `doc()` | **out of scope** | identity and secondary documents are pipeline concerns (reference data), not transform concerns — Stroom itself agrees, via `stroom:lookup` living outside XSLT |
 | `current-dateTime()` etc. | **out of scope** | injecting wall-clock into a deterministic transform breaks golden parity by definition; Stroom feeds times through data or context |
@@ -78,25 +79,48 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 
 ## 5. The score, and what it means
 
-Counting rows: **~17 covered, ~9 expressible — 8 now proven by catalogue cases — ~12 gaps
-(one of them, non-adjacent grouping/keys, executably documented as a wall the suite trips on
-the day it is solved), ~13 out of scope.** Three authoring traps found by the proving cases,
-all now ruled on (2026-08-21): `substring` is 0-based against XSLT's 1-based — documented
-as-is, javadoc carries the trap; the `is-first`/`is-last` conditions were dead vocabulary —
-deleted until a case needs positional semantics (E21); and an optional capture that fails to
-re-match reads the previous record's value straight through an `exists` test — E19's pinned
-no-match case, met live by `modes` and dodged by deciding branches at dispatch time.
+Counting the verdict column, exactly, across 45 rows: **22 covered, 7 expressible, 7 gaps
+(one of them — non-adjacent grouping/keys — executably documented as a wall the suite trips
+on the day it is solved), 9 out of scope**, with **11 rows proven by a catalogue case**. The
+figures before 2026-08-27 were approximate and summed past the row count, so the deltas below
+are stated as *which rows moved*, not as arithmetic on the old totals.
 
-The gaps cluster into exactly three families, which is the matrix's real finding:
+**What the value-computation tranche moved** (2026-08-27, [17](17-value-computation.md)):
+
+| Row | Was | Now |
+|---|---|---|
+| General/value comparisons, arithmetic (§3) | *partial* | **covered, proven** |
+| `string-length`, `starts-with`, `ends-with`, `contains` (§4) | expressible | **covered, proven** |
+| `format-number` (§4) | gap | **covered, proven** |
+| `format-dateTime`, date/duration arithmetic (§4) | gap | **covered, proven** |
+
+Two gaps closed, one idiom promoted to a mechanism, and the *partial* verdict retired
+entirely — it was the only row carrying it. `substring`'s row keeps its verdict but changes
+its ruling: the 0-based/1-based trap is now a version gate rather than a documented wart.
+
+The authoring traps the proving cases found, and where they now stand: `substring`'s base is
+**settled by version 5** rather than documented-as-is (superseding the 2026-08-21 ruling);
+the `is-first`/`is-last` conditions deleted by E21 are **ruled to return** with iteration
+([16](16-sequences-and-aggregation.md) §4.3), which is the case E21 said to wait for; and
+E19's stale-capture trap — an optional capture that fails to re-match reading the previous
+record's value through an `exists` test — stands, met live by `modes` and dodged by deciding
+branches at dispatch time.
+
+The gaps still cluster into families, but there are **two of them now, not three**:
 
 1. **Whole-input state before output** — sort, group-by, keys, aggregation, distinct-values.
    One architectural question wearing five names. `keys_grouping` is the case that forces it.
-2. **Value computation** — arithmetic, string-length-as-value, format-number,
-   format-dateTime. Transform-vocabulary growth, evidence-driven, one function at a time —
-   date formatting first, since Stroom's own configs lean on it hardest. Ruled 2026-08-21:
-   the date vocabulary is a composed `format-date(parse-date())` pair, not a verbatim port
-   of `stroom:format-date`'s conflated signature; design starts when the first case hits it.
-3. **Output routing** — result-document / multiple sinks. Already owned by D10/E15, and now
+   **Designed and ruled in full** ([16](16-sequences-and-aggregation.md), 2026-08-25), where
+   the answer turned out smaller than this framing implied — the accumulator is the store,
+   which has been there since the port, and what was missing is iteration. Unbuilt: E23.
+2. ~~**Value computation**~~ — **closed 2026-08-27.** Arithmetic, string-length-as-value,
+   format-number and the date pair all shipped, each proven byte-identical against Saxon by
+   its own catalogue case. The date vocabulary is the composed `format-date(parse-date())`
+   pair the 2026-08-21 ruling required, not a port of `stroom:format-date`'s conflated
+   signature. Two performance issues survive it — E26 (arithmetic pays a thrown exception per
+   fractional operand, 4× behind Saxon) and E27 (three compile-time body walks) — both open,
+   neither a capability gap.
+3. **Output routing** — result-document / multiple sinks. Already owned by D10/E15, and
    walled executably: `dual_output` is the second wall, tripped the day routing lands.
 
 Everything else is either covered, an idiom awaiting its proving case, or refused with a

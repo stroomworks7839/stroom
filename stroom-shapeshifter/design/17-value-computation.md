@@ -925,7 +925,18 @@ exception per operand (82× measured, the `arithmetic` case 4× behind Saxon), a
 has grown −38% on trivially-compiled configurations through three separate body walks. Both
 are recorded for a ruling rather than fixed here, per the engine's own one-measured-change-at-
 a-time rule, and both now carry issue numbers: **E26** (the arithmetic exception) and **E27**
-(the three compile walks). The remaining close work — matrix, E24 — is unstarted.*
+(the three compile walks).*
+
+*Closed 2026-08-27. [14-xslt-coverage-matrix.md](14-xslt-coverage-matrix.md) rescored: four
+rows moved — comparisons-and-arithmetic and the three function-library rows — two gaps
+closed, the *partial* verdict retired entirely, and the matrix's second gap family with it,
+leaving two families where there were three. The score is now counted exactly from the
+verdict column (22 covered, 7 expressible, 7 gaps, 9 out of scope, 11 proven) rather than
+approximated. **E24** is filed and resolved in
+[ISSUES.md](../stroom-shapeshifter-engine/ISSUES.md) — it had been claimed as this design's
+tracking number since the first draft and never actually created — with E23 filed alongside
+it as design/16's open counterpart, so the numbering has no unexplained hole. The tranche is
+complete.*
 
 ## 16. Decisions — ruled 2026-08-25
 
