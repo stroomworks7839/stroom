@@ -474,6 +474,19 @@ switches that would each ignore it in silence. The vocabulary grew by sixteen in
 during design/17, which is precisely when three silently-incomplete switches would have
 bitten. The same now holds for `Condition`.
 
+*Audited 2026-08-27. One drift found and corrected: the merged walk read a template's
+**captures before its guard**, where the three separate checks read guard first — which
+decides nothing about whether a configuration compiles, but does decide *which* unknown name
+a template with two of them reports. Restored, with the reason written at the site so a
+later tidy does not undo it. Everything else compared clean, path by path against each of
+the three originals: the same names bound, the same references collected (including guards
+and both capture-source shapes), the same lint sites, the same key-value stand-down, and the
+same reporting order — lints during the walk, the refusal in `report()` before the substring
+warning that the refusal can prevent. Coverage is now pinned rather than reasoned about:
+`BodyScanBindingsTest` compiles one configuration per binding instruction, each writing a
+name and reading it straight back, and was mutation-checked — dropping `format-date`'s bind
+fails it by name. 362 engine tests.*
+
 **What is not verified:** the −38% this issue was filed for. The box was busy when the fix
 landed, and the previous run taken on a busy box is already checked in as unreadable
 (`2026-08-27-1231`); taking another would repeat a mistake this repository has now documented

@@ -191,6 +191,12 @@ public final class Compiler {
 
         void template(final Template template) {
             templateName = template.name();
+            // Guard, then captures, then body — the order the three separate checks read in,
+            // preserved because it decides which error a template with two unknown names
+            // reports, and there is no reason for a merge to change that (E27 audit).
+            if (template.guard() != null) {
+                condition(template.guard());
+            }
             for (final CaptureBinding capture : template.captures()) {
                 writable.add(capture.name());
                 switch (capture.select()) {
@@ -206,9 +212,6 @@ public final class Compiler {
             }
             for (final Template.ParamDecl declared : template.param()) {
                 writable.add(declared.name());
-            }
-            if (template.guard() != null) {
-                condition(template.guard());
             }
             body(template.body());
         }
