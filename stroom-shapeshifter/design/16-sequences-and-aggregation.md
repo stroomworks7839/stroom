@@ -668,6 +668,33 @@ not recovered, E27's entry says where to reopen from.
    binding, so every key resolved to that store's latest value. It compiled because a
    sequence name is legitimately writable. Inside a grouping the key is evaluated with
    `__index` bound, and that is what it must name.*
+
+   ***Audited 2026-08-27.*** *One finding, one correction of an earlier audit, and one
+   "finding" that turned out not to be one.*
+
+   *The finding: the group key was linted as though it were **inside** the group it forms, so
+   a key reading this grouping's own `__group_key` drew nothing and read absence. The key is
+   what forms the group — its own names cannot exist yet — so the group depth now rises
+   **after** the key is read, while the iteration depth still rises before it, because
+   `__index` genuinely is bound there.*
+
+   *The correction: **phase 3's audit over-reached.** It shadowed `__position` and `__last`
+   during sort-key evaluation to stop a key reading a position that did not exist — but this
+   walk's scope has not been pushed at that point, so what those names resolve to is an
+   **enclosing** walk's position, which is a real value and legitimately readable. Shadowing
+   made that outer read absent and contradicted the scoping model used everywhere else. The
+   shadowing is gone; the warning stays, because reading them in a key almost certainly means
+   "this entry's position", and now says which one it actually reads.*
+
+   *And the non-finding, recorded because the reasoning is worth keeping: an absent group key
+   was coerced to `""`, which looked like it would silently merge "no category" with
+   "categorised empty". It cannot — "empty is absent" (`Refs`) means a key of `""` resolves
+   to absence, so a group keyed on the empty string is unrepresentable. The coercion is gone
+   anyway, because a coercion that is only safe by a rule made somewhere else is one waiting
+   for that rule to move. What the tests pin instead is the real and **deliberate divergence
+   from XSLT**: an entry whose key is absent forms its own group rather than being excluded,
+   because silently dropping records is the wrong default for a log engine — "the ones with
+   no category" is a thing worth summarising.*
 5. **Keys.** `key`/`key-get` on the grouping index machinery (§8, ruled built rather than
    deferred). Case: `keys_lookup`, authored — no production stylesheet supplies one.
 6. **The contract.** `max_sequence_entries`, the fatal on overflow, the chunked-root refusal.

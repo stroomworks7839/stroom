@@ -1354,7 +1354,13 @@ public final class Executor {
             final TypedValue key = op.groupBy() == null
                     ? entry
                     : CompiledRefs.resolveValue(op.groupBy(), match, matchCount, vars, contentEncoding);
-            final String identity = key == null ? "" : key.asString();
+            // Null rather than "" for an absent key. Not because the two could otherwise
+            // collide — the phase 4 audit went looking for that and found it unreachable,
+            // since "empty is absent" (Refs) means a key of "" resolves to absence and a
+            // group keyed on the empty string cannot be constructed. It is null because that
+            // is what it means, and a coercion that is only safe by a rule made somewhere
+            // else is a coercion waiting for that rule to move.
+            final String identity = key == null ? null : key.asString();
             members.computeIfAbsent(identity, ignored -> new ArrayList<>()).add(index);
             keys.putIfAbsent(identity, key);
         }
@@ -1413,13 +1419,13 @@ public final class Executor {
             vars.shadow(op.as());
         }
         vars.shadow(EngineVars.INDEX);
-        // Shadowed but never set: a key decides the order, so no entry has a position yet.
-        // Without this they would resolve outward and a nested iteration's key would read the
-        // *enclosing* walk's position — a meaningless value that looks like a real one
-        // (phase 3 audit). The compiler warns about reading them here; this makes the
-        // warning's claim true rather than approximately true.
-        vars.shadow(EngineVars.POSITION);
-        vars.shadow(EngineVars.LAST);
+        // __position and __last are deliberately *not* shadowed here, which reverses part of
+        // the phase 3 audit (phase 4 audit). They were, to stop a key reading a position that
+        // did not exist yet — but this walk's scope has not been pushed, so what they resolve
+        // to is an *enclosing* walk's position, which is a real value and legitimately
+        // readable. Shadowing made that outer read absent and contradicted the scoping model
+        // everywhere else in the engine. The compiler still warns, because reading them here
+        // is far more likely to mean "this entry's position", which is what does not exist.
         for (int i = 0; i < populated.size(); i++) {
             final int index = populated.get(i);
             vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));

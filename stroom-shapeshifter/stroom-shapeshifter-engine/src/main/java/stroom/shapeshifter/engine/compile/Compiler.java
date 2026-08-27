@@ -353,9 +353,13 @@ public final class Compiler {
                     sequenceUses.add(new NamedUse(templateName, value.select()));
                     // A group's key is resolved with __index bound, like a sort key, so it
                     // counts as inside the iteration rather than outside every one.
+                    // __index is bound while the key is resolved, so the key counts as
+                    // inside the iteration — but *not* yet inside the group: the key is what
+                    // forms it, so reading this grouping's own names there is the same
+                    // mistake as reading a position in a sort key (phase 4 audit).
                     iterationDepth++;
-                    groupDepth++;
                     read(value.groupBy());
+                    groupDepth++;
                     body(value.body());
                     groupDepth--;
                     iterationDepth--;
@@ -501,8 +505,9 @@ public final class Compiler {
         private void sortKeyPositional(final String name) {
             if (EngineVars.POSITION.equals(name) || EngineVars.LAST.equals(name)) {
                 warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                        + "' reads " + name + " in a sort key, which decides the order:"
-                        + " nothing has a position until the keys have been compared."));
+                        + "' reads " + name + " in a sort key, which decides the order: this"
+                        + " entry has no position until the keys have been compared, so this"
+                        + " reads the enclosing iteration's, if there is one."));
             }
         }
 

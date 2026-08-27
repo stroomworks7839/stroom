@@ -236,6 +236,57 @@ class SequenceIterationTest {
     }
 
     @Test
+    void entriesWithNoKeyFormTheirOwnGroup() {
+        // A deliberate divergence from XSLT, which excludes an item whose group-by yields an
+        // empty sequence. Silently dropping records is the wrong default for a log engine:
+        // "the ones with no category" is a thing worth summarising, so absence is a group,
+        // and its __group_key reads absent.
+        final String json = """
+                {"name": "t", "version": 5,
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                   "match": "source",
+                   "body": [
+                     {"sequence": {"name": "items"}},
+                     {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                       "mode": "doc"}},
+                     {"for-each-group": {"select": "items",
+                       "group_by": {"parts": [{"capture": {"var_id": "cat", "group": 0,
+                          "match_index": {"var_ref": "__index"}}}]},
+                       "body": [
+                       {"text": "["},
+                       {"value-of": {"parts": [{"capture": {"var_id": "__group_key",
+                          "group": 0}}]}},
+                       {"text": "="},
+                       {"value-of": {"parts": [{"capture": {"var_id": "__group_size",
+                          "group": 0}}]}},
+                       {"text": "]"}]}}]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "match": {"regex": {"pattern": "(?:(x)|y)\\n"}},
+                   "captures": [{"name": "cat", "select": {"group": 1}}],
+                   "body": [{"append": {"name": "items", "select": {"parts": [
+                      {"capture": {"var_id": "__match_count", "group": 0}}]}}}]}]}
+                """;
+        // The sequence carries positions, so the key is read *at* each record rather than
+        // as "the latest", which is what a bare reference means and would have made the
+        // keyless record inherit its predecessor's category.
+        assertThat(run(json, "x\ny\nx\n")).isEqualTo("[x=2][=1]");
+    }
+
+    @Test
+    void groupKeyCannotSeeTheGroupItIsForming() {
+        // The key is what forms the group, so this grouping's own names are not available to
+        // it — the same mistake as reading a position in a sort key (phase 4 audit).
+        final String body = """
+                {"for-each-group": {"select": "items",
+                  "group_by": {"parts": [{"capture": {"var_id": "__group_key", "group": 0}}]},
+                  "body": []}}
+                """;
+        assertThat(Shapeshifter.compile(ProjectReader.read(config(body, APPEND_FIELD))).warnings())
+                .anyMatch(m -> m.text().contains("__group_key outside any for-each-group"));
+    }
+
+    @Test
     void groupingNamesOutsideAGroupingDrawTheLint() {
         final String json = config("{\"text\": \"\"}",
                 "{\"value-of\": {\"parts\": [{\"capture\": {\"var_id\": \"__group_key\","
