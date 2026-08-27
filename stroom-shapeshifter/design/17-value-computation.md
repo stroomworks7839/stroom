@@ -592,7 +592,10 @@ clean engine-versus-engine comparison of date parsing alone, and the ratio shoul
 with that attached.
 
 **Finding 3 — compile-time cost has grown, and it is now substantial in relative terms.**
-Tracked as [E27](../stroom-shapeshifter-engine/ISSUES.md).
+Tracked as [E27](../stroom-shapeshifter-engine/ISSUES.md) — **fixed** (`3dd0d3cc9a`): one
+walk, and an exhaustive switch so the next instruction cannot be forgotten by it. The
+compile-time recovery itself is unmeasured, the box having been busy; the issue records that
+as owed rather than claimed.
 The three checks phases 3 and 5 added each walk every template body, and it shows on the
 configurations whose compile is otherwise trivial:
 

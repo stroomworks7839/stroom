@@ -459,6 +459,30 @@ optimisation follows the baseline one measured change at a time (E12): the fix w
 before-and-after, and the before is `2026-08-27-0749-37825da20d-xml.json`.
 
 ### E27 — Compilation walks every template body three times
+**`resolved` 2026-08-27 (`3dd0d3cc9a`) — one `BodyScan` pass, with the compile-time number
+deliberately unmeasured.** Two of the three checks decide as they go; the refusal cannot,
+since a read in the first template may name what the last one writes, so reads are collected
+and judged against the finished write set afterwards — which is also what lets one walk
+replace the two that check needed by itself. The observable order is preserved: every lint is
+emitted before any reference error is thrown, and the substring warning still comes last,
+after the refusal that can prevent it.
+
+**The repair is not the microseconds.** `BodyScan.visit` is exhaustive over the sealed
+`OutputNode` hierarchy with **no `default` arm**, so an instruction added to the vocabulary
+without being considered here is a compile error — where before it was three separate
+switches that would each ignore it in silence. The vocabulary grew by sixteen instructions
+during design/17, which is precisely when three silently-incomplete switches would have
+bitten. The same now holds for `Condition`.
+
+**What is not verified:** the −38% this issue was filed for. The box was busy when the fix
+landed, and the previous run taken on a busy box is already checked in as unreadable
+(`2026-08-27-1231`); taking another would repeat a mistake this repository has now documented
+twice. Resolved on the shape it was filed for — three walks becoming one, verified by
+reading the code and by the tests — with the timing owed on a quiet box. If it is ever taken
+and the compile rows have not recovered, this entry is where to reopen from.
+
+Original text:
+
 **`open` — found 2026-08-27 by the same A/B.** `Compiler.compile` now makes three
 independent full walks of every template body — `comparisonChecks` (design/17 §8's lint),
 `referenceChecks` (§10's unknown-name refusal) and `substringVersionCheck` (§7's bump
