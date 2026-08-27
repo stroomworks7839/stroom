@@ -164,11 +164,18 @@ public final class Dates {
             return switch (parser.kind()) {
                 case ISO -> parseIso(trimmed);
                 case EPOCH_MILLIS -> {
-                    final long millis = Long.parseLong(trimmed);
-                    yield new TypedValue.Instant(
-                            Math.floorDiv(millis, 1000L), (int) Math.floorMod(millis, 1000L) * 1_000_000, null);
+                    // Non-throwing (E26): a malformed epoch is a missing timestamp, and one
+                    // per record is the ordinary case in the data this engine reads.
+                    final Long millis = Numbers.whole(trimmed);
+                    yield millis == null
+                            ? null
+                            : new TypedValue.Instant(Math.floorDiv(millis, 1000L),
+                                    (int) Math.floorMod(millis, 1000L) * 1_000_000, null);
                 }
-                case EPOCH_SECONDS -> new TypedValue.Instant(Long.parseLong(trimmed), 0, null);
+                case EPOCH_SECONDS -> {
+                    final Long seconds = Numbers.whole(trimmed);
+                    yield seconds == null ? null : new TypedValue.Instant(seconds, 0, null);
+                }
                 case PATTERN -> parsePattern(parser, trimmed, reference);
             };
         } catch (final NumberFormatException | DateTimeException e) {

@@ -147,18 +147,19 @@ public final class Transforms {
             return null;
         }
         final String trimmed = input.trim();
-        try {
-            // Phase 2 made this the typed cast (design/17 §3.1): the point decides the kind,
-            // exactly as the ported reading did, but the result is now a number rather than a
-            // rendering of one. No configuration in the corpus uses it, so no golden moved;
-            // the visible difference from the ported Double.toString is that a whole Real
-            // renders without its trailing .0 — the engine's own format, ruled in §16.8.
-            return trimmed.contains(".")
-                    ? new TypedValue.Real(Double.parseDouble(trimmed))
-                    : new TypedValue.Int(Long.parseLong(trimmed));
-        } catch (final NumberFormatException e) {
-            return null;
+        // Phase 2 made this the typed cast (design/17 §3.1): the point decides the kind,
+        // exactly as the ported reading did, but the result is now a number rather than a
+        // rendering of one. No configuration in the corpus uses it, so no golden moved;
+        // the visible difference from the ported Double.toString is that a whole Real
+        // renders without its trailing .0 — the engine's own format, ruled in §16.8.
+        // The parses are Numbers' non-throwing pair (E26): this instruction answered "not a
+        // number" by throwing too, one function away from the casts the fix first reached.
+        if (trimmed.contains(".")) {
+            final Double real = Numbers.real(trimmed);
+            return real == null ? null : new TypedValue.Real(real);
         }
+        final Long whole = Numbers.whole(trimmed);
+        return whole == null ? null : new TypedValue.Int(whole);
     }
 
     // -----------------------------------------------------------------------------------
@@ -500,14 +501,12 @@ public final class Transforms {
     }
 
     private static String group(final ByteMatcher matcher, final BytePattern pattern, final String name) {
-        int index = -1;
-        try {
-            index = Integer.parseInt(name);
-        } catch (final NumberFormatException e) {
-            final int named = pattern.groupIndex(name);
-            if (named >= 0) {
-                index = named;
-            }
+        // A numeric reference names its group directly; anything else is a named group.
+        // Non-throwing (E26): a named reference like $word used to cost an exception on
+        // every expansion, which is per match in a regex replace.
+        int index = Numbers.index(name);
+        if (index < 0) {
+            index = pattern.groupIndex(name);
         }
         if (index < 0 || index > pattern.groupCount() || !matcher.matchedGroup(index)) {
             return "";

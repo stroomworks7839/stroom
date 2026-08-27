@@ -107,6 +107,46 @@ class TypedValueParseEquivalenceTest {
         }
     }
 
+    /** The instruction that reads a number was a sibling site the first fix missed. */
+    @Test
+    void theNumberInstructionAcceptsExactlyWhatItAcceptedBefore() {
+        for (final String text : corpus()) {
+            final TypedValue actual = Transforms.number(List.of(TypedValue.of(text)));
+            assertThat(actual == null ? null : actual.asString())
+                    .as("number(%s)", debug(text))
+                    .isEqualTo(oldNumberInstruction(text));
+        }
+    }
+
+    /** What {@code Transforms.number} did when it answered by throwing. */
+    private static String oldNumberInstruction(final String text) {
+        final String trimmed = text.trim();
+        try {
+            return trimmed.contains(".")
+                    ? new TypedValue.Real(Double.parseDouble(trimmed)).asString()
+                    : new TypedValue.Int(Long.parseLong(trimmed)).asString();
+        } catch (final NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** The replacement-expansion group index, which cost an exception per named reference. */
+    @Test
+    void theGroupIndexAgreesWithTheParseItReplaced() {
+        for (final String text : corpus()) {
+            int expected;
+            try {
+                expected = Integer.parseInt(text);
+                if (expected < 0) {
+                    expected = -1;      // a negative index is rejected downstream either way
+                }
+            } catch (final NumberFormatException e) {
+                expected = -1;
+            }
+            assertThat(Numbers.index(text)).as("index(%s)", debug(text)).isEqualTo(expected);
+        }
+    }
+
     /** Neither cast throws, whatever it is given — the contract the fix exists to keep cheap. */
     @Test
     void neitherCastThrows() {
