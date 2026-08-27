@@ -525,21 +525,31 @@ discovering.
 `TypedValue`'s casts, which E26 made non-throwing. They inherit that, rather than needing
 their own E26 when a case eventually feeds them a malformed field.
 
-### 14.2 Before phase 1: take E27's measurement
+### 14.2 E27's measurement pins to a commit, not to the calendar
 
-**E27's compile-time recovery is still unmeasured**, and every phase below adds checks to the
-same walk it repaired. If E23 lands first, the merge's recovery and the new checks' cost are
-confounded and neither can be read. Take the quiet-box run first, compare `csv_header` and
-`progressive` compile against `2026-08-27-0738-37825da20d-engine`, and record it under E27 —
-then start.
+*Corrected 2026-08-27, the day it was written: this section first said the quiet-box run had
+to happen **before** phase 1, on the grounds that every phase below adds checks to the walk
+E27 repaired and would confound its recovery. The constraint is real; the ordering is not.
+A benchmark pins to a **commit** — design/17's own phase 0 established exactly this, and used
+it four times — so the run checks out `4160bf7c1c` (E27 audited, E23 unstarted) in a
+worktree whenever the box is quiet, however much has landed on top by then.*
+
+**Still owed, unblocking nothing:** compare `csv_header` and `progressive` compile at
+`4160bf7c1c` against `2026-08-27-0738-37825da20d-engine`, and record under E27. If they have
+not recovered, E27's entry says where to reopen from.
 
 ### 14.3 The phases
 
-1. **Iteration.** The six engine names seeded in `BodyScan` (14.1) and the sequence
-   namespace with §9's two checks, both inside the existing walk. Then `for-each`,
+1. **Iteration.** `__index`, `__position` and `__last` seeded in `BodyScan`, and the
+   sequence namespace with §9's two checks, both inside the existing walk. Then `for-each`,
    `sequence`, `append`, the `as` binding, the restored `is-first`/`is-last` conditions with
-   their outside-iteration lint, and `ForEach` in the wire format both ways.
+   their outside-iteration lint, and the wire format both ways.
    Case: `sequence_basics`.
+
+   *Three names, not §14.1's six: a name seeded before anything sets it compiles and then
+   reads absent for ever, which is precisely E21's dead-vocabulary trap. `__group`,
+   `__group_key` and `__group_size` are seeded by phase 4, in the commit that makes them
+   mean something.*
 2. **Folds and sequence producers.** The five aggregates and `distinct-values` — and
    **`tokenize` binding a dense sequence**, which design/17 §16.4 ruled and left blocked on
    exactly this phase, its one open sweep item. Ordering comes from 17 §8's spine, which
@@ -548,7 +558,8 @@ then start.
 3. **Sorting.** `sort` on `for-each`, keyed by the `as` cast (§5) — not the draft's
    `data_type`, which 17's ruling replaced.
    Case: `sort`.
-4. **Grouping.** `for-each-group`, `__group`/`__group_key`/`__group_size`.
+4. **Grouping.** `for-each-group`, and `__group`/`__group_key`/`__group_size` — seeded here,
+   where they are also set.
    Case: `keys_grouping` promoted from wall to passing — **the acceptance test for this whole
    design**, and the case §7 is written against.
 5. **Keys.** `key`/`key-get` on the grouping index machinery (§8, ruled built rather than
