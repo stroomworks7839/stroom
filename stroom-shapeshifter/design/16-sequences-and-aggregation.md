@@ -550,6 +550,25 @@ not recovered, E27's entry says where to reopen from.
    reads absent for ever, which is precisely E21's dead-vocabulary trap. `__group`,
    `__group_key` and `__group_size` are seeded by phase 4, in the commit that makes them
    mean something.*
+
+   ***Landed and audited 2026-08-27*** (`ef260731f8`, audit `following`). `ForEach` shipped
+   without the `sort` field §4.1 shows: phase 3 owns sorting, and a field carried unused is
+   the dead vocabulary the code standard says to delete rather than wire. The engine variable
+   names moved to `EngineVars` on the way past, because setting, reading and refusing them
+   had drifted into three spellings — E27's lesson, a day old, applying itself.
+
+   *The audit found two things the tests did not. The positional **conditions** drew an
+   outside-iteration lint but the positional **variables** did not, and they carry the same
+   hazard in a worse form: `$__position` read outside a walk writes nothing, while
+   `$x[$__index]` falls back to the **first entry** — a plausible wrong value rather than an
+   absent one. Both now lint, from one `ITERATION_ONLY` set. And the compiler's `Read` record
+   had grown a second constructor plus an accessor that unwrapped it by cast — safe only
+   because every caller happened to use that constructor, which is a trap left for whoever
+   adds the next one; sequence uses are their own `NamedUse` record now.*
+
+   *One semantic was undefined and is now pinned rather than discovered: a body that appends
+   to the sequence it is walking does **not** extend the walk. Entries are snapshotted before
+   the first body runs, because the alternative is a loop that never ends.*
 2. **Folds and sequence producers.** The five aggregates and `distinct-values` — and
    **`tokenize` binding a dense sequence**, which design/17 §16.4 ruled and left blocked on
    exactly this phase, its one open sweep item. Ordering comes from 17 §8's spine, which

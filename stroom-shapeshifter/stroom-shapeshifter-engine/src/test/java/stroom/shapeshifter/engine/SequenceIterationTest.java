@@ -221,6 +221,38 @@ class SequenceIterationTest {
     }
 
     @Test
+    void readingAnIterationVariableOutsideAnIterationDrawsTheLint() {
+        // The conditions' hazard applies to the variables too, and is worse for an index:
+        // absence makes $x[$__index] fall back to the first entry rather than to nothing.
+        final String json = config("{\"text\": \"\"}",
+                "{\"value-of\": {\"parts\": [{\"capture\": {\"var_id\": \"__position\","
+                + " \"group\": 0}}]}}");
+        assertThat(Shapeshifter.compile(ProjectReader.read(json)).warnings())
+                .anyMatch(m -> m.text().contains("__position outside any for-each"));
+    }
+
+    @Test
+    void anIndexReferenceOutsideAnIterationDrawsItToo() {
+        final String json = config("{\"text\": \"\"}",
+                "{\"value-of\": {\"parts\": [{\"capture\": {\"var_id\": \"field\","
+                + " \"group\": 0, \"match_index\": {\"var_ref\": \"__index\"}}}]}}");
+        assertThat(Shapeshifter.compile(ProjectReader.read(json)).warnings())
+                .anyMatch(m -> m.text().contains("__index outside any for-each"));
+    }
+
+    @Test
+    void appendingDuringAWalkDoesNotExtendIt() {
+        // The entries are snapshotted before the body runs, so a body that appends to the
+        // sequence it is walking terminates. The alternative is a loop that never ends.
+        final String epilogue = """
+                {"for-each": {"select": "items", "as": "item", "body": [
+                  {"value-of": {"parts": [{"capture": {"var_id": "item", "group": 0}}]}},
+                  {"append": {"name": "items", "select": {"parts": [{"text": "extra"}]}}}]}}
+                """;
+        assertThat(run(config(epilogue, APPEND_FIELD), "a\nb\n")).isEqualTo("ab");
+    }
+
+    @Test
     void positionalConditionsInsideAnIterationDrawNothing() {
         final String epilogue = """
                 {"for-each": {"select": "items", "body": [

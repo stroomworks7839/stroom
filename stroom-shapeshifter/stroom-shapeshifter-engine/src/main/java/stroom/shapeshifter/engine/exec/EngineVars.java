@@ -53,4 +53,13 @@ public final class EngineVars {
     /** Every name the engine sets, for the compiler's refusal to treat as writable. */
     public static final java.util.Set<String> ALL =
             java.util.Set.of(MATCH_COUNT, MATCH_INDEX, INDEX, POSITION, LAST);
+
+    /**
+     * The names only an iteration sets. Read outside one they are absent, and absence is
+     * quiet: {@code $__position} writes nothing, and worse, {@code $x[$__index]} falls back
+     * to the first entry rather than to nothing — a plausible wrong value. The conditions
+     * with the same failure mode already draw a lint (E21's hazard); these draw the same one.
+     */
+    public static final java.util.Set<String> ITERATION_ONLY =
+            java.util.Set.of(INDEX, POSITION, LAST);
 }

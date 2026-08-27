@@ -167,15 +167,17 @@ public final class Compiler {
 
         private record Read(String templateName, RefExpression ref) {
 
-            Read(final String templateName, final String name) {
-                this(templateName, new RefExpression(
-                        List.of(new RefExpression.RefPart.Capture(name, 0, null))));
-            }
+        }
 
-            /** The single name this read is about, for the sequence checks. */
-            String name() {
-                return ((RefExpression.RefPart.Capture) ref.parts().getFirst()).varId();
-            }
+        /**
+         * A use of a name rather than of a reference — a sequence walked or appended to.
+         * Its own record rather than a {@link Read} wrapping a synthetic reference: the
+         * accessor that unwrapped one would have been a cast that only held for the entries
+         * built that way, which is a trap left in shared code for whoever adds the next
+         * caller (phase 1 audit).
+         */
+        private record NamedUse(String templateName, String name) {
+
         }
 
         private final Project project;
@@ -195,8 +197,8 @@ public final class Compiler {
         /** Sequence bookkeeping (design/16 §9): what is declared, what is captured, what is used. */
         private final Set<String> declaredSequences = new HashSet<>();
         private final Set<String> captureNames = new HashSet<>();
-        private final List<Read> sequenceUses = new ArrayList<>();
-        private final List<Read> appendTargets = new ArrayList<>();
+        private final List<NamedUse> sequenceUses = new ArrayList<>();
+        private final List<NamedUse> appendTargets = new ArrayList<>();
 
         /** How many {@code for-each} bodies enclose the node being visited. */
         private int iterationDepth;
@@ -328,12 +330,12 @@ public final class Compiler {
                     writable.add(value.name());
                 }
                 case OutputNode.Append value -> {
-                    appendTargets.add(new Read(templateName, value.name()));
+                    appendTargets.add(new NamedUse(templateName, value.name()));
                     writable.add(value.name());
                     read(value.select());
                 }
                 case OutputNode.ForEach value -> {
-                    sequenceUses.add(new Read(templateName, value.select()));
+                    sequenceUses.add(new NamedUse(templateName, value.select()));
                     if (value.as() != null) {
                         writable.add(value.as());
                     }
@@ -412,8 +414,32 @@ public final class Compiler {
         }
 
         private void read(final RefExpression ref) {
-            if (ref != null) {
-                reads.add(new Read(templateName, ref));
+            if (ref == null) {
+                return;
+            }
+            reads.add(new Read(templateName, ref));
+            if (iterationDepth == 0) {
+                for (final RefExpression.RefPart part : ref.parts()) {
+                    if (part instanceof RefExpression.RefPart.Capture capture) {
+                        iterationOnly(capture.varId());
+                        if (capture.matchIndex() != null) {
+                            iterationOnly(capture.matchIndex().varRef());
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * The same hazard the positional conditions carry, on the variables that carry it
+         * too (phase 1 audit): outside an iteration nothing sets these, and absence here is
+         * quiet — {@code $__position} writes nothing, and an index reference falls back to
+         * the first entry, which is a wrong value rather than no value.
+         */
+        private void iterationOnly(final String name) {
+            if (name != null && EngineVars.ITERATION_ONLY.contains(name)) {
+                warnings.add(new Message(Severity.WARNING, "Template '" + templateName
+                        + "' reads " + name + " outside any for-each, where nothing sets it."));
             }
         }
 
@@ -431,7 +457,7 @@ public final class Compiler {
             // Design/16 §9's two checks. An append to a name no sequence declares would
             // create the store in the innermost scope and lose it on the way out — a
             // configuration that appears to work and accumulates nothing.
-            for (final Read append : appendTargets) {
+            for (final NamedUse append : appendTargets) {
                 if (!declaredSequences.contains(append.name())) {
                     throw new ConfigException("Template '" + append.templateName()
                             + "' appends to '" + append.name() + "', which no sequence"
@@ -447,7 +473,7 @@ public final class Compiler {
                             + " which would empty the sequence underneath it mid-run.");
                 }
             }
-            for (final Read use : sequenceUses) {
+            for (final NamedUse use : sequenceUses) {
                 if (!writable.contains(use.name())) {
                     throw new ConfigException("Template '" + use.templateName()
                             + "' walks '" + use.name() + "', which nothing writes — no"
