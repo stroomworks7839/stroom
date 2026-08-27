@@ -158,55 +158,34 @@ the hot loops, none applied because each changes a measured method's shape:
   the end through `slots[1]`), so `search` could return boolean; `Backrefs.TRUNCATED` is
   indistinguishable from `MISMATCH` at both call sites and could collapse.
 
-**A stale byte past the region can veto a legal empty match (`open` — demonstrated
-2026-08-27, needs a ruling on the fix).** Raised by the D37 audit as a theoretical gap and
-since reproduced:
+**A stale byte past the region vetoed a legal empty match (`fixed`, 2026-08-27).** Raised by
+the D37 audit as a theoretical gap, reproduced at the library entry, then fixed in the caller
+that had it:
 
 ```java
-final byte[] window = new byte[8];                 // a reused buffer
+byte[] window = new byte[8];                       // a reused buffer
 System.arraycopy("ab".getBytes(UTF_8), 0, window, 0, 2);
 window[2] = (byte) 0x82;                           // last buffer's tail, not the caller's data
-BytePattern.compile("b*").matcher().match(window, 2, 2, Anchoring.ANCHORED);  // false
-BytePattern.compile("b*").matcher().match("ab".getBytes(UTF_8), 2, 2, Anchoring.ANCHORED);  // true
+match(window, 2, 2, ANCHORED);                     // was false; "ab" alone gives true
 ```
 
-Both entries bind `contextEnd = data.length`, so `Utf8.splitsCharacter` probes one byte past
-the region and reads whatever the array holds there. When the caller's data ends before the
-array does, that byte is not the caller's — and if it is a UTF-8 continuation byte the probe
-concludes the region ends mid-character and refuses the start.
+`Utf8.splitsCharacter` probes one byte past the region to decide whether the region ends
+mid-character. That is R1's fix working as designed — a slice of a full array legitimately
+continues past `to`. It is wrong only when the array outlives the data, and then the library
+cannot tell: a slice that ends mid-character and a buffer whose data stopped early look
+identical from inside.
 
-**It is reachable through the executor, and non-deterministically.** `Executor.stream`
-matches `window[start, filled)` where `window` is a `capacity`-sized array reused across
-refills: `compact()` copies the live region to the front, `fill()` returns short on the last
-read, and `window[filled..capacity)` keeps the previous buffer's bytes. A nullable pattern
-has no first-byte table, so `searchPlan`'s bound is `regionTo - 0` and the walk reaches
-`at == to == filled`. Whether the record matches at the buffer tail then depends on leftover
-bytes from an earlier buffer.
+So the contract is the answer, not an API. The matcher's entry now states it — the array holds
+the caller's data up to its length — and `Executor.stream`, which was violating it, now blanks
+the window's tail at every fill (`fillAndBlankTail`). It reached the executor
+non-deterministically: `compact()` moves the live region forward, `fill()` returns short at
+EOF, and a nullable pattern's `searchPlan` bound is `regionTo - 0`, so the walk arrives at
+exactly the stale byte. Whether a record matched at the buffer tail could depend on an earlier
+buffer's contents.
 
-Not a D37 regression: the pre-D37 array entry had the same exposure. What D37 removed was
-the *expression* of the tighter bound — `ByteWindow` let a caller pin the context at the
-fill, and `StreamMatcher` did exactly that.
-
-The library cannot infer it. A slice that ends mid-character legitimately has real bytes
-after it — that is R1's beyond-region probe working as designed — so only the caller knows
-whether `to` is the end of a slice or the end of its data.
-
-Options, with the costs this module has already measured:
-
-1. **A bound context, the shape R1 ruled for.** A public setter beside the call, defaulting
-   to `data.length`, mirroring the `setContextEnd` the engines already use internally. R1
-   proved the *argument* route costs −8.6% on `simulate line_miss` from the signature alone,
-   and that binding it as state is free — but this needs a way to say "unset", so either a
-   sentinel on the existing field or a second field, and a field is the one currency the
-   class-shape item above shows this class is sensitive to.
-2. **A six-argument entry** stating the context explicitly, leaving the four-argument entry
-   untouched. No new field, no cost to existing callers, one more public entry to keep
-   honest — and D37 has just shown what a second entry costs in drift when it is the only
-   spelling of something.
-3. **Rule it acceptable and document it**, on the grounds that a nullable pattern searching
-   to the exact tail of a short-filled buffer is rare. That is a real position, but the
-   failure is silent and input-dependent, which is the kind this module has twice decided is
-   worth paying for.
-
-Whichever is ruled, it wants the standing gate: buffer CSV and per-match datetime either
-side, plus the anchored suite. The repro above becomes the pinned test.
+No benchmark gate: the library is untouched, and the blanking is a memset of whatever the read
+left short — zero-length until the last buffer of a stream, since `fill` loops until the window
+is full. Pinned by `RegionContextTest` (both halves of the contract) and `WindowTailTest` (the
+executor's side). The three options this entry previously offered — a bound context, a
+six-argument entry, or accepting the failure — are moot: each would have paid a field, an
+entry, or a silent bug for something the caller could fix for nothing.

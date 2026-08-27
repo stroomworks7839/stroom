@@ -199,6 +199,14 @@ public final class ByteMatcher {
     /**
      * Matches within {@code [from, to)}.
      *
+     * <p><b>The array must hold the caller's data up to its length.</b> A region may end
+     * mid-character, so deciding whether a match can begin at {@code to} means reading the
+     * byte after it — right for a slice of a fully populated array, wrong for a buffer reused
+     * across reads, where the bytes past the data are the previous read's. A caller reusing a
+     * buffer must blank the tail (as {@code Executor.stream} does) or pass an array that ends
+     * where its data ends; leaving it stale makes a legal empty match at the region end fail,
+     * silently and according to what was there before.
+     *
      * @param anchoring whether the match must begin at {@code from} or may be searched for.
      * @return true if a match was found; group accessors are then valid until the next call.
      */

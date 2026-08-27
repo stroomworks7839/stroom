@@ -501,7 +501,7 @@ public final class Executor {
         final PushbackInputStream source = new PushbackInputStream(input, 1);
         final byte[] window = new byte[capacity];
         int start = 0;
-        int filled = fill(source, window, 0);
+        int filled = fillAndBlankTail(source, window, 0);
         boolean eof = filled < capacity;
         long consumedTotal = 0;
 
@@ -561,7 +561,7 @@ public final class Executor {
                     filled = compact(window, start, filled);
                     start = 0;
                     final int before = filled;
-                    filled += fill(source, window, filled);
+                    filled += fillAndBlankTail(source, window, filled);
                     eof = filled < capacity;
                     if (filled > before) {
                         continue;
@@ -576,7 +576,7 @@ public final class Executor {
                 // matched a truncated view. Refill and let it try again against more.
                 filled = compact(window, start, filled);
                 start = 0;
-                filled += fill(source, window, filled);
+                filled += fillAndBlankTail(source, window, filled);
                 eof = filled < capacity;
                 continue;
             }
@@ -667,6 +667,27 @@ public final class Executor {
     private static int compact(final byte[] window, final int start, final int filled) {
         System.arraycopy(window, start, window, 0, filled - start);
         return filled - start;
+    }
+
+    /**
+     * Read into the window and blank whatever the previous buffer left beyond the new fill.
+     * <p>
+     * The matcher's contract is that the array holds the caller's data up to its length: it
+     * probes one byte past the region to decide whether the region ends mid-character, which
+     * is right for a slice of a full array and wrong for a reused window, where those bytes
+     * are the last buffer's. Left stale, a continuation byte sitting at the fill point tells
+     * the matcher a character continues past the region and a legal empty match at the tail
+     * is refused — silently, and depending on what an earlier buffer happened to contain.
+     * Blanking the tail makes the contract true. It costs a memset of whatever the read left
+     * short, which is nothing until the last buffer of a stream, since {@link #fill} loops
+     * until the window is full.
+     */
+    static int fillAndBlankTail(final InputStream input,
+                                final byte[] window,
+                                final int from) {
+        final int got = fill(input, window, from);
+        Arrays.fill(window, from + got, window.length, (byte) 0);
+        return got;
     }
 
     /** Read until the window is full or the input ends; returns how many bytes arrived. */

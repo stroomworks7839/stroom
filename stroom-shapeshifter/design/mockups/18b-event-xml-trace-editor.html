@@ -458,9 +458,9 @@
 </head>
 <body>
 
-<div class="mocknote">Design mockup for <b>design/18-editor-ui.md §5</b> (frame/variable model) — the trace is hand-built in this page, there is no engine behind it. Theme: Stroom GWT dark (<span class="mono">theme-dark.css</span>). Click highlights and apply-site rows, step the breadcrumb, hover/rename captures, open the pattern workbench.</div>
+<div class="mocknote">Design mockup for <b>design/18-editor-ui.md §5</b> — the "complex example" companion to <span class="mono">18-trace-editor.html</span>. Data and dispatch are modelled on the real <span class="mono">apache_httpd</span> shapeshifter fixture (stroom-shapeshifter-engine/src/test/resources/fixtures/projects/apache_httpd/ — input.txt, project.json, example_output.xml): 11 real Apache combined-log lines, real ordered-choice URL/method routing into six event-detail shapes, and output text copied verbatim from the fixture's own golden <span class="mono">event-logging:3</span> XML — the same shape Stroom pipelines normally produce via XSLT. The trace itself is still hand-built in this page (no engine behind it); the UI mechanics are identical to the first prototype. Theme: Stroom GWT dark (<span class="mono">theme-dark.css</span>).</div>
 <header>
-  <h1>apache-audit <span class="doctype">(Shapeshifter · Design tab)</span></h1>
+  <h1>apache_httpd <span class="doctype">(Shapeshifter · Design tab)</span></h1>
   <div class="spacer"></div>
   <button class="primary" id="runBtn" title="Every run profiles — there is no separate profile mode">&#9654; Run</button>
 </header>
@@ -578,85 +578,153 @@
 
 /* ================= sample + config (what the doc would hold) ================= */
 
+/* 11 real lines, verbatim, from stroom-shapeshifter-engine's apache_httpd fixture
+   (src/test/resources/fixtures/projects/apache_httpd/input.txt) — a curated subset
+   chosen to exercise all six real EventDetail shapes the fixture's project.json
+   dispatches to (View, Authenticate, Update, Delete, Export, Import). */
 const SAMPLE =
-`ip address=192.168.2.245 name=bob create time=2026-08-21T11:41:34.001Z action=login
-ip address=10.0.0.7 name="alice smith" create time=2026-08-21T11:41:35.120Z action=logout
-ip address=172.16.4.1 name=carol create time=2026-08-21T11:41:36.500Z action=login`;
+`192.168.1.50 - jsmith [23/Mar/2026:09:00:01 +0000] "GET / HTTP/1.1" 200 4523 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+192.168.1.50 - jsmith [23/Mar/2026:09:05:10 +0000] "GET /api/v1/users/me HTTP/1.1" 200 312 "http://intranet.corp.example.com/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+192.168.1.50 - jsmith [23/Mar/2026:09:10:30 +0000] "POST /api/v1/reports/export HTTP/1.1" 200 1048576 "http://intranet.corp.example.com/reports" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+10.0.0.99 - - [23/Mar/2026:09:20:45 +0000] "GET /admin/login HTTP/1.1" 200 3412 "-" "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"
+10.0.0.99 - - [23/Mar/2026:09:20:46 +0000] "POST /admin/login HTTP/1.1" 401 187 "http://intranet.corp.example.com/admin/login" "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"
+10.0.0.99 - - [23/Mar/2026:09:20:47 +0000] "POST /admin/login HTTP/1.1" 401 187 "http://intranet.corp.example.com/admin/login" "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"
+10.0.0.99 - - [23/Mar/2026:09:20:50 +0000] "POST /admin/login HTTP/1.1" 403 245 "http://intranet.corp.example.com/admin/login" "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"
+192.168.1.75 - contractor1 [23/Mar/2026:09:25:15 +0000] "GET /shares/hr/salary-data HTTP/1.1" 403 287 "http://intranet.corp.example.com/shares" "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"
+192.168.1.50 - jsmith [23/Mar/2026:09:35:22 +0000] "PUT /api/v1/users/1105/profile HTTP/1.1" 200 156 "http://intranet.corp.example.com/profile/edit" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+192.168.1.50 - jsmith [23/Mar/2026:09:40:15 +0000] "DELETE /api/v1/drafts/8842 HTTP/1.1" 204 0 "http://intranet.corp.example.com/drafts" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+192.168.1.50 - jsmith [23/Mar/2026:09:45:00 +0000] "POST /api/v1/upload HTTP/1.1" 201 89 "http://intranet.corp.example.com/documents/upload" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"`;
 
 const TPL = {
-  source: { name: "source",   mode: null,     color: "var(--c-source)",
+  source: { name: "source", mode: null, color: "var(--c-source)",
             pattern: "(document)", caps: [] },
-  record: { name: "record",   mode: "(root)", color: "var(--c-record)",
+  access_record: { name: "access_record", mode: "(root)", color: "#4a90d9",
             pattern: "^.+$", caps: [] },
-  kv:     { name: "kv-pair",  mode: "fields", color: "var(--c-kv)",
-            pattern: '([A-Za-z][A-Za-z ]*?)=("[^"]*"|\\S+)', caps: ["key", "value"] },
-  iso:    { name: "iso-time", mode: "values", color: "var(--c-iso)",
-            pattern: "^\\d{4}-\\d{2}-\\d{2}T[\\d:.]+Z$", caps: ["instant"] },
-  quoted: { name: "quoted",   mode: "values", color: "var(--c-quoted)",
-            pattern: '^"([^"]*)"$', caps: ["text"] },
-  mac:    { name: "mac-addr", mode: "values", color: "var(--c-mac)",
-            pattern: "^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$", caps: ["mac"] },
+  combined_log: { name: "combined_log", mode: "fields", color: "#d4952e",
+            pattern: '^(\\S+) - (\\S+) \\[([^\\]]+)\\] "(\\S+) (\\S+) ([^"]+)" (\\d{3}) (\\d+) "([^"]*)" "([^"]*)"$',
+            caps: ["ip", "user", "time", "method", "url", "protocol", "status", "size", "referer", "useragent"] },
+  /* the "route" mode: ordered choice over known API routes, generic_view is the
+     deliberate catch-all — real dispatch order (specific literal routes first) */
+  auth_login: { name: "auth_login", mode: "route", color: "#e05263",
+            pattern: "^POST /admin/login$", caps: [] },
+  update_profile: { name: "update_profile", mode: "route", color: "#9b6fd1",
+            pattern: "^PUT /api/v1/users/(\\d+)/profile$", caps: ["user_id"] },
+  delete_draft: { name: "delete_draft", mode: "route", color: "#d9534f",
+            pattern: "^DELETE /api/v1/drafts/(\\d+)$", caps: ["draft_id"] },
+  export_report: { name: "export_report", mode: "route", color: "#3fb8af",
+            pattern: "^POST /api/v1/reports/export$", caps: [] },
+  import_upload: { name: "import_upload", mode: "route", color: "#5cb85c",
+            pattern: "^POST /api/v1/upload$", caps: [] },
+  generic_view: { name: "generic_view", mode: "route", color: "#7f8c9a",
+            pattern: ".*", caps: [] },
 };
-const CAP_TYPE = { key: "string", value: "string", instant: "instant", text: "string", mac: "string" };
-const MODE_ORDER = [["(root)", "root"], ["fields", "mode: fields"], ["values", "mode: values"]];
-const CANDIDATES = { "(root)": ["record"], fields: ["kv"], values: ["iso", "quoted", "mac"] };
+const CAP_TYPE = { ip: "string", user: "string", time: "string", method: "string", url: "string",
+  protocol: "string", status: "number", size: "number", referer: "string", useragent: "string",
+  user_id: "number", draft_id: "number" };
+const MODE_ORDER = [["(root)", "root"], ["fields", "mode: fields"], ["route", "mode: route"]];
+const CANDIDATES = { "(root)": ["access_record"], fields: ["combined_log"],
+  route: ["auth_login", "update_profile", "delete_draft", "export_report", "import_upload", "generic_view"] };
 /* where each template can be dispatched from (the static mode graph, for the strip header) */
-const DISPATCHED_FROM = { source: "—", record: "the document", kv: "record (body pos 2)",
-  iso: "kv-pair (body pos 4)", quoted: "kv-pair (body pos 4)", mac: "kv-pair (body pos 4)" };
+const DISPATCHED_FROM = { source: "—", access_record: "the document",
+  combined_log: "access_record (body pos 1)",
+  auth_login: "combined_log (body pos 8)", update_profile: "combined_log (body pos 8)",
+  delete_draft: "combined_log (body pos 8)", export_report: "combined_log (body pos 8)",
+  import_upload: "combined_log (body pos 8)", generic_view: "combined_log (body pos 8)" };
 
-/* each template's body: the child structure (output nodes), apply sites included */
+/* each template's body: the child structure (output nodes), apply sites included.
+   Route templates collapse their (near-identical, real) Data-row blocks into one
+   illustrative card per template rather than one card per attribute — the "wrote →
+   output" pane still shows the real, uncollapsed golden XML byte for byte. */
 const BODY = {
   source: [
-    { k: "text",  lit: '"<records>\\n"' },
+    { k: "text", lit: '"<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?>\\n<Events xmlns=\\"event-logging:3\\"\\n        xmlns:xsi=\\"...\\"\\n        xsi:schemaLocation=\\"event-logging:3 file://event-logging-v4.1.0.xsd\\"\\n        Version=\\"4.1.0\\">\\n"' },
     { k: "apply", mode: "(root)" },
-    { k: "text",  lit: '"</records>\\n"' },
+    { k: "text", lit: '"</Events>\\n"' },
   ],
-  record: [
-    { k: "text",  lit: '"  <record>\\n"' },
-    { k: "apply", mode: "fields" },
-    { k: "text",  lit: '"  </record>\\n"' },
+  access_record: [
+    { k: "apply", mode: "fields", note: "hands the whole line to combined_log" },
   ],
-  kv: [
-    { k: "text",     lit: '"    <data name=\\""' },
-    { k: "value-of", lit: "$key" },
-    { k: "text",     lit: '"\\" value=\\""' },
-    { k: "apply",    mode: "values", sel: "$value", note: "no match → value-of $value" },
-    { k: "text",     lit: '"\\"/>\\n"' },
+  combined_log: [
+    { k: "text",     lit: '"  <Event>\\n    <EventTime>\\n      <TimeCreated>"' },
+    { k: "value-of", lit: 'format-date(parse-date($time, "dd/MMM/yyyy:HH:mm:ss Z"))' },
+    { k: "text",     lit: '"</TimeCreated>\\n    </EventTime>\\n    <EventSource>\\n      <System>...</System>\\n      <Generator>httpd</Generator>\\n      <Device><HostName>intranet.corp.example.com</HostName></Device>\\n"' },
+    { k: "if",       lit: 'if $user != "-": <User><Id>{$user}</Id></User>', note: "anonymous requests get no User element" },
+    { k: "text",     lit: '"    </EventSource>\\n    <EventDetail>\\n      <TypeId>WebAccess</TypeId>\\n      <Description>"' },
+    { k: "value-of", lit: "$method $url $protocol, with a status-code suffix on failure" },
+    { k: "text",     lit: '"</Description>\\n"' },
+    { k: "apply",    mode: "route", sel: '$method + " " + $url',
+                      note: "picks the verb element — View / Authenticate / Update / Delete / Export / Import" },
+    { k: "text",     lit: '"    </EventDetail>\\n  </Event>\\n\\n"' },
   ],
-  iso:    [{ k: "value-of", lit: "$instant" }],
-  quoted: [{ k: "value-of", lit: "$text" }],
-  mac:    [{ k: "value-of", lit: "$mac" }],
+  auth_login: [
+    { k: "text",     lit: '"      <Authenticate>\\n        <Action>Logon</Action>\\n        <Outcome>\\n          <Success>"' },
+    { k: "value-of", lit: "$status < 400" },
+    { k: "text",     lit: '"</Success>\\n"' },
+    { k: "choose",   lit: "on $status: 401 → Description only · 403 → Permitted false + account-locked text" },
+    { k: "text",     lit: '"        </Outcome>\\n"' },
+    { k: "text",     lit: '"        <Data .../> — Method, URL, Protocol, ResponseCode, ResponseSize, ClientIP, Referer, UserAgent"' },
+    { k: "text",     lit: '"      </Authenticate>\\n"' },
+  ],
+  update_profile: [
+    { k: "text",     lit: '"      <Update>\\n        <Object>\\n          <Type>UserProfile</Type>\\n          <Id>"' },
+    { k: "value-of", lit: "$user_id" },
+    { k: "text",     lit: '"</Id>\\n          <Name>"' },
+    { k: "value-of", lit: "$url" },
+    { k: "text",     lit: '"</Name>\\n        </Object>\\n        <Outcome><Success>true</Success></Outcome>\\n"' },
+    { k: "text",     lit: '"        <Data .../> — Method, URL, Protocol, ResponseCode, ResponseSize, ClientIP, Referer (no UserAgent)"' },
+    { k: "text",     lit: '"      </Update>\\n"' },
+  ],
+  delete_draft: [
+    { k: "text",     lit: '"      <Delete>\\n        <Object>\\n          <Type>Draft</Type>\\n          <Id>"' },
+    { k: "value-of", lit: "$draft_id" },
+    { k: "text",     lit: '"</Id>\\n          <Name>"' },
+    { k: "value-of", lit: "$url" },
+    { k: "text",     lit: '"</Name>\\n        </Object>\\n        <Outcome><Success>true</Success></Outcome>\\n"' },
+    { k: "text",     lit: '"        <Data .../> — Method, URL, Protocol, ResponseCode, ResponseSize, ClientIP, Referer (no UserAgent)"' },
+    { k: "text",     lit: '"      </Delete>\\n"' },
+  ],
+  export_report: [
+    { k: "text", lit: '"      <Export>\\n        <Object><Type>Report</Type><Name>/api/v1/reports/export</Name></Object>\\n        <Outcome><Success>true</Success></Outcome>\\n"' },
+    { k: "text", lit: '"        <Data .../> — Method, URL, Protocol, ResponseCode, ResponseSize, ClientIP, Referer (no UserAgent)"' },
+    { k: "text", lit: '"      </Export>\\n"' },
+  ],
+  import_upload: [
+    { k: "text", lit: '"      <Import>\\n        <Object><Type>Document</Type><Name>/api/v1/upload</Name></Object>\\n        <Outcome><Success>true</Success></Outcome>\\n"' },
+    { k: "text", lit: '"        <Data .../> — Method, URL, Protocol, ResponseCode, ResponseSize, ClientIP, Referer (no UserAgent)"' },
+    { k: "text", lit: '"      </Import>\\n"' },
+  ],
+  generic_view: [
+    { k: "text",     lit: '"      <View>\\n        <Object>\\n          <Type>"' },
+    { k: "value-of", lit: 'starts-with($url, "/api/") ? "API" : "WebPage"' },
+    { k: "text",     lit: '"</Type>\\n          <Name>"' },
+    { k: "value-of", lit: "$url" },
+    { k: "text",     lit: '"</Name>\\n        </Object>\\n        <Outcome>\\n          <Success>"' },
+    { k: "value-of", lit: "$status < 400" },
+    { k: "text",     lit: '"</Success>\\n"' },
+    { k: "if",       lit: "if $status == 403: Permitted false + insufficient-permissions text" },
+    { k: "text",     lit: '"        </Outcome>\\n"' },
+    { k: "text",     lit: '"        <Data .../> — Method, URL, Protocol, ResponseCode, ResponseSize, ClientIP, Referer, UserAgent"' },
+    { k: "text",     lit: '"      </View>\\n"' },
+  ],
 };
 
 /* progressive/combinator step builder: byte consumers in sequence (the engine's MatchStep vocabulary) */
 const STEP_KINDS = ["tag", "take-until", "take-while", "take-bytes", "read-numeric",
   "regex", "named", "repeat", "choice", "peek"];
-/* reusable library entries (CombinatorPattern) — plain patterns AND whole combinators,
-   both referenceable from Named matches and library steps (DocRef-based in Stroom, D11).
+/* reusable library entries (CombinatorPattern) — domain-relevant to this example.
    `impl` is a mockup-only regex equivalent so the sample evaluator can run them. */
 const PATTERN_LIB = [
-  { name: "quoted-string", kind: "pattern",    impl: '"[^"]*"', caps: [] },
-  { name: "iso-instant",   kind: "pattern",    impl: "\\d{4}-\\d{2}-\\d{2}T[\\d:.]+Z", caps: [] },
-  { name: "ip-address",    kind: "combinator", impl: "(?:\\d{1,3}\\.){3}\\d{1,3}", caps: [] },
+  { name: "http-status-4xx", kind: "pattern", impl: "^4\\d{2}$", caps: [] },
+  { name: "api-v1-path",     kind: "pattern", impl: "^/api/v1/", caps: [] },
 ];
 function libEntry(name) { return PATTERN_LIB.find(p => p.name === name); }
-const PROG = {
-  /* a worked example: kv-pair expressed as a combinator instead of a regex */
-  kv: [
-    { kind: "take-while", arg: "[A-Za-z ]", cap: "key" },
-    { kind: "tag", arg: '"="', cap: "" },
-    { kind: "choice", arg: 'named(quoted-string) | take-until(" ")', cap: "value" },
-  ],
-};
+const PROG = {};
 function progSteps(tid) { return PROG[tid] || (PROG[tid] = []); }
 
 /* guard and limits: mechanism-independent parts of the match stage (mode → guard → match → limits) */
-const GUARD_VARS = ["$key", "$value", "$instant", "$text", "$mac", "depth"];
+const GUARD_VARS = ["$method", "$url", "$status", "$user", "depth"];
 const GUARD_OPS = ["exists", "==", "!=", "matches", ">", "<"];
-const GUARD = {
-  /* worked example: quoted only applies where the field's key is "name" */
-  quoted: [{ v: "$key", op: "==", val: "name" }],
-};
+const GUARD = {};
 const LIMITS = {};
 function guardOf(tid) { return GUARD[tid] || (GUARD[tid] = []); }
 function limitsOf(tid) { return LIMITS[tid] || (LIMITS[tid] = { min: "", max: "", only: "" }); }
@@ -1010,45 +1078,306 @@ function addMatch(tpl, parent, start, len, captures) {
   return m;
 }
 
+/* the real Apache combined-log-format regex, matched whole against each line; the
+   'd' flag gives per-group [start,end) indices so captures get real, honest spans */
+const LOG_RE = /^(\S+) - (\S+) \[([^\]]+)\] "(\S+) (\S+) ([^"]+)" (\d{3}) (\d+) "([^"]*)" "([^"]*)"$/d;
+const LOG_FIELDS = ["ip", "user", "time", "method", "url", "protocol", "status", "size", "referer", "useragent"];
+
+/* the "route" mode's ordered choice — auth_login/update_profile/delete_draft/
+   export_report/import_upload are tried in this order, generic_view is the catch-all
+   (its pattern ".*" always matches, so it never appears in a .tries list — there is
+   nothing after it to have skipped it for) */
+const ROUTE_ORDER = ["auth_login", "update_profile", "delete_draft", "export_report", "import_upload", "generic_view"];
+
+/* per-record ground truth, copied verbatim from example_output.xml so "wrote → output"
+   is byte-identical to what the real fixture's XSLT-equivalent project actually
+   produces — only the Description/route text is literal here; everything else (which
+   template matched, which failed first, every captured field and its byte span) is
+   genuinely computed below from SAMPLE via LOG_RE and the ROUTE_ORDER ordered choice. */
+const RECORDS = [
+  { tCreated: "2026-03-23T09:00:01.000Z", description: "GET / HTTP/1.1",
+    routeXml:
+`      <View>
+        <Object>
+          <Type>WebPage</Type>
+          <Name>/</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="4523"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"/>
+      </View>
+` },
+  { tCreated: "2026-03-23T09:05:10.000Z", description: "GET /api/v1/users/me HTTP/1.1",
+    routeXml:
+`      <View>
+        <Object>
+          <Type>API</Type>
+          <Name>/api/v1/users/me</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/api/v1/users/me"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="312"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/dashboard"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"/>
+      </View>
+` },
+  { tCreated: "2026-03-23T09:10:30.000Z", description: "POST /api/v1/reports/export HTTP/1.1",
+    routeXml:
+`      <Export>
+        <Object>
+          <Type>Report</Type>
+          <Name>/api/v1/reports/export</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/api/v1/reports/export"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="1048576"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/reports"/>
+      </Export>
+` },
+  { tCreated: "2026-03-23T09:20:45.000Z", description: "GET /admin/login HTTP/1.1",
+    routeXml:
+`      <View>
+        <Object>
+          <Type>WebPage</Type>
+          <Name>/admin/login</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/admin/login"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="3412"/>
+        <Data Name="ClientIP" Value="10.0.0.99"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"/>
+      </View>
+` },
+  { tCreated: "2026-03-23T09:20:46.000Z", description: "POST /admin/login HTTP/1.1 (Unauthorized)",
+    routeXml:
+`      <Authenticate>
+        <Action>Logon</Action>
+        <Outcome>
+          <Success>false</Success>
+          <Description>HTTP 401 Unauthorized</Description>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/admin/login"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="401"/>
+        <Data Name="ResponseSize" Value="187"/>
+        <Data Name="ClientIP" Value="10.0.0.99"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/admin/login"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"/>
+      </Authenticate>
+` },
+  { tCreated: "2026-03-23T09:20:47.000Z", description: "POST /admin/login HTTP/1.1 (Unauthorized)",
+    routeXml:
+`      <Authenticate>
+        <Action>Logon</Action>
+        <Outcome>
+          <Success>false</Success>
+          <Description>HTTP 401 Unauthorized</Description>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/admin/login"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="401"/>
+        <Data Name="ResponseSize" Value="187"/>
+        <Data Name="ClientIP" Value="10.0.0.99"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/admin/login"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"/>
+      </Authenticate>
+` },
+  { tCreated: "2026-03-23T09:20:50.000Z", description: "POST /admin/login HTTP/1.1 (Forbidden - account locked)",
+    routeXml:
+`      <Authenticate>
+        <Action>Logon</Action>
+        <Outcome>
+          <Success>false</Success>
+          <Permitted>false</Permitted>
+          <Description>HTTP 403 Forbidden - account locked after repeated failures</Description>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/admin/login"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="403"/>
+        <Data Name="ResponseSize" Value="245"/>
+        <Data Name="ClientIP" Value="10.0.0.99"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/admin/login"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)"/>
+      </Authenticate>
+` },
+  { tCreated: "2026-03-23T09:25:15.000Z", description: "GET /shares/hr/salary-data HTTP/1.1 (Forbidden)",
+    routeXml:
+`      <View>
+        <Object>
+          <Type>WebPage</Type>
+          <Name>/shares/hr/salary-data</Name>
+        </Object>
+        <Outcome>
+          <Success>false</Success>
+          <Permitted>false</Permitted>
+          <Description>HTTP 403 Forbidden - insufficient permissions</Description>
+        </Outcome>
+        <Data Name="Method" Value="GET"/>
+        <Data Name="URL" Value="/shares/hr/salary-data"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="403"/>
+        <Data Name="ResponseSize" Value="287"/>
+        <Data Name="ClientIP" Value="192.168.1.75"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/shares"/>
+        <Data Name="UserAgent" Value="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"/>
+      </View>
+` },
+  { tCreated: "2026-03-23T09:35:22.000Z", description: "PUT /api/v1/users/1105/profile HTTP/1.1",
+    routeXml:
+`      <Update>
+        <Object>
+          <Type>UserProfile</Type>
+          <Id>1105</Id>
+          <Name>/api/v1/users/1105/profile</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="Method" Value="PUT"/>
+        <Data Name="URL" Value="/api/v1/users/1105/profile"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="200"/>
+        <Data Name="ResponseSize" Value="156"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/profile/edit"/>
+      </Update>
+` },
+  { tCreated: "2026-03-23T09:40:15.000Z", description: "DELETE /api/v1/drafts/8842 HTTP/1.1",
+    routeXml:
+`      <Delete>
+        <Object>
+          <Type>Draft</Type>
+          <Id>8842</Id>
+          <Name>/api/v1/drafts/8842</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="Method" Value="DELETE"/>
+        <Data Name="URL" Value="/api/v1/drafts/8842"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="204"/>
+        <Data Name="ResponseSize" Value="0"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/drafts"/>
+      </Delete>
+` },
+  { tCreated: "2026-03-23T09:45:00.000Z", description: "POST /api/v1/upload HTTP/1.1 (Created)",
+    routeXml:
+`      <Import>
+        <Object>
+          <Type>Document</Type>
+          <Name>/api/v1/upload</Name>
+        </Object>
+        <Outcome>
+          <Success>true</Success>
+        </Outcome>
+        <Data Name="Method" Value="POST"/>
+        <Data Name="URL" Value="/api/v1/upload"/>
+        <Data Name="Protocol" Value="HTTP/1.1"/>
+        <Data Name="ResponseCode" Value="201"/>
+        <Data Name="ResponseSize" Value="89"/>
+        <Data Name="ClientIP" Value="192.168.1.50"/>
+        <Data Name="Referer" Value="http://intranet.corp.example.com/documents/upload"/>
+      </Import>
+` },
+];
+
+/* output with attribution: segments of {text, m} where m is the writing frame */
+const outSegs = [];
+const emit = (text, m) => outSegs.push({ text, m });
+emit('<?xml version="1.0" encoding="UTF-8"?>\n<Events xmlns="event-logging:3"\n' +
+     '        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n' +
+     '        xsi:schemaLocation="event-logging:3 file://event-logging-v4.1.0.xsd"\n' +
+     '        Version="4.1.0">\n\n', SOURCE);
+
 let lineStart = 0;
-for (const line of SAMPLE.split("\n")) {
-  const rec = addMatch("record", SOURCE, lineStart, line.length, []);
-  const kvRe = /([A-Za-z][A-Za-z ]*?)=("[^"]*"|\S+)/g;
-  let hit;
-  while ((hit = kvRe.exec(line)) !== null) {
-    const [whole, key, raw] = hit;
-    const kvStart = lineStart + hit.index;
-    const valStart = kvStart + key.length + 1;
-    const kv = addMatch("kv", rec, kvStart, whole.length, [
-      { name: "key",   value: key, span: [kvStart, key.length] },
-      { name: "value", value: raw, span: [valStart, raw.length] },
-    ]);
-    /* ordered choice over mode "values": iso, then quoted, then mac; failures recorded (G3) */
-    if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
-      addMatch("iso", kv, valStart, raw.length,
-        [{ name: "instant", value: isoNanos(raw), span: [valStart, raw.length] }]);
-    } else if (raw.startsWith('"')) {
-      kv.tries.push("iso");
-      addMatch("quoted", kv, valStart, raw.length,
-        [{ name: "text", value: raw.slice(1, -1), span: [valStart + 1, raw.length - 2] }]);
-    } else {
-      kv.tries.push("iso", "quoted", "mac");
-    }
+SAMPLE.split("\n").forEach((line, i) => {
+  const rec = addMatch("access_record", SOURCE, lineStart, line.length, []);
+
+  const lm = LOG_RE.exec(line);
+  const [, ip, user, time, method, url, protocol, statusStr, sizeStr, referer, useragent] = lm;
+  const status = Number(statusStr), size = Number(sizeStr);
+  const values = [ip, user, time, method, url, protocol, status, size, referer, useragent];
+  const captures = LOG_FIELDS.map((name, gi) => {
+    const [s, e] = lm.indices[gi + 1];
+    return { name, value: values[gi], span: [lineStart + s, e - s] };
+  });
+  const clRec = addMatch("combined_log", rec, lineStart, line.length, captures);
+
+  /* the route dispatch: ordered choice over (method, url) — a derived value with no
+     literal position of its own, so the frame anchors to the real, honest $url span */
+  const routeKey = method + " " + url;
+  let winnerId = null, winnerMatch = null;
+  for (const rid of ROUTE_ORDER) {
+    const rm = new RegExp(TPL[rid].pattern).exec(routeKey);
+    if (rm) { winnerId = rid; winnerMatch = rm; break; }
+    clRec.tries.push(rid);
   }
+  const [us, ue] = lm.indices[5];   // group 5 = url
+  const urlSpan = [lineStart + us, ue - us];
+  const routeCaps =
+    winnerId === "update_profile" ? [{ name: "user_id", value: winnerMatch[1], span: urlSpan }] :
+    winnerId === "delete_draft"   ? [{ name: "draft_id", value: winnerMatch[1], span: urlSpan }] : [];
+  const routeFrame = addMatch(winnerId, clRec, urlSpan[0], urlSpan[1], routeCaps);
+
+  const rd = RECORDS[i];
+  const hasUser = user !== "-";
+  emit("  <Event>\n    <EventTime>\n      <TimeCreated>", clRec);
+  emit(rd.tCreated, clRec);
+  emit("</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n", clRec);
+  if (hasUser) emit(`      <User>\n        <Id>${user}</Id>\n      </User>\n`, clRec);
+  emit("    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>", clRec);
+  emit(rd.description, clRec);
+  emit("</Description>\n", clRec);
+  emit(rd.routeXml, routeFrame);
+  emit("    </EventDetail>\n  </Event>\n\n", clRec);
+
   lineStart += line.length + 1;
-}
-function isoNanos(v) { return v.replace(/\.(\d{3})Z$/, ".$1000000Z"); }
+});
+emit("</Events>\n", SOURCE);
 
 /* global failed-attempt totals per template (for the panel's "0 · N tries" rows) */
 const triesTotal = {};
 for (const m of matches) for (const t of m.tries) triesTotal[t] = (triesTotal[t] || 0) + 1;
 
 /* profiling: every run profiles — Instrument timing rides the same run, so there is no
-   separate mode. Numbers are hand-authored here; avg µs per attempt drives heat colour. */
-const AVG_US = { record: 2.1, kv: 5.8, iso: 3.9, quoted: 2.7, mac: 41.0 };
+   separate mode. Numbers are hand-authored here; avg µs per attempt drives heat colour.
+   combined_log's 10-group regex is the expensive one; generic_view (".*", tried last,
+   never fails) is the cheapest — a different profiling story from the first prototype's
+   "one template dominates the run" but the same honest diagnostic, not benchmark. */
+const AVG_US = { access_record: 1.8, combined_log: 7.2, auth_login: 2.1, update_profile: 2.4,
+  delete_draft: 2.3, export_report: 2.6, import_upload: 2.2, generic_view: 1.1 };
 function prof(tid) {
   const matched = (byTpl[tid] || []).length;
-  const fails = tid === "kv" ? 9 : (triesTotal[tid] || 0);   // kv fails once per inter-field gap
+  const fails = triesTotal[tid] || 0;
   const attempts = matched + fails;
   const avgUs = AVG_US[tid] || 0;
   return { attempts, matched, avgUs, totalUs: attempts * avgUs };
@@ -1072,24 +1401,6 @@ function profTitle(p) {
     `${fmtUs(p.totalUs)} total (${Math.round(p.totalUs / RUN_TOTAL_US * 100)}% of run) — ` +
     `single-run timing: diagnostic, not a benchmark`;
 }
-
-/* output with attribution: segments of {text, m} where m is the writing frame */
-const outSegs = [];
-const emit = (text, m) => outSegs.push({ text, m });
-emit("<records>\n", SOURCE);
-for (const rec of SOURCE.children) {
-  emit("  <record>\n", rec);
-  for (const kv of rec.children) {
-    const key = kv.captures[0].value, raw = kv.captures[1].value;
-    const child = kv.children[0];
-    emit(`    <data name="${key}" value="`, kv);
-    if (child) emit(child.captures[0].value, child);
-    else emit(raw, kv);
-    emit('"/>\n', kv);
-  }
-  emit("  </record>\n", rec);
-}
-emit("</records>\n", SOURCE);
 
 /* ================= cursor state ================= */
 
@@ -1540,14 +1851,17 @@ function renderRange(container, start, end, children, parent) {
 
 function addPlain(container, from, to, parent) {
   const text = SAMPLE.slice(from, to);
-  if (parent.tpl === "record" && text.trim() === "") {
-    /* an unmatched gap in this frame's content: first-class and clickable (G3) */
+  if (parent.tpl === "access_record" && text.trim() === "") {
+    /* an unmatched gap in this frame's content: first-class and clickable (G3).
+       This dataset's combined-log regex matches every real line whole, so this path
+       is dormant here — kept correct (not dead-referencing the other prototype's
+       "record"/"kv-pair" ids) in case an edited pattern ever leaves a gap. */
     const g = el("span", "gap", text);
     g.title = "Nothing matched here — click to see what was tried";
     g.addEventListener("click", ev => {
       ev.stopPropagation();
       gapMsg = `No template matched bytes ${from}–${to} of this record's content. ` +
-               `Tried in mode “fields”: kv-pair ✗. In a real trace this comes from per-attempt positions (engine ask G3).`;
+               `Tried in mode “fields”: combined_log ✗. In a real trace this comes from per-attempt positions (engine ask G3).`;
       setCursor(parent, true);
     });
     container.appendChild(g);
@@ -2446,8 +2760,10 @@ initSplitter("splitRow",
 
 applyLayout();
 
-/* initial position: the quoted value in record 2 — three levels down, shows the whole idea */
-setCursor(byTpl.quoted[0]);
+/* initial position: the 403 "account locked" login failure — real security-relevant
+   text (Permitted false, a route-specific Description) three levels down, matching
+   the fixture's own golden byte for byte */
+setCursor(byTpl.auth_login[2]);
 </script>
 </body>
 </html>
