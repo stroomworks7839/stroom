@@ -361,6 +361,41 @@ draft's premise was checked against the pipeline and found wrong — `XsltFilter
 and Stroom's context arrives through extension functions.
 
 ### E26 — Arithmetic on fractional text pays a thrown exception per operand
+**`resolved` 2026-08-27 (`229c9dbd63`) — fixed and measured; the three losses became wins.**
+`asInteger` now parses without throwing (Java's own algorithm, accumulating negatively so
+`MIN_VALUE` stays representable) and `asNumber` gates its parser on the first character,
+since every string `Double.valueOf` accepts begins with a digit, sign, point, `N` or `I` —
+so the gate refuses only what would have thrown. Neither the contract nor what parses moves:
+a differential test asserts equivalence against the two parsers it replaced across ~4050
+inputs — both `long` boundaries and one past each, hex floats, `NaN`, `Infinity`, the
+`d`/`f` suffixes, and non-ASCII digits, which Java reads and which `Character.digit` keeps
+reading rather than an ASCII range check quietly narrowing them.
+
+Measured, `2026-08-27-0749-37825da20d-xml` → `2026-08-27-1048-229c9dbd63-xml`:
+
+| Case (100k) | Before | After | | vs Saxon before | vs Saxon after |
+|---|---|---|---|---|---|
+| `arithmetic` | 897 ms | 149 ms | **−83%** | 0.25× (4× slower) | **1.50× faster** |
+| `comparison` | 289 ms | 56 ms | **−81%** | 0.93× | **4.73× faster** |
+| `value_types` | 138 ms | 50 ms | **−64%** | 0.77× | **2.17× faster** |
+| `string_functions` | 183 ms | 142 ms | −22% | 1.66× | 2.18× faster |
+
+**The issue was filed too narrowly, and the numbers say so.** It was written up as an
+*arithmetic* defect because that is the case the A/B surfaced; it was really a defect in the
+two numeric *casts*, which conditions reach as readily as arithmetic does. `comparison` — a
+case with no arithmetic instruction in it, only `as: "number"` reads and a legacy
+`greater-than` alias — improved by 81%, the largest relative gain of the four, and
+`string_functions` improved without being suspected at all. The lesson for the next one:
+name the mechanism, not the symptom that found it.
+
+The engine corpus is flat and **provably so**: no fixture in it uses a numeric condition or
+an arithmetic instruction, so the changed casts are unreachable there. Three rows separated
+at ~1.5% (`win_sec_xml` compile, `apache_httpd` run, `progressive` run) with no causal path —
+one of them a compile-path row the fix does not touch — which is the same small
+harness-variance separation seen in both directions across all four runs of this tranche.
+
+Original text:
+
 **`open` — found and priced 2026-08-27 by design/17's closing A/B**
 ([17-value-computation.md §13](../design/17-value-computation.md)). The `arithmetic`
 catalogue case runs **4× slower than Saxon** (897 ms against 223 ms at 100k units), the one

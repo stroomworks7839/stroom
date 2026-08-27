@@ -53,7 +53,7 @@ same tree the W3C test suite hangs from. Every row carries one of four verdicts:
 | Downward paths (`a/b/c`, predicates on structure) | **expressible** | nested levels, or a single pattern spanning the structure (nasty's five-deep pull) — proven ✓ |
 | `position()` / `last()` | **covered, proven** | `__match_count` works as position, tested with `equals`; the dead `is-first`/`is-last` conditions the case found were **deleted by E21's ruling** (2026-08-21) — count equality is the documented idiom. [16](16-sequences-and-aggregation.md) §4.3 has since ruled that iteration is the case E21 said to wait for, and that both the conditions and `__position`/`__last` return with it — ruled, not yet built (E23) | adjacent_groups ✓ |
 | Upward/sideways axes (`ancestor::`, `preceding-sibling::`) | **out of scope** | there is no tree to walk back up; state wanted from "above" is captured on the way down (the `batch` var in nasty is exactly `../@id`) — proven ✓ |
-| General/value comparisons, arithmetic | **covered, proven** (2026-08-27) | comparisons are one strict typed vocabulary — `eq`/`ne`/`lt`/`le`/`gt`/`ge`, same-kind natively, cross-kind false, casts explicit on the operand (`as`), the legacy spellings kept as aliases carrying the casts their semantics implied. Arithmetic is `add`/`subtract`/`multiply`/`divide`/`mod`/`round`/`floor`/`ceiling`/`abs`, **as instructions rather than an expression language** — D35's declarative model is intact, and an expression front end could later compile *down* to these. [17](17-value-computation.md) §§5, 8; performance caveat in E26 | arithmetic ✓, comparison ✓, value_types ✓ |
+| General/value comparisons, arithmetic | **covered, proven** (2026-08-27) | comparisons are one strict typed vocabulary — `eq`/`ne`/`lt`/`le`/`gt`/`ge`, same-kind natively, cross-kind false, casts explicit on the operand (`as`), the legacy spellings kept as aliases carrying the casts their semantics implied. Arithmetic is `add`/`subtract`/`multiply`/`divide`/`mod`/`round`/`floor`/`ceiling`/`abs`, **as instructions rather than an expression language** — D35's declarative model is intact, and an expression front end could later compile *down* to these. [17](17-value-computation.md) §§5, 8 (E26's cast cost found and fixed 2026-08-27: 1.5–4.7× faster than Saxon on the three value-computation cases) | arithmetic ✓, comparison ✓, value_types ✓ |
 | Sequences, `distinct-values`, `index-of`, quantifiers | **gap** | store arrays exist; sequence *operations* over them do not |
 
 ## 4. The function library
@@ -117,9 +117,10 @@ The gaps still cluster into families, but there are **two of them now, not three
    format-number and the date pair all shipped, each proven byte-identical against Saxon by
    its own catalogue case. The date vocabulary is the composed `format-date(parse-date())`
    pair the 2026-08-21 ruling required, not a port of `stroom:format-date`'s conflated
-   signature. Two performance issues survive it — E26 (arithmetic pays a thrown exception per
-   fractional operand, 4× behind Saxon) and E27 (three compile-time body walks) — both open,
-   neither a capability gap.
+   signature. Two performance issues came out of it — E26 (the numeric casts answered "no" by
+   throwing) **fixed 2026-08-27**, turning the three value-computation cases from losses into
+   1.5–4.7× wins over Saxon, and E27 (three compile-time body walks) still open. Neither was
+   a capability gap.
 3. **Output routing** — result-document / multiple sinks. Already owned by D10/E15, and
    walled executably: `dual_output` is the second wall, tripped the day routing lands.
 

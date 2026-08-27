@@ -554,7 +554,12 @@ these rows have no *before* and never can, §the README):
 | `arithmetic` | 0.29× | **0.25×** | **4× slower than Saxon** |
 
 **Finding 1 — arithmetic on fractional text costs an exception per operand, and it is 82×.**
-Tracked as [E26](../stroom-shapeshifter-engine/ISSUES.md).
+Tracked as [E26](../stroom-shapeshifter-engine/ISSUES.md) — **fixed and measured the same
+day** (`229c9dbd63`): `arithmetic` −83%, `comparison` −81%, `value_types` −64%, and all three
+of the tranche's losses turned into wins against Saxon (1.50×, 4.73×, 2.17×). The issue had
+been filed as an arithmetic defect; it was a defect in the numeric casts, which conditions
+reach too — which is why `comparison`, a case containing no arithmetic instruction, gained
+the most.
 `arithmetic` is the tranche's one real loss, and the cause is proven rather than guessed. A
 probe timing `Transforms.multiply` over identical shapes:
 
