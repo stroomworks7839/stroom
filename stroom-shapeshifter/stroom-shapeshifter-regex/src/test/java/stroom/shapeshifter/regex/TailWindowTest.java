@@ -42,7 +42,7 @@ class TailWindowTest {
     }
 
     @Test
-    void aMatchSpanningExactlyTheMaximumSurvivesTheJump() {
+    void matchSpanningExactlyTheMaximumSurvivesTheJump() {
         // The window is [regionTo - 4, regionTo); the match uses every byte of it.
         final ByteMatcher m = matcher("(a{1,4})$");
         assertThat(m.match("bbaaaa".getBytes(StandardCharsets.UTF_8), 0, 6,
@@ -51,7 +51,7 @@ class TailWindowTest {
     }
 
     @Test
-    void aShorterMatchInsideTheWindowIsStillFoundLeftmost() {
+    void shorterMatchInsideTheWindowIsStillFoundLeftmost() {
         // The jump lands on a non-matching byte; the walk inside the window finds the match.
         final ByteMatcher m = matcher("(a{1,4})$");
         assertThat(m.match("bbbaaa".getBytes(StandardCharsets.UTF_8), 0, 6,
@@ -79,7 +79,7 @@ class TailWindowTest {
     }
 
     @Test
-    void aMissIsStillAMiss() {
+    void missIsStillAMiss() {
         final ByteMatcher m = matcher("(\\d{3})$");
         assertThat(m.match("abcdef".getBytes(StandardCharsets.UTF_8), 0, 6,
                 Anchoring.UNANCHORED)).isFalse();

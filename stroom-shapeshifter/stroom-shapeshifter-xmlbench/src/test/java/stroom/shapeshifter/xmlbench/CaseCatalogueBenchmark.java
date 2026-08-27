@@ -16,6 +16,11 @@
 
 package stroom.shapeshifter.xmlbench;
 
+import stroom.shapeshifter.engine.OutputSink;
+import stroom.shapeshifter.engine.Shapeshifter;
+import stroom.shapeshifter.engine.compile.CompiledProject;
+import stroom.shapeshifter.engine.config.ProjectReader;
+
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -41,11 +46,6 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-import stroom.shapeshifter.engine.OutputSink;
-import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.compile.CompiledProject;
-import stroom.shapeshifter.engine.config.ProjectReader;
-
 /**
  * The catalogue at benchmark scale: every case with a challenger, amplified by
  * {@link CaseCorpus} and run A/B — Saxon against the shapeshifter engine, whole-file,
@@ -70,7 +70,8 @@ public class CaseCatalogueBenchmark {
     // added here would simply never be measured. That is how arithmetic, value_types,
     // comparison and dates stayed unmeasured through four phases of work on exactly them.
     @Param({"adjacent_groups", "aggregate", "analyze_string", "arithmetic", "comparison", "computed_names",
-            "dates", "keys_grouping", "keys_lookup", "modes", "nasty_xml", "reference", "sequence_basics", "sort", "string_functions", "value_types"})
+            "dates", "keys_grouping", "keys_lookup", "modes", "nasty_xml", "reference",
+            "sequence_basics", "sort", "string_functions", "value_types"})
     public String benchCase;
 
     @Param({"10000", "100000"})

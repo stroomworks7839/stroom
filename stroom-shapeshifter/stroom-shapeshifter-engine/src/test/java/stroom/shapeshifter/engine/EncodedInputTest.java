@@ -120,7 +120,7 @@ class EncodedInputTest {
         // The point of declaring an encoding: these bytes are not valid UTF-8, and reading them
         // as if they were produces replacement characters rather than an error.
         final byte[] input = {'c', 'a', 'f', (byte) 0xE9};
-        assertThat(run("utf-8", input)).isEqualTo("[caf\uFFFD]");
+        assertThat(run("utf-8", input)).isEqualTo("[caf\uFFFD]"); // U+FFFD REPLACEMENT CHARACTER
     }
 
     @Test

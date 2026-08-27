@@ -16,6 +16,11 @@
 
 package stroom.shapeshifter.xmlbench;
 
+import stroom.shapeshifter.engine.OutputSink;
+import stroom.shapeshifter.engine.Shapeshifter;
+import stroom.shapeshifter.engine.compile.CompiledProject;
+import stroom.shapeshifter.engine.config.ProjectReader;
+
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -30,6 +35,8 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import org.xml.sax.Attributes;
+import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -41,14 +48,6 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
-
-import org.xml.sax.Attributes;
-import org.xml.sax.helpers.DefaultHandler;
-
-import stroom.shapeshifter.engine.OutputSink;
-import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.compile.CompiledProject;
-import stroom.shapeshifter.engine.config.ProjectReader;
 
 /**
  * The incumbent, decomposed (design/13, Phase 2). Three rows so the eventual comparison

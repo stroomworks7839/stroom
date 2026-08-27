@@ -213,7 +213,7 @@ class CombinatorTest {
 
     /** A second embedded name resolves to its own group, not a neighbour's. */
     @Test
-    void aLaterEmbeddedNameResolvesToItsOwnGroup() {
+    void laterEmbeddedNameResolvesToItsOwnGroup() {
         final BytePattern pattern = new MatcherLibrary().compile(Matchers.sequence(
                 Matchers.takeWhile("[a-z]").label("key"),
                 Matchers.tag(" "),

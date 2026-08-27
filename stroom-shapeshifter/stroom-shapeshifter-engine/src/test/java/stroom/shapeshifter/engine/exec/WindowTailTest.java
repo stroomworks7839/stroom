@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class WindowTailTest {
 
     @Test
-    void aShortReadLeavesNoneOfThePreviousBufferBehind() {
+    void shortReadLeavesNoneOfThePreviousBufferBehind() {
         final byte[] window = new byte[8];
         Arrays.fill(window, (byte) 0x82);   // the last buffer: UTF-8 continuation bytes throughout
 
@@ -36,7 +36,7 @@ class WindowTailTest {
     }
 
     @Test
-    void aRefillPartwayThroughTheWindowBlanksFromItsOwnEnd() {
+    void refillPartwayThroughTheWindowBlanksFromItsOwnEnd() {
         final byte[] window = new byte[8];
         Arrays.fill(window, (byte) 0x82);
         window[0] = 'x';                    // a compacted remainder already at the front

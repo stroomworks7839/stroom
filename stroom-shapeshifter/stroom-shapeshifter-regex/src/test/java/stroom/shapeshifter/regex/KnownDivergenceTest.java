@@ -132,7 +132,7 @@ class KnownDivergenceTest {
      * design/01 §2.3 binds lookbehind to "the JDK's rule for the JDK's reason".
      */
     @Test
-    void aLookbehindBodySeesPastTheCursorAndAgrees() {
+    void lookbehindBodySeesPastTheCursorAndAgrees() {
         // A nested lookahead reads forward past the cursor, as it would anywhere else.
         assertAgrees("(?<=a(?=bc))bc", "abc");
         assertAgrees("(?<=a(?=b))bc", "abc");

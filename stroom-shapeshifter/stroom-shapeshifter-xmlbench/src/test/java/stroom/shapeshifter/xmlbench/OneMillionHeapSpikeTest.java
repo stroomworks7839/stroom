@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OneMillionHeapSpikeTest {
 
     @Test
-    void aMillionRecordsFitWithoutASplitFilter() throws Exception {
+    void millionRecordsFitWithoutASplitFilter() throws Exception {
         final byte[] input = RecordsGenerator.generate(1_000_000);
         final byte[] output = XsltBaselineTest.transform(XsltBaselineTest.compile(), input);
         assertThat(output.length).isGreaterThan(input.length);

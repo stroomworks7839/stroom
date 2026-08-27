@@ -18,8 +18,8 @@ package stroom.shapeshifter.regex.bench;
 
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
-import stroom.shapeshifter.regex.Engine;
 import stroom.shapeshifter.regex.BytePattern;
+import stroom.shapeshifter.regex.Engine;
 import stroom.shapeshifter.regex.Flag;
 
 import org.openjdk.jmh.annotations.Benchmark;

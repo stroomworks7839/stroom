@@ -68,7 +68,7 @@ class ChallengerParityTest {
     }
 
     @Test
-    void aHundredThousandRecordsMatchSaxonByteForByte() throws Exception {
+    void hundredThousandRecordsMatchSaxonByteForByte() throws Exception {
         final byte[] input = RecordsGenerator.generate(100_000);
         final byte[] challenger = transform(compile(), input);
         final byte[] incumbent = XsltBaselineTest.transform(XsltBaselineTest.compile(), input);

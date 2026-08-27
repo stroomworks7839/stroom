@@ -196,7 +196,7 @@ class ReverseTest {
     }
 
     @Test
-    void aSubRegionSearchFindsTheSameMatchAsTheJdkRegion() {
+    void subRegionSearchFindsTheSameMatchAsTheJdkRegion() {
         final byte[] data = "aa\\bb\\cc".getBytes(StandardCharsets.UTF_8);
         final ByteMatcher m = BytePattern.compile("([^\\\\]+)$").matcher();
         assertThat(m.match(data, 0, 5, Anchoring.UNANCHORED)).isTrue();

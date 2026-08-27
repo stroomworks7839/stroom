@@ -87,7 +87,7 @@ class Ds3ImportTest {
     }
 
     @Test
-    void aSingleUnnamedGroupKeepsItsIgnoreErrors() {
+    void singleUnnamedGroupKeepsItsIgnoreErrors() {
         // The one-unnamed-group collapse must not eat the flag: with ignoreErrors set, the
         // group survives as a dispatched level whose directive carries it.
         final Project project = Ds3Migration.importXml("""
@@ -129,7 +129,7 @@ class Ds3ImportTest {
     }
 
     @Test
-    void aVarComputedFromAnotherVarReadsAtTheCurrentMatch() {
+    void varComputedFromAnotherVarReadsAtTheCurrentMatch() {
         // '$a$1' names which group of a to *store*; reading it back must be indexed by the
         // parent's match count, or every match would read whatever a stored last.
         final Project project = Ds3Migration.importXml("""
@@ -147,7 +147,7 @@ class Ds3ImportTest {
     }
 
     @Test
-    void aVarInsideAGroupWithExpressionsReadsAtTheCurrentMatch() {
+    void varInsideAGroupWithExpressionsReadsAtTheCurrentMatch() {
         // The same rule on the group() conversion path.
         final Project project = Ds3Migration.importXml("""
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -167,7 +167,7 @@ class Ds3ImportTest {
     }
 
     @Test
-    void aNestedGroupKeepsItsValueAndIgnoreErrors() {
+    void nestedGroupKeepsItsValueAndIgnoreErrors() {
         // A group inside a group-with-expressions is still a group: its value selects what is
         // dispatched and its ignoreErrors gates that level.
         final Project project = Ds3Migration.importXml("""

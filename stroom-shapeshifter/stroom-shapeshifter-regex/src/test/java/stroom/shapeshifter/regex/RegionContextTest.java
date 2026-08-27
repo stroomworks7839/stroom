@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RegionContextTest {
 
     @Test
-    void aCharacterContinuingPastTheRegionForbidsAMatchThere() {
+    void characterContinuingPastTheRegionForbidsAMatchThere() {
         // "é" is two bytes; the region stops between them, so the region end is mid-character
         // and nothing — not even an empty match — may begin there.
         final byte[] data = "é".getBytes(StandardCharsets.UTF_8);
