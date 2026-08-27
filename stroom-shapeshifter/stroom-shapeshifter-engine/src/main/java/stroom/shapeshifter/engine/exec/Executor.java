@@ -76,6 +76,15 @@ public final class Executor {
     private final VarRegistry vars = new VarRegistry();
 
     /**
+     * The built key indexes, in their own namespace (design/16 §8) — a key and a sequence may
+     * share a name because nothing at a use site can confuse the two. Per run, like the
+     * registry: an index outliving its stream would answer this one with the last one's
+     * records.
+     */
+    private final java.util.Map<String, java.util.Map<String, Filed>> keyIndexes =
+            new java.util.HashMap<>();
+
+    /**
      * The arithmetic sites that have already drawn a strict_values warning this run — once
      * per instruction site, because once per record on a million-record input is not a
      * diagnostic, it is a flood (design/17 §10).
@@ -1119,6 +1128,24 @@ public final class Executor {
                         }
                     }
                 }
+                case CompiledOp.Key value -> {
+                    // Built where it is written, so the cost is paid somewhere visible.
+                    keyIndexes.put(value.name(), index(value.select(), value.groupBy(),
+                            match, matchCount, contentEncoding));
+                }
+                case CompiledOp.KeyGet value -> {
+                    final TypedValue wanted = CompiledRefs.resolveValue(
+                            value.select(), match, matchCount, vars, contentEncoding);
+                    final java.util.Map<String, Filed> index =
+                            keyIndexes.getOrDefault(value.key(), java.util.Map.of());
+                    // A value with no entry binds an empty sequence, which a walk runs over
+                    // zero times — the same non-answer XSLT's key() gives, not an error.
+                    final Filed filed = index.get(wanted == null ? null : wanted.asString());
+                    final List<Integer> found = filed == null ? List.of() : filed.members();
+                    bindDense(value.name(), found.stream()
+                            .map(entry -> (TypedValue) new TypedValue.Int(entry))
+                            .toList());
+                }
                 case CompiledOp.ForEachGroup value ->
                         forEachGroup(value, match, matchCount, content, sink,
                                 inputBase, ignoreErrors, depth, contentEncoding);
@@ -1310,6 +1337,50 @@ public final class Executor {
     }
 
     /**
+     * File a sequence's entries by key, in order of first appearance — the one index both
+     * grouping and {@code key} are built on (design/16 §6, §8). Keys resolve with
+     * {@code __index} bound, so a key can name a parallel store: "these records, by their
+     * category" is said by indexing positions rather than values.
+     */
+    private java.util.Map<String, Filed> index(final String select,
+                                               final CompiledRef groupBy,
+                                               final MatchResult match,
+                                               final int matchCount,
+                                               final Encoding contentEncoding) {
+        final java.util.Map<String, Filed> members = new java.util.LinkedHashMap<>();
+        final List<Store> stores = vars.get(select);
+        if (stores == null || stores.isEmpty()) {
+            return members;
+        }
+        final Store store = stores.getFirst();
+        vars.push();
+        vars.shadow(EngineVars.INDEX);
+        for (int index = 0; index < store.size(); index++) {
+            final TypedValue entry = store.get(index);
+            if (entry == null) {
+                continue;
+            }
+            vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));
+            final TypedValue key = groupBy == null
+                    ? entry
+                    : CompiledRefs.resolveValue(groupBy, match, matchCount, vars, contentEncoding);
+            members.computeIfAbsent(key == null ? null : key.asString(),
+                    ignored -> new Filed(key, new ArrayList<>())).members().add(index);
+        }
+        vars.pop();
+        return members;
+    }
+
+    /**
+     * One entry of an index: the key as it was read, and the store positions filed under it.
+     * The key is kept as a value rather than as its identity string because a grouping binds
+     * it to {@code __group_key}, where an author expects what they grouped on.
+     */
+    private record Filed(TypedValue key, List<Integer> members) {
+
+    }
+
+    /**
      * Group a sequence's entries and run the body once per group (design/16 §6).
      *
      * <p>Groups form in order of first appearance — a {@link java.util.LinkedHashMap} built in
@@ -1337,34 +1408,10 @@ public final class Executor {
         }
         final Store store = stores.getFirst();
 
-        // Keys are resolved with __index bound, so a key can name a parallel store — which is
-        // how "group these records by their category" is said when the sequence carries
-        // positions rather than values.
-        // Insertion-ordered, because groups form in order of first appearance.
-        final java.util.Map<String, List<Integer>> members = new java.util.LinkedHashMap<>();
-        final java.util.Map<String, TypedValue> keys = new java.util.LinkedHashMap<>();
-        vars.push();
-        vars.shadow(EngineVars.INDEX);
-        for (int index = 0; index < store.size(); index++) {
-            final TypedValue entry = store.get(index);
-            if (entry == null) {
-                continue;
-            }
-            vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));
-            final TypedValue key = op.groupBy() == null
-                    ? entry
-                    : CompiledRefs.resolveValue(op.groupBy(), match, matchCount, vars, contentEncoding);
-            // Null rather than "" for an absent key. Not because the two could otherwise
-            // collide — the phase 4 audit went looking for that and found it unreachable,
-            // since "empty is absent" (Refs) means a key of "" resolves to absence and a
-            // group keyed on the empty string cannot be constructed. It is null because that
-            // is what it means, and a coercion that is only safe by a rule made somewhere
-            // else is a coercion waiting for that rule to move.
-            final String identity = key == null ? null : key.asString();
-            members.computeIfAbsent(identity, ignored -> new ArrayList<>()).add(index);
-            keys.putIfAbsent(identity, key);
-        }
-        vars.pop();
+        // The same index a key builds (design/16 §8): grouping walks every entry of it,
+        // a key reaches one entry by value. One builder, two readings.
+        final java.util.Map<String, Filed> members =
+                index(op.select(), op.groupBy(), match, matchCount, contentEncoding);
         if (members.isEmpty()) {
             return;
         }
@@ -1373,12 +1420,12 @@ public final class Executor {
         vars.shadow(EngineVars.GROUP);
         vars.shadow(EngineVars.GROUP_KEY);
         vars.shadow(EngineVars.GROUP_SIZE);
-        for (final var group : members.entrySet()) {
-            final List<Integer> indices = group.getValue();
+        for (final Filed group : members.values()) {
+            final List<Integer> indices = group.members();
             bindDense(EngineVars.GROUP, indices.stream()
                     .map(index -> (TypedValue) new TypedValue.Int(index))
                     .toList());
-            final TypedValue key = keys.get(group.getKey());
+            final TypedValue key = group.key();
             if (key == null) {
                 vars.store(EngineVars.GROUP_KEY).clear();
             } else {

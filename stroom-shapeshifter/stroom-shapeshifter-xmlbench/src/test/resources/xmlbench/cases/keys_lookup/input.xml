@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data>
+  <order id="1" cat="food"/>
+  <order id="2" cat="tools"/>
+  <order id="3" cat="food"/>
+  <order id="4" cat="books"/>
+  <want c="food"/>
+  <want c="none"/>
+  <want c="tools"/>
+</data>

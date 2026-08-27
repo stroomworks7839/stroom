@@ -200,6 +200,10 @@ public final class Compiler {
         private final List<NamedUse> sequenceUses = new ArrayList<>();
         private final List<NamedUse> appendTargets = new ArrayList<>();
 
+        /** Keys are their own namespace, so they get their own declared set and use list. */
+        private final Set<String> declaredKeys = new HashSet<>();
+        private final List<NamedUse> keyUses = new ArrayList<>();
+
         /** How many {@code for-each} bodies enclose the node being visited. */
         private int iterationDepth;
 
@@ -349,6 +353,19 @@ public final class Compiler {
                 case OutputNode.Min value -> fold(value.select(), value.name());
                 case OutputNode.Max value -> fold(value.select(), value.name());
                 case OutputNode.DistinctValues value -> fold(value.select(), value.name());
+                case OutputNode.Key value -> {
+                    declaredKeys.add(value.name());
+                    sequenceUses.add(new NamedUse(templateName, value.select()));
+                    // Like a grouping's key, resolved with __index bound.
+                    iterationDepth++;
+                    read(value.groupBy());
+                    iterationDepth--;
+                }
+                case OutputNode.KeyGet value -> {
+                    keyUses.add(new NamedUse(templateName, value.key()));
+                    read(value.select());
+                    writable.add(value.name());
+                }
                 case OutputNode.ForEachGroup value -> {
                     sequenceUses.add(new NamedUse(templateName, value.select()));
                     // A group's key is resolved with __index bound, like a sort key, so it
@@ -561,6 +578,15 @@ public final class Compiler {
                     throw new ConfigException("Sequence '" + declared + "' has the same name"
                             + " as a capture. A template's first match clears its captures,"
                             + " which would empty the sequence underneath it mid-run.");
+                }
+            }
+            // The same refusal an append gets, for the same reason: a lookup in a key that
+            // nothing builds answers nothing, for ever, and looks like a configuration that
+            // works.
+            for (final NamedUse use : keyUses) {
+                if (!declaredKeys.contains(use.name())) {
+                    throw new ConfigException("Template '" + use.templateName()
+                            + "' looks up in key '" + use.name() + "', which no key builds.");
                 }
             }
             for (final NamedUse use : sequenceUses) {

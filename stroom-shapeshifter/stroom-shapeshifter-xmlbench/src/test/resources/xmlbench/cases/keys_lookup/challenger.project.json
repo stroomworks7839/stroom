@@ -1,0 +1,318 @@
+{
+ "name": "keys_lookup_challenger",
+ "version": 5,
+ "source": {
+  "buffer_size": 4000000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><r>"
+    },
+    {
+     "sequence": {
+      "name": "orders"
+     }
+    },
+    {
+     "sequence": {
+      "name": "wants"
+     }
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "doc"
+     }
+    },
+    {
+     "key": {
+      "name": "by_cat",
+      "select": "orders",
+      "group_by": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "cat",
+          "group": 0,
+          "match_index": {
+           "var_ref": "__index"
+          }
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "for-each": {
+      "select": "wants",
+      "as": "w",
+      "body": [
+       {
+        "key-get": {
+         "key": "by_cat",
+         "select": {
+          "parts": [
+           {
+            "capture": {
+             "var_id": "c",
+             "group": 0,
+             "match_index": {
+              "var_ref": "w"
+             }
+            }
+           }
+          ]
+         },
+         "name": "hits"
+        }
+       },
+       {
+        "count": {
+         "select": "hits",
+         "name": "n"
+        }
+       },
+       {
+        "choose": {
+         "when": [
+          {
+           "test": {
+            "eq": {
+             "left": {
+              "ref": {
+               "parts": [
+                {
+                 "capture": {
+                  "var_id": "n",
+                  "group": 0
+                 }
+                }
+               ]
+              },
+              "as": "number"
+             },
+             "right": {
+              "value": 0
+             }
+            }
+           },
+           "body": [
+            {
+             "text": "<g c=\""
+            },
+            {
+             "value-of": {
+              "parts": [
+               {
+                "capture": {
+                 "var_id": "c",
+                 "group": 0,
+                 "match_index": {
+                  "var_ref": "w"
+                 }
+                }
+               }
+              ]
+             }
+            },
+            {
+             "text": "\"/>"
+            }
+           ]
+          }
+         ],
+         "otherwise": [
+          {
+           "text": "<g c=\""
+          },
+          {
+           "value-of": {
+            "parts": [
+             {
+              "capture": {
+               "var_id": "c",
+               "group": 0,
+               "match_index": {
+                "var_ref": "w"
+               }
+              }
+             }
+            ]
+           }
+          },
+          {
+           "text": "\">"
+          },
+          {
+           "for-each": {
+            "select": "hits",
+            "as": "h",
+            "body": [
+             {
+              "text": "<o>"
+             },
+             {
+              "value-of": {
+               "parts": [
+                {
+                 "capture": {
+                  "var_id": "id",
+                  "group": 0,
+                  "match_index": {
+                   "var_ref": "h"
+                  }
+                 }
+                }
+               ]
+              }
+             },
+             {
+              "text": "</o>"
+             }
+            ]
+           }
+          },
+          {
+           "text": "</g>"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "text": "</r>"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "decl",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<\\?xml[^\\n]*\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "open",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<data>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "order",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  <order id=\"([^\"]*)\" cat=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "id",
+     "select": {
+      "group": 1
+     }
+    },
+    {
+     "name": "cat",
+     "select": {
+      "group": 2
+     }
+    }
+   ],
+   "body": [
+    {
+     "append": {
+      "name": "orders",
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "__match_count",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000005",
+   "name": "want",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  <want c=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "c",
+     "select": {
+      "group": 1
+     }
+    }
+   ],
+   "body": [
+    {
+     "append": {
+      "name": "wants",
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "__match_count",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000006",
+   "name": "close",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "</data>\\n"
+    }
+   },
+   "body": []
+  }
+ ]
+}

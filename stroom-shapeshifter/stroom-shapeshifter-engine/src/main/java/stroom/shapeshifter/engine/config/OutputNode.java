@@ -486,6 +486,57 @@ public sealed interface OutputNode {
     }
 
     /**
+     * Build a random-access index over a sequence — XSLT's {@code xsl:key} (design/16 §8).
+     *
+     * <p>The index is the same {@code Map<String, int[]>} a grouping builds; what a key adds
+     * is reaching **one** entry of it by value, without walking the groups. It is an
+     * instruction rather than a project-level declaration, so it runs where its inputs are
+     * ready — typically the epilogue, once the level that fills the sequence has finished —
+     * and its cost is paid somewhere an author can see.
+     *
+     * <p>Key names are their own namespace: a key and a sequence may share a name without
+     * colliding, because nothing can confuse the two at a use site.
+     *
+     * @param groupBy the key each entry is filed under, evaluated with {@code __index}
+     *                bound, or null to file each entry under its own value
+     */
+    record Key(String name, String select, RefExpression groupBy) implements OutputNode {
+
+        public Key {
+            if (name == null || name.isEmpty()) {
+                throw new ConfigException("A key needs a name");
+            }
+            if (select == null || select.isEmpty()) {
+                throw new ConfigException("A key needs the name of a sequence to index");
+            }
+        }
+    }
+
+    /**
+     * Look one value up in a key — XSLT's {@code key()} — binding the matching entries as a
+     * dense sequence of store indices, the same shape as {@code __group}.
+     *
+     * <p>A value with no entry binds an <b>empty</b> sequence, which a walk runs over zero
+     * times and {@code count} reports as 0: the same non-answer XSLT's {@code key()} gives,
+     * and not an error.
+     */
+    record KeyGet(String key, RefExpression select, String name) implements OutputNode {
+
+        public KeyGet {
+            if (key == null || key.isEmpty()) {
+                throw new ConfigException("A key-get needs the name of a key");
+            }
+            if (select == null) {
+                throw new ConfigException("A key-get needs a value to look up");
+            }
+            if (name == null || name.isEmpty()) {
+                throw new ConfigException("A key-get needs a name to bind: it produces a"
+                                          + " sequence, which has nothing to write to output");
+            }
+        }
+    }
+
+    /**
      * One key of an iteration's ordering (design/16 §5). {@code by} is evaluated once per
      * entry with {@code __index} bound, so a key can read the item, a parallel store at the
      * same match, or a concatenation.

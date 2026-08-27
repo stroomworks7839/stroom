@@ -180,6 +180,64 @@ class SequenceIterationTest {
     }
 
     // -----------------------------------------------------------------------------------
+    // Keys (design/16 §8)
+    // -----------------------------------------------------------------------------------
+
+    /** Builds a key over the items and looks one value up in it. */
+    private static String lookup(final String wanted) {
+        final String epilogue = """
+                {"key": {"name": "by_value", "select": "items"}},
+                {"key-get": {"key": "by_value",
+                  "select": {"parts": [{"text": "%s"}]}, "name": "hits"}},
+                {"count": {"select": "hits"}},
+                {"text": ":"},
+                {"for-each": {"select": "hits", "as": "h", "body": [
+                  {"value-of": {"parts": [{"capture": {"var_id": "field", "group": 0,
+                     "match_index": {"var_ref": "h"}}}]}},
+                  {"text": ","}]}}
+                """.formatted(wanted);
+        return run(config(epilogue, APPEND_FIELD), "a\nb\na\nc\n");
+    }
+
+    @Test
+    void keyReachesItsEntriesByValue() {
+        assertThat(lookup("a")).isEqualTo("2:a,a,");
+        assertThat(lookup("c")).isEqualTo("1:c,");
+    }
+
+    @Test
+    void lookupThatMissesIsAnEmptySequenceNotAnError() {
+        // The same non-answer XSLT's key() gives: a walk runs zero times and count says 0,
+        // which is what lets an author self-close the empty case rather than discover it
+        // after the opening tag has gone out.
+        assertThat(lookup("zzz")).isEqualTo("0:");
+    }
+
+    @Test
+    void keyAndASequenceMayShareAName() {
+        // Keys are their own namespace; nothing at a use site can confuse the two.
+        final String epilogue = """
+                {"key": {"name": "items", "select": "items"}},
+                {"key-get": {"key": "items",
+                  "select": {"parts": [{"text": "b"}]}, "name": "hits"}},
+                {"count": {"select": "hits"}}
+                """;
+        assertThat(run(config(epilogue, APPEND_FIELD), "a\nb\n")).isEqualTo("1");
+    }
+
+    @Test
+    void lookingUpInAKeyNothingBuildsIsRefused() {
+        final String epilogue = """
+                {"key-get": {"key": "nosuch",
+                  "select": {"parts": [{"text": "a"}]}, "name": "hits"}}
+                """;
+        assertThatThrownBy(() -> Shapeshifter.compile(
+                ProjectReader.read(config(epilogue, APPEND_FIELD))))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("nosuch");
+    }
+
+    // -----------------------------------------------------------------------------------
     // Grouping (design/16 §6)
     // -----------------------------------------------------------------------------------
 

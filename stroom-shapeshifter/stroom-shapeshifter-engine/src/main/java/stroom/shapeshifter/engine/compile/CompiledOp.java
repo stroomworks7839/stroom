@@ -196,6 +196,16 @@ public sealed interface CompiledOp {
 
     }
 
+    /** Build a random-access index over a sequence (design/16 §8). */
+    record Key(String name, String select, CompiledRef groupBy) implements CompiledOp {
+
+    }
+
+    /** Look one value up in a key, binding the entries it names. */
+    record KeyGet(String key, CompiledRef select, String name) implements CompiledOp {
+
+    }
+
     /** One compiled ordering key: the reference resolved once, the cast decided once. */
     record SortKey(CompiledRef by, OutputNode.Order order, Cast as) {
 
@@ -375,6 +385,10 @@ public sealed interface CompiledOp {
                         new DistinctValues(value.select(), value.name());
                 case OutputNode.Sequence value -> new Sequence(value.name());
                 case OutputNode.Append value -> new Append(value.name(), CompiledRef.of(value.select()));
+                case OutputNode.Key value -> new Key(value.name(), value.select(),
+                        value.groupBy() == null ? null : CompiledRef.of(value.groupBy()));
+                case OutputNode.KeyGet value -> new KeyGet(value.key(),
+                        CompiledRef.of(value.select()), value.name());
                 case OutputNode.ForEachGroup value -> new ForEachGroup(value.select(),
                         value.groupBy() == null ? null : CompiledRef.of(value.groupBy()),
                         compile(value.body(), patterns, project));

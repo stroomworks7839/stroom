@@ -1241,6 +1241,22 @@ public final class ProjectJson {
                         text(body, "name", "append"),
                         readRef(required(body, "select", "append")));
             }
+            case "key" -> {
+                checkFields(body, "key", "name", "select", "group_by");
+                yield new OutputNode.Key(
+                        text(body, "name", "key"),
+                        text(body, "select", "key"),
+                        body.has("group_by") && !body.get("group_by").isNull()
+                                ? readRef(body.get("group_by"))
+                                : null);
+            }
+            case "key-get" -> {
+                checkFields(body, "key-get", "key", "select", "name");
+                yield new OutputNode.KeyGet(
+                        text(body, "key", "key-get"),
+                        readRef(required(body, "select", "key-get")),
+                        text(body, "name", "key-get"));
+            }
             case "for-each-group" -> {
                 checkFields(body, "for-each-group", "select", "group_by", "body");
                 yield new OutputNode.ForEachGroup(
@@ -1450,6 +1466,22 @@ public final class ProjectJson {
                 body.put("name", value.name());
                 body.set("select", writeRef(value.select()));
                 yield wrap("append", body);
+            }
+            case OutputNode.Key value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("name", value.name());
+                body.put("select", value.select());
+                if (value.groupBy() != null) {
+                    body.set("group_by", writeRef(value.groupBy()));
+                }
+                yield wrap("key", body);
+            }
+            case OutputNode.KeyGet value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("key", value.key());
+                body.set("select", writeRef(value.select()));
+                body.put("name", value.name());
+                yield wrap("key-get", body);
             }
             case OutputNode.ForEachGroup value -> {
                 final ObjectNode body = NODES.objectNode();

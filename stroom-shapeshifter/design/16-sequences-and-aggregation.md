@@ -697,6 +697,21 @@ not recovered, E27's entry says where to reopen from.
    no category" is a thing worth summarising.*
 5. **Keys.** `key`/`key-get` on the grouping index machinery (§8, ruled built rather than
    deferred). Case: `keys_lookup`, authored — no production stylesheet supplies one.
+
+   ***Landed 2026-08-27*** (`following`). Grouping and keys now share **one** index builder
+   rather than two copies of the same loop — the duplication was one commit old, and E27's
+   lesson is a week old. Grouping walks every entry of the index; a key reaches one entry by
+   value. One builder, two readings, with the key value carried alongside its members because
+   a grouping binds it to `__group_key`.
+
+   *The case earned something the design had only asserted. Its first run differed from Saxon
+   in exactly one place: an empty lookup rendered `<g c="none"></g>` where Saxon self-closes
+   `<g c="none"/>` — the **self-closing limit** design/14 recorded against `adjacent_groups`,
+   where the challenger had "emitted the open tag before knowing the group is empty". Here it
+   is **solvable**, because `key-get` binds the hits before any tag is written: count them,
+   then choose which tag to open. The limit was never about self-closing; it was about not
+   knowing the size in advance, and phase 2's `count` and phase 4's `__group_size` are what
+   supply that. The case now demonstrates the idiom rather than the limit.*
 6. **The contract.** `max_sequence_entries`, the fatal on overflow, the chunked-root refusal.
 7. **Close.** The A/B against the phase-0 measurement, then
    [14-xslt-coverage-matrix.md](14-xslt-coverage-matrix.md): every row of §2 and the

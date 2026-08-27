@@ -63,7 +63,8 @@ class CaseCatalogueTest {
             "sequence_basics",
             "aggregate",
             "sort",
-            "keys_grouping");
+            "keys_grouping",
+            "keys_lookup");
 
     /**
      * The walls: cases whose stylesheet runs but for which no challenger exists — executable
