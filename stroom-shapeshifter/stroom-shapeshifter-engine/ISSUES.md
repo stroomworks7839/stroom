@@ -360,8 +360,15 @@ sequence and cannot until E23 lands, and run-time parameters are deferred to D10
 draft's premise was checked against the pipeline and found wrong — `XsltFilter` injects none,
 and Stroom's context arrives through extension functions.
 
-### E26 — Arithmetic on fractional text pays a thrown exception per operand
-**`resolved` 2026-08-27 (`229c9dbd63`) — fixed and measured; the three losses became wins.**
+### E26 — The numeric casts answer "not a number" by throwing
+**`resolved` 2026-08-27 — fixed and measured in `229c9dbd63`, completed in `594079468f`
+after the audit found three sibling sites still paying it; the three losses became wins.**
+
+*Filed as "arithmetic on fractional text pays a thrown exception per operand" — the symptom
+the closing A/B surfaced. Retitled once the audit established the mechanism: it is the
+numeric casts, which conditions and the function library reach as readily as arithmetic
+does. The entry's own lesson, applied to the entry.*
+
 `asInteger` now parses without throwing (Java's own algorithm, accumulating negatively so
 `MIN_VALUE` stays representable) and `asNumber` gates its parser on the first character,
 since every string `Double.valueOf` accepts begins with a digit, sign, point, `N` or `I` —
