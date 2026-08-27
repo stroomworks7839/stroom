@@ -798,3 +798,13 @@ capture that did not match already does (`Store.remove`), which is E19's pinned,
 half. That is deliberately not changed here: it is one rule for both, rather than a special
 case for one. A configuration that does not want it uses the idiom E19's `modes` addendum
 names — decide at dispatch time rather than testing an optional value after the fact.
+
+**Swept the same day.** One bug caught by accident says nothing about its neighbours, so the
+whole design/17 library was put through the case that caught this one:
+`AbsentAndMalformedValuesTest` runs all 28 value-producing instructions over a present value, an
+absent one and a malformed one, written and bound, with the absent record between two that have
+values. Nothing else was wrong — every instruction writes nothing and binds nothing for an
+absent input, answers a malformed one with absence rather than an exception, and raises no
+message at all. The edges are pinned in the same file (division by zero, `MIN_VALUE / -1` and
+overflow, code-point counting and cutting, XPath's substring bounds, `round` half towards
+positive infinity). Mutation-checked: reverting the fix in `Executor.emit` fails 24 of the 28.

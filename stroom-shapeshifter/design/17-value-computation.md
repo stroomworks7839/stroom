@@ -459,6 +459,22 @@ Two mechanisms, both cheap, neither on the hot path:
 
 (Decision 6.)
 
+**Swept 2026-08-27, after E28.** The rule above says what absence *should* do; nothing checked
+that every instruction did it, and one did not. The whole library is now swept in one test
+(`AbsentAndMalformedValuesTest`): each value-producing instruction over a present value, an
+absent one and a malformed one, both written and bound and read back, with the absent record
+sitting *between* two that have values so a stale read has something to be stale with. Two
+rules, which are one rule from either side — an instruction with nothing to say **writes
+nothing**, and **binds absence**, so a name never answers with the last value it held.
+
+The sweep found nothing beyond E28 itself, which is the result worth having: 28 instructions
+answer absence and malformation identically and none of them raises. The edges are pinned in
+the same file, and each is a decision rather than an accident — division by zero has no answer
+and produces none; arithmetic that will not fit a long promotes to a double rather than
+wrapping (§11); strings are counted and cut in **code points**, so a character outside the
+basic plane is one character; and the substring bounds follow XPath, where a start before the
+string and a length past its end are both ordinary rather than errors.
+
 ## 11. Overflow and precision
 
 - `Int` is a `long`. `add`, `subtract` and `multiply` over `Int`s use `Math.addExact` and
