@@ -766,6 +766,29 @@ not recovered, E27's entry says where to reopen from.
    closes** — the last one, since 17 closed the second and D10/E15 own the third. E23
    resolved in ISSUES with pointers here.
 
+   ***Fixture landed 2026-08-27*** (`log_sessions`). Everything this design added was covered
+   twice — by unit tests, and by nine catalogue cases proved byte-for-byte against Saxon — and
+   both cover it in *XML* shape, because the catalogue exists to A/B against XSLT. Nothing
+   covered the shape the engine is actually for: delimited log lines, under the fixture
+   ledger's ratchet, with a checked-in golden. `projects/log_sessions` is that: seven log
+   lines, and a summary that folds them (`count`/`sum`/`max`/`distinct-values`), groups them
+   by host, sorts each group by size descending, tokenizes a per-record tags field and walks
+   its pieces, computes per request (`parse-date`/`format-date`, `substring-after`, `divide`,
+   `round`, a `gt` test) and looks up the failures through a `key`.
+
+   *It earned its place immediately: it found [E28](../stroom-shapeshifter-engine/ISSUES.md),
+   a stale read that every existing test missed. A log line with an empty tags field was given
+   the **previous** line's tags. `tokenize` skipped its binding when its input was absent
+   rather than binding the empty sequence, so the walk ran over what was still there. The
+   general rule it exposed — **naming a variable binds it, absence included** — held in the
+   sequence arms (`distinct-values`, `key-get`) and was missing from the scalar ones, and
+   design/16's iteration is what made it reachable: inside a walk the enclosing match index
+   does not move, so every entry binds the same cell and a skipped bind is the last entry's
+   answer. E19 predicted this residual and named its own entry as the precedent.*
+
+   *Why an XML-shaped catalogue could not have found it: its inputs are well-formed documents
+   where every element carries every attribute, so no field is ever absent.*
+
 ### 14.4 Mechanics worth knowing before the first case
 
 - A case is registered in **two** places — `CaseCorpus.UNITS` and

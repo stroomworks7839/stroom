@@ -1135,23 +1135,22 @@ public final class Executor {
                         store.set(at, appended);
                     }
                 }
-                case CompiledOp.Fold value -> {
-                    final TypedValue folded = fold(value);
-                    if (folded != null) {
-                        emit(folded, value.name(), matchCount, sink);
-                    }
-                }
+                case CompiledOp.Fold value -> emit(fold(value), value.name(), matchCount, sink);
                 case CompiledOp.DistinctValues value -> distinct(value);
                 case CompiledOp.Tokenize value -> {
                     final TypedValue input = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars, contentEncoding);
-                    if (input != null) {
-                        if (value.name() == null) {
+                    if (value.name() == null) {
+                        if (input != null) {
                             // Written straight out, it keeps the joined rendering it always had.
                             sink.write(Transforms.tokenize(List.of(input), value.delimiter()).asBytes());
-                        } else {
-                            bindDense(value.name(), Transforms.split(input, value.delimiter()));
                         }
+                    } else {
+                        // Nothing to split is the empty sequence, which a walk runs over zero
+                        // times. Leaving the name alone would walk the last record's pieces.
+                        bindDense(value.name(), input == null
+                                ? List.of()
+                                : Transforms.split(input, value.delimiter()));
                     }
                 }
                 case CompiledOp.Key value -> {
@@ -1185,6 +1184,7 @@ public final class Executor {
                 case CompiledOp.ParseDate value -> {
                     final TypedValue input = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars, contentEncoding);
+                    TypedValue result = null;
                     if (input != null) {
                         // The reference is a date read like any other (design/17 §9.2): a
                         // captured field today, D10's context seam tomorrow. Absent when the
@@ -1194,12 +1194,10 @@ public final class Executor {
                                 : Comparisons.cast(CompiledRefs.resolveValue(
                                         value.reference(), match, matchCount, vars, contentEncoding),
                                         stroom.shapeshifter.engine.config.Cast.DATE);
-                        final TypedValue result = Dates.parse(value.parser(), input.asString(),
+                        result = Dates.parse(value.parser(), input.asString(),
                                 (TypedValue.Instant) reference);
-                        if (result != null) {
-                            emit(result, value.name(), matchCount, sink);
-                        }
                     }
+                    emit(result, value.name(), matchCount, sink);
                 }
                 case CompiledOp.EmitError value -> {
                     final String text = CompiledRefs.resolveText(
@@ -1265,10 +1263,7 @@ public final class Executor {
                 }
             }
         }
-        final TypedValue result = function.apply(inputs);
-        if (result != null) {
-            emit(result, name, matchCount, sink);
-        }
+        emit(function.apply(inputs), name, matchCount, sink);
     }
 
     /** A short, printable slice of an offending value for the strict_values message. */
@@ -1277,10 +1272,24 @@ public final class Executor {
         return text.length() > 40 ? text.substring(0, 40) + "…" : text;
     }
 
-    /** Write a produced value, or bind it to a variable if the instruction named one. */
+    /**
+     * Write a produced value, or bind it to a variable if the instruction named one.
+     *
+     * <p>Naming a variable binds it, always. An instruction with nothing to say writes nothing
+     * — the "empty is absent" rule — but it must still <i>bind</i> absence, because a name left
+     * untouched is a name still holding the previous record's answer, and a reference with no
+     * index takes the latest there is. E19 named this as the residual for transform results and
+     * said its own entry was the precedent if anything ever read one across records;
+     * design/16's iteration made exactly that ordinary. The clear is at the match index, which
+     * is how a capture that did not match already says the same thing.
+     */
     private void emit(final TypedValue value, final String name, final int matchCount, final OutputSink sink) {
         if (name == null) {
-            sink.write(value.asBytes());
+            if (value != null) {
+                sink.write(value.asBytes());
+            }
+        } else if (value == null) {
+            vars.store(name).remove(matchCount);
         } else {
             // The typed value binds as itself — no re-encode, and the type survives to any
             // later typed read (design/17 §3.2).

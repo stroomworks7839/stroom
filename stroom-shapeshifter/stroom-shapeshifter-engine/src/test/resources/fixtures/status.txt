@@ -69,6 +69,7 @@ projects/win_sec_strict                       PASS      D36/E20: the lax config 
 projects/strict_kv                            PASS      D36/E20: the strict idiom — anchored pairs, an eater that says what it swallowed
 projects/classify_alerts                      PASS      D36/E20: classify — every matching template runs once, nothing consumes
 projects/lexer_tokens                         PASS      D36/E20: lexer — maximal munch, => beats the first-listed =
+projects/log_sessions                         PASS      design/16 and /17 in log shape: iteration, grouping, keys, folds and value computation over delimited log lines rather than XML
 projects/win_sec_xml                          PASS      config anchored under E16/E17; golden regenerated and verified
 projects/xml_to_json                          PASS      config fixed under E8: braces around nested objects
 projects/xml_to_json_attrs                    PASS

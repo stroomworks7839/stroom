@@ -1,0 +1,7 @@
+2026-08-27T09:14:02Z|web01|alice|1200|/a/index.html|200|auth,mfa
+2026-08-27T09:14:05Z|web02|bob|340|/a/login|401|auth
+2026-08-27T09:15:11Z|web01|alice|58000|/a/report.pdf|200|auth,download
+2026-08-27T09:15:40Z|web03|carol|900|/a/index.html|200|probe
+2026-08-27T09:16:02Z|web02|bob|150|/a/login|401|auth
+2026-08-27T09:16:30Z|web01|dave|72000|/a/bulk.csv|200|download,bulk
+2026-08-27T09:17:00Z|web03|erin|0|/a/ping|200|

@@ -23,6 +23,15 @@ so when a phase of the port makes one work the build breaks until the line is pr
   need Avro, Parquet or Protobuf and are skipped while those are deferred; ds-rs's own
   default-features run skips the same three.
 
+  Five more sit beside them that are **ours, not ds-rs's**, each written to hold a feature the
+  vendored corpus cannot reach: `win_sec_strict`, `strict_kv`, `classify_alerts` and
+  `lexer_tokens` for D36/E20's dispatch modes, and `log_sessions` for design/16 and /17 —
+  iteration, grouping, keys, folds and value computation over delimited log lines. That last
+  shape matters on its own: the catalogue in `stroom-shapeshifter-xmlbench` proves the same
+  features against Saxon, but only over well-formed XML where no field is ever absent, and
+  the first thing `log_sessions` did was find [E28](../../../../ISSUES.md) with an empty
+  field.
+
 ## Two things that are ours, not ds-rs's
 
 **`*.messages`** — the message goldens. The Rust runners compare output only, leaving the

@@ -666,6 +666,11 @@ counterpart to be faithful to, and every corpus use reads them at the current ma
 no leak is possible. If one ever reads `latest()` across records, this entry is the precedent
 for what to do.
 
+**That happened. See [E28](#e28--an-instruction-that-named-a-variable-did-not-always-bind-it).**
+Design/16's iteration removed the "reads at the current match index" premise this residual
+rested on, and design/17 multiplied the instructions that name a result. E28 is that precedent
+being applied.
+
 **Addendum 2026-08-21, from the coverage catalogue's `modes` case:** the pinned no-match case
 is now demonstrated at authoring level. A first draft captured each `EventDetail` branch into
 its own optional variable and `exists`-tested them at a trailing emit template; a record whose
@@ -761,3 +766,35 @@ compile-time refusal of unavailable encodings. Also worth settling against ds-rs
 itself diverge from ported parity on extension characters. The approximation is now documented
 on `Encoding.charset()`; the open question is whether to pin one name per encoding and fail
 loud, and which Shift JIS mapping parity actually requires.
+
+### E28 — An instruction that named a variable did not always bind it
+**`resolved` 2026-08-27, found by the `log_sessions` fixture on the day it was written.**
+
+A log line whose `tags` field was empty was given the **previous** line's tags. `tokenize` with
+a `name` skipped its binding when its input resolved absent, so the name still held the last
+record's pieces and the `for-each` over it walked them. Every existing test missed it: the unit
+tests bind from values that are always present, and the nine catalogue cases feed well-formed
+XML where every element carries every attribute, so no field is ever absent in them.
+
+The rule it exposed is one line — **naming a variable binds it, absence included** — and the
+engine already kept it in the sequence arms and not in the scalar ones. `distinct-values` and
+`key-get` bind unconditionally; `tokenize`, `parse-date`, the folds and every `Transform` (the
+whole design/17 function library) guarded the *bind* with the same `!= null` that correctly
+guards the *write*. Writing nothing is right — that is the "empty is absent" rule. Leaving the
+name alone is not: a reference with no index reads `latest()`, so an untouched name answers
+with whatever answered last.
+
+Fixed in one place, `Executor.emit`, which now clears the name at the match index when the
+value is absent instead of returning; the four arms call it unconditionally. `tokenize` binds
+the empty sequence, which a walk runs over zero times. Two regression tests, both
+mutation-checked; no golden moved, which is the confirmation that nothing depended on the
+stale read.
+
+Design/16's iteration is what made this reachable and what makes the fix sufficient where it
+matters: inside a walk the enclosing match index does not move, so every entry binds the same
+cell, and clearing that cell is a real clear. Across *records* the index advances and
+`latest()` still falls back to the previous match — a named result now behaves exactly as a
+capture that did not match already does (`Store.remove`), which is E19's pinned, DS3-faithful
+half. That is deliberately not changed here: it is one rule for both, rather than a special
+case for one. A configuration that does not want it uses the idiom E19's `modes` addendum
+names — decide at dispatch time rather than testing an optional value after the fact.

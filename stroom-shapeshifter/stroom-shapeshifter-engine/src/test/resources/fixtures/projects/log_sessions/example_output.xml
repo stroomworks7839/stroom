@@ -1,0 +1,23 @@
+<summary>
+  <totals requests="7" bytes="132590" largest="72000" hosts="3"/>
+  <users><u>alice</u><u>bob</u><u>carol</u><u>dave</u><u>erin</u></users>
+  <hosts>
+    <host name="web01" requests="3">
+      <req at="09:16:30" user="dave" leaf="bulk.csv" kb="70" large="yes"><tag>download</tag><tag>bulk</tag></req>
+      <req at="09:15:11" user="alice" leaf="report.pdf" kb="57" large="yes"><tag>auth</tag><tag>download</tag></req>
+      <req at="09:14:02" user="alice" leaf="index.html" kb="1" large="no"><tag>auth</tag><tag>mfa</tag></req>
+    </host>
+    <host name="web02" requests="2">
+      <req at="09:14:05" user="bob" leaf="login" kb="0" large="no"><tag>auth</tag></req>
+      <req at="09:16:02" user="bob" leaf="login" kb="0" large="no"><tag>auth</tag></req>
+    </host>
+    <host name="web03" requests="2">
+      <req at="09:15:40" user="carol" leaf="index.html" kb="1" large="no"><tag>probe</tag></req>
+      <req at="09:17:00" user="erin" leaf="ping" kb="0" large="no"></req>
+    </host>
+  </hosts>
+  <failures status="401">
+    <f user="bob" path="/a/login"/>
+    <f user="bob" path="/a/login"/>
+  </failures>
+</summary>

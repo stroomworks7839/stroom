@@ -1,0 +1,656 @@
+{
+ "name": "log_sessions",
+ "version": 5,
+ "source": {
+  "buffer_size": 20000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "sequence": {
+      "name": "rows"
+     }
+    },
+    {
+     "sequence": {
+      "name": "sizes"
+     }
+    },
+    {
+     "sequence": {
+      "name": "people"
+     }
+    },
+    {
+     "sequence": {
+      "name": "hostnames"
+     }
+    },
+    {
+     "text": "<summary>"
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "log"
+     }
+    },
+    {
+     "text": "\n  <totals requests=\""
+    },
+    {
+     "count": {
+      "select": "rows"
+     }
+    },
+    {
+     "text": "\" bytes=\""
+    },
+    {
+     "sum": {
+      "select": "sizes"
+     }
+    },
+    {
+     "text": "\" largest=\""
+    },
+    {
+     "max": {
+      "select": "sizes",
+      "as": "number"
+     }
+    },
+    {
+     "text": "\" hosts=\""
+    },
+    {
+     "distinct-values": {
+      "select": "hostnames",
+      "name": "uniq_hosts"
+     }
+    },
+    {
+     "count": {
+      "select": "uniq_hosts"
+     }
+    },
+    {
+     "text": "\"/>\n  <users>"
+    },
+    {
+     "distinct-values": {
+      "select": "people",
+      "name": "uniq_users"
+     }
+    },
+    {
+     "for-each": {
+      "select": "uniq_users",
+      "as": "u",
+      "sort": [
+       {
+        "by": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "u",
+            "group": 0
+           }
+          }
+         ]
+        }
+       }
+      ],
+      "body": [
+       {
+        "text": "<u>"
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "u",
+            "group": 0
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "</u>"
+       }
+      ]
+     }
+    },
+    {
+     "text": "</users>\n  <hosts>"
+    },
+    {
+     "for-each-group": {
+      "select": "rows",
+      "group_by": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "host",
+          "group": 0,
+          "match_index": {
+           "var_ref": "__index"
+          }
+         }
+        }
+       ]
+      },
+      "body": [
+       {
+        "text": "\n    <host name=\""
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "__group_key",
+            "group": 0
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "\" requests=\""
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "__group_size",
+            "group": 0
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "\">"
+       },
+       {
+        "for-each": {
+         "select": "__group",
+         "as": "i",
+         "sort": [
+          {
+           "by": {
+            "parts": [
+             {
+              "capture": {
+               "var_id": "bytes",
+               "group": 0,
+               "match_index": {
+                "var_ref": "i"
+               }
+              }
+             }
+            ]
+           },
+           "as": "number",
+           "order": "descending"
+          }
+         ],
+         "body": [
+          {
+           "parse-date": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "var_id": "ts",
+                 "group": 0,
+                 "match_index": {
+                  "var_ref": "i"
+                 }
+                }
+               }
+              ]
+             }
+            ],
+            "pattern": "iso",
+            "name": "t"
+           }
+          },
+          {
+           "text": "\n      <req at=\""
+          },
+          {
+           "format-date": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "var_id": "t",
+                 "group": 0
+                }
+               }
+              ]
+             }
+            ],
+            "pattern": "HH:mm:ss",
+            "timezone": "UTC"
+           }
+          },
+          {
+           "text": "\" user=\""
+          },
+          {
+           "value-of": {
+            "parts": [
+             {
+              "capture": {
+               "var_id": "user",
+               "group": 0,
+               "match_index": {
+                "var_ref": "i"
+               }
+              }
+             }
+            ]
+           }
+          },
+          {
+           "text": "\" leaf=\""
+          },
+          {
+           "substring-after": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "var_id": "path",
+                 "group": 0,
+                 "match_index": {
+                  "var_ref": "i"
+                 }
+                }
+               }
+              ]
+             }
+            ],
+            "marker": "/a/"
+           }
+          },
+          {
+           "text": "\" kb=\""
+          },
+          {
+           "divide": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "var_id": "bytes",
+                 "group": 0,
+                 "match_index": {
+                  "var_ref": "i"
+                 }
+                }
+               }
+              ]
+             },
+             {
+              "parts": [
+               {
+                "text": "1024"
+               }
+              ]
+             }
+            ],
+            "name": "kb_raw"
+           }
+          },
+          {
+           "round": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "var_id": "kb_raw",
+                 "group": 0
+                }
+               }
+              ]
+             }
+            ]
+           }
+          },
+          {
+           "text": "\" large=\""
+          },
+          {
+           "choose": {
+            "when": [
+             {
+              "test": {
+               "gt": {
+                "left": {
+                 "ref": {
+                  "parts": [
+                   {
+                    "capture": {
+                     "var_id": "bytes",
+                     "group": 0,
+                     "match_index": {
+                      "var_ref": "i"
+                     }
+                    }
+                   }
+                  ]
+                 },
+                 "as": "number"
+                },
+                "right": {
+                 "value": 10000
+                }
+               }
+              },
+              "body": [
+               {
+                "text": "yes"
+               }
+              ]
+             }
+            ],
+            "otherwise": [
+             {
+              "text": "no"
+             }
+            ]
+           }
+          },
+          {
+           "text": "\">"
+          },
+          {
+           "tokenize": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "var_id": "tags",
+                 "group": 0,
+                 "match_index": {
+                  "var_ref": "i"
+                 }
+                }
+               }
+              ]
+             }
+            ],
+            "delimiter": ",",
+            "name": "tag_list"
+           }
+          },
+          {
+           "for-each": {
+            "select": "tag_list",
+            "as": "tg",
+            "body": [
+             {
+              "text": "<tag>"
+             },
+             {
+              "value-of": {
+               "parts": [
+                {
+                 "capture": {
+                  "var_id": "tg",
+                  "group": 0
+                 }
+                }
+               ]
+              }
+             },
+             {
+              "text": "</tag>"
+             }
+            ]
+           }
+          },
+          {
+           "text": "</req>"
+          }
+         ]
+        }
+       },
+       {
+        "text": "\n    </host>"
+       }
+      ]
+     }
+    },
+    {
+     "text": "\n  </hosts>\n  <failures status=\"401\">"
+    },
+    {
+     "key": {
+      "name": "by_status",
+      "select": "rows",
+      "group_by": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "status",
+          "group": 0,
+          "match_index": {
+           "var_ref": "__index"
+          }
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "key-get": {
+      "key": "by_status",
+      "select": {
+       "parts": [
+        {
+         "text": "401"
+        }
+       ]
+      },
+      "name": "denied"
+     }
+    },
+    {
+     "for-each": {
+      "select": "denied",
+      "as": "d",
+      "body": [
+       {
+        "text": "\n    <f user=\""
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "user",
+            "group": 0,
+            "match_index": {
+             "var_ref": "d"
+            }
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "\" path=\""
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "path",
+            "group": 0,
+            "match_index": {
+             "var_ref": "d"
+            }
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "\"/>"
+       }
+      ]
+     }
+    },
+    {
+     "text": "\n  </failures>\n</summary>\n"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "request",
+   "mode": "log",
+   "match": {
+    "regex": {
+     "pattern": "([^|]*)\\|([^|]*)\\|([^|]*)\\|([^|]*)\\|([^|]*)\\|([^|]*)\\|([^\\n]*)\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "ts",
+     "select": {
+      "group": 1
+     }
+    },
+    {
+     "name": "host",
+     "select": {
+      "group": 2
+     }
+    },
+    {
+     "name": "user",
+     "select": {
+      "group": 3
+     }
+    },
+    {
+     "name": "bytes",
+     "select": {
+      "group": 4
+     }
+    },
+    {
+     "name": "path",
+     "select": {
+      "group": 5
+     }
+    },
+    {
+     "name": "status",
+     "select": {
+      "group": 6
+     }
+    },
+    {
+     "name": "tags",
+     "select": {
+      "group": 7
+     }
+    }
+   ],
+   "body": [
+    {
+     "append": {
+      "name": "rows",
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "__match_count",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "append": {
+      "name": "sizes",
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "bytes",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "append": {
+      "name": "people",
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "user",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "append": {
+      "name": "hostnames",
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "host",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

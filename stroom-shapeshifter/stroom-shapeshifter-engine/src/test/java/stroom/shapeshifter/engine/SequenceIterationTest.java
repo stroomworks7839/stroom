@@ -789,4 +789,48 @@ class SequenceIterationTest {
                 .warnings())
                 .noneMatch(m -> m.text().contains("outside any for-each"));
     }
+
+    // -----------------------------------------------------------------------------------
+    // Naming a variable binds it, absence included
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * Found by the {@code log_sessions} fixture, not by reading the code: a log line whose
+     * tags field was empty was given the previous line's tags. Nothing to split is the empty
+     * sequence, and the name has to say so; leaving it alone leaves the last record's pieces
+     * standing where a walk will find them.
+     */
+    @Test
+    void tokenizingAnAbsentValueBindsTheEmptySequenceNotTheLastRecordsPieces() {
+        final String body = """
+                {"text": "<r>"},
+                {"tokenize": {"select": [{"parts": [{"capture": {"var_id": "field", "group": 0}}]}],
+                  "delimiter": ",", "name": "p"}},
+                {"for-each": {"select": "p", "as": "t", "body": [
+                   {"text": "<t>"},
+                   {"value-of": {"parts": [{"capture": {"var_id": "t", "group": 0}}]}},
+                   {"text": "</t>"}]}},
+                {"text": "</r>"}""";
+        assertThat(run(config("{\"text\": \"\"}", body), "a,b\n\nc\n"))
+                .isEqualTo("<r><t>a</t><t>b</t></r><r></r><r><t>c</t></r>");
+    }
+
+    /**
+     * The same rule for a scalar, in the place design/16 made ordinary. Inside an iteration
+     * the enclosing match index does not move, so every entry binds the same cell: an entry
+     * with no answer that skipped its bind would leave the previous entry's answer to be read.
+     */
+    @Test
+    void anAbsentComputedValueInsideAnIterationBindsAbsence() {
+        final String epilogue = """
+                {"for-each": {"select": "items", "as": "item", "body": [
+                  {"text": "<r>"},
+                  {"number": {"select": [{"parts": [{"capture": {"var_id": "item", "group": 0}}]}],
+                    "name": "n"}},
+                  {"value-of": {"parts": [{"capture": {"var_id": "n", "group": 0}}]}},
+                  {"text": "</r>"}]}}
+                """;
+        assertThat(run(config(epilogue, APPEND_FIELD), "12\nxx\n34\n"))
+                .isEqualTo("<r>12</r><r></r><r>34</r>");
+    }
 }
