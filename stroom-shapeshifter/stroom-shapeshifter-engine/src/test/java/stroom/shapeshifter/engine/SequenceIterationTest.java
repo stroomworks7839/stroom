@@ -250,6 +250,18 @@ class SequenceIterationTest {
     }
 
     @Test
+    void distinctValuesCanRebindItsOwnSource() {
+        // The entries are read out before the target is cleared, so a fold onto its own
+        // source is not self-destructive — worth pinning, since the target is cleared first.
+        final String epilogue = """
+                {"distinct-values": {"select": "items", "name": "items"}},
+                {"for-each": {"select": "items", "as": "s", "body": [
+                  {"value-of": {"parts": [{"capture": {"var_id": "s", "group": 0}}]}}]}}
+                """;
+        assertThat(run(config(epilogue, APPEND_FIELD), "b\na\nb\n")).isEqualTo("ba");
+    }
+
+    @Test
     void tokenizeBindsASequenceAndStillWritesJoined() {
         // Design/17 §16.4's ruling, which has been waiting on sequences existing.
         final String bindThenWalk = """
@@ -271,6 +283,23 @@ class SequenceIterationTest {
     // -----------------------------------------------------------------------------------
     // The checks that keep a lifetime visible (design/16 §9)
     // -----------------------------------------------------------------------------------
+
+    @Test
+    void anInstructionWithNothingToReadIsRefusedByName() {
+        // Found by the phase 2 audit: tokenize and parse-date take their select by getFirst(),
+        // so an empty one reached the author as a NoSuchElementException from inside the
+        // compiler. Arity is refused by name now, for every one-input instruction.
+        for (final String node : List.of(
+                "{\"tokenize\": {\"select\": [], \"delimiter\": \",\"}}",
+                "{\"parse-date\": {\"select\": [], \"pattern\": \"iso\"}}",
+                "{\"upper-case\": {\"select\": []}}")) {
+            assertThatThrownBy(() -> Shapeshifter.compile(
+                    ProjectReader.read(config("{\"text\": \"\"}", node))))
+                    .as("%s", node)
+                    .isInstanceOf(ConfigException.class)
+                    .hasMessageContaining("exactly one select");
+        }
+    }
 
     @Test
     void appendingToAnUndeclaredSequenceIsRefusedByName() {

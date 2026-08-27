@@ -431,14 +431,25 @@ public sealed interface CompiledOp {
     }
 
     /**
-     * Refuse extra selects on a one-input transform. Only {@code string-join} folds a list;
-     * every other transform reads its first input, so a second one is an authoring mistake
-     * that would otherwise run and silently drop data.
+     * Require exactly one select on a one-input transform. Only {@code string-join} folds a
+     * list; every other transform reads its first input, so a second one is an authoring
+     * mistake that would otherwise run and silently drop data.
+     *
+     * <p>And so is <b>none</b>, which this used to allow (phase 2 audit). An instruction with
+     * nothing to read produces nothing for ever — the same "reads absent for ever" hazard the
+     * unknown-reference refusal exists to catch — and two instructions had grown past
+     * tolerating it into failing on it: {@code tokenize} and {@code parse-date} take their one
+     * select by {@code getFirst()}, so an empty list reached the author as a
+     * {@code NoSuchElementException} from inside the compiler, which names nothing. Refusing
+     * arity here says which instruction and what is wrong, for all of them at once.
      */
     private static List<RefExpression> single(final String what, final List<RefExpression> select) {
-        if (select.size() > 1) {
-            throw new ConfigException("A " + what + " takes one select, but has " + select.size()
-                                      + ": only the first select would be read");
+        if (select.size() != 1) {
+            throw new ConfigException("A " + what + " takes exactly one select, but has "
+                                      + select.size()
+                                      + (select.isEmpty()
+                                              ? ": with nothing to read it would produce nothing"
+                                              : ": only the first select would be read"));
         }
         return select;
     }

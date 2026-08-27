@@ -859,12 +859,6 @@ public final class ProjectJson {
         };
     }
 
-    /** A fold's body: a sequence name, and optionally a name to bind the result to. */
-    private static JsonNode sequenceBody(final JsonNode body, final String owner) {
-        checkFields(body, owner, "select", "name");
-        return body;
-    }
-
     private static ObjectNode sequenceAndName(final String select, final String name) {
         final ObjectNode body = NODES.objectNode();
         body.put("select", select);
@@ -1182,12 +1176,18 @@ public final class ProjectJson {
                         text(body, "picture", "format-number"),
                         optionalText(body, "name"));
             }
-            case "count" -> new OutputNode.Count(
-                    text(sequenceBody(body, "count"), "select", "count"), optionalText(body, "name"));
-            case "sum" -> new OutputNode.Sum(
-                    text(sequenceBody(body, "sum"), "select", "sum"), optionalText(body, "name"));
-            case "avg" -> new OutputNode.Avg(
-                    text(sequenceBody(body, "avg"), "select", "avg"), optionalText(body, "name"));
+            case "count" -> {
+                checkFields(body, "count", "select", "name");
+                yield new OutputNode.Count(text(body, "select", "count"), optionalText(body, "name"));
+            }
+            case "sum" -> {
+                checkFields(body, "sum", "select", "name");
+                yield new OutputNode.Sum(text(body, "select", "sum"), optionalText(body, "name"));
+            }
+            case "avg" -> {
+                checkFields(body, "avg", "select", "name");
+                yield new OutputNode.Avg(text(body, "select", "avg"), optionalText(body, "name"));
+            }
             case "min" -> {
                 checkFields(body, "min", "select", "as", "name");
                 yield new OutputNode.Min(text(body, "select", "min"),

@@ -589,6 +589,24 @@ not recovered, E27's entry says where to reopen from.
    `string_functions` is already a recorded comparability break for having grown its workload
    mid-tranche, and extending it again would compound a break rather than add a measurement.
    `aggregate` is new, so it has no *before* to spoil.*
+
+   ***Audited 2026-08-27.*** *One finding, and it was already half-true before this phase.
+   `tokenize` and `parse-date` take their one select by `getFirst()`, so an empty select
+   reached the author as a `NoSuchElementException` **from inside the compiler**, naming
+   nothing — introduced here for `tokenize`, and pre-existing since design/17 phase 4 for
+   `parse-date`. Every other one-input instruction merely tolerated an empty select in
+   silence, which is the other half of the same problem: an instruction with nothing to read
+   produces nothing for ever, which is the hazard the unknown-reference refusal exists to
+   catch. `single()` already refused **more** than one select by name, so refusing **none**
+   completes its own contract rather than inventing a rule — and it fixes both the crash and
+   the silence for every instruction at once. No corpus configuration was relying on the
+   tolerance, checked before the change rather than after.*
+
+   *Two smaller things: `distinct-values` rebinding its own source is safe, because entries
+   are read out before the target is cleared — now pinned, since "clear then fill" is exactly
+   the shape that usually is not safe. And the fold reader called a helper for its
+   side-effect from inside an argument list, which read as though it returned something
+   meaningful; the checks are inline now.*
 3. **Sorting.** `sort` on `for-each`, keyed by the `as` cast (§5) — not the draft's
    `data_type`, which 17's ruling replaced.
    Case: `sort`.
