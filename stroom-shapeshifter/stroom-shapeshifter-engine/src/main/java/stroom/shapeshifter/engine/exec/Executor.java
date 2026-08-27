@@ -80,6 +80,15 @@ public final class Executor {
      * share a name because nothing at a use site can confuse the two. Per run, like the
      * registry: an index outliving its stream would answer this one with the last one's
      * records.
+     *
+     * <p><b>Unscoped, where a sequence is scoped</b>, which is deliberate and is the shape
+     * XSLT has: a key is an index over data rather than a binding, and every realistic
+     * configuration builds one and uses it at the same level. The sharp edge that buys,
+     * named rather than discovered (phase 5 audit): a key holds <i>store indices</i>, so one
+     * built inside a scope that later pops still answers, with positions into a store that
+     * may since have been cleared. Index staleness is a property of every index-carrying
+     * sequence here, not of keys — scoping is what usually hides it, and a key steps outside
+     * that. No case needs a key to outlive its sequence, so nothing is built to prevent it.
      */
     private final java.util.Map<String, java.util.Map<String, Filed>> keyIndexes =
             new java.util.HashMap<>();
@@ -1140,6 +1149,10 @@ public final class Executor {
                             keyIndexes.getOrDefault(value.key(), java.util.Map.of());
                     // A value with no entry binds an empty sequence, which a walk runs over
                     // zero times — the same non-answer XSLT's key() gives, not an error.
+                    // An absent lookup value finds the entries that had no key — the same
+                    // symmetry grouping uses, where absence is a group rather than an
+                    // exclusion (phase 4). XSLT would return empty for key('k', ()); this
+                    // engine treats "no value" as a value one can ask about, consistently.
                     final Filed filed = index.get(wanted == null ? null : wanted.asString());
                     final List<Integer> found = filed == null ? List.of() : filed.members();
                     bindDense(value.name(), found.stream()

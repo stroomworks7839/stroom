@@ -712,6 +712,25 @@ not recovered, E27's entry says where to reopen from.
    then choose which tag to open. The limit was never about self-closing; it was about not
    knowing the size in advance, and phase 2's `count` and phase 4's `__group_size` are what
    supply that. The case now demonstrates the idiom rather than the limit.*
+
+   ***Audited 2026-08-27.*** *No defect, and two decisions that were undocumented and
+   untested — which for decisions is the same problem, since nothing distinguished them from
+   accidents.*
+
+   *A key is **unscoped where a sequence is scoped**. That is deliberate and is XSLT's shape:
+   a key is an index over data, not a binding, and every realistic configuration builds one
+   and uses it at the same level. The edge it buys is now named rather than left to be found:
+   a key holds **store indices**, so one built inside a scope that later pops still answers,
+   with positions into a store that may since have been cleared. Index staleness is a
+   property of every index-carrying sequence in this design, not of keys — scoping is what
+   usually hides it, and a key steps outside that. No case needs a key to outlive its
+   sequence, so nothing is built to prevent it.*
+
+   *And an **absent lookup finds the entries that had no key**, rather than nothing. XSLT
+   returns empty for `key('k', ())`; this engine follows its own grouping rule instead, where
+   absence is a group rather than an exclusion (phase 4). Consistency within the engine beats
+   consistency with XSLT here, because an author who groups by a missing field and then looks
+   one up should get the same answer twice. Pinned.*
 6. **The contract.** `max_sequence_entries`, the fatal on overflow, the chunked-root refusal.
 7. **Close.** The A/B against the phase-0 measurement, then
    [14-xslt-coverage-matrix.md](14-xslt-coverage-matrix.md): every row of §2 and the

@@ -226,6 +226,37 @@ class SequenceIterationTest {
     }
 
     @Test
+    void anAbsentLookupFindsTheEntriesThatHadNoKey() {
+        // The symmetry grouping uses: absence is a value one can ask about, not an
+        // exclusion. XSLT returns empty for key('k', ()); this engine is consistent with its
+        // own grouping rule instead (phase 5 audit — a decision, now pinned). The lookup
+        // value is an empty literal, which "empty is absent" makes absent.
+        final String json = """
+                {"name": "t", "version": 5,
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                   "match": "source",
+                   "body": [
+                     {"sequence": {"name": "items"}},
+                     {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                       "mode": "doc"}},
+                     {"key": {"name": "by_cat", "select": "items",
+                       "group_by": {"parts": [{"capture": {"var_id": "cat", "group": 0,
+                          "match_index": {"var_ref": "__index"}}}]}}},
+                     {"key-get": {"key": "by_cat",
+                       "select": {"parts": [{"text": ""}]}, "name": "hits"}},
+                     {"count": {"select": "hits"}}]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "match": {"regex": {"pattern": "(?:(x)|y)\\n"}},
+                   "captures": [{"name": "cat", "select": {"group": 1}}],
+                   "body": [{"append": {"name": "items", "select": {"parts": [
+                      {"capture": {"var_id": "__match_count", "group": 0}}]}}}]}]}
+                """;
+        // Two records have no category; an absent lookup finds exactly those.
+        assertThat(run(json, "x\ny\ny\n")).isEqualTo("2");
+    }
+
+    @Test
     void lookingUpInAKeyNothingBuildsIsRefused() {
         final String epilogue = """
                 {"key-get": {"key": "nosuch",
