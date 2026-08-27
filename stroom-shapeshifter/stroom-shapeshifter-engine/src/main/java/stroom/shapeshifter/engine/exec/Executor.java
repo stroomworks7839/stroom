@@ -1334,6 +1334,13 @@ public final class Executor {
             vars.shadow(op.as());
         }
         vars.shadow(EngineVars.INDEX);
+        // Shadowed but never set: a key decides the order, so no entry has a position yet.
+        // Without this they would resolve outward and a nested iteration's key would read the
+        // *enclosing* walk's position — a meaningless value that looks like a real one
+        // (phase 3 audit). The compiler warns about reading them here; this makes the
+        // warning's claim true rather than approximately true.
+        vars.shadow(EngineVars.POSITION);
+        vars.shadow(EngineVars.LAST);
         for (int i = 0; i < populated.size(); i++) {
             final int index = populated.get(i);
             vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));

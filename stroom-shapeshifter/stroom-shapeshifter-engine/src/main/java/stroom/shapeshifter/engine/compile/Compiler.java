@@ -203,6 +203,9 @@ public final class Compiler {
         /** How many {@code for-each} bodies enclose the node being visited. */
         private int iterationDepth;
 
+        /** Whether the reference being read belongs to a sort key rather than to a body. */
+        private boolean inSortKey;
+
         BodyScan(final Project project, final List<Message> warnings) {
             this.project = project;
             this.warnings = warnings;
@@ -351,7 +354,9 @@ public final class Compiler {
                     // The sort keys are evaluated with __index bound, so they count as inside
                     // the iteration: a key reading it is correct, not the lint's hazard.
                     iterationDepth++;
+                    inSortKey = true;
                     value.sort().forEach(key -> read(key.by()));
+                    inSortKey = false;
                     body(value.body());
                     iterationDepth--;
                 }
@@ -438,6 +443,16 @@ public final class Compiler {
                 return;
             }
             reads.add(new Read(templateName, ref));
+            if (inSortKey) {
+                for (final RefExpression.RefPart part : ref.parts()) {
+                    if (part instanceof RefExpression.RefPart.Capture capture) {
+                        sortKeyPositional(capture.varId());
+                        if (capture.matchIndex() != null) {
+                            sortKeyPositional(capture.matchIndex().varRef());
+                        }
+                    }
+                }
+            }
             if (iterationDepth == 0) {
                 for (final RefExpression.RefPart part : ref.parts()) {
                     if (part instanceof RefExpression.RefPart.Capture capture) {
@@ -456,6 +471,19 @@ public final class Compiler {
          * quiet — {@code $__position} writes nothing, and an index reference falls back to
          * the first entry, which is a wrong value rather than no value.
          */
+        /**
+         * A sort key decides the order, so it cannot ask where an entry will land: nothing
+         * has a position until the keys have been compared. {@code __index} is fine there —
+         * it names the record, which is known — and is how a key reaches a parallel store.
+         */
+        private void sortKeyPositional(final String name) {
+            if (EngineVars.POSITION.equals(name) || EngineVars.LAST.equals(name)) {
+                warnings.add(new Message(Severity.WARNING, "Template '" + templateName
+                        + "' reads " + name + " in a sort key, which decides the order:"
+                        + " nothing has a position until the keys have been compared."));
+            }
+        }
+
         private void iterationOnly(final String name) {
             if (name != null && EngineVars.ITERATION_ONLY.contains(name)) {
                 warnings.add(new Message(Severity.WARNING, "Template '" + templateName

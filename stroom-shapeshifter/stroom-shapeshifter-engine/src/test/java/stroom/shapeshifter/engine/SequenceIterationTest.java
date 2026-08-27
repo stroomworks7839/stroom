@@ -256,6 +256,36 @@ class SequenceIterationTest {
     }
 
     @Test
+    void aSortKeyCannotSeeAPositionAndIsToldSo() {
+        // Nothing has a position until the keys have been compared — and in a nested walk the
+        // key would otherwise resolve outward and read the enclosing walk's position, which
+        // is a meaningless value that looks like a real one (phase 3 audit).
+        final String key = "{\"by\": {\"parts\": [{\"capture\": {\"var_id\": \"__position\","
+                + " \"group\": 0}}]}}";
+        final String epilogue = """
+                {"for-each": {"select": "items", "as": "item", "sort": [%s], "body": [
+                  {"value-of": {"parts": [{"capture": {"var_id": "item", "group": 0}}]}}]}}
+                """.formatted(key);
+        final var compiled = Shapeshifter.compile(ProjectReader.read(config(epilogue, APPEND_FIELD)));
+        assertThat(compiled.warnings())
+                .anyMatch(m -> m.text().contains("__position in a sort key"));
+    }
+
+    @Test
+    void aSortKeyReadingTheIndexDrawsNothing() {
+        // __index names the record, which is known before any comparison, and is how a key
+        // reaches a parallel store.
+        final String key = "{\"by\": {\"parts\": [{\"capture\": {\"var_id\": \"field\","
+                + " \"group\": 0, \"match_index\": {\"var_ref\": \"__index\"}}}]}}";
+        final String epilogue = """
+                {"for-each": {"select": "items", "sort": [%s], "body": []}}
+                """.formatted(key);
+        assertThat(Shapeshifter.compile(ProjectReader.read(config(epilogue, APPEND_FIELD)))
+                .warnings())
+                .noneMatch(m -> m.text().contains("sort key"));
+    }
+
+    @Test
     void sortKeyCanReadAParallelStoreAtTheSameEntry() {
         // The key is evaluated with __index bound, so it can order by a sibling field.
         final String key = "{\"by\": {\"parts\": [{\"capture\": {\"var_id\": \"field\","

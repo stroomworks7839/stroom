@@ -868,17 +868,20 @@ public final class ProjectJson {
 
     private static OutputNode.Sort readSort(final JsonNode node) {
         checkFields(node, "sort", "by", "order", "as");
-        final String order = optionalText(node, "order");
-        try {
-            return new OutputNode.Sort(
-                    readRef(required(node, "by", "sort")),
-                    order == null
-                            ? OutputNode.Order.ASCENDING
-                            : OutputNode.Order.valueOf(order.toUpperCase(Locale.ROOT)),
-                    readCast(node));
-        } catch (final IllegalArgumentException e) {
-            throw new ConfigException("Unknown sort order: " + order);
+        final String spelling = optionalText(node, "order");
+        final OutputNode.Order order;
+        if (spelling == null) {
+            order = OutputNode.Order.ASCENDING;
+        } else {
+            try {
+                order = OutputNode.Order.valueOf(spelling.toUpperCase(Locale.ROOT));
+            } catch (final IllegalArgumentException e) {
+                // Only the order's own parse, so the message cannot be blamed on a
+                // neighbouring field that failed for its own reasons (phase 3 audit).
+                throw new ConfigException("Unknown sort order: " + spelling);
+            }
         }
+        return new OutputNode.Sort(readRef(required(node, "by", "sort")), order, readCast(node));
     }
 
     private static ObjectNode writeSort(final OutputNode.Sort sort) {

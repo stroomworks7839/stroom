@@ -629,6 +629,19 @@ not recovered, E27's entry says where to reopen from.
    *The case's challenger prefigures phase 4: it accumulates a sequence of **match indices**
    rather than of values, so a key can reach any parallel field at that record. Grouping the
    index set is the same move.*
+
+   ***Audited 2026-08-27.*** *One finding, in the scope the keys are evaluated in. That scope
+   shadowed the item binding and `__index` but not `__position` and `__last`, so a key in a
+   **nested** walk resolved them outward and read the **enclosing** walk's position — a
+   meaningless value wearing the shape of a real one. Both are shadowed now, and reading
+   either in a key draws a warning, because the deeper point is not the leak: a key is what
+   **decides** the order, so nothing has a position until the keys have been compared.
+   `__index` is fine there — it names the record, which is known before any comparison, and
+   is how a key reaches a parallel store; the tests pin both halves.*
+
+   *Also tightened: the sort reader wrapped its whole construction in a catch reporting
+   "unknown sort order", so a neighbouring field failing for its own reason would have been
+   blamed on the order. The catch is around the order's own parse now.*
 4. **Grouping.** `for-each-group`, and `__group`/`__group_key`/`__group_size` — seeded here,
    where they are also set.
    Case: `keys_grouping` promoted from wall to passing — **the acceptance test for this whole
