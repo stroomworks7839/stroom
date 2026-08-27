@@ -244,3 +244,48 @@ CDATA/escape-chain case — a three-pass literal `replace` chain materialising i
 per entry, plus the lazy-dotall block captures (`((?s).*?)` spanning batches and entries)
 that no other case leans on as hard. That is profiling target number one, and it is a
 *localised* target because the other six families are measured clean of it.
+
+**Profiled 2026-08-27, and the first-named suspect is the wrong one.** Two suspects were
+listed above; pricing them by variant on the amplified 100,000-unit input (quiet box, warmed,
+best-of-five) settles which:
+
+| variant | 100k units | vs shipped |
+|---|---|---|
+| as shipped — three `replace` passes, `(?s).*?` block captures | 940 ms | — |
+| one `replace` pass | 906 ms | −3.6% |
+| **no `replace` passes at all** | 886 ms | **−5.7%** |
+| **`(?s).*?` → `(?:[^\n]*\n)*?`, escape chain left intact** | **435 ms** | **2.16× faster** |
+| Saxon, same input | 620 ms | |
+
+The escape chain — the suspect named first, and the one the case is named after — is worth
+**5.7%**: about 20 ms per pass, linear in the number of passes, and nowhere near the 1.6×
+deficit. Deleting all three still leaves the case losing to Saxon by 1.43×.
+
+The block captures are the whole of it. Replacing the character-by-character lazy scan with a
+line-by-line one takes the case from 940 ms to **435 ms** and turns the catalogue's only
+measured loss into a **1.43× win**. The output is byte-identical — verified against both the
+shipped challenger and against Saxon, so this is the same job, not a cheaper one.
+
+The mechanism is not subtle. `((?s).*?)  </batch>` asks the engine to try the tail literal at
+*every byte position* in the block; `((?:[^\n]*\n)*?)  </batch>` asks it only at line
+starts, and the lines here average about forty bytes. Same language on this input, ~40× fewer
+tail attempts.
+
+Two conclusions, and the second matters more than the first. **The authoring idiom is worth
+2×** on block-structured input, which is a note for anyone writing a config against XML-shaped
+data. But the engine should not need the author to know that: a lazy run followed by a literal
+is exactly the shape a literal search collapses, and
+[06-performance-plan.md §1](../stroom-shapeshifter-regex/design/06-performance-plan.md) already
+carries a *deprioritised* literal-skip row whose stated condition for revisiting was "if a
+sparse workload ever loses". One has. **The case stays as it is** — rewriting the challenger
+to the faster idiom would delete the finding from the benchmark and make the catalogue look
+better without the engine having improved.
+
+These are scratch-harness timings, not JMH, and every number in the table above is from that
+one harness — probe against probe, per
+[06-performance-plan.md](../stroom-shapeshifter-regex/design/06-performance-plan.md)'s standing
+note that crossing the two measurement kinds is what forced the NETWORK retraction. What
+licenses reading the variants against the JMH row is that the harness **reproduces** it: the
+shipped configuration probes at 940 ms against Saxon's 620 ms, a ratio of 0.66×, where JMH
+reports 956 ± 10 against 620 ± 24, a ratio of 0.65×. The confirming JMH run belongs with
+whatever change acts on this, not with the localisation.
