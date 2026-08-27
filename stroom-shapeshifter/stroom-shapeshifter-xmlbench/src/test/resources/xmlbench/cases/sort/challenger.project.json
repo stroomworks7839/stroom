@@ -1,0 +1,238 @@
+{
+ "name": "sort_challenger",
+ "version": 5,
+ "source": {
+  "buffer_size": 4000000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><o><two>"
+    },
+    {
+     "sequence": {
+      "name": "at"
+     }
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "doc"
+     }
+    },
+    {
+     "for-each": {
+      "select": "at",
+      "as": "at",
+      "sort": [
+       {
+        "by": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "team",
+            "group": 0,
+            "match_index": {
+             "var_ref": "at"
+            }
+           }
+          }
+         ]
+        }
+       },
+       {
+        "by": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "score",
+            "group": 0,
+            "match_index": {
+             "var_ref": "at"
+            }
+           }
+          }
+         ]
+        },
+        "as": "number",
+        "order": "descending"
+       }
+      ],
+      "body": [
+       {
+        "text": "<n>"
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "name",
+            "group": 0,
+            "match_index": {
+             "var_ref": "at"
+            }
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "</n>"
+       }
+      ]
+     }
+    },
+    {
+     "text": "</two><text>"
+    },
+    {
+     "for-each": {
+      "select": "at",
+      "as": "at",
+      "sort": [
+       {
+        "by": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "score",
+            "group": 0,
+            "match_index": {
+             "var_ref": "at"
+            }
+           }
+          }
+         ]
+        }
+       }
+      ],
+      "body": [
+       {
+        "text": "<n>"
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "score",
+            "group": 0,
+            "match_index": {
+             "var_ref": "at"
+            }
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "</n>"
+       }
+      ]
+     }
+    },
+    {
+     "text": "</text></o>"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "decl",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<\\?xml[^\\n]*\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "open",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<people>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "p",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  <p team=\"([^\"]*)\" score=\"([^\"]*)\" name=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "team",
+     "select": {
+      "group": 1
+     }
+    },
+    {
+     "name": "score",
+     "select": {
+      "group": 2
+     }
+    },
+    {
+     "name": "name",
+     "select": {
+      "group": 3
+     }
+    }
+   ],
+   "body": [
+    {
+     "append": {
+      "name": "at",
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "__match_count",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000005",
+   "name": "close",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "</people>\\n"
+    }
+   },
+   "body": []
+  }
+ ]
+}

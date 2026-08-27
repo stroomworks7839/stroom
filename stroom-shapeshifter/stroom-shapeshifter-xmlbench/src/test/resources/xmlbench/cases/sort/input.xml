@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<people>
+  <p team="b" score="9" name="ada"/>
+  <p team="a" score="10" name="bob"/>
+  <p team="b" score="2" name="cy"/>
+  <p team="a" score="10" name="dee"/>
+</people>

@@ -180,6 +180,91 @@ class SequenceIterationTest {
     }
 
     // -----------------------------------------------------------------------------------
+    // Sorting (design/16 §5)
+    // -----------------------------------------------------------------------------------
+
+    private static String sortedBy(final String sortKeys, final String input) {
+        final String epilogue = """
+                {"for-each": {"select": "items", "as": "item", "sort": [%s], "body": [
+                  {"value-of": {"parts": [{"capture": {"var_id": "item", "group": 0}}]}},
+                  {"text": ","}]}}
+                """.formatted(sortKeys);
+        return run(config(epilogue, APPEND_FIELD), input);
+    }
+
+    private static final String BY_ITEM =
+            "{\"by\": {\"parts\": [{\"capture\": {\"var_id\": \"item\", \"group\": 0}}]}}";
+
+    @Test
+    void anUncastKeyOrdersByStringForm() {
+        // Which is why 10 comes before 9: the total reading, not a numeric one.
+        assertThat(sortedBy(BY_ITEM, "9\n10\n2\n")).isEqualTo("10,2,9,");
+    }
+
+    @Test
+    void numberCastOrdersNumerically() {
+        final String key = BY_ITEM.replace("}}]}}", "}}]}, \"as\": \"number\"}");
+        assertThat(sortedBy(key, "9\n10\n2\n")).isEqualTo("2,9,10,");
+    }
+
+    @Test
+    void descendingReversesIt() {
+        final String key = BY_ITEM.replace("}}]}}", "}}]}, \"as\": \"number\", \"order\": \"descending\"}");
+        assertThat(sortedBy(key, "9\n10\n2\n")).isEqualTo("10,9,2,");
+    }
+
+    @Test
+    void absentKeysSortLastInEitherDirection() {
+        // Unparseable entries end up together at the bottom either way, rather than
+        // migrating to the top when the order flips and reading as data.
+        final String ascending = BY_ITEM.replace("}}]}}", "}}]}, \"as\": \"number\"}");
+        final String descending = BY_ITEM.replace("}}]}}",
+                "}}]}, \"as\": \"number\", \"order\": \"descending\"}");
+        assertThat(sortedBy(ascending, "5\nn/a\n1\n")).isEqualTo("1,5,n/a,");
+        assertThat(sortedBy(descending, "5\nn/a\n1\n")).isEqualTo("5,1,n/a,");
+    }
+
+    @Test
+    void tiesKeepDataOrder() {
+        // A constant key makes every entry tie, so what comes out is what stability gives:
+        // ascending store index, which is data order. That is the tie-break, said once by
+        // the sort being stable rather than twice by an explicit fallback.
+        final String constant = "{\"by\": {\"parts\": [{\"text\": \"same\"}]}}";
+        assertThat(sortedBy(constant, "b\na\nc\na\n")).isEqualTo("b,a,c,a,");
+    }
+
+    @Test
+    void laterKeyBreaksTheEarlierKeysTies() {
+        final String constant = "{\"by\": {\"parts\": [{\"text\": \"same\"}]}}";
+        assertThat(sortedBy(constant + ", " + BY_ITEM, "b\na\nc\na\n"))
+                .isEqualTo("a,a,b,c,");
+    }
+
+    @Test
+    void positionFollowsTheOrderingWhileTheIndexStillPointsAtTheRecord() {
+        final String key = BY_ITEM.replace("}}]}}", "}}]}, \"as\": \"number\"}");
+        final String epilogue = """
+                {"for-each": {"select": "items", "as": "item", "sort": [%s], "body": [
+                  {"value-of": {"parts": [
+                     {"capture": {"var_id": "__position", "group": 0}},
+                     {"text": ":"},
+                     {"capture": {"var_id": "__index", "group": 0}},
+                     {"text": " "}]}}]}}
+                """.formatted(key);
+        // Sorted 2,9,10 came from store indices 3,1,2 — position renumbers, index does not.
+        assertThat(run(config(epilogue, APPEND_FIELD), "9\n10\n2\n")).isEqualTo("1:3 2:1 3:2 ");
+    }
+
+    @Test
+    void sortKeyCanReadAParallelStoreAtTheSameEntry() {
+        // The key is evaluated with __index bound, so it can order by a sibling field.
+        final String key = "{\"by\": {\"parts\": [{\"capture\": {\"var_id\": \"field\","
+                + " \"group\": 0, \"match_index\": {\"var_ref\": \"__index\"}}}]},"
+                + " \"as\": \"number\"}";
+        assertThat(sortedBy(key, "9\n10\n2\n")).isEqualTo("2,9,10,");
+    }
+
+    // -----------------------------------------------------------------------------------
     // The folds (design/16 §8)
     // -----------------------------------------------------------------------------------
 

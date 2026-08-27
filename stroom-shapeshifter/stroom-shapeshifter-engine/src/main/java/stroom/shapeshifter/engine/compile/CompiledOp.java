@@ -182,7 +182,15 @@ public sealed interface CompiledOp {
     }
 
     /** Walk a sequence, running a body per populated entry (design/16 §4). */
-    record ForEach(String select, String as, List<CompiledOp> body) implements CompiledOp {
+    record ForEach(String select,
+                   String as,
+                   List<SortKey> sort,
+                   List<CompiledOp> body) implements CompiledOp {
+
+    }
+
+    /** One compiled ordering key: the reference resolved once, the cast decided once. */
+    record SortKey(CompiledRef by, OutputNode.Order order, Cast as) {
 
     }
 
@@ -361,6 +369,9 @@ public sealed interface CompiledOp {
                 case OutputNode.Sequence value -> new Sequence(value.name());
                 case OutputNode.Append value -> new Append(value.name(), CompiledRef.of(value.select()));
                 case OutputNode.ForEach value -> new ForEach(value.select(), value.as(),
+                        value.sort().stream()
+                                .map(key -> new SortKey(CompiledRef.of(key.by()), key.order(), key.as()))
+                                .toList(),
                         compile(value.body(), patterns, project));
                 case OutputNode.FormatDate value -> {
                     final Dates.Formatter formatter = Dates.compileFormatter(

@@ -1306,6 +1306,84 @@ public final class Executor {
         return best;
     }
 
+    /**
+     * The entries in sorted order (design/16 §5) — <b>as an {@code int[]}, not as buffered
+     * output</b>, which is the whole reason sorting is cheap here: the values are already in
+     * memory, so ordering them reorders indices into a store rather than deferring anything
+     * that has been written.
+     *
+     * <p>Keys are evaluated once per entry, up front, with {@code __index} and the item
+     * binding in scope so a key can read the item or a parallel store at the same match.
+     * Evaluating per comparison instead would re-resolve a reference O(n log n) times.
+     *
+     * <p>The sort is <b>stable</b>, and the list it sorts is in ascending store index, so
+     * ties keep data order without an explicit tie-break — that is the same guarantee said
+     * once rather than twice.
+     */
+    private List<Integer> sorted(final CompiledOp.ForEach op,
+                                 final List<Integer> populated,
+                                 final Store store,
+                                 final MatchResult match,
+                                 final int matchCount,
+                                 final Encoding contentEncoding) {
+        final int keyCount = op.sort().size();
+        final TypedValue[][] keys = new TypedValue[populated.size()][keyCount];
+
+        vars.push();
+        if (op.as() != null) {
+            vars.shadow(op.as());
+        }
+        vars.shadow(EngineVars.INDEX);
+        for (int i = 0; i < populated.size(); i++) {
+            final int index = populated.get(i);
+            vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));
+            if (op.as() != null) {
+                vars.store(op.as()).set(1, store.get(index));
+            }
+            for (int k = 0; k < keyCount; k++) {
+                final CompiledOp.SortKey key = op.sort().get(k);
+                final TypedValue raw = CompiledRefs.resolveValue(
+                        key.by(), match, matchCount, vars, contentEncoding);
+                // Uncast, an ordering compares string forms — the one total reading.
+                keys[i][k] = Comparisons.cast(raw, key.as() == null ? Cast.STRING : key.as());
+            }
+        }
+        vars.pop();
+
+        final List<Integer> positions = new ArrayList<>(populated.size());
+        for (int i = 0; i < populated.size(); i++) {
+            positions.add(i);
+        }
+        positions.sort((left, right) -> {
+            for (int k = 0; k < keyCount; k++) {
+                final int comparison = compareKeys(keys[left][k], keys[right][k], op.sort().get(k).order());
+                if (comparison != 0) {
+                    return comparison;
+                }
+            }
+            return 0;
+        });
+        return positions.stream().map(populated::get).toList();
+    }
+
+    /**
+     * One key's comparison. <b>Absent sorts last in either direction</b> — the unparseable
+     * entries end up together at the bottom rather than migrating to the top when the order
+     * flips, which is what a reader would read as data (design/16 §5).
+     */
+    private static int compareKeys(final TypedValue left,
+                                   final TypedValue right,
+                                   final OutputNode.Order order) {
+        if (left == null || right == null) {
+            return left == right ? 0 : (left == null ? 1 : -1);
+        }
+        final Integer comparison = Comparisons.compare(left, right);
+        if (comparison == null) {
+            return 0;
+        }
+        return order == OutputNode.Order.DESCENDING ? -comparison : comparison;
+    }
+
     /** The distinct entries, first appearance kept, compared by string form. */
     private void distinct(final CompiledOp.DistinctValues op) {
         final java.util.Set<String> seen = new java.util.LinkedHashSet<>();
@@ -1353,6 +1431,9 @@ public final class Executor {
         if (populated.isEmpty()) {
             return;
         }
+        final List<Integer> order = op.sort().isEmpty()
+                ? populated
+                : sorted(op, populated, store, match, matchCount, contentEncoding);
 
         vars.push();
         if (op.as() != null) {
@@ -1363,9 +1444,11 @@ public final class Executor {
         vars.shadow(EngineVars.LAST);
         // Known before the first body runs, which is what makes a last-entry test cheap and
         // correct — and is the fix for the trailing-empty-group limit adjacent_groups found.
-        vars.store(EngineVars.LAST).set(1, new TypedValue.Int(populated.size()));
-        for (int position = 0; position < populated.size(); position++) {
-            final int index = populated.get(position);
+        vars.store(EngineVars.LAST).set(1, new TypedValue.Int(order.size()));
+        for (int position = 0; position < order.size(); position++) {
+            // Position follows the ordering; the index still points at the record, so a key
+            // that reordered the walk does not disturb what a body reads (design/16 §5).
+            final int index = order.get(position);
             vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));
             vars.store(EngineVars.POSITION).set(1, new TypedValue.Int(position + 1L));
             if (op.as() != null) {

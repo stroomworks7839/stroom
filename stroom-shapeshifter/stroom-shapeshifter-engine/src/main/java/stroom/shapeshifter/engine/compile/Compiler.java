@@ -348,7 +348,10 @@ public final class Compiler {
                     if (value.as() != null) {
                         writable.add(value.as());
                     }
+                    // The sort keys are evaluated with __index bound, so they count as inside
+                    // the iteration: a key reading it is correct, not the lint's hazard.
                     iterationDepth++;
+                    value.sort().forEach(key -> read(key.by()));
                     body(value.body());
                     iterationDepth--;
                 }

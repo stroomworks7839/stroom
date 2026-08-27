@@ -61,7 +61,8 @@ class CaseCatalogueTest {
             "comparison",
             "dates",
             "sequence_basics",
-            "aggregate");
+            "aggregate",
+            "sort");
 
     /**
      * The walls: cases whose stylesheet runs but for which no challenger exists — executable

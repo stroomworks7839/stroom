@@ -610,6 +610,25 @@ not recovered, E27's entry says where to reopen from.
 3. **Sorting.** `sort` on `for-each`, keyed by the `as` cast (§5) — not the draft's
    `data_type`, which 17's ruling replaced.
    Case: `sort`.
+
+   ***Landed 2026-08-27*** (`following`). §1's claim held: sorting reorders a list of store
+   indices, and nothing that has been written is deferred, because the values were already in
+   memory. Keys are evaluated **once per entry up front** rather than per comparison — with
+   `__index` and the item binding in scope, so a key can read the item or a parallel store —
+   since evaluating inside the comparator would re-resolve a reference O(n log n) times.
+
+   *Stability does the tie-break on its own: the list being sorted is in ascending store
+   index, so a stable sort keeps data order without an explicit fallback — the same guarantee
+   said once rather than twice. The `sort` case pins that against Saxon, whose `xsl:sort` is
+   also stable, on a deliberate tie.*
+
+   *One thing the compiler had to be told: a sort key is evaluated **inside** the iteration,
+   so a key reading `__index` is correct rather than the outside-iteration lint's hazard.
+   Without that the phase would have warned about its own idiom.*
+
+   *The case's challenger prefigures phase 4: it accumulates a sequence of **match indices**
+   rather than of values, so a key can reach any parallel field at that record. Grouping the
+   index set is the same move.*
 4. **Grouping.** `for-each-group`, and `__group`/`__group_key`/`__group_size` — seeded here,
    where they are also set.
    Case: `keys_grouping` promoted from wall to passing — **the acceptance test for this whole

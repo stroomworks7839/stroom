@@ -448,14 +448,40 @@ public sealed interface OutputNode {
      * @param body   what runs per entry, with {@code __index}, {@code __position} and
      *               {@code __last} bound (§4.3)
      */
-    record ForEach(String select, String as, List<OutputNode> body) implements OutputNode {
+    record ForEach(String select, String as, List<Sort> sort, List<OutputNode> body)
+            implements OutputNode {
 
         public ForEach {
             if (select == null || select.isEmpty()) {
                 throw new ConfigException("A for-each needs the name of a sequence to walk");
             }
+            sort = sort == null ? List.of() : List.copyOf(sort);
             body = body == null ? List.of() : List.copyOf(body);
         }
+    }
+
+    /**
+     * One key of an iteration's ordering (design/16 §5). {@code by} is evaluated once per
+     * entry with {@code __index} bound, so a key can read the item, a parallel store at the
+     * same match, or a concatenation.
+     *
+     * <p>Ordering is by the same {@code as} cast every typed read in the engine uses; uncast
+     * it compares string forms, which is the one <b>total</b> reading and therefore the only
+     * safe default for something that must order a whole column (design/17 §8).
+     */
+    record Sort(RefExpression by, Order order, Cast as) {
+
+        public Sort {
+            if (by == null) {
+                throw new ConfigException("A sort key needs something to sort by");
+            }
+            order = order == null ? Order.ASCENDING : order;
+        }
+    }
+
+    /** Which way a sort key runs. */
+    enum Order {
+        ASCENDING, DESCENDING
     }
 
     /**

@@ -866,6 +866,31 @@ public final class ProjectJson {
         return body;
     }
 
+    private static OutputNode.Sort readSort(final JsonNode node) {
+        checkFields(node, "sort", "by", "order", "as");
+        final String order = optionalText(node, "order");
+        try {
+            return new OutputNode.Sort(
+                    readRef(required(node, "by", "sort")),
+                    order == null
+                            ? OutputNode.Order.ASCENDING
+                            : OutputNode.Order.valueOf(order.toUpperCase(Locale.ROOT)),
+                    readCast(node));
+        } catch (final IllegalArgumentException e) {
+            throw new ConfigException("Unknown sort order: " + order);
+        }
+    }
+
+    private static ObjectNode writeSort(final OutputNode.Sort sort) {
+        final ObjectNode node = NODES.objectNode();
+        node.set("by", writeRef(sort.by()));
+        if (sort.order() != OutputNode.Order.ASCENDING) {
+            node.put("order", sort.order().name().toLowerCase(Locale.ROOT));
+        }
+        writeCast(node, sort.as());
+        return node;
+    }
+
     /** An ordering's cast, spelt lowercase, or null for the uncast string reading. */
     private static Cast readCast(final JsonNode body) {
         if (!body.has("as") || body.get("as").isNull()) {
@@ -1214,10 +1239,11 @@ public final class ProjectJson {
                         readRef(required(body, "select", "append")));
             }
             case "for-each" -> {
-                checkFields(body, "for-each", "select", "as", "body");
+                checkFields(body, "for-each", "select", "as", "sort", "body");
                 yield new OutputNode.ForEach(
                         text(body, "select", "for-each"),
                         optionalText(body, "as"),
+                        list(body.get("sort"), "sort", ProjectJson::readSort),
                         list(body.get("body"), "body", ProjectJson::readOutput));
             }
             case "parse-date" -> {
@@ -1417,6 +1443,9 @@ public final class ProjectJson {
                 final ObjectNode body = NODES.objectNode();
                 body.put("select", value.select());
                 putIfPresent(body, "as", value.as());
+                if (!value.sort().isEmpty()) {
+                    body.set("sort", array(value.sort(), ProjectJson::writeSort));
+                }
                 body.set("body", array(value.body(), ProjectJson::writeOutput));
                 yield wrap("for-each", body);
             }
