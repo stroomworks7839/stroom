@@ -315,9 +315,20 @@ is missing is iteration. Sorting is an `int[]`, not a reorder buffer.
 
 Eight decisions ruled, two against the draft's recommendation (`xsl:key` built rather than
 deferred; the `is-first`/`is-last` conditions E21 deleted return alongside `__position`/
-`__last`). Seven implementation phases planned, none started. Blocked on nothing —
-[17](../design/17-value-computation.md)'s phase 3 landed the comparison spine it needs for
-`sort`/`min`/`max`.
+`__last`). Blocked on nothing — [17](../design/17-value-computation.md)'s phase 3 landed the
+comparison spine it needs for `sort`/`min`/`max`.
+
+**The plan was refreshed 2026-08-27** ([16 §14](../design/16-sequences-and-aggregation.md)),
+after design/17 shipped underneath it. Three of the changes would have stopped phase 1 on its
+first afternoon: the unknown-reference refusal (17 §10) rejects this design's own six engine
+names until they are seeded, so `keys_grouping`'s challenger — its acceptance test — cannot
+compile before that lands; sequence names are a second kind of name the refusal has to be
+taught, and §9's two checks belong inside E27's single walk rather than adding two more; and
+`BodyScan.visit` is exhaustive, so every instruction this design adds is a compile error
+until its reads, writes and lints are considered. One item moved in: `tokenize` binding a
+sequence, ruled in 17 §16.4 and blocked on exactly this work, is now phase 2. One
+scheduling constraint: **E27's compile-time measurement must be taken before this starts**,
+or the merge's recovery and this design's new checks are confounded in the same walk.
 
 ### E24 — Value computation: types, casting and the function library
 **`resolved` 2026-08-27 — designed, ruled, built, audited and measured**

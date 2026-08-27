@@ -489,20 +489,92 @@ stops being hypothetical.
 
 Each phase ends green with its case passing, in the ledger's usual ratchet.
 
-1. **Iteration.** `for-each`, `sequence`, `append`, the three engine names, the restored
-   `is-first`/`is-last` conditions with their outside-iteration lint, both compile-time
-   checks, `ForEach` in the wire format both ways. Case: `sequence_basics`.
-2. **Folds.** The five aggregates and `distinct-values`. Depends on 17's phase 1 for
-   promotion and comparison. Case: `aggregate`.
-3. **Sorting.** `sort` on `for-each`, sharing 17's comparison spine. Case: `sort`.
-4. **Grouping.** `for-each-group`, `__group`/`__group_key`/`__group_size`. Case:
-   `keys_grouping` promoted from wall to passing — **the acceptance test for this whole
-   design**.
-5. **Keys.** `key`/`key-get` on the grouping index machinery. Case: `keys_lookup`.
-6. **The contract.** `max_sequence_entries`, the fatal on overflow, the chunked-root refusal,
-   and the benchmark rows. Update [14](14-xslt-coverage-matrix.md): every row of §2 and the
-   aggregation and sequence rows of §§3–4 move out of *gap*, and §5's first gap family is
-   closed.
+*Refreshed 2026-08-27, after [17-value-computation.md](17-value-computation.md) shipped and
+E26/E27 landed. Nothing here is re-ruled; the phases absorb what changed underneath them
+while this design sat unbuilt.*
+
+### 14.1 What the ground looks like now
+
+Four things are true today that were not when §15's decisions were taken, and three of them
+would stop phase 1 on its first afternoon.
+
+**The unknown-reference refusal will reject this design's own vocabulary.** Design/17 §10
+made a read of a name nothing writes a compile-time *error*, and `BodyScan` seeds exactly
+two engine names: `__match_count` and `__match_idx`. This design introduces six more —
+`__index`, `__position`, `__last`, `__group`, `__group_key`, `__group_size` — and §7's
+worked `keys_grouping` challenger reads `$id[$__index]`. **Until those are seeded, this
+design's own acceptance test cannot compile.** Phase 1's first commit, before any iteration
+runs.
+
+**Sequence names are a second kind of name, and the refusal has to be taught the
+difference.** `for-each select="cat"` *names* a sequence rather than referencing one (§4.1's
+ruled decision 2), `append` writes one, `sequence` declares one. §9's two compile-time checks
+— append-to-undeclared is an error, a sequence name colliding with a capture name is an error
+— are unchanged, but where they live is: **inside the single `BodyScan` walk**, not as new
+passes. E27 merged three walks into one the week before this starts, and adding two more
+would undo it immediately.
+
+**The compiler will not let an instruction be forgotten.** `BodyScan.visit` is exhaustive
+over the sealed `OutputNode` hierarchy with no `default` arm (E27), so every instruction this
+design adds is a **compile error until its reads, writes and lints are considered**. That is
+the property E27 exists for and it is welcome here — but it means each phase's model change
+arrives with a compiler-enforced obligation attached, which is worth expecting rather than
+discovering.
+
+**The folds start fast.** `sum`, `avg`, `min` and `max` read numbers out of stores through
+`TypedValue`'s casts, which E26 made non-throwing. They inherit that, rather than needing
+their own E26 when a case eventually feeds them a malformed field.
+
+### 14.2 Before phase 1: take E27's measurement
+
+**E27's compile-time recovery is still unmeasured**, and every phase below adds checks to the
+same walk it repaired. If E23 lands first, the merge's recovery and the new checks' cost are
+confounded and neither can be read. Take the quiet-box run first, compare `csv_header` and
+`progressive` compile against `2026-08-27-0738-37825da20d-engine`, and record it under E27 —
+then start.
+
+### 14.3 The phases
+
+1. **Iteration.** The six engine names seeded in `BodyScan` (14.1) and the sequence
+   namespace with §9's two checks, both inside the existing walk. Then `for-each`,
+   `sequence`, `append`, the `as` binding, the restored `is-first`/`is-last` conditions with
+   their outside-iteration lint, and `ForEach` in the wire format both ways.
+   Case: `sequence_basics`.
+2. **Folds and sequence producers.** The five aggregates and `distinct-values` — and
+   **`tokenize` binding a dense sequence**, which design/17 §16.4 ruled and left blocked on
+   exactly this phase, its one open sweep item. Ordering comes from 17 §8's spine, which
+   shipped.
+   Cases: `aggregate`, and `string_functions` extended to prove `tokenize`'s new shape.
+3. **Sorting.** `sort` on `for-each`, keyed by the `as` cast (§5) — not the draft's
+   `data_type`, which 17's ruling replaced.
+   Case: `sort`.
+4. **Grouping.** `for-each-group`, `__group`/`__group_key`/`__group_size`.
+   Case: `keys_grouping` promoted from wall to passing — **the acceptance test for this whole
+   design**, and the case §7 is written against.
+5. **Keys.** `key`/`key-get` on the grouping index machinery (§8, ruled built rather than
+   deferred). Case: `keys_lookup`, authored — no production stylesheet supplies one.
+6. **The contract.** `max_sequence_entries`, the fatal on overflow, the chunked-root refusal.
+7. **Close.** The A/B against the phase-0 measurement, then
+   [14-xslt-coverage-matrix.md](14-xslt-coverage-matrix.md): every row of §2 and the
+   aggregation and sequence rows of §§3–4 move out of *gap*, and **§5's first gap family
+   closes** — the last one, since 17 closed the second and D10/E15 own the third. E23
+   resolved in ISSUES with pointers here.
+
+### 14.4 Mechanics worth knowing before the first case
+
+- A case is registered in **two** places — `CaseCorpus.UNITS` and
+  `CaseCatalogueBenchmark`'s `@Param` — because JMH needs a compile-time constant.
+  `CaseCatalogueBenchmarkParamsTest` fails by name when they disagree, so this is enforced
+  rather than remembered. It exists because four cases were once proved correct and then
+  measured by nothing.
+- Promoting `keys_grouping` means moving it from `CaseCatalogueTest`'s `WALLS` to its
+  `CASES`. The wall test fails the day a challenger appears without that move, which is the
+  point of it.
+- **Author new challengers at version 5**, where `substring` is 1-based (17 §7).
+- Catalogue rows added by this design have **no *before*** and never can, exactly as 17's
+  four did: the baseline engine cannot run instructions that do not exist in it. Their value
+  is the within-run Saxon ratio, and the benchmarks README's comparability-breaks section is
+  where that gets said.
 
 ## 15. Decisions — ruled 2026-08-25
 
