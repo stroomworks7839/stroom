@@ -227,6 +227,31 @@ class SequenceIterationTest {
     }
 
     @Test
+    void perRecordSequenceIsFineUnderAChunkedRoot() {
+        // It crosses no record boundary, so it cannot be summarised wrongly — and was being
+        // refused fatally for a hazard it does not have (phase 6 audit).
+        final String json = """
+                {"name": "t", "version": 5,
+                 "source": {"dispatch": "classify", "buffer_size": 8},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                   "match": "source",
+                   "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                             "mode": "doc"}}]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
+                   "captures": [{"name": "f", "select": {"group": 1}}],
+                   "body": [
+                     {"tokenize": {"select": [{"parts": [{"capture": {"var_id": "f",
+                        "group": 0}}]}], "delimiter": ",", "name": "parts"}},
+                     {"for-each": {"select": "parts", "as": "p", "body": [
+                        {"value-of": {"parts": [{"capture": {"var_id": "p", "group": 0}}]}},
+                        {"text": "."}]}}]}]}
+                """;
+        assertThat(messagesFrom(json, "a,b\n")).noneMatch(m -> m.severity() == Severity.FATAL);
+    }
+
+    @Test
     void orderedRootAccumulatesNormally() {
         final String json = withSource("\"buffer_size\": 8", "{\"count\": {\"select\": \"items\"}}");
         assertThat(messagesFrom(json, "aaaa\nbbbb\n"))

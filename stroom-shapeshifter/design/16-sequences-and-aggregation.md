@@ -744,6 +744,22 @@ not recovered, E27's entry says where to reopen from.
    out to need a distinction the design's prose blurred — a whole-buffer run takes the same
    code path as a `classify` or `any` root but with exactly **one** chunk, so it is safe, and
    the guard is `!wholeBuffer && (classify || any)` rather than the dispatch mode alone.*
+
+   ***Audited 2026-08-27.*** *One defect, and it was a **false refusal** — the worse kind,
+   because it breaks working configurations rather than merely missing broken ones. The
+   chunked-root guard fired on every sequence read as well as on the write, so a sequence
+   bound and walked inside a single record's body — a `tokenize` and a walk over its pieces —
+   was refused fatally for a hazard it does not have: nothing there crosses a record
+   boundary. The guard is on `append` alone now, which is the only instruction whose purpose
+   is to make a value outlive the record that produced it, and therefore the only place an
+   accumulation begins. Guarding reads as well was redundant even where it was right, since
+   a sequence cannot become an accumulation under a root where appending to it is fatal.*
+
+   *What the refusal deliberately does not cover, named rather than left to be found: reading
+   a **capture** store under such a root. Capture stores accumulate across records at the
+   root and are cleared per chunk — that clearing predates this design — and what is new is
+   that a grouping can now read one and present a per-chunk answer. Nothing at a read site
+   distinguishes a capture store from a per-record binding, so no refusal catches it.*
 7. **Close.** The A/B against the phase-0 measurement, then
    [14-xslt-coverage-matrix.md](14-xslt-coverage-matrix.md): every row of §2 and the
    aggregation and sequence rows of §§3–4 move out of *gap*, and **§5's first gap family

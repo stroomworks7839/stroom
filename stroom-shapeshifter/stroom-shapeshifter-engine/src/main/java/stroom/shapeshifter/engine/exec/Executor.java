@@ -1126,7 +1126,7 @@ public final class Executor {
                     final TypedValue appended = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars, contentEncoding);
                     if (appended != null) {
-                        guardSequenceUse("Appends to sequence", value.name());
+                        guardAccumulation(value.name());
                         // Absent appends nothing rather than a hole: in a dense sequence an
                         // index is a position, so a gap would mean nothing at all.
                         final Store store = vars.store(value.name());
@@ -1289,15 +1289,29 @@ public final class Executor {
     }
 
     /**
-     * Design/16 §10's two refusals, both fatal, both for the same reason: an accumulation
-     * that is wrong is worse than one that stops. A truncated aggregate and a per-chunk
-     * summary are both numbers that look like answers.
+     * Design/16 §10's chunked-root refusal, on the <b>write</b> rather than on every read
+     * (phase 6 audit).
+     *
+     * <p>{@code append} is the only instruction whose purpose is to make a value outlive the
+     * record that produced it, so it is the accumulation, and refusing it refuses every
+     * configuration that deliberately accumulates under a root that reads in pieces. Guarding
+     * reads as well looked thorough and was wrong: a sequence bound and walked inside one
+     * record's body — a {@code tokenize} and a walk over its pieces — crosses no record
+     * boundary and cannot be summarised wrongly, and was being refused fatally for a hazard
+     * it did not have.
+     *
+     * <p>What this deliberately does not cover: reading a <b>capture</b> store under such a
+     * root, which accumulates across records at the root level and is cleared per chunk.
+     * That clearing predates this design; what is new is that a grouping can now read such a
+     * store and present a per-chunk answer. No refusal catches it, because nothing at the
+     * read site distinguishes a capture store from a per-record binding — it is named here
+     * rather than left for someone to find.
      */
-    private void guardSequenceUse(final String what, final String name) {
+    private void guardAccumulation(final String name) {
         if (chunkedRoot) {
-            messages.add(new Message(Severity.FATAL, what + " '" + name + "' under a "
-                    + "classify or any root: the input is read in pieces whose counters "
-                    + "restart, so an accumulation would summarise only the last piece. Use "
+            messages.add(new Message(Severity.FATAL, "Appends to sequence '" + name + "' under "
+                    + "a classify or any root: the input is read in pieces whose counters "
+                    + "restart, so the accumulation would summarise only the last piece. Use "
                     + "an ordered root dispatch, or read the input whole."));
             throw new AbortRun();
         }
@@ -1317,7 +1331,6 @@ public final class Executor {
 
     /** The populated entries of a named sequence, in ascending index order, or empty. */
     private List<TypedValue> entries(final String name) {
-        guardSequenceUse("Reads sequence", name);
         final List<Store> stores = vars.get(name);
         if (stores == null || stores.isEmpty()) {
             return List.of();
@@ -1406,7 +1419,6 @@ public final class Executor {
                                                final MatchResult match,
                                                final int matchCount,
                                                final Encoding contentEncoding) {
-        guardSequenceUse("Indexes sequence", select);
         final java.util.Map<String, Filed> members = new java.util.LinkedHashMap<>();
         final List<Store> stores = vars.get(select);
         if (stores == null || stores.isEmpty()) {
@@ -1616,7 +1628,6 @@ public final class Executor {
                          final boolean ignoreErrors,
                          final int depth,
                          final Encoding contentEncoding) {
-        guardSequenceUse("Walks sequence", op.select());
         final List<Store> stores = vars.get(op.select());
         if (stores == null || stores.isEmpty()) {
             return;
