@@ -394,6 +394,31 @@ at ~1.5% (`win_sec_xml` compile, `apache_httpd` run, `progressive` run) with no 
 one of them a compile-path row the fix does not touch — which is the same small
 harness-variance separation seen in both directions across all four runs of this tranche.
 
+*Audited 2026-08-27 (`594079468f`), and the audit found the fix incomplete — for exactly the
+reason the paragraph above had just given. Having written "name the mechanism, not the
+symptom", the fix then reached only the two casts the benchmark pointed at, leaving three
+sibling sites answering "not a number" by throwing: `Transforms.number`, a published
+instruction of the function library one method away in the same file; the
+replacement-expansion group index, which cost an exception on **every** `$name` expansion,
+per match; and `parse-date`'s epoch arms, once per record. The root cause was structural
+rather than inattention — the non-throwing parse was a **private helper inside
+`TypedValue`**, so no other site could reach the cheap answer even in principle. It is now
+`Numbers`: one home, four callers, with the class comment recording why it lives there.
+Equivalence is asserted differentially across all four sites. The DS3 config-load parses
+(`Ds3Parser`, `LegacyRefs`) are deliberately left throwing — once per load is not the same
+problem, and sweeping them up for symmetry would be a change with no reason behind it.*
+
+*The completion is **not measurable on the current corpus, by construction**, and its
+attempted measurement is void: no catalogue case feeds malformed input to any of the three
+sites — `string_functions` and `value_types` hand `number` only well-formed text (and
+`value_types` guards it behind a `[0-9]` match), `dates` parses valid epoch millis, and no
+case uses a named-group regex replace — so the throwing path is never reached and there is
+nothing to speed up. The run taken to check this (`2026-08-27-1231-594079468f-xml`) landed on
+a busy box and is recorded as a comparability break in the benchmarks README rather than
+read. The value here is latent: it appears on real data with malformed fields, which the
+corpus does not have, and the headline numbers above — which came from the casts — are
+unaffected either way.*
+
 Original text:
 
 **`open` — found and priced 2026-08-27 by design/17's closing A/B**

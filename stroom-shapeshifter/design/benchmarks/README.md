@@ -52,6 +52,14 @@ Runs are machine-specific. Compare files from the same machine, or not at all.
   definition did not move between the two commits. The first run at or after design/17's close
   is the *before* for all of these rows going forward.
 
+- **2026-08-27-1231 ran on a non-idle machine.** Taken to price E26's audit fix, and
+  unreadable: the box reached a load average of 3.4 while it ran, **8 of its 56 rows have
+  materially wider error bars** than the run before (`modes`/100k went from ±3.7 to ±24.7 on
+  a ~360 ms score), and — the tell that settles it — a `saxonTransform` row moved 4.5%, which
+  no engine-side change can cause. Its three apparent regressions are drift. Checked in
+  anyway, labelled, because a run that is thrown away cannot be re-read later; the run before
+  it (`1048-229c9dbd63`) remains the honest *after* for E26.
+
 - **2026-08-21-1555 ran on a non-idle machine**: `saxParse` — code no commit touched —
   sat −55% against both its neighbours (`2026-08-21-1543` before, `2026-08-21-1753` after,
   which agree with each other within ~2% on every untouched row), with error bars to match
