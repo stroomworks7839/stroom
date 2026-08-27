@@ -304,6 +304,57 @@ call instead of grouping by mode once; and every captured group is copied out of
 when nothing reads it — which is what E10's optimiser was for.
 
 ### E23 — Sequences: iteration, grouping, sorting and aggregation
+**`resolved` 2026-08-27 — designed, ruled, built in six audited phases, and closed.**
+The coverage matrix's **last** gap family; with it gone, that document no longer names a
+capability this engine cannot do for log transformation or data extraction, only a routing
+question (D10/E15), two unrequested XPath functions and a list of deliberate refusals.
+
+Built: `for-each` with `as`/`sort`, `sequence`, `append`, `for-each-group` with `group_by`,
+`key`/`key-get`, the five folds, `distinct-values`, `tokenize` binding a sequence, the
+restored `is-first`/`is-last`, and the engine names `__index`/`__position`/`__last`/
+`__group`/`__group_key`/`__group_size`. Five catalogue cases prove it byte-for-byte against
+Saxon — `sequence_basics`, `aggregate`, `sort`, `keys_lookup`, and `keys_grouping`, which was
+**promoted from the suite's `WALLS` to its `CASES`**: the wall documented executably in 2021
+terms came down exactly as designed, by starting to fail on the day a challenger existed.
+
+**The design's central claim held.** No third layer ([D35](../design/00-decisions.md)):
+sorting is an `int[]` of store indexes, grouping and keys are one index builder read two ways,
+and the folds are folds. Everything is the existing two layers with a walk over them.
+
+**Six phases, six audits, five real defects** — which is the argument for auditing each phase
+rather than the tranche. In order: a lint that covered the conditions and not the variables;
+an empty `select` that crashed the compiler by the name of nothing; a sort key that could read
+the enclosing walk's position; a group key treated as though it were inside the group it
+forms; and — the worst kind — a **false refusal**, the chunked-root guard firing on every
+sequence read rather than only on `append`, which rejected a `tokenize`-and-walk that crosses
+no record boundary. Phase 5 found no defect but two decisions that were undocumented and
+untested, which for a decision is the same problem: nothing distinguished them from accidents.
+
+**One defect escaped all six audits and was found by a fixture**: [E28](#e28--an-instruction-that-named-a-variable-did-not-always-bind-it),
+`tokenize` skipping its binding when its input was absent. Every phase test fed values that
+were present; the catalogue cases feed XML where no field is ever absent. It took writing a
+fixture in log shape — `projects/log_sessions` — and putting an empty field in it.
+
+**Measured** (2026-08-27, quiet box, `4160bf7c1c` against `45823464dc`): the requirement is
+met — all eight `run` workloads indistinguishable, so a configuration using none of this pays
+nothing. Compilation costs a fixed **90–290 ns**, which is −24% of the configuration that
+compiles in 292 ns and invisible in the ones that take milliseconds; `BodyScan` seeds eight
+engine names instead of two and carries two more namespaces. Left alone deliberately, with the
+cheaper seeding named in [16 §14.3](../design/16-sequences-and-aggregation.md) if it ever
+matters. Against Saxon the result is **weaker than the design predicted and is recorded as
+such**: 1.13–1.62× on the five new cases, only `sort` clearing its error bars, and
+`keys_grouping` a tie — because those cases spend under 1.5 µs per unit and almost all of it
+parsing and writing, so the grouping is not the dominant cost and the measurement does not
+test it.
+
+**The memory contract**, the one architectural cost, is enforced rather than described: a
+configuration that accumulates nothing keeps the sliding window's bound exactly, one that
+accumulates is bounded by `max_sequence_entries` (100,000 per sequence by default), and
+`append` under a root that reads in chunks is refused fatally — a per-chunk summary being a
+number that looks like an answer.
+
+Original entry:
+
 **`open` — designed and ruled in full 2026-08-25, unbuilt**
 ([16-sequences-and-aggregation.md](../design/16-sequences-and-aggregation.md)). The coverage
 matrix's first gap family — `xsl:sort`, `for-each-group group-by`, `xsl:key`, `sum`/`count`/
@@ -470,8 +521,17 @@ optimisation follows the baseline one measured change at a time (E12): the fix w
 before-and-after, and the before is `2026-08-27-0749-37825da20d-xml.json`.
 
 ### E27 — Compilation walks every template body three times
-**`resolved` 2026-08-27 (`3dd0d3cc9a`) — one `BodyScan` pass, with the compile-time number
-deliberately unmeasured.** Two of the three checks decide as they go; the refusal cannot,
+**`resolved` 2026-08-27 (`3dd0d3cc9a`) — one `BodyScan` pass. Measured 2026-08-27, and the
+merge recovered what it was meant to:** at `4160bf7c1c` against the post-merge
+`2026-08-27-0738-37825da20d-engine` run, `csv_header` compile is **+20.5%** and `regex_lines`
+**+1.9%**, both clear of their error bars, with `progressive` indistinguishable and every
+run-side workload unchanged. This was the measurement [16 §14.2](../design/16-sequences-and-aggregation.md)
+pinned to a commit rather than to the calendar, so that E23 could start without waiting for a
+quiet box; the pin worked, and the number was taken four days of work later against exactly
+the commit it named.
+
+Original entry, written when the number was still owed: one `BodyScan` pass, with the
+compile-time number deliberately unmeasured. Two of the three checks decide as they go; the refusal cannot,
 since a read in the first template may name what the last one writes, so reads are collected
 and judged against the finished write set afterwards — which is also what lets one walk
 replace the two that check needed by itself. The observable order is preserved: every lint is

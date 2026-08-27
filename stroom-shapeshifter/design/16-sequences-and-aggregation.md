@@ -474,16 +474,23 @@ and `challenger.project.json`, byte-identical to Saxon run live, engine messages
 
 | Case | Proves | Status |
 |---|---|---|
-| `keys_grouping` | `for-each-group`, `__group`/`__group_key`/`__group_size`, nested iteration | **exists as a wall** — promote |
-| `sequence_basics` | `sequence`/`append`, `for-each`, `as`, `__position`/`__last`, `is-first`/`is-last` | new |
-| `aggregate` | `count`/`sum`/`avg`/`min`/`max`/`distinct-values` in one summary block | new |
-| `sort` | multi-key sort, descending, numeric, stability under ties | new |
-| `keys_lookup` | `key`/`key-get` against a genuine `xsl:key`/`key()` stylesheet, including a lookup that finds nothing | new (authored — no production stylesheet to adapt; §8) |
+| `keys_grouping` | `for-each-group`, `__group`/`__group_key`/`__group_size`, nested iteration | **promoted** ✓ (phase 4) |
+| `sequence_basics` | `sequence`/`append`, `for-each`, `as`, `__position`/`__last`, `is-first`/`is-last` | ✓ (phase 1) |
+| `aggregate` | `count`/`sum`/`avg`/`min`/`max`/`distinct-values` in one summary block | ✓ (phase 2) |
+| `sort` | multi-key sort, descending, numeric, stability under ties | ✓ (phase 3) |
+| `keys_lookup` | `key`/`key-get` against a genuine `xsl:key`/`key()` stylesheet, including a lookup that finds nothing | ✓ (phase 5) — and the empty lookup rediagnosed `adjacent_groups`' limit |
 | `adjacent_groups` | unchanged; the trailing-empty-group note in [14](14-xslt-coverage-matrix.md) gets its second, native answer | exists ✓ |
 
 Each amplified case must also pass `CaseAmplifierTest`, which is the licence for a benchmark
 row — and amplification is the honest stress here, because it is where an accumulation's size
 stops being hypothetical.
+
+**All five landed.** What the table could not anticipate is that the catalogue proves these
+instructions only in **XML** shape, since its whole purpose is to run the same job through
+Saxon; every input is a well-formed document where each element carries every attribute, so no
+field in it is ever absent. `projects/log_sessions` was added at the close for the shape the
+engine is actually for — delimited log lines, under the fixture ledger's ratchet — and found
+[E28](../stroom-shapeshifter-engine/ISSUES.md) on its first run.
 
 ## 14. Implementation phases
 
@@ -788,6 +795,70 @@ not recovered, E27's entry says where to reopen from.
 
    *Why an XML-shaped catalogue could not have found it: its inputs are well-formed documents
    where every element carries every attribute, so no field is ever absent.*
+
+   ***Measured 2026-08-27***, quiet box, `4160bf7c1c` (E23 unstarted, in a worktree) against
+   `45823464dc`, plus the catalogue at HEAD.
+
+   ***The requirement in §12 is met: a configuration that uses none of this measures
+   unchanged.*** *All eight `run` workloads are indistinguishable — the largest move is
+   `win_sec_strict` at −2.8%, inside its error bars. Nothing on the existing execution path
+   moved, which is what the new `CompiledOp` variants in an already-dispatched switch predicted.*
+
+   ***Compilation is slower on the two smallest configurations, and it is a real cost rather
+   than noise:*** `csv_header` −17.3%, `progressive` −24.1%, `regex_lines` −1.3%. Read as
+   percentages those are alarming and as durations they are not, which is why both belong in
+   the record:
+
+   | workload | before | after | delta |
+   |---|---|---|---|
+   | `progressive` | 292 ns | 384 ns | **+93 ns** |
+   | `csv_header` | 1356 ns | 1640 ns | **+284 ns** |
+   | `regex_lines` | 7094 ns | 7184 ns | +89 ns |
+   | `ausearch`, `apache_httpd`, `win_sec`, `win_sec_strict`, `win_sec_xml` | 2.4–4.0 ms | 2.4–4.0 ms | +0.0–0.8%, all within noise |
+
+   *The signature is a fixed per-compile cost, not a scaling one: the absolute delta sits in a
+   90–290 ns band across every workload, which is 24% of a configuration that compiles in 292
+   nanoseconds and invisible in one that takes four milliseconds. The mechanism is named rather
+   than guessed at — `BodyScan` now seeds eight engine names into its writable set instead of
+   two, and carries three more sets and three more lists for the sequence and key namespaces.
+   Compilation happens once per configuration load, so this is left alone deliberately; if it
+   ever matters, the engine names can be consulted in `EngineVars.ALL` rather than copied into
+   the per-compile set, which is most of the 90 ns.*
+
+   *§12's "a regression here is a defect, not a trade-off" is read narrowly, and the narrow
+   reading is the one its own justification supports — it argues from the run path, and the run
+   path is untouched. The compile path genuinely does more work now because it checks more
+   things, which is the cost of the checks rather than a defect in them.*
+
+   ***The Saxon comparison did not come out the way §12 predicted, and §12 asked for that to be
+   said.*** *"Saxon must build a tree to group; shapeshifter groups an index array over values
+   it already captured. If the hypothesis behind this engine holds anywhere, it holds here, and
+   if it does not, that is the finding." At 100,000 units:*
+
+   | case | Saxon | shapeshifter | ratio | |
+   |---|---|---|---|---|
+   | `sort` | 149.0 ± 29.8 ms | 92.1 ± 19.3 ms | 1.62× | distinguishable |
+   | `aggregate` | 59.0 ± 16.6 ms | 40.1 ± 10.0 ms | 1.47× | error bars overlap |
+   | `sequence_basics` | 60.5 ± 11.2 ms | 44.5 ± 8.8 ms | 1.36× | error bars overlap |
+   | `keys_lookup` | 56.9 ± 25.3 ms | 42.8 ± 8.5 ms | 1.33× | error bars overlap |
+   | `keys_grouping` | 58.4 ± 12.0 ms | 51.8 ± 9.9 ms | 1.13× | error bars overlap |
+
+   *Shapeshifter is ahead on every central estimate and only `sort` clears its error bars.
+   `keys_grouping` — the case this entire design was built around — is a **tie**. That is not
+   the 8.78× the `dates` case gave, and pretending otherwise by quoting the central estimates
+   alone would be the easiest dishonesty available here.*
+
+   *The reason is visible in the numbers rather than inferred: these five cases run 100,000
+   units in 40–150 ms, which is under 1.5 µs per unit, and most of that is parsing XML in and
+   writing bytes out. The grouping is a small part of a job dominated by the parts both engines
+   have to do anyway — and Saxon amortises its tree build over the same parse. The mechanism
+   under test is not the dominant cost, so the measurement does not test it. **What would**: an
+   amplification heavy enough for the grouping to dominate, or a case whose per-unit work is
+   grouping rather than I/O. Recorded as the next measurement rather than resolved by
+   assertion.*
+
+   *No pre-existing catalogue case regressed: every one is indistinguishable or better against
+   the `594079468f` run, with `dates` −8.8% and `nasty_xml` −3.6% faster.*
 
 ### 14.4 Mechanics worth knowing before the first case
 

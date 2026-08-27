@@ -42,6 +42,14 @@ Runs are machine-specific. Compare files from the same machine, or not at all.
     `format-number`, and its input gained a third row. Its ~+50% (Saxon) and ~+100%
     (shapeshifter) against the `8286556d1d` baseline measure *more work*, not slower work.
     Compare it across that boundary and the number is an artifact of the case, not the engine.
+  - **The same again for design/16's tranche.** `sequence_basics`, `aggregate`, `sort`,
+    `keys_lookup` and the newly-promoted `keys_grouping` were authored or completed during
+    E23 and use `for-each`, `for-each-group`, `key`/`key-get` and the folds — none of which
+    exist at any earlier commit. Their value is the within-run Saxon ratio, and at 100,000
+    units that ratio is **1.13–1.62×**, with only `sort` clear of its error bars. Read the
+    caveat with the number: these cases spend under 1.5 µs per unit and most of it parsing
+    and writing, so the ratio is measuring the parts both engines share rather than the
+    grouping. A heavier amplification is the measurement that would actually test it.
   - **`arithmetic`, `value_types`, `comparison` and `dates` have no *before* and never can.**
     They were authored during the tranche and use instructions — `add`, `parse-date`, the
     `eq`–`ge` comparisons — that do not exist at the baseline commit, so the baseline engine
