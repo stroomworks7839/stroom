@@ -303,11 +303,32 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
 
 - **Match summary** — the match expression as a read-only summary chip (type + pattern
   text, flags), followed by guard and limits summaries; the chip and the summaries all
-  click through to the **pattern workbench** — not a
-  dialog but a **full-screen mode**: it fills the work area below the application title
-  bar, replacing the editor panes while open (per Jon, 2026-08-26 — first-class, which
-  is what buys the room for regex101-grade detail), and exits via Apply, Cancel or
-  Escape back to the Design tab.
+  click through to the **pattern workbench** — not a dialog, and (revised 2026-08-26)
+  **not full-screen either**: it occupies the same grid cells as the crumb/vars/strip
+  region, but the template-and-pattern nav panel and its toolbar stay in place beside
+  it. First-class treatment (the room for regex101-grade detail) and leaving the nav
+  reachable turned out not to be in tension — the workbench only ever needed the space
+  to the right of the nav column, not the nav column itself. This makes the workbench's
+  own opening an instance of the navigation this document keeps coming back to:
+  clicking a different template's match chip, or a different library pattern's row,
+  retargets the open workbench in place — you are never forced to close it just to look
+  at something else.
+
+  There is also **no Apply/Cancel** (revised 2026-08-26, prompted by the same
+  question): every field commits when you leave it — pattern text and group names on
+  blur, step edits on blur or on the action that made them, guard and limits exactly as
+  they already did — the same live-editing convention as the rest of this editor, not
+  a special case for pattern authoring. This only became the right call *because* the
+  workbench stopped being modal: once browsing to another template while the workbench
+  is still open is possible, an "unsaved draft" that Cancel could discard is actively
+  dangerous — the honest fix is for there to be nothing to discard. Retargeting the
+  workbench to a new subject flushes the outgoing one first, and closing (the title
+  bar's ✕, or Escape) is a final flush, not a decision between two outcomes — matching
+  Jon's observation that pattern editing is, in this respect, no different from editing
+  a template inline. The one thing this defers rather than answers is regret: there is
+  no per-field Cancel here the way body-card edits have (§5.6's body editor), so a
+  genuine mistake needs a **global undo** to be recoverable — which this design does
+  not yet have (ds-rs did; see Q10).
 
   Its layout is regex101's, adapted: the editable **sample** on the left (seeded from
   the current frame's content, freely editable to experiment) with the live match
@@ -357,8 +378,8 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   between a library pattern and a take-until — is assembling rows in one place, not
   learning a second language, and the shared sample alongside shows each step's
   consumed span as you build. The step builder needs this much space and never had a
-  plausible inline home — which is half of why the workbench is a full screen and not
-  a popup.
+  plausible inline home — which is half of why the workbench is its own in-place panel
+  and not a popup.
 - **Body** — the child structure: the output-node list as a breadcrumb card list
   (ds-rs's shape — text, value-of, apply-templates, call, if/choose, transforms),
   full width. The cards are the body *editor*, not just its display: each card carries
@@ -396,31 +417,71 @@ breadcrumb can reach — then the config's own structure, grouped by mode, in
 dispatch order (order within a mode is dispatch priority — D34's ordered choice — so
 list order *is* semantics and supports drag-reorder). Each row: colour chip, name, match
 count over the whole input, attempt count when it tells a story, and a **heat bar**
-(§5.8) — always present, since every run profiles. The panel is also where templates
-are **created**: a "+ template" row at the foot of each mode group adds one in place —
-at the end of that mode's ordered choice, since position is priority — and opens it
-straight into rename. Names edit inline (hover ✎ on the row, or click the name in the
-strip's title bar); the **colour chip is click-editable** via a small palette, in both
-places; templates **delete** from the row's hover ✕ with confirmation — the dialog
-states the consequence (its frames and their descendants leave the trace display, and
-the run is stale). **Modes are managed where they appear**: a template's mode is a
-dropdown in the strip's title bar (existing modes plus "+ new mode…", created in
-place); a mode group's header carries hover ✎ to rename — updating its templates and
-every `apply-templates` site that references it — and, when the mode is empty, hover ✕
-to delete (with a warning if apply sites still reference it, since those sites are then
-choices with no candidates). The root group is structural, not a named mode, and is
-protected from both. Colour is editor presentation, not engine config: auto-assigned stably from the
+(§5.8) — always present, since every run profiles.
+
+The panel is managed through a **toolbar in its header** — add / edit / remove, the
+Stroom ButtonPanel-over-list idiom (decided 2026-08-26, replacing an earlier draft's
+inline hover affordances and per-group "+ template" rows) — acting on the panel's
+**selection**: template rows select as before, and clicking a **mode group's header
+selects the mode**. The rules:
+
+- **Add** is always enabled and opens a dialog with a Template/Mode choice. A template
+  is created with its **name, swatch colour and mode** set up front (defaulting into
+  the selected mode, at the end of its ordered choice, since position is priority);
+  the mode field offers the existing modes plus a **"Modes…"** button into the mode
+  editor. A mode is created by name.
+- **Edit** enables when a template or mode is selected: for a template, the **same
+  name / colour / mode fields as Add**, reused rather than duplicated (decided
+  2026-08-26 — mode has exactly one home whether you're creating or editing); for a
+  mode, the mode editor. The strip title's name and chip click through to the Edit
+  dialog too, but the strip itself no longer offers a mode picker — it shows the
+  template's mode as plain text, since editing it lives in one place. Name and colour
+  changes are presentation and never mark the run stale; a **changed mode is a real
+  dispatch edit** (it moves the template between ordered choices) and does.
+- **Remove** enables for a selected template, or a selected mode that is *empty*; it
+  always confirms first, and for a template the dialog states the consequence — its
+  frames and their descendants leave the trace display, and the run goes stale.
+- The **mode editor** dialog is the one place modes are added, renamed and removed:
+  renaming updates the mode's templates and every `apply-templates` site referencing
+  it; removal is empty-modes-only, with a warning when apply sites still reference the
+  mode (those sites become choices with no candidates). The root group is structural,
+  not a named mode, and is protected throughout.
+
+Colour is editor presentation, not engine config: auto-assigned stably from the
 palette, user-overridable, with overrides stored as editor metadata in the
 `ShapeshifterDoc` beside the sample data (Q2) — never in the engine `Project` or the
-compiled graph. Zero-match templates render dimmed,
-not hidden — finding them is half the
-point. The panel header for the selected template shows the mode-graph strip
+compiled graph. Zero-match templates render dimmed, not hidden — finding them is half
+the point. The panel header for the selected template shows the mode-graph strip
 ("dispatched from: `record` (body pos 2)") — the static complement to breadcrumb
-ancestry, and the answer when there are no matches to navigate. Below the templates, the
-**pattern library** lists the config's named `CombinatorPattern`s — plain patterns and
-whole step sequences alike (ds-rs's PatternLibrary carried forward; DocRef-based
-libraries in Stroom per D11) — these are what `Named` match expressions and the
-workbench's library-reference steps choose from.
+ancestry, and the answer when there are no matches to navigate.
+
+Below the templates, the **pattern library** lists the config's named
+`CombinatorPattern`s — plain patterns and whole step sequences alike (ds-rs's
+PatternLibrary carried forward; DocRef-based libraries in Stroom per D11) — these are
+what `Named` match expressions and the workbench's library-reference steps choose
+from. **Selecting a library row opens the pattern workbench directly** (decided
+2026-08-26): a bare pattern has no frame, no body, no dispatch — nothing else in the
+editor has anything to show for it — so, unlike a template row, there is no
+intermediate "selected but not yet editing" state to land in. This is also the
+answer to a question the earlier draft left implicit: **the workbench always follows
+a navigation** — for a template that navigation is selecting its row (or a frame of
+it) and then choosing to look at its match via the strip's chip; for a library entry
+the navigation and the "look at its match" step collapse into one click, because
+there was never a second thing to look at first.
+
+The workbench itself is subject-agnostic — it edits *a match expression*, and a
+template's match and a library entry's definition are the same kind of thing wearing
+different context. A plain pattern is edited on the regex tab, a stored combinator on
+the steps tab, and **the inactive tab is disabled** rather than offered and ignored
+(a library entry's kind is fixed at creation, unlike a template, which can freely
+switch mechanism). Guard and limits are hidden entirely for a library subject — they
+are dispatch controls on a template's match stage, and a bare pattern has no
+dispatch. Applying a combinator edit **recompiles its `impl`** from the edited step
+sequence, so `named(this-entry)` resolution elsewhere in the config can never drift
+from what the steps actually do; applying any library edit marks the whole run stale,
+since any template referencing it via a named step or match may now behave
+differently — a wider blast radius than a single template's own edit, and the UI
+treats it that way rather than pretending the edit was local.
 
 ### 5.7 Empty states are the front door
 
@@ -577,10 +638,13 @@ previews how the editor sits inside the real application.
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The pattern workbench (opened from the `✎ workbench` chip) is a popup: pattern editor
-with live validation and group sync, lint from `explain()`/`ambiguities()`, a test panel
-running the candidate pattern against the current frame's content, and tabs for the
-delimiter editor and the progressive/combinator step builder.
+The pattern workbench (opened from the `✎ workbench` chip, or by selecting a pattern in
+the library section of the nav panel) occupies the crumb/vars/strip region in place —
+the nav panel stays visible and clickable beside it. It has: pattern editor with live
+validation and group sync, lint from `explain()`/`ambiguities()`, a sample pane running
+the candidate pattern against editable text, and tabs for the delimiter editor and the
+progressive/combinator step builder. Every field commits on interaction — there is no
+Apply/Cancel.
 
 At the root (`source`) frame the same layout reads: content = the whole buffer with
 `record` matches lit; the body's single `apply` card shows `record 3 → descend`;
@@ -604,3 +668,4 @@ breadcrumb moves within the record.
 | Q7 | Does Phase C replace the generic stepping panes for ShapeshifterParser, or add a fifth "Trace" pane beside them? | Replace — the frame navigator subsumes Input/Output; keep Log. |
 | Q8 | Content renderer depth: direct children only, or all descendants nested? | All descendants, direct children prominent, deeper levels quieter — the survey view needs it at the root frame. |
 | Q9 | Windowing/minimap for large content values — in scope for B? | Defer; window around the current position first. |
+| Q10 | Global undo/redo (ds-rs had snapshot-based history) — now that the workbench and guard/limits commit live with no per-action Cancel, this is the only remaining answer to "I made a mistake." In scope for B? | Yes for B, or accept the gap explicitly for A — a live-editing surface with no undo anywhere is a real regression from ds-rs, not a simplification. |

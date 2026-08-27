@@ -144,10 +144,10 @@ the hot loops, none applied because each changes a measured method's shape:
 - The anchor gates' `at < to &&` exemption survives its deleted reason (the edge
   iteration's bookkeeping); dropping it only forces one doomed attempt fewer on
   `minLength == 0` patterns.
-- `PikeVm`: the `pos > to ||` exit disjunct is subsumed by `pos > lastSeed`;
-  `canStartAt`'s `pos < to &&` is constant-true; BYTE_RANGE's `value >= 0 &&` is subsumed
-  by the range compare (BYTE_CLASS/BYTE_DISPATCH must keep theirs — −1 would index a
-  table).
+- `PikeVm`: the `pos > to ||` exit disjunct is subsumed by `pos > lastSeed`; BYTE_RANGE's
+  `value >= 0 &&` is subsumed by the range compare (BYTE_CLASS/BYTE_DISPATCH must keep
+  theirs — −1 would index a table). ~~`canStartAt`'s `pos < to &&`~~ landed 2026-08-26 with
+  the first-byte gates.
 - `PlanRunner` MATCH_LITERAL still compares bytes of a literal that cannot fit before
   failing; an up-front length check is simpler and skips the doomed loop.
 - `contextEnd` is now constant-per-call equal to `data.length` on every path, so the
@@ -158,13 +158,55 @@ the hot loops, none applied because each changes a measured method's shape:
   the end through `slots[1]`), so `search` could return boolean; `Backrefs.TRUNCATED` is
   indistinguishable from `MISMATCH` at both call sites and could collapse.
 
-**A complete view with a clipped context is inexpressible (`open` — needs a ruling,
-2026-08-25).** Both surviving entries bind `contextEnd = data.length`; the deleted window
-entry was the only way to pin the context at a reused buffer's fill point, so the
-beyond-region probe can consult stale bytes past the fill (a stale continuation byte at
-`data[to]` falsely vetoes a legal match at the region end). The executor's records rarely
-abut the fill, and pre-D37 array-entry callers had the same exposure — D37 removed the
-*expression* of the tighter bound, not the safety of existing callers. Options if ruled
-worth fixing: a `contextEnd` overload on the five-argument entry, or the
-constant-propagation above in the opposite direction. Recorded by the D37 audit's
-removed-behavior angle.
+**A stale byte past the region can veto a legal empty match (`open` — demonstrated
+2026-08-27, needs a ruling on the fix).** Raised by the D37 audit as a theoretical gap and
+since reproduced:
+
+```java
+final byte[] window = new byte[8];                 // a reused buffer
+System.arraycopy("ab".getBytes(UTF_8), 0, window, 0, 2);
+window[2] = (byte) 0x82;                           // last buffer's tail, not the caller's data
+BytePattern.compile("b*").matcher().match(window, 2, 2, Anchoring.ANCHORED);  // false
+BytePattern.compile("b*").matcher().match("ab".getBytes(UTF_8), 2, 2, Anchoring.ANCHORED);  // true
+```
+
+Both entries bind `contextEnd = data.length`, so `Utf8.splitsCharacter` probes one byte past
+the region and reads whatever the array holds there. When the caller's data ends before the
+array does, that byte is not the caller's — and if it is a UTF-8 continuation byte the probe
+concludes the region ends mid-character and refuses the start.
+
+**It is reachable through the executor, and non-deterministically.** `Executor.stream`
+matches `window[start, filled)` where `window` is a `capacity`-sized array reused across
+refills: `compact()` copies the live region to the front, `fill()` returns short on the last
+read, and `window[filled..capacity)` keeps the previous buffer's bytes. A nullable pattern
+has no first-byte table, so `searchPlan`'s bound is `regionTo - 0` and the walk reaches
+`at == to == filled`. Whether the record matches at the buffer tail then depends on leftover
+bytes from an earlier buffer.
+
+Not a D37 regression: the pre-D37 array entry had the same exposure. What D37 removed was
+the *expression* of the tighter bound — `ByteWindow` let a caller pin the context at the
+fill, and `StreamMatcher` did exactly that.
+
+The library cannot infer it. A slice that ends mid-character legitimately has real bytes
+after it — that is R1's beyond-region probe working as designed — so only the caller knows
+whether `to` is the end of a slice or the end of its data.
+
+Options, with the costs this module has already measured:
+
+1. **A bound context, the shape R1 ruled for.** A public setter beside the call, defaulting
+   to `data.length`, mirroring the `setContextEnd` the engines already use internally. R1
+   proved the *argument* route costs −8.6% on `simulate line_miss` from the signature alone,
+   and that binding it as state is free — but this needs a way to say "unset", so either a
+   sentinel on the existing field or a second field, and a field is the one currency the
+   class-shape item above shows this class is sensitive to.
+2. **A six-argument entry** stating the context explicitly, leaving the four-argument entry
+   untouched. No new field, no cost to existing callers, one more public entry to keep
+   honest — and D37 has just shown what a second entry costs in drift when it is the only
+   spelling of something.
+3. **Rule it acceptable and document it**, on the grounds that a nullable pattern searching
+   to the exact tail of a short-filled buffer is rare. That is a real position, but the
+   failure is silent and input-dependent, which is the kind this module has twice decided is
+   worth paying for.
+
+Whichever is ruled, it wants the standing gate: buffer CSV and per-match datetime either
+side, plus the anchored suite. The repro above becomes the pinned test.
