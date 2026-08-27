@@ -526,6 +526,94 @@ a hypothesis is stated before the run that tests it). Per mechanism:
   sentinel `int` or a boxed `Integer` is an implementation detail the allocation profile can
   decide.
 
+### Results — the close, 2026-08-27 (`8286556d1d` → `37825da20d`)
+
+**The gate passed: every row whose workload held still is indistinguishable**, engine and
+catalogue alike. Only `string_functions` moved, and it moved because phase 2 grew it (see
+the benchmarks README's comparability breaks). Scoring the predictions above, which is the
+point of having written them down first:
+
+| Prediction | Verdict |
+|---|---|
+| Configs using none of this measure unchanged | **held**, with one exception below |
+| Phase 1 neutral-to-positive; *risk*: allocation in `resolveValue` | **the named risk is the best explanation of the one row that moved** |
+| String comparison drops its decodes — "where the numbers will ask first" | **unresolved — nothing measures it** |
+| Arithmetic trivial beside matching | **refuted, decisively** |
+| `dates` shows the narrowest Saxon multiple | **refuted, in the opposite direction — it is the widest win in the catalogue** |
+| Legacy conditions identical by construction | held |
+| Memory noise | not measured (no `-prof gc` run) |
+
+**The four new cases, measured for the first time** (within-run ratio, Saxon ÷ shapeshifter;
+these rows have no *before* and never can, §the README):
+
+| Case | 10k | 100k | |
+|---|---|---|---|
+| `dates` | 7.27× | **8.78×** | the widest win in the whole catalogue |
+| `comparison` | 0.93× | 0.93× | parity, marginally behind |
+| `value_types` | 0.87× | 0.77× | behind |
+| `arithmetic` | 0.29× | **0.25×** | **4× slower than Saxon** |
+
+**Finding 1 — arithmetic on fractional text costs an exception per operand, and it is 82×.**
+`arithmetic` is the tranche's one real loss, and the cause is proven rather than guessed. A
+probe timing `Transforms.multiply` over identical shapes:
+
+```
+whole-text operands  ("3", "20")     42 ns/op
+fractional operands  ("3", "19.5") 3450 ns/op     <-- 82x
+already-typed        (Int, Real)      27 ns/op
+```
+
+`asInteger()` implements the total-cast contract (§2, never throws) by calling
+`Long.valueOf` inside a `try`, so **every operand that is not integral text throws a
+`NumberFormatException`, fills in a stack trace, and has it discarded** — and `fold()` then
+re-parses the whole list through `numbers()`. The `arithmetic` case's inputs are prices and
+weights (`19.5`, `-2.5`), so nearly every operation pays it twice. The contract is right;
+the implementation of it is what costs. The fix is small and local — decide the numeric
+kind by inspecting the text (or a non-throwing parse) before committing to a parse that can
+throw — and it is a **defect worth its own measured change** rather than a quiet edit here:
+the engine's own rule is that optimisation follows the baseline, one measured change at a
+time. Recorded, not fixed. Fractional numbers in log data are entirely ordinary, so this is
+not an exotic path.
+
+**Finding 2 — `dates` was mispredicted, and the reason is worth disclosing.** The prediction
+assumed shapeshifter's per-record `DateTimeFormatter.parse` would be the heavy side and
+Saxon "pays the same or more". Saxon pays *far* more: 3493 ms against 398 ms at 100k. Part
+of that is the engine, and part is the *case* — XSLT has no native nearest-year rule, so the
+stylesheet computes it with XPath sequence machinery (`for $y in … return xs:dateTime(…)`,
+`index-of`, `min`) where the challenger calls `parse-date` with a `reference`. That is a
+fair comparison of the **job** — it is what an author would have to write — but it is not a
+clean engine-versus-engine comparison of date parsing alone, and the ratio should be quoted
+with that attached.
+
+**Finding 3 — compile-time cost has grown, and it is now substantial in relative terms.**
+The three checks phases 3 and 5 added each walk every template body, and it shows on the
+configurations whose compile is otherwise trivial:
+
+| Config | Baseline | Close | |
+|---|---|---|---|
+| `csv_header` | 1008 ns | 1634 ns | **−38%** |
+| `progressive` | 203 ns | 284 ns | −28% |
+| `regex_lines` | 6807 ns | 7231 ns | −6% |
+
+Every configuration where real regex compilation dominates (`apache_httpd`, the `win_sec`
+family, `ausearch`) is indistinguishable, and compile is a once-per-load cost by the
+engine's own design — 0.6 µs added to a load is nothing. But the *shape* is worth naming
+before it grows again: three independent full-body walks (`comparisonChecks`,
+`referenceChecks`, `substringVersionCheck`) where one walk collecting into three visitors
+would do. A fourth check would make it four walks.
+
+**Finding 4 — one `run` row moved, and phase 3's reading of it was too quick.** `run
+csv_header` reads −1.5% at phase 3 and −2.3% at the close: separated in two independent
+runs, so not noise. At phase 3 this was attributed to noise on the grounds that the fixture's
+only condition is an `exists` guard, which the comparison work never touches — true, but it
+answered the wrong question, because it only ruled out *phase 3*. `csv_header` has **no
+transforms at all**, so phase 1's typed path is equally ruled out — and what is left is
+exactly the risk phase 1's own audit wrote down: `resolveValue` allocates a `TypedValue`
+wrapper on the literal and composite paths where `resolve` previously returned bytes
+directly. `csv_header` is the most literal-heavy, transform-free configuration in the
+corpus, which is why it is the row that shows it. Small (~2%), localised, and the fast path
+named in that audit is the fix if it ever matters.
+
 **The protocol.** The shared box's rules apply: full-suite runs in the evening, targeted
 one-minute combos by day, check for other sessions' JMH runs before starting, and validate
 drift on untouched rows before reading any moved one.
@@ -823,6 +911,18 @@ change. [14-xslt-coverage-matrix.md](14-xslt-coverage-matrix.md) updated: the
 function-library gaps close, §3's arithmetic row moves to covered, and §5's second gap
 family is done. E24 closed in ISSUES with pointers here.
 *Exit: matrix and ISSUES agree with the shipped engine; benchmark write-up committed.*
+
+*A/B run 2026-08-27 (`8286556d1d` → `37825da20d`), results and prediction scoring in §13.
+Three preparatory fixes landed first, because without them the comparison would have been
+meaningless or misread: the benchmark's case list had drifted from the corpus so the four
+new cases were measured by nothing; `render-benchmark.py` reported direction backwards for
+every ms/op row; and the corpus itself moved mid-tranche, which is now recorded as a
+comparability break. **The gate passed** — every held-still row indistinguishable — and the
+run turned up four findings, two of them substantive: arithmetic on fractional text costs an
+exception per operand (82× measured, the `arithmetic` case 4× behind Saxon), and compile-time
+has grown −38% on trivially-compiled configurations through three separate body walks. Both
+are recorded for a ruling rather than fixed here, per the engine's own one-measured-change-at-
+a-time rule. The remaining close work — matrix, E24 — is unstarted.*
 
 ## 16. Decisions — ruled 2026-08-25
 
