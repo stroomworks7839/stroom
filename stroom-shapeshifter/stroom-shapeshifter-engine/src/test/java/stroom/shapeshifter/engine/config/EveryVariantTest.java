@@ -250,6 +250,8 @@ class EveryVariantTest {
                         List.of(new OutputNode.Sort(ref(), OutputNode.Order.DESCENDING, Cast.NUMBER),
                                 new OutputNode.Sort(ref(), null, null)),
                         List.of()),
+                new OutputNode.ForEachGroup("seq", ref(), List.of(new OutputNode.Text("g"))),
+                new OutputNode.ForEachGroup("seq", null, List.of()),
                 new OutputNode.Count("seq", "n"),
                 new OutputNode.Sum("seq", "total"),
                 new OutputNode.Avg("seq", "mean"),

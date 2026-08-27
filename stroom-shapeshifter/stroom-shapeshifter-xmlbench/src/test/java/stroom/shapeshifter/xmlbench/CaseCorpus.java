@@ -52,7 +52,8 @@ final class CaseCorpus {
             Map.entry("dates", Pattern.compile("  <e [^\n]*\n")),
             Map.entry("sequence_basics", Pattern.compile("  <item [^\n]*\n")),
             Map.entry("aggregate", Pattern.compile("  <row [^\n]*\n")),
-            Map.entry("sort", Pattern.compile("  <p [^\n]*\n")));
+            Map.entry("sort", Pattern.compile("  <p [^\n]*\n")),
+            Map.entry("keys_grouping", Pattern.compile("  <order [^\n]*\n")));
 
     private CaseCorpus() {
     }

@@ -1241,6 +1241,15 @@ public final class ProjectJson {
                         text(body, "name", "append"),
                         readRef(required(body, "select", "append")));
             }
+            case "for-each-group" -> {
+                checkFields(body, "for-each-group", "select", "group_by", "body");
+                yield new OutputNode.ForEachGroup(
+                        text(body, "select", "for-each-group"),
+                        body.has("group_by") && !body.get("group_by").isNull()
+                                ? readRef(body.get("group_by"))
+                                : null,
+                        list(body.get("body"), "body", ProjectJson::readOutput));
+            }
             case "for-each" -> {
                 checkFields(body, "for-each", "select", "as", "sort", "body");
                 yield new OutputNode.ForEach(
@@ -1441,6 +1450,15 @@ public final class ProjectJson {
                 body.put("name", value.name());
                 body.set("select", writeRef(value.select()));
                 yield wrap("append", body);
+            }
+            case OutputNode.ForEachGroup value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("select", value.select());
+                if (value.groupBy() != null) {
+                    body.set("group_by", writeRef(value.groupBy()));
+                }
+                body.set("body", array(value.body(), ProjectJson::writeOutput));
+                yield wrap("for-each-group", body);
             }
             case OutputNode.ForEach value -> {
                 final ObjectNode body = NODES.objectNode();

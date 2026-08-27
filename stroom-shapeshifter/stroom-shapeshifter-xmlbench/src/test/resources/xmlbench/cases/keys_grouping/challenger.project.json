@@ -1,0 +1,205 @@
+{
+ "name": "keys_grouping_challenger",
+ "version": 5,
+ "source": {
+  "buffer_size": 4000000,
+  "ignore_errors": false,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><cats>"
+    },
+    {
+     "sequence": {
+      "name": "at"
+     }
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "doc"
+     }
+    },
+    {
+     "for-each-group": {
+      "select": "at",
+      "group_by": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "cat",
+          "group": 0,
+          "match_index": {
+           "var_ref": "__index"
+          }
+         }
+        }
+       ]
+      },
+      "body": [
+       {
+        "text": "<cat name=\""
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "__group_key",
+            "group": 0
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "\" count=\""
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "__group_size",
+            "group": 0
+           }
+          }
+         ]
+        }
+       },
+       {
+        "text": "\">"
+       },
+       {
+        "for-each": {
+         "select": "__group",
+         "as": "i",
+         "body": [
+          {
+           "text": "<o>"
+          },
+          {
+           "value-of": {
+            "parts": [
+             {
+              "capture": {
+               "var_id": "id",
+               "group": 0,
+               "match_index": {
+                "var_ref": "i"
+               }
+              }
+             }
+            ]
+           }
+          },
+          {
+           "text": "</o>"
+          }
+         ]
+        }
+       },
+       {
+        "text": "</cat>"
+       }
+      ]
+     }
+    },
+    {
+     "text": "</cats>"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "decl",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<\\?xml[^\\n]*\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "open",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "<orders>\\n"
+    }
+   },
+   "body": []
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "order",
+   "mode": "doc",
+   "match": {
+    "regex": {
+     "pattern": "  <order id=\"([^\"]*)\" cat=\"([^\"]*)\"/>\\n"
+    }
+   },
+   "captures": [
+    {
+     "name": "id",
+     "select": {
+      "group": 1
+     }
+    },
+    {
+     "name": "cat",
+     "select": {
+      "group": 2
+     }
+    }
+   ],
+   "body": [
+    {
+     "append": {
+      "name": "at",
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "__match_count",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000005",
+   "name": "close",
+   "mode": "doc",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "</orders>\\n"
+    }
+   },
+   "body": []
+  }
+ ]
+}

@@ -50,9 +50,18 @@ public final class EngineVars {
     /** Within a {@code for-each}: how many entries the iteration will run. */
     public static final String LAST = "__last";
 
+    /** Within a {@code for-each-group}: the key this group was formed on. */
+    public static final String GROUP_KEY = "__group_key";
+
+    /** Within a {@code for-each-group}: the members, as a dense sequence of store indices. */
+    public static final String GROUP = "__group";
+
+    /** Within a {@code for-each-group}: how many members — known before the group opens. */
+    public static final String GROUP_SIZE = "__group_size";
+
     /** Every name the engine sets, for the compiler's refusal to treat as writable. */
-    public static final java.util.Set<String> ALL =
-            java.util.Set.of(MATCH_COUNT, MATCH_INDEX, INDEX, POSITION, LAST);
+    public static final java.util.Set<String> ALL = java.util.Set.of(
+            MATCH_COUNT, MATCH_INDEX, INDEX, POSITION, LAST, GROUP_KEY, GROUP, GROUP_SIZE);
 
     /**
      * The names only an iteration sets. Read outside one they are absent, and absence is
@@ -62,4 +71,8 @@ public final class EngineVars {
      */
     public static final java.util.Set<String> ITERATION_ONLY =
             java.util.Set.of(INDEX, POSITION, LAST);
+
+    /** The names only a grouping sets, which carry the same hazard outside one. */
+    public static final java.util.Set<String> GROUP_ONLY =
+            java.util.Set.of(GROUP_KEY, GROUP, GROUP_SIZE);
 }

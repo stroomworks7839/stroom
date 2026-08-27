@@ -206,6 +206,9 @@ public final class Compiler {
         /** Whether the reference being read belongs to a sort key rather than to a body. */
         private boolean inSortKey;
 
+        /** How many {@code for-each-group} bodies enclose the node being visited. */
+        private int groupDepth;
+
         BodyScan(final Project project, final List<Message> warnings) {
             this.project = project;
             this.warnings = warnings;
@@ -346,7 +349,26 @@ public final class Compiler {
                 case OutputNode.Min value -> fold(value.select(), value.name());
                 case OutputNode.Max value -> fold(value.select(), value.name());
                 case OutputNode.DistinctValues value -> fold(value.select(), value.name());
+                case OutputNode.ForEachGroup value -> {
+                    sequenceUses.add(new NamedUse(templateName, value.select()));
+                    // A group's key is resolved with __index bound, like a sort key, so it
+                    // counts as inside the iteration rather than outside every one.
+                    iterationDepth++;
+                    groupDepth++;
+                    read(value.groupBy());
+                    body(value.body());
+                    groupDepth--;
+                    iterationDepth--;
+                }
                 case OutputNode.ForEach value -> {
+                    // Walking __group is only meaningful inside a grouping, and the sequence
+                    // check cannot see that: __group is writable everywhere, being a name the
+                    // engine sets.
+                    if (EngineVars.GROUP.equals(value.select()) && groupDepth == 0) {
+                        warnings.add(new Message(Severity.WARNING, "Template '" + templateName
+                                + "' walks " + EngineVars.GROUP + " outside any"
+                                + " for-each-group, where nothing sets it."));
+                    }
                     sequenceUses.add(new NamedUse(templateName, value.select()));
                     if (value.as() != null) {
                         writable.add(value.as());
@@ -453,24 +475,24 @@ public final class Compiler {
                     }
                 }
             }
-            if (iterationDepth == 0) {
-                for (final RefExpression.RefPart part : ref.parts()) {
-                    if (part instanceof RefExpression.RefPart.Capture capture) {
+            for (final RefExpression.RefPart part : ref.parts()) {
+                if (part instanceof RefExpression.RefPart.Capture capture) {
+                    if (iterationDepth == 0) {
                         iterationOnly(capture.varId());
                         if (capture.matchIndex() != null) {
                             iterationOnly(capture.matchIndex().varRef());
+                        }
+                    }
+                    if (groupDepth == 0) {
+                        groupOnly(capture.varId());
+                        if (capture.matchIndex() != null) {
+                            groupOnly(capture.matchIndex().varRef());
                         }
                     }
                 }
             }
         }
 
-        /**
-         * The same hazard the positional conditions carry, on the variables that carry it
-         * too (phase 1 audit): outside an iteration nothing sets these, and absence here is
-         * quiet — {@code $__position} writes nothing, and an index reference falls back to
-         * the first entry, which is a wrong value rather than no value.
-         */
         /**
          * A sort key decides the order, so it cannot ask where an entry will land: nothing
          * has a position until the keys have been compared. {@code __index} is fine there —
@@ -484,6 +506,21 @@ public final class Compiler {
             }
         }
 
+        // The grouping names carry the iteration names' hazard, outside a grouping.
+        private void groupOnly(final String name) {
+            if (name != null && EngineVars.GROUP_ONLY.contains(name)) {
+                warnings.add(new Message(Severity.WARNING, "Template '" + templateName
+                        + "' reads " + name + " outside any for-each-group, where nothing"
+                        + " sets it."));
+            }
+        }
+
+        /**
+         * The same hazard the positional conditions carry, on the variables that carry it
+         * too (phase 1 audit): outside an iteration nothing sets these, and absence here is
+         * quiet — {@code $__position} writes nothing, and an index reference falls back to
+         * the first entry, which is a wrong value rather than no value.
+         */
         private void iterationOnly(final String name) {
             if (name != null && EngineVars.ITERATION_ONLY.contains(name)) {
                 warnings.add(new Message(Severity.WARNING, "Template '" + templateName

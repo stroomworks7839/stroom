@@ -189,6 +189,13 @@ public sealed interface CompiledOp {
 
     }
 
+    /** Group a sequence's entries, running a body per group (design/16 §6). */
+    record ForEachGroup(String select,
+                        CompiledRef groupBy,
+                        List<CompiledOp> body) implements CompiledOp {
+
+    }
+
     /** One compiled ordering key: the reference resolved once, the cast decided once. */
     record SortKey(CompiledRef by, OutputNode.Order order, Cast as) {
 
@@ -368,6 +375,9 @@ public sealed interface CompiledOp {
                         new DistinctValues(value.select(), value.name());
                 case OutputNode.Sequence value -> new Sequence(value.name());
                 case OutputNode.Append value -> new Append(value.name(), CompiledRef.of(value.select()));
+                case OutputNode.ForEachGroup value -> new ForEachGroup(value.select(),
+                        value.groupBy() == null ? null : CompiledRef.of(value.groupBy()),
+                        compile(value.body(), patterns, project));
                 case OutputNode.ForEach value -> new ForEach(value.select(), value.as(),
                         value.sort().stream()
                                 .map(key -> new SortKey(CompiledRef.of(key.by()), key.order(), key.as()))

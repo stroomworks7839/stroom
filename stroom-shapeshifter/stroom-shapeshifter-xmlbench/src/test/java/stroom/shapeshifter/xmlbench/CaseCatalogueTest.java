@@ -62,7 +62,8 @@ class CaseCatalogueTest {
             "dates",
             "sequence_basics",
             "aggregate",
-            "sort");
+            "sort",
+            "keys_grouping");
 
     /**
      * The walls: cases whose stylesheet runs but for which no challenger exists — executable
@@ -71,7 +72,6 @@ class CaseCatalogueTest {
      * stay quietly misfiled.
      */
     private static final List<String> WALLS = List.of(
-            "keys_grouping",
             "dual_output");
 
     @TestFactory

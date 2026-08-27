@@ -646,6 +646,28 @@ not recovered, E27's entry says where to reopen from.
    where they are also set.
    Case: `keys_grouping` promoted from wall to passing — **the acceptance test for this whole
    design**, and the case §7 is written against.
+
+   ***Landed 2026-08-27*** (`following`). **The wall is down.** `keys_grouping` matches Saxon
+   byte for byte at authored and amplified scale, and its challenger is §7's worked example
+   with nothing added: `__group_key` for `current-grouping-key()`, `__group_size` for
+   `count(current-group())`, and a nested walk over `__group` for `current-group()` itself.
+
+   *`sort` is deliberately **not** on `for-each-group` yet. §6's record carries it, but no
+   case needs group ordering, and carrying an unused field is the dead vocabulary the code
+   standard says to delete rather than wire — the same call phase 1 made about `for-each`'s
+   own `sort`, which phase 3 then added when it had a case to prove it.*
+
+   *The three grouping names are seeded here, in the commit that sets them, and carry the
+   same outside-their-construct lint the iteration names got. One of them needed a lint the
+   others did not: `__group` is a **sequence**, so walking it outside a grouping passes the
+   sequence check — the name is writable everywhere, being one the engine sets — and only a
+   dedicated warning catches it.*
+
+   *The first challenger draft grouped every record into one group, and the engine was
+   right: the key read `$cat[$at]` where `at` was the **sequence's** name rather than a
+   binding, so every key resolved to that store's latest value. It compiled because a
+   sequence name is legitimately writable. Inside a grouping the key is evaluated with
+   `__index` bound, and that is what it must name.*
 5. **Keys.** `key`/`key-get` on the grouping index machinery (§8, ruled built rather than
    deferred). Case: `keys_lookup`, authored — no production stylesheet supplies one.
 6. **The contract.** `max_sequence_entries`, the fatal on overflow, the chunked-root refusal.

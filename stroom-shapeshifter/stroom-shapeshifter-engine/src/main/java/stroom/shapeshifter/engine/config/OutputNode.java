@@ -461,6 +461,31 @@ public sealed interface OutputNode {
     }
 
     /**
+     * Group a sequence's entries and run a body once per group — XSLT's
+     * {@code xsl:for-each-group} with {@code group-by} (design/16 §6).
+     *
+     * <p>Groups form in <b>order of first appearance</b>, XSLT's rule and the one a log
+     * summary wants. What is grouped is the <b>index set</b>, not the values: two captures of
+     * one template at match <i>i</i> belong to the same record, so a group's members are
+     * positions that any parallel store can be read at. That is how a byte engine with no
+     * tree reaches what {@code current-group()} reaches.
+     *
+     * @param select  the sequence whose indices are grouped
+     * @param groupBy the key, evaluated per entry with {@code __index} bound, or null to
+     *                group by the entry's own value
+     */
+    record ForEachGroup(String select, RefExpression groupBy, List<OutputNode> body)
+            implements OutputNode {
+
+        public ForEachGroup {
+            if (select == null || select.isEmpty()) {
+                throw new ConfigException("A for-each-group needs the name of a sequence");
+            }
+            body = body == null ? List.of() : List.copyOf(body);
+        }
+    }
+
+    /**
      * One key of an iteration's ordering (design/16 §5). {@code by} is evaluated once per
      * entry with {@code __index} bound, so a key can read the item, a parallel store at the
      * same match, or a concatenation.

@@ -1119,6 +1119,9 @@ public final class Executor {
                         }
                     }
                 }
+                case CompiledOp.ForEachGroup value ->
+                        forEachGroup(value, match, matchCount, content, sink,
+                                inputBase, ignoreErrors, depth, contentEncoding);
                 case CompiledOp.ForEach value ->
                         forEach(value, match, matchCount, content, sink,
                                 inputBase, ignoreErrors, depth, contentEncoding);
@@ -1304,6 +1307,82 @@ public final class Executor {
             }
         }
         return best;
+    }
+
+    /**
+     * Group a sequence's entries and run the body once per group (design/16 §6).
+     *
+     * <p>Groups form in order of first appearance — a {@link java.util.LinkedHashMap} built in
+     * one pass, which is the whole implementation. What is grouped is the <b>index set</b>:
+     * members are store indices, bound as {@code __group}, so a nested walk over them can read
+     * any parallel store at the record each names. Keys are compared by string form, the same
+     * total reading an uncast ordering uses.
+     *
+     * <p>{@code __group_size} is known before the group's body opens, which is what lets an
+     * author write a count into the opening tag — the thing the byte engine could not do when
+     * {@code adjacent_groups} found its trailing-empty-group limit.
+     */
+    private void forEachGroup(final CompiledOp.ForEachGroup op,
+                              final MatchResult match,
+                              final int matchCount,
+                              final byte[] content,
+                              final OutputSink sink,
+                              final long inputBase,
+                              final boolean ignoreErrors,
+                              final int depth,
+                              final Encoding contentEncoding) {
+        final List<Store> stores = vars.get(op.select());
+        if (stores == null || stores.isEmpty()) {
+            return;
+        }
+        final Store store = stores.getFirst();
+
+        // Keys are resolved with __index bound, so a key can name a parallel store — which is
+        // how "group these records by their category" is said when the sequence carries
+        // positions rather than values.
+        // Insertion-ordered, because groups form in order of first appearance.
+        final java.util.Map<String, List<Integer>> members = new java.util.LinkedHashMap<>();
+        final java.util.Map<String, TypedValue> keys = new java.util.LinkedHashMap<>();
+        vars.push();
+        vars.shadow(EngineVars.INDEX);
+        for (int index = 0; index < store.size(); index++) {
+            final TypedValue entry = store.get(index);
+            if (entry == null) {
+                continue;
+            }
+            vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));
+            final TypedValue key = op.groupBy() == null
+                    ? entry
+                    : CompiledRefs.resolveValue(op.groupBy(), match, matchCount, vars, contentEncoding);
+            final String identity = key == null ? "" : key.asString();
+            members.computeIfAbsent(identity, ignored -> new ArrayList<>()).add(index);
+            keys.putIfAbsent(identity, key);
+        }
+        vars.pop();
+        if (members.isEmpty()) {
+            return;
+        }
+
+        vars.push();
+        vars.shadow(EngineVars.GROUP);
+        vars.shadow(EngineVars.GROUP_KEY);
+        vars.shadow(EngineVars.GROUP_SIZE);
+        for (final var group : members.entrySet()) {
+            final List<Integer> indices = group.getValue();
+            bindDense(EngineVars.GROUP, indices.stream()
+                    .map(index -> (TypedValue) new TypedValue.Int(index))
+                    .toList());
+            final TypedValue key = keys.get(group.getKey());
+            if (key == null) {
+                vars.store(EngineVars.GROUP_KEY).clear();
+            } else {
+                vars.store(EngineVars.GROUP_KEY).set(1, key);
+            }
+            vars.store(EngineVars.GROUP_SIZE).set(1, new TypedValue.Int(indices.size()));
+            body(op.body(), match, matchCount, content, sink,
+                    inputBase, ignoreErrors, depth, contentEncoding);
+        }
+        vars.pop();
     }
 
     /**
