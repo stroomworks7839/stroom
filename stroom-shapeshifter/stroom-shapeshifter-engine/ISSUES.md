@@ -303,6 +303,60 @@ on every match rather than once at compile time; `apply-templates` filters the t
 call instead of grouping by mode once; and every captured group is copied out of the buffer even
 when nothing reads it — which is what E10's optimiser was for.
 
+### E26 — Arithmetic on fractional text pays a thrown exception per operand
+**`open` — found and priced 2026-08-27 by design/17's closing A/B**
+([17-value-computation.md §13](../design/17-value-computation.md)). The `arithmetic`
+catalogue case runs **4× slower than Saxon** (897 ms against 223 ms at 100k units), the one
+loss in a tranche whose other rows are wins or parity, and the cause is measured rather than
+supposed. A probe over identical shapes:
+
+```
+whole-text operands  ("3", "20")     42 ns/op
+fractional operands  ("3", "19.5") 3450 ns/op     <-- 82x
+already-typed        (Int, Real)      27 ns/op
+```
+
+`TypedValue.asInteger()` honours the total-cast contract — every cast is total and never
+throws (design/17 §2) — by calling `Long.valueOf` inside a `try`. So an operand that is not
+*integral text* constructs a `NumberFormatException`, fills in its stack trace, and has it
+discarded; `Transforms.fold()` then re-parses the whole operand list through `numbers()`,
+paying it a second time. `19.5` and `-2.5` are ordinary log data — prices, rates, durations —
+so this is the common path for fractional arithmetic, not an exotic one.
+
+The contract is right and should not change: absent-not-throwing is what makes messy data
+survivable. What is wrong is implementing it with an exception. Resolving it means deciding
+the numeric kind *before* committing to a parse that can throw — inspecting the text for a
+decimal point and exponent, or a non-throwing parse — so the fractional path costs a scan
+rather than a stack trace. Local to `TypedValue`, with `TypedValueTest`'s casting table
+already pinning the behaviour that must not move.
+
+Recorded rather than fixed at the point of discovery, per the engine's own rule that
+optimisation follows the baseline one measured change at a time (E12): the fix wants its own
+before-and-after, and the before is `2026-08-27-0749-37825da20d-xml.json`.
+
+### E27 — Compilation walks every template body three times
+**`open` — found 2026-08-27 by the same A/B.** `Compiler.compile` now makes three
+independent full walks of every template body — `comparisonChecks` (design/17 §8's lint),
+`referenceChecks` (§10's unknown-name refusal) and `substringVersionCheck` (§7's bump
+warning) — each added by a different phase, each visiting the same tree.
+
+On configurations whose compile is otherwise trivial it is plainly visible:
+
+| Config | Baseline `8286556d1d` | Close `37825da20d` | |
+|---|---|---|---|
+| `csv_header` | 1008 ns | 1634 ns | **−38%** |
+| `progressive` | 203 ns | 284 ns | −28% |
+| `regex_lines` | 6807 ns | 7231 ns | −6% |
+
+Every configuration where real regex compilation dominates — `apache_httpd`, the `win_sec`
+family, `ausearch` — is indistinguishable, and compile is a once-per-load cost by design
+("compile once, run per input"), so 0.6 µs added to a pipeline load is nothing anybody will
+feel. This is filed for the **shape**, not the magnitude: three walks is where a fourth check
+becomes four walks, and the checks are only going to accumulate as the vocabulary grows.
+
+Resolving it means one walk that feeds several visitors, which is also the natural home for
+any later check. Cheap, and worth doing before the next check is written rather than after.
+
 ### E13 — The window should slide, as DS3's does; the bounded contract stays
 **`resolved` 2026-08-21.** The root level streams through a sliding window: consumption
 advances an offset, and the window compacts and refills only when a match runs into its edge

@@ -554,6 +554,7 @@ these rows have no *before* and never can, §the README):
 | `arithmetic` | 0.29× | **0.25×** | **4× slower than Saxon** |
 
 **Finding 1 — arithmetic on fractional text costs an exception per operand, and it is 82×.**
+Tracked as [E26](../stroom-shapeshifter-engine/ISSUES.md).
 `arithmetic` is the tranche's one real loss, and the cause is proven rather than guessed. A
 probe timing `Transforms.multiply` over identical shapes:
 
@@ -586,6 +587,7 @@ clean engine-versus-engine comparison of date parsing alone, and the ratio shoul
 with that attached.
 
 **Finding 3 — compile-time cost has grown, and it is now substantial in relative terms.**
+Tracked as [E27](../stroom-shapeshifter-engine/ISSUES.md).
 The three checks phases 3 and 5 added each walk every template body, and it shows on the
 configurations whose compile is otherwise trivial:
 
@@ -922,7 +924,8 @@ run turned up four findings, two of them substantive: arithmetic on fractional t
 exception per operand (82× measured, the `arithmetic` case 4× behind Saxon), and compile-time
 has grown −38% on trivially-compiled configurations through three separate body walks. Both
 are recorded for a ruling rather than fixed here, per the engine's own one-measured-change-at-
-a-time rule. The remaining close work — matrix, E24 — is unstarted.*
+a-time rule, and both now carry issue numbers: **E26** (the arithmetic exception) and **E27**
+(the three compile walks). The remaining close work — matrix, E24 — is unstarted.*
 
 ## 16. Decisions — ruled 2026-08-25
 
