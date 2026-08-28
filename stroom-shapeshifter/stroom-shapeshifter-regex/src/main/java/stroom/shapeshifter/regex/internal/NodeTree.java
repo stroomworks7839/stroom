@@ -310,7 +310,7 @@ public final class NodeTree {
 
                 case Hir.Bytes bytes -> chain(new ByteSeq(bytes.value()), next);
 
-                case Hir.CharClass charClass -> chain(new OneChar(charClass.set()), next);
+                case Hir.CharClass charClass -> chain(new OneChar(charClass.set(), charClass.label()), next);
 
                 case Hir.Assertion assertion -> chain(new Assert(assertion.kind()), next);
 
@@ -374,7 +374,7 @@ public final class NodeTree {
                     // The fast shape: a class atom carries no state, so the whole run scans
                     // in a loop and backs off a character at a time — CLASS_STAR's trick,
                     // available here for every class because a tree walker reads characters.
-                    final StarClass star = new StarClass(charClass.set(), repeat.greedy());
+                    final StarClass star = new StarClass(charClass.set(), charClass.label(), repeat.greedy());
                     tail = chain(star, next);
                     // After chain, because that is what links next — and the continuation
                     // itself is already complete, being compiled before its predecessor.
@@ -394,7 +394,7 @@ public final class NodeTree {
                     // excess in one loop, back off a character at a time. The nested-optional
                     // spelling below cost a frame per level and measured 9× slower on
                     // \S{1,10} than the flat engines; this is the shape's real fix.
-                    tail = chain(new CountedClass(charClass.set(),
+                    tail = chain(new CountedClass(charClass.set(), charClass.label(),
                             repeat.max() - repeat.min(), repeat.greedy()), next);
                 } else {
                     // Bounded, stateful body: (max - min) nested optionals, by greediness.
@@ -487,14 +487,14 @@ public final class NodeTree {
         private final CodePointSet set;
 
         /**
-         * The non-ASCII members as byte-range alternatives ({@link Utf8#sequences}), the same
-         * compiled form the flat engines run — design 19 phase 2. Each alternative is one byte
-         * range per position, lead-sorted and disjoint, and together they recognise exactly
-         * the valid encodings of members: matching walks ranges instead of decoding, so the
-         * tree stops being the one engine that re-derives the encoding at match time. ASCII
-         * alternatives are excluded — the table above answers those in one load.
+         * The compiled class form the scan plan already runs ({@link CharClass}): byte-range
+         * alternatives from {@link Utf8#sequences}, indexed by lead byte so wide classes cost
+         * what their matching alternative costs, not what their alternative count costs —
+         * design 19 phase 2, and the audit's correction of it. A first cut reimplemented the
+         * walk here with a linear scan; the shared form existed, already carried the lead
+         * index, and its own javadoc named the hazard. One compilation, two engines.
          */
-        private final int[][] sequences;
+        private final CharClass form;
 
         /**
          * A class of exactly one code point is a literal in all but spelling, and a
@@ -513,16 +513,14 @@ public final class NodeTree {
                     : Character.toString(only).getBytes(StandardCharsets.UTF_8)[0] & 0xFF;
         }
 
-        OneChar(final CodePointSet set) {
+        OneChar(final CodePointSet set, final String label) {
             this.set = set;
             for (int b = 0; b < 0x80; b++) {
                 ascii[b] = set.contains(b)
                         ? (byte) 1
                         : 0;
             }
-            this.sequences = java.util.Arrays.stream(Utf8.sequences(set))
-                    .filter(alternative -> alternative[0] >= 0x80)
-                    .toArray(int[][]::new);
+            this.form = new CharClass(set, label);
         }
 
         @Override
@@ -531,48 +529,19 @@ public final class NodeTree {
             return advanced > 0 && next.match(ctx, pos + advanced);
         }
 
-        /**
-         * How many bytes the character at {@code pos} occupies if the class accepts it. A lead
-         * byte determines its sequence length in UTF-8, so every alternative containing the
-         * lead has the same length, and the alternatives are lead-sorted — past the lead the
-         * loop can stop.
-         */
+        /** How many bytes the character at {@code pos} occupies if the class accepts it. */
         int accept(final Ctx ctx, final int pos) {
             if (pos >= ctx.to) {
                 return 0;
             }
             final int lead = ctx.data[pos] & 0xFF;
             if (lead < 0x80) {
-                return ascii[lead] != 0
-                        ? 1
-                        : 0;
+                return ascii[lead];
             }
-            final byte[] data = ctx.data;
-            final int to = ctx.to;
-            for (final int[] alternative : sequences) {
-                if (lead < alternative[0]) {
-                    return 0;
-                }
-                if (lead > alternative[1]) {
-                    continue;
-                }
-                final int length = alternative.length >> 1;
-                if (pos + length > to) {
-                    return 0; // same lead means same length, so no later alternative fits
-                }
-                boolean matched = true;
-                for (int i = 1; i < length; i++) {
-                    final int b = data[pos + i] & 0xFF;
-                    if (b < alternative[2 * i] || b > alternative[2 * i + 1]) {
-                        matched = false;
-                        break;
-                    }
-                }
-                if (matched) {
-                    return length;
-                }
-            }
-            return 0;
+            final int matched = form.matchAt(ctx.data, pos, ctx.to);
+            return matched < 0
+                    ? 0
+                    : matched;
         }
     }
 
@@ -768,8 +737,8 @@ public final class NodeTree {
          */
         private int skipByte = -1;
 
-        StarClass(final CodePointSet set, final boolean greedy) {
-            this.item = new OneChar(set);
+        StarClass(final CodePointSet set, final String label, final boolean greedy) {
+            this.item = new OneChar(set, label);
             this.greedy = greedy;
             this.ascii = item.ascii;
         }
@@ -909,8 +878,9 @@ public final class NodeTree {
         private final int most;
         private final boolean greedy;
 
-        CountedClass(final CodePointSet set, final int most, final boolean greedy) {
-            this.item = new OneChar(set);
+        CountedClass(final CodePointSet set, final String label, final int most,
+                     final boolean greedy) {
+            this.item = new OneChar(set, label);
             this.most = most;
             this.greedy = greedy;
         }

@@ -129,6 +129,20 @@ the flat engines, where two executors of one compilation must agree on windows t
 half invalid UTF-8. Match-time `Utf8` in the tree is now `isContinuation` backoff structure
 only; the perf verdict is the overnight chain's (baseline → batch → this commit, one boot).
 
+**Audited same day, one correction and a blast-radius record.** The correction: the first
+cut reimplemented the byte-range walk inside `OneChar` with a linear alternative scan —
+whose wide-class cost hazard turned out to be named, solved and javadoc'd in the codebase
+already: `CharClass`, the scan plan's compiled class form, carries the lead-byte index that
+makes a wide class cost its matching alternative rather than its alternative count. `OneChar`
+now holds a `CharClass`; one compilation, two engines, forty lines gone, and the class nodes
+carry their Hir labels through for diagnostics. The tree-side suites reach the shared walk
+(mutation-verified). The strict-decode blast radius, checked consumer by consumer: `Words`
+is shared by every engine, so the word-boundary shift on malformed input is uniform and
+D38-aligned; `Backrefs` handles -1 on both sides (noting, recorded not fixed: a mid-region
+invalid sequence on the input side reports TRUNCATED where MISMATCH is the truer name — a
+pre-existing conflation, uniform across the two engines that run backrefs); the `Parser`
+use is compile-time over a String's bytes, where strictness cannot fire.
+
 Original phase text follows.
 
 The tree engine is the unlisted third mechanism of 01 §4.0: the flat engines erase the

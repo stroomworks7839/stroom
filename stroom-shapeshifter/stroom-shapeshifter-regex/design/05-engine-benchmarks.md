@@ -271,8 +271,9 @@ path may close a target off now.
   agree exactly, so this one is narrow, and no reference has been found that agrees with the JDK.
 - **Look-around sees the region, not the buffer** ([§6](#6-the-rust-regex-corpus)).
 - **Undecodable bytes split the tiers** (found 2026-08-28 by `GreedyRunRawBytesTest`, the greedy
-  mirror of the lazy-run skip's raw-bytes check). The character-wise engines define class
-  membership through `Utf8.decode`, so a byte no character can own ends a run: `(?s)(.*)é` over
+  mirror of the lazy-run skip's raw-bytes check). The strict engines define class
+  membership as the valid encodings of members — since design 19 phase 2 all of them through
+  the same `Utf8.sequences` compilation — so a byte no character can own ends a run: `(?s)(.*)é` over
   `{A, C3, C3, A9}` is 2..4. The scan plan's byte-level ops are deliberately permissive — the
   plan compiler's byte-scan equivalence proof rests on the unstated premise that every high byte
   belongs to some character, true of valid UTF-8 and false of log bytes — so `(?s)(.*)` on the
