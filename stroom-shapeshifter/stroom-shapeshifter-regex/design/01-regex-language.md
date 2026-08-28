@@ -227,7 +227,12 @@ algorithms, and Appendix A there for what Rust actually does and where it falls 
 
 Consequences, stated plainly:
 
-- The compiled matcher only ever recognises **well-formed characters of `E`**, and for both
+- The compiled matcher only ever recognises **well-formed characters of `E`** — and this is
+  a ruled semantics, not an implementation accident (D38, 2026-08-28): bytes that are not
+  part of a well-formed character are matchable by *no* character construct, `.` and negated
+  classes included. The engine adds no leniency; a pipeline that wants some composes it — a
+  codec stage, a DS-step stage, or the byte escapes of §4.4 — so that treating dirty bytes
+  as matchable is always a visible, chosen step rather than an engine policy. For both
   native families every offset is a legal character boundary — single-byte trivially, UTF-8
   because a continuation byte `80–BF` can never begin a valid sequence, so a mis-aligned
   start is rejected by the automaton itself. The start-position hazard that
@@ -288,7 +293,9 @@ the mode for binary formats. Under `RAW`:
 - `u` is forced off; `\p{...}` is a compile error.
 
 `\BHH` byte escapes are permitted under *any* encoding, in classes and literals, and are
-never re-encoded. Mixing them with character constructs is legal but the compiler emits a
+never re-encoded. Under D38's strictness they are also the dialect's one deliberate way to
+match bytes that no character owns — the in-pattern leg of the composition story, beside
+the codec and DS-step legs. Mixing them with character constructs is legal but the compiler emits a
 warning when a byte escape could straddle a character boundary in a multi-byte encoding.
 
 ### 4.5 Supported encodings

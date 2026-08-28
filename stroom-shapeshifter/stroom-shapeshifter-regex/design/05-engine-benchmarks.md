@@ -281,8 +281,11 @@ path may close a target off now.
   a permissive greedy scan beside a strict lazy branch — which was an inconsistency, not a
   position, and is fixed strict. The tier split itself is a decision, not a defect: strictness
   forfeits `SCAN_UNTIL_BYTE`, the memchr shape tier 0 is built on; permissiveness rewrites four
-  engines' UTF-8 automata. It stays recorded here, pinned by the test, until real DS3 configs
-  say what matching over dirty log bytes should mean.
+  engines' UTF-8 automata. Ruled 2026-08-28 (engine
+  design [D38](../../design/00-decisions.md)): strict is the dialect's semantics; the plan
+  tier's byte ops are licensed by an input-validity contract that composition supplies, and
+  the deviation on contract-violating input is deliberate. The pin stays so drift announces
+  itself.
 
 ## 6. The Rust `regex` corpus
 

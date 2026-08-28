@@ -157,6 +157,7 @@ public final class Steps {
                 // the effective encoding says it is — a multi-byte UTF-8 letter is a letter,
                 // a windows-1252 0xE9 is a letter under that encoding and a stray byte under
                 // raw. RAW keeps the ASCII reading: bytes with no declared meaning earn none.
+                // D38 rules the regex dialect the same way, so the two vocabularies agree.
                 int end = from;
                 while (end < to) {
                     final long decoded = decode(data, end, to, encoding);

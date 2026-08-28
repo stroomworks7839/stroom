@@ -52,11 +52,13 @@ class GreedyRunRawBytesTest {
      * <b>deliberately</b> permissive where every character-wise engine is strict. The plan
      * compiler's byte-scan rule proves span equivalence for allNonAscii classes on the premise
      * that a high byte belongs to some character — true of valid UTF-8, unstated, and false of
-     * log bytes. Making the plan strict would forfeit SCAN_UNTIL_BYTE, the memchr shape tier 0
-     * is built on; making four engines permissive is a rewrite. So the split is recorded (05
-     * §3.2) rather than resolved, and this pin exists to make a future resolution announce
-     * itself: on undecodable bytes the natural engine's answer depends on the tier the pattern
-     * lands in.
+     * log bytes. Ruled (D38, 2026-08-28): strict is the dialect's semantics — a character
+     * construct matches only well-formed characters — and the plan tier's byte ops are licensed
+     * by an input-validity contract that composition supplies, because making the scan loop
+     * strict would forfeit SCAN_UNTIL_BYTE, the memchr shape tier 0 is built on. This pin
+     * guards the ruling from both sides: the strict answer must stay strict, and the licensed
+     * deviation must stay the deviation it was licensed as, so drift in either engine announces
+     * itself here rather than in a feed.
      */
     @Test
     void theScanPlanIsBytePermissiveOnUndecodableBytesAndTheTreeIsNot() {

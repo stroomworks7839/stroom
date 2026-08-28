@@ -1077,3 +1077,40 @@ chased"); and the default-dispatch corpus rows moved −5–6% while the forced-
 identical workloads *gained* 5–14%, which is the ByteMatcher-shape coin the open
 ISSUES.md item already tracks, flipped again by a class reshape that removed a field.
 Suites green both modules, 524 tests.
+
+## D38 — Undecodable bytes are matchable by nothing: strictness is the semantics, leniency is composition
+
+**Ruled by Jon, 2026-08-28.** A character construct — a class, a literal, a dot — matches
+only well-formed characters of the pattern's encoding. Bytes that are not part of one are
+matchable by no character construct: not by `.`, not by a negated class, not by anything
+spelled in code points. Matches are byte spans over the input as given. The engine
+introduces no leniency of its own, because the composed pipeline already owns every
+deliberate way of choosing some: a codec stage upstream (validate, replace, or reject —
+the explicit descendant of 7.x's `ByteStreamDecoder` with `CodingErrorAction.REPLACE` and
+its `MalformedBytesReport`), the DS step vocabulary (`MatchByte`, the `Take*` combinators —
+which classify bytes under the effective encoding and already carry this exact doctrine in
+E5's words: *bytes with no declared meaning earn none*), an upstream shapeshifter in a
+composed pipeline, or — in the dialect itself, per the spec that predates this ruling —
+`\BHH` byte escapes and `Encoding.RAW` (01 §4.4, specified, not yet implemented; the
+implementation is UTF-8-only today).
+
+The ruling was provoked by a wash-up review finding the codebase held three positions at
+once. 01 §4.1 already said the strict words ("the compiled matcher only ever recognises
+well-formed characters of `E`"); the character-wise engines and the DS steps agreed; but
+the tree's greedy `scan()` carried a byte-permissive shortcut beside a strict lazy branch
+in the same node (fixed, `c65615bec0` — an inconsistency, now conformed to `accept()`),
+and the scan plan's byte-level ops are byte-permissive by construction. Replacement
+semantics — decode-with-U+FFFD, the legacy-conformant option — was considered and
+rejected: 7.x's REPLACE was an artifact of an engine whose API forced a decode step, not a
+product decision that dirty bytes ought to be matchable; and this is an audit pipeline,
+where bytes of an event being silently treated as characters they are not is a rewriting
+of evidence that must only ever happen as an explicit, logged, configured step.
+
+**The licensed deviation.** The scan plan's byte ops (`SCAN_UNTIL_BYTE` above all — the
+memchr shape tier 0 is built on) implement the strict semantics exactly on validly encoded
+input and are permissive off it. Validity is therefore the caller's contract, supplied by
+composition where a feed cannot promise it; the deviation on contract-violating input is
+deliberate, documented (regex 05 §3.2), pinned by `GreedyRunRawBytesTest` so drift
+announces itself, and carries a deprioritised closing row in the regex performance plan
+should the contract prove unsupplyable in practice. Strictness in the scan loop itself was
+rejected on measured grounds: it forfeits the memchr, and buffer CSV lives there.

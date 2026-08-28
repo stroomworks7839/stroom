@@ -248,6 +248,11 @@ public final class PlanCompiler {
      * case for {@code .} and for negated ASCII classes such as {@code [^,]}, where a continuation
      * byte is never one of the excluded ASCII bytes. Counted repetition is excluded because
      * {@code X{2}} means two characters, which is not two bytes.
+     * <p>The equivalence proof assumes validly encoded input, and D38 makes that the caller's
+     * contract rather than this compiler's problem: on undecodable bytes these ops are
+     * deliberately permissive where the dialect's ruled semantics is strict — the licensed
+     * deviation recorded in design/05 §3.2 and pinned by {@code GreedyRunRawBytesTest}.
+     * Composition supplies validity where a feed cannot promise it.
      */
     private void emitScan(final Hir.CharClass charClass, final int min, final int max) {
         final boolean unbounded = max == Hir.Repeat.UNBOUNDED;
