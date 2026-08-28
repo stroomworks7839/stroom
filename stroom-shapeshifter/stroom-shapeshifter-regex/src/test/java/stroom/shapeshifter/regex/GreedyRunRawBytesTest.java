@@ -4,10 +4,13 @@ package stroom.shapeshifter.regex;
 
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -81,6 +84,34 @@ class GreedyRunRawBytesTest {
         return m.find(data)
                 ? m.start(0) + ".." + m.end(0)
                 : "-";
+    }
+
+    /**
+     * Phase 2 of the encoding plan byte-compiled the tree's classes ({@code OneChar} walks
+     * {@code Utf8.sequences} ranges instead of decoding), so the shapes that exercise every
+     * arm of the range walk — multi-alternative wide classes, an astral range, Unicode word
+     * characters, negations — are thrown against the other engines on random byte soup,
+     * where roughly half of all windows are not valid UTF-8. The flat engines run the same
+     * ranges through a different executor, so agreement here is two implementations of one
+     * compilation agreeing, and the JDK-facing suites pin the compilation itself.
+     */
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, 3, 4})
+    void classHeavyPatternsAgreeOnRandomByteSoup(final int seed) {
+        final List<String> patterns = List.of(
+                "(?s)(.*)é", "([À-ÿ]+)", "([\\x{0400}-\\x{052F}]+)", "(\\w+)é",
+                "([^é]*)é", "([\\x{10000}-\\x{10FFF}]+)b", "(?s)(.+?)中");
+        final Random random = new Random(seed);
+        final byte[][] soups = new byte[64][];
+        for (int i = 0; i < soups.length; i++) {
+            soups[i] = new byte[4 + random.nextInt(28)];
+            random.nextBytes(soups[i]);
+        }
+        for (final String pattern : patterns) {
+            for (final byte[] soup : soups) {
+                assertEnginesAgree(pattern, soup);
+            }
+        }
     }
 
     private static void assertEnginesAgree(final String pattern, final byte[] data) {

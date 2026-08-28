@@ -487,6 +487,16 @@ public final class NodeTree {
         private final CodePointSet set;
 
         /**
+         * The non-ASCII members as byte-range alternatives ({@link Utf8#sequences}), the same
+         * compiled form the flat engines run — design 19 phase 2. Each alternative is one byte
+         * range per position, lead-sorted and disjoint, and together they recognise exactly
+         * the valid encodings of members: matching walks ranges instead of decoding, so the
+         * tree stops being the one engine that re-derives the encoding at match time. ASCII
+         * alternatives are excluded — the table above answers those in one load.
+         */
+        private final int[][] sequences;
+
+        /**
          * A class of exactly one code point is a literal in all but spelling, and a
          * single-character terminator — {@code (.*?)b} — is the commonest shape there is. The
          * byte is the first of its UTF-8 encoding, which for a multi-byte character is its
@@ -510,6 +520,9 @@ public final class NodeTree {
                         ? (byte) 1
                         : 0;
             }
+            this.sequences = java.util.Arrays.stream(Utf8.sequences(set))
+                    .filter(alternative -> alternative[0] >= 0x80)
+                    .toArray(int[][]::new);
         }
 
         @Override
@@ -518,7 +531,12 @@ public final class NodeTree {
             return advanced > 0 && next.match(ctx, pos + advanced);
         }
 
-        /** How many bytes the character at {@code pos} occupies if the class accepts it. */
+        /**
+         * How many bytes the character at {@code pos} occupies if the class accepts it. A lead
+         * byte determines its sequence length in UTF-8, so every alternative containing the
+         * lead has the same length, and the alternatives are lead-sorted — past the lead the
+         * loop can stop.
+         */
         int accept(final Ctx ctx, final int pos) {
             if (pos >= ctx.to) {
                 return 0;
@@ -529,13 +547,32 @@ public final class NodeTree {
                         ? 1
                         : 0;
             }
-            final int codePoint = Utf8.decode(ctx.data, pos, ctx.to);
-            if (codePoint < 0) {
-                return 0;
+            final byte[] data = ctx.data;
+            final int to = ctx.to;
+            for (final int[] alternative : sequences) {
+                if (lead < alternative[0]) {
+                    return 0;
+                }
+                if (lead > alternative[1]) {
+                    continue;
+                }
+                final int length = alternative.length >> 1;
+                if (pos + length > to) {
+                    return 0; // same lead means same length, so no later alternative fits
+                }
+                boolean matched = true;
+                for (int i = 1; i < length; i++) {
+                    final int b = data[pos + i] & 0xFF;
+                    if (b < alternative[2 * i] || b > alternative[2 * i + 1]) {
+                        matched = false;
+                        break;
+                    }
+                }
+                if (matched) {
+                    return length;
+                }
             }
-            return set.contains(codePoint)
-                    ? Utf8.encodedLength(codePoint)
-                    : 0;
+            return 0;
         }
     }
 
@@ -724,7 +761,6 @@ public final class NodeTree {
 
         /** The item's own ASCII table, borrowed rather than built twice. */
         private final byte[] ascii;
-        private final boolean allNonAscii;
 
         /**
          * The one byte a lazy run's continuation must consume first, or -1 for "do not
@@ -736,7 +772,6 @@ public final class NodeTree {
             this.item = new OneChar(set);
             this.greedy = greedy;
             this.ascii = item.ascii;
-            this.allNonAscii = set.containsAllNonAscii();
         }
 
         /**
@@ -810,20 +845,11 @@ public final class NodeTree {
                         return end;
                     }
                     end++;
-                } else if (allNonAscii) {
-                    // The class takes every character, so only the encoding can end the run:
-                    // step whole characters, and stop where the bytes are not one. This used
-                    // to step end++ per byte, which walked over bytes accept() rejects — over
-                    // invalid UTF-8 it claimed a run the class cannot consume, and reported
-                    // (?s)(.*)é as 0..4 on {A, C3, C3, A9} where every other engine says
-                    // 2..4. What the branch still buys is skipping the set membership test,
-                    // which allNonAscii answers by definition.
-                    final int codePoint = Utf8.decode(data, end, to);
-                    if (codePoint < 0) {
-                        return end;
-                    }
-                    end += Utf8.encodedLength(codePoint);
                 } else {
+                    // One branch for everything non-ASCII since phase 2 byte-compiled the
+                    // classes: accept() walks byte ranges, so the allNonAscii decode shortcut
+                    // that used to live here — the one whose byte-stepping predecessor
+                    // GreedyRunRawBytesTest convicted — no longer had anything to skip.
                     final int advanced = item.accept(ctx, end);
                     if (advanced == 0) {
                         return end;

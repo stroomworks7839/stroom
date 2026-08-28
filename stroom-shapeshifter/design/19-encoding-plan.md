@@ -111,7 +111,25 @@ the compiler's own type checking rather than out of grep.
 **Exit:** the signature exists everywhere, nothing behaves differently, and the places
 that will need per-encoding work are enumerated by the compiler instead of by memory.
 
-## Phase 2 — One boundary: the tree's classes byte-compile *(the measured risk)*
+## Phase 2 — One boundary: the tree's classes byte-compile *(the measured risk)* — **Landed 2026-08-28, gated overnight**
+
+**As built, in two commits.** Preparation asked whether byte forms could change behaviour on
+malformed input, and convicted the present first: `Utf8.decode` had no overlong, surrogate or
+ceiling check, so `{ED,A0,80}` decoded to 0xD800, dotall contained it, and the tree matched
+bytes no flat engine would — the greedy-scan conviction one layer down (`886066ec82`; five
+adversarial encodings now pin both raw-bytes suites). With decode strict, both forms
+recognise exactly the valid encodings of members, so the port is equivalence-preserving by
+proof, not hope. Then `OneChar` grew the flat engines' compiled form — `Utf8.sequences`
+alternatives, lead-sorted, ASCII left to the existing table — `accept()` walks ranges
+instead of decoding, and `StarClass.scan`'s allNonAscii decode branch retired because there
+was nothing left for it to skip. Mutation: two range-walk mutants killed, one equivalent
+(the sorted early-exit — `continue` reaches the same conclusion the shortcut takes). A
+random-byte-soup agreement test throws the wide/astral/negated/`\w` class shapes against
+the flat engines, where two executors of one compilation must agree on windows that are
+half invalid UTF-8. Match-time `Utf8` in the tree is now `isContinuation` backoff structure
+only; the perf verdict is the overnight chain's (baseline → batch → this commit, one boot).
+
+Original phase text follows.
 
 The tree engine is the unlisted third mechanism of 01 §4.0: the flat engines erase the
 encoding at compile time (classes → byte automata via `Utf8.sequences`), the tree
