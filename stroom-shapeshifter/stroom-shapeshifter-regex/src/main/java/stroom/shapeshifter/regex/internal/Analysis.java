@@ -526,15 +526,7 @@ public final class Analysis {
             case Hir.Assertion ignored -> new int[]{0, 0};
             case Hir.Look ignored -> new int[]{0, 0};
             case Hir.Bytes bytes -> new int[]{bytes.value().length, bytes.value().length};
-            case Hir.CharClass charClass -> {
-                int min = 4;
-                int max = 1;
-                for (final int[] sequence : Utf8.sequences(charClass.set())) {
-                    min = Math.min(min, sequence.length / 2);
-                    max = Math.max(max, sequence.length / 2);
-                }
-                yield new int[]{Math.min(min, max), max};
-            }
+            case Hir.CharClass charClass -> charClass.lengths().clone();
             case Hir.Backref ignored -> new int[]{0, UNBOUNDED_LENGTH};
             case Hir.Group group -> byteLength(group.body());
             case Hir.Atomic atomic -> byteLength(atomic.body());

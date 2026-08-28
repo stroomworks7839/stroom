@@ -61,8 +61,12 @@ public final class Parser {
      * pattern is parsed, because a reference ahead of its group is legal: {@code (\2two|(one))+}. */
     private final List<int[]> backrefs = new ArrayList<>();
 
-    private Parser(final String pattern, final Set<Flag> flags) {
+    /** The pattern's encoding, as byte facts: literals lower through it, classes bake from it. */
+    private final ByteForm form;
+
+    private Parser(final String pattern, final Set<Flag> flags, final ByteForm form) {
         this.pattern = pattern;
+        this.form = form;
         // Unicode is the default for the shorthands; (?-u) is how a pattern opts out.
         this.flags = EnumSet.of(Flag.UNICODE);
         this.flags.addAll(flags);
@@ -72,7 +76,12 @@ public final class Parser {
     private static final List<String> NO_OUTER_GROUPS = Collections.singletonList(null);
 
     public static Result parse(final String pattern, final Set<Flag> flags) {
-        return parse(pattern, flags, NO_OUTER_GROUPS);
+        return parse(pattern, flags, ByteForm.UTF8);
+    }
+
+    /** Parses for an encoding: the literals and baked class facts come out in its bytes. */
+    public static Result parse(final String pattern, final Set<Flag> flags, final ByteForm form) {
+        return parse(pattern, flags, NO_OUTER_GROUPS, form);
     }
 
     /**
@@ -86,7 +95,14 @@ public final class Parser {
     public static Result parse(final String pattern,
                                final Set<Flag> flags,
                                final List<String> outerNames) {
-        final Parser parser = new Parser(pattern, flags);
+        return parse(pattern, flags, outerNames, ByteForm.UTF8);
+    }
+
+    public static Result parse(final String pattern,
+                               final Set<Flag> flags,
+                               final List<String> outerNames,
+                               final ByteForm form) {
+        final Parser parser = new Parser(pattern, flags, form);
         parser.firstGroupIndex = outerNames.size() - 1;
         parser.groupCount = parser.firstGroupIndex;
         parser.groupNames.addAll(outerNames);
@@ -105,7 +121,7 @@ public final class Parser {
      * regex, including the UTF-8 compilation.
      */
     public static CodePointSet parseClassExpression(final String expression) {
-        final Parser parser = new Parser(expression, EnumSet.noneOf(Flag.class));
+        final Parser parser = new Parser(expression, EnumSet.noneOf(Flag.class), ByteForm.UTF8);
         if (expression.isEmpty()) {
             throw parser.fail(Reason.SYNTAX, "empty class expression");
         }
@@ -273,7 +289,7 @@ public final class Parser {
             case '[' -> parseCharClass();
             case '.' -> {
                 pos++;
-                yield Hir.CharClass.of(flags.contains(Flag.DOT_ALL)
+                yield charClass(flags.contains(Flag.DOT_ALL)
                         ? CodePointSet.all()
                         : CodePointSet.single('\n').negate(), ".");
             }
@@ -412,7 +428,7 @@ public final class Parser {
         final char c = pattern.charAt(pos++);
         switch (c) {
             case 'd', 'D', 'w', 'W', 's', 'S' -> {
-                return Hir.CharClass.of(fold(shorthand(c, flags.contains(Flag.UNICODE))), "\\" + c);
+                return charClass(fold(shorthand(c, flags.contains(Flag.UNICODE))), "\\" + c);
             }
             case 'n' -> {
                 return literal('\n');
@@ -492,7 +508,7 @@ public final class Parser {
             }
             case 'p', 'P' -> {
                 final CodePointSet set = fold(parseUnicodeClass(start));
-                return Hir.CharClass.of(c == 'P'
+                return charClass(c == 'P'
                         ? set.negate()
                         : set, "\\" + c);
             }
@@ -677,7 +693,7 @@ public final class Parser {
         // Folded before any negation, so (?i)[^x] excludes X as well as x.
         final CodePointSet set = fold(builder.build());
         final String label = pattern.substring(start, pos);
-        return Hir.CharClass.of(negated
+        return charClass(negated
                 ? set.negate()
                 : set, label);
     }
@@ -825,14 +841,33 @@ public final class Parser {
         if (flags.contains(Flag.CASE_INSENSITIVE)) {
             final CodePointSet folded = fold(CodePointSet.single(codePoint));
             if (folded.singleCodePoint() < 0) {
-                return Hir.CharClass.of(folded, new String(Character.toChars(codePoint)));
+                return charClass(folded, new String(Character.toChars(codePoint)));
             }
         }
         final String text = new String(Character.toChars(codePoint));
-        final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        final byte[] bytes = form.encode(codePoint);
+        if (bytes == null) {
+            throw fail(Reason.UNSUPPORTED,
+                    "'" + text + "' has no encoding under " + form + ", so it can never match");
+        }
         return bytes.length == 1
-                ? Hir.CharClass.of(CodePointSet.single(codePoint), text)
+                ? charClass(CodePointSet.single(codePoint), text)
                 : new Hir.Bytes(bytes, text);
+    }
+
+    /**
+     * The one class-construction gate: bakes the byte facts for this pattern's encoding, and
+     * refuses a class none of whose members the encoding can express — under D38 such a class
+     * is matchable by nothing, and a pattern that can never match is a configuration error to
+     * say now, not a silent no-match to chase later (E22's doctrine).
+     */
+    private Hir.CharClass charClass(final CodePointSet set, final String label) {
+        final Hir.CharClass built = Hir.CharClass.of(set, label, form);
+        if (built.leadBytes().isEmpty() && !set.isEmpty()) {
+            throw fail(Reason.UNSUPPORTED, "no character of '" + label
+                    + "' has an encoding under " + form + ", so it can never match");
+        }
+        return built;
     }
 
     /** Case folding, applied to code points before they are encoded, and only under {@code (?i)}. */

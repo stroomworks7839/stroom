@@ -75,22 +75,23 @@ public final class NfaCompiler {
     /** Ids handed out to the empty-iteration guards; see {@link #emitRepeat}. */
     private int marks;
 
-    private NfaCompiler(final String pattern) {
+    private final ByteForm form;
+
+    private NfaCompiler(final String pattern, final ByteForm form) {
+        this.form = form;
         this.pattern = pattern;
     }
 
     /**
-     * <p>The {@code encoding} parameter is the phase-1 seam of the encoding plan (design/19):
-     * the place the table and RAW lowerings will branch. Until they land only UTF-8 arrives
-     * here, and the parameter is deliberately unread — its job today is to make this entry
-     * enumerable as per-encoding work rather than remembered as it.
+     * <p>The {@code encoding} parameter, placed as phase 1's seam, is read since phase 3: it
+     * selects the {@link ByteForm} the lowering compiles against (design/19).
      */
     public static Nfa compile(final Hir root,
                               final int groupCount,
                               final boolean multiline,
                               final String pattern,
                               final Encoding encoding) {
-        return compile(root, groupCount, multiline, pattern, false);
+        return compile(root, groupCount, multiline, pattern, false, false, ByteForm.of(encoding));
     }
 
     /**
@@ -102,7 +103,7 @@ public final class NfaCompiler {
                                    final boolean multiline,
                                    final String pattern,
                                    final Encoding encoding) {
-        return compile(root, groupCount, multiline, pattern, true);
+        return compile(root, groupCount, multiline, pattern, true, false, ByteForm.of(encoding));
     }
 
     /**
@@ -118,16 +119,9 @@ public final class NfaCompiler {
     static Nfa compileByteLevel(final Hir root,
                                 final int groupCount,
                                 final boolean multiline,
-                                final String pattern) {
-        return compile(root, groupCount, multiline, pattern, false, true);
-    }
-
-    private static Nfa compile(final Hir root,
-                               final int groupCount,
-                               final boolean multiline,
-                               final String pattern,
-                               final boolean fancy) {
-        return compile(root, groupCount, multiline, pattern, fancy, false);
+                                final String pattern,
+                                final ByteForm form) {
+        return compile(root, groupCount, multiline, pattern, false, true, form);
     }
 
     private static Nfa compile(final Hir root,
@@ -135,8 +129,9 @@ public final class NfaCompiler {
                                final boolean multiline,
                                final String pattern,
                                final boolean fancy,
-                               final boolean byteLevelClasses) {
-        final NfaCompiler compiler = new NfaCompiler(pattern);
+                               final boolean byteLevelClasses,
+                               final ByteForm form) {
+        final NfaCompiler compiler = new NfaCompiler(pattern, form);
         compiler.groupCount = groupCount;
         compiler.multiline = multiline;
         compiler.fancy = fancy;
@@ -159,7 +154,7 @@ public final class NfaCompiler {
      * the mode's audit documented. Unreachable today (Reverse refuses Look/Atomic), and
      * deliberately not pre-wired for the v2 that might not notice. */
     private Nfa compileSub(final Hir body) {
-        final NfaCompiler compiler = new NfaCompiler(pattern);
+        final NfaCompiler compiler = new NfaCompiler(pattern, form);
         compiler.groupCount = groupCount;
         compiler.multiline = multiline;
         compiler.fancy = fancy;
@@ -192,7 +187,7 @@ public final class NfaCompiler {
         return new Nfa(op, a, b, next, classes.toArray(new byte[0][]),
                 dispatchTables.toArray(new int[0][]),
                 subs.toArray(new Nfa[0]), mins, maxes,
-                2 * (groups + 1), groups, multiline, minLength);
+                2 * (groups + 1), groups, multiline, minLength, form);
     }
 
     private void emitNode(final Hir node) {
@@ -288,13 +283,13 @@ public final class NfaCompiler {
      * and the case that matters most in practice.
      */
     private void emitClass(final Hir.CharClass charClass) {
-        if (byteLevelClasses && byteSafe(charClass)) {
+        if (byteLevelClasses && byteSafe(charClass, form)) {
             // The reverse mode: one table test per byte; see compileByteLevel.
             classes.add(byteTable(charClass.set()));
             emit(Nfa.BYTE_CLASS, classes.size() - 1, 0);
             return;
         }
-        final int[][] sequences = Utf8.sequences(charClass.set());
+        final int[][] sequences = form.sequences(charClass.set());
         if (sequences.length == 0) {
             // An empty class can never match; a range no byte satisfies expresses that.
             emit(Nfa.BYTE_RANGE, 0x100, 0x100);
@@ -580,7 +575,7 @@ public final class NfaCompiler {
             checkSize();
         }
 
-        if (max == Hir.Repeat.UNBOUNDED && fancy && byteSafe(body)) {
+        if (max == Hir.Repeat.UNBOUNDED && fancy && byteSafe(body, form)) {
             // One instruction instead of a choice point per iteration; see Nfa.CLASS_STAR.
             // The min copies above were emitted as ordinary classes, so this covers the rest.
             classes.add(byteTable(((Hir.CharClass) body).set()));
@@ -603,7 +598,7 @@ public final class NfaCompiler {
             final int star = emit(Nfa.CLASS_STAR, classes.size() - 1, 0);
             final int split = emit(Nfa.SPLIT, 0, 0);
             instructions.get(split)[1] = nextPc();
-            emitClass(Hir.CharClass.of(charClass.set().nonAscii(), charClass.label() + " non-ASCII"));
+            emitClass(Hir.CharClass.of(charClass.set().nonAscii(), charClass.label() + " non-ASCII", form));
             emit(Nfa.JUMP, star, 0);
             instructions.get(split)[2] = nextPc();
             return;
@@ -676,9 +671,11 @@ public final class NfaCompiler {
      * ASCII-only, or that contains every non-ASCII code point, accepts multi-byte characters
      * exactly when it accepts each of their bytes.
      */
-    static boolean byteSafe(final Hir body) {
+    static boolean byteSafe(final Hir body, final ByteForm form) {
         return body instanceof Hir.CharClass charClass
-               && (charClass.set().isAsciiOnly() || charClass.set().containsAllNonAscii());
+               && (form.singleByte()
+                   || charClass.set().isAsciiOnly()
+                   || charClass.set().containsAllNonAscii());
     }
 
     private static boolean hasAsciiMember(final CodePointSet set) {
@@ -691,8 +688,16 @@ public final class NfaCompiler {
     }
 
     /** The byte-level acceptance table for a byte-safe class. */
-    private static byte[] byteTable(final CodePointSet set) {
+    private byte[] byteTable(final CodePointSet set) {
         final byte[] table = new byte[256];
+        if (form.singleByte()) {
+            // One byte is one character, so the member bytes are the whole exact answer.
+            final java.util.BitSet members = form.leadBytes(set);
+            for (int b = members.nextSetBit(0); b >= 0; b = members.nextSetBit(b + 1)) {
+                table[b] = 1;
+            }
+            return table;
+        }
         for (int b = 0; b < 0x80; b++) {
             if (set.contains(b)) {
                 table[b] = 1;

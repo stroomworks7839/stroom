@@ -189,7 +189,7 @@ public final class PlanRunner {
                     final Hir.Kind kind = Hir.Kind.VALUES[a[pc]];
                     // \G makes a pattern fancy, and a fancy pattern is never one-pass, so the
                     // shared evaluation's \G refusal is unreachable from here.
-                    if (!Words.assertionHolds(kind, data, regionFrom, to, cursor)) {
+                    if (!Words.assertionHolds(kind, data, regionFrom, to, cursor, plan.form)) {
                         return NO_MATCH;
                     }
                     pc++;

@@ -219,7 +219,7 @@ public final class PikeVm {
         if (!anchorHoldsAt(data, regionFrom, to, pos)) {
             return false;
         }
-        if (Utf8.splitsCharacter(data, pos, contextEnd)) {
+        if (nfa.form.splitsCharacter(data, pos, contextEnd)) {
             return false;
         }
         if (firstBytes == null) {
@@ -254,7 +254,7 @@ public final class PikeVm {
             final int[] pathAsserts = closures.asserts(pc, i);
             boolean holds = true;
             for (final int kind : pathAsserts) {
-                if (!Words.assertionHolds(Hir.Kind.VALUES[kind], data, regionFrom, to, pos)) {
+                if (!Words.assertionHolds(Hir.Kind.VALUES[kind], data, regionFrom, to, pos, nfa.form)) {
                     holds = false;
                     break;
                 }

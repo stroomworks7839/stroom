@@ -51,23 +51,25 @@ public final class PlanCompiler {
     private final List<CharClass> charClasses = new ArrayList<>();
     private final List<int[]> branchTables = new ArrayList<>();
 
-    private PlanCompiler(final String pattern, final boolean multiline) {
+    private final ByteForm form;
+
+    private PlanCompiler(final String pattern, final boolean multiline, final ByteForm form) {
+        this.form = form;
         this.pattern = pattern;
         this.multiline = multiline;
     }
 
     /**
-     * <p>The {@code encoding} parameter is the phase-1 seam of the encoding plan (design/19):
-     * the place the table and RAW lowerings will branch. Until they land only UTF-8 arrives
-     * here, and the parameter is deliberately unread — its job today is to make this entry
-     * enumerable as per-encoding work rather than remembered as it.
+     * <p>The {@code encoding} parameter, placed as phase 1's seam, is read since phase 3: it
+     * selects the {@link ByteForm} the lowering compiles against (design/19).
      */
     public static Plan compile(final Hir root,
                                final int groupCount,
                                final boolean multiline,
                                final String pattern,
                                final Encoding encoding) {
-        final PlanCompiler compiler = new PlanCompiler(pattern, multiline);
+        final PlanCompiler compiler = new PlanCompiler(pattern, multiline,
+                ByteForm.of(encoding));
         compiler.emitNode(root);
         compiler.emit(Plan.ACCEPT, 0, 0, 0);
 
@@ -95,7 +97,8 @@ public final class PlanCompiler {
                 Analysis.nullable(root)
                         ? null
                         : toTable(Analysis.first(root)),
-                Analysis.byteLength(root)[0]);
+                Analysis.byteLength(root)[0],
+                compiler.form);
     }
 
     // -----------------------------------------------------------------------------------
@@ -264,7 +267,10 @@ public final class PlanCompiler {
      */
     private void emitScan(final Hir.CharClass charClass, final int min, final int max) {
         final boolean unbounded = max == Hir.Repeat.UNBOUNDED;
-        final boolean byteScanEquivalent = charClass.set().isAsciiOnly()
+        // Under a single-byte form every class byte-scans, counted repeats included — one byte
+        // is one character, so the count objections below cannot arise (design 19 phase 3).
+        final boolean byteScanEquivalent = form.singleByte()
+                                           || charClass.set().isAsciiOnly()
                                            || (charClass.set().containsAllNonAscii() && unbounded && min <= 1);
         if (!byteScanEquivalent) {
             emit(Plan.SCAN_WHILE_CHAR, addCharClass(charClass), min, max);
@@ -274,9 +280,11 @@ public final class PlanCompiler {
         // A byte-level scan must accept every byte that can appear *within* an accepted
         // character, not only the bytes that can lead one — otherwise it would stop on the first
         // continuation byte. Where all non-ASCII code points are members, that is every high
-        // byte; where the class is ASCII-only, lead bytes are the whole story.
+        // byte; where the class is ASCII-only, lead bytes are the whole story. A single-byte
+        // form has no within: the baked lead bytes are the exact member bytes, and adding the
+        // high range would hand unmapped bytes to a scan that strictness says must stop.
         final BitSet set = (BitSet) charClass.leadBytes().clone();
-        if (!charClass.set().isAsciiOnly()) {
+        if (!form.singleByte() && !charClass.set().isAsciiOnly()) {
             set.set(0x80, 0x100);
         }
         final int cardinality = set.cardinality();
@@ -329,7 +337,7 @@ public final class PlanCompiler {
     }
 
     private int addCharClass(final Hir.CharClass charClass) {
-        charClasses.add(new CharClass(charClass.set(), charClass.label()));
+        charClasses.add(new CharClass(charClass.set(), charClass.label(), form));
         return charClasses.size() - 1;
     }
 

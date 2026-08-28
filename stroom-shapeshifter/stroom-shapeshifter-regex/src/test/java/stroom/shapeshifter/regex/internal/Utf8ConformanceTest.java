@@ -67,7 +67,7 @@ class Utf8ConformanceTest {
     @ParameterizedTest
     @MethodSource("classes")
     void acceptsExactlyTheMembersOfTheClass(final Case testCase) {
-        final CharClass charClass = new CharClass(testCase.set(), testCase.name());
+        final CharClass charClass = new CharClass(testCase.set(), testCase.name(), ByteForm.UTF8);
 
         for (int codePoint = 0; codePoint <= 0xFFFF; codePoint++) {
             if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
@@ -102,7 +102,7 @@ class Utf8ConformanceTest {
 
     @Test
     void rejectsIllFormedUtf8() {
-        final CharClass everything = new CharClass(CodePointSet.all(), "all");
+        final CharClass everything = new CharClass(CodePointSet.all(), "all", ByteForm.UTF8);
         final List<byte[]> illFormed = List.of(
                 new byte[]{(byte) 0x80},                                     // lone continuation
                 new byte[]{(byte) 0xBF},                                     // lone continuation

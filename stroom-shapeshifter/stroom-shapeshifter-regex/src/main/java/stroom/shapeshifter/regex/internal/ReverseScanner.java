@@ -68,7 +68,7 @@ public final class ReverseScanner {
         int best = -1;
         for (int pos = to; ; pos--) {
             if (current.matchLive
-                && !Utf8.splitsCharacter(data, pos, contextEnd)) {
+                && !nfa.form.splitsCharacter(data, pos, contextEnd)) {
                 best = pos; // positions only decrease, so the last recorded is the smallest
             }
             if (pos <= from || current.size == 0) {
@@ -128,7 +128,7 @@ public final class ReverseScanner {
             final int[] pathAsserts = closures.asserts(pc, i);
             boolean holds = true;
             for (final int kind : pathAsserts) {
-                if (!Words.assertionHolds(Hir.Kind.VALUES[kind], data, regionFrom, to, pos)) {
+                if (!Words.assertionHolds(Hir.Kind.VALUES[kind], data, regionFrom, to, pos, nfa.form)) {
                     holds = false;
                     break;
                 }

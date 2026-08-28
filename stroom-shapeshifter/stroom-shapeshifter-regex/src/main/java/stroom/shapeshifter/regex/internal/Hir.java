@@ -43,13 +43,16 @@ public sealed interface Hir {
     /**
      * A set of acceptable characters at one position.
      * <p>
-     * Defined over code points, with {@code leadBytes} — the bytes a member's encoding can
-     * begin with — precomputed for the first/follow analysis, which works at byte level.
+     * Defined over code points, with the byte facts the analyses need — {@code leadBytes},
+     * the bytes a member's encoding can begin with, and {@code lengths}, the {min, max}
+     * encoded length — baked at construction for the pattern's encoding (design 19 phase 3),
+     * so everything downstream of the parser reads facts instead of re-deriving UTF-8.
      */
-    record CharClass(CodePointSet set, BitSet leadBytes, String label) implements Hir {
+    record CharClass(CodePointSet set, BitSet leadBytes, int[] lengths, String label)
+            implements Hir {
 
-        static CharClass of(final CodePointSet set, final String label) {
-            return new CharClass(set, Utf8.leadBytes(set), label);
+        static CharClass of(final CodePointSet set, final String label, final ByteForm form) {
+            return new CharClass(set, form.leadBytes(set), form.lengthBounds(set), label);
         }
     }
 

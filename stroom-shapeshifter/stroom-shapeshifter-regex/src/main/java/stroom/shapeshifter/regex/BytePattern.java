@@ -18,6 +18,7 @@ package stroom.shapeshifter.regex;
 
 import stroom.shapeshifter.regex.comb.Matcher;
 import stroom.shapeshifter.regex.internal.Analysis;
+import stroom.shapeshifter.regex.internal.ByteForm;
 import stroom.shapeshifter.regex.internal.Hir;
 import stroom.shapeshifter.regex.internal.Lowering;
 import stroom.shapeshifter.regex.internal.Nfa;
@@ -179,7 +180,7 @@ public final class BytePattern {
                                       final Set<Flag> flags,
                                       final Encoding encoding) {
         Objects.requireNonNull(encoding, "encoding");
-        final Parser.Result parsed = Parser.parse(pattern, flags);
+        final Parser.Result parsed = Parser.parse(pattern, flags, ByteForm.of(encoding));
         return compile(parsed.root(), parsed.groupCount(), parsed.groupNames(), pattern, flags,
                 encoding);
     }

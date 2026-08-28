@@ -148,7 +148,7 @@ public final class Backtracker {
                 }
                 continue;
             }
-            if (Utf8.splitsCharacter(data, at, contextEnd)) {
+            if (nfa.form.splitsCharacter(data, at, contextEnd)) {
                 // A match may not begin inside a character — and an anchored search may not
                 // begin anywhere else, so it is over (as the simulation already answers).
                 if (anchored) {
@@ -233,7 +233,7 @@ public final class Backtracker {
                     }
                     case Nfa.ASSERT -> {
                         if (Words.assertionHolds(Hir.Kind.VALUES[nfa.a[pc]],
-                                data, regionFrom, to, pos)) {
+                                data, regionFrom, to, pos, nfa.form)) {
                             pc++;
                             continue;
                         }

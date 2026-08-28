@@ -80,7 +80,8 @@ public final class NodeTree {
                            byte[] firstBytes,
                            int startAnchor,
                            int minLength,
-                           int nodeCount) {
+                           int nodeCount,
+                           ByteForm form) {
 
     }
 
@@ -98,6 +99,7 @@ public final class NodeTree {
         int searchStart;
         int requireEnd;
         int end;
+        ByteForm form;
 
         /**
          * A depth-indexed pool of slot snapshots for lookaround and atomic groups, which break
@@ -179,6 +181,7 @@ public final class NodeTree {
 
         public Machine(final Compiled compiled) {
             this.compiled = compiled;
+            ctx.form = compiled.form();
             ctx.groupStart = new int[compiled.groupCount() + 1];
             ctx.locals = new int[compiled.localCount()];
         }
@@ -218,7 +221,7 @@ public final class NodeTree {
                     }
                     continue;
                 }
-                if (Utf8.splitsCharacter(data, at, contextEnd)) {
+                if (ctx.form.splitsCharacter(data, at, contextEnd)) {
                     // A match may not begin inside a character; anchored searches stop here.
                     if (anchored) {
                         break;
@@ -264,14 +267,13 @@ public final class NodeTree {
     // -----------------------------------------------------------------------------------
 
     /**
-     * <p>The {@code encoding} parameter is the phase-1 seam of the encoding plan (design/19):
-     * the place the table and RAW lowerings will branch. Until they land only UTF-8 arrives
-     * here, and the parameter is deliberately unread — its job today is to make this entry
-     * enumerable as per-encoding work rather than remembered as it.
+     * <p>The {@code encoding} parameter, placed as phase 1's seam, is read since phase 3: it
+     * selects the {@link ByteForm} the lowering compiles against (design/19).
      */
     public static Compiled compile(final Hir root, final int groupCount, final String pattern,
                                    final Encoding encoding) {
-        final Compiler compiler = new Compiler(pattern);
+        final ByteForm form = ByteForm.of(encoding);
+        final Compiler compiler = new Compiler(pattern, form);
         final Node accept = compiler.node(new Accept());
         final Node head = compiler.compile(root, accept);
 
@@ -285,17 +287,19 @@ public final class NodeTree {
         }
         return new Compiled(head, groupCount, 2 * (groupCount + 1), compiler.locals,
                 firstBytes, Analysis.startAnchor(root), Analysis.byteLength(root)[0],
-                compiler.nodes);
+                compiler.nodes, form);
     }
 
     private static final class Compiler {
 
         private final String pattern;
+        private final ByteForm form;
         private int locals;
         private int nodes;
 
-        Compiler(final String pattern) {
+        Compiler(final String pattern, final ByteForm form) {
             this.pattern = pattern;
+            this.form = form;
         }
 
         private <T extends Node> T node(final T node) {
@@ -310,7 +314,7 @@ public final class NodeTree {
 
                 case Hir.Bytes bytes -> chain(new ByteSeq(bytes.value()), next);
 
-                case Hir.CharClass charClass -> chain(new OneChar(charClass.set(), charClass.label()), next);
+                case Hir.CharClass charClass -> chain(new OneChar(charClass.set(), charClass.label(), form), next);
 
                 case Hir.Assertion assertion -> chain(new Assert(assertion.kind()), next);
 
@@ -374,7 +378,7 @@ public final class NodeTree {
                     // The fast shape: a class atom carries no state, so the whole run scans
                     // in a loop and backs off a character at a time — CLASS_STAR's trick,
                     // available here for every class because a tree walker reads characters.
-                    final StarClass star = new StarClass(charClass.set(), charClass.label(), repeat.greedy());
+                    final StarClass star = new StarClass(charClass.set(), charClass.label(), form, repeat.greedy());
                     tail = chain(star, next);
                     // After chain, because that is what links next — and the continuation
                     // itself is already complete, being compiled before its predecessor.
@@ -394,7 +398,7 @@ public final class NodeTree {
                     // excess in one loop, back off a character at a time. The nested-optional
                     // spelling below cost a frame per level and measured 9× slower on
                     // \S{1,10} than the flat engines; this is the shape's real fix.
-                    tail = chain(new CountedClass(charClass.set(), charClass.label(),
+                    tail = chain(new CountedClass(charClass.set(), charClass.label(), form,
                             repeat.max() - repeat.min(), repeat.greedy()), next);
                 } else {
                     // Bounded, stateful body: (max - min) nested optionals, by greediness.
@@ -497,30 +501,24 @@ public final class NodeTree {
         private final CharClass form;
 
         /**
-         * A class of exactly one code point is a literal in all but spelling, and a
-         * single-character terminator — {@code (.*?)b} — is the commonest shape there is. The
-         * byte is the first of its UTF-8 encoding, which for a multi-byte character is its
-         * lead byte; the filter walks, so a lead byte is as safe to stop on as an ASCII one.
+         * The one byte every member's encoding begins with, from the compiled form — so a
+         * single-character terminator like {@code (.*?)b} skips under any encoding, and a
+         * class whose members share one lead byte skips too. The filter walks, so a lead
+         * byte is as safe to stop on as an ASCII one.
          */
         @Override
         int leadingByte() {
-            final int only = set.singleCodePoint();
-            if (only < 0) {
-                return -1;
-            }
-            return only < 0x80
-                    ? only
-                    : Character.toString(only).getBytes(StandardCharsets.UTF_8)[0] & 0xFF;
+            return form.loneLeadByte();
         }
 
-        OneChar(final CodePointSet set, final String label) {
+        OneChar(final CodePointSet set, final String label, final ByteForm byteForm) {
             this.set = set;
             for (int b = 0; b < 0x80; b++) {
                 ascii[b] = set.contains(b)
                         ? (byte) 1
                         : 0;
             }
-            this.form = new CharClass(set, label);
+            this.form = new CharClass(set, label, byteForm);
         }
 
         @Override
@@ -737,8 +735,9 @@ public final class NodeTree {
          */
         private int skipByte = -1;
 
-        StarClass(final CodePointSet set, final String label, final boolean greedy) {
-            this.item = new OneChar(set, label);
+        StarClass(final CodePointSet set, final String label, final ByteForm form,
+                  final boolean greedy) {
+            this.item = new OneChar(set, label, form);
             this.greedy = greedy;
             this.ascii = item.ascii;
         }
@@ -835,7 +834,7 @@ public final class NodeTree {
                 final int end = scan(ctx, pos);
                 ctx.steps -= end - pos;
                 for (int at = end; at >= pos; at--) {
-                    if (at < end && Utf8.isContinuation(ctx.data[at])) {
+                    if (at < end && ctx.form.continuation(ctx.data[at])) {
                         continue; // back off whole characters
                     }
                     ctx.budget();
@@ -878,9 +877,9 @@ public final class NodeTree {
         private final int most;
         private final boolean greedy;
 
-        CountedClass(final CodePointSet set, final String label, final int most,
-                     final boolean greedy) {
-            this.item = new OneChar(set, label);
+        CountedClass(final CodePointSet set, final String label, final ByteForm form,
+                     final int most, final boolean greedy) {
+            this.item = new OneChar(set, label, form);
             this.most = most;
             this.greedy = greedy;
         }
@@ -900,7 +899,7 @@ public final class NodeTree {
                 }
                 ctx.steps -= taken;
                 for (int at = end; at >= pos; at--) {
-                    if (at < end && Utf8.isContinuation(ctx.data[at])) {
+                    if (at < end && ctx.form.continuation(ctx.data[at])) {
                         continue;
                     }
                     ctx.budget();
@@ -943,7 +942,8 @@ public final class NodeTree {
         boolean match(final Ctx ctx, final int pos) {
             final boolean holds = kind == Hir.Kind.PREVIOUS_MATCH_END
                     ? pos == ctx.searchStart
-                    : Words.assertionHolds(kind, ctx.data, ctx.regionFrom, ctx.to, pos);
+                    : Words.assertionHolds(kind, ctx.data, ctx.regionFrom, ctx.to, pos,
+                            ctx.form);
             return holds && next.match(ctx, pos);
         }
     }
@@ -969,7 +969,7 @@ public final class NodeTree {
             if (from < 0 || until < 0) {
                 return false; // a reference to a group that did not participate fails
             }
-            final int consumed = Backrefs.compare(ctx.data, pos, ctx.to, from, until,
+            final int consumed = Backrefs.compare(ctx.form, ctx.data, pos, ctx.to, from, until,
                     fold, unicode);
             if (consumed == Backrefs.TRUNCATED) {
                 return false;
@@ -1065,7 +1065,7 @@ public final class NodeTree {
             try {
                 final int lowest = Math.max(ctx.regionFrom, pos - maxLength);
                 for (int at = pos - minLength; at >= lowest; at--) {
-                    if (at < pos && Utf8.isContinuation(ctx.data[at])) {
+                    if (at < pos && ctx.form.continuation(ctx.data[at])) {
                         // No regionFrom exemption: the search gate has none, and a region that
                         // opens mid-character is no better a place to start a lookbehind body.
                         // Deliberately not Utf8.splitsCharacter: at < pos keeps the probe inside

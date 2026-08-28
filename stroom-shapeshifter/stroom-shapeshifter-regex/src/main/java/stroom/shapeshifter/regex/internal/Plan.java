@@ -69,6 +69,9 @@ public final class Plan {
     /** The fewest bytes any match spans; no attempt can succeed with fewer remaining. */
     final int minLength;
 
+    /** The pattern's encoding, as byte facts, for the runtime questions (design 19 phase 3). */
+    final ByteForm form;
+
     Plan(final int[] op,
          final int[] a,
          final int[] b,
@@ -81,7 +84,9 @@ public final class Plan {
          final int groupCount,
          final boolean multiline,
          final byte[] firstBytes,
-         final int minLength) {
+         final int minLength,
+         final ByteForm form) {
+        this.form = form;
         this.op = op;
         this.a = a;
         this.b = b;

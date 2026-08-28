@@ -75,7 +75,7 @@ public final class Lowering {
             case Matcher.Characters characters -> new Hir.Repeat(
                     Hir.CharClass.of(
                             Parser.parseClassExpression(characters.classExpression()),
-                            characters.classExpression()),
+                            characters.classExpression(), ByteForm.UTF8),
                     characters.min(),
                     characters.max(),
                     true);
@@ -110,13 +110,13 @@ public final class Lowering {
         final CodePointSet excluded = CodePointSet.single(until.codePoint()).negate();
         final String label = "[^" + describe(until.codePoint()) + "]";
         final Hir run = new Hir.Repeat(
-                Hir.CharClass.of(excluded, label), 0, Hir.Repeat.UNBOUNDED, true);
+                Hir.CharClass.of(excluded, label, ByteForm.UTF8), 0, Hir.Repeat.UNBOUNDED, true);
         if (!until.inclusive()) {
             return run;
         }
         return new Hir.Concat(List.of(run,
                 Hir.CharClass.of(CodePointSet.single(until.codePoint()),
-                        describe(until.codePoint()))));
+                        describe(until.codePoint()), ByteForm.UTF8)));
     }
 
     /**
@@ -173,7 +173,7 @@ public final class Lowering {
         }
         final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
         return bytes.length == 1
-                ? Hir.CharClass.of(CodePointSet.single(bytes[0] & 0xFF), text)
+                ? Hir.CharClass.of(CodePointSet.single(bytes[0] & 0xFF), text, ByteForm.UTF8)
                 : new Hir.Bytes(bytes, text);
     }
 

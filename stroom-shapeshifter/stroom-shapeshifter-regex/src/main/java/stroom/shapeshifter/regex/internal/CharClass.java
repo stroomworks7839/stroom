@@ -53,10 +53,12 @@ public final class CharClass {
 
     private final String label;
 
-    CharClass(final CodePointSet set, final String label) {
-        this.sequences = Utf8.sequences(set);
+    CharClass(final CodePointSet set, final String label, final ByteForm form) {
+        this.sequences = form.sequences(set);
         this.asciiOnly = set.isAsciiOnly();
-        this.byteScanSafe = set.containsAllNonAscii();
+        // Under a single-byte form every byte is a whole character, so byte and character
+        // scanning coincide for every class, not only the all-non-ASCII ones.
+        this.byteScanSafe = form.singleByte() || set.containsAllNonAscii();
         this.label = label;
 
         this.leadTable = new byte[256];
@@ -85,6 +87,25 @@ public final class CharClass {
 
     public byte[] leadTable() {
         return leadTable;
+    }
+
+    /**
+     * The one byte every match must begin with, or -1 where the class can begin with more
+     * than one. The lazy-run skip's question, answered from the compiled form so it is right
+     * for whatever encoding compiled it — the UTF-8 spelling this replaces hardcoded the
+     * encoding and sent a table pattern's skip hunting a lead byte that never occurs.
+     */
+    public int loneLeadByte() {
+        int lone = -1;
+        for (int b = 0; b < 256; b++) {
+            if (leadTable[b] != 0) {
+                if (lone >= 0) {
+                    return -1;
+                }
+                lone = b;
+            }
+        }
+        return lone;
     }
 
     public boolean isAsciiOnly() {

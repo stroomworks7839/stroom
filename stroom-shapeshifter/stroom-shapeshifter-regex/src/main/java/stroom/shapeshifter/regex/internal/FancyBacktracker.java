@@ -178,7 +178,7 @@ public final class FancyBacktracker {
                 }
                 continue;
             }
-            if (Utf8.splitsCharacter(data, at, contextEnd)) {
+            if (nfa.form.splitsCharacter(data, at, contextEnd)) {
                 // A match may not begin inside a character — and an anchored search may not
                 // begin anywhere else, so it is over (as the simulation already answers).
                 if (anchored) {
@@ -298,7 +298,7 @@ public final class FancyBacktracker {
                     final Hir.Kind kind = Hir.Kind.VALUES[a[pc]];
                     final boolean holds = kind == Hir.Kind.PREVIOUS_MATCH_END
                             ? pos == context.searchStart
-                            : Words.assertionHolds(kind, data, regionFrom, to, pos);
+                            : Words.assertionHolds(kind, data, regionFrom, to, pos, nfa.form);
                     if (holds) {
                         pc++;
                         continue;
@@ -408,7 +408,7 @@ public final class FancyBacktracker {
                 if (b[starPc] == 0) {
                     // Greedy backoff: one whole character shorter, continuation next.
                     int cur = stackPos[stackSize] - 1;
-                    while (cur > floor && Utf8.isContinuation(data[cur])) {
+                    while (cur > floor && nfa.form.continuation(data[cur])) {
                         cur--;
                     }
                     if (cur > floor) {
@@ -427,7 +427,7 @@ public final class FancyBacktracker {
                     continue resume; // the run cannot grow; this frame is spent
                 }
                 int grown = cur + 1;
-                while (grown < to && Utf8.isContinuation(data[grown])) {
+                while (grown < to && nfa.form.continuation(data[grown])) {
                     grown++;
                 }
                 // Refuse only a character truncated by the region edge; on malformed input,
@@ -435,7 +435,8 @@ public final class FancyBacktracker {
                 // before the region does, ends on a non-continuation byte, or spans exactly
                 // its lead byte's announced length.
                 final boolean truncatedByEdge = grown == to
-                        && Utf8.isContinuation(data[grown - 1])
+                        && nfa.form.continuation(data[grown - 1])
+                        && !nfa.form.singleByte()
                         && grown - cur != Utf8.sequenceLength(data[cur] & 0xFF);
                 if (truncatedByEdge) {
                     continue resume;
@@ -473,7 +474,7 @@ public final class FancyBacktracker {
                 ? regionFrom
                 : cursor - max);
         for (int at = cursor - min; at >= lowest; at--) {
-            if (at < cursor && Utf8.isContinuation(data[at])) {
+            if (at < cursor && nfa.form.continuation(data[at])) {
                 // A sub-match may not begin inside a character either. No regionFrom
                 // exemption: the search gate has none, and a region that opens mid-character
                 // is no better a place to start a lookbehind body than to start a match.
@@ -506,7 +507,7 @@ public final class FancyBacktracker {
         if (from < 0 || until < 0) {
             return -1;
         }
-        final int consumed = Backrefs.compare(data, pos, to, from, until,
+        final int consumed = Backrefs.compare(nfa.form, data, pos, to, from, until,
                 (nfa.b[pc] & Nfa.BACKREF_FOLD) != 0,
                 (nfa.b[pc] & Nfa.BACKREF_UNICODE) != 0);
         if (consumed == Backrefs.TRUNCATED) {

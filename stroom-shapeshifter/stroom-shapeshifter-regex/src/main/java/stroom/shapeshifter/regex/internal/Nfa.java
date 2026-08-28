@@ -174,6 +174,9 @@ public final class Nfa {
      */
     private final byte[] firstBytes;
 
+    /** The pattern's encoding, as byte facts, for the runtime questions (design 19 phase 3). */
+    final ByteForm form;
+
     Nfa(final int[] op,
         final int[] a,
         final int[] b,
@@ -186,7 +189,9 @@ public final class Nfa {
         final int slotCount,
         final int groupCount,
         final boolean multiline,
-        final int minLength) {
+        final int minLength,
+        final ByteForm form) {
+        this.form = form;
         this.minLength = minLength;
         this.op = op;
         this.a = a;

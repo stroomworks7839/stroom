@@ -43,7 +43,8 @@ final class Backrefs {
      * span's length; or {@link #MISMATCH}; or {@link #TRUNCATED}, which callers treat as a
      * plain failure.
      */
-    static int compare(final byte[] data,
+    static int compare(final ByteForm form,
+                       final byte[] data,
                        final int pos,
                        final int to,
                        final int from,
@@ -72,19 +73,19 @@ final class Backrefs {
             if (input >= to) {
                 return TRUNCATED;
             }
-            final int wanted = Utf8.decode(data, captured, until);
+            final int wanted = form.decode(data, captured, until);
             if (wanted < 0) {
                 return MISMATCH; // the span is not whole characters; nothing can fold-match it
             }
-            final int have = Utf8.decode(data, input, to);
+            final int have = form.decode(data, input, to);
             if (have < 0) {
                 return TRUNCATED; // a character split by the window edge
             }
             if (wanted != have && !foldedEqual(wanted, have, unicode)) {
                 return MISMATCH;
             }
-            captured += Utf8.encodedLength(wanted);
-            input += Utf8.encodedLength(have);
+            captured += form.encodedLength(wanted);
+            input += form.encodedLength(have);
         }
         return input - pos;
     }

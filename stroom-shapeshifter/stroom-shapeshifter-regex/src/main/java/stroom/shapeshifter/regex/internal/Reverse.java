@@ -58,19 +58,19 @@ public final class Reverse {
      * maximum, not fancy, not input-anchored at the front, no {@code \G} — the published
      * anchorsToSearchStart fact, checked at the one qualification site).
      *
-     * <p>The {@code encoding} parameter is the phase-1 seam of the encoding plan (design/19),
-     * added by its audit: the byte-level class tables this compiles are a lowering the plan's
-     * first enumeration missed. Deliberately unread until the table and RAW shapes land.
+     * <p>The {@code encoding} decides the byte level: placed by phase 1's audit, read since
+     * phase 3, when the table shape arrived (design/19).
      */
     public static Nfa program(final Hir root, final boolean multiline, final String pattern,
                               final Encoding encoding) {
-        if (!reversible(root)) {
+        final ByteForm form = ByteForm.of(encoding);
+        if (!reversible(root, form)) {
             return null;
         }
-        return NfaCompiler.compileByteLevel(reverse(root), 0, multiline, pattern);
+        return NfaCompiler.compileByteLevel(reverse(root), 0, multiline, pattern, form);
     }
 
-    private static boolean reversible(final Hir node) {
+    private static boolean reversible(final Hir node, final ByteForm form) {
         return switch (node) {
             case Hir.Empty ignored -> true;
             // Every assertion here is a positional predicate the reversed walk evaluates
@@ -78,15 +78,15 @@ public final class Reverse {
             // anchorsToSearchStart fact before this walk is consulted.
             case Hir.Assertion ignored -> true;
             case Hir.Bytes ignored -> true;
-            case Hir.CharClass charClass -> charClass.set().isAsciiOnly();
-            case Hir.Group group -> reversible(group.body());
-            case Hir.Concat concat -> concat.items().stream().allMatch(Reverse::reversible);
-            case Hir.Alt alt -> alt.branches().stream().allMatch(Reverse::reversible);
+            case Hir.CharClass charClass -> form.singleByte() || charClass.set().isAsciiOnly();
+            case Hir.Group group -> reversible(group.body(), form);
+            case Hir.Concat concat -> concat.items().stream().allMatch(item -> reversible(item, form));
+            case Hir.Alt alt -> alt.branches().stream().allMatch(branch -> reversible(branch, form));
             // An unbounded repeat of a byte-safe class runs at byte level in either
             // direction — the compiler's own licence, borrowed whole.
-            case Hir.Repeat repeat -> reversible(repeat.body())
+            case Hir.Repeat repeat -> reversible(repeat.body(), form)
                                       || (repeat.isUnbounded()
-                                          && NfaCompiler.byteSafe(repeat.body()));
+                                          && NfaCompiler.byteSafe(repeat.body(), form));
             // Fancy constructs never reach here (the caller excludes fancy patterns), and
             // a backreference has no static shape to reverse.
             case Hir.Look ignored -> false;

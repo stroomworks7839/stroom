@@ -95,7 +95,8 @@ public final class Words {
                                      final int regionFrom,
                                      final int to,
                                      final int cursor,
-                                     final boolean unicode) {
+                                     final boolean unicode,
+                                     final ByteForm form) {
         // The ASCII fast path. A backtracker evaluates \b at every position it backs off
         // through, and over log data both neighbours are almost always ASCII — where the two
         // word definitions agree and a table lookup answers what two UTF-8 decodes and two
@@ -110,28 +111,33 @@ public final class Words {
         if (before < 0x80 && at < 0x80) {
             return (before >= 0 && ASCII_WORD[before]) != (at >= 0 && ASCII_WORD[at]);
         }
-        return atBoundarySlow(data, regionFrom, to, cursor, unicode);
+        return atBoundarySlow(data, regionFrom, to, cursor, unicode, form);
     }
 
     private static boolean atBoundarySlow(final byte[] data,
                                           final int regionFrom,
                                           final int to,
                                           final int cursor,
-                                          final boolean unicode) {
+                                          final boolean unicode,
+                                          final ByteForm form) {
         final CodePointSet words = unicode
                 ? Unicode.SET
                 : ASCII;
-        final int before = characterBefore(data, regionFrom, cursor);
-        final int after = characterAt(data, cursor, to);
+        final int before = characterBefore(data, regionFrom, cursor, form);
+        final int after = form.decode(data, cursor, to);
         final boolean wordBefore = before >= 0 && words.contains(before);
         final boolean wordAfter = after >= 0 && words.contains(after);
         return wordBefore != wordAfter;
     }
 
     /** The code point ending at {@code cursor}, or -1 at the region start or on malformed bytes. */
-    private static int characterBefore(final byte[] data, final int regionFrom, final int cursor) {
+    private static int characterBefore(final byte[] data, final int regionFrom, final int cursor,
+                                       final ByteForm form) {
         if (cursor <= regionFrom) {
             return -1;
+        }
+        if (form.singleByte()) {
+            return form.decode(data, cursor - 1, cursor);
         }
         int start = cursor - 1;
         // Continuation bytes are 10xxxxxx, so stepping back over them finds the lead byte. A
@@ -144,14 +150,7 @@ public final class Words {
         if (start + Utf8.sequenceLength(data[start] & 0xFF) != cursor) {
             return -1; // no character ends exactly at the cursor: malformed input
         }
-        return characterAt(data, start, cursor);
-    }
-
-    /** The code point beginning at {@code at}, or -1 if there is none or it is ill-formed. */
-    private static int characterAt(final byte[] data, final int at, final int to) {
-        return at >= to
-                ? -1
-                : Utf8.decode(data, at, to);
+        return form.decode(data, start, cursor);
     }
 
     /**
@@ -164,16 +163,17 @@ public final class Words {
                                   final byte[] data,
                                   final int regionFrom,
                                   final int to,
-                                  final int pos) {
+                                  final int pos,
+                                  final ByteForm form) {
         return switch (kind) {
             case START_INPUT -> pos == regionFrom;
             case START_LINE -> pos == regionFrom || data[pos - 1] == '\n';
             case END_INPUT -> pos == to;
             case END_LINE -> pos == to || data[pos] == '\n';
-            case WORD_BOUNDARY -> atBoundary(data, regionFrom, to, pos, true);
-            case NOT_WORD_BOUNDARY -> !atBoundary(data, regionFrom, to, pos, true);
-            case WORD_BOUNDARY_ASCII -> atBoundary(data, regionFrom, to, pos, false);
-            case NOT_WORD_BOUNDARY_ASCII -> !atBoundary(data, regionFrom, to, pos, false);
+            case WORD_BOUNDARY -> atBoundary(data, regionFrom, to, pos, true, form);
+            case NOT_WORD_BOUNDARY -> !atBoundary(data, regionFrom, to, pos, true, form);
+            case WORD_BOUNDARY_ASCII -> atBoundary(data, regionFrom, to, pos, false, form);
+            case NOT_WORD_BOUNDARY_ASCII -> !atBoundary(data, regionFrom, to, pos, false, form);
             // Depends on the search, not only the data; the engines that support it evaluate
             // it before delegating here, and no other engine ever receives it.
             case PREVIOUS_MATCH_END -> throw new IllegalStateException(
