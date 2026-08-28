@@ -888,3 +888,6 @@ own encoding shape and the engine maps its `Encoding` onto it). Until that lands
 stopgap is a compile-time refusal by name in `compileMatch` for any template whose effective
 match encoding is not UTF-8-compatible and whose match or steps carry a regex — pending a check
 of what existing fixtures that breaks, which is itself evidence of how much the gap is leaned on.
+The phased plan for the whole of it, stopgap through `\BHH`, is
+[design 19](../design/19-encoding-plan.md); this issue is its driver, closes at its phase 3,
+and carries the stopgap from its phase 0.
