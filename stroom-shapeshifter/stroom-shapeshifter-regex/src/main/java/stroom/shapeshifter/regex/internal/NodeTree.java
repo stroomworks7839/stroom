@@ -803,7 +803,18 @@ public final class NodeTree {
                     }
                     end++;
                 } else if (allNonAscii) {
-                    end++; // lead and continuation bytes alike: the class takes every character
+                    // The class takes every character, so only the encoding can end the run:
+                    // step whole characters, and stop where the bytes are not one. This used
+                    // to step end++ per byte, which walked over bytes accept() rejects — over
+                    // invalid UTF-8 it claimed a run the class cannot consume, and reported
+                    // (?s)(.*)é as 0..4 on {A, C3, C3, A9} where every other engine says
+                    // 2..4. What the branch still buys is skipping the set membership test,
+                    // which allNonAscii answers by definition.
+                    final int codePoint = Utf8.decode(data, end, to);
+                    if (codePoint < 0) {
+                        return end;
+                    }
+                    end += Utf8.encodedLength(codePoint);
                 } else {
                     final int advanced = item.accept(ctx, end);
                     if (advanced == 0) {

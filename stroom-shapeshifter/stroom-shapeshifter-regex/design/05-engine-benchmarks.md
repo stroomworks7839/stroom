@@ -270,6 +270,19 @@ path may close a target off now.
   consequence of how it restores group boundaries while backtracking. Seven neighbouring shapes
   agree exactly, so this one is narrow, and no reference has been found that agrees with the JDK.
 - **Look-around sees the region, not the buffer** ([§6](#6-the-rust-regex-corpus)).
+- **Undecodable bytes split the tiers** (found 2026-08-28 by `GreedyRunRawBytesTest`, the greedy
+  mirror of the lazy-run skip's raw-bytes check). The character-wise engines define class
+  membership through `Utf8.decode`, so a byte no character can own ends a run: `(?s)(.*)é` over
+  `{A, C3, C3, A9}` is 2..4. The scan plan's byte-level ops are deliberately permissive — the
+  plan compiler's byte-scan equivalence proof rests on the unstated premise that every high byte
+  belongs to some character, true of valid UTF-8 and false of log bytes — so `(?s)(.*)` on the
+  same input is 0..4 against the strict engines' 0..1, and the natural engine's answer on dirty
+  input depends on the tier the pattern lands in. The tree carried *both* semantics in one node —
+  a permissive greedy scan beside a strict lazy branch — which was an inconsistency, not a
+  position, and is fixed strict. The tier split itself is a decision, not a defect: strictness
+  forfeits `SCAN_UNTIL_BYTE`, the memchr shape tier 0 is built on; permissiveness rewrites four
+  engines' UTF-8 automata. It stays recorded here, pinned by the test, until real DS3 configs
+  say what matching over dirty log bytes should mean.
 
 ## 6. The Rust `regex` corpus
 
