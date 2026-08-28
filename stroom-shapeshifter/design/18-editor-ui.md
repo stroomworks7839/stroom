@@ -98,8 +98,10 @@ replaces it, for reasons recorded in §5.9.
 
 Known ds-rs defects not to repeat: highlight placement by searching for the capture's
 *value* in the text (wrong span when values repeat — we have real offsets; use them);
-invalid patterns failing silently; sample data not persisted with the project; the full
-output never actually colourised despite the ranges being available.
+invalid patterns failing silently; the full output never actually colourised despite the
+ranges being available. (ds-rs also lost its sample data on import/export, which looked
+like a fourth defect until Q2 was ruled: here the data is never the document's to keep —
+it arrives from the pipeline that feeds the parser, so there is nothing to lose.)
 
 ## 3. Prior art: what Stroom already gives us
 
@@ -221,24 +223,29 @@ template; content: the whole buffer). Every frame has:
   that wrote it (§5.4). At the root frame this is the whole document — the author's final
   answer keeps a home. This pane holds nothing else.
 
-  Two of a frame's products deliberately live elsewhere, both for the same reason — they
-  are facts about a *site in the template*, not entries in the frame's scope, and they are
-  only legible next to the thing that caused them:
+  **Captures are the input side, and they belong with the rest of it** — the frame's own
+  bindings head the variables pane, above what its children stored, what it inherited and
+  its params (§5.5). They took two moves to get there and the route is worth recording,
+  because each move was right about something:
 
-  - **captures** render in the template panel, directly under the **match** (§5.6). They
-    were originally an "output vars" section, which read as though the frame had produced
-    them the way it produced output; but a capture is what the *pattern* pulled out of the
-    input — the raw material the body then spends, an input to everything downstream. Next
-    to the match, the rename affordance sits on the declaration that owns it, the swatches
-    join the same colour vocabulary as the pattern's groups in the workbench instead of
-    competing with the body cards', and the rows can show the declaration whether or not a
-    frame is selected: the declaration belongs to the template, only the value belongs to
-    the frame (moved 2026-08-27, Jon's call — "the template is producing the captures in
-    the matcher").
-  - **dispatches**, the child templates that matched within this frame's content, render
-    inside the template strip's body, anchored to the `apply-templates` instruction that
-    caused them (§5.6). That anchored list is the "switch into" set: selecting an entry
-    descends to that child frame.
+  - They began as an "output vars" section, which read as though the frame had *produced*
+    them the way it produced output. But a capture is what the pattern pulled out of the
+    input — the raw material the body then spends.
+  - So they moved to the template panel, under the match (2026-08-27, Jon: "the template
+    is producing the captures in the matcher"). True — of the **declaration**. What the
+    line actually showed was the **value**, which is the frame's, not the template's; and
+    it left a row in the bottom-left lighting a span in the top-left, the same diagonal
+    the output pane had just been moved to avoid.
+  - So they now sit in the variables pane (2026-08-28, Jon: "a single area for the user to
+    look at to discover all variables in scope"), with the declaration's home settled
+    separately: names are edited in the pattern workbench, with the groups they name.
+
+  One product of a frame does still live elsewhere, for a reason that survives all of
+  this: **dispatches**, the child templates that matched within this frame's content,
+  render inside the template strip's body, anchored to the `apply-templates` instruction
+  that caused them (§5.6). They are a fact about a *site in the template*, not an entry in
+  the frame's scope. That anchored list is the "switch into" set: selecting an entry
+  descends to that child frame.
 
 All navigation state remains one value — the **cursor**, now read as "the selected
 frame" — and every pane renders relative to it. Data→template, template→data,
@@ -314,9 +321,9 @@ fighting the other nine for attention.
 paragraphs above lasted about one round before a sharper question replaced it: *the body
 is what's producing this output, so why colour it by template at all rather than by
 which body card wrote it?*). Every span in "wrote → output" is now coloured by the
-**body card that produced it** — a `text`/`value-of` card's own tagged span takes its
-colour, exactly the way a capture already gets a swatch; an `apply` card's colour covers
-*everything its dispatch produced*, whole, however deep the child's own output goes. This
+**thing that produced it** — a `text`/`value-of` card's own tagged span takes its card's
+colour, exactly the way a capture already gets a swatch; a span a **dispatch** produced
+takes the colour of the child template that wrote it (revised 2026-08-28, below). This
 one rule does the work three earlier mechanisms were doing separately: colour now shows
 which instruction wrote what (strictly more information than "which template" ever
 gave), which makes the old own/descendant split redundant (dropped, along with its bold
@@ -358,6 +365,38 @@ one. Deliberately a whole-run fact and not a per-frame one, so a card's swatch h
 stable colour as you step between frames; a swatch that changed colour underneath you
 while stepping would be reporting the frame, not the card.
 
+**A dispatch is coloured by the template it dispatched into** (2026-08-28, Jon: the
+dispatch rows carry a swatch each, "but only the outer apply-templates is coloured and
+highlighted in the output window"). The rows were promising a link the output never made
+good on. The fix is the rule the conditionals had already established one level down: **a
+container writes nothing, so it holds no colour of its own** — an `if` delegates to the
+instruction inside the branch that ran, and an `apply` delegates to the child template it
+dispatched into, which already wears an identity colour in the nav list, the crumb and the
+row itself. So the apply card drops its single hue and wears those same swatches, one per
+template that matched at this frame; hovering the card head still lights the whole
+dispatch, hovering one row lights only what that template wrote, and both come off the
+same run identity (owning card, child frame) the colour came from.
+
+Two palettes now share the output pane, and they say different things: **capture hues**
+mean "an instruction of this frame wrote it", **template colours** mean "a child frame
+did, and here is which one". That is the own/descendant distinction dropped on 2026-08-27
+for saying nothing that colour wasn't already saying — back, with identity in it. Its best
+moment is a multi-candidate site: at `combined_log`'s route `apply` the card's swatch and
+its output region say which of the six routes ran for the record you are on, before you
+read a word of it.
+
+**An instruction inside a branch owns its output the same way** (2026-08-28, when the
+conditionals gained real bodies — §5.6). What owns a span is a *path* rather than an
+index: `7` is the eighth instruction of the body, `7.w1.0` the first instruction of that
+`choose`'s second `when` branch. A conditional therefore never writes anything itself;
+the instruction inside the branch that ran does, and takes the colour. The conditional
+is coloured as the container it is — it holds the colour of what its branches wrote, and
+hovering it lights every span inside it, which the path prefix gives for free. Two
+consequences worth stating: a conditional whose branches *never* fire anywhere in the run
+is muted, distinguishing "did not fire in this record" (highlights nothing) from "cannot
+fire in this data" (muted swatch); and the trace has to say which branch ran, since the
+output alone only says what was written.
+
 Because the renderer is scoped to a frame's content, offsets are always frame-relative
 and always honest — the earlier draft's "content lens" problem (§5.9) does not exist.
 At the root frame the content variable *is* the whole buffer, so the whole-input survey
@@ -375,13 +414,78 @@ already does context-windowed fetching around a highlight; same idea, client-sid
 
 ### 5.5 The variable panes
 
-**Four quadrants** (revised 2026-08-27), all centred on the frame:
+**Four quadrants** (revised 2026-08-28), all centred on the frame:
 
 ```
-       content            │   params & scope
+       content            │   variables
   ────────────────────────┼────────────────────────
    template definition    │   wrote → output
 ```
+
+**Read them top-left, top-right, bottom-left, bottom-right** (Jon, 2026-08-28): the input,
+the variables drawn out of it, the template that consumes them, the output it wrote. Each
+*row* is a hover-linked pair, and that is the whole highlighting topology:
+
+| row | left | right | the link |
+|---|---|---|---|
+| top — input and context | the bytes | the names bound out of them | hovering a variable lights its span; hovering a span lights its variable |
+| bottom — definition and result | the instructions | the bytes they wrote | hovering an instruction lights its output region; hovering a region lights the instruction, and for a dispatch its child-template row too |
+
+Both rows link **in both directions** — which the design had been claiming since the body
+cards were first coloured and only half doing: the card→output and variable→span
+directions were wired, and neither return path was (fixed 2026-08-28). A claim of this
+kind is cheap to write and easy not to notice missing, since each pane looks alive from
+the side that works; the mockups now assert all four directions rather than describing
+them.
+
+**Hover in the byte panes is delegated to the pane, and a line gap holds** (2026-08-28,
+Jon: "multi-line text flickers on hover because you often move the mouse across lines and
+there are gaps between lines"). An inline span that wraps is several line fragments, and
+the leading between them belongs to no element: pointing at a three-line run and moving
+down it fires leave and enter at every crossing, so the highlight blinks once per line —
+worst on exactly the long runs worth following. A transition softens that and cannot fix
+it, because the state really is being lost. So neither pane asks its spans to report
+enter and leave; each asks one question of the pointer's position — *which spans is it
+inside now?* — and reads the gap's answer of "none" as **hold what you had** rather than
+"clear". The highlight changes only when the pointer reaches other spans, and clears when
+it leaves the pane. No timers, no thresholds, and nesting survives because the whole
+ancestor chain lights, which is what `:hover` was doing for free. Consequently nothing in
+these two panes styles on `:hover` at all: `.hot` is the only state, set from the pointer
+or from the pane opposite, which is the same unification the outline weights got. (The
+block surfaces — cards, rows, crumb segments — keep `:hover`, since a block box has no
+gaps to fall through.)
+
+**And the highlight looks the same from either end.** Pointing at a span yourself and
+having something else point at it are the same state, so they are one CSS rule rather
+than two that drifted — the outline had been appearing only when the variables pane
+pointed at a capture, and the output pane wore a thinner outline for its own hover than
+for the body card's (2026-08-28). Everything that lights up now **fades**, over the same
+150ms: an instant highlight flickers as the pointer crosses nested spans, which was
+already known for the content renderer's fills and had never been applied to the outlines
+or to the surfaces on the receiving end — cards, dispatch rows, variable rows, crumb
+segments. The implementation detail that makes it cheap: an outline never affects layout,
+so each of these carries a permanently declared *transparent* outline or background and
+only changes its colour. Nothing moves, and there is something for the transition to
+animate.
+
+Two things fall out of stating it that way. Nothing highlights diagonally any more — the
+last diagonal was the capture row, which is why it moved (§5.2). And the two palettes have
+one meaning each: the rotating **`--cap-N` hues are scoped to a row** — "which capture"
+above, "which instruction" below, never read across the divide — while a **template
+colour is global identity** and means the same template wherever it appears, which is why
+a dispatched output region can safely wear one (§5.4). The rule is the fix, not a third
+palette.
+
+**The ring is twelve hues, not four** (2026-08-28). Four was enough for the first
+prototype's two-capture templates and failed on the first real config: `combined_log`
+declares ten, and rows five onward were asking for a var that does not exist, which paints
+white — a swatch that says nothing, next to nine that do. The twelve are material 300s
+from the GWT UI's own `material_design_colors.css` (200s where a 300 would collide with a
+template or category colour), ordered so neighbours in the ring are far apart in hue, and
+one function issues every one of them — capture rows and their spans, body cards, the
+workbench's groups and steps — so the ring's size is one number in one place and nothing
+can index past its end. Wrapping is honest when a config finally needs it: a repeat twelve
+apart reads as "another capture", not "the same one".
 
 The data still sits on top and the definition below it (§5.6) for the ds-rs redesign's
 own founding reason: the data is the primary object; the author watches the frame's
@@ -394,13 +498,28 @@ each thing sits in, and the rule now is adjacency to whatever it is a statement 
   a highlight diagonally across the window. Now the highlight appears a few centimetres
   from the card that caused it. (Jon, 2026-08-27: "it is formed from the instructions and
   highlights when instructions are highlighted".)
-- **Params and in-scope variables take the vacated top-right**, beside the content they
-  qualify. They had been stacked under the content renderer, squeezing the one view here
-  that genuinely wants vertical room, in exchange for no relationship at all.
-- **The output pane lost its heading and its inset.** "Output vars → wrote → output" was
-  two levels of label distinguishing the output from the other things in that pane, and
-  since captures left (§5.2) there are no other things: the pane has exactly one occupant,
-  so the pane's own edge is the only frame it needs.
+- **The variables take the vacated top-right**, beside the content they are drawn from.
+  They had been stacked under the content renderer, squeezing the one view here that
+  genuinely wants vertical room, in exchange for no relationship at all. The pane reads
+  innermost-out, like a debugger's Variables pane: **this match** (the content value, then
+  the frame's own captures) → **child stores** (what its children bound, seen as sequences
+  after their apply) → **outer scope** (bound by an ancestor, readable here) → **params**.
+  One list, one answer to "what can an instruction here read?" — and demonstrably the
+  right list, because it is the same union `scopeNames()` has always fed the `value-of`
+  picker. Before this the pane showed two thirds of it while the picker beside it knew all
+  of it.
+- **Both byte panes lost their headings and their insets.** "Output vars → wrote →
+  output" was two levels of label distinguishing the output from the other things in that
+  pane, and since captures left (§5.2) there are no other things. The content pane reached
+  the same state from the other direction when the content row moved into the variables
+  pane, and on 2026-08-28 it was built the same way — no title, no inset box, no border
+  but the splitters that bound it. Each holds exactly one value, so the pane *is* the box,
+  and the two read as one kind of thing on opposite corners: the value coming in,
+  top-left; the value going out, bottom-right. All four workspace panes share the page
+  background — giving the two byte panes a different one made the workspace a
+  checkerboard, alternating shades saying something the splitters already say, and
+  competing with the one thing here that *is* coloured by meaning: the text. Only the
+  navigation panel differs, as it does everywhere in Stroom.
 
 The two vertical splitters share a single ratio, so the quadrant divide is one straight
 line and either handle moves all of it.
@@ -408,17 +527,27 @@ line and either handle moves all of it.
 Rows are debugger-style: colour swatch (capture hue), name, **type badge** (`string`,
 `number`, `instant`, `bytes[n]`, `seq[n]`), value preview; expandable where the value
 warrants it (content and text values into the content renderer, sequences into their
-entries). Hovering a capture row lights its span inside the content renderer and dims
-the rest — the ds-rs hover-link, now frame-scoped.
+entries).
 
-The capture rows are also the **declarations**. A capture is a structured row, not code
-text, so there is no reason to split "name ← group $1" from "value at this frame" across
-two places: one row carries hue, name, binding source, type and live value, and the name
-and binding edit in place — rename the variable where you are looking at its value. That
-single row is what makes it safe to keep captures in *one* location rather than two, and
-(since 2026-08-27) that location is the template panel, under the match that binds them
-(§5.2) — which is the declaration's natural home, and where a template with no matches
-can still show what it declares.
+A capture row carries hue, name, binding source (`← $1`), type and live value in one
+line, so nothing about the variable is split across places — except its **name**, which is
+edited in the pattern workbench, on the group it names (2026-08-28). That is the one place
+where a name and its group cannot disagree, and it keeps the variables pane a statement
+about *this frame* rather than a second editor for the template.
+
+The cost is real and worth naming: a template with **no matches** now shows its declared
+captures nowhere but the workbench, since the variables pane is frame-scoped and there is
+no frame. That is one click from the match chip, on the surface that names them — and the
+alternative, keeping declaration rows in the template panel as well, is the two-locations
+problem that started this.
+
+Hovering a row in **this match** lights its span in the content pane beside it and dims
+the rest — the ds-rs hover-link, now frame-scoped and one pane away. An **outer scope**
+row has usually nothing to light, since an ancestor's span generally falls outside this
+frame's content (`combined_log`'s `$time` is nowhere inside a route frame's URL slice), so
+it lights the **breadcrumb crumb of the frame that bound it** instead, and clicking steps
+there — where the span is visible. A row that cannot show you where a value came from can
+at least say where it lives.
 
 ### 5.6 The template strip and the pattern workbench
 
@@ -483,10 +612,11 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   parser publishes them; the UI never derives them itself. Validation is live, the
   error shown as you type. The **Groups panel is the capture-declaration editor**: one
   editable row per group (`$1 → name`), appearing and disappearing as the pattern is
-  typed, seeded from `(?<name>…)` syntax where present — the same declarations as the
-  capture rows under the match in the template panel (§5.5), editable in both, and now
-  visibly adjacent: closing the workbench leaves those rows in the line directly beneath
-  the chip you opened it from. The step builder gets
+  typed, seeded from `(?<name>…)` syntax where present. Since 2026-08-28 this is the
+  **only** place a capture is renamed: the variables pane shows the name beside the value
+  it took at this frame, and the group panel edits it beside the group it comes out of —
+  one editor, on the surface where a name and its group cannot disagree. The step builder
+  gets
   the symmetric treatment: its details rows show each step's kind, consumption count
   and semantics, and **clicking a step isolates its consumed spans** in the sample.
 
@@ -521,9 +651,14 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   hover actions (reorder, delete), editing swaps the card's summary for its per-kind
   inline editor, and a contextual **"+ instruction"** popup — grouped by category
   (output, invoke, control, transform), ds-rs's Add-Child popup reborn — inserts a new
-  card and opens it for editing. Container nodes (if/choose) drill down breadcrumb-style
-  rather than nesting cards, exactly as the ds-rs body editor did. Any body edit marks
-  the trace stale until the next run.
+  card and opens it for editing. Container nodes (`if`/`choose`) hold **card lists of
+  their own**, rendered nested one level in, each branch with its own add line (revised
+  2026-08-28; ds-rs drilled down into containers breadcrumb-style instead, which we
+  looked at and did not take — a conditional here is usually two or three instructions,
+  and nesting shows the shape of the whole body at once, where drilling down hides the
+  branch you are not in and costs a navigation step to see it. The choice is a rendering
+  one: the model underneath is a card list either way, so it can be revisited without
+  touching anything else.) Any body edit marks the trace stale until the next run.
 
   **The card itself is the target: click to edit, or to follow** (2026-08-27, Jon: "the
   instructions should be editable when you click them or followed if they are sub
@@ -544,24 +679,44 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   |---|---|
   | `text` | the text itself, decoded, over as many lines as it really has |
   | `value-of` | an expression, the in-scope names offered from a picker rather than remembered, and the value it produced *at this frame* shown underneath |
-  | `if` | a condition and a consequent, as two fields |
-  | `choose` | its branches as a list — add, edit, prune, with an optional `otherwise` |
+  | `if` | its condition — the consequent is the card list nested under it |
+  | `choose` | its branches as a list — add, edit, prune, with an optional `otherwise`; each branch's instructions are the card list nested under it |
   | `apply-templates` | the mode, and the `select` expression that narrows what is dispatched |
 
   This makes `if` and `choose` hold their parts as **real fields** rather than a display
   string, with the card's one-line summary composed from them — which is the point, since
   a summary that is the source of truth cannot be edited as structure. `choose` edits
   against a draft so Cancel genuinely cancels; half-finished structure must not reach the
-  model the way a half-finished string harmlessly could. The branch bodies of `if`/`choose`
-  are, in the real editor, nested card lists descended into exactly as an apply site is
-  followed; the mockup keeps them flat and **says so on the card** rather than letting the
-  one-line form imply that is the whole instruction.
+  model the way a half-finished string harmlessly could.
+
+  **The branch bodies are card lists, not strings** (2026-08-28, closing the one part of
+  the editor that was still illustrative). A conditional's consequent used to be a
+  free-text field holding a sentence — `"<Permitted>false</Permitted> + a Description"` —
+  which is a description of instructions rather than instructions, and it hid the output
+  it produced: the whole conditional was one opaque span, so hovering said "somewhere in
+  here" and the swatch was a single colour for what were really two or three separate
+  writes. Now each branch owns a list of ordinary cards, added from its own
+  **"+ instruction"** line, edited, reordered and deleted exactly as top-level ones are —
+  the same functions, addressed by path (§5.4) rather than by index. What the conditional
+  card itself edits is only what it decides: `if`'s condition, `choose`'s branch
+  conditions and whether there is an `otherwise`. Pruning a branch takes its instructions
+  with it rather than orphaning them.
+
+  Filling those bodies in against the fixture is what made the case for them: what had
+  been one prose card in `generic_view` is a `<Permitted>` and a `<Description>` written
+  separately, and `combined_log`'s `<User>` conditional is three instructions with the
+  `$user` value-of in the middle — so the trace attributes each to the instruction that
+  wrote it, and the `$user` span highlights on its own rather than as part of a block.
   This is also where the trace lands on the definition: every `apply-templates`
   card expands with the **matching child templates at that site for the current
   frame** — colour chip, name, match count (→ descend), or `✗ tried` / `— not tried`
   under the ordered choice; a tried-and-failed row renders in warning colour because
-  that row *is* the authoring signal. The "set of matching child templates to switch
-  into" is thereby anchored to the instruction that dispatched them — which is also
+  that row *is* the authoring signal. **A matched row hovers like every other list in the
+  editor**: it lights exactly the output its template wrote at this site, in the colour
+  its chip is showing (2026-08-28) — while the card head lights the whole dispatch, the
+  same two levels a conditional's head and its branch cards give. The "set of matching
+  child templates to switch into" is thereby anchored to the instruction that dispatched
+  them — which is also
   exactly where an author deciding "what should run here?" is looking. With no trace,
   or a zero-match template selected, the same cards show the static candidate list from
   the mode graph — the strip degrades to a plain config editor instead of going blank.
@@ -616,9 +771,10 @@ selects the mode**. The rules:
 
 Colour is editor presentation, not engine config: auto-assigned stably from the
 palette, user-overridable, with overrides stored as editor metadata in the
-`ShapeshifterDoc` beside the sample data (Q2) — never in the engine `Project` or the
-compiled graph. Zero-match templates render dimmed, not hidden — finding them is half
-the point. The panel header for the selected template shows the mode-graph strip
+`ShapeshifterDoc` — which holds the project model and this metadata and nothing else
+(Q2) — never in the engine `Project` or the compiled graph. Zero-match templates render
+dimmed, not hidden — finding them is half the point. The panel header for the selected
+template shows the mode-graph strip
 ("dispatched from: `record` (body pos 2)") — the static complement to breadcrumb
 ancestry, and the answer when there are no matches to navigate.
 
@@ -654,12 +810,20 @@ treats it that way rather than pretending the edit was local.
 
 Because nothing works without data, the empty states are designed, not accidental:
 
-- **No sample data**: the root frame's content variable is empty and its renderer is a
-  drop target — paste, drop a file, or (in Stroom) pick a stream. Templates are editable
-  but every count reads `—` and the run button is the only saturated thing on screen.
-- **Data, not yet run**: one keystroke (`Ctrl+Enter`, matching stepping's refresh) runs.
-  Auto-run on edit, debounced, is probably right for sample-sized data; it needs a
-  manual-only escape hatch for big samples (Q6).
+- **No data yet**: the root frame's content variable is empty, every count reads `—`, and
+  what the screen offers is the way to get data — pick a stream, or step a record through
+  the pipeline. **Data is never the document's** (Q2, ruled 2026-08-28): it arrives from
+  the stepping pipeline or from ordinary processing, so the doc persists the project model
+  and nothing else. That deletes a whole class of problem the earlier draft carried — a
+  size cap, a "grab from stream" action, samples going stale against a feed that moved on,
+  and an exported config quietly carrying production data with it — at the cost of the
+  editor never being usable entirely on its own, which is the honest shape of a tool whose
+  subject is data-driven execution.
+- **Data, not yet run**: it runs on its own. Auto-run on edit, debounced (Q6, ruled
+  2026-08-28: always, with no size threshold flipping to manual — one rule the user can
+  hold in their head, and the frames-are-cheap assumption is testable later against real
+  configs rather than guessed at now). `Ctrl+Enter` still forces a run, matching
+  stepping's refresh.
 - **Ran, template matched nothing**: selecting it shows the mode-graph strip ("nothing
   applies into mode `values`" vs "tried 212 times — nearest failed attempts here, here,
   here"), which is G3 earning its keep.
@@ -730,6 +894,14 @@ in `stroom-shapeshifter-pipeline` (D10's module) with
 record input, XML output, indicators, edit-and-re-step. D10's open item — mapping engine
 byte offsets and Messages onto `ErrorReceiver`/`Locator` line:col — lands here.
 
+A **minimal forms editor ships in A** as well (Q4, ruled 2026-08-28, against the draft
+recommendation of JSON-only): templates and modes — add, rename, delete, swatch, mode
+membership — and a template's match expression, which is the workbench's regex tab
+without the step builder. That is the part of the config a user edits constantly and the
+part where hand-edited JSON is most likely to be silently wrong; the body cards, which
+need the trace beside them to be worth using, wait for B. The Ace JSON tab stays as the
+escape hatch for everything the forms do not cover yet.
+
 **Phase B — the frame navigator as the document's main tab.** A "Design" tab on the
 Shapeshifter document presenter: template panel, breadcrumb, frame header, the two
 variable panes with the content renderer — the §5 design. Server side, one new endpoint
@@ -737,7 +909,8 @@ pair on the shapeshifter resource: `preview` (project JSON + sample → trace: f
 parent ids, content values or parent-slice refs, captures in execution order, output
 spans, messages, attempts) and `patternInfo` (backed by `PatternInfo.inspect`). The Ace
 JSON tab remains as the "Source" view of the same doc; Design and Source edit the same
-`Project` and stay in sync. Sample data needs a home (Q2).
+`Project` and stay in sync. Data is supplied to `preview` by the caller, not stored
+(Q2).
 
 **Phase C — the frame navigator inside stepping.** `SteppingPresenter` chooses
 per-element presenters; a shapeshifter-aware element presenter can replace the generic
@@ -746,13 +919,16 @@ widget, second mount. This is where "navigate the active templates for a given s
 through the data" meets Stroom's step-through-records: stepping moves between records,
 the frame navigator moves within one.
 
-Phase B before C is deliberate: the document editor owns its sample and its run button,
-free of stepping-session mechanics, so the novel UI iterates without dragging the
-stepping protocol along.
+Phase B before C is deliberate: the document editor drives its own run, free of
+stepping-session mechanics, so the novel UI iterates without dragging the stepping
+protocol along. It still needs data from somewhere (Q2), and in B that somewhere is a
+stream picked in the UI and passed to `preview` — the same bytes stepping would give it,
+without the stepping session.
 
 The structured GWT editor is a real cost (the ds-rs body editor's card list, the
-per-match-type forms). Phase A's JSON-in-Ace is the hedge: usable, steppable, honest —
-and it makes the Design tab's scope a quality decision rather than a blocking one.
+per-match-type forms). Phase A's forms-plus-JSON is the hedge: the editing users do most
+is native from the first release, everything else is steppable and honest in Ace — which
+makes the Design tab's scope a quality decision rather than a blocking one.
 
 ## 7. Engine asks, collected
 
@@ -785,15 +961,18 @@ previews how the editor sits inside the real application.
 ```
 ┌ apache-audit (Shapeshifter) ──────────────────────────────────────── [▶ Run] ┐
 │ ┌ Templates ──────┐ ┌ source › record ◀2/3▶ › kv-pair ◀2/4▶ › … 1 child ▾  ┐ │
-│ │ ● source   doc  │ ├ Content ────────────────┬ Params & scope ────────────┤ │
-│ │ root            │ │   content    bytes[19]  │ ▾ params (none declared)   │ │
-│ │ ● record    3   │ │   ¦key¦=╔"alice smith"╗ │ ▾ in scope                 │ │
-│ │ mode: fields    │ │   ← child matches lit,  │   $ip   string "10.0.0.7"  │ │
-│ │ ● kv-pair   12  │ │     gaps clickable      │   $key  seq[4] (store) ▸   │ │
-│ │ mode: values    │ ├───── kv-pair · mode fields · from record ─ 6/12 ◀ ▶ ─┤ │
-│ │ ● iso-time  3   │ │ match [regex (\w[\w ]*?)=…]│<data name="name"        │ │
-│ │ ● quoted    1   │ │ caps  ▪key   ←$1 "name"    │  value="alice smith"/>  │ │
-│ │ ○ mac-addr 0·8t │ │       ▪value ←$2 "\"ali…"  │                         │ │
+│ │ ● source   doc  │ ├─────────────────────────┬ Variables ─────────────────┤ │
+│ │ root            │ │   ¦key¦=╔"alice smith"╗ │ ▾ this match               │ │
+│ │ ● record    3   │ │   ← child matches lit,  │   content    bytes[19]     │ │
+│ │ mode: fields    │ │     gaps clickable      │   ▪$key   ←$1 "name"       │ │
+│ │ ● kv-pair   12  │ │   ← hovering a variable │   ▪$value ←$2 "\"ali…"      │ │
+│ │ mode: values    │ │     lights its span here│ ▾ child stores             │ │
+│ │ ● iso-time  3   │ │                         │   $text  seq[4] ▸          │ │
+│ │ ● quoted    1   │ │                         │ ▾ outer scope              │ │
+│ │ ○ mac-addr 0·8t │ │                         │   $ip ← record "10.0.0.7"  │ │
+│ │                 │ │                         │ ▾ params (none declared)   │ │
+│ │                 │ ├───── kv-pair · mode fields · from record ─ 6/12 ◀ ▶ ─┤ │
+│ │                 │ │ match [regex (\w[\w ]*?)=…]│<data name="name"        │ │
 │ │                 │ │ body  1 text "<data name=\""  ← click a card to edit │ │
 │ │                 │ │       2 value-of $key         ← its region lights up │ │
 │ │                 │ │       3 apply mode=values       here, alongside it   │ │
@@ -822,17 +1001,27 @@ Stepping mount (Phase C): the same centre replaces the generic Code/Input/Output
 for the ShapeshifterParser element; Stroom's step toolbar moves between records, the
 breadcrumb moves within the record.
 
-## 9. Questions for ruling
+## 9. Rulings
 
-| # | Question | Draft recommendation |
+Put to Jon and ruled 2026-08-28. Three went against the draft recommendation (Q2, Q4,
+Q6); those are the ones that changed the design, and each is worked through where it
+lands rather than only recorded here.
+
+| # | Question | Ruling |
 |---|---|---|
-| Q1 | Is GWT the target, per Stroom convention, for the whole of §5? (The content renderer, breadcrumb and variable panes are bespoke DOM widgets either way; nothing in §5 needs more than DOM.) | Yes — GWT, Stroom conventions, no second UI stack. |
-| Q2 | Where does sample data live? | In the `ShapeshifterDoc` (survives import/export, ds-rs lost this), with a "grab from stream" action to populate it; size-capped. |
-| Q3 | G1 answer: ordering contract or explicit parent in `onMatch`? | Explicit parent identity — one parameter now beats a javadoc contract forever. |
-| Q4 | Phase A's editing surface: raw JSON acceptable as the *only* editor until Phase B? | Yes — steppable and honest beats a rushed forms UI. |
-| Q5 | Two stepper scopes (breadcrumb: within-parent; strip: whole-input) — resolved in direction 2026-08-26: within-parent demoted to hover-revealed arrows + keyboard (§5.3). Remaining question: is hover-reveal enough, or delete the arrows outright? | Ship hover-reveal; delete if it still reads as clutter in use. |
-| Q6 | Auto-run on edit (debounced) or manual run? | Auto with a size threshold that flips to manual. |
-| Q7 | Does Phase C replace the generic stepping panes for ShapeshifterParser, or add a fifth "Trace" pane beside them? | Replace — the frame navigator subsumes Input/Output; keep Log. |
-| Q8 | Content renderer depth: direct children only, or all descendants nested? | All descendants, direct children prominent, deeper levels quieter — the survey view needs it at the root frame. |
-| Q9 | Windowing/minimap for large content values — in scope for B? | Defer; window around the current position first. |
-| Q10 | Global undo/redo (ds-rs had snapshot-based history) — now that the workbench and guard/limits commit live with no per-action Cancel, this is the only remaining answer to "I made a mistake." In scope for B? | Yes for B, or accept the gap explicitly for A — a live-editing surface with no undo anywhere is a real regression from ds-rs, not a simplification. |
+| Q1 | Is GWT the target, per Stroom convention, for the whole of §5? | **GWT, Stroom conventions, no second UI stack.** The content renderer, breadcrumb and variable panes are bespoke DOM widgets either way, so GWT costs nothing this design needs. |
+| Q2 | Where does sample data live? | **Nowhere — the document never holds data.** It is supplied by the stepping pipeline or by ordinary processing; only the project model (and editor metadata like colour overrides) is persisted. This replaces the draft's embedded, size-capped sample: no cap, no "grab from stream" field, no stale samples, no exported config carrying production data. Worked through in §5.6, §5.7, §6. |
+| Q3 | G1: ordering contract or explicit parent in `onMatch`? | **Explicit parent identity.** One parameter now beats a javadoc contract forever — parentage is the whole navigator, so it is not something to infer. |
+| Q4 | Phase A's editing surface: raw JSON as the *only* editor until Phase B? | **No — a minimal forms editor ships in A**: templates and modes (add, rename, delete, swatch, mode membership) and a template's match expression. That is what users edit constantly and where hand-edited JSON is most likely to be silently wrong. Body cards still wait for B, where the trace sits beside them. |
+| Q5 | Within-parent stepping: hover-revealed per-crumb arrows, or delete them? | **Ship hover-reveal**, delete if it still reads as clutter in use. |
+| Q6 | Auto-run on edit (debounced) or manual? | **Always auto, debounced** — no size threshold flipping to manual. One rule the user can hold in their head; whether big samples need an escape hatch is testable against real configs later rather than guessed at now. |
+| Q7 | Does Phase C replace the generic stepping panes, or add a fifth "Trace" pane? | **Replace** — the frame navigator subsumes Input/Output; keep Log. |
+| Q8 | Content renderer depth: direct children only, or all descendants nested? | **All descendants**, direct children prominent, deeper levels quieter — the survey view at the root frame needs it. |
+| Q9 | Windowing/minimap for large content values — in scope for B? | **Defer**; window around the current position first. |
+| Q10 | Global undo/redo — the only answer to "I made a mistake" now that the workbench, guard/limits and body cards commit live. In scope for B? | **Yes, in B.** A live-editing surface with no undo anywhere is a regression from ds-rs's snapshot history, not a simplification. |
+
+One question the mockup answered by building rather than asking, and worth a ruling if you
+disagree with it: §5.6's conditionals now render their branches as **nested card lists**
+where ds-rs drilled down into containers breadcrumb-style. The model is a card list under
+either rendering, so it can be switched without touching the trace, the paths, or the
+editors.

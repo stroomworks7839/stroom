@@ -59,8 +59,20 @@
     /* per-template hues (material palette, as the GWT UI's icon colours use) */
     --c-source: #b0bec5; --c-record: #42a5f5; --c-kv: #ffb74d;
     --c-iso: #66bb6a; --c-quoted: #ba68c8; --c-mac: #78909c;
-    /* per-capture hues */
-    --cap-0: #e57373; --cap-1: #64b5f6; --cap-2: #81c784; --cap-3: #ce93d8;
+    /* Per-capture hues, and the same ring the body cards and the workbench's groups and
+       steps rotate through. Twelve of them, material 300s (200s where a 300 would collide
+       with a template or category colour), ordered so neighbours in the ring are far apart
+       in hue — four ran out on the first real config: combined_log declares ten captures,
+       and rows five onward were resolving to an undefined var, which paints white
+       (2026-08-28). Twelve covers every template in both prototypes without wrapping, and
+       wrapping is honest when it comes: a repeated hue at that distance reads as "another
+       capture", not "the same one". */
+    --cap-0:  #e57373;  /* red 300         */  --cap-1:  #64b5f6;  /* blue 300        */
+    --cap-2:  #81c784;  /* green 300       */  --cap-3:  #ce93d8;  /* purple 200      */
+    --cap-4:  #ffd54f;  /* amber 300       */  --cap-5:  #4dd0e1;  /* cyan 300        */
+    --cap-6:  #f48fb1;  /* pink 200        */  --cap-7:  #aed581;  /* light green 300 */
+    --cap-8:  #7986cb;  /* indigo 300      */  --cap-9:  #ff8a65;  /* deep orange 300 */
+    --cap-10: #4db6ac;  /* teal 300        */  --cap-11: #dce775;  /* lime 300        */
     /* body-card category hues (output green, data pink, invoke orange) */
     --k-text: #66bb6a; --k-value: #f06292; --k-apply: #ffb74d;
     font-size: 14px;
@@ -152,7 +164,7 @@
   .tpl-row.sel { background: var(--row__background-color--selected); color: var(--text-color--selected); }
   .tpl-row.sel:hover { background: var(--row__background-color--selected--hovered); }
   .tpl-row.sel .count { color: rgba(255, 255, 255, .75); }
-  .chip { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .chip { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
   .tpl-row .name { flex: 1; }
   .tpl-row .count { color: var(--muted); font-size: 12px; }
   .tpl-row.zero { opacity: .65; }
@@ -216,8 +228,13 @@
     background: var(--page__background-color);
     border-bottom: 1px solid var(--border-color); padding: 5px 10px; flex-wrap: wrap; }
   #crumb .seg { display: flex; align-items: center; gap: 3px; }
-  #crumb .seg .name { font-weight: 600; cursor: pointer; padding: 1px 6px; border-radius: 4px; }
-  #crumb .seg .name:hover { background: var(--row__background-color--hovered); }
+  #crumb .seg .name { font-weight: 600; cursor: pointer; padding: 1px 6px; border-radius: 4px;
+    outline: 1px solid transparent; background-color: transparent;
+    transition: background-color .15s ease-out, outline-color .15s ease-out; }
+  /* pointed at directly, or from an outer-scope variable row naming the frame that
+     bound it — the same state either way */
+  #crumb .seg .name:hover, #crumb .seg.hot .name {
+    background-color: var(--row__background-color--hovered); outline-color: var(--blue-300); }
   #crumb .seg .idx { color: var(--muted); font-size: 12px; }
   #crumb .arrow { border: none; background: none; padding: 0 3px; font-size: 12px;
     color: var(--muted); cursor: pointer; }
@@ -244,16 +261,13 @@
     color: var(--muted); margin: 0; padding: 8px 12px 4px; font-weight: 600; }
   .var-section > h3 .hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
   .var-row { display: grid; grid-template-columns: 16px minmax(64px, auto) auto auto 1fr auto;
-    align-items: baseline; gap: 8px; padding: 3px 12px; font-size: 13px; }
-  .var-row:hover { background: var(--row__background-color--hovered); }
+    align-items: baseline; gap: 8px; padding: 3px 12px; font-size: 13px; border-radius: 3px;
+    background-color: transparent; transition: background-color .15s ease-out; }
+  .var-row:hover, .var-row.hot { background-color: var(--row__background-color--hovered); }
   .var-row .chip { align-self: center; }
   .var-row .vname { font-weight: 600; }
   .var-row .src { color: var(--muted); font-size: 12px; }
   .var-row .vval { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .var-row .edit { border: none; background: none; color: var(--muted); cursor: pointer;
-    font-size: 12px; padding: 0 2px; visibility: hidden; }
-  .var-row:hover .edit { visibility: visible; }
-  .var-row .edit:hover { color: var(--blue-300); background: none; }
   .var-row.expandable { cursor: pointer; }
   .type { font-size: 10.5px; color: var(--muted); background: rgba(255, 255, 255, .08);
     border: 1px solid var(--control__border-color); border-radius: 3px; padding: 0 5px;
@@ -261,11 +275,20 @@
   .seq-entries { padding: 0 12px 4px 36px; font-size: 12.5px; color: var(--muted); }
   .none { color: var(--muted); font-style: italic; padding: 2px 12px; font-size: 12.5px; }
 
-  /* ---------- content renderer (a variable's expanded value) ---------- */
-  .content-box { margin: 4px 12px 6px; padding: 8px 10px; border: 1px solid var(--border-color);
-    border-radius: 5px; background: var(--control__background-color);
-    white-space: pre-wrap; word-break: break-all;
-    font-family: var(--mono-font); font-size: 13px; line-height: 2.1; }
+  /* ---------- the two byte panes: the value in, the value out ----------
+     Neither carries chrome — no heading, no inset box, no border but the splitters that
+     bound them (2026-08-28, Jon: "the content window no longer needs a title any more
+     than the output window does"). Each holds exactly one value, so the pane is the box,
+     and the pair reads as one kind of thing on opposite corners of the layout. They take
+     the page background like every other workspace pane: giving these two the control
+     background made the workspace a checkerboard, four panes alternating between two
+     shades for no reason a reader could name. The splitters divide the panes; a second
+     channel saying the same thing only competes with the one thing here that IS coloured
+     by meaning — the text (2026-08-28). Only the navigation panel differs, as it does
+     everywhere in Stroom. */
+  .content-box, .out-box { padding: 8px 12px; background: transparent; min-height: 100%;
+    font-family: var(--mono-font); font-size: 13px; }
+  .content-box { white-space: pre-wrap; word-break: break-all; line-height: 2.1; }
   /* Matches: colour + underline (or, for a root-level match, an inset band) is the
      permanent extent marker — always on, never a filled background, so many nested
      or adjacent matches never stack into an overlapping wash. The filled background
@@ -273,25 +296,33 @@
      mouse leaves — which is what a background can do that colour+underline alone
      cannot: mark "I am looking at this one right now" without every match everywhere
      fighting for the same visual weight all the time (decided 2026-08-27). */
+  /* Nothing in these two panes lights from :hover — the pane's own delegated handler sets
+     .hot, because a wrapped span loses :hover in the leading between its lines
+     (delegateHover, 2026-08-28). box-decoration-break makes each line fragment carry the
+     whole decoration rather than the first and last sharing one. */
+  .m, .gap, .content-box .cap, .o {
+    -webkit-box-decoration-break: clone; box-decoration-break: clone; }
   .m { cursor: pointer; border-radius: 2px; border-bottom: 2px solid var(--hue);
     background-color: transparent; transition: background-color .15s ease-out; }
-  .m:hover { background-color: color-mix(in srgb, var(--hue) 16%, transparent); }
+  .m.hot { background-color: color-mix(in srgb, var(--hue) 16%, transparent); }
   .m.root-level { border-bottom: none; box-shadow: inset 3px 0 0 var(--hue); padding: 2px 1px; }
-  .m.root-level:hover { background-color: color-mix(in srgb, var(--hue) 10%, transparent); }
+  .m.root-level.hot { background-color: color-mix(in srgb, var(--hue) 10%, transparent); }
   .gap { cursor: pointer; border-radius: 2px; background-color: transparent;
     transition: background-color .15s ease-out; }
-  .gap:hover { background-color: rgba(220, 53, 69, .25); box-shadow: 0 2px 0 var(--error-c); }
-  .cap { border-bottom: 1px dotted currentColor; }
-  .cap.hot { outline: 2px solid currentColor; outline-offset: 1px; border-radius: 2px; }
+  .gap.hot { background-color: rgba(220, 53, 69, .25); box-shadow: 0 2px 0 var(--error-c); }
+  /* One highlight vocabulary, and it does not matter which end you point from: the span
+     you are hovering and the span something else is pointing at get the same coloured
+     outline, in the same weight, fading in and out the same way (2026-08-28, Jon — the
+     outline was appearing only when the variables pane pointed at it, and an instant
+     outline flickers as the pointer crosses nested spans). An outline never affects
+     layout, so it can be declared permanently and transparent and only change colour:
+     nothing moves, and there is something for the transition to animate. */
+  .content-box .cap { border-bottom: 1px dotted currentColor; border-radius: 2px;
+    outline: 2px solid transparent; outline-offset: 1px;
+    transition: outline-color .15s ease-out; }
+  .content-box .cap.hot { outline-color: currentColor; }
 
-  /* ---------- wrote -> output ---------- */
-  .out-box { margin: 4px 12px 8px; padding: 8px 10px; border: 1px solid var(--border-color);
-    border-radius: 5px; background: var(--control__background-color); white-space: pre;
-    font-family: var(--mono-font); font-size: 13px; line-height: 1.7; overflow: auto; }
-  /* the output pane's only occupant: no border to separate it from nothing, no margin
-     to hold it away from nothing — it is the pane */
-  .out-box.bare { margin: 0; border: none; border-radius: 0; padding: 8px 12px;
-    background: transparent; height: 100%; box-sizing: border-box; }
+  .out-box { white-space: pre; line-height: 1.7; overflow: auto; }
   /* Coloured by the body card that wrote it, not by template (revised 2026-08-27):
      the strip's body cards are what's actually producing this text, so their own
      swatches — the same idea as a capture's swatch — are the informative colour, not
@@ -299,9 +330,9 @@
      the structure, all the time, without competing with the text for legibility. An
      outline (never a fill sitting behind the text) marks the one you're pointing at,
      from hovering the span itself or the body card that wrote it (§5.6). */
-  .o { border-radius: 2px; cursor: pointer; transition: outline-color .15s ease-out; }
-  .o:hover { outline: 1px solid var(--hue); outline-offset: 1px; }
-  .o.hot { outline: 2px solid var(--hue); outline-offset: 1px; }
+  .o { border-radius: 2px; cursor: pointer; outline: 2px solid transparent; outline-offset: 1px;
+    transition: outline-color .15s ease-out; }
+  .o.hot { outline-color: var(--hue); }
 
   /* ---------- template strip (bottom: the definition, trace-annotated) ---------- */
   /* the template strip owns 50% of the vertical split by default; the splitter decides otherwise */
@@ -317,13 +348,6 @@
   .strip-line { display: flex; align-items: center; gap: 10px; padding: 4px 12px; font-size: 12.5px; }
   .strip-line .k { color: var(--muted); min-width: 44px; font-size: 11px;
     text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
-  /* captures sit under the match that declares them — a stacked block, so the line
-     grows downward rather than the rows fighting for one row's width */
-  .strip-line.caps { align-items: flex-start; }
-  .strip-line.caps .k { padding-top: 4px; }
-  .caprows { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;
-    max-width: 720px; }
-  .caprows .var-row { padding-left: 0; padding-right: 4px; }
   .match-chip { display: flex; align-items: center; gap: 10px;
     border: 1px solid var(--control__border-color);
     border-radius: 5px; background: var(--control__background-color); padding: 4px 10px;
@@ -338,24 +362,44 @@
   .cards { padding: 2px 12px 0 56px; }
   .card { display: flex; align-items: baseline; gap: 8px; margin: 4px 0;
     padding: 4px 8px; background: #2c303a; border: 1px solid var(--border-color);
-    border-radius: 5px; border-left-width: 3px; font-size: 12.5px; }
+    border-radius: 5px; border-left-width: 3px; font-size: 12.5px;
+    transition: border-color .15s ease-out; }
   .card .num { color: var(--muted); font-size: 11px; min-width: 12px; }
   .card .kind { font-weight: 600; white-space: nowrap; }
   .card .lit { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card.k-text  { border-left-color: var(--k-text); }  .card.k-text  .kind { color: var(--k-text); }
   .card.k-value { border-left-color: var(--k-value); } .card.k-value .kind { color: var(--k-value); }
   .card.k-apply { border-left-color: var(--k-apply); flex-direction: column; align-items: stretch; gap: 2px; }
-  .card.k-apply .aphead { display: flex; gap: 8px; align-items: baseline; }
+  /* one rule for every card head — an apply site's, a conditional's, and the one a
+     plain card grows when it opens for editing. It was on the two container kinds only,
+     so an opened text or value-of card lost both its swatch (a .chip is a sized box, and
+     an inline parent gave it no box) and the spacing between its number and its kind
+     (2026-08-28). A head is a head. */
+  .aphead { display: flex; gap: 8px; align-items: baseline; }
+  /* an apply site's swatches: one per template it dispatched into, read as a cluster */
+  .chips { display: inline-flex; gap: 2px; align-items: center; }
   .card.k-apply .kind { color: var(--k-apply); }
-  .disp-row { display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 22px; font-size: 12.5px; }
+  .disp-row { display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 22px; font-size: 12.5px;
+    background-color: transparent; transition: background-color .15s ease-out; }
   .disp-row .name { flex: 1; }
   .disp-row.hit { cursor: pointer; border-radius: 4px; }
-  .disp-row.hit:hover { background: var(--row__background-color--hovered); }
+  .disp-row.hit:hover, .disp-row.hot { background-color: var(--row__background-color--hovered); }
   .disp-row.hit .go { color: var(--link__text-color); font-size: 12px; }
   .disp-row.miss .count { color: var(--red-200); font-size: 12px; }
   .disp-row.skip { opacity: .5; }
   .disp-row.skip .count { color: var(--muted); font-size: 12px; }
   .disp-note { padding: 2px 4px 2px 22px; font-size: 11.5px; color: var(--muted); font-style: italic; }
+  /* a conditional's branches: card lists inside the card, one level in */
+  .card.cont { flex-direction: column; align-items: stretch; gap: 2px; }
+  .card.cont:not(.editing) { cursor: default; }
+  .card.cont .aphead { cursor: pointer; }
+  .card.cont .kind { color: #90a4ae; }
+  .branch { margin: 2px 0 0 10px; border-left: 1px dashed var(--border-color); }
+  .br-head { display: flex; gap: 8px; align-items: baseline; padding: 2px 0 0 10px; }
+  .br-key { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .br-when { font-size: 12px; color: var(--text-color); }
+  .cards.nested { padding: 0 0 0 10px; }
+  .cards.nested .addline { padding: 0 0 4px; }
 
   /* body-card editing: hover actions, inline editors, contextual add menu */
   .card .actions { margin-left: auto; display: flex; gap: 2px; visibility: hidden; }
@@ -376,7 +420,8 @@
   .card.editing .aphead { margin-bottom: 4px; }
   .card.follows { cursor: pointer; }
   .card:not(.editing) { cursor: pointer; }
-  .card:not(.editing):hover { border-color: var(--control__border-color--focus, var(--blue-300)); }
+  .card:not(.editing):hover, .card.hot {
+    border-color: var(--control__border-color--focus, var(--blue-300)); }
   .card-editor { padding: 2px 0 0 20px; }
   .ed-row { display: flex; align-items: flex-start; gap: 8px; margin: 3px 0; }
   .ed-label { color: var(--muted); font-size: 11px; text-transform: uppercase;
@@ -548,15 +593,20 @@
   </section>
   <div class="splitter v" id="splitTpls" title="Drag to resize · double-click to reset"></div>
   <div id="crumb"></div>
-  <section class="panel" id="invars"><h2>Content</h2><div class="body" id="inBody"></div></section>
+  <!-- the content value, with no chrome at all: the pane is the box (2026-08-28) -->
+  <section class="panel" id="invars"><div class="body" id="inBody"></div></section>
   <div class="splitter v" id="splitVars" title="Drag to resize · double-click to reset"></div>
-  <section class="panel" id="scope"><h2>Params &amp; scope</h2><div class="body" id="scopeBody"></div></section>
+  <!-- every name in scope at this frame, innermost first: this match's own bindings,
+       then what its children stored, then what it inherited, then params. One place to
+       answer "what can an instruction here read?" (2026-08-28). -->
+  <section class="panel" id="scope"><h2>Variables</h2><div class="body" id="scopeBody"></div></section>
   <div class="splitter h" id="splitRow" title="Drag to resize · double-click to reset (50/50)"></div>
   <div id="tstrip"><div id="tshead"></div><div id="tsbody"></div></div>
   <div class="splitter v" id="splitOut" title="Drag to resize · double-click to reset"></div>
   <!-- the output sits directly beside the body cards that write it: hovering a card
        highlights its region a few centimetres away instead of across the window. No
-       heading and no inset — the pane has exactly one thing in it (2026-08-27). -->
+       heading and no inset — the pane has exactly one thing in it (2026-08-27), and its
+       opposite number top-left is now built the same way. -->
   <section class="panel" id="outvars"><div class="body" id="outBody"></div></section>
 
   <!-- The pattern workbench: an in-place mode of the Design tab, not a dialog and not
@@ -729,8 +779,13 @@ const BODY = {
     { k: "text",     lit: '"  <Event>\\n    <EventTime>\\n      <TimeCreated>"' },
     { k: "value-of", lit: 'format-date(parse-date($time, "dd/MMM/yyyy:HH:mm:ss Z"))' },
     { k: "text",     lit: '"</TimeCreated>\\n    </EventTime>\\n    <EventSource>\\n      <System>...</System>\\n      <Generator>httpd</Generator>\\n      <Device><HostName>intranet.corp.example.com</HostName></Device>\\n"' },
-    { k: "if",       test: '$user != "-"', then: '<User><Id>{$user}</Id></User>',
-                      note: "anonymous requests get no User element" },
+    { k: "if",       test: '$user != "-"',
+                      note: "anonymous requests get no User element",
+                      body: [
+                        { k: "text",     lit: '"      <User>\\n        <Id>"' },
+                        { k: "value-of", lit: "$user" },
+                        { k: "text",     lit: '"</Id>\\n      </User>\\n"' },
+                      ] },
     { k: "text",     lit: '"    </EventSource>\\n    <EventDetail>\\n      <TypeId>WebAccess</TypeId>\\n      <Description>"' },
     { k: "value-of", lit: "$method $url $protocol, with a status-code suffix on failure" },
     { k: "text",     lit: '"</Description>\\n"' },
@@ -743,14 +798,20 @@ const BODY = {
     { k: "value-of", lit: "$status < 400" },
     { k: "text",     lit: '"</Success>\\n"' },
     { k: "choose",   branches: [
-                        { when: "$status == 401", then: "<Description>HTTP 401 Unauthorized</Description>" },
-                        { when: "$status == 403", then: "<Permitted>false</Permitted> + account-locked Description" },
-                      ], otherwise: null },
+                        { when: "$status == 401", body: [
+                          { k: "text", lit: '"          <Description>HTTP 401 Unauthorized</Description>\\n"' } ] },
+                        { when: "$status == 403", body: [
+                          { k: "text", lit: '"          <Permitted>false</Permitted>\\n"' },
+                          { k: "text", lit: '"          <Description>HTTP 403 Forbidden - account locked after repeated failures</Description>\\n"' } ] },
+                      ], otherwise: null,
+                      note: "a successful logon takes neither branch — the Outcome closes after <Success>" },
     { k: "text",     lit: '"        </Outcome>\\n"' },
     { k: "apply",    mode: "data", note: "the Data rows — shared by every route template" },
     { k: "if",       test: '$referer != "-"',
-                      then: '"\\n        <Data Name=\\"UserAgent\\" Value=\\"" + escape-xml($useragent) + "\\"/>"',
-                      note: "an authentication attempt is worth the agent as well as the referrer — the shared rows emit one or the other, this adds back the one they dropped" },
+                      note: "an authentication attempt is worth the agent as well as the referrer — the shared rows emit one or the other, this adds back the one they dropped",
+                      body: [
+                        { k: "value-of", lit: '"\\n        <Data Name=\\"UserAgent\\" Value=\\"" + escape-xml($useragent) + "\\"/>"' },
+                      ] },
     { k: "text",     lit: '"      </Authenticate>\\n"' },
   ],
   update_profile: [
@@ -804,9 +865,9 @@ const BODY = {
        fallback when it didn't. Checked against all 28 events of the fixture's golden
        output, not just the 11 sampled here — the security routes add the agent back. */
     { k: "choose",
-      branches: [ { when: '$referer != "-"',
-                    then: '"\\n        <Data Name=\\"Referer\\" Value=\\"" + escape-xml($referer) + "\\"/>"' } ],
-      otherwise: '"\\n        <Data Name=\\"UserAgent\\" Value=\\"" + escape-xml($useragent) + "\\"/>"',
+      branches: [ { when: '$referer != "-"', body: [
+                      { k: "value-of", lit: '"\\n        <Data Name=\\"Referer\\" Value=\\"" + escape-xml($referer) + "\\"/>"' } ] } ],
+      otherwise: [ { k: "value-of", lit: '"\\n        <Data Name=\\"UserAgent\\" Value=\\"" + escape-xml($useragent) + "\\"/>"' } ],
       note: 'Apache writes "-" for a field the request did not carry' },
   ],
   generic_view: [
@@ -818,12 +879,17 @@ const BODY = {
     { k: "value-of", lit: "$status < 400" },
     { k: "text",     lit: '"</Success>\\n"' },
     { k: "if",       test: "$status == 403",
-                      then: "<Permitted>false</Permitted> + insufficient-permissions Description" },
+                      body: [
+                        { k: "text", lit: '"          <Permitted>false</Permitted>\\n"' },
+                        { k: "text", lit: '"          <Description>HTTP 403 Forbidden - insufficient permissions</Description>\\n"' },
+                      ] },
     { k: "text",     lit: '"        </Outcome>\\n"' },
     { k: "apply",    mode: "data", note: "the Data rows — shared by every route template" },
     { k: "if",       test: '$status == 403 && $referer != "-"',
-                      then: '"\\n        <Data Name=\\"UserAgent\\" Value=\\"" + escape-xml($useragent) + "\\"/>"',
-                      note: "and so is a refused one" },
+                      note: "and so is a refused one",
+                      body: [
+                        { k: "value-of", lit: '"\\n        <Data Name=\\"UserAgent\\" Value=\\"" + escape-xml($useragent) + "\\"/>"' },
+                      ] },
     { k: "text",     lit: '"      </View>\\n"' },
   ],
 };
@@ -1429,64 +1495,159 @@ const RECORDS = [
 ` },
 ];
 
+/* ---- card paths ----
+   A conditional's branches hold real card lists, not a string standing in for one
+   (2026-08-28), so an instruction's address is a PATH rather than an index: "7" is the
+   eighth instruction of the template's body, "7.b.0" the first instruction of that
+   card's `if` body, "7.w1.0" the first of its second `when` branch, "7.o.0" the first
+   of its `otherwise`. Everything that used to key on the index — the trace's
+   attribution, the swatch colour, the hover link, reorder and delete — keys on the
+   path instead, which is why a nested instruction gets the same treatment as a
+   top-level one for free rather than by a second mechanism. */
+
+/* the branch card lists a container instruction holds, in the order they are tried */
+function branchBodies(node) {
+  if (!node) return [];
+  if (node.k === "if") return [{ key: "b", label: "then", list: node.body || (node.body = []) }];
+  if (node.k === "choose") {
+    const out = (node.branches || []).map((b, bi) => ({
+      key: "w" + bi, label: bi === 0 ? "when" : "or when", when: b.when,
+      list: b.body || (b.body = []),
+    }));
+    if (Array.isArray(node.otherwise)) out.push({ key: "o", label: "otherwise", list: node.otherwise });
+    return out;
+  }
+  return [];
+}
+/* the text a `text` card emits, decoded — null for anything that isn't literal text */
+function litOf(node) {
+  if (!node || node.k !== "text") return null;
+  try { return JSON.parse(node.lit); } catch (e) { return null; }
+}
+/* the list a path lives in, and where in it: the same walk at every depth, which is
+   the point of paths — reorder and delete need no special case for a branch */
+function listAt(tpl, path) {
+  const segs = String(path).split(".");
+  let list = BODY[tpl] || [];
+  for (let i = 0; i + 1 < segs.length; i += 2) {
+    const br = branchBodies(list[Number(segs[i])]).find(b => b.key === segs[i + 1]);
+    if (!br) return { list: [], idx: -1 };
+    list = br.list;
+  }
+  return { list, idx: Number(segs[segs.length - 1]) };
+}
+function cardAt(tpl, path) { const { list, idx } = listAt(tpl, path); return list[idx]; }
+/* the rotating capture hue, by position: summing the path's numbers keeps siblings
+   adjacent in the palette exactly as consecutive indices used to */
+function hueIdx(path) {
+  let n = 0;
+  for (const seg of String(path).split(".")) {
+    const v = parseInt(seg.replace(/^[wbo]/, ""), 10);
+    if (!isNaN(v)) n += v;
+  }
+  return n;
+}
+/* every rotating hue in the editor comes from here — capture rows and their spans, body
+   cards, the workbench's groups and steps — so the ring's size is one number in one
+   place, and nothing can index past its end (2026-08-28) */
+const CAP_N = 12;
+function capHue(i) {
+  const n = ((Math.trunc(i) % CAP_N) + CAP_N) % CAP_N;
+  return "var(--cap-" + n + ")";
+}
+/* a path said in the numbering the strip shows: "4", "4 → then 2", "7 → when 1, 1" */
+function cardLabel(path) {
+  const segs = String(path).split(".");
+  const parts = [String(Number(segs[0]) + 1)];
+  for (let i = 1; i + 1 < segs.length + 1; i += 2) {
+    const key = segs[i], n = Number(segs[i + 1]) + 1;
+    if (key === undefined) break;
+    parts.push(key === "b" ? `then ${n}` : key === "o" ? `otherwise ${n}`
+      : `when ${Number(key.slice(1)) + 1}, ${n}`);
+  }
+  return parts.join(" → ");
+}
+
 /* output with attribution: segments of {text, m} where m is the writing frame */
-/* card: the index into BODY[m.tpl] of the instruction that wrote this text — lets a
+/* card: the PATH in BODY[m.tpl] of the instruction that wrote this text — lets a
    hovered body card find and highlight exactly the output it produced (§5.6's body
    cards are the editing surface for these instructions; this is their trace side).
-   Left undefined for the route templates' single golden-XML blob (rd.routeXml) —
-   their body cards fall back to highlighting the whole frame's output, honestly,
-   rather than pretending to a per-instruction granularity the trace doesn't carry. */
+   Left undefined only for text no instruction in this prototype claims. */
 const outSegs = [];
-const emit = (text, m, card) => outSegs.push({ text, m, card });
+const emit = (text, m, card) =>
+  outSegs.push({ text, m, card: card === undefined ? undefined : String(card) });
 
-/* splits a route frame's whole verb-element text into emits aligned with its own BODY
-   cards, so a route template's body gets the same precise per-card colouring as
-   combined_log's, rather than being one opaque blob. Walks the cards in order: a
-   "text" card's own literal is matched at the current position when possible; a
-   value-of card takes the actual value supplied for it (captures/computed booleans —
-   things with no way to be found by searching, since they don't appear verbatim in the
-   body); an apply card hands its span to the child frame it dispatched, which splits it
-   by its OWN cards in turn; and a choose/if card consumes up to wherever the next card's
-   literal is found again. Every run is tagged to the card that produced it. */
-function emitByCards(fullText, tid, frame, dynamicByCard, dataFrame) {
-  const body = BODY[tid] || [];
+/* splits a frame's output into emits aligned with the instructions that wrote it, so a
+   route template's body gets the same precise per-card colouring as combined_log's
+   rather than being one opaque blob. Walks the cards in order: a "text" card's own
+   literal is matched at the current position when possible; a value-of card takes the
+   actual value supplied for it (captures/computed booleans — things with no way to be
+   found by searching, since they don't appear verbatim in the body); an apply card
+   hands its span to the child frame it dispatched, which splits it by its OWN cards in
+   turn; and a conditional consumes up to wherever the next literal at this level turns
+   up again, then hands THAT span to its own branch body, recursively — a branch is a
+   card list like any other, so it is split like one, and the swatch you hover is the
+   instruction inside the branch rather than the conditional wrapping it. */
+function emitBody(text, body, prefix, frame, dynamic, dataFrame) {
   let pos = 0;
-  for (let i = 0; i < body.length && pos < fullText.length; i++) {
+  for (let i = 0; i < body.length && pos < text.length; i++) {
     const node = body[i];
-    let lit = null;
-    if (node.k === "text") { try { lit = JSON.parse(node.lit); } catch (e) { /* not literal text */ } }
-    if (lit !== null && fullText.startsWith(lit, pos)) {
-      emit(lit, frame, i);
+    const path = prefix === "" ? String(i) : `${prefix}.${i}`;
+    const lit = litOf(node);
+    if (lit !== null && text.startsWith(lit, pos)) {
+      emit(lit, frame, path);
       pos += lit.length;
       continue;
     }
-    if (node.k === "value-of" && dynamicByCard[i] !== undefined) {
-      const val = dynamicByCard[i];
-      if (val) { emit(val, frame, i); pos += val.length; }
+    if (node.k === "value-of" && dynamic[path] !== undefined) {
+      const val = dynamic[path];
+      if (val) { emit(val, frame, path); pos += val.length; }
       continue;
     }
     let next = null;
     for (let j = i + 1; j < body.length; j++) {
-      if (body[j].k !== "text") continue;
-      let nlit; try { nlit = JSON.parse(body[j].lit); } catch (e) { continue; }
-      const at = fullText.indexOf(nlit, pos);
+      const nlit = litOf(body[j]);
+      if (nlit === null) continue;
+      const at = text.indexOf(nlit, pos);
       if (at >= 0) { next = at; break; }
     }
-    const end = next !== null ? next : fullText.length;
+    const end = next !== null ? next : text.length;
     if (end > pos) {
       /* the dispatch: this span is the CHILD's output, attributed to the child's own
          instructions — the route card owns it only as the apply site that caused it */
       if (node.k === "apply" && node.mode === "data" && dataFrame) {
         /* the shared template consumes only the rows IT writes; a route that adds a
            row of its own after the dispatch gets the remainder, tagged to its own card */
-        pos += emitDataRows(fullText.slice(pos, end), dataFrame);
+        pos += emitDataRows(text.slice(pos, end), dataFrame);
         continue;
       }
-      emit(fullText.slice(pos, end), frame, i);
+      const span = text.slice(pos, end);
+      const br = branchThatRan(node, span);
+      if (br) emitBody(span, br.list, `${path}.${br.key}`, frame, dynamic, dataFrame);
+      else emit(span, frame, path);
     }
     pos = end;
   }
-  if (pos < fullText.length) emit(fullText.slice(pos), frame);   // trailing leftover, untagged
+  if (pos < text.length) emit(text.slice(pos), frame);   // trailing leftover, untagged
+  return pos;
+}
+
+/* which branch of a conditional produced this span. The trace records what was written,
+   not which branch wrote it, so recover it the way a reader would — by the literal the
+   span starts with. An `if` has one branch, so a span at all means it fired. A branch
+   whose body opens with a value-of carries no literal to recognise it by; the one such
+   case here (event_data's Referer-or-UserAgent) is resolved by attribute name in
+   emitDataRows instead, and anything else stays tagged to the conditional itself, which
+   is the honest answer rather than a guess. */
+function branchThatRan(node, span) {
+  const brs = branchBodies(node);
+  if (!brs.length) return null;
+  if (node.k === "if") return brs[0];
+  for (const br of brs) {
+    const first = br.list.length ? litOf(br.list[0]) : null;
+    if (first !== null && span.startsWith(first)) return br;
+  }
+  return null;
 }
 
 /* event_data's own split: one Data row per instruction, matched by the attribute name
@@ -1494,17 +1655,19 @@ function emitByCards(fullText, tid, frame, dynamicByCard, dataFrame) {
    which of its two branches ran varies per record. Stops at the first row this template
    does not write — that row belongs to the route template that dispatched us, which
    adds the agent back for its security events — and returns how much it consumed. */
-const DATA_CARD_FOR = { Method: 0, URL: 1, Protocol: 2, ResponseCode: 3, ResponseSize: 4,
-  ClientIP: 5, Referer: 6, UserAgent: 6 };
+const DATA_CARD_FOR = { Method: "0", URL: "1", Protocol: "2", ResponseCode: "3",
+  ResponseSize: "4", ClientIP: "5", Referer: "6.w0.0", UserAgent: "6.o.0" };
 function emitDataRows(block, frame) {
   let taken = 0, seenChoose = false;
   for (const row of block.split(/(?=\n\s*<Data )/)) {
     if (!row.length) continue;
     const m = /<Data Name="([^"]+)"/.exec(row);
     const card = m ? DATA_CARD_FOR[m[1]] : undefined;
-    /* the choose writes exactly one row; a second one here is the caller's */
-    if (card === undefined || (card === 6 && seenChoose)) break;
-    if (card === 6) seenChoose = true;
+    /* the choose writes exactly one row, from whichever branch ran; a second one here
+       is the caller's — a route template adding the agent back after the dispatch */
+    const fromChoose = card !== undefined && card.indexOf("6.") === 0;
+    if (card === undefined || (fromChoose && seenChoose)) break;
+    if (fromChoose) seenChoose = true;
     emit(row, frame, card);
     taken += row.length;
   }
@@ -1550,7 +1713,13 @@ SAMPLE.split("\n").forEach((line, i) => {
   emit("  <Event>\n    <EventTime>\n      <TimeCreated>", clRec, 0);
   emit(rd.tCreated, clRec, 1);
   emit("</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>Apache HTTPD</Name>\n        <Environment>Linux</Environment>\n      </System>\n      <Generator>httpd</Generator>\n      <Device>\n        <HostName>intranet.corp.example.com</HostName>\n      </Device>\n", clRec, 2);
-  if (hasUser) emit(`      <User>\n        <Id>${user}</Id>\n      </User>\n`, clRec, 3);
+  if (hasUser) {
+    /* the conditional's own body wrote this, three instructions of it, so it arrives as
+       three tagged runs — the `if` is what chose, not what wrote */
+    emit("      <User>\n        <Id>", clRec, "3.b.0");
+    emit(user, clRec, "3.b.1");
+    emit("</Id>\n      </User>\n", clRec, "3.b.2");
+  }
   emit("    </EventSource>\n    <EventDetail>\n      <TypeId>WebAccess</TypeId>\n      <Description>", clRec, 4);
   emit(rd.description, clRec, 5);
   emit("</Description>\n", clRec, 6);
@@ -1569,7 +1738,7 @@ SAMPLE.split("\n").forEach((line, i) => {
      same bytes as combined_log's — an emit-only template with nothing of its own to
      capture, which is exactly why it can be shared by all six routes. */
   const dataFrame = addMatch("event_data", routeFrame, lineStart, line.length, []);
-  emitByCards(rd.routeXml, winnerId, routeFrame, dynamicByCard, dataFrame);
+  emitBody(rd.routeXml, BODY[winnerId], "", routeFrame, dynamicByCard, dataFrame);
   emit("    </EventDetail>\n  </Event>\n\n", clRec, 8);
 
   lineStart += line.length + 1;
@@ -1588,21 +1757,27 @@ for (const seg of outSegs) {
   if (seg.card === undefined) continue;
   (TAGGED_CARDS[seg.m.tpl] = TAGGED_CARDS[seg.m.tpl] || new Set()).add(seg.card);
 }
-function cardHue(tpl, idx) {
-  if (idx === undefined) return "var(--muted)";
-  const node = (BODY[tpl] || [])[idx];
-  /* an apply card never gets a direct emit of its own — its content is always
-     attributed to whichever child frame it dispatched — so "was this card ever
-     tagged by an emit" is the wrong test for it; it's always a real dispatch site */
-  const tagged = node && node.k === "apply" ? true : (TAGGED_CARDS[tpl] && TAGGED_CARDS[tpl].has(idx));
-  return tagged ? `var(--cap-${idx % 4})` : "var(--muted)";
+function cardHue(tpl, path) {
+  if (path === undefined) return "var(--muted)";
+  const node = cardAt(tpl, path);
+  const set = TAGGED_CARDS[tpl];
+  let tagged;
+  /* a conditional writes nothing itself: what ran is an instruction in one of its
+     branches, so it is coloured if any of them ever ran, and muted if none did. An
+     apply card is the other container and never reaches here — its swatches are the
+     templates it dispatched into (dispatchChips), which is its output's real colour */
+  if (node && (node.k === "if" || node.k === "choose")) {
+    const pre = path + ".";
+    tagged = !!set && Array.from(set).some(p => p.indexOf(pre) === 0);
+  } else tagged = !!set && set.has(path);
+  return tagged ? capHue(hueIdx(path)) : "var(--muted)";
 }
-/* the output pane colours by the body card that produced each span, not by template —
-   the body is what's actually writing this, so its own swatches are what should show.
-   For a span this frame wrote directly, that's its own tagged card. For a span a
-   descendant wrote, walk up to the direct child of `cursor` and use whichever of
-   cursor's own apply cards dispatched that child's mode — the apply card "owns" the
-   colour of everything it caused, the same way a text/value-of card owns its own text. */
+/* a run's identity: the pair (owning card, child frame it went through). For a span this
+   frame wrote directly that's its own tagged card and the frame itself. For a span a
+   descendant wrote, walk up to the direct child of `cursor` and pair it with whichever of
+   cursor's own apply cards dispatched that child's mode — the apply card is the SITE that
+   caused it, the child is who wrote it, and the output pane colours by the writer while
+   hovering works from either end (2026-08-28). */
 function ownerOf(seg, cursor) {
   if (seg.m === cursor) return { card: seg.card, via: cursor };
   /* walk up to the DIRECT child of cursor: however deep the writing frame is, what
@@ -1613,7 +1788,7 @@ function ownerOf(seg, cursor) {
   if (x.parent !== cursor) return { card: undefined, via: seg.m };
   const idx = (BODY[cursor.tpl] || []).findIndex(n =>
     n.k === "apply" && (CANDIDATES[n.mode] || []).includes(x.tpl));
-  return { card: idx >= 0 ? idx : undefined, via: x };
+  return { card: idx >= 0 ? String(idx) : undefined, via: x };
 }
 
 /* global failed-attempt totals per template (for the panel's "0 · N tries" rows) */
@@ -1662,7 +1837,7 @@ let selTpl = "source"; // the template shown in the strip (follows the cursor)
 let gapMsg = null;
 let stale = false;     // config edited since the trace was built
 let editing = null;    // index of the body card being edited (in selTpl's body)
-let addMenuOpen = false;
+let addMenuAt = null;  // path of the card list whose "+ instruction" menu is open ("" = the body)
 
 function chainOf(m) { const c = []; for (let x = m; x; x = x.parent) c.unshift(x); return c; }
 function siblings(m) {   // same-template siblings under the same parent frame
@@ -1671,13 +1846,13 @@ function siblings(m) {   // same-template siblings under the same parent frame
 function isDescendant(m, of) { for (let x = m; x; x = x.parent) if (x === of) return true; return false; }
 function setCursor(m, keepGap) {
   cursor = m; selTpl = m.tpl;
-  editing = null; addMenuOpen = false; selMode = null;
+  editing = null; addMenuAt = null; selMode = null;
   if (!keepGap) gapMsg = null;
   render();
 }
 function selectTemplate(tid) {   // zero-match templates: show the definition, keep the frame
   selTpl = tid; gapMsg = null;
-  editing = null; addMenuOpen = false; selMode = null;
+  editing = null; addMenuAt = null; selMode = null;
   const first = (byTpl[tid] || [])[0];
   if (first) { cursor = first; }
   render();
@@ -1767,6 +1942,7 @@ function renderCrumb() {
   chainOf(cursor).forEach((seg, k) => {
     if (k > 0) c.appendChild(el("span", "sep", "›"));
     const s = el("span", "seg");
+    s.dataset.crumb = seg.id;
     const name = el("span", "name", TPL[seg.tpl].name);
     name.style.color = TPL[seg.tpl].color;
     name.title = "Make this frame the cursor";
@@ -1865,40 +2041,14 @@ function renderStrip() {
   }
   b.appendChild(mline);
 
-  /* captures: directly under the match, because the match is what declares and binds
-     them (moved here from the output pane 2026-08-27). A capture is not something the
-     body wrote — it's what the pattern pulled out of the input, the raw material the
-     body then spends; sitting in "output vars" it read as an output of the frame, and
-     the swatches next to it belong to the same colour vocabulary as the pattern's
-     groups in the workbench, not to the body cards'. Rows show the declaration whether
-     or not a frame is selected — the declaration is the template's, the value is the
-     frame's — so this line doesn't vanish when browsing a template with no match. */
-  const cline = el("div", "strip-line caps");
-  cline.appendChild(el("span", "k", "captures"));
-  const caps = selTpl === "source" ? [] : (TPL[selTpl].caps || []);
-  if (caps.length === 0) {
-    cline.appendChild(el("span", "none",
-      selTpl === "source" ? "(the document binds nothing)" : "(this pattern declares none)"));
-  } else {
-    const rows = el("div", "caprows");
-    caps.forEach((name, i) => {
-      const live = onFrame ? cursor.captures[i] : null;
-      const row = varRow(`var(--cap-${i})`, name, `← $${i + 1}`, CAP_TYPE[name] || "string",
-        live ? JSON.stringify(live.value) : "—",
-        live ? undefined : "Declared by the pattern — select a frame of this template for a value");
-      const pen = el("button", "edit", "✎");
-      pen.title = "Rename this capture (edits the template's declaration)";
-      pen.addEventListener("click", ev => { ev.stopPropagation(); renameCapture(selTpl, i); });
-      row.appendChild(pen);
-      if (onFrame) {
-        row.addEventListener("mouseenter", () => setCapHot(i, true));
-        row.addEventListener("mouseleave", () => setCapHot(i, false));
-      }
-      rows.appendChild(row);
-    });
-    cline.appendChild(rows);
-  }
-  b.appendChild(cline);
+  /* captures are NOT here any more (2026-08-28): they moved to the variables pane
+     top-right, where they join the rest of what is in scope at this frame. They sat
+     under the match for a day and a half on the reasoning that the match declares them
+     — true, and about the declaration, where this line was showing the value. The
+     declaration is now the pattern's business and is renamed in the workbench, with the
+     groups it names; the value is the frame's, and frame-scoped things live in the
+     variables pane. It also removes the last diagonal in the layout: this line lit a
+     span two panes away. */
 
   /* profile: always present — every run times every attempt (no separate mode) */
   const pline = el("div", "strip-line");
@@ -1924,15 +2074,8 @@ function renderStrip() {
   bline.appendChild(el("span", "k", "body"));
   b.appendChild(bline);
   const cards = el("div", "cards");
-  BODY[selTpl].forEach((node, i) => cards.appendChild(renderBodyCard(node, i, onFrame)));
-  /* contextual add: instruction kinds grouped by category (ds-rs's Add-Child popup) */
-  const addLine = el("div", "addline");
-  const addBtn = el("button", "addbtn2", addMenuOpen ? "− instruction" : "+ instruction");
-  addBtn.title = "Add an instruction to this template's body";
-  addBtn.addEventListener("click", () => { addMenuOpen = !addMenuOpen; editing = null; render(); });
-  addLine.appendChild(addBtn);
-  if (addMenuOpen) addLine.appendChild(renderAddMenu());
-  cards.appendChild(addLine);
+  BODY[selTpl].forEach((node, i) => cards.appendChild(renderBodyCard(node, String(i), onFrame)));
+  cards.appendChild(renderAddLine(BODY[selTpl], ""));
   b.appendChild(cards);
 }
 
@@ -1943,21 +2086,25 @@ function renderStrip() {
    an `apply` card is a *dispatch site*, so clicking it FOLLOWS, descending into the frame
    it dispatched, the same move as clicking its matched-child row. Nothing to follow (no
    match at this frame) means the other reading applies and it opens for editing. */
-function renderBodyCard(node, i, onFrame) {
-  const isEditing = editing === i;
+function renderBodyCard(node, path, onFrame) {
+  const isEditing = editing === path;
+  if (node.k === "if" || node.k === "choose") return renderContainerCard(node, path, onFrame);
   if (node.k === "apply") {
     const card = el("div", "card k-apply" + (isEditing ? " editing" : ""));
+    card.dataset.card = path;
     const head = el("div", "aphead");
-    const swatch = el("span", "chip");
-    swatch.style.background = cardHue(selTpl, i);
-    swatch.title = "This card's colour in the output — covers everything it dispatched";
-    head.append(swatch, el("span", "num", String(i + 1)), el("span", "kind", "apply-templates"));
+    /* no hue of its own: the output it caused is coloured by the templates it dispatched
+       into, so the head wears those same swatches — one per template that matched here,
+       in candidate order (2026-08-28). A site that dispatched nothing at this frame keeps
+       one muted chip, which is the honest statement that it wrote nothing. */
+    head.append(dispatchChips(node, onFrame), el("span", "num", cardLabel(path)),
+      el("span", "kind", "apply-templates"));
     if (!isEditing) {
       head.append(el("span", "lit mono", `mode="${node.mode}"` + (node.sel ? ` select=${node.sel}` : "")));
-      head.appendChild(cardActions(i));
+      head.appendChild(cardActions(path));
     }
     card.appendChild(head);
-    if (isEditing) { card.appendChild(renderCardEditor(node, i)); return card; }
+    if (isEditing) { card.appendChild(renderCardEditor(node, path)); return card; }
 
     /* the matching child templates AT THIS SITE, for the current frame */
     const kidsAt = onFrame ? cursor.children.filter(ch => (CANDIDATES[node.mode] || []).includes(ch.tpl)) : [];
@@ -1965,6 +2112,7 @@ function renderBodyCard(node, i, onFrame) {
       const kids = onFrame ? cursor.children.filter(ch => ch.tpl === tid) : [];
       const tried = onFrame && cursor.tries.includes(tid);
       const row = el("div", "disp-row " + (kids.length ? "hit" : tried ? "miss" : "skip"));
+      row.dataset.disp = path + ":" + tid;
       const chip = el("span", "chip"); chip.style.background = TPL[tid].color;
       row.append(chip, el("span", "name mono", TPL[tid].name));
       if (!onFrame) {
@@ -1973,8 +2121,14 @@ function renderBodyCard(node, i, onFrame) {
       } else if (kids.length) {
         row.append(el("span", "count", `${kids.length} match${kids.length > 1 ? "es" : ""}`),
           el("span", "go", "→ descend"));
-        row.title = "Click to descend into the first match";
+        row.title = kids.length > 1
+          ? `Hover to light everything ${TPL[tid].name} wrote here — click to descend into the first of ${kids.length}`
+          : `Hover to light what ${TPL[tid].name} wrote here — click to descend into it`;
         row.addEventListener("click", ev => { ev.stopPropagation(); setCursor(kids[0]); });
+        /* the row's swatch is the colour of its regions in the output, so hovering it
+           isolates exactly those — the card head still lights the whole dispatch */
+        row.addEventListener("mouseenter", () => setDispatchHot(path, tid, true));
+        row.addEventListener("mouseleave", () => setDispatchHot(path, tid, false));
       } else if (tried) {
         row.append(el("span", "count", "✗ tried, no match"));
         row.title = "Attempted here by ordered choice and failed (G3 signal)";
@@ -1986,8 +2140,8 @@ function renderBodyCard(node, i, onFrame) {
     }
     if (node.note) card.appendChild(el("div", "disp-note", node.note));
     if (onFrame) {
-      card.addEventListener("mouseenter", () => setBodyCardHot(node, i, true));
-      card.addEventListener("mouseleave", () => setBodyCardHot(node, i, false));
+      card.addEventListener("mouseenter", () => setBodyCardHot(node, path, true));
+      card.addEventListener("mouseleave", () => setBodyCardHot(node, path, false));
     }
     /* follow if there is somewhere to go; otherwise the click means "edit" */
     if (kidsAt.length) {
@@ -1996,68 +2150,159 @@ function renderBodyCard(node, i, onFrame) {
       card.addEventListener("click", () => setCursor(kidsAt[0]));
     } else {
       card.title = "Nothing dispatched here at this frame — click to edit the site";
-      card.addEventListener("click", () => openCardEditor(i));
+      card.addEventListener("click", () => openCardEditor(path));
     }
     return card;
   }
 
   const kindCls = node.k === "text" ? "k-text" : node.k === "value-of" ? "k-value" : "k-other";
   const card = el("div", "card " + kindCls + (isEditing ? " editing" : ""));
+  card.dataset.card = path;
   const swatch = el("span", "chip");
-  swatch.style.background = cardHue(selTpl, i);
+  swatch.style.background = cardHue(selTpl, path);
   swatch.title = "This card's colour in the output";
   if (isEditing) {
     const head = el("div", "aphead");
-    head.append(swatch, el("span", "num", String(i + 1)), el("span", "kind", node.k));
-    card.append(head, renderCardEditor(node, i));
+    head.append(swatch, el("span", "num", cardLabel(path)), el("span", "kind", node.k));
+    card.append(head, renderCardEditor(node, path));
     return card;
   }
-  card.append(swatch, el("span", "num", String(i + 1)), el("span", "kind", node.k),
+  card.append(swatch, el("span", "num", cardLabel(path)), el("span", "kind", node.k),
     el("span", "lit mono", cardText(node)));
-  card.appendChild(cardActions(i));
+  card.appendChild(cardActions(path));
   card.title = "Click to edit this instruction";
-  card.addEventListener("click", () => openCardEditor(i));
+  card.addEventListener("click", ev => { ev.stopPropagation(); openCardEditor(path); });
   if (onFrame) {
-    card.addEventListener("mouseenter", () => setBodyCardHot(node, i, true));
-    card.addEventListener("mouseleave", () => setBodyCardHot(node, i, false));
+    card.addEventListener("mouseenter", () => setBodyCardHot(node, path, true));
+    card.addEventListener("mouseleave", () => setBodyCardHot(node, path, false));
   }
   return card;
 }
 
-function openCardEditor(i) { editing = i; addMenuOpen = false; render(); }
+/* A conditional holds card lists, so it renders as cards (2026-08-28). Its branches are
+   real bodies — the same instructions, one level in, each with its own "+ instruction"
+   line — rather than a summary string standing in for instructions that were never
+   there. The head is what you hover to light everything the conditional wrote, whichever
+   branch wrote it, and what you click to edit its conditions; the instructions inside
+   are hovered, edited, reordered and deleted exactly as top-level ones are, because to
+   everything below this function they ARE top-level ones with a longer path. */
+function renderContainerCard(node, path, onFrame) {
+  const isEditing = editing === path;
+  const card = el("div", "card k-other cont" + (isEditing ? " editing" : ""));
+  card.dataset.card = path;
+  const head = el("div", "aphead");
+  const swatch = el("span", "chip");
+  swatch.style.background = cardHue(selTpl, path);
+  swatch.title = "This card's colour in the output — covers everything its branches wrote";
+  head.append(swatch, el("span", "num", cardLabel(path)), el("span", "kind", node.k));
+  if (isEditing) {
+    card.append(head, renderCardEditor(node, path));
+    return card;
+  }
+  head.append(el("span", "lit mono", cardText(node)));
+  head.appendChild(cardActions(path));
+  head.title = "Click to edit this instruction's conditions";
+  head.addEventListener("click", ev => { ev.stopPropagation(); openCardEditor(path); });
+  if (onFrame) {
+    head.addEventListener("mouseenter", () => setBodyCardHot(node, path, true));
+    head.addEventListener("mouseleave", () => setBodyCardHot(node, path, false));
+  }
+  card.appendChild(head);
+  for (const br of branchBodies(node)) {
+    const grp = el("div", "branch");
+    const lab = el("div", "br-head");
+    lab.appendChild(el("span", "br-key", br.label));
+    if (br.when !== undefined) lab.appendChild(el("span", "br-when mono", br.when || "(no condition)"));
+    grp.appendChild(lab);
+    const list = el("div", "cards nested");
+    br.list.forEach((n, j) => list.appendChild(renderBodyCard(n, `${path}.${br.key}.${j}`, onFrame)));
+    list.appendChild(renderAddLine(br.list, `${path}.${br.key}`));
+    grp.appendChild(list);
+    card.appendChild(grp);
+  }
+  if (node.note) card.appendChild(el("div", "disp-note", node.note));
+  return card;
+}
+
+/* the swatches an apply site shows: one per template that matched here, in candidate
+   order, each the colour its output carries in the pane beside the strip */
+function dispatchChips(node, onFrame) {
+  const wrap = el("span", "chips");
+  const hit = (CANDIDATES[node.mode] || []).filter(tid =>
+    onFrame && cursor.children.some(ch => ch.tpl === tid));
+  if (!hit.length) {
+    const chip = el("span", "chip");
+    chip.style.background = "var(--muted)";
+    chip.title = onFrame ? "Nothing was dispatched here at this frame"
+                         : "Select a frame of this template to see what it dispatched";
+    wrap.appendChild(chip);
+    return wrap;
+  }
+  for (const tid of hit) {
+    const chip = el("span", "chip");
+    chip.style.background = TPL[tid].color;
+    chip.title = `${TPL[tid].name}'s colour in the output — everything it wrote here`;
+    wrap.appendChild(chip);
+  }
+  return wrap;
+}
+
+function openCardEditor(path) { editing = path; addMenuAt = null; render(); }
+
+/* the "+ instruction" control for one card list — the template's body, or a branch's,
+   which is the same kind of thing one level down (2026-08-28) */
+function renderAddLine(list, prefix) {
+  const line = el("div", "addline");
+  const open = addMenuAt === prefix;
+  const btn = el("button", "addbtn2", open ? "− instruction" : "+ instruction");
+  btn.title = prefix === "" ? "Add an instruction to this template's body"
+                            : "Add an instruction to this branch";
+  btn.addEventListener("click", ev => {
+    ev.stopPropagation();
+    addMenuAt = open ? null : prefix; editing = null; render();
+  });
+  line.appendChild(btn);
+  if (open) line.appendChild(renderAddMenu(list, prefix));
+  return line;
+}
 
 /* the collapsed one-line summary of an instruction. `if`/`choose` hold their parts as
    real fields rather than a prose string, so this composes the line rather than being
    the source of truth for it — which is what makes them editable as structure below. */
 function cardText(node) {
-  if (node.k === "if") return `${node.test || "(no condition)"} → ${node.then || "(emits nothing)"}`;
+  /* a container's summary is its CONDITIONS only: what it emits is the card list
+     nested under it, which is shown rather than described (2026-08-28) */
+  if (node.k === "if") return node.test || "(no condition)";
   if (node.k === "choose") {
-    const bs = (node.branches || []).map(b => `${b.when} → ${b.then}`);
-    if (node.otherwise !== null && node.otherwise !== undefined) bs.push(`otherwise → ${node.otherwise}`);
+    const bs = (node.branches || []).map(b => b.when || "(no condition)");
+    if (Array.isArray(node.otherwise)) bs.push("otherwise");
     return bs.length ? bs.join("   ·   ") : "(no branches)";
   }
   return node.lit;
 }
 
-function cardActions(i) {
+/* reorder and delete act on the list the card is IN, whichever depth that is — a
+   branch's instructions move within their branch, not into the body around it */
+function cardActions(path) {
   const acts = el("span", "actions");
   const stop = (b, fn) => b.addEventListener("click", ev => { ev.stopPropagation(); fn(); });
+  const { list, idx } = listAt(selTpl, path);
   const edit = el("button", "act", "✎"); edit.title = "Edit this instruction";
-  stop(edit, () => openCardEditor(i));
-  const up = el("button", "act", "↑"); up.title = "Move up"; up.disabled = i === 0;
+  stop(edit, () => openCardEditor(path));
+  const up = el("button", "act", "↑"); up.title = "Move up"; up.disabled = idx === 0;
   stop(up, () => {
-    const body = BODY[selTpl]; [body[i - 1], body[i]] = [body[i], body[i - 1]];
+    [list[idx - 1], list[idx]] = [list[idx], list[idx - 1]];
     editing = null; stale = true; render();
   });
   const down = el("button", "act", "↓"); down.title = "Move down";
-  down.disabled = i === BODY[selTpl].length - 1;
+  down.disabled = idx === list.length - 1;
   stop(down, () => {
-    const body = BODY[selTpl]; [body[i + 1], body[i]] = [body[i], body[i + 1]];
+    [list[idx + 1], list[idx]] = [list[idx], list[idx + 1]];
     editing = null; stale = true; render();
   });
   const del = el("button", "act del", "✕"); del.title = "Delete this instruction";
   stop(del, () => {
-    BODY[selTpl].splice(i, 1);
+    list.splice(idx, 1);
     editing = null; stale = true; render();
   });
   acts.append(edit, up, down, del);
@@ -2072,11 +2317,13 @@ function cardActions(i) {
      text      the text itself, decoded, over as many lines as it really has;
      value-of  an expression, with the names in scope offered rather than remembered,
                and the value it produced at this frame shown underneath;
-     if        a condition and a consequent, as two fields;
+     if        its condition — the consequent is the card list nested under it;
      choose    its branches as a list you can add to, reorder by editing, and prune.
-   The branch bodies of `if`/`choose` are, in the real editor, nested card lists you
-   descend into exactly as you follow an apply site; the mockup keeps them flat and
-   says so rather than pretending the one-line form is the whole instruction. */
+   The branch bodies of `if`/`choose` are real card lists (2026-08-28), nested one level
+   in with their own add line, so what a conditional emits is instructions rather than a
+   sentence describing them — which is also what lets the trace attribute each write to
+   the instruction that made it instead of to the conditional around it. What these
+   editors edit is only what the conditional decides: the conditions themselves. */
 
 function decodeLit(lit) {
   try { return JSON.parse(lit); } catch (e) { return lit == null ? "" : String(lit); }
@@ -2106,11 +2353,11 @@ function scopeNames() {
 }
 /* what this card actually wrote at the current frame — the editor's live example, and
    the same owner key the output pane and the hover highlight use */
-function cardOutput(i) {
-  return outSegs.filter(s => s.m === cursor && s.card === i).map(s => s.text).join("");
+function cardOutput(path) {
+  return outSegs.filter(s => s.m === cursor && s.card === path).map(s => s.text).join("");
 }
 
-function renderCardEditor(node, i) {
+function renderCardEditor(node, path) {
   const ed = el("div", "card-editor");
   let commit;
 
@@ -2137,52 +2384,55 @@ function renderCardEditor(node, i) {
       pick.value = ""; if (expr.focus) expr.focus();
     });
     ed.appendChild(edRow("select", expr, pick));
-    const wrote = cardOutput(i);
+    const wrote = cardOutput(path);
     ed.appendChild(edRow("here", el("span", "ed-live mono",
       wrote ? JSON.stringify(wrote) : "(wrote nothing at this frame)")));
     commit = () => { node.lit = expr.value; };
   } else if (node.k === "if") {
+    /* the condition is all there is to edit here: what it emits is its body, a card
+       list of its own, edited card by card in the strip below */
     const test = mkEditInput(node.test || "", "condition, e.g. $status == 403");
-    const then = mkArea(node.then || "", "what the branch emits", 2);
-    ed.append(edRow("when", test), edRow("then", then));
+    ed.append(edRow("when", test));
     ed.appendChild(el("div", "ed-note",
-      "“then” is a nested body: in the real editor it is a card list you descend into, the same move as following an apply site."));
-    commit = () => { node.test = test.value; node.then = then.value; };
+      "The branch body is the card list under this instruction — its own text, value-of and apply cards, added and edited like any other."));
+    commit = () => { node.test = test.value; };
   } else if (node.k === "choose") {
     /* edited against a draft so Cancel really cancels — the branch list is structure,
-       not a string, and half-finished structure must not leak into the model */
-    const draft = (node.branches || []).map(b => ({ when: b.when, then: b.then }));
-    let other = node.otherwise;
+       not a string, and half-finished structure must not leak into the model. Each
+       branch carries its body with it, so reordering or pruning a branch takes its
+       instructions along rather than orphaning them. */
+    const draft = (node.branches || []).map(b => ({ when: b.when, body: b.body || [] }));
+    let other = Array.isArray(node.otherwise) ? node.otherwise : null;
     const list = el("div", "ed-branches");
     const paint = () => {
       list.textContent = "";
       draft.forEach((b, bi) => {
         const w = mkEditInput(b.when, "condition");
-        const t = mkEditInput(b.then, "emits");
         w.addEventListener("input", () => b.when = w.value);
-        t.addEventListener("input", () => b.then = t.value);
-        const x = el("button", "act del", "✕"); x.title = "Remove this branch";
+        const n = el("span", "ed-live", `${b.body.length} instruction${b.body.length === 1 ? "" : "s"}`);
+        const x = el("button", "act del", "✕");
+        x.title = "Remove this branch, and the instructions in it";
         x.addEventListener("click", ev => { ev.stopPropagation(); draft.splice(bi, 1); paint(); });
-        list.appendChild(edRow(bi === 0 ? "when" : "or when", w, t, x));
+        list.appendChild(edRow(bi === 0 ? "when" : "or when", w, n, x));
       });
-      if (other !== null && other !== undefined) {
-        const o = mkEditInput(other, "emits when nothing above matched");
-        o.addEventListener("input", () => { other = o.value; });
-        const x = el("button", "act del", "✕"); x.title = "Remove the otherwise branch";
+      if (other) {
+        const n = el("span", "ed-live", `${other.length} instruction${other.length === 1 ? "" : "s"}`);
+        const x = el("button", "act del", "✕");
+        x.title = "Remove the otherwise branch, and the instructions in it";
         x.addEventListener("click", ev => { ev.stopPropagation(); other = null; paint(); });
-        list.appendChild(edRow("otherwise", o, x));
+        list.appendChild(edRow("otherwise", n, x));
       }
       const add = el("button", "act add", "+ branch");
-      add.addEventListener("click", ev => { ev.stopPropagation(); draft.push({ when: "", then: "" }); paint(); });
+      add.addEventListener("click", ev => { ev.stopPropagation(); draft.push({ when: "", body: [] }); paint(); });
       const addOther = el("button", "act add", "+ otherwise");
-      addOther.disabled = other !== null && other !== undefined;
-      addOther.addEventListener("click", ev => { ev.stopPropagation(); other = ""; paint(); });
+      addOther.disabled = !!other;
+      addOther.addEventListener("click", ev => { ev.stopPropagation(); other = []; paint(); });
       list.appendChild(edRow("", add, addOther));
     };
     paint();
     ed.appendChild(list);
     ed.appendChild(el("div", "ed-note",
-      "Ordered choice: the first branch whose condition holds wins — the same rule as the mode-level template choice one level up."));
+      "Ordered choice: the first branch whose condition holds wins — the same rule as the mode-level template choice one level up. Each branch's instructions are the card list under it."));
     commit = () => { node.branches = draft; node.otherwise = other; };
   } else if (node.k === "apply") {
     const modeSel = document.createElement("select");
@@ -2250,26 +2500,28 @@ const ADD_KINDS = [
   ["control",   [["if", "(condition)"], ["choose", "(…)"]]],
   ["transform", [["replace", '/…/ → "…"'], ["format-date", "(picture)"]]],
 ];
-function renderAddMenu() {
+function renderAddMenu(list, prefix) {
   const menu = el("div", "add-menu");
   for (const [grp, kinds] of ADD_KINDS) {
     menu.appendChild(el("div", "grp", grp));
     for (const [kind, lit] of kinds) {
       const opt = el("div", "opt mono", kind);
       if (kind === "if" || kind === "choose") {
-        opt.title = "Containers drill down breadcrumb-style in the real editor (flat card here)";
+        opt.title = "A container holds card lists of its own — its branches nest inside it";
       }
-      opt.addEventListener("click", () => {
+      opt.addEventListener("click", ev => {
+        ev.stopPropagation();
         /* the new card must arrive in the shape its editor expects — `if`/`choose` hold
-           their parts as fields, so seeding them with a prose string would produce a
-           card the editor could not open */
+           their conditions as fields and their consequents as empty card lists, ready
+           to be filled by the add line that appears inside each branch */
         const node =
           kind === "apply-templates" ? { k: "apply", mode: Object.keys(CANDIDATES)[0] } :
-          kind === "if"     ? { k: "if", test: "", then: "" } :
-          kind === "choose" ? { k: "choose", branches: [{ when: "", then: "" }], otherwise: null } :
+          kind === "if"     ? { k: "if", test: "", body: [] } :
+          kind === "choose" ? { k: "choose", branches: [{ when: "", body: [] }], otherwise: null } :
           { k: kind, lit };
-        BODY[selTpl].push(node);
-        addMenuOpen = false; editing = BODY[selTpl].length - 1; stale = true;
+        list.push(node);
+        const idx = String(list.length - 1);
+        addMenuAt = null; editing = prefix === "" ? idx : `${prefix}.${idx}`; stale = true;
         render();
       });
       menu.appendChild(opt);
@@ -2282,7 +2534,23 @@ function renderAddMenu() {
 function renderContentBox(frame) {
   const box = el("div", "content-box");
   renderFrameContent(box, frame);
+  /* the same delegation as the output pane, over the three things this pane lights:
+     a child match, an unmatched gap, and a capture — the last of which also lights its
+     row in the variables pane, when the capture is this frame's own */
+  delegateHover(box, ["cap", "m", "gap"], el => {
+    el.classList.add("hot");
+    capRowFor(el, true);
+  }, el => {
+    el.classList.remove("hot");
+    capRowFor(el, false);
+  });
   return box;
+}
+function capRowFor(el, on) {
+  const key = el.dataset.cap;
+  if (!key) return;
+  const [fid, i] = key.split(":");
+  if (Number(fid) === cursor.id) setCapRowHot(Number(i), on);
 }
 
 /* frame's own capture spans render as dotted `cap` spans (hover-linked from the output
@@ -2296,8 +2564,9 @@ function renderFrameContent(container, frame) {
   for (const r of regions) {
     if (r.start > pos) renderRange(container, pos, r.start, childrenWithin(frame, pos, r.start), frame);
     const capEl = el("span", "cap");
-    capEl.style.color = `var(--cap-${frame.captures.indexOf(r.cap)})`;
-    capEl.dataset.cap = frame.id + ":" + frame.captures.indexOf(r.cap);
+    const ci = frame.captures.indexOf(r.cap);
+    capEl.style.color = capHue(ci);
+    capEl.dataset.cap = frame.id + ":" + ci;
     renderRange(capEl, r.start, r.start + r.len, childrenWithin(frame, r.start, r.start + r.len), frame);
     container.appendChild(capEl);
     pos = r.start + r.len;
@@ -2361,59 +2630,105 @@ function varRow(hue, name, src, type, value, title) {
   return row;
 }
 
-/* --- input vars pane --- */
-/* The content pane holds only the content variable and its renderer — params and scope
-   moved to their own pane beside it (2026-08-27), because the content view is the one
-   thing here that wants vertical room and was being squeezed by two lists it has no
-   relationship with. */
+/* --- content pane: the bytes, and nothing else --- */
+/* The content row that used to caption this pane is a variable like any other, and now
+   heads the variables pane beside it (2026-08-28): the pane the eye lands on second
+   should be the whole answer to "what is in scope here", not most of it. What is left
+   here is the value those names point into, with the room it wants. */
 function renderInVars() {
   const b = $("inBody");
   b.textContent = "";
-  const sec = el("div", "var-section");
-  sec.appendChild(varRow(null, "content", "", `bytes[${cursor.len}]`,
-    cursor === SOURCE ? "(the whole buffer)" : "(matched value, shown below)",
-    "The distinguished value this frame matched against"));
-  sec.appendChild(renderContentBox(cursor));
-  b.appendChild(sec);
+  b.appendChild(renderContentBox(cursor));
 }
 
-/* --- params & scope pane: what this frame was handed, beside the content --- */
+/* --- variables pane: everything in scope at this frame, innermost first ---
+   (2026-08-28, Jon: "a single area for the user to look at to discover all variables in
+   scope, i.e. the local scope captured from the open template and the outer scope or
+   global scope variables and parameters".) It reads as a debugger's Variables pane:
+   this match's own bindings, then what its children stored, then what it inherited from
+   its ancestors, then params. `scopeNames()` — the list the value-of editor's picker
+   offers — has always been exactly this union; before today only the display was split,
+   so the pane answered "what can I read here?" with two thirds of the answer while the
+   picker beside it knew all of it. */
 function renderScope() {
   const b = $("scopeBody");
   b.textContent = "";
+
+  /* this match: the distinguished content value, then what the pattern bound out of it.
+     These are the rows whose spans are visible in the content pane to the left, so they
+     are the rows that light it — one pane over, not two. */
+  const own = el("div", "var-section");
+  own.appendChild(el("h3", "", "this match"));
+  own.appendChild(varRow(null, "content", "", `bytes[${cursor.len}]`,
+    cursor === SOURCE ? "(the whole buffer)" : "(the matched value, rendered beside)",
+    "The distinguished value this frame matched against — rendered in the content pane"));
+  const caps = TPL[cursor.tpl].caps || [];
+  if (!caps.length) {
+    own.appendChild(el("div", "none", cursor === SOURCE
+      ? "(the document binds nothing)" : "(this pattern declares no captures)"));
+  }
+  caps.forEach((name, i) => {
+    const live = cursor.captures[i];
+    const row = varRow(capHue(i), "$" + name, `← $${i + 1}`, CAP_TYPE[name] || "string",
+      live ? JSON.stringify(live.value) : "—",
+      `Bound by ${TPL[cursor.tpl].name}'s pattern — renamed with the group it names, in the pattern workbench`);
+    row.dataset.varcap = cursor.id + ":" + i;
+    row.addEventListener("mouseenter", () => setCapHot(i, true));
+    row.addEventListener("mouseleave", () => setCapHot(i, false));
+    own.appendChild(row);
+  });
+  b.appendChild(own);
+
+  /* what this frame's children bound, which it sees as sequences after their run */
+  const stores = childStores(cursor);
+  if (stores.size) {
+    const csec = el("div", "var-section");
+    csec.appendChild(el("h3", "", "child stores"));
+    for (const [nm, vals] of stores) {
+      const row = varRow(null, "$" + nm, "", `seq[${vals.length}]`, "(store after this level's run)",
+        "Child-level captures accumulate in a store the parent sees as a sequence — click to expand");
+      row.classList.add("expandable");
+      const entries = el("div", "seq-entries mono");
+      entries.style.display = "none";
+      entries.textContent = vals.map((v, i) => `[${i + 1}] ${JSON.stringify(v)}`).join("\n");
+      entries.style.whiteSpace = "pre";
+      row.addEventListener("click", () =>
+        entries.style.display = entries.style.display === "none" ? "block" : "none");
+      csec.append(row, entries);
+    }
+    b.appendChild(csec);
+  }
+
+  /* outer scope: bound by an ancestor, readable here. Their spans are usually NOT in
+     this frame's content — combined_log's $time is nowhere inside a route frame's URL
+     slice — so hovering one lights the crumb of the frame that bound it instead of
+     lighting nothing, and clicking steps there, where the span is visible (2026-08-28).
+     A row that cannot show you the value's origin can at least say where it lives. */
+  const ancs = chainOf(cursor).slice(0, -1);
+  const osec = el("div", "var-section");
+  osec.appendChild(el("h3", "", "outer scope"));
+  let any = false;
+  for (const anc of ancs) {
+    anc.captures.forEach((c, i) => {
+      any = true;
+      const row = varRow(capHue(i), "$" + c.name, `← ${TPL[anc.tpl].name}`,
+        CAP_TYPE[c.name] || "string", JSON.stringify(c.value),
+        `Bound by ${TPL[anc.tpl].name}, ${ancs.length > 1 ? "an ancestor frame" : "the frame above"} — click to step there`);
+      row.style.cursor = "pointer";
+      row.addEventListener("mouseenter", () => setCrumbHot(anc, true));
+      row.addEventListener("mouseleave", () => setCrumbHot(anc, false));
+      row.addEventListener("click", () => setCursor(anc));
+      osec.appendChild(row);
+    });
+  }
+  if (!any) osec.appendChild(el("div", "none", ancs.length
+    ? "(nothing bound above this frame)" : "(this is the outermost frame)"));
+  b.appendChild(osec);
 
   const psec = el("div", "var-section");
   psec.appendChild(el("h3", "", "params"));
   psec.appendChild(el("div", "none", "(none declared)"));
   b.appendChild(psec);
-
-  /* in scope: ancestor bindings at this frame's moment, plus child stores as sequences */
-  const ssec = el("div", "var-section");
-  ssec.appendChild(el("h3", "", "in scope"));
-  let any = false;
-  for (const anc of chainOf(cursor).slice(0, -1)) {
-    anc.captures.forEach((c, i) => {
-      any = true;
-      ssec.appendChild(varRow(`var(--cap-${i})`, "$" + c.name, "", CAP_TYPE[c.name] || "string",
-        JSON.stringify(c.value), `bound by ${TPL[anc.tpl].name} (ancestor frame)`));
-    });
-  }
-  const stores = childStores(cursor);
-  for (const [nm, vals] of stores) {
-    any = true;
-    const row = varRow(null, "$" + nm, "", `seq[${vals.length}]`, "(store after this level's run)",
-      "Child-level captures accumulate in a store the parent sees as a sequence — click to expand");
-    row.classList.add("expandable");
-    const entries = el("div", "seq-entries mono");
-    entries.style.display = "none";
-    entries.textContent = vals.map((v, i) => `[${i + 1}] ${JSON.stringify(v)}`).join("\n");
-    entries.style.whiteSpace = "pre";
-    row.addEventListener("click", () =>
-      entries.style.display = entries.style.display === "none" ? "block" : "none");
-    ssec.append(row, entries);
-  }
-  if (!any) ssec.appendChild(el("div", "none", "(nothing bound yet at this frame)"));
-  b.appendChild(ssec);
 }
 
 function childStores(frame) {
@@ -2426,12 +2741,12 @@ function childStores(frame) {
 }
 
 /* --- output vars pane --- */
-/* the output pane is now "wrote → output" and nothing else — captures moved into the
-   template panel, under the match that declares them (2026-08-27, §5.4) */
+/* the output pane is "wrote → output" and nothing else — captures left it on 2026-08-27
+   and, after a spell under the match, settled in the variables pane on 2026-08-28 (§5.2) */
 function renderOutVars() {
   const b = $("outBody");
   b.textContent = "";
-  const box = el("div", "out-box bare");
+  const box = el("div", "out-box");
   /* Coalesce into one span per body card (revised 2026-08-27). Every span is owned by
      exactly one of the cards shown in the strip below, so adjacent segments with the
      same owner are one thing and must render as one thing: without this, a frame whose
@@ -2449,39 +2764,123 @@ function renderOutVars() {
   }
   for (const run of runs) {
     const s = el("span", "o", run.text);
-    /* coloured by the BODY CARD that produced it, not by template — the body (shown
-       below) is what's actually writing this, so its own swatches are what should
-       show. An apply card's colour covers everything it dispatched, whole. */
-    const hue = cardHue(cursor.tpl, run.card);   // run.card always indexes BODY[cursor.tpl]
+    const jumps = run.via !== cursor;
+    /* Coloured by whatever actually wrote it. For text this frame wrote, that's the body
+       card — the body below is doing the writing, so its own swatches are what should
+       show. For text a DISPATCH produced, it's the child template's own identity colour,
+       the one it already wears in the nav list, the crumb and the dispatch row (revised
+       2026-08-28, Jon: the dispatch rows had swatches that appeared nowhere in the
+       output). An apply card is a container, like a conditional: it writes nothing
+       itself, so it holds no colour of its own and delegates to what it dispatched.
+       Two palettes now share this pane, and they mean two different things — capture
+       hues for "this frame's instruction wrote it", template colours for "a child frame
+       did, and here is which one" — which is the own/descendant distinction dropped on
+       2026-08-27 for saying nothing, returning with identity in it. */
+    const hue = jumps ? TPL[run.via.tpl].color : cardHue(cursor.tpl, run.card);
     s.style.color = hue;
     s.style.setProperty("--hue", hue);
-    /* the one key hover uses, and it is the SAME key the colour came from — so what a
-       body card lights up can never drift from what it tinted */
+    /* the run's identity, and it is the SAME pair the colour came from — the owning card
+       and, for a dispatch, the child it went into. A card head lights all of its runs, a
+       dispatch row lights only the ones its template wrote. */
     s.dataset.owner = `${cursor.id}:${run.card === undefined ? "-" : run.card}`;
-    const jumps = run.via !== cursor;
+    if (jumps) s.dataset.viaTpl = run.via.tpl;
     s.title = run.card !== undefined
-      ? `written by body card ${run.card + 1} of ${TPL[cursor.tpl].name}` +
-        (jumps ? ` — click to step into ${TPL[run.via.tpl].name}` : "")
+      ? (jumps
+        ? `written by ${TPL[run.via.tpl].name}, dispatched from body card ${cardLabel(run.card)} — click to step into it`
+        : `written by body card ${cardLabel(run.card)} of ${TPL[cursor.tpl].name}`)
       : `written by ${TPL[run.via.tpl].name}` + (jumps ? " — click to step into that frame" : "");
     s.style.cursor = jumps ? "pointer" : "default";
     if (jumps) s.addEventListener("click", () => setCursor(run.via));
     box.appendChild(s);
   }
+  /* one listener for the pane, not one per run: a run that wraps must not lose its
+     highlight in the leading between its own lines (see delegateHover) */
+  delegateHover(box, ["o"], el => {
+    el.classList.add("hot");
+    outputHotFor(el, true);
+  }, el => {
+    el.classList.remove("hot");
+    outputHotFor(el, false);
+  });
   b.appendChild(box);
-}
-
-function renameCapture(tid, i) {
-  const oldName = TPL[tid].caps[i];
-  const newName = prompt(`Rename capture "${oldName}" (declaration of ${TPL[tid].name}):`, oldName);
-  if (!newName || newName === oldName) return;
-  TPL[tid].caps[i] = newName;
-  CAP_TYPE[newName] = CAP_TYPE[oldName];
-  for (const m of byTpl[tid] || []) m.captures[i].name = newName;
-  render();
 }
 
 function setCapHot(i, on) {
   const s = document.querySelector(`[data-cap="${cursor.id}:${i}"]`);
+  if (s) s.classList.toggle("hot", on);
+}
+
+/* ---- hover that survives a line break ----
+   An inline span that wraps is several line fragments, and the leading between them
+   belongs to no element at all. Point at a run of output three lines tall, move down it,
+   and the browser fires mouseleave and mouseenter at every crossing: the highlight blinks
+   once per line, worst on exactly the multi-line runs you most want to follow (2026-08-28,
+   Jon). Transitions soften it and cannot fix it — the state really is being lost.
+   So hover in the two byte panes is delegated to the pane and asked as a question about
+   position: which spans is the pointer inside NOW? A gap between lines answers "none",
+   and none is read as "hold what you had" rather than "clear" — the highlight changes
+   only when the pointer genuinely reaches other spans, and clears when it leaves the pane
+   altogether. Nesting is preserved by lighting the whole ancestor chain, which is what
+   :hover did for free. No timers and no thresholds: the pointer is either somewhere that
+   answers the question or somewhere that does not. */
+function hoverChain(node, root, classes) {
+  const chain = [];
+  for (let n = node; n && n !== root; n = n.parentNode) {
+    if (n.classList && classes.some(c => n.classList.contains(c))) chain.push(n);
+  }
+  return chain;
+}
+function delegateHover(box, classes, on, off) {
+  let hot = [];
+  const set = next => {
+    for (const el of hot) if (!next.includes(el)) off(el);
+    for (const el of next) if (!hot.includes(el)) on(el);
+    hot = next;
+  };
+  box.addEventListener("mousemove", ev => {
+    const next = hoverChain(ev.target, box, classes);
+    if (next.length) set(next);            // in a gap: hold, don't blink
+  });
+  box.addEventListener("mouseleave", () => set([]));
+}
+
+/* The other direction, and the one the design has been claiming since the body cards
+   were first coloured: hovering a region of output lights the instruction that wrote it,
+   down in the strip (2026-08-28 — the claim was in the doc and the highlight was not in
+   the code). For a dispatch it lights the apply card AND the row of the template that
+   wrote it, which is the same pair the region's colour and its owner key already name. */
+/* the instruction behind a hovered region, read off the same key the colour came from */
+function outputHotFor(el, on) {
+  const owner = el.dataset.owner || "";
+  const path = owner.slice(owner.indexOf(":") + 1);
+  if (path && path !== "-") setOutputHot(path, el.dataset.viaTpl || null, on);
+}
+function setOutputHot(card, viaTpl, on) {
+  if (card === undefined || !cursor || cursor.tpl !== selTpl) return;
+  const c = document.querySelector(`[data-card="${card}"]`);
+  if (c) c.classList.toggle("hot", on);
+  if (!viaTpl) return;
+  const row = document.querySelector(`[data-disp="${card}:${viaTpl}"]`);
+  if (row) row.classList.toggle("hot", on);
+}
+
+/* and the same reverse for the top row: a capture's span in the content lights the
+   variable row that names it, one pane over */
+function setCapRowHot(i, on) {
+  const r = document.querySelector(`[data-varcap="${cursor.id}:${i}"]`);
+  if (r) r.classList.toggle("hot", on);
+}
+
+/* one dispatch row: the runs this apply site produced through that one template */
+function setDispatchHot(path, tid, on) {
+  if (!cursor || cursor.tpl !== selTpl) return;
+  document.querySelectorAll(`[data-owner="${cursor.id}:${path}"][data-via-tpl="${tid}"]`)
+    .forEach(el => el.classList.toggle("hot", on));
+}
+
+/* an outer-scope row points at the frame that bound it, in the breadcrumb */
+function setCrumbHot(frame, on) {
+  const s = document.querySelector(`[data-crumb="${frame.id}"]`);
   if (s) s.classList.toggle("hot", on);
 }
 
@@ -2494,10 +2893,15 @@ function setCapHot(i, on) {
    wrote nothing claimed everything; and both walked frames while colour walked cards).
    A card that wrote nothing in this frame — an `if` that didn't fire — highlights
    nothing, which is the honest answer rather than a consolation region. */
-function setBodyCardHot(node, cardIdx, on) {
+function setBodyCardHot(node, path, on) {
   if (!cursor || cursor.tpl !== selTpl) return;   // the strip isn't showing a live frame
-  document.querySelectorAll(`[data-owner="${cursor.id}:${cardIdx}"]`)
-    .forEach(el => el.classList.toggle("hot", on));
+  /* a container owns what its branches wrote, so hovering it lights every span whose
+     owning path lies inside it — the same prefix relation the paths already encode */
+  const key = `${cursor.id}:${path}`;
+  document.querySelectorAll("[data-owner]").forEach(el => {
+    const o = el.dataset.owner;
+    if (o === key || o.indexOf(key + ".") === 0) el.classList.toggle("hot", on);
+  });
 }
 
 function render() { renderTpls(); renderToolbar(); renderCrumb(); renderStrip(); renderInVars(); renderScope(); renderOutVars(); renderRunBtn(); }
@@ -2505,7 +2909,7 @@ function render() { renderTpls(); renderToolbar(); renderCrumb(); renderStrip();
 function renderRunBtn() {
   const b = $("runBtn");
   b.classList.toggle("stale", stale);
-  b.title = stale ? "Config changed — re-run to refresh the trace (mockup: trace stays static)" : "";
+  b.title = stale ? "Config changed — the real editor re-runs on its own, debounced (Q6); this mockup's trace stays static" : "";
 }
 
 /* ================= pattern workbench ================= */
@@ -2762,7 +3166,7 @@ function updateWb() {
   if (count === 0) groups.appendChild(el("div", "none", "(no capturing groups)"));
   for (let i = 1; i <= count; i++) {
     const g = el("div", "g");
-    const chip = el("span", "chip"); chip.style.background = `var(--cap-${i - 1})`;
+    const chip = el("span", "chip"); chip.style.background = capHue(i - 1);
     const inp = mkEditInput(wbNames[i - 1] ?? syntaxNames[i - 1] ?? "", "capture name");
     inp.classList.add("cap-name");
     inp.title = "The capture declaration for this group — same as the row in Output vars";
@@ -2819,7 +3223,7 @@ function renderPatMap() {
     else {
       const g = run.g;
       const s = el("span", "pm-g", run.text);
-      const hue = `var(--cap-${(g.idx - 1) % 4})`;
+      const hue = capHue(g.idx - 1);
       s.style.setProperty("--hue", hue);
       s.classList.toggle("sel", wbSelGroup === g.idx);
       s.title = `group $${g.idx}${g.name ? ` <${g.name}>` : ""} — hover to preview, click to pin/isolate its matches in the sample`;
@@ -2897,7 +3301,7 @@ function renderMatchSpan(text, m) {
     let p = from;
     for (const k of kids) {
       if (k.s > p) container.append(document.createTextNode(text.slice(base + p, base + k.s)));
-      const hue = `var(--cap-${(k.gi - 1) % 4})`;
+      const hue = capHue(k.gi - 1);
       const s = el("span", "wb-g");
       s.style.setProperty("--hue", hue);
       s.classList.toggle("sel", wbSelGroup === k.gi);
@@ -2964,7 +3368,7 @@ function renderStepMatches(box, text) {
     const span = el("span", "wb-g");
     span.textContent = text.slice(sp.start, sp.end);
     const capIdx = stepDef.cap ? capSteps.indexOf(stepDef) : -1;
-    const hue = capIdx >= 0 ? `var(--cap-${capIdx % 4})` : "var(--muted)";
+    const hue = capIdx >= 0 ? capHue(capIdx) : "var(--muted)";
     span.style.setProperty("--hue", hue);
     span.classList.toggle("sel", wbSelStep === sp.stepIdx);
     span.title = `step ${sp.stepIdx + 1} ${stepDef.kind}` + (stepDef.cap ? ` → $${stepDef.cap}` : "") +
@@ -3008,7 +3412,7 @@ function renderDetails() {
         el("span", "det-range mono", `${m.index}–${m.index + m[0].length}`));
       for (let gi = 1; gi < m.length; gi++) {
         const v = el("span", "mono", `$${gi}=${JSON.stringify(m[gi] ?? null)}`);
-        v.style.color = `var(--cap-${(gi - 1) % 4})`;
+        v.style.color = capHue(gi - 1);
         if (wbSelGroup === gi) v.style.fontWeight = "700";
         row.appendChild(v);
       }
@@ -3019,7 +3423,7 @@ function renderDetails() {
       const row = el("div", "det-row");
       const t = el("span", "mono", tok.text);
       if (tok.gi) {
-        t.style.color = `var(--cap-${(tok.gi - 1) % 4})`;
+        t.style.color = capHue(tok.gi - 1);
         t.style.cursor = "pointer";
         t.addEventListener("click", () => {
           wbSelGroup = wbSelGroup === tok.gi ? null : tok.gi;
