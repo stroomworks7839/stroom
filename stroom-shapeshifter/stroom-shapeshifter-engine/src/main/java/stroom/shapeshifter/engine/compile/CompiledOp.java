@@ -247,7 +247,8 @@ public sealed interface CompiledOp {
      *                 resolves its {@link BytePattern} here, once
      */
     static List<CompiledOp> compile(final List<OutputNode> body,
-                                    final Map<String, BytePattern> patterns,
+                                    final Map<PatternKey, BytePattern> patterns,
+                                    final stroom.shapeshifter.regex.Encoding regexEncoding,
                                     final Project project) {
         final List<CompiledOp> ops = new ArrayList<>(body.size());
         for (final OutputNode node : body) {
@@ -256,18 +257,19 @@ public sealed interface CompiledOp {
                         new Text(text.value().getBytes(StandardCharsets.UTF_8));
                 case OutputNode.ValueOf valueOf -> new ValueOf(CompiledRef.of(valueOf.select()));
                 case OutputNode.If value ->
-                        new If(value.test(), compile(value.then(), patterns, project));
+                        new If(value.test(), compile(value.then(), patterns, regexEncoding, project));
                 case OutputNode.Choose value -> new Choose(
                         value.when().stream()
-                                .map(branch -> new When(branch.test(), compile(branch.body(), patterns, project)))
+                                .map(branch -> new When(branch.test(),
+                                        compile(branch.body(), patterns, regexEncoding, project)))
                                 .toList(),
-                        compile(value.otherwise(), patterns, project));
+                        compile(value.otherwise(), patterns, regexEncoding, project));
                 case OutputNode.Switch value -> new Switch(
                         CompiledRef.of(value.select()),
                         value.cases().stream()
-                                .map(c -> new Case(c.value(), compile(c.body(), patterns, project)))
+                                .map(c -> new Case(c.value(), compile(c.body(), patterns, regexEncoding, project)))
                                 .toList(),
-                        compile(value.defaultBody(), patterns, project));
+                        compile(value.defaultBody(), patterns, regexEncoding, project));
                 case OutputNode.ApplyTemplates apply -> {
                     // Whole-parent-content is the group-0 special case of a local group, so
                     // being a local group is the whole of being locatable.
@@ -287,14 +289,14 @@ public sealed interface CompiledOp {
                                 .map(param -> new Arg(param.name(), CompiledRef.of(param.value())))
                                 .toList());
                 case OutputNode.Variable value ->
-                        new Variable(value.name(), compile(value.body(), patterns, project));
+                        new Variable(value.name(), compile(value.body(), patterns, regexEncoding, project));
                 case OutputNode.ValueMap value -> new ValueMap(
                         CompiledRef.of(value.select()), value.entries(), value.defaultValue(), value.name());
                 case OutputNode.Translate value -> transform(single("translate", value.select()),
                         value.name(), inputs -> Transforms.translate(inputs, value.from(), value.to()));
                 case OutputNode.StringJoin value -> transform(value.select(), value.name(),
                         inputs -> Transforms.stringJoin(inputs, value.separator()));
-                case OutputNode.Replace value -> replace(value, patterns);
+                case OutputNode.Replace value -> replace(value, patterns, regexEncoding);
                 case OutputNode.LowerCase value ->
                         transform(single("lower-case", value.select()), value.name(), Transforms::lowerCase);
                 case OutputNode.UpperCase value ->
@@ -391,12 +393,12 @@ public sealed interface CompiledOp {
                         CompiledRef.of(value.select()), value.name());
                 case OutputNode.ForEachGroup value -> new ForEachGroup(value.select(),
                         value.groupBy() == null ? null : CompiledRef.of(value.groupBy()),
-                        compile(value.body(), patterns, project));
+                        compile(value.body(), patterns, regexEncoding, project));
                 case OutputNode.ForEach value -> new ForEach(value.select(), value.as(),
                         value.sort().stream()
                                 .map(key -> new SortKey(CompiledRef.of(key.by()), key.order(), key.as()))
                                 .toList(),
-                        compile(value.body(), patterns, project));
+                        compile(value.body(), patterns, regexEncoding, project));
                 case OutputNode.FormatDate value -> {
                     final Dates.Formatter formatter = Dates.compileFormatter(
                             value.pattern(), value.timezone(), "format-date");
@@ -491,13 +493,14 @@ public sealed interface CompiledOp {
 
     /** A regex replace closes over its compiled pattern; a literal one over its text. */
     private static Transform replace(final OutputNode.Replace value,
-                                     final Map<String, BytePattern> patterns) {
+                                     final Map<PatternKey, BytePattern> patterns,
+                                     final stroom.shapeshifter.regex.Encoding regexEncoding) {
         single("replace", value.select());
         if (!value.isRegex()) {
             return transform(value.select(), value.name(),
                     inputs -> Transforms.replaceLiteral(inputs, value.pattern(), value.replacement()));
         }
-        final BytePattern pattern = patterns.get(value.pattern());
+        final BytePattern pattern = patterns.get(new PatternKey(value.pattern(), regexEncoding));
         if (pattern == null) {
             throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
         }

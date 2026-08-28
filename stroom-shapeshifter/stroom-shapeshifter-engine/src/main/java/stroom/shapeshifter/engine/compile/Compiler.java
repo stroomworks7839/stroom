@@ -33,6 +33,7 @@ import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.exec.Codecs;
 import stroom.shapeshifter.engine.exec.EngineVars;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.Flag;
 import stroom.shapeshifter.regex.LeadingAnchor;
@@ -70,7 +71,7 @@ public final class Compiler {
         final Encoding encoding = encoding(project.source().encoding());
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
-        final Map<String, BytePattern> patterns = new HashMap<>();
+        final Map<PatternKey, BytePattern> patterns = new HashMap<>();
 
         for (final Template template : project.templates()) {
             // An eater's matches do not count, so its captures would have no index to bind
@@ -100,52 +101,54 @@ public final class Compiler {
                 }
             }
             final Encoding matchEncoding = declared == null ? encoding : declared;
-            // E29 stopgap (design 19 phase 0): the regex vocabulary compiles for UTF-8 only, so
-            // under any other encoding a pattern would search for UTF-8 byte sequences in bytes
-            // that are not — "no match" standing in for "cannot do that". Refused by name until
-            // the regex library takes an encoding; delimiters and steps honour the declaration
-            // and are unaffected.
-            if (!matchEncoding.isUtf8Compatible()) {
-                final Map<String, BytePattern> regexes = new HashMap<>();
+            // E29's refusal, narrowed by design 19 phase 3: the regex library now lowers UTF-8
+            // and every single-byte encoding, so only the shapes it still has none for are
+            // refused — RAW until phase 4, and the transcode family by design. "No match"
+            // never stands in for "cannot do that".
+            final stroom.shapeshifter.regex.Encoding regexEncoding =
+                    RegexEncodings.forMatch(matchEncoding);
+            if (regexEncoding == null) {
+                final Map<PatternKey, BytePattern> regexes = new HashMap<>();
                 if (template.guard() != null) {
-                    collect(template.guard(), template, regexes);
+                    collect(template.guard(), template, regexes,
+                            stroom.shapeshifter.regex.Encoding.UTF_8);
                 }
-                collect(template.body(), template, regexes);
+                collect(template.body(), template, regexes,
+                        stroom.shapeshifter.regex.Encoding.UTF_8);
                 if (template.match() instanceof MatchExpression.Progressive progressive) {
                     // Resolved, not raw: a PatternRef inlines a library pattern's steps, and a
                     // regex reached through one is as refused as a regex written in place.
                     steps(resolve(progressive.steps(), project, new HashSet<>()),
-                            template, regexes);
+                            template, regexes, stroom.shapeshifter.regex.Encoding.UTF_8);
                 }
                 final String offending = template.match() instanceof MatchExpression.Regex regex
                         ? regex.pattern()
-                        : regexes.isEmpty() ? null : regexes.keySet().iterator().next();
+                        : regexes.isEmpty() ? null : regexes.keySet().iterator().next().text();
                 if (offending != null) {
                     throw new ConfigException("Template '" + template.name() + "' declares "
                                               + matchEncoding.label() + " and uses a regex ('" + offending
-                                              + "'): regex matching compiles for UTF-8 only, so the pattern"
-                                              + " would search for UTF-8 byte sequences in "
-                                              + matchEncoding.label() + " bytes (E29). Delimiters and"
-                                              + " progressive steps honour the declared encoding; use those"
-                                              + " until the regex library takes an encoding (design 19)");
+                                              + "'): regex matching compiles for UTF-8 and the single-byte"
+                                              + " encodings, and has no lowering for "
+                                              + matchEncoding.label() + " (E29, design 19). Delimiters and"
+                                              + " progressive steps honour the declared encoding");
                 }
             }
             // Patterns first: a body's compiled form resolves its regex replaces against them.
             if (template.guard() != null) {
-                collect(template.guard(), template, patterns);
+                collect(template.guard(), template, patterns, regexEncoding);
             }
-            collect(template.body(), template, patterns);
+            collect(template.body(), template, patterns, regexEncoding);
             if (template.match() instanceof MatchExpression.Progressive progressive) {
                 // Resolved, not raw. Found by the phase-0 audit: a regex inside a referenced
                 // library pattern was never interned, so Steps.java's lookup threw
                 // IllegalStateException at match time — the walkers saw PatternRef where the
                 // executor would see the inlined Sequence. Same fix as the refusal probe above.
                 steps(resolve(progressive.steps(), project, new HashSet<>()),
-                        template, patterns);
+                        template, patterns, regexEncoding);
             }
             templates.add(new CompiledTemplate(template,
                     compileMatch(template, matchEncoding, project),
-                    CompiledOp.compile(template.body(), patterns, project),
+                    CompiledOp.compile(template.body(), patterns, regexEncoding, project),
                     declared));
         }
         resolveTemplateNames(project);
@@ -783,30 +786,31 @@ public final class Compiler {
      */
     private static void collect(final List<OutputNode> body,
                                 final Template template,
-                                final Map<String, BytePattern> patterns) {
+                                final Map<PatternKey, BytePattern> patterns,
+                                final stroom.shapeshifter.regex.Encoding encoding) {
         for (final OutputNode node : body) {
             switch (node) {
                 case OutputNode.Replace replace -> {
                     if (replace.isRegex()) {
-                        intern(replace.pattern(), template, patterns);
+                        intern(replace.pattern(), template, patterns, encoding);
                     }
                 }
                 case OutputNode.If value -> {
-                    collect(value.test(), template, patterns);
-                    collect(value.then(), template, patterns);
+                    collect(value.test(), template, patterns, encoding);
+                    collect(value.then(), template, patterns, encoding);
                 }
                 case OutputNode.Choose value -> {
                     value.when().forEach(branch -> {
-                        collect(branch.test(), template, patterns);
-                        collect(branch.body(), template, patterns);
+                        collect(branch.test(), template, patterns, encoding);
+                        collect(branch.body(), template, patterns, encoding);
                     });
-                    collect(value.otherwise(), template, patterns);
+                    collect(value.otherwise(), template, patterns, encoding);
                 }
                 case OutputNode.Switch value -> {
-                    value.cases().forEach(switchCase -> collect(switchCase.body(), template, patterns));
-                    collect(value.defaultBody(), template, patterns);
+                    value.cases().forEach(switchCase -> collect(switchCase.body(), template, patterns, encoding));
+                    collect(value.defaultBody(), template, patterns, encoding);
                 }
-                case OutputNode.Variable value -> collect(value.body(), template, patterns);
+                case OutputNode.Variable value -> collect(value.body(), template, patterns, encoding);
                 default -> {
                     // Every other instruction is a leaf as far as patterns are concerned.
                 }
@@ -816,14 +820,15 @@ public final class Compiler {
 
     private static void collect(final Condition condition,
                                 final Template template,
-                                final Map<String, BytePattern> patterns) {
+                                final Map<PatternKey, BytePattern> patterns,
+                                final stroom.shapeshifter.regex.Encoding encoding) {
         switch (condition) {
-            case Condition.Matches matches -> intern(matches.pattern(), template, patterns);
+            case Condition.Matches matches -> intern(matches.pattern(), template, patterns, encoding);
             case Condition.And value -> value.conditions()
-                    .forEach(child -> collect(child, template, patterns));
+                    .forEach(child -> collect(child, template, patterns, encoding));
             case Condition.Or value -> value.conditions()
-                    .forEach(child -> collect(child, template, patterns));
-            case Condition.Not value -> collect(value.condition(), template, patterns);
+                    .forEach(child -> collect(child, template, patterns, encoding));
+            case Condition.Not value -> collect(value.condition(), template, patterns, encoding);
             default -> {
                 // Everything else compares values rather than matching patterns.
             }
@@ -832,13 +837,15 @@ public final class Compiler {
 
     private static void intern(final String pattern,
                                final Template template,
-                               final Map<String, BytePattern> patterns) {
-        patterns.computeIfAbsent(pattern, text -> {
+                               final Map<PatternKey, BytePattern> patterns,
+                               final stroom.shapeshifter.regex.Encoding encoding) {
+        patterns.computeIfAbsent(new PatternKey(pattern, encoding), key -> {
             try {
-                return BytePattern.compile(text);
+                return BytePattern.compile(key.text(), java.util.EnumSet.noneOf(
+                        stroom.shapeshifter.regex.Flag.class), key.encoding());
             } catch (final PatternCompileException e) {
                 throw new ConfigException("Template '" + template.name() + "' has an invalid pattern '"
-                                          + text + "': " + e.getMessage(), e);
+                                          + key.text() + "': " + e.getMessage(), e);
             }
         });
     }
@@ -852,19 +859,20 @@ public final class Compiler {
      */
     private static void steps(final List<MatchStep> steps,
                               final Template template,
-                              final Map<String, BytePattern> patterns) {
+                              final Map<PatternKey, BytePattern> patterns,
+                              final stroom.shapeshifter.regex.Encoding encoding) {
         for (final MatchStep step : steps) {
             switch (step) {
-                case MatchStep.Regex regex -> intern(regex.pattern(), template, patterns);
+                case MatchStep.Regex regex -> intern(regex.pattern(), template, patterns, encoding);
                 case MatchStep.Decode decode -> requireCodec(decode.codec(), template);
                 case MatchStep.Encode encode -> requireCodec(encode.codec(), template);
                 case MatchStep.Choice choice ->
-                        choice.alternatives().forEach(alternative -> steps(alternative, template, patterns));
-                case MatchStep.Optional optional -> steps(optional.steps(), template, patterns);
-                case MatchStep.Repeat repeat -> steps(repeat.steps(), template, patterns);
-                case MatchStep.Sequence sequence -> steps(sequence.steps(), template, patterns);
-                case MatchStep.Peek peek -> steps(peek.steps(), template, patterns);
-                case MatchStep.Not not -> steps(not.steps(), template, patterns);
+                        choice.alternatives().forEach(alternative -> steps(alternative, template, patterns, encoding));
+                case MatchStep.Optional optional -> steps(optional.steps(), template, patterns, encoding);
+                case MatchStep.Repeat repeat -> steps(repeat.steps(), template, patterns, encoding);
+                case MatchStep.Sequence sequence -> steps(sequence.steps(), template, patterns, encoding);
+                case MatchStep.Peek peek -> steps(peek.steps(), template, patterns, encoding);
+                case MatchStep.Not not -> steps(not.steps(), template, patterns, encoding);
                 default -> {
                     // The remaining atoms need nothing compiled.
                 }
@@ -940,7 +948,8 @@ public final class Compiler {
                 }
                 final BytePattern pattern;
                 try {
-                    pattern = BytePattern.compile(regex.pattern(), flags);
+                    pattern = BytePattern.compile(regex.pattern(), flags,
+                            RegexEncodings.forMatch(matchEncoding));
                 } catch (final PatternCompileException e) {
                     throw new ConfigException(
                             "Template '" + template.name() + "' has an invalid pattern '"

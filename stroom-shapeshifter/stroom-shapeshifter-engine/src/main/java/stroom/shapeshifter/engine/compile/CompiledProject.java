@@ -42,7 +42,7 @@ public final class CompiledProject {
 
     private final Project project;
     private final List<CompiledTemplate> templates;
-    private final Map<String, BytePattern> patterns;
+    private final Map<PatternKey, BytePattern> patterns;
     private final Encoding encoding;
     private final List<Message> warnings;
 
@@ -65,7 +65,7 @@ public final class CompiledProject {
      */
     public CompiledProject(final Project project,
                            final List<CompiledTemplate> templates,
-                           final Map<String, BytePattern> patterns,
+                           final Map<PatternKey, BytePattern> patterns,
                            final Encoding encoding,
                            final List<Message> warnings) {
         this.project = project;
@@ -104,7 +104,7 @@ public final class CompiledProject {
     }
 
     /** The interned patterns, keyed by their text. */
-    public Map<String, BytePattern> patterns() {
+    public Map<PatternKey, BytePattern> patterns() {
         return patterns;
     }
 

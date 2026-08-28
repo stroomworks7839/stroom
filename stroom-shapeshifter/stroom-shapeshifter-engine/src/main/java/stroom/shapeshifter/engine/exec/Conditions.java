@@ -16,8 +16,10 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
@@ -49,7 +51,7 @@ public final class Conditions {
                                    final int matchCount,
                                    final VarRegistry vars,
                                    final Encoding encoding,
-                                   final Map<String, BytePattern> patterns) {
+                                   final Map<PatternKey, BytePattern> patterns) {
         return switch (condition) {
             case Condition.Compare value -> {
                 final TypedValue left = operand(value.left(), match, matchCount, vars, encoding);
@@ -70,7 +72,8 @@ public final class Conditions {
                     };
             }
             case Condition.Matches value -> {
-                final BytePattern pattern = patterns.get(value.pattern());
+                final BytePattern pattern = patterns.get(new PatternKey(value.pattern(),
+                        RegexEncodings.forMatch(encoding)));
                 if (pattern == null) {
                     throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
                 }

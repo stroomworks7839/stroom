@@ -870,10 +870,15 @@ overflow, code-point counting and cutting, XPath's substring bounds, `round` hal
 positive infinity). Mutation-checked: reverting the fix in `Executor.emit` fails 24 of the 28.
 
 ### E29 — Regex steps ignore the template's declared encoding
-**`deferred` 2026-08-28 — the stopgap is in (design 19 phase 0): a non-UTF-8-compatible
-template carrying a regex is refused by name, so the silent approximation is gone; the issue
-closes when the regex library takes an encoding (design 19 phase 3).** Originally:
-found 2026-08-28, during the D38 encoding discussion. E3 gave templates a declared
+**`resolved` 2026-08-28, same day it was found — phase 3 of design 19.** The regex library
+took its encoding parameter and its single-byte table lowering, `RegexEncodings` maps this
+vocabulary onto the library's at one seam, the interned patterns key by (text, encoding)
+because one source text under two encodings is two byte machines, and a windows-1252
+template's regex now matches the `E9` its feed actually carries — pinned by
+`EncodedInputTest`, whose old refusal cases became the capability tests the refusal was
+holding the door for. The refusal itself narrows rather than retires: RAW until phase 4,
+the transcode family by design, message updated to say what has no lowering rather than
+what is not UTF-8. Originally: found 2026-08-28, during the D38 encoding discussion. E3 gave templates a declared
 encoding, and two of the three matching vocabularies honour it: delimiters compile their byte
 forms through it, progressive steps classify characters under it at run time (E5). The third
 does not: `Compiler.compileMatch` receives the resolved template charset and compiles regex
@@ -894,3 +899,99 @@ of what existing fixtures that breaks, which is itself evidence of how much the 
 The phased plan for the whole of it, stopgap through `\BHH`, is
 [design 19](../design/19-encoding-plan.md); this issue is its driver, closes at its phase 3,
 and carries the stopgap from its phase 0.
+
+---
+
+## What Stroom integration needs (opened 2026-08-28, Jon)
+
+Three capabilities the engine does not have and a Stroom deployment will want. Each needs a
+design before code; each is recorded here so the shape of the gap is written down rather than
+remembered. They are independent of one another and of the port's own backlog.
+
+### E30 — SAX events as input
+**`open` — needs a design.**
+
+The engine reads bytes: `Shapeshifter.run` takes an `InputStream`, and `Executor` *pulls* —
+filling a `bufferSize` window, probing exhaustion through a `PushbackInputStream`. SAX pushes.
+Something has to invert that, and the choice is the design's first question:
+
+- **Serialise first.** Write the events into a byte array, then run as today. Simplest, and the
+  engine's contract is unchanged; the cost is holding the whole document.
+- **Adapt with back-pressure.** A bounded queue or pipe between the SAX producer and the
+  executor's pull, on its own thread. The pull design survives; the costs are a thread per run,
+  error propagation across it, and instrument-ordering care.
+- **Make the executor feedable.** Invert the engine itself. This is the shape D37 retired for
+  the regex library, and for the same reason — every consumer paid for a mode with no user.
+
+The harder question is not the plumbing, though, and the design should lead with it: **what byte
+image does an event stream have?** The configuration matches text. Once the original bytes are
+gone, the serialisation has to choose prefix bindings, attribute order, whitespace, entity forms
+and self-closing versus paired tags — and configurations will be written against whatever it
+chooses, so it is a compatibility contract, not a formatting preference. Canonical XML (C14N) is
+the obvious candidate precisely because it has already answered these questions.
+
+The alternative worth naming and rejecting explicitly rather than silently: matching the *event
+stream* — element names, paths, attributes — as a second matching vocabulary beside bytes. That
+is a much larger design, it splits the engine's model in two, and the fixtures show the text
+route already works (`xml_to_json` matches serialised XML today).
+
+### E31 — SAX events as output
+**`open` — designed 2026-08-28 in [design 20](../design/20-sax-output.md), awaiting the
+rulings in its §10. Overlaps E15, which is `blocked` on D10; this is the concrete form that
+unblocks it.**
+
+`OutputSink` exists for exactly this and says so in its javadoc: every write funnels through one
+interface so the second implementation is one place to answer. What it does not solve is that
+**the instructions emit text** — and design 20 found the cost of that twice over while it was
+being written: `apache_httpd`'s configuration carries **244 `translate` steps** whose only job
+is to escape `& " < >` by hand, and `Ds3Migration.dataReference` splices *reference* values
+into attributes with no escaping at all, so a captured field carrying `&` or `<` emits
+ill-formed XML (latent: no fixture captures such a field today). Stroom's own DS3 cannot have
+that bug, because it emits events and the serialiser escapes by construction. `Text` and `ValueOf` write bytes that happen to be XML; nothing
+in the model names an element, an attribute or a namespace. So the design chooses:
+
+- **Parse and forward.** Serialise as today, parse the bytes, emit events. Configurations are
+  unchanged and the whole corpus keeps working; the cost is a parse of everything the engine
+  just wrote, and ill-formed output becomes an error at a confusing distance from its cause.
+- **Structured emitters.** New instructions (`element`, `attribute`, `namespace`, `text`) that
+  emit events directly, with the byte sink serialising them when the target is bytes. Real
+  fidelity, prefix control and well-formedness enforced where the mistake is made — at the cost
+  of a second output vocabulary, and of configurations that behave differently on the two
+  targets unless the mapping both ways is defined.
+
+Two things the design must not skip. **Namespace handling**: prefix binding and scope are the
+part of SAX that a text-emitting configuration currently gets to ignore. And **attribution**:
+`OutputSink.position()` is a byte count, `Instrument.onOutput` reports byte spans, and the
+editor's output pane (design 18 §5.4) colours those spans by the instruction that wrote them.
+Under events there are no byte offsets — the trace needs an event-indexed span, or a synthesised
+one, and that decision reaches the UI.
+
+### E32 — An extensible function library
+**`open` — needs a design.**
+
+There is no registry, and the shape of the code is the reason: transform functions are a
+**closed** set of records in `OutputNode` (`Translate`, `StringJoin`, `Replace`, `LowerCase`, …),
+compiled by an exhaustive `switch` in `CompiledOp`, and implemented as static methods in
+`exec/Transforms`, `Numbers`, `Dates`, `Codecs`. Adding one means editing the config model, the
+JSON codec, the compiler and the runtime — four edits inside the engine module. Stroom cannot
+contribute a function at all, which is what `http-call` and the rest of its XSLT integrations
+would need. Saxon's `ExtensionFunctionDefinition` is the comparison to draw.
+
+What the design has to settle:
+
+- **Resolution.** A name-dispatched `Function(name, args…)` node beside the sealed built-ins, or
+  the built-ins migrated onto the same mechanism. Unknown names must fail at compile time, by
+  name, as unknown match kinds already do.
+- **Signatures and types.** Arity and argument types over doc 17's `TypedValue` model, checked
+  at compile time, so a wrong call is a configuration error rather than a runtime surprise.
+- **A call context.** Registered functions need services — an HTTP client, feed and stream
+  metadata, a cache — passed in rather than reached for.
+- **Purity, and this is the one with teeth.** `http-call` is impure, and the editor
+  (design 18, Q6) **re-runs the whole configuration on every edit, debounced**, with the preview
+  endpoint re-running it again to draw the trace. A configuration carrying an impure function
+  would fire it on every keystroke. The registry has to let a function declare itself impure and
+  the engine has to do something honest with that: memoise per run, refuse in preview mode, or
+  gate the editor's auto-run — a ruling that belongs to this design and reaches design 18.
+- **Failure semantics and limits.** What a timeout or a 500 does to the record being built
+  (message and continue, or fatal), and whether a configuration may reach arbitrary URLs at all
+  — a pipeline that can call out is a security surface, not only a feature.

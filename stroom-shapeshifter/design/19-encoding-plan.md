@@ -170,7 +170,27 @@ and the loss is recorded here with numbers.
 **Exit:** no engine decodes input at match time to answer class membership, and 01 §4.0's
 "two mechanisms" is true again.
 
-## Phase 3 — Single-byte tables *(the one real feeds are waiting on)*
+## Phase 3 — Single-byte tables *(the one real feeds are waiting on)* — **Landed 2026-08-28, gated overnight**
+
+**As built, two commits.** The regex side (`b0154e52e2`) found UTF-8 far above the
+compilers — the parser lowered literals at parse time, the HIR baked UTF-8 lead bytes,
+`Analysis` derived UTF-8 lengths, and every engine's boundary gates assumed UTF-8 byte
+structure — so the architecture became the spec's own sentence: the HIR stays byte-level
+and is *built for* the encoding, with `ByteForm` carrying one encoding's byte facts to the
+parser, the compilers and the runtime gates, and `Encoding.Table` the public shape (256
+entries, low half identity enforced, unmapped -1, injective). Strictness on unmapped bytes
+falls out of the mapping. Three own-bugs caught by the first table run, recorded in the
+commit: the lazy skip's UTF-8-spelled lead byte, `emitScan`'s unconditional high-byte fill,
+and a hashcode in a refusal message. The engine side (this commit) adds `RegexEncodings` —
+the one seam where the two vocabularies meet, tables built from the same `Charset` the
+steps decode with so the two views cannot disagree — keys the interned patterns by (text,
+encoding) as phase 1 deferred, narrows the refusal to RAW and the transcode family, and
+flips the phase-0 refusal tests into the capability tests they were holding the door for.
+`TableEncodingTest`'s 1,200-comparison JDK differential (exact oracle: offsets map 1:1)
+and the reworked `EncodedInputTest` hold it. **E29 closes.** Perf: the overnight chain
+gates the batch; the UTF-8 path is pinned byte-identical by the existing suites.
+
+Original phase text follows.
 
 `TABLE` lowering: literals and classes through the 256-entry inverse, so every class is one
 byte wide — which the scan plan's byte ops take directly, and dispatchability should

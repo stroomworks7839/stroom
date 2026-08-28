@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.Endianness;
 import stroom.shapeshifter.engine.config.MatchStep;
@@ -44,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class StepsTest {
 
-    private static final Map<String, BytePattern> NO_PATTERNS = Map.of();
+    private static final Map<PatternKey, BytePattern> NO_PATTERNS = Map.of();
 
     private static MatchResult run(final List<MatchStep> steps, final String input) {
         final byte[] data = input.getBytes(StandardCharsets.UTF_8);
@@ -229,7 +230,9 @@ class StepsTest {
         // A pre-compiled fragment of grammar, usable beside Tag and TakeWhile — which means it
         // matches from the cursor and never skips (E4, ruled 2026-08-21). The pattern here
         // would be found four bytes in by a search; an atom must refuse instead.
-        final Map<String, BytePattern> patterns = Map.of("[0-9]+", BytePattern.compile("[0-9]+"));
+        final Map<PatternKey, BytePattern> patterns = Map.of(
+                new PatternKey("[0-9]+", stroom.shapeshifter.regex.Encoding.UTF_8),
+                BytePattern.compile("[0-9]+"));
         final byte[] data = "abcd42;".getBytes(StandardCharsets.UTF_8);
         assertThat(Steps.match(List.of(new MatchStep.Regex("[0-9]+", null)),
                 data, 0, data.length, patterns, Encoding.UTF_8)).isNull();

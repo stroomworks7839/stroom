@@ -16,11 +16,13 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.Endianness;
 import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.Predicate;
 import stroom.shapeshifter.engine.config.StepRef;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
@@ -74,7 +76,7 @@ public final class Steps {
                                     final byte[] data,
                                     final int from,
                                     final int to,
-                                    final Map<String, BytePattern> patterns,
+                                    final Map<PatternKey, BytePattern> patterns,
                                     final Encoding encoding) {
         int pos = 0;
         int highWater = 0;
@@ -138,7 +140,7 @@ public final class Steps {
                                final List<TypedValue> prior,
                                final List<TypedValue> local,
                                final int position,
-                               final Map<String, BytePattern> patterns,
+                               final Map<PatternKey, BytePattern> patterns,
                                     final Encoding encoding) {
         final int available = to - from;
         return switch (step) {
@@ -244,7 +246,8 @@ public final class Steps {
                 yield encoded == null ? null : new Result(TypedValue.of(encoded), 0);
             }
             case MatchStep.Regex regex -> {
-                final BytePattern pattern = patterns.get(regex.pattern());
+                final BytePattern pattern = patterns.get(new PatternKey(regex.pattern(),
+                        RegexEncodings.forMatch(encoding)));
                 if (pattern == null) {
                     throw new IllegalStateException("Pattern was not compiled: " + regex.pattern());
                 }
@@ -318,7 +321,7 @@ public final class Steps {
                                     final List<TypedValue> enclosing,
                                     final List<TypedValue> callerLocal,
                                     final int position,
-                                    final Map<String, BytePattern> patterns,
+                                    final Map<PatternKey, BytePattern> patterns,
                                     final Encoding encoding) {
         final List<TypedValue> prior = concat(enclosing, callerLocal);
         int pos = 0;

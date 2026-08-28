@@ -181,12 +181,44 @@ class EncodedInputTest {
     // honours the declaration.
     // ------------------------------------------------------------------------------------
 
+    /**
+     * Phase 0 refused this exact configuration; phase 3 is what the refusal was holding the
+     * door for (design 19). The regex compiles for the table, so its classes mean 1252
+     * characters: {@code [^\n]} consumes the {@code E9} byte as the character é, and the
+     * capture decodes through the same table on the way out.
+     */
     @Test
-    void refusesARegexMatchUnderADeclaredSingleByteEncoding() {
+    void matchesWithARegexUnderADeclaredSingleByteEncoding() {
+        final String config = """
+                {
+                  "name": "single-byte", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "windows-1252"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "row",
+                     "match": {"regex": {"pattern": "L:([^\\n]*)\\n"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}]
+                }
+                """;
+        final byte[] input = {'L', ':', (byte) 0xE9, (byte) 0x93, '\n'};
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                OutputSink.of(output));
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é\u201C]");
+    }
+
+    /** RAW has no lowering until phase 4, and the transcode family none by design. */
+    @Test
+    void refusesARegexMatchUnderAnEncodingWithNoLowering() {
         final String config = """
                 {
                   "name": "refused", "version": 4,
-                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "windows-1252"},
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-16le"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "line", "match":
                      {"regex": {"pattern": "L:([^\\n]*)\\n"}}}]
@@ -194,19 +226,36 @@ class EncodedInputTest {
                 """;
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("windows-1252")
-                .hasMessageContaining("compiles for UTF-8 only");
+                .hasMessageContaining("utf-16le")
+                .hasMessageContaining("no lowering");
     }
 
     @Test
-    void refusesARegexStepUnderATemplateEncodingOverride() {
+    void regexStepCompilesUnderATemplateEncodingOverride() {
+        final String config = """
+                {
+                  "name": "override", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
+                     "encoding": "iso-8859-1",
+                     "match": {"progressive": [
+                       {"Tag": "L:"},
+                       {"Regex": {"pattern": "([a-zé]+)", "flags": {}}}]}}]
+                }
+                """;
+        assertThat(Shapeshifter.compile(ProjectReader.read(config))).isNotNull();
+    }
+
+    @Test
+    void refusesARegexStepUnderAnOverrideWithNoLowering() {
         final String config = """
                 {
                   "name": "refused", "version": 4,
                   "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
-                     "encoding": "iso-8859-1",
+                     "encoding": "utf-16le",
                      "match": {"progressive": [
                        {"Tag": "L:"},
                        {"Regex": {"pattern": "([a-z]+)", "flags": {}}}]}}]
@@ -214,8 +263,8 @@ class EncodedInputTest {
                 """;
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("iso-8859-1")
-                .hasMessageContaining("compiles for UTF-8 only");
+                .hasMessageContaining("utf-16le")
+                .hasMessageContaining("no lowering");
     }
 
     @Test
@@ -236,7 +285,7 @@ class EncodedInputTest {
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("raw")
-                .hasMessageContaining("compiles for UTF-8 only");
+                .hasMessageContaining("no lowering");
     }
 
     /**
@@ -281,7 +330,7 @@ class EncodedInputTest {
         final String config = """
                 {
                   "name": "refused", "version": 4,
-                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "windows-1252"},
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-16le"},
                   "patterns": [
                     {"id": "00000000-0000-0000-0000-0000000000aa", "name": "word",
                      "steps": [{"Regex": {"pattern": "[a-z]+", "flags": {}}}]}],
@@ -292,7 +341,7 @@ class EncodedInputTest {
                 """;
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("windows-1252")
-                .hasMessageContaining("compiles for UTF-8 only");
+                .hasMessageContaining("utf-16le")
+                .hasMessageContaining("no lowering");
     }
 }
