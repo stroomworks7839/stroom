@@ -65,6 +65,17 @@ public final class Transcode {
         return new TranscodingInputStream(new InputStreamReader(in, decoder), from);
     }
 
+    /**
+     * The reader-fed entry, for tests. The {@code Reader} contract does not promise that a
+     * surrogate pair arrives within one {@code read} — {@code InputStreamReader} happens to
+     * guarantee it through {@code StreamDecoder}'s leftover-char handling, which is why the
+     * hold-back below cannot be exercised through {@link #wrap} and is pinned through here
+     * instead, against a reader that splits pairs on purpose.
+     */
+    static InputStream wrap(final Reader reader, final Charset from) {
+        return new TranscodingInputStream(reader, from);
+    }
+
     /** Chunked reader-to-UTF-8 bridge, holding back a trailing high surrogate per chunk. */
     private static final class TranscodingInputStream extends InputStream {
 

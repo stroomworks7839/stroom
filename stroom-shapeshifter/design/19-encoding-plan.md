@@ -328,6 +328,20 @@ lowering question, not this stage. The E29 refusal's reachable set on a full JRE
 empty — it remains as the guard for slim runtimes whose charsets are absent, and its pins
 moved to the template-override refusal.
 
+**Audited same day, completing the pattern.** Two findings acted on. A template
+*single-byte* override under a transcoded source compiled a table machine over what is now
+a UTF-8 stream — E3's per-template encodings describe rows of a mixed byte stream, and a
+transcoded source has none left, so *any* template override under transcode is refused with
+the explanation, pinned. And the transcoder's surrogate hold-back proved unreachable
+through `InputStreamReader` — whose `StreamDecoder` happens to never split pairs across
+reads — so its first mutation test survived; the `Reader` contract makes no such promise,
+so the hold-back stays, now pinned through a reader-fed test entry against a reader that
+splits pairs on purpose, and the end-to-end test's comment stops claiming a boundary it
+cannot reach. Verified clean: EOF-with-pending emits the replacement and terminates,
+bounds and exception routing (plain `IOException` rides the window machinery's existing
+wrap; the report's `UncheckedIOException` lands in the executor's FATAL contract), AUTO
+stays outside the transcode family, and `needsTranscode`'s cache path costs one read.
+
 ---
 
 Folded issues, for the ledger cross-refs: **E29** (driver; stopgap phase 0, closes phase

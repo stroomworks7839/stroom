@@ -461,4 +461,62 @@ class EncodedInputTest {
                 OutputSink.of(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é]");
     }
+
+    /**
+     * The phase-6 audit's rule: E3's per-template encodings describe rows of a mixed byte
+     * stream, and a transcoded source has none left — every template sees the decoder's
+     * UTF-8. An override that would compile a machine for bytes no template can see is
+     * refused, not silently mis-aimed.
+     */
+    @Test
+    void refusesAnyTemplateEncodingOverrideUnderATranscodedSource() {
+        final String config = """
+                {
+                  "name": "mixed", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-16le"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
+                     "encoding": "windows-1252",
+                     "match": {"delimiter": {"delimiter": ","}}}]
+                }
+                """;
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("transcoded whole")
+                .hasMessageContaining("windows-1252");
+    }
+
+    /**
+     * Astral characters through the whole pipeline, end to end. The audit note that keeps
+     * this honest: {@code InputStreamReader} never splits a pair across reads, so this test
+     * cannot reach the transcoder's hold-back — {@code TranscodeTest} pins that directly,
+     * with a reader that splits pairs on purpose. This one pins the pipeline.
+     */
+    @Test
+    void surrogatePairsSurviveTheTranscoderChunkBoundary() {
+        final String config = """
+                {
+                  "name": "chunks", "version": 4,
+                  "source": {"buffer_size": 200000, "ignore_errors": false, "encoding": "utf-16le"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "row",
+                     "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
+                     "body": [{"value-of": {"parts": [{"capture": {"group": 1}}]}}]}]
+                }
+                """;
+        final String line = "x".repeat(8191) + "\uD800\uDF48" + "y\n"
+                            + "tail\uD800\uDF48\n";
+        final byte[] input = line.getBytes(java.nio.charset.StandardCharsets.UTF_16LE);
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                OutputSink.of(output));
+        final String out = output.toString(StandardCharsets.UTF_8);
+        assertThat(out).contains("\uD800\uDF48y");
+        assertThat(out).contains("tail\uD800\uDF48");
+    }
 }

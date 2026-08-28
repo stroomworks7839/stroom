@@ -116,6 +116,16 @@ public final class Compiler {
                             + declared.label() + ", which is served by transcoding — declare"
                             + " it on the source, where the stream can be transcoded whole");
                 }
+                if (declared != null && transcodeFrom != null) {
+                    // The phase-6 audit's rule: E3's per-template encodings describe rows of
+                    // a mixed byte stream, and a transcoded source has no mixed stream left —
+                    // every template sees the decoder's UTF-8, so an override would compile a
+                    // machine for bytes the template can never see.
+                    throw new ConfigException("Template '" + template.name() + "' declares "
+                            + declared.label() + ", but the " + transcodeFrom.label()
+                            + " source is transcoded whole to UTF-8, so no template sees "
+                            + declared.label() + " bytes; remove the template encoding");
+                }
             }
             final Encoding matchEncoding = declared == null ? encoding : declared;
             // E29's refusal, narrowed to its floor: since phase 4 the regex library lowers
