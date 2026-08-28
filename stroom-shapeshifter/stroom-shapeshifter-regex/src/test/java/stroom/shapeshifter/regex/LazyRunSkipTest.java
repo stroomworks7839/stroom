@@ -164,7 +164,15 @@ class LazyRunSkipTest {
                 new byte[]{(byte) 0xFF, (byte) 0xC3, (byte) 0xA9, 'b'},
                 new byte[]{'a', (byte) 0x80, (byte) 0xC3, (byte) 0xA9},
                 new byte[]{(byte) 0xC3, (byte) 0xA9},
-                new byte[]{(byte) 0xF0, (byte) 0x9F, (byte) 0x92, (byte) 0xA9, 'b'});
+                new byte[]{(byte) 0xF0, (byte) 0x9F, (byte) 0x92, (byte) 0xA9, 'b'},
+                // The decoder-strictness edges GreedyRunRawBytesTest convicted decode() with:
+                // overlong two- and three-byte forms, a surrogate, two out-of-range four-byte
+                // forms. Sequence-compiled engines reject all five by construction.
+                new byte[]{(byte) 0xC0, (byte) 0x80, 'b'},
+                new byte[]{(byte) 0xE0, (byte) 0x80, (byte) 0x80, 'b'},
+                new byte[]{(byte) 0xED, (byte) 0xA0, (byte) 0x80, 'b'},
+                new byte[]{(byte) 0xF0, (byte) 0x80, (byte) 0x80, (byte) 0x80, 'b'},
+                new byte[]{(byte) 0xF4, (byte) 0x90, (byte) 0x80, (byte) 0x80, 'b'});
         for (final String pattern : List.of("(?s)(.*?)é", "(?s)(.*?)中", "(?s)(.*?)b",
                 "(?s)([^\\x00]*?)é", "(?s)(.*?)éb")) {
             for (final byte[] data : inputs) {

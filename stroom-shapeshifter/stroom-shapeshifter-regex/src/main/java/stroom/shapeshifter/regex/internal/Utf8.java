@@ -161,6 +161,16 @@ public final class Utf8 {
             }
             codePoint = (codePoint << 6) | (next & 0x3F);
         }
+        // The strictness the sequence-compiled engines have by construction, which bit
+        // arithmetic must check for: an overlong form (below the length's minimum), a UTF-16
+        // surrogate, or a value past U+10FFFF is not an encoding of anything. Found when
+        // {ED,A0,80} split the tree from the flat engines — the same three-against-one that
+        // convicted the greedy scan shortcut, one layer further down.
+        if (codePoint < LENGTH_BOUNDS[length - 1][0]
+                || codePoint > CodePointSet.MAX
+                || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+            return -1;
+        }
         return codePoint;
     }
 

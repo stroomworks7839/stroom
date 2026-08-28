@@ -35,7 +35,15 @@ class GreedyRunRawBytesTest {
             new byte[]{(byte) 0xC3, (byte) 0xA9},
             new byte[]{(byte) 0xFF, 'b'},
             new byte[]{'a', (byte) 0xFF, 'b', (byte) 0xFF, 'b'},
-            new byte[]{(byte) 0xF0, (byte) 0x9F, (byte) 0x92, (byte) 0xA9, 'b'});
+            new byte[]{(byte) 0xF0, (byte) 0x9F, (byte) 0x92, (byte) 0xA9, 'b'},
+            // The strictness edges a decoder can miss: overlong (2- and 3-byte), a UTF-16
+            // surrogate, and two out-of-range 4-byte forms. Sequence-compiled engines reject
+            // all five by construction; a bit-arithmetic decoder must check to agree.
+            new byte[]{(byte) 0xC0, (byte) 0x80, 'b'},
+            new byte[]{(byte) 0xE0, (byte) 0x80, (byte) 0x80, 'b'},
+            new byte[]{(byte) 0xED, (byte) 0xA0, (byte) 0x80, 'b'},
+            new byte[]{(byte) 0xF0, (byte) 0x80, (byte) 0x80, (byte) 0x80, 'b'},
+            new byte[]{(byte) 0xF4, (byte) 0x90, (byte) 0x80, (byte) 0x80, 'b'});
 
     @Test
     void greedyRunsAgreeAcrossCharacterWiseEnginesOnBytesThatAreNotValidText() {
