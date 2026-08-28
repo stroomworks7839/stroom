@@ -292,10 +292,24 @@ the mode for binary formats. Under `RAW`:
 - `\BHH` and `\xHH` coincide.
 - `u` is forced off; `\p{...}` is a compile error.
 
-`\BHH` byte escapes are permitted under *any* encoding, in classes and literals, and are
-never re-encoded. Under D38's strictness they are also the dialect's one deliberate way to
-match bytes that no character owns — the in-pattern leg of the composition story, beside
-the codec and DS-step legs. Mixing them with character constructs is legal but the compiler emits a
+Byte escapes are spelt **`\B{HH}`** — exactly two hexadecimal digits in braces — and are
+permitted under *any* encoding, never re-encoded. Under D38's strictness they are the
+dialect's one deliberate way to match bytes that no character owns — the in-pattern leg of
+the composition story, beside the codec and DS-step legs.
+
+*The spelling, ruled at implementation (design 19 phase 5):* draft 1 wrote `\BHH` bare,
+which would make `\Bad` silently ambiguous between the non-word-boundary and byte `0xAD` —
+exactly the class of trap this dialect refuses elsewhere — so the brace is the whole of the
+disambiguation: bare `\B` stays the boundary, and a brace after `\B` is always the byte
+escape. The one traded corner is a *quantified* boundary (`\B{2}` and friends), which now
+reads as bytes; anyone meaning that pathology spells it `(?:\B){2}`.
+
+In a **class**, a byte escape means the byte's character, and so is permitted exactly where
+one byte is one character (single-byte encodings and RAW); under a multi-byte encoding a
+class member must be a whole character, so `[\B{FF}]` is refused with directions to spell
+it as an alternation. In a **literal** under a multi-byte encoding the escape carries a
+compile *warning*: a raw byte can split characters, and a match can never start on a byte
+the encoding reads as a continuation — mid-pattern it matches dirt exactly as intended. Mixing them with character constructs is legal but the compiler emits a
 warning when a byte escape could straddle a character boundary in a multi-byte encoding.
 
 ### 4.5 Supported encodings

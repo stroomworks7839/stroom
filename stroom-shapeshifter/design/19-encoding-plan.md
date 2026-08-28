@@ -269,7 +269,25 @@ Identity lowering per 01 §4.4: `.` is any byte except `\n` unless `s`; `u` forc
 implemented rather than shortcut. This gives D38's composition story its in-dialect mode
 for binary formats.
 
-## Phase 5 — `\BHH` byte escapes *(completes D38's in-pattern leg)*
+## Phase 5 — `\B{HH}` byte escapes *(completes D38's in-pattern leg)* — **Done 2026-08-28**
+
+**The spelling ruled first, as required, and recorded in 01 §4.4:** braces always —
+`\Bad` stays a boundary and its literal, `\B{AD}` is the byte, and the quantified-boundary
+corner is spelt `(?:\B){n}` by whoever means it. As built: a byte escape is an
+`Hir.Bytes` node, matched raw and never re-encoded, under every encoding; in classes it
+means the byte's character and so exists exactly where one byte is one (tables, RAW), with
+a directions-bearing refusal under UTF-8; multi-byte literals carry the straddle warning
+through the parser's new warnings channel, which `Parser.Result` and the comb path's
+`Lowering.Result` now thread into `BytePattern.warnings()` beside the analysis's own.
+`ByteEscapeTest` pins the dialect corner to corner, including the traded corner and the
+documented can-never-start-on-a-continuation-byte limit.
+
+**And the phase found a phase-3 escapee:** `Normalise.literalBytes` re-encoded
+single-code-point classes as UTF-8 — spelt via `String.getBytes`, invisible to the
+`Utf8.`-sweep — so a table pattern's `“` became `E2 80 9C` during literal factoring. Found
+by this phase's coincidence test (`\B{93}` worked where the literal `“` did not), fixed by
+threading the form, and the lesson recorded where the next sweep will look: grep for the
+charset, not the class.
 
 Permitted under any encoding, never re-encoded, straddle warning per 01 §4.4. One spec
 decision to confirm before parsing starts: `\B` is also the conventional non-word-boundary

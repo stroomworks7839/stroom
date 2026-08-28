@@ -1091,8 +1091,9 @@ its `MalformedBytesReport`), the DS step vocabulary (`MatchByte`, the `Take*` co
 which classify bytes under the effective encoding and already carry this exact doctrine in
 E5's words: *bytes with no declared meaning earn none*), an upstream shapeshifter in a
 composed pipeline, or — in the dialect itself, per the spec that predates this ruling —
-`\BHH` byte escapes and `Encoding.RAW` (01 §4.4, specified, not yet implemented; the
-implementation is UTF-8-only today).
+`\B{HH}` byte escapes and `Encoding.RAW` (01 §4.4 — specified then; implemented 2026-08-28
+by design 19: tables in phase 3, RAW in phase 4, the byte escapes in phase 5, with the
+spelling braced to spare `\Bad` its ambiguity).
 
 The ruling was provoked by a wash-up review finding the codebase held three positions at
 once. 01 §4.1 already said the strict words ("the compiled matcher only ever recognises

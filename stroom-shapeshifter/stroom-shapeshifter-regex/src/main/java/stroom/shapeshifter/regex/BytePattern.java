@@ -185,8 +185,8 @@ public final class BytePattern {
                                       final Encoding encoding) {
         Objects.requireNonNull(encoding, "encoding");
         final Parser.Result parsed = Parser.parse(pattern, flags, ByteForm.of(encoding));
-        return compile(parsed.root(), parsed.groupCount(), parsed.groupNames(), pattern, flags,
-                encoding);
+        return compile(parsed.root(), parsed.groupCount(), parsed.groupNames(),
+                parsed.warnings(), pattern, flags, encoding);
     }
 
     /**
@@ -201,18 +201,19 @@ public final class BytePattern {
                                       final Set<Flag> flags) {
         final Lowering.Result lowered = Lowering.lower(matcher, library, flags);
         return compile(lowered.root(), lowered.groupCount(), lowered.groupNames(),
-                describe(matcher), flags, Encoding.UTF_8);
+                lowered.warnings(), describe(matcher), flags, Encoding.UTF_8);
     }
 
     private static BytePattern compile(final Hir parsed,
                                        final int groupCount,
                                        final List<String> groupNames,
+                                       final List<String> parseWarnings,
                                        final String description,
                                        final Set<Flag> flags,
                                        final Encoding encoding) {
         // Factoring shared prefixes out of alternations makes patterns like (GET|POST|PUT)
         // decidable one byte at a time, so they reach tier 0 instead of the NFA.
-        final Hir root = Normalise.normalise(parsed);
+        final Hir root = Normalise.normalise(parsed, ByteForm.of(encoding));
         final boolean multiline = flags.contains(Flag.MULTILINE);
         final Set<Flag> copy = copyFlags(flags);
         final TrailingAnchor trailingAnchor = trailing(root);
@@ -229,14 +230,14 @@ public final class BytePattern {
             // as the structural fallback when recursion depth gives out.
             return new BytePattern(description, copy, encoding, trailingAnchor, maxLength,
                     Analysis.anchorsToSearchStart(root), null, nfa,
-                    List.of(), Analysis.warnings(root), groupNames, null, null,
+                    List.of(), merged(parseWarnings, root), groupNames, null, null,
                     NodeTree.compile(
                             root, groupCount, description, encoding));
         }
 
         // A one-pass pattern can be decided by looking at one upcoming byte, so it compiles to a
         // scan plan with no automaton. Anything else needs the NFA simulation.
-        final List<String> warnings = Analysis.warnings(root);
+        final List<String> warnings = merged(parseWarnings, root);
         final List<Analysis.Violation> violations = Analysis.onePassViolations(root);
         if (violations.isEmpty()) {
             final Plan plan = PlanCompiler.compile(root, groupCount, multiline, description,
@@ -310,7 +311,7 @@ public final class BytePattern {
         }
         if (engine == Engine.TREE) {
             final Parser.Result parsed = Parser.parse(pattern, flags);
-            final Hir root = Normalise.normalise(parsed.root());
+            final Hir root = Normalise.normalise(parsed.root(), ByteForm.UTF8);
             final NodeTree.Compiled tree =
                     NodeTree.compile(
                             root, parsed.groupCount(), pattern, Encoding.UTF_8);
@@ -319,7 +320,7 @@ public final class BytePattern {
             final boolean movesWithSearchStart = Analysis.anchorsToSearchStart(root);
             return new BytePattern(pattern, copyFlags(flags), Encoding.UTF_8, trailingAnchor,
                     maxLength, movesWithSearchStart, null, null,
-                    List.of(), Analysis.warnings(root), parsed.groupNames(),
+                    List.of(), merged(parsed.warnings(), root), parsed.groupNames(),
                     reverseProgram(root, trailingAnchor, maxLength,
                             tree.startAnchor() == Nfa.ANCHOR_INPUT, movesWithSearchStart,
                             flags.contains(Flag.MULTILINE), pattern, Encoding.UTF_8),
@@ -353,7 +354,7 @@ public final class BytePattern {
 
     private static BytePattern compileNfa(final String pattern, final Set<Flag> flags) {
         final Parser.Result parsed = Parser.parse(pattern, flags);
-        final Hir root = Normalise.normalise(parsed.root());
+        final Hir root = Normalise.normalise(parsed.root(), ByteForm.UTF8);
         final boolean multiline = flags.contains(Flag.MULTILINE);
         final Nfa nfa = NfaCompiler.compile(root, parsed.groupCount(), multiline, pattern,
                 Encoding.UTF_8);
@@ -370,7 +371,7 @@ public final class BytePattern {
                 null,
                 nfa,
                 Analysis.onePassViolations(root),
-                Analysis.warnings(root),
+                merged(parsed.warnings(), root),
                 parsed.groupNames(),
                 nfa.fancy()
                         ? null
@@ -379,6 +380,16 @@ public final class BytePattern {
                                 multiline, pattern, Encoding.UTF_8),
                 null,
                 null);
+    }
+
+    /** The parse's own warnings ahead of the analysis's — one list on the compiled pattern. */
+    private static List<String> merged(final List<String> parseWarnings, final Hir root) {
+        if (parseWarnings.isEmpty()) {
+            return Analysis.warnings(root);
+        }
+        final List<String> merged = new java.util.ArrayList<>(parseWarnings);
+        merged.addAll(Analysis.warnings(root));
+        return merged;
     }
 
     /** A defensive {@link EnumSet} copy, tolerating the empty immutable sets callers pass. */
@@ -399,7 +410,7 @@ public final class BytePattern {
      * @return the violations, empty if the pattern is one-pass.
      */
     public static List<Analysis.Violation> analyse(final String pattern, final Set<Flag> flags) {
-        return Analysis.onePassViolations(Normalise.normalise(Parser.parse(pattern, flags).root()));
+        return Analysis.onePassViolations(Normalise.normalise(Parser.parse(pattern, flags).root(), ByteForm.UTF8));
     }
 
     public ByteMatcher matcher() {

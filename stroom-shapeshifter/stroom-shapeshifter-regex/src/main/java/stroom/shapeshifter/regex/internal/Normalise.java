@@ -47,11 +47,11 @@ public final class Normalise {
     private Normalise() {
     }
 
-    public static Hir normalise(final Hir node) {
+    public static Hir normalise(final Hir node, final ByteForm form) {
         return switch (node) {
             case Hir.Alt alt -> {
                 final List<Hir> branches = alt.branches().stream()
-                        .map(Normalise::normalise)
+                        .map(item -> normalise(item, form))
                         .toList();
                 final List<Hir> factored = factor(branches);
                 yield factored.size() == 1
@@ -60,20 +60,20 @@ public final class Normalise {
             }
             case Hir.Concat concat -> {
                 final List<Hir> items = concat.items().stream()
-                        .map(Normalise::normalise)
+                        .map(item -> normalise(item, form))
                         .toList();
-                final List<Hir> folded = foldLiterals(items);
+                final List<Hir> folded = foldLiterals(items, form);
                 yield folded.size() == 1
                         ? folded.getFirst()
                         : new Hir.Concat(folded);
             }
             case Hir.Group group -> new Hir.Group(
-                    normalise(group.body()), group.index(), group.name());
+                    normalise(group.body(), form), group.index(), group.name());
             case Hir.Repeat repeat -> new Hir.Repeat(
-                    normalise(repeat.body()), repeat.min(), repeat.max(), repeat.greedy());
+                    normalise(repeat.body(), form), repeat.min(), repeat.max(), repeat.greedy());
             case Hir.Look look -> new Hir.Look(
-                    normalise(look.body()), look.behind(), look.negated());
-            case Hir.Atomic atomic -> new Hir.Atomic(normalise(atomic.body()));
+                    normalise(look.body(), form), look.behind(), look.negated());
+            case Hir.Atomic atomic -> new Hir.Atomic(normalise(atomic.body(), form));
             default -> node;
         };
     }
@@ -89,18 +89,18 @@ public final class Normalise {
      * Only literals fold. A case-insensitive character is a two-member class, not a literal, and
      * stays as it is.
      */
-    private static List<Hir> foldLiterals(final List<Hir> items) {
+    private static List<Hir> foldLiterals(final List<Hir> items, final ByteForm form) {
         final List<Hir> result = new ArrayList<>(items.size());
         int i = 0;
         while (i < items.size()) {
-            final byte[] first = literalBytes(items.get(i));
+            final byte[] first = literalBytes(items.get(i), form);
             if (first == null) {
                 result.add(items.get(i));
                 i++;
                 continue;
             }
             int j = i + 1;
-            while (j < items.size() && literalBytes(items.get(j)) != null) {
+            while (j < items.size() && literalBytes(items.get(j), form) != null) {
                 j++;
             }
             if (j - i == 1) {
@@ -109,13 +109,13 @@ public final class Normalise {
                 final StringBuilder label = new StringBuilder();
                 int length = 0;
                 for (int k = i; k < j; k++) {
-                    length += literalBytes(items.get(k)).length;
+                    length += literalBytes(items.get(k), form).length;
                     label.append(labelOf(items.get(k)));
                 }
                 final byte[] merged = new byte[length];
                 int at = 0;
                 for (int k = i; k < j; k++) {
-                    final byte[] part = literalBytes(items.get(k));
+                    final byte[] part = literalBytes(items.get(k), form);
                     System.arraycopy(part, 0, merged, at, part.length);
                     at += part.length;
                 }
@@ -126,16 +126,21 @@ public final class Normalise {
         return result;
     }
 
-    /** The bytes of a node that matches exactly one fixed character, else null. */
-    private static byte[] literalBytes(final Hir node) {
+    /**
+     * The bytes of a node that matches exactly one fixed character, else null — through the
+     * pattern's own form, because this used to spell UTF-8 directly and turned a table
+     * pattern's {@code “} into {@code E2 80 9C} during factoring: a second lowering boundary
+     * phase 3 existed to remove, hiding behind {@code String.getBytes} where the
+     * {@code Utf8.} sweep could not see it. Found by phase 5's coincidence test.
+     */
+    private static byte[] literalBytes(final Hir node, final ByteForm form) {
         return switch (node) {
             case Hir.Bytes bytes -> bytes.value();
             case Hir.CharClass charClass -> {
                 final int codePoint = charClass.set().singleCodePoint();
                 yield codePoint < 0
                         ? null
-                        : new String(Character.toChars(codePoint))
-                                .getBytes(StandardCharsets.UTF_8);
+                        : form.encode(codePoint);
             }
             default -> null;
         };

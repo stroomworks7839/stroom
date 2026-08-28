@@ -44,7 +44,8 @@ import java.util.Set;
  */
 public final class Lowering {
 
-    public record Result(Hir root, int groupCount, List<String> groupNames) {
+    public record Result(Hir root, int groupCount, List<String> groupNames,
+                         List<String> warnings) {
 
     }
 
@@ -65,7 +66,7 @@ public final class Lowering {
         final Lowering lowering = new Lowering(library, flags);
         lowering.groupNames.add(null); // group 0 is the whole match
         final Hir root = lowering.lowerNode(matcher);
-        return new Result(root, lowering.groupCount, lowering.groupNames);
+        return new Result(root, lowering.groupCount, lowering.groupNames, lowering.warnings);
     }
 
     private Hir lowerNode(final Matcher matcher) {
@@ -126,11 +127,14 @@ public final class Lowering {
      * {@code \k<name>} references resolve to absolute group numbers, and duplicate names across
      * the two layers be refused rather than silently shadowed.
      */
+    private final List<String> warnings = new ArrayList<>();
+
     private Hir lowerRegex(final Matcher.Regex regex) {
         final Set<Flag> effective = regex.flags().isEmpty()
                 ? flags
                 : regex.flags();
         final Parser.Result parsed = Parser.parse(regex.pattern(), effective, groupNames);
+        warnings.addAll(parsed.warnings());
         groupCount = parsed.groupCount();
         // The parser's list is this one plus the groups the regex created, indexed by number.
         groupNames.clear();

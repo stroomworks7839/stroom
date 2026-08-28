@@ -38,7 +38,8 @@ import java.util.Set;
  */
 public final class Parser {
 
-    public record Result(Hir root, int groupCount, List<String> groupNames) {
+    public record Result(Hir root, int groupCount, List<String> groupNames,
+                         List<String> warnings) {
 
     }
 
@@ -56,6 +57,9 @@ public final class Parser {
      * absolute group numbers.
      */
     private final List<String> groupNames = new ArrayList<>();
+
+    /** Warnings the parse itself produces — today only the byte escape's straddle note. */
+    private final List<String> warnings = new ArrayList<>();
 
     /** Numeric backreferences seen, as (group, position) pairs — validated after the whole
      * pattern is parsed, because a reference ahead of its group is legal: {@code (\2two|(one))+}. */
@@ -121,7 +125,7 @@ public final class Parser {
             throw parser.fail(Reason.SYNTAX, "unbalanced ')'");
         }
         parser.validateBackrefs();
-        return new Result(root, parser.groupCount, parser.groupNames);
+        return new Result(root, parser.groupCount, parser.groupNames, parser.warnings);
     }
 
     /**
@@ -482,6 +486,13 @@ public final class Parser {
                         : Hir.Kind.WORD_BOUNDARY_ASCII);
             }
             case 'B' -> {
+                // A brace after \B is always the byte escape (01 §4.4, phase 5): \BHH bare
+                // would make \Bad ambiguous between a boundary and byte 0xAD, so the byte
+                // spelling is \B{HH} and a quantified assertion — if anyone means that —
+                // is spelt (?:\B){n}.
+                if (peek() == '{') {
+                    return byteEscape(start);
+                }
                 return new Hir.Assertion(flags.contains(Flag.UNICODE)
                         ? Hir.Kind.NOT_WORD_BOUNDARY
                         : Hir.Kind.NOT_WORD_BOUNDARY_ASCII);
@@ -546,6 +557,39 @@ public final class Parser {
                 return literal(c); // escaped metacharacter
             }
         }
+    }
+
+    /**
+     * {@code \B{HH}} — a raw byte, matched as itself and never re-encoded (01 §4.4). Under a
+     * single-byte form it coincides with {@code \xHH}; under a multi-byte one it is the
+     * dialect's D38 leg for deliberately matching bytes no character owns, and it carries a
+     * compile warning because such a byte can split characters and a match can never begin
+     * on what UTF-8 reads as a continuation byte.
+     */
+    private Hir byteEscape(final int start) {
+        final int value = byteEscapeValue(start);
+        if (!form.singleByte() && value >= 0x80) {
+            warnings.add("\\B{" + String.format("%02X", value) + "} is a raw byte in a "
+                    + "multi-byte encoding: it can split characters, and a match can never "
+                    + "start on a byte the encoding reads as a continuation");
+        }
+        return new Hir.Bytes(new byte[]{(byte) value},
+                "\\B{" + String.format("%02X", value) + "}");
+    }
+
+    private int byteEscapeValue(final int start) {
+        pos++; // '{'
+        if (pos + 2 >= pattern.length() || pattern.charAt(pos + 2) != '}') {
+            throw fail(Reason.SYNTAX,
+                    "\\B{...} is a byte escape: exactly two hexadecimal digits", start);
+        }
+        final String digits = pattern.substring(pos, pos + 2);
+        if (!digits.matches("[0-9a-fA-F]{2}")) {
+            throw fail(Reason.SYNTAX,
+                    "\\B{...} is a byte escape: exactly two hexadecimal digits", start);
+        }
+        pos += 3; // HH}
+        return Integer.parseInt(digits, 16);
     }
 
     private int parseHex(final int start) {
@@ -745,6 +789,27 @@ public final class Parser {
                 }
                 case 'x' -> {
                     return parseHex(classStart);
+                }
+                case 'B' -> {
+                    if (peek() != '{') {
+                        return c; // [\B] stays the literal B it has always been here
+                    }
+                    final int value = byteEscapeValue(classStart);
+                    if (!form.singleByte()) {
+                        throw fail(Reason.UNSUPPORTED,
+                                "a class member must be a whole character, and under a "
+                                + "multi-byte encoding a raw byte is not one; match \\B{"
+                                + String.format("%02X", value)
+                                + "} outside the class, as an alternation", classStart);
+                    }
+                    final int codePoint = form.decode(new byte[]{(byte) value}, 0, 1);
+                    if (codePoint < 0) {
+                        throw fail(Reason.UNSUPPORTED, "byte 0x"
+                                + String.format("%02X", value)
+                                + " encodes nothing under " + form
+                                + ", so it can never match", classStart);
+                    }
+                    return codePoint;
                 }
                 case 'u' -> {
                     return parseUnicode(classStart);
