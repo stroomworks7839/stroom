@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.regex.internal;
 
+import stroom.shapeshifter.regex.Encoding;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -55,8 +57,13 @@ public final class Reverse {
      * The caller establishes the other qualifications (END_INPUT trailing anchor, unbounded
      * maximum, not fancy, not input-anchored at the front, no {@code \G} — the published
      * anchorsToSearchStart fact, checked at the one qualification site).
+     *
+     * <p>The {@code encoding} parameter is the phase-1 seam of the encoding plan (design/19),
+     * added by its audit: the byte-level class tables this compiles are a lowering the plan's
+     * first enumeration missed. Deliberately unread until the table and RAW shapes land.
      */
-    public static Nfa program(final Hir root, final boolean multiline, final String pattern) {
+    public static Nfa program(final Hir root, final boolean multiline, final String pattern,
+                              final Encoding encoding) {
         if (!reversible(root)) {
             return null;
         }

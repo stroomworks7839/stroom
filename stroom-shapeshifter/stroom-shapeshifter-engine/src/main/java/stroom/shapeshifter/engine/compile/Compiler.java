@@ -112,7 +112,10 @@ public final class Compiler {
                 }
                 collect(template.body(), template, regexes);
                 if (template.match() instanceof MatchExpression.Progressive progressive) {
-                    steps(progressive.steps(), template, regexes);
+                    // Resolved, not raw: a PatternRef inlines a library pattern's steps, and a
+                    // regex reached through one is as refused as a regex written in place.
+                    steps(resolve(progressive.steps(), project, new HashSet<>()),
+                            template, regexes);
                 }
                 final String offending = template.match() instanceof MatchExpression.Regex regex
                         ? regex.pattern()
@@ -133,7 +136,12 @@ public final class Compiler {
             }
             collect(template.body(), template, patterns);
             if (template.match() instanceof MatchExpression.Progressive progressive) {
-                steps(progressive.steps(), template, patterns);
+                // Resolved, not raw. Found by the phase-0 audit: a regex inside a referenced
+                // library pattern was never interned, so Steps.java's lookup threw
+                // IllegalStateException at match time — the walkers saw PatternRef where the
+                // executor would see the inlined Sequence. Same fix as the refusal probe above.
+                steps(resolve(progressive.steps(), project, new HashSet<>()),
+                        template, patterns);
             }
             templates.add(new CompiledTemplate(template,
                     compileMatch(template, matchEncoding, project),

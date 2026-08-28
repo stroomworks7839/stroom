@@ -75,6 +75,23 @@ pattern's identity (`BytePattern.encoding()`). `EncodingSeamTest` pins the seam 
 explicit UTF-8 equals the default to the byte across all three tiers, every compile path
 reports its encoding, null is refused not defaulted.
 
+**Audited 2026-08-28, after both phases landed, and the audit earned its keep — four
+findings.** (1) *A pre-existing crash, any encoding:* both step walkers saw `PatternRef`
+where the executor sees the inlined steps, so a regex inside a referenced library pattern
+was never interned and every use died at match time with "Pattern was not compiled". Both
+walkers now resolve first; pinned by a test the audit mutation-verified (reverting the fix
+reproduces the exact crash). (2) *The phase-0 refusal shared the blindness:* a non-UTF-8
+template reaching a regex through a `PatternRef` escaped it — same fix, own pin. (3) *The
+phase-1 enumeration missed a lowering:* the reverse start-finder (`Reverse.program` →
+`compileByteLevel`, byte-level class tables — precisely a table/RAW branch point) now
+carries the seam parameter like the other four entries. (4) *Scope note for phases 2–3:*
+`Words` decodes input at match time for word boundaries — a third runtime encoding consumer
+beside backreference comparison and case folding; phase 2's "no engine decodes for class
+membership" exit is unaffected, but phase 3's table decode must visit it. Verified clean:
+the step walkers recurse every composite (`Choice`/`Optional`/`Repeat`/`Sequence`/`Peek`/
+`Not`), the body walkers reach conditions and regex replaces at any nesting, and the only
+other config "pattern"s are `DateTimeFormatter`'s, not this library's.
+
 **One deviation from the phase as written, recorded rather than silent:** the engine's
 `intern()` keys stay pattern text. Under phase 0's refusal every interned pattern is UTF-8,
 so a composite key would be dead code guarding a state that cannot arise; it lands with

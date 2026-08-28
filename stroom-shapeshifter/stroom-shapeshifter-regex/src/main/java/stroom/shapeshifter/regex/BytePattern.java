@@ -243,7 +243,7 @@ public final class BytePattern {
                     violations, warnings, groupNames,
                     reverseProgram(root, trailingAnchor, maxLength,
                             plan.leadingAnchor() == Hir.Kind.START_INPUT, false,
-                            multiline, description),
+                            multiline, description, encoding),
                     null, null);
         }
         final Nfa nfa = NfaCompiler.compile(root, groupCount, multiline, description, encoding);
@@ -254,7 +254,7 @@ public final class BytePattern {
                 violations, warnings, groupNames,
                 reverseProgram(root, trailingAnchor, maxLength,
                         nfa.startAnchor() == Nfa.ANCHOR_INPUT, false,
-                        multiline, description),
+                        multiline, description, encoding),
                 null, NodeTree.compile(
                         root, groupCount, description, encoding));
     }
@@ -317,7 +317,7 @@ public final class BytePattern {
                     List.of(), Analysis.warnings(root), parsed.groupNames(),
                     reverseProgram(root, trailingAnchor, maxLength,
                             tree.startAnchor() == Nfa.ANCHOR_INPUT, movesWithSearchStart,
-                            flags.contains(Flag.MULTILINE), pattern),
+                            flags.contains(Flag.MULTILINE), pattern, Encoding.UTF_8),
                     engine, tree);
         }
         final BytePattern compiled = compileNfa(pattern, flags);
@@ -371,7 +371,7 @@ public final class BytePattern {
                         ? null
                         : reverseProgram(root, trailingAnchor, maxLength,
                                 nfa.startAnchor() == Nfa.ANCHOR_INPUT, false,
-                                multiline, pattern),
+                                multiline, pattern, Encoding.UTF_8),
                 null,
                 null);
     }
@@ -474,12 +474,13 @@ public final class BytePattern {
                                       final boolean inputAnchoredAtStart,
                                       final boolean anchorsToSearchStart,
                                       final boolean multiline,
-                                      final String description) {
+                                      final String description,
+                                      final Encoding encoding) {
         return trailing == TrailingAnchor.INPUT
                && maxLength == Analysis.UNBOUNDED_LENGTH
                && !inputAnchoredAtStart
                && !anchorsToSearchStart
-                ? Reverse.program(root, multiline, description)
+                ? Reverse.program(root, multiline, description, encoding)
                 : null;
     }
 

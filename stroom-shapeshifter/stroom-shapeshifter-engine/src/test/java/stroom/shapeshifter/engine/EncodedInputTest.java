@@ -238,4 +238,61 @@ class EncodedInputTest {
                 .hasMessageContaining("raw")
                 .hasMessageContaining("compiles for UTF-8 only");
     }
+
+    /**
+     * Found by the phase-0 audit, and the refusal was the smaller half: the walkers saw
+     * {@code PatternRef} where the executor sees the inlined steps, so a regex inside a
+     * referenced library pattern was never interned — every use crashed at match time with
+     * "Pattern was not compiled", regardless of encoding. Both walkers now resolve first;
+     * this pins the crash's fix and the one below pins the refusal's.
+     */
+    @Test
+    void regexInsideAReferencedLibraryPatternRuns() {
+        final String config = """
+                {
+                  "name": "library", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "patterns": [
+                    {"id": "00000000-0000-0000-0000-0000000000aa", "name": "word",
+                     "steps": [{"Regex": {"pattern": "[a-z]+", "flags": {}}}]}],
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "match": {"progressive": [
+                       {"PatternRef": "00000000-0000-0000-0000-0000000000aa"},
+                       {"Tag": "\\n"}]},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}
+                  ]
+                }
+                """;
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream("abc\n".getBytes(StandardCharsets.UTF_8)),
+                OutputSink.of(output));
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[abc]");
+    }
+
+    @Test
+    void refusesARegexReachedThroughALibraryPattern() {
+        final String config = """
+                {
+                  "name": "refused", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "windows-1252"},
+                  "patterns": [
+                    {"id": "00000000-0000-0000-0000-0000000000aa", "name": "word",
+                     "steps": [{"Regex": {"pattern": "[a-z]+", "flags": {}}}]}],
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line", "match":
+                     {"progressive": [{"PatternRef": "00000000-0000-0000-0000-0000000000aa"}]}}]
+                }
+                """;
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("windows-1252")
+                .hasMessageContaining("compiles for UTF-8 only");
+    }
 }
