@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -101,6 +102,13 @@ public final class BytePattern {
     private final List<String> groupNames;
 
     /**
+     * The input encoding this pattern was lowered for (design/19 phase 1). Part of the
+     * pattern's identity, like its flags: the same source text compiled for two encodings
+     * is two different byte machines.
+     */
+    private final Encoding encoding;
+
+    /**
      * The engine every search must use, or null to leave the compiled machines their normal
      * order — the tree engine first with its fallback beneath it. Only set by
      * {@link #compileForcing}, and only for testing and diagnostics.
@@ -119,6 +127,7 @@ public final class BytePattern {
      * its absent artifacts as visible nulls rather than an overload's silent ones. */
     private BytePattern(final String pattern,
                         final Set<Flag> flags,
+                        final Encoding encoding,
                         final TrailingAnchor trailingAnchor,
                         final int maxLength,
                         final boolean anchorsToSearchStart,
@@ -135,6 +144,7 @@ public final class BytePattern {
         this.forced = forced;
         this.pattern = pattern;
         this.flags = flags;
+        this.encoding = encoding;
         this.trailingAnchor = trailingAnchor;
         this.maxLength = maxLength;
         this.anchorsToSearchStart = anchorsToSearchStart;
@@ -156,8 +166,22 @@ public final class BytePattern {
     }
 
     public static BytePattern compile(final String pattern, final Set<Flag> flags) {
+        return compile(pattern, flags, Encoding.UTF_8);
+    }
+
+    /**
+     * Compiles for an input encoding (design/19 phase 1; the language spec's §4.0–4.5). The
+     * sealed {@link Encoding} hierarchy is the whole set this library can lower — today only
+     * {@link Encoding#UTF_8}; the table and RAW shapes arrive with their lowerings, and a
+     * caller holding a richer encoding vocabulary maps onto this one at the seam.
+     */
+    public static BytePattern compile(final String pattern,
+                                      final Set<Flag> flags,
+                                      final Encoding encoding) {
+        Objects.requireNonNull(encoding, "encoding");
         final Parser.Result parsed = Parser.parse(pattern, flags);
-        return compile(parsed.root(), parsed.groupCount(), parsed.groupNames(), pattern, flags);
+        return compile(parsed.root(), parsed.groupCount(), parsed.groupNames(), pattern, flags,
+                encoding);
     }
 
     /**
@@ -172,14 +196,15 @@ public final class BytePattern {
                                       final Set<Flag> flags) {
         final Lowering.Result lowered = Lowering.lower(matcher, library, flags);
         return compile(lowered.root(), lowered.groupCount(), lowered.groupNames(),
-                describe(matcher), flags);
+                describe(matcher), flags, Encoding.UTF_8);
     }
 
     private static BytePattern compile(final Hir parsed,
                                        final int groupCount,
                                        final List<String> groupNames,
                                        final String description,
-                                       final Set<Flag> flags) {
+                                       final Set<Flag> flags,
+                                       final Encoding encoding) {
         // Factoring shared prefixes out of alternations makes patterns like (GET|POST|PUT)
         // decidable one byte at a time, so they reach tier 0 instead of the NFA.
         final Hir root = Normalise.normalise(parsed);
@@ -193,14 +218,15 @@ public final class BytePattern {
         // one-pass analysis nor the tier choice below applies to it. The construct itself is the
         // author's opt-in; explain() names the engine.
         if (Analysis.fancy(root)) {
-            final Nfa nfa = NfaCompiler.compileFancy(root, groupCount, multiline, description);
+            final Nfa nfa = NfaCompiler.compileFancy(root, groupCount, multiline, description,
+                    encoding);
             // The tree engine is the primary for fancy patterns (D31); the flat engine stays
             // as the structural fallback when recursion depth gives out.
-            return new BytePattern(description, copy, trailingAnchor, maxLength,
+            return new BytePattern(description, copy, encoding, trailingAnchor, maxLength,
                     Analysis.anchorsToSearchStart(root), null, nfa,
                     List.of(), Analysis.warnings(root), groupNames, null, null,
                     NodeTree.compile(
-                            root, groupCount, description));
+                            root, groupCount, description, encoding));
         }
 
         // A one-pass pattern can be decided by looking at one upcoming byte, so it compiles to a
@@ -208,10 +234,11 @@ public final class BytePattern {
         final List<String> warnings = Analysis.warnings(root);
         final List<Analysis.Violation> violations = Analysis.onePassViolations(root);
         if (violations.isEmpty()) {
-            final Plan plan = PlanCompiler.compile(root, groupCount, multiline, description);
+            final Plan plan = PlanCompiler.compile(root, groupCount, multiline, description,
+                    encoding);
             // \G forces the fancy path above (Analysis.fancy owns that classification),
             // so the search-start fact is false here by construction — the walk is skipped.
-            return new BytePattern(description, copy, trailingAnchor, maxLength,
+            return new BytePattern(description, copy, encoding, trailingAnchor, maxLength,
                     false, plan, null,
                     violations, warnings, groupNames,
                     reverseProgram(root, trailingAnchor, maxLength,
@@ -219,17 +246,17 @@ public final class BytePattern {
                             multiline, description),
                     null, null);
         }
-        final Nfa nfa = NfaCompiler.compile(root, groupCount, multiline, description);
+        final Nfa nfa = NfaCompiler.compile(root, groupCount, multiline, description, encoding);
         // Ambiguous patterns carry the tree too: it takes the searches the bounded
         // backtracker's budget refuses, with the simulation as the linear-time fallback (D31).
-        return new BytePattern(description, copy, trailingAnchor, maxLength,
+        return new BytePattern(description, copy, encoding, trailingAnchor, maxLength,
                 false, null, nfa,
                 violations, warnings, groupNames,
                 reverseProgram(root, trailingAnchor, maxLength,
                         nfa.startAnchor() == Nfa.ANCHOR_INPUT, false,
                         multiline, description),
                 null, NodeTree.compile(
-                        root, groupCount, description));
+                        root, groupCount, description, encoding));
     }
 
     /** A short rendering of a composition, for {@link #explain()} and error messages. */
@@ -281,12 +308,12 @@ public final class BytePattern {
             final Hir root = Normalise.normalise(parsed.root());
             final NodeTree.Compiled tree =
                     NodeTree.compile(
-                            root, parsed.groupCount(), pattern);
+                            root, parsed.groupCount(), pattern, Encoding.UTF_8);
             final TrailingAnchor trailingAnchor = trailing(root);
             final int maxLength = Analysis.byteLength(root)[1];
             final boolean movesWithSearchStart = Analysis.anchorsToSearchStart(root);
-            return new BytePattern(pattern, copyFlags(flags), trailingAnchor, maxLength,
-                    movesWithSearchStart, null, null,
+            return new BytePattern(pattern, copyFlags(flags), Encoding.UTF_8, trailingAnchor,
+                    maxLength, movesWithSearchStart, null, null,
                     List.of(), Analysis.warnings(root), parsed.groupNames(),
                     reverseProgram(root, trailingAnchor, maxLength,
                             tree.startAnchor() == Nfa.ANCHOR_INPUT, movesWithSearchStart,
@@ -299,7 +326,8 @@ public final class BytePattern {
                     "the pattern needs the unbounded backtracker, which cannot be overridden: "
                     + pattern);
         }
-        return new BytePattern(compiled.pattern, compiled.flags, compiled.trailingAnchor,
+        return new BytePattern(compiled.pattern, compiled.flags, compiled.encoding,
+                compiled.trailingAnchor,
                 compiled.maxLength, compiled.anchorsToSearchStart, null, compiled.nfa,
                 compiled.ambiguities, compiled.warnings, compiled.groupNames,
                 compiled.reverse, engine, null);
@@ -322,13 +350,15 @@ public final class BytePattern {
         final Parser.Result parsed = Parser.parse(pattern, flags);
         final Hir root = Normalise.normalise(parsed.root());
         final boolean multiline = flags.contains(Flag.MULTILINE);
-        final Nfa nfa = NfaCompiler.compile(root, parsed.groupCount(), multiline, pattern);
+        final Nfa nfa = NfaCompiler.compile(root, parsed.groupCount(), multiline, pattern,
+                Encoding.UTF_8);
         final TrailingAnchor trailingAnchor = trailing(root);
         final int maxLength = Analysis.byteLength(root)[1];
         // Only a fancy pattern can carry \G, so only a fancy one pays for the walk.
         final boolean movesWithSearchStart = nfa.fancy() && Analysis.anchorsToSearchStart(root);
         return new BytePattern(pattern,
                 copyFlags(flags),
+                Encoding.UTF_8,
                 trailingAnchor,
                 maxLength,
                 movesWithSearchStart,
@@ -462,6 +492,11 @@ public final class BytePattern {
 
     public String pattern() {
         return pattern;
+    }
+
+    /** The input encoding this pattern was lowered for — part of its identity (design/19). */
+    public Encoding encoding() {
+        return encoding;
     }
 
     public Set<Flag> flags() {

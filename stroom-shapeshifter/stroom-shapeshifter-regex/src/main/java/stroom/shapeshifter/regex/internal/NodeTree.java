@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.regex.internal;
 
+import stroom.shapeshifter.regex.Encoding;
 import stroom.shapeshifter.regex.MatchLimitException;
 import stroom.shapeshifter.regex.PatternCompileException;
 import stroom.shapeshifter.regex.PatternCompileException.Reason;
@@ -262,7 +263,14 @@ public final class NodeTree {
     // Compilation: HIR in, node chain out
     // -----------------------------------------------------------------------------------
 
-    public static Compiled compile(final Hir root, final int groupCount, final String pattern) {
+    /**
+     * <p>The {@code encoding} parameter is the phase-1 seam of the encoding plan (design/19):
+     * the place the table and RAW lowerings will branch. Until they land only UTF-8 arrives
+     * here, and the parameter is deliberately unread — its job today is to make this entry
+     * enumerable as per-encoding work rather than remembered as it.
+     */
+    public static Compiled compile(final Hir root, final int groupCount, final String pattern,
+                                   final Encoding encoding) {
         final Compiler compiler = new Compiler(pattern);
         final Node accept = compiler.node(new Accept());
         final Node head = compiler.compile(root, accept);

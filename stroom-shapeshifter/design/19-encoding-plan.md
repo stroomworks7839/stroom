@@ -62,7 +62,23 @@ Also in this phase, because they are the same audit:
 **Exit:** no configuration can silently get UTF-8 matching it did not ask for. E29 moves to
 `deferred` with the stopgap named.
 
-## Phase 1 — The parameter exists *(API; UTF-8 behaviour byte-identical)*
+## Phase 1 — The parameter exists *(API; UTF-8 behaviour byte-identical)* — **Done 2026-08-28**
+
+**As built.** `stroom.shapeshifter.regex.Encoding` is a sealed interface whose permitted types
+are the lowerings the library actually has — one, today — so an encoding it cannot compile is
+a type that does not exist, E22's refusal-by-name enforced by `javac` instead of a check.
+`BytePattern.compile(pattern, flags, encoding)` threads it to the four compiler entries
+(`NfaCompiler.compile`/`compileFancy`, `PlanCompiler.compile`, `NodeTree.compile`), where the
+parameter is deliberately unread and its javadoc says so: its job is to make each branch
+point enumerable as per-encoding work rather than remembered as it. The encoding joins the
+pattern's identity (`BytePattern.encoding()`). `EncodingSeamTest` pins the seam inert:
+explicit UTF-8 equals the default to the byte across all three tiers, every compile path
+reports its encoding, null is refused not defaulted.
+
+**One deviation from the phase as written, recorded rather than silent:** the engine's
+`intern()` keys stay pattern text. Under phase 0's refusal every interned pattern is UTF-8,
+so a composite key would be dead code guarding a state that cannot arise; it lands with
+phase 3's integration, where a second key value first can. Original wording follows.
 
 The regex module grows its encoding shape — `UTF8 | TABLE(256-entry inverse) | RAW` — and
 `BytePattern.compile(pattern, flags, encoding)`, the old overloads delegating to `UTF8`.

@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * formality: its first run failed. The tree's greedy {@code scan()} carried an allNonAscii
  * shortcut that stepped one <i>byte</i> at a time, walking over bytes {@code accept()} rejects
  * — so over invalid UTF-8, which log data is full of and no {@code String} input can express,
- * it claimed runs the class cannot consume: {@code (?s)(.*)\u00e9} over
+ * it claimed runs the class cannot consume: {@code (?s)(.*)é} over
  * {@code {A, C3, C3, A9}} reported 0..4, capturing an invalid byte inside {@code (.*)}, where
  * every other engine says 2..4. Three engines against one convicted the shortcut, the same
  * form of evidence the lazy skip's walk was designed around. The engines that carry no such
@@ -39,8 +39,8 @@ class GreedyRunRawBytesTest {
 
     @Test
     void greedyRunsAgreeAcrossCharacterWiseEnginesOnBytesThatAreNotValidText() {
-        for (final String pattern : List.of("(?s)(.*)\u00e9", "(?s)(.*)b", "(?s)(.*)\u00e9b",
-                "(?s)([^\\x00]*)\u00e9", "(?s)(.*)")) {
+        for (final String pattern : List.of("(?s)(.*)é", "(?s)(.*)b", "(?s)(.*)éb",
+                "(?s)([^\\x00]*)é", "(?s)(.*)")) {
             for (final byte[] data : INPUTS) {
                 assertEnginesAgree(pattern, data);
             }

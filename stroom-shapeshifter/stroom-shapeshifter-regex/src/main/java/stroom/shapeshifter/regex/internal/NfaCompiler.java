@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.regex.internal;
 
+import stroom.shapeshifter.regex.Encoding;
 import stroom.shapeshifter.regex.PatternCompileException;
 import stroom.shapeshifter.regex.PatternCompileException.Reason;
 
@@ -78,10 +79,17 @@ public final class NfaCompiler {
         this.pattern = pattern;
     }
 
+    /**
+     * <p>The {@code encoding} parameter is the phase-1 seam of the encoding plan (design/19):
+     * the place the table and RAW lowerings will branch. Until they land only UTF-8 arrives
+     * here, and the parameter is deliberately unread — its job today is to make this entry
+     * enumerable as per-encoding work rather than remembered as it.
+     */
     public static Nfa compile(final Hir root,
                               final int groupCount,
                               final boolean multiline,
-                              final String pattern) {
+                              final String pattern,
+                              final Encoding encoding) {
         return compile(root, groupCount, multiline, pattern, false);
     }
 
@@ -92,7 +100,8 @@ public final class NfaCompiler {
     public static Nfa compileFancy(final Hir root,
                                    final int groupCount,
                                    final boolean multiline,
-                                   final String pattern) {
+                                   final String pattern,
+                                   final Encoding encoding) {
         return compile(root, groupCount, multiline, pattern, true);
     }
 
