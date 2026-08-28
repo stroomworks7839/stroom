@@ -2,7 +2,7 @@
 
 Status: **draft — the frame/variable model in §5 was agreed 2026-08-25 (Jon), replacing
 this draft's original privileged input/output panes; the superseded framing is kept in
-§5.9 as a record of why it failed. Phasing (§6) and the §9 questions remain open.**
+§5.10 as a record of why it failed. Phasing (§6) and the §9 questions remain open.**
 Written 2026-08-25 from three surveys: the ds-rs Leptos editor as it actually shipped,
 the ds-rs redesign document that described what it should have been, and Stroom's GWT
 stepping UI as it exists today. Wireframes are in §8; an interactive HTML mockup of the
@@ -94,7 +94,7 @@ against the *old nested-node model*, where ancestry was static. Our flat-templat
 makes its navigation design unusable as-is — the tree it navigates no longer exists in
 the config. §5 is that design re-derived for a world where the tree is the trace. The
 ds-rs input/output pane layout itself is *not* carried forward — §5's frame model
-replaces it, for reasons recorded in §5.9.
+replaces it, for reasons recorded in §5.10.
 
 Known ds-rs defects not to repeat: highlight placement by searching for the capture's
 *value* in the text (wrong span when values repeat — we have real offsets; use them);
@@ -254,6 +254,19 @@ panes reorganise around the frame.
 
 ### 5.3 The dispatch breadcrumb — the crux widget
 
+**Back and forward sit at its head** (2026-08-28, Jon: "when navigating I feel myself
+wanting to navigate back and forward with some form of history support"). The crumb
+answers *where am I*, which is ancestry; it cannot answer *where was I*. Select a template
+in the nav panel and the crumb rewrites around a different frame with nothing pointing
+back at the one you were reading; descend three levels chasing a value and the way back is
+a series of guesses. So navigation states are recorded and walkable — **(frame, selected
+template)**, the two things that make this editor show something else, so that a nav-panel
+click is undoable — with **Alt+←/→**, the convention every browser has already taught. A
+new move truncates the forward branch, as a browser's does. In Stroom this is the state a
+GWT implementation hands to the platform's own place history rather than inventing a
+second one. (A card with focus handles its own Alt+arrows for moving instructions and
+stops them there, so the two never compete.)
+
 The cursor's ancestry chain renders as a breadcrumb where **every segment is also a
 stepper**:
 
@@ -315,6 +328,68 @@ workbench's group/step highlighting in both the pattern map and the sample, with
 permanent fill once a group or step is **pinned** by a click — click-to-pin replaces the
 old default-everything-tinted state, so looking at one group's structure no longer means
 fighting the other nine for attention.
+
+**The content pane: one permanent mark, one transient** (2026-08-28, Jon's scheme,
+replacing four permanent channels that were answering two questions between them). What
+was there — a solid underline per match, a dotted underline per capture, a tint per
+capture, an inset band for root-level matches, and a translucent fill on hover — had grown
+by accretion, each addition defensible alone. Four levels of template nest in the second
+prototype, and at the document frame all four underlined at equal weight: §5.4's own
+ruling that direct children should be prominent and deeper levels quieter had never been
+implemented, and the one depth that *was* special-cased (root level) was the quiet one, so
+the prominence ran backwards.
+
+The scheme now:
+
+| channel | says | when |
+|---|---|---|
+| **text tint**, plus a faint dotted rule in the same colour | which variable these bytes became | always, at every depth |
+| **an outline**, in the colour of the thing | what you are pointing at, or what something else is pointing at | on demand |
+
+The dotted rule is not a second channel; it is the tint repeated where the tint cannot be
+seen, since a capture made of whitespace has no glyphs to colour. Matches carry no
+permanent mark at all: clicking text already descends into the deepest match under it, so
+drawing every extent all the time was four lines competing to say what one hover says
+exactly. **A match's extent is revealed by pointing at it — or by pointing at the template
+that made it**, which is the same question asked from the other end: hovering a dispatch
+row inside an apply card, or a template row in the navigation panel, outlines the bytes it
+consumed *and* the output it wrote. That third link is what makes the removal a
+simplification rather than a loss; the information did not go away, it stopped being drawn
+all the time.
+
+**A point and a click are about the match at *this* level** (2026-08-28, Jon). The box you
+see is the **immediate child template's**, in that template's own colour, however deep the
+pointer happens to be inside it; clicking steps into that child, one level at a time. The
+old behaviour — mark and descend into the deepest match under the pointer — let you skip
+three levels in one click and land somewhere whose relationship to where you were had to
+be reconstructed from the crumb. Digging is the point: the editor is *for* understanding
+how a document is taken apart, and taking it apart a level at a time is the understanding.
+**Ctrl-click (or ⌘-click) still jumps to the deepest match**, for anyone who already knows
+where they are going, and nothing is reachable only that way.
+
+That makes the content pane's link to the templates bidirectional and specific: pointing
+at a match lights **the template row that made it, the dispatch row that reached it, and
+the output that very match wrote** — the last keyed by frame, not by template, so hovering
+the third record in the input outlines that record's `<Event>` block and no other.
+
+**Any of the four lights the other three** (completed 2026-08-28, after Jon found the one
+edge that was missing: the output lit the template that produced it, and stopped there,
+never reaching back to the bytes that template consumed). A dispatched region of output
+knows the child frame that wrote it, and that frame's match is on screen, so the loop
+closes whichever surface you enter it from — input match, template row, dispatch row,
+output region. The one case with no counterpart is output this frame wrote *itself*: a
+`text` card consumed nothing, and a `value-of` names an expression rather than a capture,
+so there is nothing honest to point at in the input. (Wiring `value-of` back to the
+capture it reads would need the expression parsed, which is an engine fact, not a UI
+guess — worth doing when expressions are real.)
+
+Nothing in either byte pane fills any more. A translucent fill under text was the last
+thing in these panes competing with the text for legibility, and with extents revealed on
+demand it had nothing left to do. (The pattern workbench keeps its fills: a short sample,
+a deliberate click-to-pin selection, and no nesting — a different surface with a different
+problem.) Only the innermost thing under the pointer is marked, while every capture around
+it still lights its row in the variables pane: the bytes belong to all of them, and one
+mark says which one you are pointing at.
 
 **The output pane's rule is different again, and simpler than either of the above**
 (superseded 2026-08-27 — the per-template colour + underline + own/dim scheme two
@@ -398,7 +473,7 @@ fire in this data" (muted swatch); and the trace has to say which branch ran, si
 output alone only says what was written.
 
 Because the renderer is scoped to a frame's content, offsets are always frame-relative
-and always honest — the earlier draft's "content lens" problem (§5.9) does not exist.
+and always honest — the earlier draft's "content lens" problem (§5.10) does not exist.
 At the root frame the content variable *is* the whole buffer, so the whole-input survey
 ("where in the file did `record` match, and what fell between?") is simply the root
 frame's content view. The same renderer serves any in-scope variable the author expands —
@@ -417,10 +492,18 @@ already does context-windowed fetching around a highlight; same idea, client-sid
 **Four quadrants** (revised 2026-08-28), all centred on the frame:
 
 ```
-       content            │   variables
+        INPUT             │      VARIABLES
   ────────────────────────┼────────────────────────
-   template definition    │   wrote → output
+       TEMPLATE           │       OUTPUT
 ```
+
+**Each pane carries its name** (2026-08-28), in the quiet uppercase the variables pane
+already used. Titles had been removed from the two byte panes a few days earlier and that
+was right at the time — one pane labelled and its opposite number bare was the fault, not
+the labels — but with the panes unbordered and sharing one background, a label is the only
+thing naming them, and until now three of the four were named only in an `aria-label`,
+which is a name for a screen reader and for nobody else. TEMPLATE's title doubles as the
+template's identity line (§5.6).
 
 **Read them top-left, top-right, bottom-left, bottom-right** (Jon, 2026-08-28): the input,
 the variables drawn out of it, the template that consumes them, the output it wrote. Each
@@ -430,6 +513,18 @@ the variables drawn out of it, the template that consumes them, the output it wr
 |---|---|---|---|
 | top — input and context | the bytes | the names bound out of them | hovering a variable lights its span; hovering a span lights its variable |
 | bottom — definition and result | the instructions | the bytes they wrote | hovering an instruction lights its output region; hovering a region lights the instruction, and for a dispatch its child-template row too |
+
+**Highlighting is a set of requests, not a pile of toggles** (2026-08-28, found from
+Jon: "the parent apply-templates row does not highlight the output"). It did — and then
+stopped, because several surfaces can point at overlapping things at once and each one was
+switching the class on and off for itself. Hovering an apply card lights everything it
+dispatched; moving the pointer onto a dispatch row *inside* that card and off again then
+switched off that template's share, since the row's release knew nothing about the card
+still asking for it. The card looked broken while the thing that broke it was a child of
+the card. Each source now registers a named request for a set of selectors and one applier
+recomputes the union, so a release only darkens what nothing else wants lit. It is the
+same shape of fix as the owner key (§5.4): one place computes the answer, rather than
+several places each keeping their own and drifting.
 
 Both rows link **in both directions** — which the design had been claiming since the body
 cards were first coloured and only half doing: the card→output and variable→span
@@ -550,6 +645,25 @@ there — where the span is visible. A row that cannot show you where a value ca
 at least say where it lives.
 
 ### 5.6 The template strip and the pattern workbench
+
+**The strip's header is its pane title** (2026-08-28, Jon). The row that used to sit above
+it — swatch, name, mode, dispatched-from, and the whole-input stepper at its right — was
+mostly restating what the breadcrumb and the highlighted nav row already say. Mostly: a
+template with **no matches** appears nowhere in the crumb, which shows the *cursor's*
+ancestry, so this line is the only thing that names it, says where it could be dispatched
+from, and how many positions it was tried at. That survives, folded into the title:
+`TEMPLATE — ● kv-pair · mode fields · dispatched from record (body pos 3)`, with the
+swatch and name still opening the edit dialog. One row saved, and the strip now opens on
+`match`, where the eye goes anyway.
+
+**The whole-input stepper moved to the breadcrumb row** (§5.3). It answers "which match am
+I on", which is the crumb's question, not the definition's — every other thing in the strip
+answers "what is this template". It sits at the far end of that row, past the ancestry, and
+is **labelled with the template it steps through**: `matches of kv-pair ◀ 6/12 ▶`. The
+label is load-bearing rather than decorative, because the crumb's own per-segment arrows
+step *within a parent* while these step *across the whole input* — Q5's two scopes, now
+adjacent, and two identical-looking arrow pairs would have made the ambiguity worse rather
+than better.
 
 The frame answers "what happened"; the template strip holds "what it is". It sits full
 width **beneath** the variable panes and **owns 50% of the vertical split by default**,
@@ -685,9 +799,32 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
 
   This makes `if` and `choose` hold their parts as **real fields** rather than a display
   string, with the card's one-line summary composed from them — which is the point, since
-  a summary that is the source of truth cannot be edited as structure. `choose` edits
-  against a draft so Cancel genuinely cancels; half-finished structure must not reach the
-  model the way a half-finished string harmlessly could.
+  a summary that is the source of truth cannot be edited as structure.
+
+  **Editing commits live, and Escape reverts** (2026-08-28, Jon's ruling, replacing the
+  ✓/✕ pair each editor used to carry). Everything else in this editor already committed
+  live — the workbench, the guard and limits, the pattern — so the card editors were the
+  exception, and their two glyphs were small enough to be a WCAG target-size failure into
+  the bargain. What Cancel was really protecting is `choose`'s branch *list*: half-finished
+  structure must not reach the model the way a half-finished string harmlessly could. So
+  the card is **snapshotted when its editor opens** and Escape puts the snapshot back —
+  one revert covering every kind, including the structural ones, instead of a draft for
+  the kind that happened to need it. A half-added branch is as revertible as a half-typed
+  condition. The footer says so in words rather than glyphs: *applies as you type · Esc
+  reverts · Enter closes*.
+
+  **Instructions move.** Each card carries a **grip** at its head — the only part of it
+  that starts a drag, so dragging never fights click-to-edit or click-to-follow — and can
+  be dropped onto another card (landing before it) or onto a list's "+ instruction" line
+  (landing at the end, which is also how an empty branch receives its first instruction).
+  Dropping into a conditional's branch is deliberately allowed: *"this should only happen
+  when the status is 403"* is a move, not a retype, and paths (§5.4) already express it.
+  Drag is never the only way — a pointer gesture with no keyboard equivalent locks out
+  anyone who cannot make it — so the same moves are on the ↑/↓ buttons and on Alt+arrows
+  while a card has focus: **Alt+↑/↓** reorders within the list, **Alt+→** moves into the
+  branch of the conditional above, **Alt+←** moves out of a branch to just after the
+  conditional holding it. All four run the same primitive, and each announces where the
+  instruction landed.
 
   **The branch bodies are card lists, not strings** (2026-08-28, closing the one part of
   the editor that was still illustrative). A conditional's consequent used to be a
@@ -866,7 +1003,60 @@ make absolute numbers jittery, so the display leads with shares, ratios and heat
 keeps absolutes as detail. Performance claims stay with the JMH gates; the editor
 profiler exists to answer "which template, and why", not "how fast".
 
-### 5.9 Superseded: the privileged source pane
+### 5.9 Accessibility, and the two things it changed
+
+Reviewed 2026-08-28, at Jon's prompt. The design is dense, hover-driven and carries
+meaning in colour, so this is not a coat of paint at the end — two findings changed the
+design itself, and the rest is scaffolding the mockups now carry so the GWT build inherits
+it rather than retrofits it.
+
+**Colour used as text must clear AA, and that is now checked.** Measuring rather than
+asserting turned up a regression I had introduced myself: colouring dispatched output by
+the child template (§5.4) promoted template identity colours from 10px swatches and 1px
+underlines to 13px body text, and four of the nine failed 4.5:1 against the page
+background — `delete_draft` at 3.87, `auth_login` 4.06, `update_profile` 4.08,
+`generic_view` 4.47 — along with `--cap-8` at 4.45 and three of the ten swatches the
+add-template dialog *offers*, which a user could apply to any template. All are lifted to
+clear 4.5 with headroom, keeping their hue so identity is unchanged, and the mockup suite
+now fails if any colour the editor puts on text drops below AA. The palette being
+user-editable is exactly why the rule belongs in a check rather than in a memory.
+
+**Focus mirrors hover, and that is the whole keyboard story.** Every link here is anchored
+on a *list* — body cards, dispatch rows, variable rows — and lights something in the pane
+opposite. So focusing one fires precisely what hovering it fires: tab to a body card and
+its output region lights; arrow to a capture row and its span lights; focus an outer-scope
+variable and the crumb segment that bound it lights, with Enter to step there. The
+alternative — making three hundred output regions tabbable — would have been a worse
+experience than the one it was trying to provide. A keyboard user never focuses a text
+span, because the lists are the interface and the panes are their reflection.
+
+The rest, briefly:
+
+- **Hover-only affordances answer to focus too**: card actions and the crumb's step arrows
+  reveal on `:focus-within`, not just `:hover`. An affordance only a mouse can reach is not
+  an affordance for everyone.
+- **Hit targets** are at least 24px (WCAG 2.5.8). The ✓/✕ pair that prompted this were
+  about 14×16, and are gone entirely now that editing commits live.
+- **The two unheaded panes are named.** Dropping the Content and Output titles was a real
+  cost, and `aria-label` is how it is paid: the pane still has a name, it is just not
+  drawn.
+- **State changes are spoken.** A trace going stale is a button turning amber, which is
+  silent; a polite live region says it once, deduplicated so a keystroke-by-keystroke edit
+  does not chatter.
+- **Motion is optional.** The 150ms fades exist to stop flicker, and to anyone who has
+  asked for reduced motion they are motion — `prefers-reduced-motion` turns them off. The
+  flicker they were softening is separately fixed by delegated hover (§5.5), so nothing is
+  lost by removing them.
+- **Structure**: the crumb is a `navigation` landmark with `aria-current` on the frame you
+  are in; cards, dispatch rows and variable rows carry labels that say what they are and
+  what value they hold, not just what they look like.
+
+Still open, and worth naming rather than leaving implied: a screen-reader user gets the
+*lists* but not the shape of the content pane — a nested match is a labelled span, not a
+structure they can walk. If that matters in practice, the answer is probably a textual
+outline of the frame tree rather than making the renderer itself navigable.
+
+### 5.10 Superseded: the privileged source pane
 
 The first draft of this section had a global "Data" pane over the raw input and a global
 "Output" pane, with a "content lens" that swapped the data pane's text whenever the
@@ -960,8 +1150,8 @@ previews how the editor sits inside the real application.
 
 ```
 ┌ apache-audit (Shapeshifter) ──────────────────────────────────────── [▶ Run] ┐
-│ ┌ Templates ──────┐ ┌ source › record ◀2/3▶ › kv-pair ◀2/4▶ › … 1 child ▾  ┐ │
-│ │ ● source   doc  │ ├─────────────────────────┬ Variables ─────────────────┤ │
+│ ┌ Templates ──────┐ ┌ ◀▶ source › record ◀2/3▶ › kv-pair ◀2/4▶  matches ◀2/12▶┐│
+│ │ ● source   doc  │ ├ INPUT ──────────────────┬ VARIABLES ─────────────────┤ │
 │ │ root            │ │   ¦key¦=╔"alice smith"╗ │ ▾ this match               │ │
 │ │ ● record    3   │ │   ← child matches lit,  │   content    bytes[19]     │ │
 │ │ mode: fields    │ │     gaps clickable      │   ▪$key   ←$1 "name"       │ │
@@ -971,8 +1161,8 @@ previews how the editor sits inside the real application.
 │ │ ● quoted    1   │ │                         │ ▾ outer scope              │ │
 │ │ ○ mac-addr 0·8t │ │                         │   $ip ← record "10.0.0.7"  │ │
 │ │                 │ │                         │ ▾ params (none declared)   │ │
-│ │                 │ ├───── kv-pair · mode fields · from record ─ 6/12 ◀ ▶ ─┤ │
-│ │                 │ │ match [regex (\w[\w ]*?)=…]│<data name="name"        │ │
+│ │                 │ ├ TEMPLATE ● kv-pair · mode fields · from record ─────┤ │
+│ │                 │ │ match [regex (\w[\w ]*?)=…]│ OUTPUT                  │ │
 │ │                 │ │ body  1 text "<data name=\""  ← click a card to edit │ │
 │ │                 │ │       2 value-of $key         ← its region lights up │ │
 │ │                 │ │       3 apply mode=values       here, alongside it   │ │
@@ -1019,6 +1209,18 @@ lands rather than only recorded here.
 | Q8 | Content renderer depth: direct children only, or all descendants nested? | **All descendants**, direct children prominent, deeper levels quieter — the survey view at the root frame needs it. |
 | Q9 | Windowing/minimap for large content values — in scope for B? | **Defer**; window around the current position first. |
 | Q10 | Global undo/redo — the only answer to "I made a mistake" now that the workbench, guard/limits and body cards commit live. In scope for B? | **Yes, in B.** A live-editing surface with no undo anywhere is a regression from ds-rs's snapshot history, not a simplification. |
+
+**Second round, ruled 2026-08-28** — from a pass over accessibility and the editing
+mechanics:
+
+| # | Question | Ruling |
+|---|---|---|
+| Q11 | Four template colours (and one capture hue, and three offered swatches) fail 4.5:1 now that they colour output text. Retune, or stop using them as text? | **Retune, and check it.** Hue kept, luminance lifted, and the suite fails if any colour used as text drops below AA — the palette is user-editable, so the rule belongs in a check. |
+| Q12 | How should a card editor commit or cancel? | **Live commit everywhere, Escape reverts** (§5.6) — the ✓/✕ pair goes, and the snapshot covers structural edits as well as text. |
+| Q13 | How far should dragging an instruction go? | **Within a list, and into or out of a branch** — the move you want when something should become conditional. Keyboard equivalents are mandatory, not optional (§5.6). |
+| Q14 | What should Back/Forward restore? | **Frame + selected template** (§5.3), so a nav-panel click is undoable. |
+| Q16 | Should a point and a click in the content pane mean the deepest match, or the one at this level? | **This level**, in the immediate child template's colour, so the structure is discovered by descending it (§5.4). Ctrl-click keeps the deep jump. |
+| Q15 | What should the content pane draw permanently — it had four channels answering two questions? | **The capture tint, and nothing else** (§5.4): a faint dotted rule in the same colour covers whitespace captures, match extents are revealed by pointing at them or at their template, and nothing fills. Jon's scheme; my own proposal had kept depth-graded match lines, which was still two channels for one question. |
 
 One question the mockup answered by building rather than asking, and worth a ruling if you
 disagree with it: §5.6's conditionals now render their branches as **nested card lists**

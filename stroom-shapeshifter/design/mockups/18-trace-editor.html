@@ -58,7 +58,7 @@
 
     /* per-template hues (material palette, as the GWT UI's icon colours use) */
     --c-source: #b0bec5; --c-record: #42a5f5; --c-kv: #ffb74d;
-    --c-iso: #66bb6a; --c-quoted: #ba68c8; --c-mac: #78909c;
+    --c-iso: #66bb6a; --c-quoted: #c683d2; --c-mac: #8a9ea9;
     /* Per-capture hues, and the same ring the body cards and the workbench's groups and
        steps rotate through. Twelve of them, material 300s (200s where a 300 would collide
        with a template or category colour), ordered so neighbours in the ring are far apart
@@ -71,13 +71,23 @@
     --cap-2:  #81c784;  /* green 300       */  --cap-3:  #ce93d8;  /* purple 200      */
     --cap-4:  #ffd54f;  /* amber 300       */  --cap-5:  #4dd0e1;  /* cyan 300        */
     --cap-6:  #f48fb1;  /* pink 200        */  --cap-7:  #aed581;  /* light green 300 */
-    --cap-8:  #7986cb;  /* indigo 300      */  --cap-9:  #ff8a65;  /* deep orange 300 */
+    --cap-8:  #9fa8da;  /* indigo 200      */  --cap-9:  #ff8a65;  /* deep orange 300 */
     --cap-10: #4db6ac;  /* teal 300        */  --cap-11: #dce775;  /* lime 300        */
     /* body-card category hues (output green, data pink, invoke orange) */
     --k-text: #66bb6a; --k-value: #f06292; --k-apply: #ffb74d;
     font-size: 14px;
   }
   * { box-sizing: border-box; }
+  /* one focus ring for the whole editor, on the same blue the hover states use */
+  :focus-visible { outline: 2px solid var(--blue-300); outline-offset: 1px; border-radius: 3px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  /* the 150ms fades exist to stop flicker; for anyone who has asked for less motion they
+     are motion, and the flicker they were fixing is gone anyway now that hover is
+     delegated and holds across a line gap */
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
@@ -162,6 +172,9 @@
   .heat-fill { height: 100%; border-radius: 2px; }
   .strip-heat { display: inline-block; width: 90px; margin: 0; vertical-align: middle; flex: none; }
   .tpl-row.sel { background: var(--row__background-color--selected); color: var(--text-color--selected); }
+  /* pointed at from the content pane: this is the template that matched those bytes */
+  .tpl-row.hot { background: var(--row__background-color--hovered); }
+  .tpl-row.sel.hot { background: var(--row__background-color--selected--hovered); }
   .tpl-row.sel:hover { background: var(--row__background-color--selected--hovered); }
   .tpl-row.sel .count { color: rgba(255, 255, 255, .75); }
   .chip { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
@@ -236,6 +249,15 @@
   #crumb .seg .name:hover, #crumb .seg.hot .name {
     background-color: var(--row__background-color--hovered); outline-color: var(--blue-300); }
   #crumb .seg .idx { color: var(--muted); font-size: 12px; }
+  #crumb .histnav { display: inline-flex; gap: 2px; margin-right: 6px;
+    padding-right: 8px; border-right: 1px solid var(--border-color); }
+  #crumb .arrow.hist, #crumb .arrow.step { visibility: visible; font-size: 13px; }
+  /* whole-input stepping, at the far end and labelled, so it cannot be read as another
+     within-parent stepper */
+  #crumb .tstep { margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+    padding-left: 10px; border-left: 1px solid var(--border-color); }
+  #crumb .tstep .lbl { color: var(--muted); font-size: 11.5px; }
+  #crumb .tstep .idx { color: var(--muted); font-size: 12px; }
   #crumb .arrow { border: none; background: none; padding: 0 3px; font-size: 12px;
     color: var(--muted); cursor: pointer; }
   #crumb .arrow:hover:not([disabled]) { color: var(--blue-300); background: none; }
@@ -243,7 +265,7 @@
   /* within-parent steppers demoted: counts always visible, arrows only on segment hover
      (whole-input stepping in the strip is the primary control; Alt+arrows still work) */
   #crumb .seg .arrow { visibility: hidden; }
-  #crumb .seg:hover .arrow { visibility: visible; }
+  #crumb .seg:hover .arrow, #crumb .seg:focus-within .arrow { visibility: visible; }
   #crumb .sep { color: var(--muted); margin: 0 2px; }
   #crumb .down { font-size: 12px; }
   #gapInfo { flex-basis: 100%; font-size: 12.5px; color: var(--red-200);
@@ -289,27 +311,35 @@
   .content-box, .out-box { padding: 8px 12px; background: transparent; min-height: 100%;
     font-family: var(--mono-font); font-size: 13px; }
   .content-box { white-space: pre-wrap; word-break: break-all; line-height: 2.1; }
-  /* Matches: colour + underline (or, for a root-level match, an inset band) is the
-     permanent extent marker — always on, never a filled background, so many nested
-     or adjacent matches never stack into an overlapping wash. The filled background
-     is reserved for interaction — hover to preview, and it never persists once the
-     mouse leaves — which is what a background can do that colour+underline alone
-     cannot: mark "I am looking at this one right now" without every match everywhere
-     fighting for the same visual weight all the time (decided 2026-08-27). */
+  /* The content pane carries ONE permanent mark and one transient one (2026-08-28, Jon's
+     scheme, replacing four permanent channels answering two questions).
+
+     Permanent: the **capture tint**. A capture colours its own text, at every depth, so
+     an IP or a timestamp is coloured right from the document frame and the pane shows at
+     a glance that real work is happening deeper down. A faint dotted rule in the same
+     colour runs under it — not a second channel, the same one repeated where the tint
+     cannot be seen: a capture made of whitespace has no glyphs to colour.
+
+     Transient: an **outline**, in the colour of whatever is being pointed at, and the
+     same outline the output pane and the variables pane already use. Matches carry no
+     permanent mark at all now — no underline, no band at root level — because clicking
+     text descends into the deepest match under it anyway, so drawing every extent all
+     the time was four levels of line competing to say what one hover says precisely. A
+     match's extent is revealed by pointing at it, or by pointing at the template that
+     made it, which is the same question asked from the other end (setTemplateHot).
+
+     Nothing fills. A translucent fill under text was the last thing here fighting the
+     text for legibility, and with extents revealed on demand it has nothing left to do. */
   /* Nothing in these two panes lights from :hover — the pane's own delegated handler sets
      .hot, because a wrapped span loses :hover in the leading between its lines
      (delegateHover, 2026-08-28). box-decoration-break makes each line fragment carry the
      whole decoration rather than the first and last sharing one. */
   .m, .gap, .content-box .cap, .o {
     -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-  .m { cursor: pointer; border-radius: 2px; border-bottom: 2px solid var(--hue);
-    background-color: transparent; transition: background-color .15s ease-out; }
-  .m.hot { background-color: color-mix(in srgb, var(--hue) 16%, transparent); }
-  .m.root-level { border-bottom: none; box-shadow: inset 3px 0 0 var(--hue); padding: 2px 1px; }
-  .m.root-level.hot { background-color: color-mix(in srgb, var(--hue) 10%, transparent); }
-  .gap { cursor: pointer; border-radius: 2px; background-color: transparent;
-    transition: background-color .15s ease-out; }
-  .gap.hot { background-color: rgba(220, 53, 69, .25); box-shadow: 0 2px 0 var(--error-c); }
+  .m, .gap { cursor: pointer; border-radius: 2px; outline: 2px solid transparent;
+    outline-offset: 1px; transition: outline-color .15s ease-out; }
+  .m.hot { outline-color: var(--hue); }
+  .gap.hot { outline-color: var(--error-c); }
   /* One highlight vocabulary, and it does not matter which end you point from: the span
      you are hovering and the span something else is pointing at get the same coloured
      outline, in the same weight, fading in and out the same way (2026-08-28, Jon — the
@@ -317,7 +347,8 @@
      outline flickers as the pointer crosses nested spans). An outline never affects
      layout, so it can be declared permanently and transparent and only change colour:
      nothing moves, and there is something for the transition to animate. */
-  .content-box .cap { border-bottom: 1px dotted currentColor; border-radius: 2px;
+  .content-box .cap { border-radius: 2px;
+    border-bottom: 1px dotted color-mix(in srgb, currentColor 50%, transparent);
     outline: 2px solid transparent; outline-offset: 1px;
     transition: outline-color .15s ease-out; }
   .content-box .cap.hot { outline-color: currentColor; }
@@ -338,12 +369,13 @@
   /* the template strip owns 50% of the vertical split by default; the splitter decides otherwise */
   #tstrip { grid-area: tstrip; background: var(--page__background-color);
     display: flex; flex-direction: column; min-height: 0; }
-  #tshead { display: flex; align-items: center; gap: 14px; padding: 7px 12px;
-    border-bottom: 1px solid var(--border-color); flex: none; }
+  /* the TEMPLATE pane's title line: the same quiet uppercase label the other three panes
+     carry, followed by the identity of the template the strip is showing */
+  #tshead { display: flex; align-items: baseline; gap: 10px; padding: 7px 12px 5px; flex: none; }
+  #tshead .ptitle { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); }
   #tshead .fname { font-weight: 700; }
   #tshead .fmode, #tshead .fnote { color: var(--muted); font-size: 12.5px; }
-  #tshead .spacer { flex: 1; }
-  #tshead .stepper { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; }
   #tsbody { overflow: auto; min-height: 0; padding: 6px 0 10px; }
   .strip-line { display: flex; align-items: center; gap: 10px; padding: 4px 12px; font-size: 12.5px; }
   .strip-line .k { color: var(--muted); min-width: 44px; font-size: 11px;
@@ -364,6 +396,13 @@
     padding: 4px 8px; background: #2c303a; border: 1px solid var(--border-color);
     border-radius: 5px; border-left-width: 3px; font-size: 12.5px;
     transition: border-color .15s ease-out; }
+  .card .grip { color: var(--muted); cursor: grab; font-size: 13px; line-height: 1;
+    opacity: .45; letter-spacing: -2px; user-select: none; }
+  .card:hover .grip, .card:focus-within .grip { opacity: 1; }
+  .card .grip:active { cursor: grabbing; }
+  .card.dragging { opacity: .5; }
+  .card.drop-before { box-shadow: 0 -2px 0 var(--blue-300); }
+  .addline.drop-into { box-shadow: inset 0 0 0 1px var(--blue-300); border-radius: 4px; }
   .card .num { color: var(--muted); font-size: 11px; min-width: 12px; }
   .card .kind { font-weight: 600; white-space: nowrap; }
   .card .lit { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -403,12 +442,15 @@
 
   /* body-card editing: hover actions, inline editors, contextual add menu */
   .card .actions { margin-left: auto; display: flex; gap: 2px; visibility: hidden; }
-  .card:hover .actions { visibility: visible; }
+  /* revealed by focus as well as hover: an affordance only the mouse can reach is not
+     an affordance for everyone (2026-08-28) */
+  .card:hover .actions, .card:focus-within .actions, .card:focus .actions { visibility: visible; }
+  /* WCAG 2.5.8: 24px minimum for anything you have to hit */
+  .act, .arrow, .edit { min-width: 24px; min-height: 24px; }
   .card .act { border: none; background: none; color: var(--muted); padding: 0 3px;
     font-size: 12px; cursor: pointer; }
   .card .act:hover { color: var(--blue-300); background: none; }
   .card .act.del:hover { color: var(--error-c); }
-  .card .act.ok { color: var(--valid); }
   .card .act[disabled] { opacity: .3; cursor: default; }
   .card input.edit-in, .card select.edit-in {
     background: var(--control__background-color); border: 1px solid var(--control__border-color);
@@ -442,8 +484,7 @@
   .card .act.add { color: var(--link__text-color); font-size: 11.5px; padding: 2px 6px;
     border: 1px solid var(--control__border-color); border-radius: 4px; }
   .card .act.add:hover:not([disabled]) { border-color: var(--blue-300); }
-  .ed-foot { display: flex; gap: 4px; justify-content: flex-end; padding-top: 2px; }
-  .ed-foot .act { font-size: 14px; }
+  .ed-foot { padding: 4px 0 0; font-size: 11.5px; color: var(--muted); font-style: italic; }
   .card select.edit-in { flex: none; }
   .card input.edit-in:focus { outline: none; border-color: var(--blue-800);
     box-shadow: 0 0 8px rgba(33, 150, 243, .5); }
@@ -593,8 +634,11 @@
   </section>
   <div class="splitter v" id="splitTpls" title="Drag to resize · double-click to reset"></div>
   <div id="crumb"></div>
-  <!-- the content value, with no chrome at all: the pane is the box (2026-08-28) -->
-  <section class="panel" id="invars"><div class="body" id="inBody"></div></section>
+  <!-- the content value, with no chrome at all: the pane is the box (2026-08-28). Having
+       no visible heading is a real accessibility cost, and aria-label is how it is paid:
+       the pane still has a name, it is just not drawn. -->
+  <section class="panel" id="invars" aria-label="Input — content of the selected match">
+    <h2>Input</h2><div class="body" id="inBody"></div></section>
   <div class="splitter v" id="splitVars" title="Drag to resize · double-click to reset"></div>
   <!-- every name in scope at this frame, innermost first: this match's own bindings,
        then what its children stored, then what it inherited, then params. One place to
@@ -607,7 +651,11 @@
        highlights its region a few centimetres away instead of across the window. No
        heading and no inset — the pane has exactly one thing in it (2026-08-27), and its
        opposite number top-left is now built the same way. -->
-  <section class="panel" id="outvars"><div class="body" id="outBody"></div></section>
+  <section class="panel" id="outvars" aria-label="Output — written by this frame">
+    <h2>Output</h2><div class="body" id="outBody"></div></section>
+  <!-- state changes a sighted user reads from a button turning amber: said out loud, once,
+       for anyone who cannot see it (2026-08-28) -->
+  <div id="live" class="sr-only" role="status" aria-live="polite"></div>
 
   <!-- The pattern workbench: an in-place mode of the Design tab, not a dialog and not
        full-screen — it occupies the same grid cells as the crumb/vars/strip region so
@@ -798,11 +846,14 @@ function limitsSummary(tid) {
 /* templates are created, renamed and recoloured in the editor. Colour is presentation,
    not engine config: auto-assigned stably, overridable, stored as editor metadata in
    the doc — never in the engine Project. */
-const PALETTE = ["#42a5f5", "#ffb74d", "#66bb6a", "#ba68c8", "#ef5350",
-  "#26c6da", "#d4e157", "#ff8a65", "#78909c", "#f06292"];
+/* the swatches the add/edit dialog offers. Every one of them can end up as output text
+   under a template's identity, so the offered set is AA-safe by construction rather than
+   by luck — three were not (2026-08-28): #ba68c8 4.31, #ef5350 4.40, #78909c 4.58. */
+const PALETTE = ["#42a5f5", "#ffb74d", "#66bb6a", "#c683d2", "#ef7b78",
+  "#26c6da", "#d4e157", "#ff8a65", "#8a9ea9", "#f06292"];
 const STOCK_HEX = { "var(--c-source)": "#b0bec5", "var(--c-record)": "#42a5f5",
-  "var(--c-kv)": "#ffb74d", "var(--c-iso)": "#66bb6a", "var(--c-quoted)": "#ba68c8",
-  "var(--c-mac)": "#78909c" };
+  "var(--c-kv)": "#ffb74d", "var(--c-iso)": "#66bb6a", "var(--c-quoted)": "#c683d2",
+  "var(--c-mac)": "#8a9ea9" };
 let tplSeq = 0;
 let selMode = null;   // a selected mode group — the toolbar's target when set
 /* which library row (if any) reads as selected is derived from the open workbench
@@ -1348,10 +1399,45 @@ function siblings(m) {   // same-template siblings under the same parent frame
   return m.parent ? m.parent.children.filter(x => x.tpl === m.tpl) : [m];
 }
 function isDescendant(m, of) { for (let x = m; x; x = x.parent) if (x === of) return true; return false; }
+/* ---- navigation history ----
+   The breadcrumb shows ancestry, which is not the same question as "where have I been"
+   (2026-08-28, Jon). Select a template in the nav panel and the crumb rewrites around a
+   different frame, with nothing pointing back at the one you were reading; descend three
+   levels chasing a value and the way back is a series of guesses. So navigation states
+   are recorded and walkable: back and forward over (frame, selected template), which are
+   the two things that make this editor show something else. Alt+← and Alt+→, the
+   convention every browser already taught, and the same state a GWT implementation would
+   hand to Stroom's place history rather than inventing its own. */
+const history = [];
+let histAt = -1, navigating = false;
+function pushHistory() {
+  if (navigating) return;
+  const top = history[histAt];
+  if (top && top.frame === cursor.id && top.tpl === selTpl) return;
+  history.length = histAt + 1;             // a new move truncates the forward branch
+  history.push({ frame: cursor.id, tpl: selTpl });
+  histAt = history.length - 1;
+}
+function goHistory(delta) {
+  const to = histAt + delta;
+  if (to < 0 || to >= history.length) return false;
+  histAt = to;
+  const st = history[to];
+  navigating = true;
+  cursor = matches[st.frame] || SOURCE;
+  selTpl = st.tpl;
+  editing = null; addMenuAt = null; selMode = null; gapMsg = null;
+  navigating = false;
+  announce(`${delta < 0 ? "Back" : "Forward"} to ${TPL[selTpl].name}, frame ${st.frame}`);
+  render();
+  return true;
+}
+
 function setCursor(m, keepGap) {
   cursor = m; selTpl = m.tpl;
   editing = null; addMenuAt = null; selMode = null;
   if (!keepGap) gapMsg = null;
+  pushHistory();
   render();
 }
 function selectTemplate(tid) {   // zero-match templates: show the definition, keep the frame
@@ -1359,12 +1445,23 @@ function selectTemplate(tid) {   // zero-match templates: show the definition, k
   editing = null; addMenuAt = null; selMode = null;
   const first = (byTpl[tid] || [])[0];
   if (first) { cursor = first; }
+  pushHistory();
   render();
 }
 
 /* ================= rendering ================= */
 
 const $ = id => document.getElementById(id);
+/* the one place anything is said to a screen reader — deduplicated, because a keystroke
+   that marks the trace stale fires on every character typed */
+let lastSaid = "";
+function announce(msg) {
+  if (msg === lastSaid) return;
+  lastSaid = msg;
+  const l = $("live");
+  if (l) l.textContent = msg;
+}
+
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -1403,6 +1500,7 @@ function renderTpls() {
       if (t.mode !== mode) continue;
       const n = (byTpl[id] || []).length;
       const row = el("div", "tpl-row" + (n === 0 ? " zero" : "") + (selTpl === id ? " sel" : ""));
+      row.dataset.tplrow = id;
       const line = el("div", "line");
       const chip = el("span", "chip"); chip.style.background = t.color;
       line.append(chip, el("span", "name mono", t.name),
@@ -1414,6 +1512,15 @@ function renderTpls() {
         ? `No matches — tried at ${triesTotal[id] || 0} positions across the input; click to see its definition`
         : `${n} matches over the whole input — click for the first`) + "\n" + profTitle(p);
       row.addEventListener("click", () => selectTemplate(id));
+      /* pointing at a template in the panel lights everything it consumed and everything
+         it wrote, wherever those are visible from this frame */
+      row.addEventListener("mouseenter", () => setTemplateHot(id, true));
+      row.addEventListener("mouseleave", () => setTemplateHot(id, false));
+      focusable(row, `${t.name}, ${n} match${n === 1 ? "" : "es"} — Enter to select`,
+        on => setTemplateHot(id, on));
+      row.addEventListener("keydown", ev => {
+        if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); selectTemplate(id); }
+      });
       list.appendChild(row);
     }
   }
@@ -1443,6 +1550,21 @@ function renderTpls() {
 function renderCrumb() {
   const c = $("crumb");
   c.textContent = "";
+  c.setAttribute("role", "navigation");
+  c.setAttribute("aria-label", "Frame ancestry and history");
+  /* back and forward sit at the head of the crumb: the crumb answers "where am I",
+     these answer "where was I", and they are the same question asked twice */
+  const nav = el("span", "histnav");
+  const mk = (glyph, delta, label) => {
+    const b = el("button", "arrow hist", glyph);
+    b.disabled = delta < 0 ? histAt <= 0 : histAt >= history.length - 1;
+    b.title = label + (delta < 0 ? " (Alt+←)" : " (Alt+→)");
+    b.setAttribute("aria-label", label);
+    b.addEventListener("click", () => goHistory(delta));
+    return b;
+  };
+  nav.append(mk("◀", -1, "Back to the previous frame"), mk("▶", 1, "Forward"));
+  c.appendChild(nav);
   chainOf(cursor).forEach((seg, k) => {
     if (k > 0) c.appendChild(el("span", "sep", "›"));
     const s = el("span", "seg");
@@ -1450,7 +1572,12 @@ function renderCrumb() {
     const name = el("span", "name", TPL[seg.tpl].name);
     name.style.color = TPL[seg.tpl].color;
     name.title = "Make this frame the cursor";
+    name.tabIndex = 0;
+    if (seg === cursor) name.setAttribute("aria-current", "true");
     name.addEventListener("click", () => setCursor(seg));
+    name.addEventListener("keydown", ev => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setCursor(seg); }
+    });
     s.appendChild(name);
     if (seg !== SOURCE) {
       const sibs = siblings(seg), i = sibs.indexOf(seg);
@@ -1472,6 +1599,29 @@ function renderCrumb() {
     d.addEventListener("click", () => setCursor(cursor.children[0]));
     c.appendChild(d);
   }
+  /* Whole-input stepping for the selected template, moved here from the strip header
+     (2026-08-28): it answers "which match am I on", which is this row's question, not the
+     definition's. It is labelled with the template because the crumb's own arrows step
+     within a parent and these step across the whole input — two scopes that must not look
+     like one control (§5.3, Q5). */
+  const all = byTpl[selTpl] || [];
+  if (selTpl !== "source" && all.length) {
+    const i = cursor.tpl === selTpl ? all.indexOf(cursor) : -1;
+    const st = el("span", "stepper tstep");
+    st.appendChild(el("span", "lbl", `matches of ${TPL[selTpl].name}`));
+    const back = el("button", "arrow step", "◀");
+    back.disabled = i <= 0;
+    back.title = `Previous match of ${TPL[selTpl].name} (whole input)`;
+    back.setAttribute("aria-label", back.title);
+    back.addEventListener("click", () => setCursor(all[i - 1]));
+    const fwd = el("button", "arrow step", "▶");
+    fwd.disabled = i === all.length - 1;
+    fwd.title = `Next match of ${TPL[selTpl].name} (whole input)`;
+    fwd.setAttribute("aria-label", fwd.title);
+    fwd.addEventListener("click", () => setCursor(i < 0 ? all[0] : all[i + 1]));
+    st.append(back, el("span", "idx", `${i < 0 ? "–" : i + 1}/${all.length}`), fwd);
+    c.appendChild(st);
+  }
   if (gapMsg) c.appendChild(el("div", "", gapMsg)).id = "gapInfo";
 }
 
@@ -1481,9 +1631,16 @@ function renderStrip() {
   const all = byTpl[selTpl] || [];
   const onFrame = cursor.tpl === selTpl;   // annotations only when a frame of this template is selected
 
-  /* header: identity (chip + name, both editable) + whole-input stepper */
+  /* The TEMPLATE pane's title, which is also the template's identity line (2026-08-28,
+     Jon). The header row this replaces was mostly saying what the crumb and the
+     highlighted nav row already say — with one exception worth keeping: a template with
+     NO matches appears nowhere in the crumb, which shows the cursor's ancestry, so this
+     is the only place that names it and says where it could be dispatched from. The
+     stepper that used to sit at the right of this row is navigation, and has moved to the
+     crumb where the rest of the navigation lives. */
   const h = $("tshead");
   h.textContent = "";
+  h.appendChild(el("span", "ptitle", "template"));
   if (selTpl !== "source") {
     const chip = el("span", "chip");
     chip.style.background = t.color;
@@ -1502,22 +1659,10 @@ function renderStrip() {
   /* mode is read-only here — chosen in one place, the Edit dialog (toolbar ✎), which
      uses the same fields as Add so mode-picking never has two different homes */
   h.appendChild(el("span", "fmode", selTpl === "source" ? "document" : "mode " + t.mode));
-  h.append(
-    el("span", "fnote", "dispatched from " + DISPATCHED_FROM[selTpl]),
-    el("span", "spacer"));
-  if (selTpl === "source") {
-    /* the document frame has no stepper */
-  } else if (all.length === 0) {
-    h.appendChild(el("span", "stepper", `no matches · tried ${triesTotal[selTpl] || 0} positions`));
-  } else {
-    const i = onFrame ? all.indexOf(cursor) : -1;
-    const st = el("span", "stepper");
-    const back = el("button", "", "◀"); back.disabled = i <= 0;
-    back.addEventListener("click", () => setCursor(all[i - 1]));
-    const fwd = el("button", "", "▶"); fwd.disabled = i === all.length - 1;
-    fwd.addEventListener("click", () => setCursor(i < 0 ? all[0] : all[i + 1]));
-    st.append(back, el("span", "", `match ${i < 0 ? "–" : i + 1} of ${all.length} · whole input`), fwd);
-    h.appendChild(st);
+  h.appendChild(el("span", "fnote", "dispatched from " + DISPATCHED_FROM[selTpl]));
+  if (selTpl !== "source" && all.length === 0) {
+    h.appendChild(el("span", "fnote",
+      `no matches · tried ${triesTotal[selTpl] || 0} positions`));
   }
 
   const b = $("tsbody");
@@ -1601,8 +1746,9 @@ function renderBodyCard(node, path, onFrame) {
        into, so the head wears those same swatches — one per template that matched here,
        in candidate order (2026-08-28). A site that dispatched nothing at this frame keeps
        one muted chip, which is the honest statement that it wrote nothing. */
-    head.append(dispatchChips(node, onFrame), el("span", "num", cardLabel(path)),
+    head.append(grip(card, path), dispatchChips(node, onFrame), el("span", "num", cardLabel(path)),
       el("span", "kind", "apply-templates"));
+    wireCardKeys(card, path);
     if (!isEditing) {
       head.append(el("span", "lit mono", `mode="${node.mode}"` + (node.sel ? ` select=${node.sel}` : "")));
       head.appendChild(cardActions(path));
@@ -1617,6 +1763,7 @@ function renderBodyCard(node, path, onFrame) {
       const tried = onFrame && cursor.tries.includes(tid);
       const row = el("div", "disp-row " + (kids.length ? "hit" : tried ? "miss" : "skip"));
       row.dataset.disp = path + ":" + tid;
+      row.dataset.dispTpl = tid;
       const chip = el("span", "chip"); chip.style.background = TPL[tid].color;
       row.append(chip, el("span", "name mono", TPL[tid].name));
       if (!onFrame) {
@@ -1631,8 +1778,14 @@ function renderBodyCard(node, path, onFrame) {
         row.addEventListener("click", ev => { ev.stopPropagation(); setCursor(kids[0]); });
         /* the row's swatch is the colour of its regions in the output, so hovering it
            isolates exactly those — the card head still lights the whole dispatch */
-        row.addEventListener("mouseenter", () => setDispatchHot(path, tid, true));
-        row.addEventListener("mouseleave", () => setDispatchHot(path, tid, false));
+        const lightRow = on => { setDispatchHot(path, tid, on); setTemplateInputHot(tid, on); };
+        row.addEventListener("mouseenter", () => lightRow(true));
+        row.addEventListener("mouseleave", () => lightRow(false));
+        focusable(row, `${TPL[tid].name}, ${kids.length} match${kids.length > 1 ? "es" : ""} here — Enter to descend`,
+          lightRow);
+        row.addEventListener("keydown", ev => {
+          if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setCursor(kids[0]); }
+        });
       } else if (tried) {
         row.append(el("span", "count", "✗ tried, no match"));
         row.title = "Attempted here by ordered choice and failed (G3 signal)";
@@ -1647,6 +1800,8 @@ function renderBodyCard(node, path, onFrame) {
       card.addEventListener("mouseenter", () => setBodyCardHot(node, path, true));
       card.addEventListener("mouseleave", () => setBodyCardHot(node, path, false));
     }
+    focusable(card, `Instruction ${cardLabel(path)}, apply-templates mode ${node.mode}`,
+      on => onFrame && setBodyCardHot(node, path, on));
     /* follow if there is somewhere to go; otherwise the click means "edit" */
     if (kidsAt.length) {
       card.classList.add("follows");
@@ -1671,15 +1826,18 @@ function renderBodyCard(node, path, onFrame) {
     card.append(head, renderCardEditor(node, path));
     return card;
   }
-  card.append(swatch, el("span", "num", cardLabel(path)), el("span", "kind", node.k),
-    el("span", "lit mono", cardText(node)));
+  card.append(grip(card, path), swatch, el("span", "num", cardLabel(path)),
+    el("span", "kind", node.k), el("span", "lit mono", cardText(node)));
   card.appendChild(cardActions(path));
+  wireCardKeys(card, path);
   card.title = "Click to edit this instruction";
   card.addEventListener("click", ev => { ev.stopPropagation(); openCardEditor(path); });
   if (onFrame) {
     card.addEventListener("mouseenter", () => setBodyCardHot(node, path, true));
     card.addEventListener("mouseleave", () => setBodyCardHot(node, path, false));
   }
+  focusable(card, `Instruction ${cardLabel(path)}, ${node.k}: ${cardText(node)}`,
+    on => onFrame && setBodyCardHot(node, path, on));
   return card;
 }
 
@@ -1698,7 +1856,9 @@ function renderContainerCard(node, path, onFrame) {
   const swatch = el("span", "chip");
   swatch.style.background = cardHue(selTpl, path);
   swatch.title = "This card's colour in the output — covers everything its branches wrote";
-  head.append(swatch, el("span", "num", cardLabel(path)), el("span", "kind", node.k));
+  head.append(grip(card, path), swatch, el("span", "num", cardLabel(path)),
+    el("span", "kind", node.k));
+  wireCardKeys(card, path);
   if (isEditing) {
     card.append(head, renderCardEditor(node, path));
     return card;
@@ -1711,6 +1871,8 @@ function renderContainerCard(node, path, onFrame) {
     head.addEventListener("mouseenter", () => setBodyCardHot(node, path, true));
     head.addEventListener("mouseleave", () => setBodyCardHot(node, path, false));
   }
+  focusable(head, `Instruction ${cardLabel(path)}, ${node.k}: ${cardText(node)}`,
+    on => onFrame && setBodyCardHot(node, path, on));
   card.appendChild(head);
   for (const br of branchBodies(node)) {
     const grp = el("div", "branch");
@@ -1751,12 +1913,52 @@ function dispatchChips(node, onFrame) {
   return wrap;
 }
 
-function openCardEditor(path) { editing = path; addMenuAt = null; render(); }
+/* Editing commits live, like everything else in this editor — the workbench, the guard
+   and limits, the pattern (2026-08-28, Jon's ruling). The ✓/✕ pair the card editors used
+   to carry was the odd one out, and small enough to be a WCAG target-size failure into
+   the bargain. What Cancel was really protecting is `choose`'s branch list: half-finished
+   structure must not reach the model. So the card is snapshotted when it opens and
+   Escape puts the snapshot back — one revert for every kind, including the structural
+   ones, instead of a draft for the kind that happened to need it. */
+let editUndo = null;
+const cloneNode = n => JSON.parse(JSON.stringify(n));
+function restoreNode(target, snap) {
+  for (const k of Object.keys(target)) delete target[k];
+  Object.assign(target, cloneNode(snap));
+}
+/* an edit invalidates the trace, but re-rendering on every keystroke would take the
+   focus out of the field being typed into — so say so without redrawing */
+function markStale() {
+  stale = true;
+  const b = $("runBtn");
+  if (b) { b.classList.add("stale"); announce("Config changed — the trace is stale"); }
+}
+function openCardEditor(path) {
+  const node = cardAt(selTpl, path);
+  editing = path;
+  editUndo = node ? cloneNode(node) : null;
+  addMenuAt = null;
+  render();
+}
 
 /* the "+ instruction" control for one card list — the template's body, or a branch's,
    which is the same kind of thing one level down (2026-08-28) */
 function renderAddLine(list, prefix) {
   const line = el("div", "addline");
+  /* the tail of a list is a drop target too — otherwise an instruction can be dragged
+     anywhere except the end, and an empty branch can never receive one at all */
+  line.addEventListener("dragover", ev => {
+    if (dragFrom === null) return;
+    ev.preventDefault(); line.classList.add("drop-into");
+  });
+  line.addEventListener("dragleave", () => line.classList.remove("drop-into"));
+  line.addEventListener("drop", ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    line.classList.remove("drop-into");
+    if (dragFrom === null) return;
+    moveCard(dragFrom, list, list.length);
+    dragFrom = null; editing = null; render();
+  });
   const open = addMenuAt === prefix;
   const btn = el("button", "addbtn2", open ? "− instruction" : "+ instruction");
   btn.title = prefix === "" ? "Add an instruction to this template's body"
@@ -1785,6 +1987,60 @@ function cardText(node) {
   return node.lit;
 }
 
+/* Moving an instruction. Dragging is the affordance (a grip at the head of each card),
+   but it can never be the only one — a pointer gesture with no keyboard equivalent locks
+   out anyone who cannot make it — so the same three moves are on the ↑/↓ buttons and on
+   Alt+arrows while a card has focus (2026-08-28):
+     Alt+↑ / Alt+↓   reorder within the list the card is in
+     Alt+→           move into the branch of the conditional above it
+     Alt+←           move out of a branch, to just after the conditional holding it
+   Paths make the cross-list moves expressible, and the branch bodies make them worth
+   having: "this should only happen when the status is 403" is a move, not a retype. */
+function moveCard(fromPath, toList, toIndex) {
+  const { list, idx } = listAt(selTpl, fromPath);
+  if (idx < 0 || !list[idx]) return null;
+  const node = list[idx];
+  list.splice(idx, 1);
+  toList.splice(Math.max(0, Math.min(toIndex, toList.length)), 0, node);
+  stale = true;
+  return node;
+}
+function moveWithin(path, delta) {
+  const { list, idx } = listAt(selTpl, path);
+  const to = idx + delta;
+  if (to < 0 || to >= list.length) return null;
+  const prefix = path.indexOf(".") < 0 ? "" : path.slice(0, path.lastIndexOf("."));
+  moveCard(path, list, to);
+  const landed = prefix === "" ? String(to) : prefix + "." + to;
+  announce("Moved to position " + (to + 1));
+  return landed;
+}
+/* into the conditional directly above this card, at the end of its first branch */
+function moveIntoBranch(path) {
+  const { list, idx } = listAt(selTpl, path);
+  for (let i = idx - 1; i >= 0; i--) {
+    const brs = branchBodies(list[i]);
+    if (!brs.length) continue;
+    const br = brs[0];
+    moveCard(path, br.list, br.list.length);
+    const prefix = path.indexOf(".") < 0 ? String(i) : path.slice(0, path.lastIndexOf(".") + 1) + i;
+    announce("Moved into the " + br.label + " branch");
+    return `${prefix}.${br.key}.${br.list.length - 1}`;
+  }
+  return null;
+}
+/* out of a branch, to just after the conditional that holds it */
+function moveOutOfBranch(path) {
+  const segs = String(path).split(".");
+  if (segs.length < 3) return null;
+  const ownerPath = segs.slice(0, -2).join(".");
+  const owner = listAt(selTpl, ownerPath);
+  moveCard(path, owner.list, owner.idx + 1);
+  announce("Moved out of the branch");
+  const prefix = ownerPath.indexOf(".") < 0 ? "" : ownerPath.slice(0, ownerPath.lastIndexOf(".") + 1);
+  return prefix + (owner.idx + 1);
+}
+
 /* reorder and delete act on the list the card is IN, whichever depth that is — a
    branch's instructions move within their branch, not into the body around it */
 function cardActions(path) {
@@ -1793,17 +2049,14 @@ function cardActions(path) {
   const { list, idx } = listAt(selTpl, path);
   const edit = el("button", "act", "✎"); edit.title = "Edit this instruction";
   stop(edit, () => openCardEditor(path));
-  const up = el("button", "act", "↑"); up.title = "Move up"; up.disabled = idx === 0;
-  stop(up, () => {
-    [list[idx - 1], list[idx]] = [list[idx], list[idx - 1]];
-    editing = null; stale = true; render();
-  });
-  const down = el("button", "act", "↓"); down.title = "Move down";
+  const up = el("button", "act", "↑");
+  up.title = "Move up (Alt+↑)"; up.setAttribute("aria-label", "Move this instruction up");
+  up.disabled = idx === 0;
+  stop(up, () => { editing = null; moveWithin(path, -1); render(); });
+  const down = el("button", "act", "↓");
+  down.title = "Move down (Alt+↓)"; down.setAttribute("aria-label", "Move this instruction down");
   down.disabled = idx === list.length - 1;
-  stop(down, () => {
-    [list[idx + 1], list[idx]] = [list[idx], list[idx + 1]];
-    editing = null; stale = true; render();
-  });
+  stop(down, () => { editing = null; moveWithin(path, 1); render(); });
   const del = el("button", "act del", "✕"); del.title = "Delete this instruction";
   stop(del, () => {
     list.splice(idx, 1);
@@ -1870,7 +2123,7 @@ function renderCardEditor(node, path) {
        not a \n you have to spell */
     const area = mkArea(decodeLit(node.lit), "text to emit");
     ed.appendChild(edRow("emit", area));
-    commit = () => { node.lit = JSON.stringify(area.value); };
+    live(area, () => { node.lit = JSON.stringify(area.value); });
   } else if (node.k === "value-of") {
     const expr = mkEditInput(node.lit || "", "$var, or an expression over one");
     const pick = document.createElement("select");
@@ -1891,7 +2144,7 @@ function renderCardEditor(node, path) {
     const wrote = cardOutput(path);
     ed.appendChild(edRow("here", el("span", "ed-live mono",
       wrote ? JSON.stringify(wrote) : "(wrote nothing at this frame)")));
-    commit = () => { node.lit = expr.value; };
+    live(expr, () => { node.lit = expr.value; });
   } else if (node.k === "if") {
     /* the condition is all there is to edit here: what it emits is its body, a card
        list of its own, edited card by card in the strip below */
@@ -1899,45 +2152,48 @@ function renderCardEditor(node, path) {
     ed.append(edRow("when", test));
     ed.appendChild(el("div", "ed-note",
       "The branch body is the card list under this instruction — its own text, value-of and apply cards, added and edited like any other."));
-    commit = () => { node.test = test.value; };
+    live(test, () => { node.test = test.value; });
   } else if (node.k === "choose") {
-    /* edited against a draft so Cancel really cancels — the branch list is structure,
-       not a string, and half-finished structure must not leak into the model. Each
-       branch carries its body with it, so reordering or pruning a branch takes its
-       instructions along rather than orphaning them. */
-    const draft = (node.branches || []).map(b => ({ when: b.when, body: b.body || [] }));
-    let other = Array.isArray(node.otherwise) ? node.otherwise : null;
+    /* the branch list is structure, not a string, and it is edited in place like
+       everything else — Escape restores the snapshot taken when the card opened, which
+       covers a half-added branch as well as a half-typed condition. Each branch carries
+       its body with it, so pruning one takes its instructions along rather than
+       orphaning them. */
+    const draft = node.branches || (node.branches = []);
     const list = el("div", "ed-branches");
     const paint = () => {
       list.textContent = "";
       draft.forEach((b, bi) => {
         const w = mkEditInput(b.when, "condition");
-        w.addEventListener("input", () => b.when = w.value);
-        const n = el("span", "ed-live", `${b.body.length} instruction${b.body.length === 1 ? "" : "s"}`);
+        live(w, () => { b.when = w.value; });
+        const body = b.body || (b.body = []);
+        const n = el("span", "ed-live", `${body.length} instruction${body.length === 1 ? "" : "s"}`);
         const x = el("button", "act del", "✕");
         x.title = "Remove this branch, and the instructions in it";
-        x.addEventListener("click", ev => { ev.stopPropagation(); draft.splice(bi, 1); paint(); });
+        x.setAttribute("aria-label", "Remove branch " + (bi + 1) + " and its instructions");
+        x.addEventListener("click", ev => { ev.stopPropagation(); draft.splice(bi, 1); markStale(); paint(); });
         list.appendChild(edRow(bi === 0 ? "when" : "or when", w, n, x));
       });
-      if (other) {
-        const n = el("span", "ed-live", `${other.length} instruction${other.length === 1 ? "" : "s"}`);
+      if (Array.isArray(node.otherwise)) {
+        const n = el("span", "ed-live",
+          `${node.otherwise.length} instruction${node.otherwise.length === 1 ? "" : "s"}`);
         const x = el("button", "act del", "✕");
         x.title = "Remove the otherwise branch, and the instructions in it";
-        x.addEventListener("click", ev => { ev.stopPropagation(); other = null; paint(); });
+        x.setAttribute("aria-label", "Remove the otherwise branch and its instructions");
+        x.addEventListener("click", ev => { ev.stopPropagation(); node.otherwise = null; markStale(); paint(); });
         list.appendChild(edRow("otherwise", n, x));
       }
       const add = el("button", "act add", "+ branch");
-      add.addEventListener("click", ev => { ev.stopPropagation(); draft.push({ when: "", body: [] }); paint(); });
+      add.addEventListener("click", ev => { ev.stopPropagation(); draft.push({ when: "", body: [] }); markStale(); paint(); });
       const addOther = el("button", "act add", "+ otherwise");
-      addOther.disabled = !!other;
-      addOther.addEventListener("click", ev => { ev.stopPropagation(); other = []; paint(); });
+      addOther.disabled = Array.isArray(node.otherwise);
+      addOther.addEventListener("click", ev => { ev.stopPropagation(); node.otherwise = []; markStale(); paint(); });
       list.appendChild(edRow("", add, addOther));
     };
     paint();
     ed.appendChild(list);
     ed.appendChild(el("div", "ed-note",
       "Ordered choice: the first branch whose condition holds wins — the same rule as the mode-level template choice one level up. Each branch's instructions are the card list under it."));
-    commit = () => { node.branches = draft; node.otherwise = other; };
   } else if (node.k === "apply") {
     const modeSel = document.createElement("select");
     modeSel.className = "edit-in";
@@ -1950,24 +2206,22 @@ function renderCardEditor(node, path) {
     ed.append(edRow("mode", modeSel), edRow("select", selIn));
     ed.appendChild(el("div", "ed-note",
       "The mode names a set of candidate templates; ordered choice picks the first that matches at each position."));
-    commit = () => { node.mode = modeSel.value; node.sel = selIn.value || undefined; };
+    live(modeSel, () => { node.mode = modeSel.value; });
+    live(selIn, () => { node.sel = selIn.value || undefined; });
   } else {
     const input = mkEditInput(node.lit || "", "");
     ed.appendChild(edRow(node.k, input));
-    commit = () => { node.lit = input.value; };
+    live(input, () => { node.lit = input.value; });
   }
 
-  const done = () => { commit(); endEdit(true); };
-  const foot = el("div", "ed-foot");
-  foot.append(mkOk(done), mkCancel());
-  ed.appendChild(foot);
+  ed.appendChild(el("div", "ed-foot", "applies as you type · Esc reverts · Enter closes"));
   /* the editor lives inside the card, whose click opens it — so its own clicks must
      not bubble back out and re-open (or, for an apply site, navigate away mid-edit) */
   ed.addEventListener("click", ev => ev.stopPropagation());
   ed.addEventListener("keydown", ev => {
     ev.stopPropagation();
-    if (ev.key === "Escape") endEdit(false);
-    else if (ev.key === "Enter" && String((ev.target && ev.target.tagName) || "").toUpperCase() !== "TEXTAREA") done();
+    if (ev.key === "Escape") endEdit(true);
+    else if (ev.key === "Enter" && String((ev.target && ev.target.tagName) || "").toUpperCase() !== "TEXTAREA") endEdit(false);
   });
   return ed;
 }
@@ -1977,25 +2231,18 @@ function mkEditInput(val, ph) {
   inp.className = "edit-in mono"; inp.value = val; inp.placeholder = ph;
   return inp;
 }
-function wireEnter(input, commit) {
-  input.addEventListener("keydown", ev => {
-    ev.stopPropagation();
-    if (ev.key === "Enter") commit();
-    if (ev.key === "Escape") endEdit(false);
-  });
+/* a field that writes straight through to the model as you type */
+function live(input, apply) {
+  const run = () => { apply(); markStale(); };
+  input.addEventListener("input", run);
+  input.addEventListener("change", run);
 }
-function mkOk(commit) {
-  const b = el("button", "act ok", "✓");
-  b.title = "Apply (config edit — re-run to refresh the trace)";
-  b.addEventListener("click", commit);
-  return b;
+function endEdit(revert) {
+  const node = editing === null ? null : cardAt(selTpl, editing);
+  if (revert && node && editUndo) restoreNode(node, editUndo);
+  editing = null; editUndo = null;
+  render();
 }
-function mkCancel() {
-  const b = el("button", "act", "✕"); b.title = "Cancel";
-  b.addEventListener("click", () => endEdit(false));
-  return b;
-}
-function endEdit(changed) { editing = null; if (changed) stale = true; render(); }
 
 /* instruction kinds for the add menu, grouped by category */
 const ADD_KINDS = [
@@ -2038,17 +2285,49 @@ function renderAddMenu(list, prefix) {
 function renderContentBox(frame) {
   const box = el("div", "content-box");
   renderFrameContent(box, frame);
-  /* the same delegation as the output pane, over the three things this pane lights:
-     a child match, an unmatched gap, and a capture — the last of which also lights its
-     row in the variables pane, when the capture is this frame's own */
-  delegateHover(box, ["cap", "m", "gap"], el => {
-    el.classList.add("hot");
-    capRowFor(el, true);
-  }, el => {
-    el.classList.remove("hot");
-    capRowFor(el, false);
+  /* What a point and a click mean in this pane, revised 2026-08-28 (Jon): both are about
+     the match at THIS level — the direct child of the frame you are on — and not the
+     deepest match the pointer happens to be inside. The box you see is the immediate
+     child template's, in that template's own colour; clicking steps into it, one level at
+     a time, so the structure is discovered by descending it rather than skipped over. The
+     deep jump survives as ctrl-click for anyone who already knows where they are going.
+     Nested matches are still drawn — their captures tint their text at every depth — they
+     are simply not what a point or a click is about. */
+  const chainAt = node => hoverChain(node, box, ["cap", "m", "gap"]);
+  const levelMatch = chain => chain.filter(e => e.classList.contains("m")).pop() || null;
+  const deepMatch = chain => chain.find(e => e.classList.contains("m")) || null;
+  /* the rows a pointed-at capture names stay chain-based: the bytes really do belong to
+     every capture around them, however deep the match that also claims them */
+  delegateHover(box, ["cap", "m", "gap"], el => capRowFor(el, true), el => capRowFor(el, false));
+  let marked = null;
+  box.addEventListener("mousemove", ev => {
+    const chain = chainAt(ev.target);
+    if (!chain.length) return;                 // between lines: hold, don't blink
+    const next = levelMatch(chain);
+    if (next === marked) return;
+    if (marked) setMatchHot(marked, false);
+    marked = next;
+    if (marked) setMatchHot(marked, true);
+  });
+  box.addEventListener("mouseleave", () => { if (marked) setMatchHot(marked, false); marked = null; });
+  box.addEventListener("click", ev => {
+    const chain = chainAt(ev.target);
+    const target = (ev.ctrlKey || ev.metaKey) ? deepMatch(chain) : levelMatch(chain);
+    if (!target) return;
+    const f = matches[Number(target.dataset.frame)];
+    if (f) setCursor(f);
   });
   return box;
+}
+
+/* A match in the content, the template row that made it, the dispatch row that reached
+   it, and the output that very match wrote are four views of one thing, so pointing at
+   any of them lights the others (2026-08-28). This is the content pane's end of the link
+   the template rows already had in the other direction. */
+function setMatchHot(el, on) {
+  const tid = el.dataset.tpl, fid = el.dataset.frame;
+  setHot(`match:${fid}`, on, [`[data-frame="${fid}"]`, `[data-tplrow="${tid}"]`,
+    `[data-disp-tpl="${tid}"]`, `[data-via="${fid}"]`]);
 }
 function capRowFor(el, on) {
   const key = el.dataset.cap;
@@ -2086,13 +2365,17 @@ function renderRange(container, start, end, children, parent) {
   let pos = start;
   for (const child of children) {
     if (child.start > pos) addPlain(container, pos, child.start, parent);
-    const rootLevel = child.parent === SOURCE;
-    const s = el("span", "m tpl-" + child.tpl + (rootLevel ? " root-level" : ""));
+    const s = el("span", "m tpl-" + child.tpl);
+    s.dataset.tpl = child.tpl;
+    s.dataset.frame = child.id;
     /* colour inline from the template's (editable) hue via a custom property — CSS
-       decides when it's visible (underline/band always, fill on hover only) */
+       decides when it is visible (on demand only, since 2026-08-28) */
     s.style.setProperty("--hue", TPL[child.tpl].color);
-    s.title = `${TPL[child.tpl].name} — match ${siblings(child).indexOf(child) + 1} of ${siblings(child).length} here — hover to preview, click to descend`;
-    s.addEventListener("click", ev => { ev.stopPropagation(); setCursor(child); });
+    s.title = `${TPL[child.tpl].name} — match ${siblings(child).indexOf(child) + 1} of ${siblings(child).length} here — `
+      + `click to step into it, ctrl-click to jump to the deepest match under the pointer`;
+    /* no click handler of its own: the pane decides which match a click means, and the
+       answer is the one at THIS level, not the deepest one the pointer happens to be
+       inside (2026-08-28) */
     renderFrameContent(s, child);
     container.appendChild(s);
     pos = child.start + child.len;
@@ -2176,6 +2459,8 @@ function renderScope() {
     row.dataset.varcap = cursor.id + ":" + i;
     row.addEventListener("mouseenter", () => setCapHot(i, true));
     row.addEventListener("mouseleave", () => setCapHot(i, false));
+    focusable(row, `$${name}, ${CAP_TYPE[name] || "string"}, ${live ? JSON.stringify(live.value) : "no value at this frame"}`,
+      on => setCapHot(i, on));
     own.appendChild(row);
   });
   b.appendChild(own);
@@ -2219,6 +2504,11 @@ function renderScope() {
       row.addEventListener("mouseenter", () => setCrumbHot(anc, true));
       row.addEventListener("mouseleave", () => setCrumbHot(anc, false));
       row.addEventListener("click", () => setCursor(anc));
+      focusable(row, `$${c.name}, bound by ${TPL[anc.tpl].name} — Enter to step there`,
+        on => setCrumbHot(anc, on));
+      row.addEventListener("keydown", ev => {
+        if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setCursor(anc); }
+      });
       osec.appendChild(row);
     });
   }
@@ -2264,8 +2554,9 @@ function renderOutVars() {
     if (last && last.card === card && last.via === via) last.text += seg.text;
     else runs.push({ card, via, text: seg.text });
   }
-  for (const run of runs) {
+  runs.forEach((run, ri) => {
     const s = el("span", "o", run.text);
+    s.dataset.run = ri;
     const jumps = run.via !== cursor;
     /* Coloured by whatever actually wrote it. For text this frame wrote, that's the body
        card — the body below is doing the writing, so its own swatches are what should
@@ -2285,7 +2576,7 @@ function renderOutVars() {
        and, for a dispatch, the child it went into. A card head lights all of its runs, a
        dispatch row lights only the ones its template wrote. */
     s.dataset.owner = `${cursor.id}:${run.card === undefined ? "-" : run.card}`;
-    if (jumps) s.dataset.viaTpl = run.via.tpl;
+    if (jumps) { s.dataset.viaTpl = run.via.tpl; s.dataset.via = run.via.id; }
     s.title = run.card !== undefined
       ? (jumps
         ? `written by ${TPL[run.via.tpl].name}, dispatched from body card ${cardLabel(run.card)} — click to step into it`
@@ -2294,22 +2585,83 @@ function renderOutVars() {
     s.style.cursor = jumps ? "pointer" : "default";
     if (jumps) s.addEventListener("click", () => setCursor(run.via));
     box.appendChild(s);
-  }
+  });
   /* one listener for the pane, not one per run: a run that wraps must not lose its
      highlight in the leading between its own lines (see delegateHover) */
-  delegateHover(box, ["o"], el => {
-    el.classList.add("hot");
-    outputHotFor(el, true);
-  }, el => {
-    el.classList.remove("hot");
-    outputHotFor(el, false);
-  });
+  delegateHover(box, ["o"], el => outputHotFor(el, true), el => outputHotFor(el, false));
   b.appendChild(box);
 }
 
 function setCapHot(i, on) {
-  const s = document.querySelector(`[data-cap="${cursor.id}:${i}"]`);
-  if (s) s.classList.toggle("hot", on);
+  setHot(`cap:${i}`, on, [`[data-cap="${cursor.id}:${i}"]`]);
+}
+
+/* Focus mirrors hover (2026-08-28). Every link in this editor is anchored on a list —
+   body cards, dispatch rows, variable rows — and lights something in the pane opposite.
+   A keyboard user gets the entire model for the cost of firing the same handlers on
+   focus and blur: tab to a card and its output region lights exactly as if it had been
+   pointed at. The alternative — making three hundred output regions tabbable — would be
+   a worse experience than the one it was trying to provide. */
+/* the grip: what you drag, and the only part of a card that starts a drag — dragging
+   from anywhere else would fight click-to-edit and click-to-follow */
+let dragFrom = null;
+function grip(card, path) {
+  const g = el("span", "grip", "⠿");
+  g.title = "Drag to move this instruction — or Alt+↑ Alt+↓ to reorder, Alt+→ Alt+← to move in and out of a branch";
+  g.setAttribute("aria-hidden", "true");
+  g.addEventListener("mousedown", () => { card.draggable = true; });
+  g.addEventListener("mouseup", () => { card.draggable = false; });
+  card.addEventListener("dragstart", ev => {
+    dragFrom = path;
+    card.classList.add("dragging");
+    if (ev.dataTransfer) { ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", path); }
+  });
+  card.addEventListener("dragend", () => {
+    dragFrom = null; card.draggable = false; card.classList.remove("dragging"); render();
+  });
+  card.addEventListener("dragover", ev => {
+    if (dragFrom === null || dragFrom === path) return;
+    ev.preventDefault();
+    card.classList.add("drop-before");
+  });
+  card.addEventListener("dragleave", () => card.classList.remove("drop-before"));
+  card.addEventListener("drop", ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    card.classList.remove("drop-before");
+    if (dragFrom === null || dragFrom === path) return;
+    const target = listAt(selTpl, path);
+    /* toIndex counts the list AFTER the dragged card leaves it, so dropping onto a card
+       further down its own list lands one slot earlier than the card's current index */
+    const from = listAt(selTpl, dragFrom);
+    const to = target.list === from.list && from.idx < target.idx ? target.idx - 1 : target.idx;
+    moveCard(dragFrom, target.list, to);
+    dragFrom = null; editing = null; render();
+  });
+  return g;
+}
+/* Alt+arrows: the same moves, for anyone not making a drag gesture */
+function wireCardKeys(node, path) {
+  node.addEventListener("keydown", ev => {
+    if (!ev.altKey) return;
+    const go = ev.key === "ArrowUp" ? moveWithin(path, -1)
+      : ev.key === "ArrowDown" ? moveWithin(path, 1)
+      : ev.key === "ArrowRight" ? moveIntoBranch(path)
+      : ev.key === "ArrowLeft" ? moveOutOfBranch(path) : undefined;
+    if (go === undefined) return;
+    ev.preventDefault(); ev.stopPropagation();
+    if (go === null) { announce("Cannot move that way from here"); return; }
+    editing = null; render();
+    const landed = document.querySelector(`[data-card="${go}"]`);
+    if (landed && landed.focus) landed.focus();
+  });
+}
+
+function focusable(node, label, onHot) {
+  node.tabIndex = 0;
+  if (label) node.setAttribute("aria-label", label);
+  node.addEventListener("focus", () => { onHot(true); });
+  node.addEventListener("blur", () => { onHot(false); });
+  return node;
 }
 
 /* ---- hover that survives a line break ----
@@ -2334,9 +2686,14 @@ function hoverChain(node, root, classes) {
 }
 function delegateHover(box, classes, on, off) {
   let hot = [];
+  const same = next => next.length === hot.length && next.every((e, i) => e === hot[i]);
   const set = next => {
-    for (const el of hot) if (!next.includes(el)) off(el);
-    for (const el of next) if (!hot.includes(el)) on(el);
+    if (same(next)) return;
+    hot.forEach(off);
+    /* the chain is reported innermost-first: only the innermost is *marked*, but every
+       capture in it still names a row in the variables pane, since the bytes really do
+       belong to all of them */
+    next.forEach((el, i) => on(el, i === 0));
     hot = next;
   };
   box.addEventListener("mousemove", ev => {
@@ -2344,6 +2701,28 @@ function delegateHover(box, classes, on, off) {
     if (next.length) set(next);            // in a gap: hold, don't blink
   });
   box.addEventListener("mouseleave", () => set([]));
+}
+
+/* ---- highlighting is a set of requests, not a pile of toggles ----
+   Several surfaces can point at overlapping things at once, and the obvious
+   implementation — each one switching a class on and off — loses that. Hovering an apply
+   card lights everything it dispatched; moving the pointer onto a dispatch row inside it
+   and off again then switched OFF that template's share, because the row's release knew
+   nothing about the card still asking for it (2026-08-28, Jon: "the parent apply-templates
+   row does not highlight the output"). So each source registers a named request for a set
+   of selectors, and one applier recomputes the union: a release only darkens what nothing
+   else is asking for. Everything below is a request; nothing toggles .hot directly. */
+const hotReqs = new Map();
+function applyHot() {
+  const want = new Set();
+  for (const sels of hotReqs.values())
+    for (const sel of sels) document.querySelectorAll(sel).forEach(el => want.add(el));
+  document.querySelectorAll(".hot").forEach(el => { if (!want.has(el)) el.classList.remove("hot"); });
+  want.forEach(el => el.classList.add("hot"));
+}
+function setHot(key, on, selectors) {
+  if (on) hotReqs.set(key, selectors); else hotReqs.delete(key);
+  applyHot();
 }
 
 /* The other direction, and the one the design has been claiming since the body cards
@@ -2355,35 +2734,54 @@ function delegateHover(box, classes, on, off) {
 function outputHotFor(el, on) {
   const owner = el.dataset.owner || "";
   const path = owner.slice(owner.indexOf(":") + 1);
-  if (path && path !== "-") setOutputHot(path, el.dataset.viaTpl || null, on);
-}
-function setOutputHot(card, viaTpl, on) {
-  if (card === undefined || !cursor || cursor.tpl !== selTpl) return;
-  const c = document.querySelector(`[data-card="${card}"]`);
-  if (c) c.classList.toggle("hot", on);
-  if (!viaTpl) return;
-  const row = document.querySelector(`[data-disp="${card}:${viaTpl}"]`);
-  if (row) row.classList.toggle("hot", on);
+  const via = el.dataset.via, viaTpl = el.dataset.viaTpl;
+  const sels = [`[data-run="${el.dataset.run}"]`];
+  if (path && path !== "-" && cursor && cursor.tpl === selTpl) {
+    sels.push(`[data-card="${path}"]`);
+    if (viaTpl) sels.push(`[data-disp="${path}:${viaTpl}"]`);
+  }
+  /* and back to the input (2026-08-28, Jon: the chain from the output to the input was
+     the one edge missing). A dispatched region was written by a child frame, and that
+     frame consumed bytes you can see: light the match span it came from, and the template
+     row that names it — the same set the input's own hover lights, so the loop closes
+     whichever surface you enter it from. Text this frame wrote itself has no input
+     counterpart to point at: a `text` card consumed nothing, and a `value-of` names an
+     expression rather than a capture, so there is nothing honest to light. */
+  if (via) sels.push(`[data-frame="${via}"]`);
+  if (viaTpl) sels.push(`[data-tplrow="${viaTpl}"]`);
+  setHot(`out:${el.dataset.run}`, on, sels);
 }
 
 /* and the same reverse for the top row: a capture's span in the content lights the
    variable row that names it, one pane over */
 function setCapRowHot(i, on) {
-  const r = document.querySelector(`[data-varcap="${cursor.id}:${i}"]`);
-  if (r) r.classList.toggle("hot", on);
+  setHot(`caprow:${i}`, on, [`[data-varcap="${cursor.id}:${i}"]`]);
+}
+
+/* The third link, and the one that ties the panes together (2026-08-28, Jon): point at a
+   template — a dispatch row inside an apply card, or a row in the navigation panel — and
+   the bytes it consumed light in the content pane as well as the output it wrote. It is
+   the same question the data already answers ("what made this?") asked from the template's
+   end ("what did this make?"), and it is what replaced the permanent extent lines: the
+   information did not go away, it stopped being drawn all the time. */
+function setTemplateInputHot(tid, on) {
+  setHot(`tplin:${tid}`, on, [`[data-tpl="${tid}"]`]);
+}
+function setTemplateHot(tid, on) {
+  setHot(`tpl:${tid}`, on, [`[data-tpl="${tid}"]`, `[data-via-tpl="${tid}"]`,
+    `[data-disp-tpl="${tid}"]`, `[data-tplrow="${tid}"]`]);
 }
 
 /* one dispatch row: the runs this apply site produced through that one template */
 function setDispatchHot(path, tid, on) {
   if (!cursor || cursor.tpl !== selTpl) return;
-  document.querySelectorAll(`[data-owner="${cursor.id}:${path}"][data-via-tpl="${tid}"]`)
-    .forEach(el => el.classList.toggle("hot", on));
+  setHot(`disp:${path}:${tid}`, on,
+    [`[data-owner="${cursor.id}:${path}"][data-via-tpl="${tid}"]`]);
 }
 
 /* an outer-scope row points at the frame that bound it, in the breadcrumb */
 function setCrumbHot(frame, on) {
-  const s = document.querySelector(`[data-crumb="${frame.id}"]`);
-  if (s) s.classList.toggle("hot", on);
+  setHot(`crumb:${frame.id}`, on, [`[data-crumb="${frame.id}"]`]);
 }
 
 /* Hovering a body card highlights the output it produced — a single lookup on the same
@@ -2400,13 +2798,21 @@ function setBodyCardHot(node, path, on) {
   /* a container owns what its branches wrote, so hovering it lights every span whose
      owning path lies inside it — the same prefix relation the paths already encode */
   const key = `${cursor.id}:${path}`;
-  document.querySelectorAll("[data-owner]").forEach(el => {
-    const o = el.dataset.owner;
-    if (o === key || o.indexOf(key + ".") === 0) el.classList.toggle("hot", on);
-  });
+  setHot(`card:${path}`, on, [`[data-owner="${key}"]`, `[data-owner^="${key}."]`]);
 }
 
-function render() { renderTpls(); renderToolbar(); renderCrumb(); renderStrip(); renderInVars(); renderScope(); renderOutVars(); renderRunBtn(); }
+/* Alt+← / Alt+→ walk the history. A card that has focus handles its own Alt+arrows for
+   moving instructions and stops them here, so the two never compete. */
+document.addEventListener("keydown", ev => {
+  if (!ev.altKey) return;
+  if (ev.key === "ArrowLeft" && goHistory(-1)) ev.preventDefault();
+  else if (ev.key === "ArrowRight" && goHistory(1)) ev.preventDefault();
+});
+
+function render() {
+  hotReqs.clear();          // the elements every request named are about to be replaced
+  renderTpls(); renderToolbar(); renderCrumb(); renderStrip(); renderInVars(); renderScope(); renderOutVars(); renderRunBtn();
+}
 
 function renderRunBtn() {
   const b = $("runBtn");
