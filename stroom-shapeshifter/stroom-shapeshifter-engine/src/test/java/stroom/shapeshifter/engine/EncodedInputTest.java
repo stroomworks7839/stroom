@@ -267,11 +267,17 @@ class EncodedInputTest {
                 .hasMessageContaining("no lowering");
     }
 
+    /**
+     * The phase-3 audit's model: conditions match resolved values, whose internal form is
+     * UTF-8 whatever the feed's encoding — so a {@code matches} under RAW compiles and is
+     * not the match vocabulary's business. Phase 0 refused this conservatively; the audit
+     * split the domains.
+     */
     @Test
-    void refusesAMatchesConditionUnderRaw() {
+    void matchesConditionCompilesUnderRawBecauseValuesAreInternal() {
         final String config = """
                 {
-                  "name": "refused", "version": 4,
+                  "name": "value-domain", "version": 4,
                   "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "raw"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
@@ -280,6 +286,21 @@ class EncodedInputTest {
                        {"test": {"matches": {"select": {"parts": [{"capture": {"group": 0}}]},
                                              "pattern": "^[a-z]+$"}},
                         "body": [{"value-of": {"parts": [{"capture": {"group": 0}}]}}]}]}}]}]
+                }
+                """;
+        assertThat(Shapeshifter.compile(ProjectReader.read(config))).isNotNull();
+    }
+
+    /** The match vocabulary sees feed bytes, and RAW has no lowering until phase 4. */
+    @Test
+    void refusesARegexMatchUnderRaw() {
+        final String config = """
+                {
+                  "name": "refused", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "raw"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
+                     "match": {"regex": {"pattern": "([a-z]+)"}}}]
                 }
                 """;
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
@@ -343,5 +364,40 @@ class EncodedInputTest {
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("utf-16le")
                 .hasMessageContaining("no lowering");
+    }
+
+    /**
+     * Found by the phase-3 audit: guards were evaluated with the executor's project-level
+     * encoding while their patterns were interned under the template-effective one, so a
+     * guard's {@code matches} on an encoding-overridden template missed the map at run time
+     * and died with "Pattern was not compiled". The guard now evaluates under the same
+     * effective encoding its patterns were compiled for.
+     */
+    @Test
+    void guardMatchesConditionHonoursTheTemplateEncodingOverride() {
+        final String config = """
+                {
+                  "name": "guarded", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "row",
+                     "encoding": "windows-1252",
+                     "guard": {"matches": {"select": {"parts": [{"text": "é"}]},
+                                           "pattern": "é"}},
+                     "match": {"regex": {"pattern": "L:([^\\n]*)\\n"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}]
+                }
+                """;
+        final byte[] input = {'L', ':', (byte) 0xE9, '\n'};
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                OutputSink.of(output));
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é]");
     }
 }

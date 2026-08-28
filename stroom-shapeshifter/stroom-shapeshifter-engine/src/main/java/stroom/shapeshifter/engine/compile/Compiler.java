@@ -101,20 +101,15 @@ public final class Compiler {
                 }
             }
             final Encoding matchEncoding = declared == null ? encoding : declared;
-            // E29's refusal, narrowed by design 19 phase 3: the regex library now lowers UTF-8
-            // and every single-byte encoding, so only the shapes it still has none for are
-            // refused — RAW until phase 4, and the transcode family by design. "No match"
-            // never stands in for "cannot do that".
+            // E29's refusal, narrowed twice by design 19 phase 3: the regex library lowers
+            // UTF-8 and every single-byte encoding, so only shapes it has none for are
+            // refused — RAW until phase 4, the transcode family by design — and only for the
+            // match vocabulary, which is what sees feed bytes. Guards and bodies match
+            // resolved values in the internal form and compile under UTF-8 regardless.
             final stroom.shapeshifter.regex.Encoding regexEncoding =
                     RegexEncodings.forMatch(matchEncoding);
             if (regexEncoding == null) {
                 final Map<PatternKey, BytePattern> regexes = new HashMap<>();
-                if (template.guard() != null) {
-                    collect(template.guard(), template, regexes,
-                            stroom.shapeshifter.regex.Encoding.UTF_8);
-                }
-                collect(template.body(), template, regexes,
-                        stroom.shapeshifter.regex.Encoding.UTF_8);
                 if (template.match() instanceof MatchExpression.Progressive progressive) {
                     // Resolved, not raw: a PatternRef inlines a library pattern's steps, and a
                     // regex reached through one is as refused as a regex written in place.
@@ -126,7 +121,8 @@ public final class Compiler {
                         : regexes.isEmpty() ? null : regexes.keySet().iterator().next().text();
                 if (offending != null) {
                     throw new ConfigException("Template '" + template.name() + "' declares "
-                                              + matchEncoding.label() + " and uses a regex ('" + offending
+                                              + matchEncoding.label() + " and matches with a regex ('"
+                                              + offending
                                               + "'): regex matching compiles for UTF-8 and the single-byte"
                                               + " encodings, and has no lowering for "
                                               + matchEncoding.label() + " (E29, design 19). Delimiters and"
@@ -134,10 +130,15 @@ public final class Compiler {
                 }
             }
             // Patterns first: a body's compiled form resolves its regex replaces against them.
+            // Guards and bodies match resolved values — internal form, UTF-8 whatever the
+            // feed's encoding — so their patterns intern under UTF-8; only the match
+            // vocabulary below sees feed bytes and compiles for the template's encoding.
             if (template.guard() != null) {
-                collect(template.guard(), template, patterns, regexEncoding);
+                collect(template.guard(), template, patterns,
+                        stroom.shapeshifter.regex.Encoding.UTF_8);
             }
-            collect(template.body(), template, patterns, regexEncoding);
+            collect(template.body(), template, patterns,
+                    stroom.shapeshifter.regex.Encoding.UTF_8);
             if (template.match() instanceof MatchExpression.Progressive progressive) {
                 // Resolved, not raw. Found by the phase-0 audit: a regex inside a referenced
                 // library pattern was never interned, so Steps.java's lookup threw
@@ -148,7 +149,8 @@ public final class Compiler {
             }
             templates.add(new CompiledTemplate(template,
                     compileMatch(template, matchEncoding, project),
-                    CompiledOp.compile(template.body(), patterns, regexEncoding, project),
+                    CompiledOp.compile(template.body(), patterns,
+                            stroom.shapeshifter.regex.Encoding.UTF_8, project),
                     declared));
         }
         resolveTemplateNames(project);

@@ -19,7 +19,6 @@ package stroom.shapeshifter.engine.exec;
 import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.text.Encoding;
-import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
@@ -72,8 +71,11 @@ public final class Conditions {
                     };
             }
             case Condition.Matches value -> {
+                // Conditions match resolved values, and a value's internal form is UTF-8
+                // whatever the feed's encoding — so the pattern is the UTF-8 compilation,
+                // always. Only the match vocabulary sees feed bytes (design 19 phase 3).
                 final BytePattern pattern = patterns.get(new PatternKey(value.pattern(),
-                        RegexEncodings.forMatch(encoding)));
+                        stroom.shapeshifter.regex.Encoding.UTF_8));
                 if (pattern == null) {
                     throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
                 }

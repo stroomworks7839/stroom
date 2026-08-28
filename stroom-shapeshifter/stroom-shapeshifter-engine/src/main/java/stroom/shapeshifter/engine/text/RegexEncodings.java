@@ -30,8 +30,24 @@ import java.util.Map;
  */
 public final class RegexEncodings {
 
-    private static final Map<Encoding, stroom.shapeshifter.regex.Encoding> CACHE =
-            new EnumMap<>(Encoding.class);
+    /**
+     * Built eagerly for every constant, so the lookup on the step-evaluation path is one
+     * unsynchronised {@link EnumMap} read — the phase-3 audit found a {@code synchronized}
+     * here, paid per regex step on every single-byte feed.
+     */
+    private static final Map<Encoding, stroom.shapeshifter.regex.Encoding> CACHE = buildAll();
+
+    private static Map<Encoding, stroom.shapeshifter.regex.Encoding> buildAll() {
+        final Map<Encoding, stroom.shapeshifter.regex.Encoding> cache =
+                new EnumMap<>(Encoding.class);
+        for (final Encoding encoding : Encoding.values()) {
+            final stroom.shapeshifter.regex.Encoding mapped = build(encoding);
+            if (mapped != null) {
+                cache.put(encoding, mapped);
+            }
+        }
+        return cache;
+    }
 
     private RegexEncodings() {
     }
@@ -41,16 +57,11 @@ public final class RegexEncodings {
      * RAW until the identity lowering lands (design 19 phase 4), and the transcode family
      * (UTF-16 and friends) by design.
      */
-    public static synchronized stroom.shapeshifter.regex.Encoding forMatch(final Encoding encoding) {
+    public static stroom.shapeshifter.regex.Encoding forMatch(final Encoding encoding) {
         if (encoding.isUtf8Compatible()) {
             return stroom.shapeshifter.regex.Encoding.UTF_8;
         }
-        if (CACHE.containsKey(encoding)) {
-            return CACHE.get(encoding);
-        }
-        final stroom.shapeshifter.regex.Encoding mapped = build(encoding);
-        CACHE.put(encoding, mapped);
-        return mapped;
+        return CACHE.get(encoding);
     }
 
     /** A 256-entry table for a single-byte charset, or null for anything else. */

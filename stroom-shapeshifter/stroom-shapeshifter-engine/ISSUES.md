@@ -876,9 +876,11 @@ vocabulary onto the library's at one seam, the interned patterns key by (text, e
 because one source text under two encodings is two byte machines, and a windows-1252
 template's regex now matches the `E9` its feed actually carries — pinned by
 `EncodedInputTest`, whose old refusal cases became the capability tests the refusal was
-holding the door for. The refusal itself narrows rather than retires: RAW until phase 4,
-the transcode family by design, message updated to say what has no lowering rather than
-what is not UTF-8. Originally: found 2026-08-28, during the D38 encoding discussion. E3 gave templates a declared
+holding the door for. The refusal itself narrows rather than retires — twice, the second
+by the same-day audit: RAW until phase 4 and the transcode family by design, and only for
+the match vocabulary, because guards' conditions and body replaces match resolved values
+whose internal form is UTF-8 whatever the feed carries — two of phase 0's four carriers
+never needed refusing. Originally: found 2026-08-28, during the D38 encoding discussion. E3 gave templates a declared
 encoding, and two of the three matching vocabularies honour it: delimiters compile their byte
 forms through it, progressive steps classify characters under it at run time (E5). The third
 does not: `Compiler.compileMatch` receives the resolved template charset and compiles regex

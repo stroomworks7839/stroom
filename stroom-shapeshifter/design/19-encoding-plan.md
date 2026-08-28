@@ -190,6 +190,21 @@ flips the phase-0 refusal tests into the capability tests they were holding the 
 and the reworked `EncodedInputTest` hold it. **E29 closes.** Perf: the overnight chain
 gates the batch; the UTF-8 path is pinned byte-identical by the existing suites.
 
+**Audited same day, and the audit found the model the phase had missed: there are two regex
+domains.** Match expressions and progressive steps run over raw feed bytes — the template's
+encoding is theirs. Guards' `matches` conditions and body replaces run over *resolved
+values*, whose internal form is UTF-8 whatever the feed carries (`CompiledOp.Text` encodes
+UTF-8; `normalise()` says so in words) — the phase had moved them to the template encoding,
+which surfaced as a real crash: a guard's pattern interned under the template's table,
+looked up at run time under the executor's project encoding, "Pattern was not compiled".
+The fix is the domain split, not the lookup patch: value-domain patterns compile and key
+as UTF-8 always, the feed-domain refusal covers only the match vocabulary (so a `matches`
+under RAW rightly compiles now — phase 0's four-carrier refusal was conservative, and two
+of its carriers turn out never to have needed refusing), and the guard-crash test pins the
+working behaviour. Two smaller findings: `RegexEncodings`' cache was `synchronized` on the
+per-step path of every single-byte feed — built eagerly now, one unsynchronised read — and
+`TableForm.decode`'s limit guard and `sequences`' flush-at-256 verified correct.
+
 Original phase text follows.
 
 `TABLE` lowering: literals and classes through the 256-entry inverse, so every class is one
