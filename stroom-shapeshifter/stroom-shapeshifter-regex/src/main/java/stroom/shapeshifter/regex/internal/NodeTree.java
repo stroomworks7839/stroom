@@ -20,6 +20,7 @@ import stroom.shapeshifter.regex.MatchLimitException;
 import stroom.shapeshifter.regex.PatternCompileException;
 import stroom.shapeshifter.regex.PatternCompileException.Reason;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
@@ -141,6 +142,16 @@ public final class NodeTree {
         Node next;
 
         abstract boolean match(Ctx ctx, int pos);
+
+        /**
+         * The single byte this node must consume first, or -1 where that is not one known
+         * byte. Answered only to let a lazy run skip positions its continuation cannot
+         * start at: a filter on <i>where</i> to try, never a statement about what a try
+         * does. Anything unsure answers -1 and the filter switches off.
+         */
+        int leadingByte() {
+            return -1;
+        }
     }
 
     private NodeTree() {
@@ -355,7 +366,11 @@ public final class NodeTree {
                     // The fast shape: a class atom carries no state, so the whole run scans
                     // in a loop and backs off a character at a time — CLASS_STAR's trick,
                     // available here for every class because a tree walker reads characters.
-                    tail = chain(new StarClass(charClass.set(), repeat.greedy()), next);
+                    final StarClass star = new StarClass(charClass.set(), repeat.greedy());
+                    tail = chain(star, next);
+                    // After chain, because that is what links next — and the continuation
+                    // itself is already complete, being compiled before its predecessor.
+                    star.resolveSkip();
                 } else {
                     // The general loop, JDK-style: the body's tail points back at the loop
                     // node, which counts nothing but guards against empty iterations by
@@ -437,6 +452,11 @@ public final class NodeTree {
         }
 
         @Override
+        int leadingByte() {
+            return value.length == 0 ? -1 : value[0] & 0xFF;
+        }
+
+        @Override
         boolean match(final Ctx ctx, final int pos) {
             final int available = ctx.to - pos;
             final int compare = Math.min(value.length, available);
@@ -457,6 +477,23 @@ public final class NodeTree {
 
         private final byte[] ascii = new byte[0x80];
         private final CodePointSet set;
+
+        /**
+         * A class of exactly one code point is a literal in all but spelling, and a
+         * single-character terminator — {@code (.*?)b} — is the commonest shape there is. The
+         * byte is the first of its UTF-8 encoding, which for a multi-byte character is its
+         * lead byte; the filter walks, so a lead byte is as safe to stop on as an ASCII one.
+         */
+        @Override
+        int leadingByte() {
+            final int only = set.singleCodePoint();
+            if (only < 0) {
+                return -1;
+            }
+            return only < 0x80
+                    ? only
+                    : Character.toString(only).getBytes(StandardCharsets.UTF_8)[0] & 0xFF;
+        }
 
         OneChar(final CodePointSet set) {
             this.set = set;
@@ -520,6 +557,11 @@ public final class NodeTree {
 
         private final int group;
 
+        @Override
+        int leadingByte() {
+            return next == null ? -1 : next.leadingByte();
+        }
+
         GroupHead(final int group) {
             this.group = group;
         }
@@ -540,6 +582,11 @@ public final class NodeTree {
     private static final class GroupTail extends Node {
 
         private final int group;
+
+        @Override
+        int leadingByte() {
+            return next == null ? -1 : next.leadingByte();
+        }
 
         GroupTail(final int group) {
             this.group = group;
@@ -671,11 +718,72 @@ public final class NodeTree {
         private final byte[] ascii;
         private final boolean allNonAscii;
 
+        /**
+         * The one byte a lazy run's continuation must consume first, or -1 for "do not
+         * filter". Resolved once, after linking, by {@link #resolveSkip()}.
+         */
+        private int skipByte = -1;
+
         StarClass(final CodePointSet set, final boolean greedy) {
             this.item = new OneChar(set);
             this.greedy = greedy;
             this.ascii = item.ascii;
             this.allNonAscii = set.containsAllNonAscii();
+        }
+
+        /**
+         * Resolve the skip filter. Must be called after {@code next} is linked, which is why
+         * it is a separate step rather than constructor work — and it can be, because a
+         * continuation is compiled before the node that precedes it.
+         */
+        void resolveSkip() {
+            this.skipByte = greedy || next == null ? -1 : next.leadingByte();
+        }
+
+        /**
+         * The next position a lazy run need bother trying: the first at or after {@code from}
+         * that either carries the continuation's leading byte, or ends the run because the
+         * class rejects it, or is the region end.
+         *
+         * <p>Two things together make this sound, and the second is the one worth stating
+         * because it is what a first draft got wrong by guarding against. First, every
+         * position skipped is one where {@code next.match} would have returned false without
+         * consuming anything, since the continuation must consume {@link #skipByte} first and
+         * that byte is not there. Second, this <b>walks</b> — same stepping rule as the loop
+         * it filters, {@code accept} for anything non-ASCII — rather than searching for the
+         * byte directly. So the positions it can stop at are by construction a subset of the
+         * ones the unfiltered loop visits, whatever the bytes are and whether or not they are
+         * valid UTF-8. It declines to offer positions; it cannot invent one.
+         *
+         * <p>An earlier version restricted the filter to ASCII lead bytes, reasoning that a
+         * non-ASCII one might coincide with a continuation byte and stop inside a character.
+         * A memchr would indeed do that. A walk cannot, and the restriction was removed once
+         * a mutation test showed nothing could tell the two apart — which is the right
+         * evidence for deleting a guard rather than keeping it because it feels safer.
+         */
+        private int skipTo(final Ctx ctx, final int from) {
+            final byte[] data = ctx.data;
+            final int to = ctx.to;
+            int at = from;
+            while (at < to) {
+                final int b = data[at] & 0xFF;
+                if (b == skipByte) {
+                    return at;
+                }
+                if (b < 0x80) {
+                    if (ascii[b] == 0) {
+                        return at; // the class stops here; the caller ends the run
+                    }
+                    at++;
+                } else {
+                    final int advanced = item.accept(ctx, at);
+                    if (advanced == 0) {
+                        return at;
+                    }
+                    at += advanced;
+                }
+            }
+            return at;
         }
 
         /**
@@ -734,6 +842,14 @@ public final class NodeTree {
                     return false;
                 }
                 at += advanced;
+                if (skipByte >= 0) {
+                    // Skip what cannot match. The bytes passed over are still charged to the
+                    // budget, so a pathological pattern is refused on the same evidence as
+                    // before — the run does less work, not less accounting.
+                    final int candidate = skipTo(ctx, at);
+                    ctx.steps -= candidate - at;
+                    at = candidate;
+                }
             }
         }
     }
