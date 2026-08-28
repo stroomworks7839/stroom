@@ -138,8 +138,11 @@ public final class Utf8 {
 
     /**
      * Decodes the code point starting at {@code pos}, or -1 if the sequence is malformed or runs
-     * past {@code limit}. For the backreference comparison, which is the one place the engine
-     * reads characters back out of the input rather than matching bytes forward.
+     * past {@code limit}. Written for the backreference comparison, then adopted by the tree
+     * engine (D30), whose class nodes decode at match time rather than compiling to byte
+     * automata as the flat engines do — so "the one place the engine reads characters back out
+     * of the input" stopped being true when the tree arrived. The -1 on malformed input is
+     * load-bearing everywhere it is called: it is what makes each caller strict (D38).
      */
     public static int decode(final byte[] data, final int pos, final int limit) {
         final int lead = data[pos] & 0xFF;

@@ -868,3 +868,23 @@ absent input, answers a malformed one with absence rather than an exception, and
 message at all. The edges are pinned in the same file (division by zero, `MIN_VALUE / -1` and
 overflow, code-point counting and cutting, XPath's substring bounds, `round` half towards
 positive infinity). Mutation-checked: reverting the fix in `Executor.emit` fails 24 of the 28.
+
+### E29 — Regex steps ignore the template's declared encoding
+**`open` — found 2026-08-28, during the D38 encoding discussion.** E3 gave templates a declared
+encoding, and two of the three matching vocabularies honour it: delimiters compile their byte
+forms through it, progressive steps classify characters under it at run time (E5). The third
+does not: `Compiler.compileMatch` receives the resolved template charset and compiles regex
+steps with `BytePattern.compile(pattern, flags)` — no encoding, because the regex module's API
+has nowhere to put one; its lowering is hardwired UTF-8. So a `windows-1252` template's regex
+matches UTF-8 byte sequences against 1252 bytes: `[é]` compiles to `C3 A9` and can never match
+the `E9` the feed actually carries — and under D38's strictness `.` refuses the byte outright,
+since a lone `E9` is not well-formed UTF-8. `RAW` templates are mis-served the same way. This
+is a silent approximation of exactly the kind E22 rules out: the configuration asked for one
+thing and got a neighbour, with "no match" standing in for "cannot do that".
+
+Resolving it is the regex module's encoding parameter (regex design 01 §4.0–4.5: UTF-8, a
+256-entry single-byte table, or `RAW` identity — the module is dependency-free, so it takes its
+own encoding shape and the engine maps its `Encoding` onto it). Until that lands, the honest
+stopgap is a compile-time refusal by name in `compileMatch` for any template whose effective
+match encoding is not UTF-8-compatible and whose match or steps carry a regex — pending a check
+of what existing fixtures that breaks, which is itself evidence of how much the gap is leaned on.
