@@ -44,6 +44,9 @@ public final class CompiledProject {
     private final List<CompiledTemplate> templates;
     private final Map<PatternKey, BytePattern> patterns;
     private final Encoding encoding;
+
+    /** The source encoding a whole-source transcode decodes from, or null for none. */
+    private final Encoding transcodeFrom;
     private final List<Message> warnings;
 
     /** Templates per mode, in authored order. The no-mode templates sit under the null key. */
@@ -67,7 +70,9 @@ public final class CompiledProject {
                            final List<CompiledTemplate> templates,
                            final Map<PatternKey, BytePattern> patterns,
                            final Encoding encoding,
+                           final Encoding transcodeFrom,
                            final List<Message> warnings) {
+        this.transcodeFrom = transcodeFrom;
         this.project = project;
         this.templates = List.copyOf(templates);
         this.patterns = Map.copyOf(patterns);
@@ -103,7 +108,12 @@ public final class CompiledProject {
         return templatesByName.get(name);
     }
 
-    /** The interned patterns, keyed by their text. */
+    /** The encoding the input stream is transcoded from before matching, or null. */
+    public Encoding transcodeFrom() {
+        return transcodeFrom;
+    }
+
+    /** The interned patterns, keyed by text and encoding. */
     public Map<PatternKey, BytePattern> patterns() {
         return patterns;
     }

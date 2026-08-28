@@ -305,11 +305,28 @@ decision to confirm before parsing starts: `\B` is also the conventional non-wor
 escape, and 01 must say which spelling wins or how `\B{hex}{hex}` disambiguates — settled
 in 01 first, implemented second.
 
-## Phase 6 — `transcode` *(deferred, deliberately)*
+## Phase 6 — `transcode` *(was deferred; un-deferred by direction)* — **Done 2026-08-28, whole-source scope**
 
-The UTF-16/Shift-JIS/GB18030 family stays upstream per 01 §4.0, and no stage exists.
-Phase 0's refusal keeps the absence honest; a real feed demanding one is the revisit
-condition. Nothing above depends on this.
+**As built.** The whole-source case of 01 §6.6: a transcode-family source — UTF-16, the CJK
+multi-byte family, anything the library has no lowering for but the JDK has a charset for
+(`RegexEncodings.needsTranscode`) — is decoded to UTF-8 *bytes* by `Transcode.wrap` before
+the window machinery reads it, and everything downstream compiles and runs as a UTF-8 feed:
+delimiters, steps, regexes, capture decoding. Malformed input follows §6.6's rule that no
+default silently corrupts: `report` by default — surfacing through the executor's existing
+stream-failure contract as a FATAL message naming the charset — and the source's
+`ignore_errors` selects `replace`. The transcoder holds back a trailing high surrogate per
+chunk so astral characters survive chunk boundaries. A per-template transcode-family
+declaration is refused with directions ("declare it on the source, where the stream can be
+transcoded whole"), because a template shares the source's byte stream and has nothing it
+could transcode alone.
+
+**Scope, honestly bounded.** Spans downstream are offsets into the transcoded bytes —
+§4.0's accepted trade for encodings that never preserved offsets. The checkpointed
+source-offset map, the fixed-length and step-referenced extents, and the `transcode(...)`
+scope combinator all belong to the composition layer's vocabulary and stay with E14's
+lowering question, not this stage. The E29 refusal's reachable set on a full JRE is now
+empty — it remains as the guard for slim runtimes whose charsets are absent, and its pins
+moved to the template-override refusal.
 
 ---
 

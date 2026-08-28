@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -212,22 +213,68 @@ class EncodedInputTest {
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é\u201C]");
     }
 
-    /** RAW has no lowering until phase 4, and the transcode family none by design. */
+    /**
+     * Phase 6 (design 19): a transcode-family source is decoded whole to UTF-8 before the
+     * window machinery reads it, so a UTF-16LE feed compiles and matches as a UTF-8 feed —
+     * regex included. Spans are offsets into the transcoded bytes, by 01 §4.0's own trade.
+     */
     @Test
-    void refusesARegexMatchUnderAnEncodingWithNoLowering() {
+    void utf16SourceIsTranscodedAndMatchesEndToEnd() {
         final String config = """
                 {
-                  "name": "refused", "version": 4,
+                  "name": "transcoded", "version": 4,
                   "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-16le"},
                   "templates": [
-                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line", "match":
-                     {"regex": {"pattern": "L:([^\\n]*)\\n"}}}]
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "row",
+                     "match": {"regex": {"pattern": "L:([^\\n]*)\\n"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}]
                 }
                 """;
-        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("utf-16le")
-                .hasMessageContaining("no lowering");
+        final byte[] input = "L:é中\n".getBytes(java.nio.charset.StandardCharsets.UTF_16LE);
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                OutputSink.of(output));
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é中]");
+    }
+
+    @Test
+    void malformedUtf16ReportsByDefaultAndReplacesUnderIgnoreErrors() {
+        final String config = """
+                {
+                  "name": "malformed", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": IGNORE, "encoding": "utf-16le"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "row",
+                     "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
+                     "body": [{"value-of": {"parts": [{"capture": {"group": 1}}]}}]}]
+                }
+                """;
+        // A lone high surrogate: no UTF-16 decoding can honour it. The engine's contract for
+        // a failing stream is a FATAL message, not a throw — everything already said stands.
+        final byte[] input = {'a', 0, (byte) 0x00, (byte) 0xD8, 'b', 0, '\n', 0};
+        final List<Message> reported = Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config.replace("IGNORE", "false"))),
+                new ByteArrayInputStream(input),
+                OutputSink.of(new ByteArrayOutputStream()));
+        assertThat(reported).anyMatch(m -> m.severity() == Severity.FATAL
+                && m.text().contains("UTF-16LE"));
+        final ByteArrayOutputStream replaced = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config.replace("IGNORE", "true"))),
+                new ByteArrayInputStream(input),
+                OutputSink.of(replaced));
+        // How many code units the decoder folds into one replacement is its own business;
+        // what matters is that data flowed and the malformed span became U+FFFD, not a loss.
+        assertThat(replaced.toString(StandardCharsets.UTF_8)).contains("a\uFFFD");
     }
 
     @Test
@@ -248,7 +295,7 @@ class EncodedInputTest {
     }
 
     @Test
-    void refusesARegexStepUnderAnOverrideWithNoLowering() {
+    void refusesATranscodeFamilyTemplateOverride() {
         final String config = """
                 {
                   "name": "refused", "version": 4,
@@ -264,7 +311,7 @@ class EncodedInputTest {
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("utf-16le")
-                .hasMessageContaining("no lowering");
+                .hasMessageContaining("declare it on the source");
     }
 
     /**
@@ -364,19 +411,20 @@ class EncodedInputTest {
         final String config = """
                 {
                   "name": "refused", "version": 4,
-                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-16le"},
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
                   "patterns": [
                     {"id": "00000000-0000-0000-0000-0000000000aa", "name": "word",
                      "steps": [{"Regex": {"pattern": "[a-z]+", "flags": {}}}]}],
                   "templates": [
-                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line", "match":
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
+                     "encoding": "utf-16le", "match":
                      {"progressive": [{"PatternRef": "00000000-0000-0000-0000-0000000000aa"}]}}]
                 }
                 """;
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("utf-16le")
-                .hasMessageContaining("no lowering");
+                .hasMessageContaining("declare it on the source");
     }
 
     /**

@@ -34,6 +34,7 @@ import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.text.Transcode;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.TrailingAnchor;
@@ -141,7 +142,13 @@ public final class Executor {
                                     final OutputSink sink,
                                     final Instrument instrument,
                                     final boolean wholeBuffer) {
-        return new Executor(compiled, sink, instrument).execute(input, wholeBuffer);
+        // Phase 6 (design 19): a transcode-family source becomes UTF-8 bytes before the
+        // window machinery reads it; report by default, replace under ignore_errors.
+        final InputStream source = compiled.transcodeFrom() != null
+                ? Transcode.wrap(input, compiled.transcodeFrom().charset(),
+                        compiled.project().source().ignoreErrors())
+                : input;
+        return new Executor(compiled, sink, instrument).execute(source, wholeBuffer);
     }
 
     // -----------------------------------------------------------------------------------

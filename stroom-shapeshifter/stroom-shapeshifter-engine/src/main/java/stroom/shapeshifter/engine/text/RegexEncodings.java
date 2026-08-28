@@ -66,6 +66,19 @@ public final class RegexEncodings {
         return CACHE.get(encoding);
     }
 
+    /**
+     * Whether {@code encoding} is served by whole-source transcoding (design 19 phase 6):
+     * the library has no lowering for it, but the JDK has a charset — UTF-16 and the CJK
+     * multi-byte family. RAW is not this (it lowers natively), and an unavailable charset
+     * is not either (nothing can decode it; the refusal stands).
+     */
+    public static boolean needsTranscode(final Encoding encoding) {
+        return forMatch(encoding) == null
+               && encoding != Encoding.RAW
+               && encoding.isAvailable()
+               && encoding.charset() != null;
+    }
+
     /** A 256-entry table for a single-byte charset, or null for anything else. */
     private static stroom.shapeshifter.regex.Encoding build(final Encoding encoding) {
         if (!encoding.isAvailable()) {

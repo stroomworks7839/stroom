@@ -68,7 +68,17 @@ public final class Compiler {
      * @throws ConfigException if anything in it cannot be compiled
      */
     public static CompiledProject compile(final Project project) {
-        final Encoding encoding = encoding(project.source().encoding());
+        final Encoding sourceEncoding = encoding(project.source().encoding());
+        // A transcode-family source (design 19 phase 6) is decoded whole to UTF-8 before the
+        // window machinery sees it, so everything below compiles as a UTF-8 feed: delimiters,
+        // steps, regexes, capture decoding. Spans are offsets into the transcoded bytes —
+        // §4.0's accepted trade for the encodings that never preserved offsets anyway.
+        final Encoding transcodeFrom = RegexEncodings.needsTranscode(sourceEncoding)
+                ? sourceEncoding
+                : null;
+        final Encoding encoding = transcodeFrom != null
+                ? Encoding.UTF_8
+                : sourceEncoding;
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
         final Map<PatternKey, BytePattern> patterns = new HashMap<>();
@@ -98,6 +108,13 @@ public final class Compiler {
                 }
                 if (declared == Encoding.AUTO) {
                     declared = null;
+                }
+                if (declared != null && RegexEncodings.needsTranscode(declared)) {
+                    // A template shares the source's byte stream, so there is nothing it
+                    // could transcode alone; the stage is whole-source (design 19 phase 6).
+                    throw new ConfigException("Template '" + template.name() + "' declares "
+                            + declared.label() + ", which is served by transcoding — declare"
+                            + " it on the source, where the stream can be transcoded whole");
                 }
             }
             final Encoding matchEncoding = declared == null ? encoding : declared;
@@ -156,7 +173,8 @@ public final class Compiler {
         resolveTemplateNames(project);
         dispatchChecks(project, templates, warnings);
         bodyChecks(project, warnings);
-        return new CompiledProject(project, templates, patterns, encoding, warnings);
+        return new CompiledProject(project, templates, patterns, encoding, transcodeFrom,
+                warnings);
     }
 
     /**
