@@ -289,6 +289,17 @@ by this phase's coincidence test (`\B{93}` worked where the literal `“` did no
 threading the form, and the lesson recorded where the next sweep will look: grep for the
 charset, not the class.
 
+**Audited same day.** Findings, all closed: four stale `\BHH` spellings survived in 01's
+own table, RAW section and D38 cross-references — the ruling paragraph landed and its
+neighbours didn't, fixed. The straddle warning overclaimed for lead-range bytes ("a match
+can never start" is true of 0x80–0xBF and false of 0xC2+), so the two ranges now warn
+differently, because they fail differently — both pinned. Two behaviours verified natural
+and pinned rather than assumed: a byte escape quantifies like any atom, and `(?i)` folds
+characters never bytes (`\B{45}` matches `E`, not `e`). Verified clean: the escape
+parser's edge cases, `factor()`'s structural prefix sharing over already-lowered bytes,
+`Parser.Result`'s single construction site, the benign unreachable null in `literalBytes`,
+and honest {1,1} lookbehind bounds for byte escapes.
+
 Permitted under any encoding, never re-encoded, straddle warning per 01 §4.4. One spec
 decision to confirm before parsing starts: `\B` is also the conventional non-word-boundary
 escape, and 01 must say which spelling wins or how `\B{hex}{hex}` disambiguates — settled
