@@ -55,10 +55,25 @@ class ByteEscapeTest {
 
     @Test
     void highByteUnderUtf8CarriesTheStraddleWarning() {
-        final BytePattern pattern = BytePattern.compile("a\\B{93}b");
-        assertThat(pattern.warnings()).anyMatch(w -> w.contains("raw byte")
-                && w.contains("continuation"));
+        // The two ranges warn differently, because they fail differently.
+        assertThat(BytePattern.compile("a\\B{93}b").warnings())
+                .anyMatch(w -> w.contains("continuation-range")
+                        && w.contains("can never start"));
+        assertThat(BytePattern.compile("a\\B{C3}b").warnings())
+                .anyMatch(w -> w.contains("raw byte") && !w.contains("can never start"));
         assertThat(BytePattern.compile("a\\B{12}b").warnings()).isEmpty();
+    }
+
+    @Test
+    void byteEscapesQuantifyAndDoNotFold() {
+        // An escape is an atom like any literal, so quantifiers apply to it...
+        final ByteMatcher m = utf8("a\\B{E9}+b");
+        assertThat(m.find(new byte[]{'a', (byte) 0xE9, (byte) 0xE9, 'b'})).isTrue();
+        // ...and (?i) folds characters, never bytes: \B{45} is the byte 0x45, not "e".
+        assertThat(BytePattern.compile("\\B{45}", EnumSet.of(Flag.CASE_INSENSITIVE))
+                .matcher().find(new byte[]{'e'})).isFalse();
+        assertThat(BytePattern.compile("\\B{45}", EnumSet.of(Flag.CASE_INSENSITIVE))
+                .matcher().find(new byte[]{'E'})).isTrue();
     }
 
     @Test

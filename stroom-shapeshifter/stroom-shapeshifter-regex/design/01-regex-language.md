@@ -55,7 +55,7 @@ Full `java.util.regex` compatibility is explicitly future work (§8).
 |---|---|---|
 | Literal | `abc`, `\n`, `\t`, `\r`, `\f`, `\a`, `\e`, `\0` | |
 | Code point escape | `\xHH`, `\x{HHHH}`, `\uHHHH`, `\u{HHHHH}` | A *character*, encoded via the target encoding |
-| Byte escape | `\BHH` | A *raw byte*, never encoded. Only legal where byte-exact matching is meaningful (§4.4) |
+| Byte escape | `\B{HH}` | A *raw byte*, never encoded. Only legal where byte-exact matching is meaningful (§4.4) |
 | Any | `.` | Any character except `\n`; with `s` flag, any character |
 | Class | `[abc]`, `[a-z]`, `[^a-z]`, `[[:alpha:]]` | Code-point set; see §4 |
 | Perl class | `\d \D \w \W \s \S` | **Unicode by default**, ASCII under `(?-u)` (§4.2) |
@@ -140,7 +140,7 @@ are available.
 - **`(?-u)` narrows the classes; it does not switch to byte semantics.** In Rust, turning
   Unicode off also makes `.` and `[^a]` match single *bytes*, because Rust ties the flag to
   its "matches are valid UTF-8" guarantee. Here the encoding is a property of the compile
-  (§4), so byte-exact matching is `Encoding.RAW` and `\BHH`, and `(?-u)` only changes what
+  (§4), so byte-exact matching is `Encoding.RAW` and `\B{HH}`, and `(?-u)` only changes what
   `\w \d \s \b` and `i` mean. Keeping two unrelated ideas on one flag is what makes
   Rust's version hard to explain.
 - **A match never begins inside a character.** Rust guarantees this only in UTF-8 mode;
@@ -254,7 +254,7 @@ Consequences, stated plainly:
 | `.` | any code point except `\n` | any code point except `\n`, restricted to the encoding's repertoire |
 
 `u` off is *not* "byte mode" — it narrows the code-point set, and the result is still
-encoded through `E`. To match arbitrary bytes regardless of the encoding, use `\BHH`
+encoded through `E`. To match arbitrary bytes regardless of the encoding, use `\B{HH}`
 byte escapes or `Encoding.RAW` (§4.4).
 
 Rationale: `\w` against Latin-1 input containing `0xE9` (`é`) must match, because `é` is a
@@ -289,7 +289,7 @@ is dropped from the class with a compile warning rather than an error.
 the mode for binary formats. Under `RAW`:
 
 - `.` matches any single byte (except `\n` unless `s`).
-- `\BHH` and `\xHH` coincide.
+- `\B{HH}` and `\xHH` coincide.
 - `u` is forced off; `\p{...}` is a compile error.
 
 Byte escapes are spelt **`\B{HH}`** — exactly two hexadecimal digits in braces — and are

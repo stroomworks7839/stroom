@@ -569,9 +569,17 @@ public final class Parser {
     private Hir byteEscape(final int start) {
         final int value = byteEscapeValue(start);
         if (!form.singleByte() && value >= 0x80) {
-            warnings.add("\\B{" + String.format("%02X", value) + "} is a raw byte in a "
-                    + "multi-byte encoding: it can split characters, and a match can never "
-                    + "start on a byte the encoding reads as a continuation");
+            // Two warnings, because the two ranges fail differently: a continuation-range
+            // byte can never begin a match (the search gate reads it as mid-character), a
+            // lead-range byte can, but either can land a span inside what the encoding
+            // considers one character.
+            warnings.add(value < 0xC0
+                    ? "\\B{" + String.format("%02X", value) + "} is a continuation-range "
+                      + "byte under a multi-byte encoding: a match can never start on it, "
+                      + "and matching it mid-pattern can split characters"
+                    : "\\B{" + String.format("%02X", value) + "} is a raw byte under a "
+                      + "multi-byte encoding: matching it can split what the encoding "
+                      + "considers one character");
         }
         return new Hir.Bytes(new byte[]{(byte) value},
                 "\\B{" + String.format("%02X", value) + "}");
