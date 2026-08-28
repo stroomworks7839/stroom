@@ -289,3 +289,24 @@ licenses reading the variants against the JMH row is that the harness **reproduc
 shipped configuration probes at 940 ms against Saxon's 620 ms, a ratio of 0.66×, where JMH
 reports 956 ± 10 against 620 ± 24, a ratio of 0.65×. The confirming JMH run belongs with
 whatever change acts on this, not with the localisation.
+
+**Acted on, and closed (2026-08-28).** The change is the regex engine's lazy-run skip
+(`39ff2f88a4`): a lazy class run now asks its continuation what single byte it must consume
+first and skips the positions that byte is not at — the literal is found rather than stepped
+onto, which is exactly the mechanism the localisation above demanded, landed in the engine
+rather than in the case. The plan row it reopened is closed
+([06-performance-plan.md §1](../stroom-shapeshifter-regex/design/06-performance-plan.md)).
+The confirming JMH run, in the same harness that recorded the loss:
+
+| `nasty_xml`, 100k units | Saxon | shapeshifter | ratio |
+|---|---|---|---|
+| before (`2026-08-27-2223-45823464dc`) | 619.6 ± 24.3 ms | 956.1 ± 9.9 ms | 0.65× |
+| after (`2026-08-28-1029-86b989e7d3`) | 648.9 ± 22.7 ms | 537.0 ± 10.8 ms | **1.21×** |
+
+The 10k rows agree at 1.25×. Saxon's own movement — 620 to 649 ms for work that did not
+change — is the box running ~5% slower than two nights before; both engines are measured in
+one run, so the ratio does not carry it. The case itself is untouched: the 2× authoring idiom
+is still in the challenger, still measured, and now costs almost nothing because the engine
+collapses it — an author no longer has to know. As of the `2223-45823464dc` full set the
+catalogue stood at sixteen cases with this its only loss; it now stands at sixteen wins,
+1.13× to 8.71×.
