@@ -23,12 +23,30 @@ public sealed interface Encoding {
     /** UTF-8 — the default. */
     Encoding UTF_8 = new Utf8();
 
+    /** RAW — each byte is its own code point; the mode for binary formats (01 §4.4). */
+    Encoding RAW = new Raw();
+
     /** The UTF-8 lowering: {@code Utf8.sequences} for classes, multi-byte literals as bytes. */
     record Utf8() implements Encoding {
 
         @Override
         public String toString() {
             return "UTF_8";
+        }
+    }
+
+    /**
+     * RAW: the identity single-byte encoding, bytes 0–255 as code points 0–255. Its lowering
+     * is exactly a table's with the identity map; what distinguishes it is dialect semantics
+     * (01 §4.4) — {@code u} is forced off, {@code \p} is a compile error — because under RAW
+     * bytes are not text and the Unicode vocabulary would be an answer about characters the
+     * input does not have.
+     */
+    record Raw() implements Encoding {
+
+        @Override
+        public String toString() {
+            return "RAW";
         }
     }
 

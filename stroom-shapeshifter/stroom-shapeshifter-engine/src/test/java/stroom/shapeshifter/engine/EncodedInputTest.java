@@ -291,22 +291,35 @@ class EncodedInputTest {
         assertThat(Shapeshifter.compile(ProjectReader.read(config))).isNotNull();
     }
 
-    /** The match vocabulary sees feed bytes, and RAW has no lowering until phase 4. */
+    /**
+     * Phase 4 (design 19): RAW lowers as the identity table, so a regex match over binary
+     * bytes works — every byte its own character, byte spans, no text pretence. The capture
+     * decodes through the engine's RAW reading (byte as code point) on the way out.
+     */
     @Test
-    void refusesARegexMatchUnderRaw() {
+    void matchesWithARegexUnderRaw() {
         final String config = """
                 {
-                  "name": "refused", "version": 4,
+                  "name": "raw", "version": 4,
                   "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "raw"},
                   "templates": [
-                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
-                     "match": {"regex": {"pattern": "([a-z]+)"}}}]
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "rec", "mode": "row",
+                     "match": {"regex": {"pattern": "X([\\\\x80-\\\\xff]+)X"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}]
                 }
                 """;
-        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("raw")
-                .hasMessageContaining("no lowering");
+        final byte[] input = {'X', (byte) 0x93, (byte) 0xE9, 'X'};
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                OutputSink.of(output));
+        // RAW reads each byte as its own code point: 0x93 is U+0093, 0xE9 is é.
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[\u0093é]");
     }
 
     /**

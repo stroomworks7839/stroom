@@ -63,6 +63,18 @@ class TableEncodingTest {
     }
 
     @Test
+    void matchMayStartOnAByteUtf8WouldCallAContinuation() {
+        // 0x93 is a left curly quote in windows-1252 and a continuation byte in UTF-8. The
+        // phase-4 audit found ByteMatcher's start gate still asking UTF-8's question, which
+        // silently unseeded every match starting in 0x80–0xBF under a single-byte form.
+        final ByteMatcher m = matcher("(\u201C[a-z]+\u201D)");
+        final byte[] data = {(byte) 0x93, 'h', 'i', (byte) 0x94};
+        assertThat(m.find(data)).isTrue();
+        assertThat(m.start(1)).isEqualTo(0);
+        assertThat(m.end(1)).isEqualTo(4);
+    }
+
+    @Test
     void classesLowerToByteRanges() {
         final ByteMatcher m = matcher("([À-ÿ]+)");
         final byte[] data = bytes("xÀÁé!");
@@ -137,10 +149,14 @@ class TableEncodingTest {
                 if (random.nextBoolean()) {
                     data[i] = (byte) ('a' + random.nextInt(26));
                 } else {
-                    data[i] = switch (random.nextInt(4)) {
+                    data[i] = switch (random.nextInt(5)) {
                         case 0 -> (byte) 0xE9;
                         case 1 -> (byte) 0xC9;
                         case 2 -> (byte) (0xC0 + random.nextInt(0x20));
+                        // 0x91–0x94: curly quotes, squarely in UTF-8's continuation range —
+                        // the bytes whose match-starts the phase-4 audit found the public
+                        // matcher's UTF-8 gate silently unseeding.
+                        case 3 -> (byte) (0x91 + random.nextInt(4));
                         default -> ',';
                     };
                 }

@@ -414,10 +414,12 @@ public final class ByteMatcher {
                && data[start - 1] == '\n';
     }
 
-    /** Asks {@link Utf8#splitsCharacter} — the contract lives there — with this matcher's
-     * bound region and context. */
+    /** Asks the pattern's compiled form — the contract lives on the UTF-8 spelling in
+     * {@link Utf8#splitsCharacter}; a single-byte form has no interior to split, and the
+     * phase-4 audit found this gate still hardwired to UTF-8, silently unseeding every
+     * match that would start at bytes 0x80–0xBF under RAW or a table. */
     private boolean splitsCharacter(final int at) {
-        return Utf8.splitsCharacter(data, at, contextEnd);
+        return pattern.form().splitsCharacter(data, at, contextEnd);
     }
 
     private int attempt(final int start) {

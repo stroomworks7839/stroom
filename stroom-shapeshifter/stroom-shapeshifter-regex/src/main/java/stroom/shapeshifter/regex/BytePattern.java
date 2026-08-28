@@ -109,6 +109,9 @@ public final class BytePattern {
      */
     private final Encoding encoding;
 
+    /** The encoding's byte facts, computed once — the matcher's boundary gate reads these. */
+    private final ByteForm form;
+
     /**
      * The engine every search must use, or null to leave the compiled machines their normal
      * order — the tree engine first with its fallback beneath it. Only set by
@@ -146,6 +149,7 @@ public final class BytePattern {
         this.pattern = pattern;
         this.flags = flags;
         this.encoding = encoding;
+        this.form = ByteForm.of(encoding);
         this.trailingAnchor = trailingAnchor;
         this.maxLength = maxLength;
         this.anchorsToSearchStart = anchorsToSearchStart;
@@ -499,6 +503,11 @@ public final class BytePattern {
     /** The input encoding this pattern was lowered for — part of its identity (design/19). */
     public Encoding encoding() {
         return encoding;
+    }
+
+    /** The compiled byte facts, for the matcher's gates. */
+    ByteForm form() {
+        return form;
     }
 
     public Set<Flag> flags() {

@@ -101,11 +101,11 @@ public final class Compiler {
                 }
             }
             final Encoding matchEncoding = declared == null ? encoding : declared;
-            // E29's refusal, narrowed twice by design 19 phase 3: the regex library lowers
-            // UTF-8 and every single-byte encoding, so only shapes it has none for are
-            // refused — RAW until phase 4, the transcode family by design — and only for the
-            // match vocabulary, which is what sees feed bytes. Guards and bodies match
-            // resolved values in the internal form and compile under UTF-8 regardless.
+            // E29's refusal, narrowed to its floor: since phase 4 the regex library lowers
+            // UTF-8, every single-byte encoding and RAW, so the only refusable shapes left
+            // are the transcode family's — and only for the match vocabulary, which is what
+            // sees feed bytes. Guards and bodies match resolved values in the internal form
+            // and compile under UTF-8 regardless (design 19).
             final stroom.shapeshifter.regex.Encoding regexEncoding =
                     RegexEncodings.forMatch(matchEncoding);
             if (regexEncoding == null) {

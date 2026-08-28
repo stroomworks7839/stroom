@@ -40,9 +40,13 @@ public sealed interface ByteForm {
     /** The compiled form of {@link Encoding#UTF_8}. */
     ByteForm UTF8 = new Utf8Form();
 
+    /** The compiled form of {@link Encoding#RAW}: a table whose map is the identity. */
+    ByteForm RAW = new RawForm();
+
     static ByteForm of(final Encoding encoding) {
         return switch (encoding) {
             case Encoding.Utf8 ignored -> UTF8;
+            case Encoding.Raw ignored -> RAW;
             case Encoding.Table table -> new TableForm(table);
         };
     }
@@ -73,6 +77,12 @@ public sealed interface ByteForm {
 
     /** One byte is one character: offsets are character positions, counts are byte counts. */
     boolean singleByte();
+
+    /**
+     * RAW: bytes are not text, so the parser forces {@code u} off and refuses {@code \p}
+     * (01 §4.4). Lowering-wise indistinguishable from the identity table.
+     */
+    boolean raw();
 
     /** UTF-8, by delegation to {@link Utf8} — the behaviour every pattern had before phase 3. */
     record Utf8Form() implements ByteForm {
@@ -127,6 +137,11 @@ public sealed interface ByteForm {
 
         @Override
         public boolean singleByte() {
+            return false;
+        }
+
+        @Override
+        public boolean raw() {
             return false;
         }
 
@@ -226,8 +241,82 @@ public sealed interface ByteForm {
         }
 
         @Override
+        public boolean raw() {
+            return false;
+        }
+
+        @Override
         public String toString() {
             return table.name();
+        }
+    }
+
+    /** The identity table, wearing RAW's name and answering {@link #raw()}. */
+    final class RawForm implements ByteForm {
+
+        private static final TableForm IDENTITY = new TableForm(identity());
+
+        private static Encoding.Table identity() {
+            final int[] map = new int[256];
+            for (int b = 0; b < 256; b++) {
+                map[b] = b;
+            }
+            return new Encoding.Table("RAW", map);
+        }
+
+        @Override
+        public byte[] encode(final int codePoint) {
+            return IDENTITY.encode(codePoint);
+        }
+
+        @Override
+        public int[][] sequences(final CodePointSet set) {
+            return IDENTITY.sequences(set);
+        }
+
+        @Override
+        public BitSet leadBytes(final CodePointSet set) {
+            return IDENTITY.leadBytes(set);
+        }
+
+        @Override
+        public int[] lengthBounds(final CodePointSet set) {
+            return IDENTITY.lengthBounds(set);
+        }
+
+        @Override
+        public int decode(final byte[] data, final int pos, final int limit) {
+            return IDENTITY.decode(data, pos, limit);
+        }
+
+        @Override
+        public int encodedLength(final int codePoint) {
+            return 1;
+        }
+
+        @Override
+        public boolean splitsCharacter(final byte[] data, final int at, final int contextEnd) {
+            return false;
+        }
+
+        @Override
+        public boolean continuation(final byte b) {
+            return false;
+        }
+
+        @Override
+        public boolean singleByte() {
+            return true;
+        }
+
+        @Override
+        public boolean raw() {
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return "RAW";
         }
     }
 }

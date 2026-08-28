@@ -67,8 +67,18 @@ public final class Parser {
     private Parser(final String pattern, final Set<Flag> flags, final ByteForm form) {
         this.pattern = pattern;
         this.form = form;
-        // Unicode is the default for the shorthands; (?-u) is how a pattern opts out.
-        this.flags = EnumSet.of(Flag.UNICODE);
+        // Unicode is the default for the shorthands; (?-u) is how a pattern opts out. Under
+        // RAW there is no default to opt out of: bytes are not text, so u is forced off and
+        // asking for it is refused rather than ignored (01 §4.4, design 19 phase 4).
+        if (form.raw()) {
+            if (flags.contains(Flag.UNICODE)) {
+                throw new PatternCompileException(Reason.UNSUPPORTED, pattern, 0,
+                        "u is forced off under RAW: bytes are not Unicode text");
+            }
+            this.flags = EnumSet.noneOf(Flag.class);
+        } else {
+            this.flags = EnumSet.of(Flag.UNICODE);
+        }
         this.flags.addAll(flags);
     }
 
@@ -382,6 +392,10 @@ public final class Parser {
                     }
                     pos++;
                 }
+                if (form.raw() && added.contains(Flag.UNICODE)) {
+                    throw fail(Reason.UNSUPPORTED,
+                            "u is forced off under RAW: bytes are not Unicode text");
+                }
                 if (pos >= pattern.length()) {
                     throw fail(Reason.SYNTAX, "unterminated inline flags", start);
                 }
@@ -596,6 +610,10 @@ public final class Parser {
 
     /** {@code \p{Name}} — the property name in braces, or a single-letter name without them. */
     private CodePointSet parseUnicodeClass(final int start) {
+        if (form.raw()) {
+            throw fail(Reason.UNSUPPORTED,
+                    "\\p classes have no meaning under RAW: bytes are not Unicode text", start);
+        }
         final String name;
         if (peek() == '{') {
             final int close = pattern.indexOf('}', pos);

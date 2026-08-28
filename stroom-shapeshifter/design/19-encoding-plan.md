@@ -229,7 +229,26 @@ Latin-1/1252 is a question the arriving real DS3 configs answer, not this plan.
 **Exit:** a `windows-1252` template's regex matches the bytes its feed carries, proven by
 the extended `EncodedInputTest` and a checked-in benchmark row.
 
-## Phase 4 — `RAW` *(small once phase 3 exists)*
+## Phase 4 — `RAW` *(small once phase 3 exists)* — **Done 2026-08-28**
+
+**As built.** RAW's lowering is literally the identity table — `ByteForm.RAW` delegates to a
+`TableForm` over the identity map, zero new lowering code — and what is genuinely RAW's own
+is dialect semantics, in the parser: no Unicode default, `u` refused rather than ignored
+(explicit flag and inline `(?u)` both), `\p` refused at the shared class parser, `\xHH`
+meaning the byte because identity makes it so. The engine maps `Encoding.RAW` through
+`RegexEncodings`, and the refusal reaches its floor: only the transcode family remains,
+match vocabulary only. `RawEncodingTest` pins the semantics plus a 600-case JDK differential
+through ISO-8859-1, whose identity over every byte makes it RAW's exact oracle off the
+shorthands; `EncodedInputTest` runs a regex match over binary bytes end to end.
+
+**The catch that paid for the phase:** `ByteMatcher` — the public entry, carrying the "one
+shared search-start gate" — still asked `Utf8.splitsCharacter` at the anchored entry and
+the search seeding, silently unseeding every match that would start at bytes 0x80–0xBF
+under RAW *or a table*. Phase 3's tests never started a match in that range (é is E9, À–ÿ
+is C0+), so the gap survived its differential; RAW's first `[\x80-\xFF]` run caught it.
+The gate now asks the pattern's compiled form, the 1252 differential's byte pool gained the
+curly-quote range, and a named test pins a match starting on a byte UTF-8 would call a
+continuation.
 
 Identity lowering per 01 §4.4: `.` is any byte except `\n` unless `s`; `u` forced off;
 `\p{...}` a compile error naming the mode. The phase-0 answer on RAW delimiters is

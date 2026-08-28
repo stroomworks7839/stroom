@@ -53,20 +53,22 @@ public final class RegexEncodings {
     }
 
     /**
-     * The regex library's shape for {@code encoding}, or null where the library has none:
-     * RAW until the identity lowering lands (design 19 phase 4), and the transcode family
-     * (UTF-16 and friends) by design.
+     * The regex library's shape for {@code encoding}, or null where the library has none —
+     * since phase 4 that is only the transcode family (UTF-16 and friends), by design.
      */
     public static stroom.shapeshifter.regex.Encoding forMatch(final Encoding encoding) {
         if (encoding.isUtf8Compatible()) {
             return stroom.shapeshifter.regex.Encoding.UTF_8;
+        }
+        if (encoding == Encoding.RAW) {
+            return stroom.shapeshifter.regex.Encoding.RAW;
         }
         return CACHE.get(encoding);
     }
 
     /** A 256-entry table for a single-byte charset, or null for anything else. */
     private static stroom.shapeshifter.regex.Encoding build(final Encoding encoding) {
-        if (encoding == Encoding.RAW || !encoding.isAvailable()) {
+        if (!encoding.isAvailable()) {
             return null;
         }
         final Charset charset = encoding.charset();
