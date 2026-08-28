@@ -87,6 +87,25 @@ class RawEncodingTest {
         assertThat(matcher("a", Flag.CASE_INSENSITIVE).find(new byte[]{'A'})).isTrue();
     }
 
+    @Test
+    void theFancyTierRunsOnBytesToo() {
+        // A backreference forces the unbounded backtracker: byte-compare semantics, so a
+        // repeated 0xE9 matches and a mismatched pair does not.
+        final ByteMatcher m = matcher("(.)\\1", Flag.DOT_ALL);
+        assertThat(m.find(new byte[]{(byte) 0xE9, (byte) 0xE9})).isTrue();
+        assertThat(matcher("(.)\\1", Flag.DOT_ALL)
+                .find(new byte[]{(byte) 0xE9, (byte) 0x93})).isFalse();
+    }
+
+    @Test
+    void unicodeEscapesUpToFfMeanTheByte() {
+        assertThat(matcher("\\u0093").find(new byte[]{(byte) 0x93})).isTrue();
+        assertThatThrownBy(() -> BytePattern.compile("\\u4E2D", EnumSet.noneOf(Flag.class),
+                Encoding.RAW))
+                .isInstanceOf(PatternCompileException.class)
+                .hasMessageContaining("no encoding under RAW");
+    }
+
     /**
      * RAW's identity map coincides with ISO-8859-1 over every byte, so the JDK on the
      * Latin-1-decoded text is an exact oracle for patterns that stay off the shorthands

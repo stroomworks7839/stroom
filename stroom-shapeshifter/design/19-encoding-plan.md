@@ -250,6 +250,20 @@ The gate now asks the pattern's compiled form, the 1252 differential's byte pool
 curly-quote range, and a named test pins a match starting on a byte UTF-8 would call a
 continuation.
 
+**Audited same day.** Verified: the `(?u:...)` scoped form is refused by the same guard as
+`(?u)`; `(?-u)` stays a tolerated no-op; `\uHHHH` up to FF means the byte and above it is
+refused by name (both now pinned); the identity table passes every `Table` validation rule;
+`RawForm`'s delegation is total, with `encodedLength` honestly constant; word boundaries
+compile to the ASCII kinds because RAW never carries the Unicode flag; backreference
+folding is ASCII-only for the same reason, and the fancy tier's byte-compare is pinned by a
+new backref test. Two findings acted on: `PatternInfo.inspect` answered from the UTF-8
+parse alone, so an editor would call `\p{L}` valid for a RAW template whose compile then
+refuses it — it now takes the encoding, old signature delegating to UTF-8. And one deferred,
+recorded here as the plan's style requires: `compileForcing` is UTF-8-pinned, so cross-engine
+agreement under tables and RAW cannot be asserted by forcing — each tier is instead covered
+by its per-encoding JDK differential, and the forcing entry grows its encoding parameter
+when a divergence ever needs localising, not before.
+
 Identity lowering per 01 §4.4: `.` is any byte except `\n` unless `s`; `u` forced off;
 `\p{...}` a compile error naming the mode. The phase-0 answer on RAW delimiters is
 implemented rather than shortcut. This gives D38's composition story its in-dialect mode

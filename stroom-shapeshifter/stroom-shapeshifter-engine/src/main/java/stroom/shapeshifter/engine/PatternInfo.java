@@ -53,11 +53,24 @@ public record PatternInfo(boolean valid, String error, List<Group> groups) {
 
     }
 
-    /** Inspect a pattern. */
+    /** Inspect a pattern, as UTF-8 — the default the encoding-aware overload generalises. */
     public static PatternInfo inspect(final String pattern) {
+        return inspect(pattern, stroom.shapeshifter.regex.Encoding.UTF_8);
+    }
+
+    /**
+     * Inspect a pattern for an encoding, because validity is per-encoding (phase 4's audit):
+     * {@code \p{L}} compiles under UTF-8 and is refused under RAW, {@code 中} under a table
+     * that cannot express it — an editor answering from the UTF-8 parse alone would call
+     * valid what the template's compile then refuses. Pass the template's mapped encoding
+     * ({@code RegexEncodings.forMatch}) and this reports what the engine will actually do.
+     */
+    public static PatternInfo inspect(final String pattern,
+                                      final stroom.shapeshifter.regex.Encoding encoding) {
         final BytePattern compiled;
         try {
-            compiled = BytePattern.compile(pattern);
+            compiled = BytePattern.compile(pattern,
+                    java.util.EnumSet.noneOf(stroom.shapeshifter.regex.Flag.class), encoding);
         } catch (final PatternCompileException e) {
             return new PatternInfo(false, e.getMessage(), List.of());
         }
