@@ -74,7 +74,9 @@ This phase compiles the tree's class nodes (`OneChar`, and through it `StarClass
 byte-sequence trie. `Utf8` retreats at match time to the two genuinely textual uses,
 backreference comparison and case folding. A byte-compiled class exposes its lead bytes
 directly, which the lazy-run skip's `leadingByte()` currently reconstructs by hand —
-the skip gets simpler, not more complex.
+the skip gets simpler, not more complex — and the first-byte fact the dispatch row in
+[regex 06 §1](../stroom-shapeshifter-regex/design/06-performance-plan.md) wants becomes a
+read of the compiled form, whichever side of the seam that row's measurement puts it on.
 
 Risk is priced honestly: this edits the primary engine's hottest nodes, the non-ASCII path
 could move either way, and the phase ships only under the full gate — canaries, the
