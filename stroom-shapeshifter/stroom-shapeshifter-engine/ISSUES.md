@@ -870,7 +870,10 @@ overflow, code-point counting and cutting, XPath's substring bounds, `round` hal
 positive infinity). Mutation-checked: reverting the fix in `Executor.emit` fails 24 of the 28.
 
 ### E29 — Regex steps ignore the template's declared encoding
-**`open` — found 2026-08-28, during the D38 encoding discussion.** E3 gave templates a declared
+**`deferred` 2026-08-28 — the stopgap is in (design 19 phase 0): a non-UTF-8-compatible
+template carrying a regex is refused by name, so the silent approximation is gone; the issue
+closes when the regex library takes an encoding (design 19 phase 3).** Originally:
+found 2026-08-28, during the D38 encoding discussion. E3 gave templates a declared
 encoding, and two of the three matching vocabularies honour it: delimiters compile their byte
 forms through it, progressive steps classify characters under it at run time (E5). The third
 does not: `Compiler.compileMatch` receives the resolved template charset and compiles regex

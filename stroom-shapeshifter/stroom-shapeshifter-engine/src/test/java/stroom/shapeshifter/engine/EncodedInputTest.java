@@ -89,9 +89,12 @@ class EncodedInputTest {
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "legacy_line", "mode": "row",
                      "encoding": "windows-1252",
-                     "match": {"regex": {"pattern": "L:([^\\n]*)\\n"}},
+                     "match": {"progressive": [
+                       {"Tag": "L:"},
+                       {"TakeUntil": {"pattern": "\\n", "inclusive": false}},
+                       {"Tag": "\\n"}]},
                      "body": [{"value-of": {"parts": [
-                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]},
+                       {"text": "["}, {"capture": {"group": 2}}, {"text": "]"}]}}]},
                     {"id": "00000000-0000-0000-0000-000000000003", "name": "utf8_line", "mode": "row",
                      "match": {"regex": {"pattern": "U:([^\\n]*)\\n"}},
                      "body": [{"value-of": {"parts": [
@@ -166,5 +169,73 @@ class EncodedInputTest {
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config("klingon"))))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown encoding: klingon");
+    }
+
+    // ------------------------------------------------------------------------------------
+    // E29 stopgap (design 19 phase 0): regex compiles for UTF-8 only, so a template whose
+    // effective encoding is anything else is refused by name rather than silently searched
+    // for UTF-8 byte sequences it can never contain. The census note that belongs with
+    // these: the E3 override fixture above originally matched with a regex, and passed only
+    // because its pure-ASCII pattern landed in the byte-permissive plan tier — the exact
+    // licensed deviation of D38. It now says the same thing in steps, the vocabulary that
+    // honours the declaration.
+    // ------------------------------------------------------------------------------------
+
+    @Test
+    void refusesARegexMatchUnderADeclaredSingleByteEncoding() {
+        final String config = """
+                {
+                  "name": "refused", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "windows-1252"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line", "match":
+                     {"regex": {"pattern": "L:([^\\n]*)\\n"}}}]
+                }
+                """;
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("windows-1252")
+                .hasMessageContaining("compiles for UTF-8 only");
+    }
+
+    @Test
+    void refusesARegexStepUnderATemplateEncodingOverride() {
+        final String config = """
+                {
+                  "name": "refused", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
+                     "encoding": "iso-8859-1",
+                     "match": {"progressive": [
+                       {"Tag": "L:"},
+                       {"Regex": {"pattern": "([a-z]+)", "flags": {}}}]}}]
+                }
+                """;
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("iso-8859-1")
+                .hasMessageContaining("compiles for UTF-8 only");
+    }
+
+    @Test
+    void refusesAMatchesConditionUnderRaw() {
+        final String config = """
+                {
+                  "name": "refused", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "raw"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
+                     "match": {"delimiter": {"delimiter": ","}},
+                     "body": [{"choose": {"when": [
+                       {"test": {"matches": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                             "pattern": "^[a-z]+$"}},
+                        "body": [{"value-of": {"parts": [{"capture": {"group": 0}}]}}]}]}}]}]
+                }
+                """;
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("raw")
+                .hasMessageContaining("compiles for UTF-8 only");
     }
 }

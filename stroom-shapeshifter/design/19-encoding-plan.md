@@ -23,7 +23,24 @@ paired runs; results are checked in. Statuses move here.
 
 ---
 
-## Phase 0 — Make the gap honest *(small; no perf surface)*
+## Phase 0 — Make the gap honest *(small; no perf surface)* — **Done 2026-08-28**
+
+**What the audit found, in the order the plan asked.** The refusal is in: a template whose
+effective match encoding is not UTF-8-compatible and which carries a regex anywhere — match,
+step, condition, or replace — is refused by name, pinned by three `EncodedInputTest` cases
+(regex match under windows-1252, regex step under a template override, `matches` condition
+under RAW). The fixture census found **exactly one leaner, and it was the E3 pin itself**:
+`legacy_line` declared windows-1252 and matched with a regex, passing only because its
+pure-ASCII pattern landed in the byte-permissive plan tier — the licensed deviation of D38,
+holding up the test that pins per-template encoding. It now says the same thing in steps.
+The `RAW → UTF_8` charset shortcut was the second silent approximation: a RAW template's
+delimiter "é" compiled to `C3 A9` while its step tag "é" looked for `E9` — two byte forms
+for one text in one template. Fixed by unifying delimiters onto the same `Encoding.encode`
+the step vocabulary uses; one encode path, one truth. The UTF-16 story: benign — delimiters
+and steps serve it byte-honestly through their charset paths, and regex is now refused. The
+AUTO note: BOM sniffing is unimplemented, AUTO is UTF-8 everywhere today, so treating it as
+compatible is sound — but if a BOM sniff ever lands, resolution must happen before this
+refusal's question is asked.
 
 The stopgap E29 names. `Compiler.compileMatch` (and the `intern()` path for condition and
 replace patterns) refuses by name any template whose effective match encoding is not

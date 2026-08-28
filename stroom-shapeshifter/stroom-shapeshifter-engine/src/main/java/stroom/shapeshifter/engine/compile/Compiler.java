@@ -38,8 +38,6 @@ import stroom.shapeshifter.regex.Flag;
 import stroom.shapeshifter.regex.LeadingAnchor;
 import stroom.shapeshifter.regex.PatternCompileException;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -70,9 +68,6 @@ public final class Compiler {
      */
     public static CompiledProject compile(final Project project) {
         final Encoding encoding = encoding(project.source().encoding());
-        final Charset charset = encoding.isUtf8Compatible() || encoding == Encoding.RAW
-                ? StandardCharsets.UTF_8
-                : encoding.charset();
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
         final Map<String, BytePattern> patterns = new HashMap<>();
@@ -84,14 +79,6 @@ public final class Compiler {
                 throw new ConfigException("Template '" + template.name()
                                           + "' is marked consume but declares captures: an eater's"
                                           + " matches do not count, so there is no index to bind them at");
-            }
-            // Patterns first: a body's compiled form resolves its regex replaces against them.
-            if (template.guard() != null) {
-                collect(template.guard(), template, patterns);
-            }
-            collect(template.body(), template, patterns);
-            if (template.match() instanceof MatchExpression.Progressive progressive) {
-                steps(progressive.steps(), template, patterns);
             }
             // E3: a template's declared encoding overrides the source's — for the byte form
             // of its delimiters here at compile time, and for reading its captures at run time.
@@ -113,12 +100,43 @@ public final class Compiler {
                 }
             }
             final Encoding matchEncoding = declared == null ? encoding : declared;
-            final Charset templateCharset =
-                    matchEncoding.isUtf8Compatible() || matchEncoding == Encoding.RAW
-                            ? StandardCharsets.UTF_8
-                            : matchEncoding.charset();
+            // E29 stopgap (design 19 phase 0): the regex vocabulary compiles for UTF-8 only, so
+            // under any other encoding a pattern would search for UTF-8 byte sequences in bytes
+            // that are not — "no match" standing in for "cannot do that". Refused by name until
+            // the regex library takes an encoding; delimiters and steps honour the declaration
+            // and are unaffected.
+            if (!matchEncoding.isUtf8Compatible()) {
+                final Map<String, BytePattern> regexes = new HashMap<>();
+                if (template.guard() != null) {
+                    collect(template.guard(), template, regexes);
+                }
+                collect(template.body(), template, regexes);
+                if (template.match() instanceof MatchExpression.Progressive progressive) {
+                    steps(progressive.steps(), template, regexes);
+                }
+                final String offending = template.match() instanceof MatchExpression.Regex regex
+                        ? regex.pattern()
+                        : regexes.isEmpty() ? null : regexes.keySet().iterator().next();
+                if (offending != null) {
+                    throw new ConfigException("Template '" + template.name() + "' declares "
+                                              + matchEncoding.label() + " and uses a regex ('" + offending
+                                              + "'): regex matching compiles for UTF-8 only, so the pattern"
+                                              + " would search for UTF-8 byte sequences in "
+                                              + matchEncoding.label() + " bytes (E29). Delimiters and"
+                                              + " progressive steps honour the declared encoding; use those"
+                                              + " until the regex library takes an encoding (design 19)");
+                }
+            }
+            // Patterns first: a body's compiled form resolves its regex replaces against them.
+            if (template.guard() != null) {
+                collect(template.guard(), template, patterns);
+            }
+            collect(template.body(), template, patterns);
+            if (template.match() instanceof MatchExpression.Progressive progressive) {
+                steps(progressive.steps(), template, patterns);
+            }
             templates.add(new CompiledTemplate(template,
-                    compileMatch(template, templateCharset, project),
+                    compileMatch(template, matchEncoding, project),
                     CompiledOp.compile(template.body(), patterns, project),
                     declared));
         }
@@ -901,7 +919,7 @@ public final class Compiler {
     }
 
     private static CompiledMatch compileMatch(final Template template,
-                                              final Charset charset,
+                                              final Encoding matchEncoding,
                                               final Project project) {
         return switch (template.match()) {
             case MatchExpression.Regex regex -> {
@@ -928,10 +946,10 @@ public final class Compiler {
                 yield new CompiledMatch.Regex(pattern, regex.advance());
             }
             case MatchExpression.Delimiter delimiter -> new CompiledMatch.Delimiter(
-                    encode(delimiter.delimiter(), charset),
-                    encode(delimiter.escape(), charset),
-                    encode(delimiter.containerStart(), charset),
-                    encode(delimiter.containerEnd(), charset));
+                    encode(delimiter.delimiter(), matchEncoding),
+                    encode(delimiter.escape(), matchEncoding),
+                    encode(delimiter.containerStart(), matchEncoding),
+                    encode(delimiter.containerEnd(), matchEncoding));
             case MatchExpression.All ignored -> new CompiledMatch.All();
             case MatchExpression.Source ignored -> new CompiledMatch.Source();
             case MatchExpression.Named ignored -> new CompiledMatch.Named();
@@ -956,8 +974,15 @@ public final class Compiler {
                 "Template '" + template.name() + "' needs " + what + ", which this build does not support");
     }
 
-    private static byte[] encode(final String text, final Charset charset) {
-        return text == null ? null : text.getBytes(charset);
+    /**
+     * A delimiter's byte form, through the same {@link Encoding#encode} the step vocabulary
+     * uses at run time. It was a {@link java.nio.charset.Charset} until 2026-08-28, with RAW
+     * shortcut to UTF-8 — so a RAW template's delimiter "é" compiled to {@code C3 A9} while
+     * its step tag "é" looked for {@code E9}: two byte forms for one text in one template.
+     * One encode path, one truth (design 19 phase 0's audit).
+     */
+    private static byte[] encode(final String text, final Encoding encoding) {
+        return text == null ? null : encoding.encode(text);
     }
 
     /**
