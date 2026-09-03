@@ -80,8 +80,8 @@ the tree's `Node.match` dispatch is the obvious suspect and it is a probe, not a
 Step 1's fork-per-side re-diagnosis and step 3's slot-write pricing are moot for the rows
 they were for — KEYVALUE is 2× ahead where it matters — and stay recorded for the clean row.
 
-**Exit (reached for the rows; open for the finding):** the two rows read what a pipeline
-sees, beside the clean reading; the pollution cost on our own tree is the new open item.
+**Exit (reached for the rows):** the two rows read what a pipeline sees, beside the clean
+reading. The pollution cost on our own tree is Phase 8.
 
 ## Phase 2 — The cliff *(was: the lazy-run skip for the stateful `Loop`)* — **Done 2026-09-03: `RunLoop`, FAR_LINE 51×, MISS_LINE 54×, ahead of the JDK on all four line rows**
 
