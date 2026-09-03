@@ -1,0 +1,88 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "stroom.shapeshifter.regex.bench.LazyRunBenchmark.natural",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/home/dev1/.sdkman/candidates/java/25.0.3-tem/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "25.0.3",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "25.0.3+9-LTS",
+        "warmupIterations" : 3,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "shape" : "BATCH_DOTALL"
+        },
+        "primaryMetric" : {
+            "score" : 1398111.3211146253,
+            "scoreError" : 11509.459379792637,
+            "scoreConfidence" : [
+                1386601.8617348326,
+                1409620.780494418
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1393289.231179153,
+                "50.0" : 1399928.6263923587,
+                "90.0" : 1400137.620185769,
+                "95.0" : 1400137.620185769,
+                "99.0" : 1400137.620185769,
+                "99.9" : 1400137.620185769,
+                "99.99" : 1400137.620185769,
+                "99.999" : 1400137.620185769,
+                "99.9999" : 1400137.620185769,
+                "100.0" : 1400137.620185769
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1393289.231179153,
+                    1397084.646182684,
+                    1399928.6263923587,
+                    1400137.620185769,
+                    1400116.4816331626
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+            "stack" : {
+                "score" : "NaN",
+                "scoreError" : "NaN",
+                "scoreConfidence" : [
+                    "NaN",
+                    "NaN"
+                ],
+                "scorePercentiles" : {
+                    "0.0" : "NaN",
+                    "50.0" : "NaN",
+                    "90.0" : "NaN",
+                    "95.0" : "NaN",
+                    "99.0" : "NaN",
+                    "99.9" : "NaN",
+                    "99.99" : "NaN",
+                    "99.999" : "NaN",
+                    "99.9999" : "NaN",
+                    "100.0" : "NaN"
+                },
+                "scoreUnit" : "---",
+                "rawData" : [
+                    [
+                        "NaN",
+                        "NaN",
+                        "NaN",
+                        "NaN",
+                        "NaN"
+                    ]
+                ]
+            }
+        }
+    }
+]
+
+
