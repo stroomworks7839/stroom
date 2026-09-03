@@ -70,7 +70,7 @@ pollution workload" and the NETWORK artifact are one item.
 either side is a footnote rather than a number; or the engine's weak case is priced and either
 fixed or accepted with its cost in ISSUES.md.
 
-## Phase 2 — The cliff: the lazy-run skip for the stateful `Loop` *(known shape; the one behind-row)*
+## Phase 2 — The cliff *(was: the lazy-run skip for the stateful `Loop`)* — **Done 2026-09-03: `RunLoop`, FAR_LINE 51×, MISS_LINE 54×, ahead of the JDK on all four line rows**
 
 `LazyRunBenchmark` FAR_LINE / MISS_LINE at 64 KiB: the JDK is 8–42× ahead, because the line
 idiom `((?:[^\n]*\n)*?)lit` is a lazy run the tree cannot walk at that distance within its step

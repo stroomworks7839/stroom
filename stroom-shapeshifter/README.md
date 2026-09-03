@@ -147,8 +147,8 @@ Against `java.util.regex` reading the same bytes, same run, best engine chosen a
 the other two: buffer `KEYVALUE` inside its error bars, and buffer `NETWORK`, which measures at
 parity in controlled fork-per-side comparison and is a documented harness artifact
 ([06-performance-plan.md](stroom-shapeshifter-regex/design/06-performance-plan.md)). The one
-shape it is behind on — a lazy run spelt as a nested line loop over 64 KiB regions — and the
-bounds on the claim are stated in the module's own
+shape it was behind on — a lazy run spelt as a nested line loop over 64 KiB regions — closed
+on 2026-09-03; the bounds on the claim are stated in the module's own
 [README](stroom-shapeshifter-regex/README.md). Charts below are from
 `2026-09-02-2146-75f6bbaa1c-chain-after-plan.json`, the first run on the current machine.
 
