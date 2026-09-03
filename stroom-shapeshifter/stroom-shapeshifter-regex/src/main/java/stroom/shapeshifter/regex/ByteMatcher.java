@@ -52,6 +52,9 @@ public final class ByteMatcher {
     private static final int BACKTRACK_BUDGET_BYTES = 128 * 1024;
 
     private final BytePattern pattern;
+    /** {@code pattern.form().singleByte()}, hoisted out of the search loop — see
+     * {@link #splitsCharacter}. */
+    private final boolean singleByteForm;
     private final Plan plan;
     private final PikeVm vm;
     private final Backtracker backtracker;
@@ -98,6 +101,7 @@ public final class ByteMatcher {
 
     ByteMatcher(final BytePattern pattern) {
         this.pattern = pattern;
+        this.singleByteForm = pattern.form().singleByte();
         this.plan = pattern.plan();
         // Which machines this matcher may need (D31). A pinned engine builds only itself;
         // otherwise a fancy pattern carries the tree plus its flat fallback, and an ambiguous
@@ -414,12 +418,27 @@ public final class ByteMatcher {
                && data[start - 1] == '\n';
     }
 
-    /** Asks the pattern's compiled form — the contract lives on the UTF-8 spelling in
-     * {@link Utf8#splitsCharacter}; a single-byte form has no interior to split, and the
-     * phase-4 audit found this gate still hardwired to UTF-8, silently unseeding every
-     * match that would start at bytes 0x80–0xBF under RAW or a table. */
+    /**
+     * Whether a match starting at {@code at} would begin inside a character instead of on one.
+     * The contract lives on the UTF-8 spelling in {@link Utf8#splitsCharacter}.
+     * <p>The phase-4 audit's correctness fix is preserved rather than reverted: a single-byte
+     * form has no interior to split, so under RAW or a table a match may still start at bytes
+     * 0x80–0xBF, which is the silent unseeding that audit found. What changed is only the
+     * spelling — a guarded static call rather than {@code pattern.form().splitsCharacter(...)}.
+     * It is the same answer by the sealed set: of the three forms
+     * {@link stroom.shapeshifter.regex.internal.ByteForm} permits, the two single-byte ones
+     * answer {@code false} unconditionally and the only multi-byte one is UTF-8. A fourth form
+     * would break that equivalence, which is why {@code ByteFormInvariantTest} pins it.
+     * <p>The spelling matters because this gate runs once per candidate start position — for a
+     * {@code (?m)} miss it <em>is</em> the search loop — and the interface call does not inline
+     * there. Measured on the encoding plan's before/after pair, 2026-09-03: the polymorphic form
+     * cost 5.5× on {@code AnchoredSearchBenchmark} line_miss, 14% on
+     * {@code EndAnchoredSearchBenchmark} BOUNDED_HIT and 3% on per-match weblog. Caching the form
+     * in a field recovers none of the first and a third of the second; only devirtualising the
+     * call recovers all three (design 06 §1).
+     */
     private boolean splitsCharacter(final int at) {
-        return pattern.form().splitsCharacter(data, at, contextEnd);
+        return !singleByteForm && Utf8.splitsCharacter(data, at, contextEnd);
     }
 
     private int attempt(final int start) {
