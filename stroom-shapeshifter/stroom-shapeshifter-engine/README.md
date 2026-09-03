@@ -3,7 +3,9 @@
 The layers above matching: reading a configuration, running it over an input, and writing the
 result. It is a port of the `shapeshifter` crate from the Rust `ds-rs` project
 ([D33](../design/00-decisions.md), [07-engine-port-plan.md](../design/07-engine-port-plan.md)),
-and the port is complete — 49 of 49 in-scope fixtures, 198 tests.
+and the port is complete against ds-rs's own goldens; against Stroom's, which D41 made the
+corpus's on 2026-09-03, 51 of 61 in-scope fixtures pass and 10 are `PENDING` on two named
+differences (E33, E35) that design 21 phases 2 and 3 close.
 
 ```java
 final Project project = ProjectReader.read(Files.readString(config));

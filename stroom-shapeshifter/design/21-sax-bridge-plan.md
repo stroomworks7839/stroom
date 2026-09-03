@@ -184,11 +184,36 @@ produces, modulo the whitespace finding written down. E31 moves to `in progress`
 
 ---
 
+## Phase 1b — The element and its document *(Stroom integration; added 2026-09-03)*
+
+What phase 1 built is an `XMLReader`; what a pipeline needs is an element that can be placed
+in it and a document that holds the configuration. Prior art is `DSParser` and
+`TextConverterDoc`: a `@ConfigurableElement` in the `PARSER` category with `ROLE_PARSER`,
+`ROLE_HAS_TARGETS` and the stepping visibility, whose `createReader()` loads the document,
+compiles it through `ShapeshifterParserFactory` (cached in a pool keyed on the document
+version, as `ParserFactoryPool` does for DS3) and returns the parser; a `ShapeshifterDoc`
+document type with the project JSON as its body, a store, import/export and the explorer
+registration D10 promised; and the Guice module that binds all of it, in `stroom-shapeshifter-pipeline`
+if phase 0's build check holds for the runtime too, and in `stroom-pipeline` if the element
+registry cannot see across modules.
+
+**Tests.** A pipeline test in `stroom-pipeline`'s style running a migrated legacy configuration
+end to end through the element into a recording filter, asserting the same events phase 1's
+oracle asserts; a stepping test that the element reports its input location for a matched
+record, which is D10's locator work and is where the unlocated messages of phase 1 stop being
+acceptable; import/export of the document round-trips the JSON byte for byte.
+
+**Exit:** a feed processed by a Shapeshifter parser element in a real pipeline produces the
+events the DS3 element produces for the same feed, and the configuration lives in a document
+a user can open.
+
 ## Phase 2 — The sink is a state machine *(the ruled shape; the measured risk is S2)*
 
 ### 2a — The spike that decides whether 2b is as planned
 
-Before the model changes, a byte serialiser is written to the phase-0 census and driven **by
+Before the model changes, a byte serialiser is written to the phase-0 census — and, since D41,
+to Saxon's indenter (E35): one attribute line until the 80th column, then each attribute after
+the first on its own line aligned under the first — and driven **by
 hand** — no new instructions, a test that calls `startElement`/`startAttribute`/`write`/
 `endAttribute`/`endElement` in the sequence phase 3 will generate — for one legacy fixture,
 `legacy/001_csv_with_header`, and compared byte for byte with its golden. If it matches, 2b
@@ -269,9 +294,9 @@ has not touched them.
 `element records { namespace "" "records:2"; namespace xsi …; … }` with the census's
 whitespace as `text`; `<data>` becomes `element data { attribute name {…}; attribute value {…} }`;
 `escapeAttribute` and `escapeCaptures` are deleted; escaping is no longer written, generated
-or forgotten. E33 (DS3 trims every name and value) is ruled before or with this phase: if the
-ruling is the `trim` property on `attribute`, it lands here and `021_trimmed_values` is
-promoted with the rest; if it is a generated `trim` step, it lands earlier and independently.
+or forgotten. E33 is ruled (D41): DS3's trim-and-drop-if-empty is matched, as properties of the
+generated `attribute`, and it lands here — `007`, `009` and `021` are promoted with the rest,
+and `003`, `007`, `019` with them once the phase-2a serialiser wraps as Saxon does (E35).
 
 **Two semantics the fused expression carried that a container does not, and the plan names
 them because phase 3 will meet them on its first fixture:**
@@ -353,6 +378,16 @@ and the trace says which it did.
 
 Out of scope, and said so it is not read as forgotten: SAX as *input* (E30, its own design);
 the function registry (E32); a third sink.
+
+**A task D41 added, scoped but not started: the ds-rs purge.** Thirty-two files under
+`stroom-shapeshifter` name ds-rs — eleven in `stroom-shapeshifter-engine/docs`, D33 and its
+neighbours in the decision log, the corpus README, `Ds3Migration`'s comments, the engine and
+module READMEs, and this document. Two readings of "purge all history" lead to materially
+different work: rewriting the record so the port stands on Stroom alone (D33 superseded,
+provenance notes rewritten, ds-rs named once in D41 as what was retired), or also removing
+what ds-rs *contributed* — the `projects/` fixture family and the `native/` configurations are
+its — which would take the regression pins for iteration, grouping and value computation with
+it. Put to the user before either is done.
 
 ---
 

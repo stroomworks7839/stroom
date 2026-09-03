@@ -7,8 +7,8 @@
       <data name="query">
          <data name="date" value="09/07/2016"/>
          <data name="time" value="14:49:36"/>
-         <data name="User " value="user1"/>
-         <data name="Query " value="some query"/>
+         <data name="User" value="user1"/>
+         <data name="Query" value="some query"/>
       </data>
       <data name="results">
          <data name="date" value="09/07/2016"/>
@@ -23,8 +23,8 @@
       <data name="query">
          <data name="date" value="09/07/2009"/>
          <data name="time" value="16:35:21"/>
-         <data name="User " value="user2"/>
-         <data name="Query " value="some other query"/>
+         <data name="User" value="user2"/>
+         <data name="Query" value="some other query"/>
       </data>
       <data name="results">
          <data name="date" value="09/07/2009"/>
@@ -39,8 +39,8 @@
       <data name="query">
          <data name="date" value="09/07/2009"/>
          <data name="time" value="16:35:21"/>
-         <data name="User " value="user3"/>
-         <data name="Query " value="some great query"/>
+         <data name="User" value="user3"/>
+         <data name="Query" value="some great query"/>
       </data>
       <data name="results">
          <data name="date" value="09/07/2009"/>

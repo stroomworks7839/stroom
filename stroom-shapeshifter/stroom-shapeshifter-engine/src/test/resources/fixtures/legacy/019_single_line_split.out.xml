@@ -13,7 +13,8 @@
       <data name="emotionalState" value="😗"/>
       <data name="address" value="3242 Berge Centers, Port Brenda, MO Z28 6XL"/>
       <data name="company" value="Ebert, Jones and McGlynn"/>
-      <data name="companyLogo" value="https://pigment.github.io/fake-logos/logos/medium/color/13.png"/>
+      <data name="companyLogo"
+            value="https://pigment.github.io/fake-logos/logos/medium/color/13.png"/>
       <data name="lorum" value="alias modi et accusamus"/>
    </record>
 </records>

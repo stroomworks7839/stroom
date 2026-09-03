@@ -14,11 +14,11 @@ so when a phase of the port makes one work the build breaks until the line is pr
 
 - **`legacy/`** — 19 vendored DS3 XML configurations plus three of ours (020–022 — design 21
   phase 0 and its audit, 2026-09-03), with their inputs, and golden output produced by
-  **Java Stroom's own DS3**. These are the corpus's real external oracle — with two
-  qualifications design 21 phase 1 found by driving DS3 live (2026-09-03): the vendored bytes
-  are ds-rs's re-serialisation of Stroom's events (Stroom wraps long attributes onto their own
-  line; these do not), and `007` and `009` carry values DS3 has trimmed since 2019 but ds-rs
-  did not ([E33](../../../../ISSUES.md)). Ours — 020 to 022 — are Stroom's bytes unmodified. One,
+  **Java Stroom's own DS3**: since D41 (2026-09-03) every `.out.xml` here is a byte-for-byte
+  copy of `stroom-pipeline/src/test/resources/TestDS3/`, and 020 to 022 were produced through
+  the same harness. The four the engine does not yet reproduce — 003, 007, 009, 019 — are
+  `PENDING` under [E33](../../../../ISSUES.md) (DS3 trims) and E35 (Saxon wraps), and are the
+  proof that the corpus is Stroom's, not the port's. One,
   `008_invalid_xml_FAIL`, has no golden output because its expectation is that the config is
   *rejected*; the Rust suite skips it, ours asserts the rejection.
 - **`native/`** — 18 hand-written `project.json` configurations that reproduce the legacy

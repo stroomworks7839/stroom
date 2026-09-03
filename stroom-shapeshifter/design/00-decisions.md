@@ -1187,3 +1187,30 @@ the draft's one factual error before anything was built on it: the migration's r
 values were never unescaped — `escapeCaptures` generates a `translate` per value — which
 turned a claimed defect into the sharper point that the port had to generate machinery DS3
 never needed. E31 proceeds; E15, `blocked` on D10 since 2026-08-17, unblocks.
+
+## D41 — Stroom is the source of truth: the legacy goldens are stroom-pipeline's own, and ds-rs is retired
+
+**Ruled by Jon, 2026-09-03**, on design 21 phase 1's finding that the vendored legacy goldens
+were ds-rs's re-serialisation of DS3's events rather than Stroom's bytes — unwrapped where
+Saxon wraps, and untrimmed on 007 and 009 where `DS3Parser` has trimmed since 2019. The ruling:
+ignore the vendored goldens; the Stroom codebase is the source of truth; whitespace that is a
+pretty-print artefact still has to match Stroom's DS3 goldens, with the configuration tweaked
+if that is what it takes; and ds-rs, an old experiment, is to be purged from the record.
+
+**What moved on the day.** All nineteen legacy goldens are now byte-for-byte copies of
+`stroom-pipeline/src/test/resources/TestDS3/*.out.xml` (seventeen were already identical);
+003, 007, 009 and 019 turn `PENDING` in both the legacy and native families, because the
+engine reproduces ds-rs's bytes rather than Stroom's on them. Two issues hold the difference:
+[E33](../stroom-shapeshifter-engine/ISSUES.md) — DS3 trims every name and value, now *ruled*
+to be matched, landing structurally in design 21 phase 3 — and E35 — Saxon's indenter wraps
+attributes past the 80th column, which the byte serialiser design 21 phase 2a builds must
+reproduce. S2's "byte-identical to today's goldens" therefore now means Stroom's serialiser's
+bytes, which is what it was always meant to mean.
+
+**What this does to D33.** D33 made ds-rs's behaviour the specification for the port. That
+served its purpose — the port is done — and is superseded: where ds-rs and Stroom differ, Stroom
+is right by definition, and the `projects/` family (ds-rs's own end-to-end fixtures) keeps its
+goldens only as regression pins for features Stroom's DS3 does not have, not as an oracle. The
+purge of ds-rs from the record is a task of its own; its scope — thirty-two files name it, from
+D33 to the corpus README to the migration's comments — is sized in design 21 and put to the
+user before anything is deleted.

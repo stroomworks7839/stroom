@@ -43,7 +43,8 @@
          <data name="eventId" value="10591"/>
          <data name="proctitle" value="/proc/self/exe"/>
          <data name="--type" value="utility"/>
-         <data name="--field-trial-handle" value="14965002579265685713,8315097743634133468,131072"/>
+         <data name="--field-trial-handle"
+               value="14965002579265685713,8315097743634133468,131072"/>
          <data name="--disable-features" value="SpareRende"/>
       </data>
       <data name="type" value="PATH">
@@ -100,7 +101,8 @@
          <data name="eventId" value="10591"/>
          <data name="argc" value="8"/>
          <data name="a0" value="/proc/self/exe"/>
-         <data name="a1" value="a1=--type=utility a2=--field-trial-handle=14965002579265685713,8315097743634133468,131072 a3=--disable-features=SpareRendererForSitePerProcess,WebRtcHideLocalIpsWithMdns a4=--lang=en-GB a5=--service-sandbox-type=audio a6=--service-request-channel-token=9331621691371633224 a7=--shared-files=v8_context_snapshot_data:100,v8_natives_data:101"/>
+         <data name="a1"
+               value="a1=--type=utility a2=--field-trial-handle=14965002579265685713,8315097743634133468,131072 a3=--disable-features=SpareRendererForSitePerProcess,WebRtcHideLocalIpsWithMdns a4=--lang=en-GB a5=--service-sandbox-type=audio a6=--service-request-channel-token=9331621691371633224 a7=--shared-files=v8_context_snapshot_data:100,v8_natives_data:101"/>
       </data>
       <data name="type" value="SYSCALL">
          <data name="type" value="SYSCALL"/>

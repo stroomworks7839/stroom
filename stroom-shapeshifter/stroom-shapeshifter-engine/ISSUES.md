@@ -1008,7 +1008,11 @@ What the design has to settle:
   — a pipeline that can call out is a security surface, not only a feature.
 
 ### E33 — DS3 trims every data name and value; the migration does not
-**`open` — found 2026-09-03 by design 21 phase 0, fixture `legacy/021_trimmed_values` (`PENDING`).**
+**`open` — found 2026-09-03 by design 21 phase 0, fixture `legacy/021_trimmed_values` (`PENDING`);
+ruled the same day under D41: Stroom's behaviour is matched. Lands structurally in design 21
+phase 3 — the trim and the drop-if-empty become properties of the structured `attribute` the
+migration generates — rather than as a generated `trim` step that phase 3 would then remove.
+Until then 007, 009 and 021 hold Stroom's goldens as `PENDING`.**
 
 `DS3Parser.normaliseBuffer` runs every `<data>` name and value through `CharBuffer.trim()` —
 which strips anything at or below U+0020 from both ends, so spaces, tabs and carriage returns
@@ -1053,3 +1057,17 @@ start self-closes when its body wrote nothing (Appendix A's rule for `<data>`, n
 root too). Until then the fix would be a conditional footer in the migration — the same
 buffered-body shape `wrapAsRecord` uses — and it is not worth building twice; the fixture holds
 the golden and the ratchet decides when.
+
+### E35 — Stroom's serialiser wraps long attributes; the engine's text output does not
+**`open` — found 2026-09-03 by design 21 phase 1, when the legacy goldens were re-vendored from
+`stroom-pipeline` under D41. Fixtures 003, 007 and 019 (`PENDING`, both families).**
+
+The DS3 goldens are written by Saxon (`XMLUtil.createTransformerHandler(true)`: indent, amount
+3, XML 1.1). Saxon's indenter keeps a start tag on one line until it would pass the 80th
+column, and then puts each attribute after the first on its own line, aligned under the first —
+the goldens' longest single-line `<data>` is 80 characters and the shortest wrapped one would
+have been 93. `Ds3Migration` writes `<data>` as text, one line always, and a text
+configuration cannot know a captured value's length at conversion time. So this is not a
+migration fix: it is the byte serialiser design 21 phase 2a builds, which reproduces Saxon's
+rule, and phase 3 moves the migration onto it. D41 accepts configuration tweaks to match
+Stroom's whitespace; here none would suffice, and the serialiser is the honest place.

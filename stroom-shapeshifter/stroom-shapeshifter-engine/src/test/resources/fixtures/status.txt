@@ -12,13 +12,13 @@
 # --- legacy: DS3 XML configs, with golden output from Java Stroom's own DS3 ---
 legacy/001_csv_with_header                    PASS
 legacy/002_csv_without_header                 PASS
-legacy/003_multiline_regex                    PASS
+legacy/003_multiline_regex                    PENDING   E35: Stroom's serialiser wraps long attributes; golden re-vendored from stroom-pipeline 2026-09-03 (D41)
 legacy/004_simple_regex                       PASS
 legacy/005_unmatched_content_FAIL             PASS
 legacy/006_single_line_delimited              PASS
-legacy/007_regex_dotall                       PASS
+legacy/007_regex_dotall                       PENDING   E33 + E35: DS3 trims the message values and the serialiser wraps them; golden re-vendored 2026-09-03 (D41)
 legacy/008_invalid_xml_FAIL                   PASS   config must be rejected; there is no golden output
-legacy/009_multiline_regex_2                  PASS
+legacy/009_multiline_regex_2                  PENDING   E33: DS3 trims the User/Query names; golden re-vendored from stroom-pipeline 2026-09-03 (D41)
 legacy/010_single_field_all                   PASS
 legacy/011_ignore_group_errors                PASS
 legacy/012_ignore_root_errors                 PASS
@@ -28,7 +28,7 @@ legacy/015_regex_only_match                   PASS
 legacy/016_regex_max_match                    PASS
 legacy/017_split_max_match                    PASS
 legacy/018_split_only_match                   PASS
-legacy/019_single_line_split                  PASS
+legacy/019_single_line_split                  PENDING   E35: Stroom's serialiser wraps the companyLogo attribute; golden re-vendored 2026-09-03 (D41)
 legacy/020_escaped_values                     PASS      design 21 phase 0: the five escapes in a referenced name and value, golden from Stroom's DS3 on 2026-09-03
 legacy/021_trimmed_values                     PENDING   E33: DS3 trims every name and value and drops the empty; found by phase 0's &#xD; probe, golden from Stroom's DS3 on 2026-09-03
 legacy/022_empty_input                        PENDING   E34: DS3 self-closes the empty root, the migration writes it paired; found by the phase-0 audit, golden from Stroom's DS3 on 2026-09-03
@@ -36,12 +36,12 @@ legacy/022_empty_input                        PENDING   E34: DS3 self-closes the
 # --- native: hand-written project.json over the legacy inputs and goldens ---
 native/001_csv_with_header                    PASS
 native/002_csv_without_header                 PASS
-native/003_multiline_regex                    PASS
+native/003_multiline_regex                    PENDING   E35: Stroom's serialiser wraps long attributes; golden re-vendored from stroom-pipeline 2026-09-03 (D41)
 native/004_simple_regex                       PASS
 native/005_unmatched_content_FAIL             PASS
 native/006_single_line_delimited              PASS
-native/007_regex_dotall                       PASS
-native/009_multiline_regex_2                  PASS
+native/007_regex_dotall                       PENDING   E33 + E35: DS3 trims the message values and the serialiser wraps them; golden re-vendored 2026-09-03 (D41)
+native/009_multiline_regex_2                  PENDING   E33: DS3 trims the User/Query names; golden re-vendored from stroom-pipeline 2026-09-03 (D41)
 native/010_single_field_all                   PASS
 native/011_ignore_group_errors                PASS
 native/012_ignore_root_errors                 PASS
@@ -51,7 +51,7 @@ native/015_regex_only_match                   PASS
 native/016_regex_max_match                    PASS
 native/017_split_max_match                    PASS
 native/018_split_only_match                   PASS
-native/019_single_line_split                  PASS
+native/019_single_line_split                  PENDING   E35: Stroom's serialiser wraps the companyLogo attribute; golden re-vendored 2026-09-03 (D41)
 
 # --- projects: end-to-end project.json fixtures ---
 projects/apache_httpd                         PASS      config fixed under E7: real newlines, output escaping
