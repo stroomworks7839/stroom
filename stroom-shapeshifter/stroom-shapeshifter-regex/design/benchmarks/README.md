@@ -42,7 +42,7 @@ the tables.
 | `AnchoredSearchBenchmark` | Four failure/hit shapes (`anchored_hit`/`anchored_miss`/`line_miss`/`floating_miss`) per engine over 256 KiB | The failure-path gate (the 2026-08-20 method note): what a dispatching caller's doomed searches cost; the standing gate for `ByteMatcher`/engine-path changes |
 | `EndAnchoredSearchBenchmark` | Three end-anchored shapes (bounded WEBLOG tail, unbounded filename, key=value), hit- and miss-shaped over 256 KiB | The end-anchor programme's gate (06 §6): what the tail window and reverse matching bought; `javaRegex` rows are the drift control; tree engine absent from the filename rows by its own step budget, pinned by the fixture test |
 
-Runs are machine-specific. Compare files from the same machine, or not at all.
+Runs are machine-specific. Compare files from the same machine, or not at all — and note that as of 2026-09-02 that rules out every file dated earlier (see the hardware entry under *Comparability breaks*).
 
 ## Comparability breaks
 
@@ -74,6 +74,16 @@ comparable even on the same machine:
 - **2026-08-19-1028** ran on a non-idle machine: `javaRegexFromBytes` — code no commit
   touched — moved −5.0% against the previous run while `javaRegex` was flat. Cross-run
   comparisons against it measure the machine, not the engine; within-run ratios stand.
+- **The machine changed on 2026-09-02.** Every file dated `2026-09-02` or later was measured on
+  an AMD Ryzen 9 9950X3D (16 vCPU, 31 GB); everything earlier ran on the previous box, which was
+  replaced because failing CPU cores had been hard-freezing it — nine lost runs between 2026-08-04
+  and 2026-08-29, several of them mid-benchmark. Nothing about what the benchmarks *measure*
+  changed, so this break is different in kind from the others above: the rows are the same rows,
+  and only their scores are incomparable. It is listed here because it is the break most likely to
+  be forgotten — a stored August baseline still loads, still renders, and still produces a
+  plausible-looking ratio. Identical binaries already moved 0.88–1.08× across a mere *reboot* of
+  the old box (`86b989e7d3`), so a cross-machine delta means nothing at all. Re-measure both sides
+  on the current machine, paired and back to back in one boot.
 
 The engine and XML head-to-head runs live in [the parent design folder](../../../design/benchmarks/README.md);
 they are written by different modules' `jmh` tasks and measure different things.
