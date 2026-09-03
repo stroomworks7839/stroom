@@ -110,6 +110,23 @@ the simulation by `RunLoopTest`, including the 1,700-line region. Greedy unit lo
 the general `Loop` — they need the unit boundaries kept for back-off — and no row loses on
 them.
 
+**Audited 2026-09-03**, adversarially, with mutation checks. Findings: the auto path still
+completes on a never-matching region — `RunLoop` never trips the depth guard, so it walks to
+the region's end from every candidate start until the step budget stops it, and `runLinear`
+catches that `MatchLimitException` and hands over to the simulation (pinned, the tree refuses
+with the same exception it used to raise for depth; both pinned by test). Captures inside the
+unit, a unit with a minimum, nested non-capturing groups, a preceding lazy run, and the
+zero-iteration offer all agree with the JDK. Two audit corrections to the tests themselves:
+the terminator-rejection guard's test used `.` under default flags, where `.` excludes `\n`
+and the guard is never asked — its mutant lived until the test said `(?s)`; and the
+`min() != 0` guard is reachable only through `{n,}`, because the parser spells `+` as
+`X X*` — its mutant lived until a `{2,}` case existed. A third mutant survived twice for a
+worse reason: it did not compile, and the stale report read green — mutation runs now check
+the class file's timestamp moved. The `leadingByte()` filter's mutant is equivalent by
+design and recorded as such. Verified clean: `data[end]` reads are bounded by the scan loop
+and the short-circuit; lookbehind bodies are bounded-length by the dialect, so a `RunLoop`
+never sits inside one; the reverse program compiles from the Hir and is untouched.
+
 **Gate:** FAR_LINE / MISS_LINE for the win; ENTRY_LINE / BATCH_LINE as the small-region
 controls (they must not lose their 1.0×); all four dot-all rows flat; canaries paired. **Exit:**
 the line idiom over 64 KiB is within 2× of the JDK or better, and 06 §1's row moves to Done
