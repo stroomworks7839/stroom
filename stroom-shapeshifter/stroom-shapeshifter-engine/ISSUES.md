@@ -649,7 +649,7 @@ lowering that silently widened what matches fails loudly. The binary atoms canno
 interpreted regardless.
 
 ### E15 — What the output sink's other implementation is
-**`done` 2026-09-03 — answered by [design 20](../design/20-sax-output.md): SAX, and the
+**`resolved` 2026-09-03 — answered by [design 20](../design/20-sax-output.md): SAX, and the
 second implementation is `ShapeshifterParser`'s parse-and-forward (design 21 phase 1), with the
 native event sink to follow in phase 2 under E31. Was `blocked` on
 [D10](../design/00-decisions.md) since 2026-08-17.**
