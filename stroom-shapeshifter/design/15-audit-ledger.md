@@ -192,7 +192,7 @@ no concrete referent for the inversion half survived re-reading.
 
 ## Decisions surfaced (for Jon) — all six ruled, 2026-08-21/22
 
-1. **E22** — ruled: ds-rs parity no longer binds and exotic encodings are external concerns;
+1. **E22** — ruled: the prototype parity no longer binds and exotic encodings are external concerns;
    fallbacks deleted, refusal made uniform. Resolved in ISSUES.md (batch 5).
 2. **Transforms' plural select** — ruled as the ledger assumed: compile-time error
    (CompiledOp.single, batch 3, confirmed 2026-08-21).

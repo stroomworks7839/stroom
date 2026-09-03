@@ -73,7 +73,7 @@ intent: the step vocabulary exists so grammar can be described with atoms and co
 instead of regexes, and the `Regex` step is a pre-compiled fragment of that grammar — an atom
 beside `Tag` and `TakeWhile` (the vendored combinator design says exactly this), so it matches
 at the cursor and never skips. The old behaviour was traced to its source and found to be an
-API accident, not a design: ds-rs's `find_bytes` returned matched bytes without their offsets,
+API accident, not a design: the prototype's `find_bytes` returned matched bytes without their offsets,
 so its caller could only advance by the match's length from the wrong place. Never used by any
 configuration in either codebase. Pinned by `StepsTest`, which now asserts the atom refuses a
 pattern it would have found by searching.
@@ -111,8 +111,7 @@ Pinned by `StepsTest`. The matching layer already has correct Unicode classes
 
 ## Fixtures whose goldens are wrong
 
-Found by the phase 0 audit; the evidence is in
-[08-fixture-audit.md](../design/08-fixture-audit.md). **All four are now diagnosed, fixed at the
+Found when the corpus was first audited. **All four are now diagnosed, fixed at the
 configuration and re-frozen under review** — the quarantine is empty. Every one turned out to be
 a configuration defect; the engine needed no changes beyond what D34 had already decided.
 
@@ -246,12 +245,12 @@ than an engine limitation.
 
 Each needs a large third-party library. The match variants are modelled and refused at compile
 time with a clear message; their three fixtures stay vendored and are reported as skipped.
-ds-rs's own default-features build skips the same three.
+The prototype's own default-features build skips the same three.
 
 ### E10 — The compile-time optimiser
 **`deferred`.**
 
-ds-rs eliminates unused captures and prunes statically-false branches. It changes work, not
+The prototype eliminates unused captures and prunes statically-false branches. It changes work, not
 output, and D33 ruled out performance work during the port. Its fourteen tests are not ported
 either. Revisit alongside E12.
 
@@ -259,7 +258,7 @@ either. Revisit alongside E12.
 **`deferred`.**
 
 The `Instrument` seam is ported and tested; the recording implementation is not. Its only
-consumer was the ds-rs node editor, which is not being ported. Whatever authoring tool Stroom
+consumer was the the prototype node editor, which is not being ported. Whatever authoring tool Stroom
 grows will want its own shape rather than that one.
 
 ---
@@ -623,7 +622,7 @@ world would express as an error (or fatal) rather than a silent half-buffer skip
 cost gets the usual treatment: benchmark either side.
 
 Input is read in buffers and a match never crosses one, so a configuration's buffer size is also
-the largest record it can handle. This is ds-rs's limitation, kept on purpose so that golden
+the largest record it can handle. This is the prototype's limitation, kept on purpose so that golden
 parity meant something. (The matching layer's `NEED_MORE_INPUT` answer that once served
 exactly this case retired with D37; a sliding-refill fix now has to detect the boundary
 itself, which the executor's own buffering already does.)
@@ -687,7 +686,7 @@ comparison fixture, byte-identical output included.
 Original text:
 
 Real DS3 has a second dispatch mode in which the matched span is *excised* from the buffer and
-the skipped prefix survives for other expressions. The ds-rs importer silently dropped the
+the skipped prefix survives for other expressions. The the prototype importer silently dropped the
 attribute, no corpus configuration uses it, and D34 defers it until a real configuration needs
 it. If it arrives, it is a dispatch variant, not a new engine.
 
@@ -769,7 +768,7 @@ territory. Blocked on the doc's seven numbered decisions.
 **`resolved` 2026-08-21 — ruled: deleted, both same-day.**
 Found by the coverage catalogue's `adjacent_groups` case: `Conditions` evaluated
 `IsFirst`/`IsLast` against `__foreach_is_first`/`__foreach_is_last`, variables no dispatch
-mode ever sets — ported vocabulary whose ds-rs context did not survive the port. **Ruling:
+mode ever sets — ported vocabulary whose the prototype context did not survive the port. **Ruling:
 delete until a case needs for-each positional index and count semantics.** The conditions,
 their evaluator arm and its flag reader, and the `is-first`/`is-last` codec spellings are
 gone; the `equals`-on-`__match_count` idiom (proven by `adjacent_groups`) is the documented
@@ -783,14 +782,14 @@ configurations. The trap note lives in `OutputNode.Substring`'s javadoc and the 
 ### E25 — The win_sec family read names nothing wrote; the cleaning chains were dead
 **`resolved` 2026-08-25, found by design/17 §10's unknown-reference check on its first corpus
 run — repaired at the configurations and re-frozen, per the user's ruling.** All three
-win_sec configurations carried reads of ds-rs node-editor display names — `Var:
+win_sec configurations carried reads of the prototype node-editor display names — `Var:
 privilegesClean`, `Var: subjectSID` and eight more, 24 read sites — where the port should
 have carried the variable ids they aliased. Every one read absent for ever: the
 privilege/access cleaning chains (newlines to a space, tabs deleted) had been authored,
 ported, and dead the whole time, and the six trim templates trimmed nothing. The output
 consequence was exactly the multi-line attribute values E6's audit note called "genuine
 multi-valued Windows fields ... in the old golden too" — true about the fields, wrong about
-the spelling: the cleaner that would have flattened them was broken, in ds-rs as here, so
+the spelling: the cleaner that would have flattened them was broken, in the prototype as here, so
 both engines agreed on defective output and the golden froze it. Repaired by mapping each
 display name to its intended source (the adjacent UUID variable for the cleaning chains, the
 template's own capture for the trims), goldens regenerated and diffed: the only movement is
@@ -806,7 +805,7 @@ and unread binds — which is why their repair was provably output-neutral. The 
 as faithful ported shape; deleting them is beyond the repair ruling's scope.*
 
 ### E22 — Charset fallback chains substitute near-equivalents silently
-**`resolved` 2026-08-21: pinned and made loud, per the user's ruling.** ds-rs parity is no
+**`resolved` 2026-08-21: pinned and made loud, per the user's ruling.** the prototype parity is no
 longer a constraint — the port is done, and divergence from here is a choice this
 implementation gets to make — and exotic encodings are accepted as something to be dealt with
 outside the engine. That removes the only argument for keeping an approximate fallback. The
@@ -824,7 +823,7 @@ Original text:
 `SHIFT_JIS` falls back to `windows-31j` (differs on the NEC/IBM vendor rows) and
 `WINDOWS_874` to `TIS-620` (lacks the 0x80–0x9F assignments), so a slim runtime without
 `jdk.charsets` decodes differently from a full JDK with no message — at odds with the
-compile-time refusal of unavailable encodings. Also worth settling against ds-rs: if it used
+compile-time refusal of unavailable encodings. Also worth settling against the prototype: if it used
 `encoding_rs`, its `shift_jis` *is* windows-31j, so preferring JDK `Shift_JIS` first may
 itself diverge from ported parity on extension characters. The approximation is now documented
 on `Encoding.charset()`; the open question is whether to pin one name per encoding and fail
@@ -1024,16 +1023,16 @@ value: phase 0's escaping fixture put a `\r` before its line ending to pin `&#xD
 **Phase 1 of design 21 then found that the vendored goldens are not DS3's output on this
 point.** Driven live (`Ds3EventIdentityTest`), Stroom's DS3 trims `007_regex_dotall`'s message
 values and `009_multiline_regex_2`'s `User `/`Query ` names; `stroom-pipeline`'s own copies of
-those goldens carry the trimmed forms, and the vendored copies — ds-rs's — carry the untrimmed
+those goldens carry the trimmed forms, and the vendored copies — the prototype's — carry the untrimmed
 ones the engine reproduces. The trim has been in `DS3Parser` since 2019-01-23 and the
-stroom-pipeline goldens were last touched 2020-07-07, so ds-rs vendored an older output or
+stroom-pipeline goldens were last touched 2020-07-07, so the prototype vendored an older output or
 regenerated it with its own engine. Either way the corpus README's "golden output produced by
 Java Stroom's own DS3" is true of 17 of 19 fixtures on content, and of none on serialisation
 (Stroom's serialiser wraps long attributes onto their own line; every vendored golden is
 unwrapped). The event test holds 007 and 009 as must-differ until this is ruled.
 
 This is a fidelity question for the legacy family, whose goldens are DS3's output by
-definition (D33) — a definition that now has two candidates, ds-rs's bytes and Stroom's — and it
+definition (D33) — a definition that now has two candidates, the prototype's bytes and Stroom's — and it
 is not a SAX question: whatever the answer, it belongs to the migration
 or to the engine's capture path, not to the sink. Three shapes, for the ruling: the migration
 wraps each data reference in a `trim` (one more generated instruction per value, beside the

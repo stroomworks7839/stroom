@@ -71,14 +71,14 @@ Around that loop, three more deliberate behaviours (`processExpression`):
 
 ---
 
-## 3. Where ds-rs diverged, and the port inherited
+## 3. Where the prototype diverged, and the port inherited
 
-ds-rs designed its dispatch differently — its own design document draws the shape explicitly
-(`docs/ds3_design_document.md`, the "Outer Root Loop" diagram): each expression is exhausted
+The prototype designed its dispatch differently — its own design document drew the shape
+explicitly (the "Outer Root Loop" diagram): each expression is exhausted
 before the next is tried, one pass, never returning. The migration code's comment claims this
 "matches DS3's shared input cursor semantics". It does not.
 
-| Behaviour | Real DS3 | ds-rs, and this port |
+| Behaviour | Real DS3 | The prototype, and this port |
 |---|---|---|
 | Dispatch at a level | `(A\|B\|C)*` — first match wins each pass, restart from the first | `A* B* C*` — exhaust each template, one pass |
 | Skipped prefix on a match | ERROR with the skipped text (`sequence`), or excised (`any`) | Consumed silently |
@@ -151,7 +151,7 @@ The change is confined to the executor's dispatch loop and its reporting:
 - E1 closes when this lands. `win_sec`'s reorder stays; `win_sec_xml` (E16's open half) gets
   re-diagnosed under the new dispatch before any further fix.
 
-This is the first deliberate behavioural departure from ds-rs since the port completed, which
+This is the first deliberate behavioural departure from the prototype since the port completed, which
 is exactly the sequence D33 prescribed: port faithfully first, so that every departure after it
 is a decision with a diff, not a drift.
 
@@ -169,5 +169,5 @@ empty; `003` down from nineteen false warnings to eleven true errors naming genu
 audit lines; `005` and `014` matching Stroom's messages in count, severity and substance. E1
 and E2 close with this. The pre-fix `win_sec` configuration runs as the skip-report acceptance
 test, and one more of its defects surfaced on the way: it set `ignore_errors` at the source — a
-flag ds-rs never enforced, so the author asked for silence and got it by accident. Under D34
+flag the prototype never enforced, so the author asked for silence and got it by accident. Under D34
 the flag works.

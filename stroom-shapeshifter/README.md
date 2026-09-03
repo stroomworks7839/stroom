@@ -107,23 +107,15 @@ The regex library's design record lives with the module it describes, indexed at
   standing, the per-tier audit record, and the method notes; future sessions start here.
 The template engine's, in the parent design folder:
 
-- [07-engine-port-plan.md](design/07-engine-port-plan.md) — the port of the ds-rs template
-  engine into `stroom-shapeshifter-engine`: inventory, the eight phases and what each found,
-  what is deliberately absent, and the findings and decisions it leaves open. Complete.
-- [08-fixture-audit.md](design/08-fixture-audit.md) — the phase 0 check of the generated
-  fixture goldens, and the four found wrong.
 - [10-engine-compilation.md](design/10-engine-compilation.md) — the engine's compilation
   stage: what is compiled, what is interpreted, and the measurement-first plan.
 - [09-engine-semantics.md](design/09-engine-semantics.md) — what the engine's matching,
   dispatch and transformation layers mean, where the port diverges from real DS3, and D34's
   resolution.
 
-The Rust project's own design documents are vendored unedited at
-[stroom-shapeshifter-engine/docs/](stroom-shapeshifter-engine/docs), with an index marking
-which of them apply to the port.
-
-Prior art for both: the Rust `ds-rs`/shapeshifter prototype, and Stroom's existing DS3
-implementation at `stroom-pipeline/src/main/java/stroom/pipeline/xml/converter/ds3/`.
+Prior art for both: Stroom's existing DS3 implementation at
+`stroom-pipeline/src/main/java/stroom/pipeline/xml/converter/ds3/`, which is also the
+corpus's oracle (D41).
 
 ## Benchmarks
 

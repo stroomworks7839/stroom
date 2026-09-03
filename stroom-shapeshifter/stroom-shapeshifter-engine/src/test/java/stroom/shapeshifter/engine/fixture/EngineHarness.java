@@ -33,8 +33,8 @@ import java.util.List;
  * port has not reached yet throw {@link PortPendingException}, so that "not written" and
  * "written and wrong" stay different words.
  *
- * <p>Filling these in is what each phase of the port does. See
- * {@code design/07-engine-port-plan.md}.
+ * <p>Filling these in is what each phase of the work does; the ledger in
+ * {@code src/test/resources/fixtures/status.txt} records where it stands.
  */
 public final class EngineHarness {
 

@@ -3,8 +3,8 @@
 Status: **draft — the frame/variable model in §5 was agreed 2026-08-25 (Jon), replacing
 this draft's original privileged input/output panes; the superseded framing is kept in
 §5.10 as a record of why it failed. Phasing (§6) and the §9 questions remain open.**
-Written 2026-08-25 from three surveys: the ds-rs Leptos editor as it actually shipped,
-the ds-rs redesign document that described what it should have been, and Stroom's GWT
+Written 2026-08-25 from three surveys: the the prototype Leptos editor as it actually shipped,
+the the prototype redesign document that described what it should have been, and Stroom's GWT
 stepping UI as it exists today. Wireframes are in §8; an interactive HTML mockup of the
 central idea is at [mockups/18-trace-editor.html](mockups/18-trace-editor.html). A
 second, more complex prototype —
@@ -61,9 +61,9 @@ navigator with editing attached**: run the compiled project over sample data wit
 recording `Instrument`, then let every pane render one shared position in the recorded
 trace.
 
-## 2. Prior art: what ds-rs built, and what it only wrote down
+## 2. Prior art: what the prototype built, and what it only wrote down
 
-The ds-rs `node-editor` crate went through two generations. The canvas/node-graph editor
+The the prototype `node-editor` crate went through two generations. The canvas/node-graph editor
 was retired (real configs hit 173 nodes, 89 wide — the canvas drowned). Its successor, the
 template editor that actually shipped, is the right skeleton: template list grouped by
 mode on the left, structured detail forms in the middle, sample data and output on the
@@ -86,20 +86,20 @@ Worth keeping from the shipped editor:
   publishes pattern facts. That rule holds here too.
 - Per-template profiling with attempt counts — surfaced as sidebar badges.
 
-What ds-rs specified but never built (`design/data_centric_ui_redesign.md`, the "killer
+What the prototype specified but never built (its data-centric redesign notes, the "killer
 feature" sections) is precisely the part this document is for: clickable highlights in the
 data that navigate to the owning template, ancestor/descendant navigation, keyboard
 navigation, output colourised by producing template. And that document was written
 against the *old nested-node model*, where ancestry was static. Our flat-template model
 makes its navigation design unusable as-is — the tree it navigates no longer exists in
 the config. §5 is that design re-derived for a world where the tree is the trace. The
-ds-rs input/output pane layout itself is *not* carried forward — §5's frame model
+The prototype input/output pane layout itself is *not* carried forward — §5's frame model
 replaces it, for reasons recorded in §5.10.
 
-Known ds-rs defects not to repeat: highlight placement by searching for the capture's
+Known the prototype defects not to repeat: highlight placement by searching for the capture's
 *value* in the text (wrong span when values repeat — we have real offsets; use them);
 invalid patterns failing silently; the full output never actually colourised despite the
-ranges being available. (ds-rs also lost its sample data on import/export, which looked
+ranges being available. (the prototype also lost its sample data on import/export, which looked
 like a fourth defect until Q2 was ruled: here the data is never the document's to keep —
 it arrives from the pipeline that feeds the parser, so there is nothing to lose.)
 
@@ -482,7 +482,7 @@ variable that happens to have child matches.
 
 Implementation: not Ace. Nested multi-colour spans with per-span click targets and hover
 linking is plain DOM but not plain Ace markers; this is a bespoke widget rendering
-escaped text with span underlays (the ds-rs input pane's approach, minus its
+escaped text with span underlays (the the prototype input pane's approach, minus its
 find-by-value bug — we have real offsets). Ace stays where it is good: the JSON source
 tab. Large content windows around the current position (Stroom's `SourcePresenter`
 already does context-windowed fetching around a highlight; same idea, client-side).
@@ -582,7 +582,7 @@ workbench's groups and steps — so the ring's size is one number in one place a
 can index past its end. Wrapping is honest when a config finally needs it: a repeat twelve
 apart reads as "another capture", not "the same one".
 
-The data still sits on top and the definition below it (§5.6) for the ds-rs redesign's
+The data still sits on top and the definition below it (§5.6) for the the prototype redesign's
 own founding reason: the data is the primary object; the author watches the frame's
 values constantly and edits the definition occasionally. What changed is the *column*
 each thing sits in, and the rule now is adjacency to whatever it is a statement about:
@@ -637,7 +637,7 @@ alternative, keeping declaration rows in the template panel as well, is the two-
 problem that started this.
 
 Hovering a row in **this match** lights its span in the content pane beside it and dims
-the rest — the ds-rs hover-link, now frame-scoped and one pane away. An **outer scope**
+the rest — the the prototype hover-link, now frame-scoped and one pane away. An **outer scope**
 row has usually nothing to light, since an ancestor's span generally falls outside this
 frame's content (`combined_log`'s `$time` is nowhere inside a route frame's URL slice), so
 it lights the **breadcrumb crumb of the frame that bound it** instead, and clicking steps
@@ -704,7 +704,7 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   a template inline. The one thing this defers rather than answers is regret: there is
   no per-field Cancel here the way body-card edits have (§5.6's body editor), so a
   genuine mistake needs a **global undo** to be recoverable — which this design does
-  not yet have (ds-rs did; see Q10).
+  not yet have (the prototype did; see Q10).
 
   Its layout is regex101's, adapted: the editable **sample** on the left (seeded from
   the current frame's content, freely editable to experiment) with the live match
@@ -760,14 +760,14 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   plausible inline home — which is half of why the workbench is its own in-place panel
   and not a popup.
 - **Body** — the child structure: the output-node list as a breadcrumb card list
-  (ds-rs's shape — text, value-of, apply-templates, call, if/choose, transforms),
+  (the prototype's shape — text, value-of, apply-templates, call, if/choose, transforms),
   full width. The cards are the body *editor*, not just its display: each card carries
   hover actions (reorder, delete), editing swaps the card's summary for its per-kind
   inline editor, and a contextual **"+ instruction"** popup — grouped by category
-  (output, invoke, control, transform), ds-rs's Add-Child popup reborn — inserts a new
+  (output, invoke, control, transform), the prototype's Add-Child popup reborn — inserts a new
   card and opens it for editing. Container nodes (`if`/`choose`) hold **card lists of
   their own**, rendered nested one level in, each branch with its own add line (revised
-  2026-08-28; ds-rs drilled down into containers breadcrumb-style instead, which we
+  2026-08-28; the prototype drilled down into containers breadcrumb-style instead, which we
   looked at and did not take — a conditional here is usually two or three instructions,
   and nesting shows the shape of the whole body at once, where drilling down hides the
   branch you are not in and costs a navigation step to see it. The choice is a rendering
@@ -916,7 +916,7 @@ template shows the mode-graph strip
 ancestry, and the answer when there are no matches to navigate.
 
 Below the templates, the **pattern library** lists the config's named
-`CombinatorPattern`s — plain patterns and whole step sequences alike (ds-rs's
+`CombinatorPattern`s — plain patterns and whole step sequences alike (the prototype's
 PatternLibrary carried forward; DocRef-based libraries in Stroom per D11) — these are
 what `Named` match expressions and the workbench's library-reference steps choose
 from. **Selecting a library row opens the pattern workbench directly** (decided
@@ -972,7 +972,7 @@ pane, and — where a message carries a position — marks inside the owning fra
 renderer and a severity tint on the owning template's row, mirroring how stepping colours
 its pipeline tree.
 
-**Profiling has no mode: every editor run profiles** (proposed 2026-08-26). The ds-rs UI
+**Profiling has no mode: every editor run profiles** (proposed 2026-08-26). The the prototype UI
 had a separate Profile button because its profiling was a second run against a separate
 timing endpoint. Our seam has no such shape: the preview already runs with a recording
 `Instrument`, and `startTiming()`/`stopTiming()` ride the same run at one clock-read
@@ -1115,7 +1115,7 @@ protocol along. It still needs data from somewhere (Q2), and in B that somewhere
 stream picked in the UI and passed to `preview` — the same bytes stepping would give it,
 without the stepping session.
 
-The structured GWT editor is a real cost (the ds-rs body editor's card list, the
+The structured GWT editor is a real cost (the the prototype body editor's card list, the
 per-match-type forms). Phase A's forms-plus-JSON is the hedge: the editing users do most
 is native from the first release, everything else is steppable and honest in Ace — which
 makes the Design tab's scope a quality decision rather than a blocking one.
@@ -1208,7 +1208,7 @@ lands rather than only recorded here.
 | Q7 | Does Phase C replace the generic stepping panes, or add a fifth "Trace" pane? | **Replace** — the frame navigator subsumes Input/Output; keep Log. |
 | Q8 | Content renderer depth: direct children only, or all descendants nested? | **All descendants**, direct children prominent, deeper levels quieter — the survey view at the root frame needs it. |
 | Q9 | Windowing/minimap for large content values — in scope for B? | **Defer**; window around the current position first. |
-| Q10 | Global undo/redo — the only answer to "I made a mistake" now that the workbench, guard/limits and body cards commit live. In scope for B? | **Yes, in B.** A live-editing surface with no undo anywhere is a regression from ds-rs's snapshot history, not a simplification. |
+| Q10 | Global undo/redo — the only answer to "I made a mistake" now that the workbench, guard/limits and body cards commit live. In scope for B? | **Yes, in B.** A live-editing surface with no undo anywhere is a regression from the prototype's snapshot history, not a simplification. |
 
 **Second round, ruled 2026-08-28** — from a pass over accessibility and the editing
 mechanics:
@@ -1224,6 +1224,6 @@ mechanics:
 
 One question the mockup answered by building rather than asking, and worth a ruling if you
 disagree with it: §5.6's conditionals now render their branches as **nested card lists**
-where ds-rs drilled down into containers breadcrumb-style. The model is a card list under
+where the prototype drilled down into containers breadcrumb-style. The model is a card list under
 either rendering, so it can be switched without touching the trace, the paths, or the
 editors.

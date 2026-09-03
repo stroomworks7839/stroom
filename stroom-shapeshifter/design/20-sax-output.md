@@ -63,7 +63,7 @@ Its output vocabulary is **fixed**: `records` / `record` / `data[@name,@value]`,
 DS3 needs and shapeshifter does not. Any answer here has to keep that: the vocabulary is the
 author's, not the engine's.
 
-**ds-rs, the ancestor, is text end to end.** It had no pipeline to fit into, so the question
+**The prototype, the ancestor, was text end to end.** It had no pipeline to fit into, so the question
 never arose there. Inheriting text output was reasonable; keeping it once the destination is
 known is the thing to decide.
 

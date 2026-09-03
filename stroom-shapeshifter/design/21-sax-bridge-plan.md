@@ -129,11 +129,11 @@ indentation; DS3 puts its two `xmlns` declarations in the root's `Attributes` as
 calls `endPrefixMapping`. `EventRecorder` names all three. (4) *The vendored goldens are not
 Stroom's bytes.* Stroom's serialiser wraps long attributes onto their own line (003, 007, 009,
 019 all show it); every vendored golden is unwrapped. Event-identical, so the port is unharmed,
-but Appendix A's "attribute on the same line" is ds-rs's rule, and S2's byte-identity is to
-ds-rs's re-serialisation, not to Stroom's serialiser — stated in the appendix now.
+but Appendix A's "attribute on the same line" is the prototype's rule, and S2's byte-identity is to
+The prototype's re-serialisation, not to Stroom's serialiser — stated in the appendix now.
 (5) *E33 reaches into the vendored goldens.* Live DS3 trims 007's message values and 009's
 `User `/`Query ` names; stroom-pipeline's own goldens have the trimmed forms; the vendored ones
-do not. The port matches ds-rs, not Stroom, on those two, and the event test holds them as
+do not. The port matches the prototype, not Stroom, on those two, and the event test holds them as
 must-differ until E33 is ruled — E33 is updated with the provenance. 20 of 22 legacy fixtures
 are event-identical to live DS3 (008 rejected by both, as the ledger says). (6) A small one:
 `LoggingErrorReceiver.getTotal` calls `checkRecord(-1)`, which clears the summary
@@ -379,15 +379,12 @@ and the trace says which it did.
 Out of scope, and said so it is not read as forgotten: SAX as *input* (E30, its own design);
 the function registry (E32); a third sink.
 
-**A task D41 added, scoped but not started: the ds-rs purge.** Thirty-two files under
-`stroom-shapeshifter` name ds-rs — eleven in `stroom-shapeshifter-engine/docs`, D33 and its
-neighbours in the decision log, the corpus README, `Ds3Migration`'s comments, the engine and
-module READMEs, and this document. Two readings of "purge all history" lead to materially
-different work: rewriting the record so the port stands on Stroom alone (D33 superseded,
-provenance notes rewritten, ds-rs named once in D41 as what was retired), or also removing
-what ds-rs *contributed* — the `projects/` fixture family and the `native/` configurations are
-its — which would take the regression pins for iteration, grouping and value computation with
-it. Put to the user before either is done.
+**The prototype purge D41 added — done 2026-09-03** under the reading the user chose:
+rewrite the record, keep the fixtures. The prototype's vendored design documents, the port
+plan (design 07) and the fixture audit (design 08) are deleted, D33 is rewritten as
+superseded, and every other mention now says "the prototype"; D41 is where the name survives.
+The regex module's design documents still cite it as a comparison point and are left to that
+module's own session.
 
 ---
 
@@ -438,8 +435,8 @@ wrong reason (it named the migration; it is the serialiser's form that the migra
 
 **What the vendored bytes are (phase 1 finding).** Stroom's serialiser wraps a `<data>` whose
 attributes run long onto two lines, the value indented under the name (003, 007, 009, 019 in
-stroom-pipeline's own goldens). No vendored golden is wrapped: ds-rs re-serialised Stroom's
-events, and that is what the engine reproduces. S2's byte-identity is therefore to ds-rs's
+stroom-pipeline's own goldens). No vendored golden is wrapped: the prototype re-serialised Stroom's
+events, and that is what the engine reproduces. S2's byte-identity is therefore to the prototype's
 serialisation of DS3's events — one attribute line, always — and not to Stroom's serialiser,
 which the census had assumed were the same thing.
 

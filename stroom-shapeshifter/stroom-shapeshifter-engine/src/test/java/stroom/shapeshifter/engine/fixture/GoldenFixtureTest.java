@@ -38,12 +38,12 @@ import static org.assertj.core.api.Assertions.fail;
  * <p>Each fixture is asserted against the state {@code fixtures/status.txt} records for it,
  * which makes the suite a ratchet rather than a scoreboard: a {@code PENDING} fixture that
  * starts passing <b>fails</b>, with a message telling you to promote it. Every phase of the
- * port therefore has to move a number on purpose, and no phase can quietly lose one.
+ * work therefore has to move a number on purpose, and no phase can quietly lose one.
  *
- * <p>The Rust implementation passed 51 of these — 18 legacy, 18 native, 15 projects — plus one
- * config-rejection case. Three are skipped for deferred binary formats; the phase 0 audit
- * quarantined four whose goldens were wrong (D33, {@code design/08-fixture-audit.md}), and all
- * four have since been fixed at the configuration and re-frozen under review (E6–E8, E16).
+ * <p>The legacy family's goldens are Stroom's own DS3 output (D41). Three fixtures are skipped
+ * for deferred binary formats; four {@code projects} goldens found wrong when the corpus was
+ * first audited have since been fixed at the configuration and re-frozen under review (E6–E8,
+ * E16).
  */
 class GoldenFixtureTest {
 

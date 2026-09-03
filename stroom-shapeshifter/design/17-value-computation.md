@@ -442,8 +442,8 @@ with no reference stands either way, so nothing ships half-working in the interi
 §2's rule is right and it is quiet: a configuration with a typo'd variable name computes
 nothing, writes nothing, and produces output that is well-formed and wrong. Log data supplies
 enough genuine absence that a loud run-time complaint per occurrence would be unusable —
-which is why the rule exists — but "silent by default forever" is how the four wrong goldens in
-[08-fixture-audit.md](08-fixture-audit.md) survived being frozen.
+which is why the rule exists — but "silent by default forever" is how the four wrong `projects` goldens (E6–E8, E16)
+survived being frozen.
 
 Two mechanisms, both cheap, neither on the hot path:
 
@@ -853,7 +853,7 @@ producing outputs one position apart** — the gate's semantics pinned from both
 *Exit: both bases under test; the v4 warning fires on exactly the audit list's configs.*
 
 *Landed 2026-08-25. The unknown-reference check earned its place on its first corpus run:
-it found the win_sec family reading 24 ds-rs display names nothing writes — the
+it found the win_sec family reading 24 the prototype display names nothing writes — the
 privilege-cleaning chains dead since the port, the defect E6's audit note had observed
 without recognising (E25 in ISSUES, repaired and re-frozen under diff review, ruled by the
 user). One accommodation was learned from the corpus rather than designed: key-value

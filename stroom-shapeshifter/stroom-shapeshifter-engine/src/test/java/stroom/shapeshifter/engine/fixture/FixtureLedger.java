@@ -54,7 +54,7 @@ public final class FixtureLedger {
         /** Out of scope, with a reason. Never run. */
         SKIPPED,
         /**
-         * Vendored, but its golden is known to be wrong — see {@code design/08-fixture-audit.md}.
+         * In scope, but its golden is known to be wrong — see ISSUES.md.
          * Never run, and never promoted until a corrected golden replaces it. Distinct from
          * {@code SKIPPED} because the fixture is in scope; it is the expectation that is broken.
          */

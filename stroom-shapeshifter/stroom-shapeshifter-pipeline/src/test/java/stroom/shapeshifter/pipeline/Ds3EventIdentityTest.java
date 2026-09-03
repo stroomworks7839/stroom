@@ -58,16 +58,19 @@ class Ds3EventIdentityTest {
 
     /**
      * Fixtures the byte ledger holds as {@code PENDING} whose remaining difference is invisible to
-     * events — a paired empty root and a self-closed one are the same two events. Each must still
+     * events — a paired empty root and a self-closed one are the same two events, and Saxon's
+     * wrapping of a long start tag (E35) is whitespace the parser never reports. Each must still
      * agree here, so the ratchet holds in both currencies.
      */
     private static final Map<String, String> EVENT_IDENTICAL_WHILE_BYTE_PENDING = Map.of(
+            "003_multiline_regex", "E35: Saxon's attribute wrapping is a serialisation difference only",
+            "019_single_line_split", "E35: Saxon's attribute wrapping is a serialisation difference only",
             "022_empty_input", "E34 is a serialisation difference only");
 
     /**
      * The reverse: fixtures the byte ledger holds as {@code PASS} — the engine reproduces the
      * vendored golden — whose events nonetheless differ from live DS3's. Phase 1 found that the
-     * vendored goldens for these are ds-rs's, not Stroom's: stroom-pipeline's own copies carry the
+     * vendored goldens for these are the prototype's, not Stroom's: stroom-pipeline's own copies carry the
      * trimmed names and values DS3 has emitted since 2019 (E33). Each must keep differing here until
      * E33 is ruled, so the ratchet holds.
      */

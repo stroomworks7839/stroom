@@ -1,9 +1,7 @@
 # The fixture corpus
 
-The test corpus of the Rust `shapeshifter` project, vendored from `ds-rs` at commit
-`996aa7acb9c0820cd7617d62cc799ca37160e0f1` on 2026-08-20. It is the acceptance test for the
-port ([D33](../../../../../design/00-decisions.md),
-[07-engine-port-plan.md](../../../../../design/07-engine-port-plan.md)).
+The engine's acceptance corpus. Its oracle is Stroom's own DS3
+([D41](../../../../../design/00-decisions.md)); its ledger is a ratchet.
 
 `status.txt` is the index and the ratchet. Every fixture the suite knows about has a line
 there; nothing is discovered by walking directories, so a fixture cannot be vendored and then
@@ -25,11 +23,10 @@ so when a phase of the port makes one work the build breaks until the line is pr
   configs in the modern format. They reuse the legacy inputs and the same Stroom goldens, so
   they check the new config format against the old engine's behaviour.
 - **`projects/`** — 18 end-to-end fixtures with their own inputs and expected output. Three
-  need Avro, Parquet or Protobuf and are skipped while those are deferred; ds-rs's own
-  default-features run skips the same three.
+  need Avro, Parquet or Protobuf and are skipped while those are deferred (D33).
 
-  Five more sit beside them that are **ours, not ds-rs's**, each written to hold a feature the
-  vendored corpus cannot reach: `win_sec_strict`, `strict_kv`, `classify_alerts` and
+  Five more sit beside them, each written to hold a feature the rest of the corpus cannot
+  reach: `win_sec_strict`, `strict_kv`, `classify_alerts` and
   `lexer_tokens` for D36/E20's dispatch modes, and `log_sessions` for design/16 and /17 —
   iteration, grouping, keys, folds and value computation over delimited log lines. That last
   shape matters on its own: the catalogue in `stroom-shapeshifter-xmlbench` proves the same
@@ -37,13 +34,12 @@ so when a phase of the port makes one work the build breaks until the line is pr
   the first thing `log_sessions` did was find [E28](../../../../ISSUES.md) with an empty
   field.
 
-## Two things that are ours, not ds-rs's
+## Two things beyond output parity
 
-**`*.messages`** — the message goldens. The Rust runners compare output only, leaving the
-warning and error paths dark, and two fixtures ship `.err` files that nothing reads. Each
-legacy fixture now has a `.messages` file recording the severity and text of every message the
-engine raises, in order. This is the one deliberate deviation from porting faithfully, and it
-is test-side: it cannot change output parity, only add signal.
+**`*.messages`** — the message goldens. Comparing output alone leaves the warning and error
+paths dark (two fixtures ship `.err` files in Stroom's format that nothing reads). Each legacy
+fixture has a `.messages` file recording the severity and text of every message the engine
+raises, in order. Test-side: it cannot change output parity, only add signal.
 
 The `.err` files stay vendored beside them as external evidence, but they are *not* the
 expectation. They are Stroom's format — `DS3Parser [2:1] ERROR:` with element paths and the
@@ -67,19 +63,9 @@ goldens now record the DS3-shaped reporting — `001`, `011` and `012` are empty
 eleven true errors in place of nineteen false warnings. The bullets stand as what recording the
 messages found, which is what justified recording them.
 
-**Quarantine — now empty.** The phase 0 audit found four `projects` goldens wrong — generated
-from ds-rs's own output and never checked. All four have since been diagnosed, fixed at the
-configuration, and re-frozen under review: `win_sec` and `win_sec_xml` (E6, E16),
-`apache_httpd` (E7) and `xml_to_json` (E8). Every one was a configuration defect. The evidence
-is in [08-fixture-audit.md](../../../../../design/08-fixture-audit.md) and
-[ISSUES.md](../../../../ISSUES.md).
+**Quarantine — now empty.** Four `projects` goldens were found wrong when the corpus was
+first audited — generated from the engine's own output and never checked. All four have since
+been diagnosed, fixed at the configuration, and re-frozen under review: `win_sec` and
+`win_sec_xml` (E6, E16), `apache_httpd` (E7) and `xml_to_json` (E8). Every one was a
+configuration defect. The evidence is in [ISSUES.md](../../../../ISSUES.md).
 
-## What was left behind
-
-Four files in the Rust corpus are not fixtures and were not vendored: `migrate_captures.py` and
-`migrate_fixtures.py` (one-off migration scripts), `projects/ausearch/actual_output.xml` (a
-debugging leftover, byte-identical to the golden beside it), and
-`projects/win_app_xml/project_graph.json` (a node-editor artifact no runner reads).
-
-The four fixture *regenerators* in the Rust suite were not ported either, and deliberately: a
-fixture that can rewrite its own expectation is not a test.

@@ -138,7 +138,7 @@ realised when imported or exported.
   import/export carries pattern dependencies with the config the way it already does for
   pipelines, feeds and XSLTs.
 - Reference resolution therefore has two stages: *authoring* (a reference stays a reference)
-  and *compilation* (references are inlined with cycle detection, as ds-rs does — see
+  and *compilation* (references are inlined with cycle detection — see
   [01-regex-language.md §6.5](../stroom-shapeshifter-regex/design/01-regex-language.md)). The engine only ever sees the resolved
   form.
 - A pattern's definition can change under a config that references it. Versioning or pinning
@@ -839,88 +839,43 @@ TIER1_ALTERNATION (0.65×) and NETWORK (0.84× buffer / 0.89× per-match).
 in later modules; this module is the matching layer.
 
 **Consequences:** keep typed step outputs, capture bindings and step references general enough
-to carry a transform layer later — the ds-rs `TypedValue` and `CaptureBinding` model is worth
-mirroring rather than simplifying away. Sibling modules under `stroom-shapeshifter` are
+to carry a transform layer later — the `TypedValue` and `CaptureBinding` model is worth
+keeping general rather than simplifying away. Sibling modules under `stroom-shapeshifter` are
 expected, so the module naming and package layout should leave room.
 
 ---
 
-## D33 — The engine port is a port: ds-rs's behaviour is the specification
+## D33 — The engine began as a port of a prototype — superseded by D41
 
-*2026-08-20.* `stroom-shapeshifter-engine` is filled by porting the `shapeshifter` crate from
-`ds-rs` — 9.7k lines of source, 5.0k of test, and 56 fixture sets — rather than by designing
-a Java engine afresh against the same requirements. The fixtures are golden files, several of
-them produced by Java Stroom's own DS3 in the first place, so they are the only cheap
-oracle available for a layer this large. Redesigning first would have thrown that away.
-The plan is [07-engine-port-plan.md](07-engine-port-plan.md).
+*2026-08-20; superseded 2026-09-03.* `stroom-shapeshifter-engine` was filled by porting an
+earlier Rust prototype rather than by designing a Java engine afresh, with the prototype's
+fixtures as the acceptance test and its behaviour as the specification. That got the module
+built and green in eight phases. [D41](#d41--stroom-is-the-source-of-truth-the-legacy-goldens-are-stroom-pipelines-own-and-the prototype-is-retired)
+then retired the prototype: Stroom's own DS3 is the oracle, its goldens are the corpus's, and
+where the two differed Stroom is right by definition. The prototype's name, its vendored
+design documents and the port plan are gone from the record; the fixtures it contributed stay
+as regression pins under their own names.
 
-Three sub-decisions were taken with it:
+What was decided alongside the port and still holds:
 
-- **Jackson binds the config.** `project.json` is a serde document with ~40 externally-tagged
-  variants; Jackson 3 is in the catalogue and is Stroom's standard. The engine module
-  therefore does *not* inherit the regex module's zero-dependency promise, which remains the
-  matching layer's alone and stays enforced by `verifyZeroDependencies`. Reading sits behind
-  a `ProjectReader` seam so a JDK-only reader is still reachable.
+- **Jackson binds the config.** `project.json` is an externally-tagged document with ~40
+  variants; Jackson 3 is in the catalogue and is Stroom's standard. The engine module does
+  *not* inherit the regex module's zero-dependency promise, which stays the matching layer's
+  alone. Reading sits behind a `ProjectReader` seam so a JDK-only reader is still reachable.
 - **The binary formats are deferred, visibly.** Avro, Parquet, Protobuf and the
   snappy/zstd/lz4 codecs each need a large third-party library; the match variants are
-  modelled and rejected at compile time with a clear message, and their 3 fixtures stay
-  vendored and are reported as skipped. ds-rs's own default-features run already skips the
-  same three, for the same reason. Base64, hex, URL-encoding, gzip and deflate are JDK
-  built-ins and are in scope.
-- **The chunk-boundary limitation is ported too.** ds-rs never lets a match span a buffer
-  boundary. Our matching layer's `NEED_MORE_INPUT` outcome could lift that, but reproducing
-  the limitation is what keeps golden parity a clean pass/fail across all 51 in-scope
-  fixtures. Real streaming is the first follow-up decision after the port is green, not a
-  change smuggled into it.
-
-**Evidence that the dialect gamble paid off:** all 208 distinct `pattern` values in the
-corpus were compiled through `BytePattern` before the plan was written. 207 compile — 77
-`SCAN_PLAN`, 121 `SIMULATE`, 9 `TREE`, atomic groups and `\z` included — and the one failure
-is `"+"`, a literal `replace` pattern that Rust rejects as a regex too. D19's choice to
-follow Rust's dialect is what makes this a port rather than a rewrite of 247 patterns.
-
-**The baseline is green and measured:** `cargo test --offline` on 2026-08-20 gives 200
-passing, 0 failing, 4 ignored — the four being fixture regenerators. 51 fixture sets are in
-scope (18 legacy, 18 native, 15 projects) and all 51 pass in Rust today, so any red in the
-Java port is the port's, not inherited. One caveat found while establishing this: eleven of
-the eighteen `projects` goldens are regenerated from ds-rs's own output by one of those
-regenerators, so for those fixtures parity means "same as ds-rs" and cannot catch a bug ds-rs
-already has. The `legacy` goldens came from Java Stroom's DS3 and are a real external oracle.
-
-Three further points settled on 2026-08-20, after the baseline was measured:
-
-- **Generated goldens are audited once, then frozen.** Generation was the starting point, not
-  a warrant. None of the four regenerators is ported — a fixture that can rewrite its own
-  expectation is not a test. *The audit ran on 2026-08-20 and found four of the eleven wrong*
-  (`apache_httpd` not well-formed XML, `xml_to_json` not valid JSON, `win_sec` and
-  `win_sec_xml` dropping group identity present in their inputs). They are quarantined rather
-  than deleted; see [08-fixture-audit.md](08-fixture-audit.md). In-scope expectations are 48.
-- **The runners assert on `ParseMessage`s.** Every legacy fixture now has a `.messages`
-  golden — 38 messages across 18 fixtures — where the Rust suite compared output only. The
-  `.err` files stay as external evidence but are Stroom's format, not the expectation.
-  Additive, test-side, and the only deliberate deviation from faithfulness. It immediately
-  showed that `maxMatch` templates raise a false "did not consume all content" warning, and
-  that both `ignoreErrors` fixtures warn anyway — recorded, not endorsed.
-- **The output side goes behind a sink interface from the start**, with a byte sink as the
-  only implementation built. D10's open question — what the pipeline element consumes, SAX
-  events or something else — stays open, but the seam it needs costs one indirection now and
-  a second pass over every `OutputNode` case later.
-
-The Rust project's design documents are vendored unedited under
-`stroom-shapeshifter-engine/docs/`, with an index marking which apply to the port and which
-describe the node editor that is not being ported.
-
-**Consequences:** behaviour that looks wrong in ds-rs gets ported, recorded, and decided
-separately rather than fixed in flight; no performance work happens during the port, because
-change-then-measure needs the semantics to hold still; and the engine gets its own benchmark
-set and plan only once the suite is green.
-
-**Closed 2026-08-20.** All eight phases done: 48 of 48 in-scope fixtures, 198 tests, both modules
-clean. The port found four defects of its own making — a missing pattern-reference cycle guard,
-and three places where an `apply-templates` or a message path was subtly wrong — and seven pieces
-of ds-rs behaviour worth deciding about, none of them fixed in flight. Both lists, and the three
-decisions the port sets up, are in the plan's closing section. The engine's benchmark set is now
-unblocked.
+  modelled and refused at compile time with a clear message, and their three fixtures are
+  reported as skipped. Base64, hex, URL-encoding, gzip and deflate are JDK built-ins and in.
+- **No match spans a buffer boundary.** The matching layer's `NEED_MORE_INPUT` could lift
+  that; keeping the limit is what made golden parity a clean pass/fail. D37 later settled the
+  question by retiring the streaming surface altogether.
+- **The runners assert on messages.** Every legacy fixture has a `.messages` golden, so the
+  warning and error paths are not dark.
+- **Generated goldens are audited once, then frozen.** A fixture that can rewrite its own
+  expectation is not a test; the four found wrong were fixed at the configuration (E6–E8,
+  E16) and the quarantine is empty.
+- **Output goes behind `OutputSink` from the start.** Design 20 and D40 are what that seam
+  was kept for.
 
 ---
 
@@ -928,7 +883,7 @@ unblocked.
 
 *2026-08-20.* E16's investigation led to reading Java Stroom's own DS3 dispatch loop, which
 settled a question the port had unknowingly carried: real DS3 dispatches a level's expressions
-as `(A|B|C)*` — first match wins each pass, restarting from the first expression — while ds-rs
+as `(A|B|C)*` — first match wins each pass, restarting from the first expression — while the prototype
 designed `A* B* C*`, exhausting each expression before trying the next, and claimed equivalence
 in a comment. They are not equivalent, and E1's false-positive warning, E16's "wrong" template
 order and the `005`/`014` message divergences are all symptoms of the substitution. The full
@@ -948,7 +903,7 @@ Decided, with the user:
   used" with backtracking drivers was wrong, and E14 is reworded to match. Lowering onto the
   combinator layer is an optimisation question that waits for E17.
 
-**Consequences:** the first deliberate behavioural departure from ds-rs since the port —
+**Consequences:** the first deliberate behavioural departure from the prototype since the port —
 sequenced exactly as D33 prescribed, decision first, diff second. The message goldens encoding
 the false-positive class change under review when E17 lands; output goldens are expected to
 survive, and the ratchet names any configuration that depended on `A*B*C*`.
@@ -965,7 +920,7 @@ survive, and the ratchet names any configuration that depended on `A*B*C*`.
    as fields.
 
 Everything else people are tempted to put between them is a mistake with a familiar shape, and
-this decision exists because the temptation demonstrably recurs. The ds-rs project grew
+this decision exists because the temptation demonstrably recurs. The the prototype project grew
 intermediate layers repeatedly and had to be fought back each time — its own docs record
 NodeConfig eras, legacy-node wrappers and multi-path compilation pipelines. And on the very day
 this was written, the same session that documented the two-layer target proposed a matcher
@@ -1211,6 +1166,8 @@ bytes, which is what it was always meant to mean.
 served its purpose — the port is done — and is superseded: where ds-rs and Stroom differ, Stroom
 is right by definition, and the `projects/` family (ds-rs's own end-to-end fixtures) keeps its
 goldens only as regression pins for features Stroom's DS3 does not have, not as an oracle. The
-purge of ds-rs from the record is a task of its own; its scope — thirty-two files name it, from
-D33 to the corpus README to the migration's comments — is sized in design 21 and put to the
-user before anything is deleted.
+purge of ds-rs from the record was done the same day under the reading "rewrite the record,
+keep the fixtures": the vendored design documents, the port plan and the fixture audit are
+deleted; D33 is rewritten as superseded; every other mention says "the prototype". The regex
+module's design documents, which cite it as a comparison point, are left to that module's own
+session. This entry is where the name survives.

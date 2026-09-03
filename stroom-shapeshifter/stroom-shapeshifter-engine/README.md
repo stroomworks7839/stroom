@@ -1,10 +1,8 @@
 # stroom-shapeshifter-engine
 
 The layers above matching: reading a configuration, running it over an input, and writing the
-result. It is a port of the `shapeshifter` crate from the Rust `ds-rs` project
-([D33](../design/00-decisions.md), [07-engine-port-plan.md](../design/07-engine-port-plan.md)),
-and the port is complete against ds-rs's own goldens; against Stroom's, which D41 made the
-corpus's on 2026-09-03, 51 of 61 in-scope fixtures pass and 10 are `PENDING` on two named
+result. Stroom's own DS3 is the oracle it is measured against ([D41](../design/00-decisions.md)):
+51 of 61 in-scope fixtures pass on Stroom's goldens and 10 are `PENDING` on two named
 differences (E33, E35) that design 21 phases 2 and 3 close.
 
 ```java
@@ -71,7 +69,8 @@ deliberately left out, and the decisions the port enables. Refer to them by id.
 
 - **Avro, Parquet and Protobuf.** Modelled, and refused at compile time with a clear message.
   Each needs a large dependency; D33 deferred them. Three fixtures are skipped accordingly.
-- **The compile-time optimiser** ds-rs has. It changes work, not output.
+- **A compile-time optimiser** — unused-capture elimination, dead-branch pruning. It would
+  change work, not output.
 - **A performance story, yet.** The engine now has a benchmark suite
   (`stroom.shapeshifter.engine.bench`, run with the `jmh` task, results in
   `../design/benchmarks/`), and [10-engine-compilation.md](../design/10-engine-compilation.md)
@@ -87,10 +86,7 @@ until it is promoted, so progress is recorded on purpose and regressions cannot 
 
 Everything the fixtures cannot reach is tested directly, and that is most of the interesting
 surface: chunking, `call-template`, regex replacement, every combinator, both seeks, non-UTF-8
-input, and the instrumentation seam. The phase 0 audit found four goldens wrong; all four have
-since been fixed at the configuration and re-frozen under review, and the quarantine is empty —
-the findings are in [08-fixture-audit.md](../design/08-fixture-audit.md).
+input, and the instrumentation seam. Four `projects` goldens were found wrong when the corpus
+was first audited; all four were fixed at the configuration and re-frozen under review
+(E6–E8, E16), and the quarantine is empty.
 
-`docs/` holds the Rust project's own design documents, vendored unedited, with an index saying
-which of them apply. They are history and intent; where they and the ported behaviour disagree,
-the behaviour is what was ported.

@@ -6,8 +6,8 @@
 #   QUARANTINED  in scope, but the golden itself is wrong — see ../../../../ISSUES.md
 #
 # The ledger is a ratchet. A PENDING fixture that starts passing fails the build until
-# it is promoted here, so every phase of the port has to move a number on purpose.
-# See ../../../../design/07-engine-port-plan.md.
+# it is promoted here, so every phase of the work has to move a number on purpose.
+# See README.md beside this file, and D41 in ../../../../design/00-decisions.md.
 
 # --- legacy: DS3 XML configs, with golden output from Java Stroom's own DS3 ---
 legacy/001_csv_with_header                    PASS

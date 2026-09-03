@@ -1,14 +1,13 @@
 # Engine compilation
 
-The intended shape — stated in DS3, restated in ds-rs, and confirmed as this engine's target on
+The intended shape — stated in DS3, restated in the prototype, and confirmed as this engine's target on
 2026-08-20 — is the regex library's shape one layer up: a **model the user edits** (a `Project`,
 as a pattern is text) and a **compiled object graph that executes it as optimally as possible**
-(as a pattern becomes a `BytePattern` with its tiers and plans). ds-rs's own design record shows
+(as a pattern becomes a `BytePattern` with its tiers and plans). The prototype's own design record shows
 how far this principle was taken there: its hot-path audit declares compile-time lifting
 "exhaustive", with a table of every decision moved out of the loop — predicate lookup tables,
 pre-filtered child indices, ref strategy classification — and a closing list of what remains at
-runtime because it is irreducible (`docs/ds3_design_document.md`, the compiled-state tables;
-`docs/template_engine_architecture.md`, the performance design).
+runtime because it is irreducible (the prototype's design record, since retired under D41).
 
 This document is the honest status of our compilation stage against that target, written before
 the first benchmark so that the gap list is a hypothesis sheet rather than a memory.
@@ -31,7 +30,7 @@ compiles properly:
 Everything else executes off the *authored* model, per match. Each row is a compilation
 candidate, and none may be acted on before a benchmark says which matter (§4):
 
-| Interpreted per use | The cost, concretely | ds-rs's answer |
+| Interpreted per use | The cost, concretely | The prototype's answer |
 |---|---|---|
 | Mode dispatch: `apply()` filters the whole template list by mode **on every call** | O(all templates) per dispatch, per match — `win_sec` runs a 57-template level once per record | pre-computed index lists per mode |
 | Reference resolution: `Refs` walks `RefExpression` parts every time | per-part dispatch, and **literal text is re-encoded to UTF-8 on every write** | `RefStrategy` classification: `SimpleLocal` / `SimpleRemote` / `LiteralBytes` (pre-encoded) / `Complex` |
@@ -44,8 +43,8 @@ candidate, and none may be acted on before a benchmark says which matter (§4):
 | Captures | every group copied out of the buffer whether or not anything reads it | unused-capture elimination + dead-branch pruning (the E10 optimiser, deliberately unported during the port) |
 | `^`-anchored patterns dispatched as **unanchored searches** | a failing anchored template scans the whole remaining region instead of testing one position — ~55 times per element in `win_sec_xml` | detect start-anchored patterns at compile time and dispatch them `Anchoring.ANCHORED` *(added from the baseline, §5)* |
 | `ByteMatcher` allocated per match attempt | allocation on the hottest call the engine makes | a matcher held as a *field* of the compiled node — structure, not a cache *(added from the baseline, §5)* |
-| Unanchored `(?m)^` patterns each scan the region per dispatch pass | a level of N multiline templates scans the same bytes up to N times per pass — `win_sec`'s whole 5.8 MiB/s story (§8) | none — ds-rs had the same cost. A compiled dispatch could know these patterns only match at line starts and find the next `\n` once for the level *(added after change 3)* |
-| Transform functions work in `String` | every transform resolves bytes → `String`, transforms, re-encodes — `apache_httpd` runs 209 string-level replaces per record, and this is why change 3 moved it only 12% (§8) | none — ds-rs transformed strings too. Byte-level transforms, or at least single-conversion pipelines, would be new ground *(added after change 3)* |
+| Unanchored `(?m)^` patterns each scan the region per dispatch pass | a level of N multiline templates scans the same bytes up to N times per pass — `win_sec`'s whole 5.8 MiB/s story (§8) | none — the prototype had the same cost. A compiled dispatch could know these patterns only match at line starts and find the next `\n` once for the level *(added after change 3)* |
+| Transform functions work in `String` | every transform resolves bytes → `String`, transforms, re-encodes — `apache_httpd` runs 209 string-level replaces per record, and this is why change 3 moved it only 12% (§8) | none — the prototype transformed strings too. Byte-level transforms, or at least single-conversion pipelines, would be new ground *(added after change 3)* |
 
 **Resolved so far** — change 1 (§6): anchored dispatch, matcher as field. Change 2 (§7): mode
 dispatch tables, `call-template` resolution. Change 3 (§8): reference strategies, pre-encoded
@@ -83,7 +82,7 @@ and IO capture so an editor can show what each part did; during normal runtime t
 not exist — not "are cheap", but are **absent from the compiled graph**.
 
 Both ancestors do a version of this. DS3's `ExecutionProfiler` is implemented by its expression
-nodes ("to track down problem REGEX", with top-N reporting in the parser); ds-rs monomorphises
+nodes ("to track down problem REGEX", with top-N reporting in the parser); the prototype monomorphises
 an `Instrument` trait so the no-op version compiles to nothing, and its hot-path audit lists
 capture recording as "editor features, not production".
 

@@ -29,7 +29,7 @@ import java.nio.charset.StandardCharsets;
  * interpretation concluded, once, at compile time. Literal text is <b>pre-encoded bytes</b> —
  * the single change that stops every write re-encoding the same string — and the common
  * one-part shapes are named so the executor dispatches on what an expression <i>is</i> rather
- * than walking what it says. This is ds-rs's {@code RefStrategy}, kept as compiled nodes rather
+ * than walking what it says. Kept as compiled nodes rather
  * than annotations on the model, because the model stays the model (D35).
  */
 public sealed interface CompiledRef {

@@ -502,7 +502,7 @@ class EngineBehaviourTest {
             config = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
         // A finding of its own: the original configuration set ignore_errors at the source, a
-        // flag ds-rs never enforced — the author asked for silence and got it by accident
+        // flag the engine never enforced — the author asked for silence and got it by accident
         // instead. Under D34 the flag works and would gate these reports, so the test opens the
         // gate to see them.
         final String gated = config.replace("\"ignore_errors\": true", "\"ignore_errors\": false");
