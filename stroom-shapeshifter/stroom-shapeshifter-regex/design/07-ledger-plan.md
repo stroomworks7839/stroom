@@ -36,7 +36,7 @@ per-fork spread before any single number.
 sentences in 06 §1 — the fixes hold across the set, or a named row does not and it is the first
 item of Phase 2.
 
-## Phase 1 — Make the two rows read true *(the pollution workload; harness, then engine)*
+## Phase 1 — Make the two rows read true *(the pollution workload; harness, then engine)* — **harness landed 2026-09-03; the rows read 2.1× and 2.1× polluted**
 
 Buffer `NETWORK` reads 0.77× and `KEYVALUE` 0.99×. Both diagnoses are on record and they are
 different: NETWORK **measures at parity fork-per-side** (156 vs 160 ns/record) and its 0.77×
@@ -66,9 +66,22 @@ pollution workload" and the NETWORK artifact are one item.
    attempt never captured. Gate: KEYVALUE and NETWORK against the row of record, canaries
    paired.
 
-**Exit:** the two rows read what the fork-per-side truth says, on a harness whose flattery of
-either side is a footnote rather than a number; or the engine's weak case is priced and either
-fixed or accepted with its cost in ISSUES.md.
+**Landed (step 2), 2026-09-03.** `PollutedCorpusBenchmark`: `CorpusBenchmark`'s workloads and
+methods after a `@Setup` that compiles and runs all 114 corpus patterns through both libraries
+for 200 passes. Polluted against clean, same hour, same boot — the JDK rows fall **−53 to −62%**
+(NETWORK 6,927 → 3,203; KEYVALUE 6,867 → 3,203; CSV 2,359 → 902), so the clean harness's
+monomorphic flattery is real and large. The two rows read true: **NETWORK 0.78× → 2.13×,
+KEYVALUE 1.01× → 2.06×**, CSV 2.94× → 5.78×. Neither row was ever the engine's weak case on a
+pipeline's JVM. What the run also found, and 06 did not predict: our engines are **not**
+pollution-immune — the scan plan lost 18% on CSV and the tree 26–39% across the three,
+where "interpreter-shaped and pollution-immune" was the recorded belief. Less polluted than
+the JDK by a wide margin, but polluted. Recorded as a new row in 06 §1 rather than chased:
+the tree's `Node.match` dispatch is the obvious suspect and it is a probe, not a reading.
+Step 1's fork-per-side re-diagnosis and step 3's slot-write pricing are moot for the rows
+they were for — KEYVALUE is 2× ahead where it matters — and stay recorded for the clean row.
+
+**Exit (reached for the rows; open for the finding):** the two rows read what a pipeline
+sees, beside the clean reading; the pollution cost on our own tree is the new open item.
 
 ## Phase 2 — The cliff *(was: the lazy-run skip for the stateful `Loop`)* — **Done 2026-09-03: `RunLoop`, FAR_LINE 51×, MISS_LINE 54×, ahead of the JDK on all four line rows**
 
