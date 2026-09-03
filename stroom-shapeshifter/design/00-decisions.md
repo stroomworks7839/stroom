@@ -1115,3 +1115,41 @@ deliberate, documented (regex 05 §3.2), pinned by `GreedyRunRawBytesTest` so dr
 announces itself, and carries a deprioritised closing row in the regex performance plan
 should the contract prove unsupplyable in practice. Strictness in the scan loop itself was
 rejected on measured grounds: it forfeits the memchr, and buffer CSV lives there.
+
+## D39 — The context bound is the array's end: the `contextEnd` seam is deleted
+
+**Ruled by Jon, 2026-09-03**, on the recommendation in regex design 07 Phase 6. The question
+was whether to keep `contextEnd` — the per-engine bound on the one-byte look past the region
+end that decides whether a region ends mid-character — as a seam through which a caller could
+one day pass a *tighter* bound than the array's length (a reused buffer's stale tail), or to
+delete it and read `data.length` where it was consulted.
+
+Read against the record, the ruling had effectively been made already. Every consumer of the
+seam, in all four engines and the reverse scanner, was the single start gate
+`splitsCharacter(data, at, contextEnd)`; both public entries bound it to `data.length` and
+nothing else ever bound it, since D37 retired the growing-window paths. The tighter bound it
+kept expressible was one of three options the stale-byte-window entry offered on 2026-08-25,
+and that entry's resolution on 2026-08-27 declared all three moot: *the contract is the
+answer, not an API* — the array holds the caller's data up to its length, `Executor.stream`
+blanks its window's tail, `RegionContextTest` and `WindowTailTest` pin both halves. A seam
+whose only purpose is to keep open an option already closed is dead vocabulary, and the code
+standard says delete it rather than wire it.
+
+What it buys, beyond the deletion itself: R1 (2026-08-24) bound `contextEnd` as engine state
+precisely because threading it as a ninth `search` argument cost −8.6% on the simulation and
+an inlining coin-flip on the tree, and the state binding left an accepted ~0.35 ns store on the
+tree's instant-rejection rows (−2.3% / −4.3%) and one on `ByteMatcher.match()` setup. All of
+that goes: the field, the setter and the assert in each engine, the six binding stores in
+`ByteMatcher`, `ReverseScanner`'s fifth argument, and the parameter from `Utf8.splitsCharacter`
+and `ByteForm.splitsCharacter`. The contract does not move: it was always the array's length.
+
+Measured under the standing gate, paired against the previous commit minutes apart: tree
+`anchored_hit` +0.9%, `anchored_miss` +1.8%, scan-plan `anchored_miss` +3.0%, per-match weblog
++1.6%, per-match datetime flat, buffer CSV tree +3.2% — and buffer CSV scan-plan **−3.2%**, the
+one cost. That row first read −8 to −14% with bimodal forks; under forced 32-byte loop
+alignment the bimodality vanishes and the −3.2% remains, so the swing was code placement and
+the residual is `ByteMatcher`'s object shape — the open class-shape entry in regex ISSUES.md,
+regex 07 Phase 4, which now carries this datapoint. The simulation's `line_miss` read −6.2%
+and is the D37 coin row: a padding field in `PikeVm` did not move it, and Phase 3's guarded
+static gate moved it a further −4% while lifting the simulation's real-work row +3.7%. Landed
+with the cost recorded, by direction (2026-09-03), rather than parked behind Phases 3 and 4.

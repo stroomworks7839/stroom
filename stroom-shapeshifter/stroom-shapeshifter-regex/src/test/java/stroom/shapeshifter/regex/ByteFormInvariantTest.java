@@ -42,7 +42,7 @@ class ByteFormInvariantTest {
         for (final ByteForm form : new ByteForm[]{ByteForm.RAW, ByteForm.of(windows1252())}) {
             assertThat(form.singleByte()).as("%s is single byte", form).isTrue();
             for (int at = 0; at <= anyBytes.length; at++) {
-                assertThat(form.splitsCharacter(anyBytes, at, anyBytes.length))
+                assertThat(form.splitsCharacter(anyBytes, at))
                         .as("%s splits at %d", form, at)
                         .isFalse();
             }

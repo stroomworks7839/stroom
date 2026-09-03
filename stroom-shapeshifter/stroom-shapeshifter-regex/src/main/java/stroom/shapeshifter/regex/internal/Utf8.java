@@ -99,10 +99,13 @@ public final class Utf8 {
      * use to a caller reading the text back.
      *
      * <p>A region can end inside a character, so the byte just past the region may be
-     * consulted — {@code at < contextEnd} is what makes the read safe: bytes at and beyond
-     * {@code contextEnd} are not the caller's data. Since D37 both public entries bind the
-     * context to the array's end; a tighter bound (a reused buffer's stale tail) is currently
-     * inexpressible, recorded in {@code ISSUES.md}.
+     * consulted — {@code at < data.length} is what makes the read safe, and the array holding
+     * the caller's data up to its length is {@code ByteMatcher}'s stated contract: a caller
+     * reusing a buffer blanks its tail. This method used to take that bound as a third
+     * argument, {@code contextEnd}; it was {@code data.length} on every path since D37, the
+     * tighter bound it kept expressible was ruled moot on 2026-08-27 in favour of the
+     * contract, and D39 (2026-09-03) deleted it along with the field, setter and per-search
+     * store it cost every engine.
      *
      * <p>The one shared search-start gate: every engine asks this question at every candidate
      * match start — four private spellings had drifted into three behaviours before it (the
@@ -110,10 +113,8 @@ public final class Utf8 {
      * stay hand-rolled: a body start is probed at an offset below the cursor, always inside
      * consumed input, so the beyond-region clause can never apply there.
      */
-    public static boolean splitsCharacter(final byte[] data,
-                                          final int at,
-                                          final int contextEnd) {
-        return at < contextEnd && isContinuation(data[at]);
+    public static boolean splitsCharacter(final byte[] data, final int at) {
+        return at < data.length && isContinuation(data[at]);
     }
 
     /** The length in bytes of the UTF-8 sequence a lead byte starts, or 0 if it cannot start one. */

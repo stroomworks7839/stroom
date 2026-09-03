@@ -70,7 +70,7 @@ public sealed interface ByteForm {
     int encodedLength(int codePoint);
 
     /** Whether {@code at} falls inside a character and so cannot begin a match. */
-    boolean splitsCharacter(byte[] data, int at, int contextEnd);
+    boolean splitsCharacter(byte[] data, int at);
 
     /** Whether {@code b} continues a character rather than beginning one. */
     boolean continuation(byte b);
@@ -126,8 +126,8 @@ public sealed interface ByteForm {
         }
 
         @Override
-        public boolean splitsCharacter(final byte[] data, final int at, final int contextEnd) {
-            return Utf8.splitsCharacter(data, at, contextEnd);
+        public boolean splitsCharacter(final byte[] data, final int at) {
+            return Utf8.splitsCharacter(data, at);
         }
 
         @Override
@@ -226,7 +226,7 @@ public sealed interface ByteForm {
         }
 
         @Override
-        public boolean splitsCharacter(final byte[] data, final int at, final int contextEnd) {
+        public boolean splitsCharacter(final byte[] data, final int at) {
             return false;
         }
 
@@ -295,7 +295,7 @@ public sealed interface ByteForm {
         }
 
         @Override
-        public boolean splitsCharacter(final byte[] data, final int at, final int contextEnd) {
+        public boolean splitsCharacter(final byte[] data, final int at) {
             return false;
         }
 

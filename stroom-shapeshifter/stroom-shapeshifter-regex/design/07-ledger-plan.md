@@ -112,6 +112,11 @@ reverse scanner. Where a gate costs, the fix is the one already shipped and pinn
 call guarded by the form's own `singleByte()` fact, equivalent by `ByteFormInvariantTest`'s
 sealed-set argument — spelled once per engine.
 
+First datapoint (2026-09-03, probed on top of D39): the Pike VM's guarded static lifts
+`LazyRunBenchmark` simulate ENTRY_DOTALL from 193,335 to 200,471 (+3.7%, nearly its pre-plan
+203,505) and moves the `line_miss` coin row −4% — real work up, the coin down, the shape this
+phase should expect.
+
 **Exit:** each engine's gate is measured, and either flat or fixed; the paired run's simulate
 losses are attributed or dissolved.
 
@@ -170,7 +175,7 @@ blanks its window's tail, `RegionContextTest` and `WindowTailTest` pin both halv
 the per-engine field, the five binding stores and `ReverseScanner`'s fifth argument. It retires
 R1's accepted store cost on the tree's instant-rejection rows and the `match()` setup store, and
 shrinks four engines' shape; gated like every other row here because shape cuts both ways.
-Awaiting Jon's yes; the D-number lands with the commit.
+**Ruled and landed 2026-09-03 as [D39](../../design/00-decisions.md)**; the paired numbers are in the commit and 06 §1.
 
 **Exit:** each landed or declined with its paired numbers; the ruling on `contextEnd`
 recorded in the decision log.

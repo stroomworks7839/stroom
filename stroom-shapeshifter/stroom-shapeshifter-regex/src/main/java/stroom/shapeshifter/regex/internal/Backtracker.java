@@ -89,15 +89,6 @@ public final class Backtracker {
     private int[] undoValue = new int[64];
     private int undoSize;
 
-    /** One past the last consultable byte — bound window state, not a search argument;
-     * {@code PikeVm}'s field note records the measured reason. */
-    private int contextEnd;
-
-    /** Binds the context: one past the last byte {@code search} may consult. */
-    public void setContextEnd(final int contextEnd) {
-        this.contextEnd = contextEnd;
-    }
-
     public Backtracker(final Nfa nfa) {
         this.nfa = nfa;
         this.firstBytes = nfa.firstBytes();
@@ -128,7 +119,6 @@ public final class Backtracker {
                       final int to,
                       final boolean anchored,
                       final int[] slots) {
-        assert contextEnd >= to : "setContextEnd must bind the context before search";
         prepare(regionFrom, to);
 
         // Attempting stops once fewer bytes remain than the shortest match spans.
@@ -148,7 +138,7 @@ public final class Backtracker {
                 }
                 continue;
             }
-            if (nfa.form.splitsCharacter(data, at, contextEnd)) {
+            if (nfa.form.splitsCharacter(data, at)) {
                 // A match may not begin inside a character — and an anchored search may not
                 // begin anywhere else, so it is over (as the simulation already answers).
                 if (anchored) {

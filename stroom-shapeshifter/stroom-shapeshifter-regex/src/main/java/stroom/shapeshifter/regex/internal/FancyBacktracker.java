@@ -105,17 +105,6 @@ public final class FancyBacktracker {
     private int[] undoValue = new int[64];
     private int undoSize;
 
-    /** One past the last consultable byte — bound window state, not a search argument;
-     * {@code PikeVm}'s field note records the measured reason. */
-    private int contextEnd;
-
-    /** Binds the window's contextEnd: one past the last byte {@code search} may consult.
-     * Root only: children run {@code attempt}/{@code matchBehind}, never {@code search},
-     * and are never bound. */
-    public void setContextEnd(final int contextEnd) {
-        this.contextEnd = contextEnd;
-    }
-
     public FancyBacktracker(final Nfa nfa) {
         this(nfa, new Context());
     }
@@ -157,7 +146,6 @@ public final class FancyBacktracker {
                       final int to,
                       final boolean anchored,
                       final int[] slots) {
-        assert contextEnd >= to : "setContextEnd must bind the context before search";
         context.steps = STEP_BUDGET;
         context.searchStart = start;
 
@@ -178,7 +166,7 @@ public final class FancyBacktracker {
                 }
                 continue;
             }
-            if (nfa.form.splitsCharacter(data, at, contextEnd)) {
+            if (nfa.form.splitsCharacter(data, at)) {
                 // A match may not begin inside a character — and an anchored search may not
                 // begin anywhere else, so it is over (as the simulation already answers).
                 if (anchored) {

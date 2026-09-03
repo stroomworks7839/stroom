@@ -67,20 +67,6 @@ public final class PikeVm {
     private final int[] matched;
     private boolean hasMatch;
 
-    /** One past the last consultable byte — window state, set with the window rather than
-     * passed per search: a ninth {@code search} argument measured −8.6% on the line-anchored
-     * scan ({@code AnchoredSearchBenchmark} simulate/line_miss, 2026-08-24) with the body
-     * untouched — the frame cost alone — and cost the tree engine an inlining coin-flip
-     * worth −21% a fork. Bound as state, every real-workload row sits at baseline; the
-     * store's ~0.35 ns shows only on the tree engine's 8 ns instant-rejection rows
-     * (−2–4%, accepted in ISSUES.md). */
-    private int contextEnd;
-
-    /** Binds the context: one past the last byte {@link #search} may consult. */
-    public void setContextEnd(final int contextEnd) {
-        this.contextEnd = contextEnd;
-    }
-
     public PikeVm(final Nfa nfa) {
         this.nfa = nfa;
         this.closures = nfa.closures();
@@ -94,8 +80,8 @@ public final class PikeVm {
     }
 
     /**
-     * Searches for a match. The context must be bound via {@link #setContextEnd} before
-     * each call, or the answer at the region edge is wrong.
+     * Searches for a match. The region-edge answer reads the array's own end, so the array
+     * must hold the caller's data up to its length ({@code ByteMatcher}'s contract).
      *
      * @param anchored true to require the match to begin at {@code start}.
      * @param slots    filled with the winning capture slots when a match is found.
@@ -219,7 +205,7 @@ public final class PikeVm {
         if (!anchorHoldsAt(data, regionFrom, to, pos)) {
             return false;
         }
-        if (nfa.form.splitsCharacter(data, pos, contextEnd)) {
+        if (nfa.form.splitsCharacter(data, pos)) {
             return false;
         }
         if (firstBytes == null) {

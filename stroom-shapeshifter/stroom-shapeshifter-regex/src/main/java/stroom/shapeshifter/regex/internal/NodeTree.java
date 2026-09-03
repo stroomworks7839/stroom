@@ -170,15 +170,6 @@ public final class NodeTree {
         private final Compiled compiled;
         private final Ctx ctx = new Ctx();
 
-        /** One past the last consultable byte — bound window state, not a search argument;
-         * {@code PikeVm}'s field note records the measured reason. */
-        private int contextEnd;
-
-        /** Binds the context: one past the last byte {@code search} may consult. */
-        public void setContextEnd(final int contextEnd) {
-            this.contextEnd = contextEnd;
-        }
-
         public Machine(final Compiled compiled) {
             this.compiled = compiled;
             ctx.form = compiled.form();
@@ -195,7 +186,6 @@ public final class NodeTree {
                           final int to,
                           final boolean anchored,
                           final int[] slots) {
-            assert contextEnd >= to : "setContextEnd must bind the context before search";
             ctx.data = data;
             ctx.regionFrom = regionFrom;
             ctx.to = to;
@@ -266,7 +256,7 @@ public final class NodeTree {
                 && (anchor == Nfa.ANCHOR_INPUT || data[at - 1] != '\n')) {
                 return true;
             }
-            if (ctx.form.splitsCharacter(data, at, contextEnd)) {
+            if (ctx.form.splitsCharacter(data, at)) {
                 return true;
             }
             return firstBytes != null && firstBytes[data[at] & 0xFF] == 0;

@@ -31,6 +31,24 @@ deleted. What remains in this file is the accepted-cost record and the one open 
 
 ## Accepted costs — measured, kept, and why
 
+**D39's seam deletion leaves buffer CSV's scan plan at −3.2% (`open`, 2026-09-03 — a
+datapoint for the class-shape entry below).** Deleting `contextEnd` — field, setter, six
+binding stores, the parameter from `Utf8.splitsCharacter` and `ByteForm.splitsCharacter` —
+retired R1's accepted store (tree `anchored_hit` +0.9%, `anchored_miss` +1.8%) and the
+`match()` setup store (scan-plan `anchored_miss` +3.0%, weblog +1.6%), left per-match datetime
+flat and buffer CSV's tree +3.2%, and cost buffer CSV's scan plan: first read −8 to −14% with
+forks in two clusters (7,170 tight before; 6,367 / 6,649 / 6,211 after, three paired runs), of
+which forced 32-byte loop alignment removes the bimodality and leaves 6,964 / 6,952 against
+7,196 / 7,178 — **−3.2%, real, on a 3.5 ns/record loop**. A padding `int` in `contextEnd`'s old
+slot does not restore it (6,682 / 6,722), so it is not the field: it is `match()` losing one
+store and the gate reading `data.length`, changing the shape the entry below already owns. The
+simulation's `line_miss` also read −6.2% (2,216 / 2,218 against 2,362 / 2,368); a `PikeVm`
+padding field does not move it, and Phase 3's guarded static gate moves it a further −4%
+while lifting `LazyRunBenchmark` simulate ENTRY_DOTALL +3.7% — the D37 coin row moving
+opposite to real work, recorded not chased. Landed by direction with this entry open; the
+class-shape fix (07 Phase 4) is where both close. Evidence: `2026-09-03-*-d39-*.json`.
+
+
 **The tail-window machinery costs −12–14% on buffer workloads that never jump
 (`open`, measured 2026-08-25 — supersedes the accepted entry below).** The nightly
 gate's first full-suite run since Phase 2 found buffer CSV at −11.3%, per-match `quoted`
@@ -95,7 +113,9 @@ three to four orders of magnitude — while the JDK control stood still. Evidenc
 `-endanchored-p2-{before,after}.json`, same boot, adjacent runs.
 
 **R1 (gate harmonisation, resolved 2026-08-24) carries −2–4% on the tree engine's
-nearly-free rows (`accepted`).** The window-edge gate is now one designed thing:
+nearly-free rows (`accepted` — retired by D39, 2026-09-03: the `contextEnd` field and its
+per-search store are deleted, so the cost below no longer accrues; the entry stays as the record
+of why it was bound as state rather than passed).** The window-edge gate is now one designed thing:
 `Utf8.splitsCharacter` is the single start gate all four engines ask, `contextEnd` bounds
 the beyond-region probe everywhere `data.length` used to be consulted, and the lookbehind
 gates lost their inconsistent `regionFrom` exemption. The cost is the delivery mechanism,
@@ -151,10 +171,13 @@ the hot loops, none applied because each changes a measured method's shape:
   the first-byte gates.
 - `PlanRunner` MATCH_LITERAL still compares bytes of a literal that cannot fit before
   failing; an up-front length check is simpler and skips the doomed loop.
-- `contextEnd` is now constant-per-call equal to `data.length` on every path, so the
+- ~~`contextEnd` is now constant-per-call equal to `data.length` on every path, so the
   per-engine field, five binding stores, and `ReverseScanner`'s fifth argument plumb a
-  value the engines could read off `data` — **but deleting the seam forecloses the
-  tighter-context bound below, so it needs the ruling first.**
+  value the engines could read off `data`~~ — **landed 2026-09-03 as D39**: the ruling it
+  waited for had been made by the stale-byte resolution below (the contract, not an API), so
+  the seam went — field, setter, assert and store from every engine, the parameter from
+  `Utf8.splitsCharacter` and `ByteForm.splitsCharacter`, the fifth argument from
+  `ReverseScanner.findStart`.
 - The engines' int-end returns feed nothing but `end >= 0` (every engine already publishes
   the end through `slots[1]`), so `search` could return boolean; `Backrefs.TRUNCATED` is
   indistinguishable from `MISMATCH` at both call sites and could collapse.

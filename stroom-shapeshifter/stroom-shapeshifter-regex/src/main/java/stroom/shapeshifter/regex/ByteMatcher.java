@@ -96,7 +96,6 @@ public final class ByteMatcher {
     private int regionTo;
     /** One past the last byte that may be consulted as context — the array's end, bound
      * into the engine before each search. */
-    private int contextEnd;
     private boolean matched;
 
     ByteMatcher(final BytePattern pattern) {
@@ -188,7 +187,6 @@ public final class ByteMatcher {
         this.data = data;
         this.regionFrom = regionFrom;
         this.regionTo = to;
-        this.contextEnd = data.length;
         this.matched = false;
         return endgame && anchoring != Anchoring.ANCHORED
                 ? endgameSearch(from, anchoring)
@@ -225,7 +223,6 @@ public final class ByteMatcher {
         this.data = data;
         this.regionFrom = from;
         this.regionTo = to;
-        this.contextEnd = data.length;
         this.matched = false;
         return endgame && anchoring != Anchoring.ANCHORED
                 ? endgameSearch(from, anchoring)
@@ -254,7 +251,7 @@ public final class ByteMatcher {
                     ? regionTo - tailSpan
                     : from, anchoring);
         }
-        final int start = reverse.findStart(data, regionFrom, from, regionTo, contextEnd);
+        final int start = reverse.findStart(data, regionFrom, from, regionTo);
         if (start < 0) {
             matched = false;
             return false;
@@ -292,7 +289,6 @@ public final class ByteMatcher {
     private boolean runPinnedTree(final int from, final boolean anchored) {
         Arrays.fill(slots, -1);
         try {
-            tree.setContextEnd(contextEnd);
             final int end = tree.search(data, regionFrom, from, regionTo,
                     anchored, slots);
             matched = end >= 0;
@@ -313,7 +309,6 @@ public final class ByteMatcher {
         Arrays.fill(slots, -1);
         if (tree != null) {
             try {
-                tree.setContextEnd(contextEnd);
                 final int end = tree.search(data, regionFrom, from, regionTo,
                         anchored, slots);
                 matched = end >= 0;
@@ -322,7 +317,6 @@ public final class ByteMatcher {
                 Arrays.fill(slots, -1); // a clean rerun, not a resume
             }
         }
-        fancy.setContextEnd(contextEnd);
         final int end = fancy.search(data, regionFrom, from, regionTo,
                 anchored, slots);
         matched = end >= 0;
@@ -344,7 +338,6 @@ public final class ByteMatcher {
                         "backtracking was pinned but cannot run this pattern over "
                         + (regionTo - regionFrom) + " bytes");
             }
-            backtracker.setContextEnd(contextEnd);
             final int end = backtracker.search(
                     data, regionFrom, from, regionTo, anchored, slots);
             matched = end >= 0;
@@ -352,7 +345,6 @@ public final class ByteMatcher {
         }
         if (tree != null) {
             try {
-                tree.setContextEnd(contextEnd);
                 final int end = tree.search(data, regionFrom, from, regionTo,
                         anchored, slots);
                 matched = end >= 0;
@@ -363,7 +355,6 @@ public final class ByteMatcher {
         }
         // The VM searches for the leftmost match itself, advancing every live thread
         // together, rather than restarting an attempt at each offset.
-        vm.setContextEnd(contextEnd);
         final int end = vm.search(data, regionFrom, from, regionTo,
                 anchored, slots);
         matched = end >= 0;
@@ -438,7 +429,7 @@ public final class ByteMatcher {
      * call recovers all three (design 06 §1).
      */
     private boolean splitsCharacter(final int at) {
-        return !singleByteForm && Utf8.splitsCharacter(data, at, contextEnd);
+        return !singleByteForm && Utf8.splitsCharacter(data, at);
     }
 
     private int attempt(final int start) {

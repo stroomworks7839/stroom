@@ -53,14 +53,13 @@ public final class ReverseScanner {
 
     /**
      * The smallest offset in {@code [from, to]} at which a match ending at {@code to}
-     * begins, or -1 for none. {@code contextEnd} bounds the character-boundary probe the
-     * same way it does for the forward start gates.
+     * begins, or -1 for none. The character-boundary probe reads the array's own end, as the
+     * forward start gates do.
      */
     public int findStart(final byte[] data,
                          final int regionFrom,
                          final int from,
-                         final int to,
-                         final int contextEnd) {
+                         final int to) {
         current.clear();
         next.clear();
         addThread(current, 0, data, regionFrom, to, to);
@@ -68,7 +67,7 @@ public final class ReverseScanner {
         int best = -1;
         for (int pos = to; ; pos--) {
             if (current.matchLive
-                && !nfa.form.splitsCharacter(data, pos, contextEnd)) {
+                && !nfa.form.splitsCharacter(data, pos)) {
                 best = pos; // positions only decrease, so the last recorded is the smallest
             }
             if (pos <= from || current.size == 0) {
