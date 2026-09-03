@@ -17,8 +17,9 @@ And beneath them, [benchmarks/](benchmarks/README.md): every JMH run this module
 one file per run, checked in so that any number in the prose above can be traced to the run that
 produced it — plus the scoreboard charts the top-level README displays.
 
-Beside them, in the module root: [ISSUES.md](../ISSUES.md) — the open items and the accepted
-costs, each with the measurement that priced it.
+Beside them, in the module root: [README.md](../README.md) — where the library stands, in two
+bounded sentences — and [ISSUES.md](../ISSUES.md), the open items and the accepted costs, each
+with the measurement that priced it.
 
 ## What stayed shared, and why
 

@@ -6,7 +6,7 @@ A byte-level parsing and transformation engine.
 
 | Module | Contents |
 |---|---|
-| `stroom-shapeshifter-regex` | Byte-level regex and combinator matching engine |
+| [`stroom-shapeshifter-regex`](stroom-shapeshifter-regex/README.md) | Byte-level regex and combinator matching engine |
 | `stroom-shapeshifter-engine` | Configurations, templates and transforms, built on it |
 
 ## Status
@@ -45,8 +45,9 @@ pipeline. This closes the capability gap with `java.util.regex` without a delega
 dialect, and with the same Rust-style spellings throughout — Rust's own `regex` crate has no
 backreferences at all, so the fancy layer follows `fancy-regex`, its ecosystem's answer.
 
-Character classes are compiled through UTF-8, so `.` and `[a-zé]` match whole characters and a
-span never splits one, while ASCII-only classes and unbounded scans keep a byte-level fast path.
+Character classes are compiled once, at compile time, through the declared encoding — UTF-8,
+any single-byte table, or RAW — so `.` and `[a-zé]` match whole characters and a span never
+splits one, while ASCII-only classes and unbounded scans keep a byte-level fast path.
 A match never begins inside a character, not even an empty one.
 
 The dialect follows Rust's `regex` rather than Perl's inheritance: `$` is the end of the input,
@@ -62,8 +63,10 @@ equivalent regex. A streaming surface (`StreamMatcher`, a three-way outcome) was
 then retired by D37 (2026-08-25): the executor never consumed it, and the library is
 complete-inputs-only — byte arrays and slices.
 
-Not yet built: encodings other than UTF-8 and the `transcode` stage. (A delegated
-`java.util.regex` dialect was once planned and is deliberately gone — D27 made it unnecessary.)
+Encodings landed on 2026-08-28 ([design/19-encoding-plan.md](design/19-encoding-plan.md)):
+single-byte tables, RAW, `\B{HH}` byte escapes, and the `transcode` stage for the UTF-16
+family. (A delegated `java.util.regex` dialect was once planned and is deliberately gone —
+D27 made it unnecessary.)
 A pattern outside the dialect is rejected with the reason — never matched approximately.
 
 ## Modules
@@ -140,9 +143,14 @@ configuration would have, plus the whole corpus in one JVM.
 ### Where it stands
 
 Against `java.util.regex` reading the same bytes, same run, best engine chosen automatically —
-**ahead on 29 of 30 measured variants**, every per-match category included; the one sub-parity
-line (buffer `NETWORK`) measures at parity in controlled fork-per-side comparison and is a
-documented harness artifact ([06-performance-plan.md](stroom-shapeshifter-regex/design/06-performance-plan.md)).
+**ahead on 28 of 30 measured variants**, every per-match category included, and at parity on
+the other two: buffer `KEYVALUE` inside its error bars, and buffer `NETWORK`, which measures at
+parity in controlled fork-per-side comparison and is a documented harness artifact
+([06-performance-plan.md](stroom-shapeshifter-regex/design/06-performance-plan.md)). The one
+shape it is behind on — a lazy run spelt as a nested line loop over 64 KiB regions — and the
+bounds on the claim are stated in the module's own
+[README](stroom-shapeshifter-regex/README.md). Charts below are from
+`2026-09-02-2146-75f6bbaa1c-chain-after-plan.json`, the first run on the current machine.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="stroom-shapeshifter-regex/design/benchmarks/charts/buffer-dark.svg">
