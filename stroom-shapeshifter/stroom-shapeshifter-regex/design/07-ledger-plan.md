@@ -81,13 +81,21 @@ author *did* reach for before the dot-all spelling was fast — so a ported conf
 likeliest thing to carry it, and it is the one row on the scoreboard's terms where the library
 loses outright.
 
-The mechanism is the seam that already exists: the general lazy `Loop` answers `leadingByte()`
-for its continuation exactly as `StarClass` does — resolved through group heads and tails,
-compile-time — and its lazy branch skips positions that byte is not at, walking with the
-loop's own stepping so every stop is one the unfiltered loop would have visited. The hairier
-part is that the offer sites live in the JDK-style loop-back machinery rather than a single
-`scan`/`skipTo` pair; the correctness argument is unchanged. The step budget still charges
-the bytes passed over.
+The mechanism turned out not to be the offer count. Reading `Loop` (2026-09-03): the general
+lazy loop **recurses once per iteration** — `next.match || body.match`, the body's tail
+calling back into the loop — under `LOOP_DEPTH_LIMIT` = 1,024. A 64 KiB region of forty-byte
+lines is ~1,600 iterations; the guard bails, and the simulation finishes 8–42× slower than
+the JDK. A `leadingByte()` filter on the offers would trim doomed calls and leave the depth
+untouched. So the fix is a node, not a filter: `RunLoop`, the lazy repetition of "a class
+run then one terminator byte the class rejects" walked **iteratively** — one frame for the
+whole loop, the way `StarClass` is one frame for a run. Compiled in `compileRepeat` when
+the body has exactly that shape (`[^\n]*\n` qualifies; `.*\n` does not, because its run
+would swallow the terminator and the unit boundary would be ambiguous). The offer is still
+filtered by the continuation's `leadingByte()`, as `StarClass` does; the unit's scan is
+`StarClass.scan`'s walk; semantics are the lazy loop's exactly, pinned against the JDK and
+the simulation by `RunLoopTest`, including the 1,700-line region. Greedy unit loops stay on
+the general `Loop` — they need the unit boundaries kept for back-off — and no row loses on
+them.
 
 **Gate:** FAR_LINE / MISS_LINE for the win; ENTRY_LINE / BATCH_LINE as the small-region
 controls (they must not lose their 1.0×); all four dot-all rows flat; canaries paired. **Exit:**
@@ -95,7 +103,7 @@ the line idiom over 64 KiB is within 2× of the JDK or better, and 06 §1's row 
 with the numbers. If the budget bails before the skip earns its keep, the row records why and
 what a `Loop`-aware budget would cost.
 
-## Phase 3 — The other engines' gates *(same finding, four more sites)*
+## Phase 3 — The other engines' gates *(same finding, four more sites)* — **Measured 2026-09-03, no effect; reverted**
 
 The encoding plan put `nfa.form.splitsCharacter(...)` into `PikeVm.search`,
 `Backtracker.attempt`, `FancyBacktracker.attempt` and `ReverseScanner.findStart`, and
@@ -112,10 +120,11 @@ reverse scanner. Where a gate costs, the fix is the one already shipped and pinn
 call guarded by the form's own `singleByte()` fact, equivalent by `ByteFormInvariantTest`'s
 sealed-set argument — spelled once per engine.
 
-First datapoint (2026-09-03, probed on top of D39): the Pike VM's guarded static lifts
-`LazyRunBenchmark` simulate ENTRY_DOTALL from 193,335 to 200,471 (+3.7%, nearly its pre-plan
-203,505) and moves the `line_miss` coin row −4% — real work up, the coin down, the shape this
-phase should expect.
+The probe's +3.7% on simulate ENTRY_DOTALL was measured against a ten-hour-old full-set value
+and was drift; paired minutes apart, the full phase — all five gates and the fancy tier's four
+`continuation` loops — reads flat on every engine row (−0.5% to +2.1%, inside spread) and
+−5.5% bimodal on tree `anchored_miss`. The interface calls inline well enough everywhere but
+`ByteMatcher`. Reverted; recorded in 06 §1 as measured, no effect.
 
 **Exit:** each engine's gate is measured, and either flat or fixed; the paired run's simulate
 losses are attributed or dissolved.
