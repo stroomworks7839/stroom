@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Design 21 phase 0, second finding. DS3 trims every data name and value (DS3Parser.normaliseBuffer:
+  anything at or below U+0020 at either end) and drops an element left empty. A trailing CR, leading
+  and trailing spaces, a tab, and a whitespace-only value. Golden from Java Stroom's DS3. See E33.
+-->
+<dataSplitter
+        xmlns="data-splitter:3"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="data-splitter:3 file://data-splitter-v3.0.xsd"
+        version="3.0">
+
+  <split delimiter="\n">
+    <group value="$1">
+      <regex pattern="^([^=]+)=([^=]*)">
+        <data name="$1" value="$2" />
+      </regex>
+    </group>
+  </split>
+</dataSplitter>

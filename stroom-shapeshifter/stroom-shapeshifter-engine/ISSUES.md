@@ -1003,3 +1003,24 @@ What the design has to settle:
 - **Failure semantics and limits.** What a timeout or a 500 does to the record being built
   (message and continue, or fatal), and whether a configuration may reach arbitrary URLs at all
   — a pipeline that can call out is a security surface, not only a feature.
+
+### E33 — DS3 trims every data name and value; the migration does not
+**`open` — found 2026-09-03 by design 21 phase 0, fixture `legacy/021_trimmed_values` (`PENDING`).**
+
+`DS3Parser.normaliseBuffer` runs every `<data>` name and value through `CharBuffer.trim()` —
+which strips anything at or below U+0020 from both ends, so spaces, tabs and carriage returns
+alike — and if nothing is left the element is not written at all. `Ds3Migration` emits the
+captured bytes as they are. No legacy golden noticed because no legacy input has a padded
+value: phase 0's escaping fixture put a `\r` before its line ending to pin `&#xD;` and got
+`value="cr"` back from Stroom, which is where this was found.
+
+This is a fidelity question for the legacy family, whose goldens are DS3's output by
+definition (D33), and it is not a SAX question: whatever the answer, it belongs to the migration
+or to the engine's capture path, not to the sink. Three shapes, for the ruling: the migration
+wraps each data reference in a `trim` (one more generated instruction per value, beside the
+`translate` design 20 wants gone); a `trim` attribute on the structured `attribute` instruction
+design 21 phase 3 will generate; or DS3's behaviour is declared a quirk the port does not
+copy, and `021_trimmed_values` is `QUARANTINED` with that reason. The first is the faithful
+one and the cheapest; the second is the right one if phase 3 lands first, since it makes the
+trim a property of the emitted attribute rather than a step. Either way the fixture already
+holds the golden, and the ratchet fails the build the day the engine agrees with it.

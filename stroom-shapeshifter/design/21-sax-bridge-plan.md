@@ -25,7 +25,30 @@ findings included; deviations from the phase as written are recorded, not silent
 
 ---
 
-## Phase 0 — Make the gap honest *(small; no engine change)*
+## Phase 0 — Make the gap honest *(small; no engine change)* — **Done 2026-09-03**
+
+**Audited as it landed, three findings, one of them not the one the phase was written for.**
+(1) *The draft's defect was not one.* Checked first, before any file was written: every
+captured value goes through `escapeCaptures`; goldens 002 and 007 had pinned it all along.
+Design 20 §1 corrected in place, D40 records the correction. (2) *The `&#xD;` probe found
+E33 instead.* The escaping fixture put a `\r` before a line ending to reach the one entity no
+golden pins, and Stroom's DS3 returned `value="cr"`: `DS3Parser.normaliseBuffer` trims every
+name and value to U+0020 at both ends and drops an element left empty, and the migration does
+neither. Not a SAX matter — it belongs to the migration or the capture path — so the fixture
+split: `legacy/020_escaped_values` pins the five reachable escapes in a referenced name *and*
+value and is `PASS`; `legacy/021_trimmed_values` (trailing CR, padding both sides, a tab, a
+whitespace-only value that DS3 renders as `<data name="blank"/>`) holds DS3's golden as
+`PENDING` under E33, so the build breaks the day the engine agrees with it. Both goldens
+produced through `TestDS3`'s harness and the staging removed from `stroom-pipeline`; 63 fixtures
+green. (3) *The module builds.* `stroom-shapeshifter-pipeline` with
+`implementation project(':stroom-pipeline')` and the engine compiles against `xml.converter.AbstractParser`
+and `ParserFactory` with no module-system or Guice obstacle; `ShapeshifterParserFactory`
+compiles a project once and `ShapeshifterParser.parse` refuses by name, two tests pinning both.
+How the factory is *found* — document type, chooser, binding — is phase 1's and was not
+pretended here. The serialisation census is Appendix A; its one surprise is that
+`escapeAttribute`'s `&quot;` for literal quotes is pinned by nothing, so the serialiser has one
+form, `&#34;`, Stroom's. Original wording follows.
+
 
 Three things are known to be true and none is pinned.
 
@@ -279,3 +302,53 @@ and the trace says which it did.
 
 Out of scope, and said so it is not read as forgotten: SAX as *input* (E30, its own design);
 the function registry (E32); a third sink.
+
+---
+
+## Appendix A — The serialisation census *(phase 0, 2026-09-03)*
+
+What the legacy goldens pin, read from the nineteen `.out.xml` files and from `Ds3Migration`,
+so that phase 2a's serialiser is written to a list rather than to memory. Every line here is
+something a byte-identity failure in phase 3 will be traced back to.
+
+**Framing.**
+- `<?xml version="1.1" encoding="UTF-8"?>` then a newline. Version **1.1**, not 1.0.
+- `<records xmlns="records:2"`, newline, nine spaces, `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"`,
+  newline, nine spaces, `xsi:schemaLocation="records:2 file://records-v2.0.xsd"`, newline,
+  nine spaces, `version="2.0">`. Namespace declarations first, default before `xsi`, then the
+  attributes — the order Stroom's serialiser chose and the migration's `RECORDS_HEADER` copies.
+- Footer `\n</records>\n`: a trailing newline after the root's close, and nothing after it.
+  When no record was written the root is still paired, never self-closed.
+
+**Records.**
+- `\n   <record>` (three spaces) … `\n   </record>`; written only when the body produced
+  something (P1 — Java's DS3 writes no empty record). Always paired, never `<record/>`.
+
+**Data elements.**
+- `\n` + (6 + 3 × depth) spaces + `<data`; nested data indents three more per level.
+- Attribute order `name` then `value`; either may be absent (`<data name="x"/>`,
+  `<data value="…"/>`); an element with neither is not written at all (P2 — the fused
+  expression yields nothing).
+- Leaf: self-closing `/>`. With children that wrote something: `>` … children … `\n` +
+  indent + `</data>`. With children that wrote nothing: self-closing, decided after the
+  children ran (the migration's `__data_children_N__` variable). Fixture 003 pins the paired
+  form; 015 and 009 pin it at depth.
+- No character content anywhere except the indentation whitespace. No comments, no PIs.
+
+**Entities, in attribute values.** One table for captured values (`escapeCaptures`, six
+substitutions) and the serialiser must use the same six:
+`&` → `&amp;`, `"` → `&#34;`, `<` → `&lt;`, `>` → `&gt;`, `\n` → `&#xA;`, `\r` → `&#xD;`.
+Pinned by 002 (`&#34;`) and 007 (`&lt;`, `&gt;`, `&amp;`, `&#34;`, `&#xA;`), and by 020 for all
+five in a referenced *name* as well as a value. `&#xD;` is pinned by nothing and cannot be:
+DS3 trims a trailing `\r` before it reaches the serialiser (E33, `021_trimmed_values`), so a
+`\r` can only appear mid-value, which no fixture has — the serialiser keeps the substitution
+because `escapeCaptures` has it, unpinned. `'` is never escaped (007: `value="success'"`). **No golden
+contains `&quot;`**: the migration's `escapeAttribute` writes it for *literal* config values,
+which no legacy fixture exercises with a quote — so the serialiser writes `&#34;` for every
+quote, and that is Stroom's form, not a choice. Design 20 was right about `&#34;` for the
+wrong reason (it named the migration; it is the serialiser's form that the migration copies).
+
+**Not pinned by any golden, and therefore free for phase 2 to choose — but chosen once:**
+content escaping (text between tags — `&`, `<`, `>` as `&amp;`, `&lt;`, `&gt;`, `"` and `'`
+left alone); a prefixed element or attribute; a namespace declared below the root. The
+hand-written phase-2 fixture pins whatever is chosen.
