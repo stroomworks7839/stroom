@@ -70,10 +70,19 @@ public final class Ds3Parser {
             final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
             // Configurations arrive from outside; there is no reason for one to reach out to
-            // the filesystem or the network while being read.
-            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            // the filesystem or the network while being read. Refusing DOCTYPE declarations is
+            // what closes that door; the two JAXP 1.5 limits below are belt and braces, and a
+            // parser that predates them — Xerces, which Stroom's pipeline puts on the classpath
+            // ahead of the JDK's — rejects them by name. Without a DOCTYPE there is no external
+            // DTD to reach, and validation is off, so an unrecognised limit costs nothing.
             factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            for (final String limit : List.of(XMLConstants.ACCESS_EXTERNAL_DTD, XMLConstants.ACCESS_EXTERNAL_SCHEMA)) {
+                try {
+                    factory.setAttribute(limit, "");
+                } catch (final IllegalArgumentException unsupportedByThisParser) {
+                    // See above.
+                }
+            }
             document = factory.newDocumentBuilder().parse(source(xml));
         } catch (final ParserConfigurationException e) {
             throw new ConfigException("The XML parser could not be configured: " + e.getMessage(), e);

@@ -20,18 +20,13 @@ import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.ProjectReader;
 
 import org.junit.jupiter.api.Test;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
-import java.io.StringReader;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Phase 0 of design 21: the module exists, sees both sides, and says what it does not do yet.
+ * Phase 0 of design 21: the module exists and sees both sides.
  */
 class ShapeshifterParserTest {
 
@@ -50,14 +45,5 @@ class ShapeshifterParserTest {
         final DefaultHandler handler = new DefaultHandler();
         reader.setContentHandler(handler);
         assertThat(reader.getContentHandler()).isSameAs(handler);
-    }
-
-    @Test
-    void parseRefusesByNameUntilPhaseOne() {
-        final XMLReader reader = new ShapeshifterParserFactory(ProjectReader.read(MINIMAL)).getParser();
-
-        assertThatThrownBy(() -> reader.parse(new InputSource(new StringReader(""))))
-                .isInstanceOf(SAXNotSupportedException.class)
-                .hasMessageContaining("phase 1");
     }
 }

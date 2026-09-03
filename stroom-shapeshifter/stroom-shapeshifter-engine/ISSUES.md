@@ -649,9 +649,10 @@ lowering that silently widened what matches fails loudly. The binary atoms canno
 interpreted regardless.
 
 ### E15 — What the output sink's other implementation is
-**`open` — answered by [design 20](../design/20-sax-output.md), ruled 2026-09-03: SAX, in
-two phases, the first a parser over the byte path. Was `blocked` on
-[D10](../design/00-decisions.md); now proceeds under E31.**
+**`done` 2026-09-03 — answered by [design 20](../design/20-sax-output.md): SAX, and the
+second implementation is `ShapeshifterParser`'s parse-and-forward (design 21 phase 1), with the
+native event sink to follow in phase 2 under E31. Was `blocked` on
+[D10](../design/00-decisions.md) since 2026-08-17.**
 
 Configurations describe their output as bytes that happen to be XML. A Stroom pipeline element
 will want something else — SAX events are the obvious candidate and explicitly not the only one.
@@ -942,7 +943,9 @@ route already works (`xml_to_json` matches serialised XML today).
 ### E31 — SAX events as output
 **`open` — designed 2026-08-28 in [design 20](../design/20-sax-output.md); ruled in full
 2026-09-03 (design 20 §10, eleven rulings); planned in [design 21](../design/21-sax-bridge-plan.md),
-five phases with tests and gates. Both paths, phased: parse-and-forward first (design 21
+five phases with tests and gates. Phase 1 done 2026-09-03: `ShapeshifterParser` in
+`stroom-shapeshifter-pipeline` parses and forwards, and produces live DS3's events for 20 of 22
+legacy fixtures, the two exceptions being E33's. Both paths, phased: parse-and-forward first (design 21
 phase 1), structured emitters second — `element` and `attribute` containers, `namespace` a
 leaf, `text`/`value-of` untouched with `OutputSink` interpreting `write` by the container it
 is in — byte-identical to today's goldens as the gate. Bridging to SAX is optional — the
@@ -1014,8 +1017,20 @@ captured bytes as they are. No legacy golden noticed because no legacy input has
 value: phase 0's escaping fixture put a `\r` before its line ending to pin `&#xD;` and got
 `value="cr"` back from Stroom, which is where this was found.
 
+**Phase 1 of design 21 then found that the vendored goldens are not DS3's output on this
+point.** Driven live (`Ds3EventIdentityTest`), Stroom's DS3 trims `007_regex_dotall`'s message
+values and `009_multiline_regex_2`'s `User `/`Query ` names; `stroom-pipeline`'s own copies of
+those goldens carry the trimmed forms, and the vendored copies — ds-rs's — carry the untrimmed
+ones the engine reproduces. The trim has been in `DS3Parser` since 2019-01-23 and the
+stroom-pipeline goldens were last touched 2020-07-07, so ds-rs vendored an older output or
+regenerated it with its own engine. Either way the corpus README's "golden output produced by
+Java Stroom's own DS3" is true of 17 of 19 fixtures on content, and of none on serialisation
+(Stroom's serialiser wraps long attributes onto their own line; every vendored golden is
+unwrapped). The event test holds 007 and 009 as must-differ until this is ruled.
+
 This is a fidelity question for the legacy family, whose goldens are DS3's output by
-definition (D33), and it is not a SAX question: whatever the answer, it belongs to the migration
+definition (D33) — a definition that now has two candidates, ds-rs's bytes and Stroom's — and it
+is not a SAX question: whatever the answer, it belongs to the migration
 or to the engine's capture path, not to the sink. Three shapes, for the ruling: the migration
 wraps each data reference in a `trim` (one more generated instruction per value, beside the
 `translate` design 20 wants gone); a `trim` attribute on the structured `attribute` instruction

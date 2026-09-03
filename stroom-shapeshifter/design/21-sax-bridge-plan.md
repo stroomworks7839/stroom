@@ -100,7 +100,47 @@ reproduce are enumerated.
 
 ---
 
-## Phase 1 — Parse and forward *(the pipeline element exists)*
+## Phase 1 — Parse and forward *(the pipeline element exists)* — **Done 2026-09-03**
+
+**As built.** `ShapeshifterParser.parse` runs `Shapeshifter.runWhole` to a buffer, parses it with
+`SAXParserFactoryFactory`'s product, and forwards to the content handler; the engine's messages
+go to the error handler with their severity through `ErrorHandlerAdaptor` (or as
+`SAXParseException`s to any other handler); the parser's errors are rewritten in the output's
+terms — "at line N of the output, not the input", the offending line quoted — and handed on with
+no location, since the only one available would be read as an input position; a fatal parse
+error is recorded and the parse returns, as DS3 does, rather than throwing into the element's
+second `fatal`. Input arriving as characters is re-encoded UTF-8. `Ds3EventIdentityTest` builds
+Stroom's DS3 live from each legacy config (`RootFactory` + `ConfigFilter`, no schema filter) and
+compares event streams; `ShapeshifterParserErrorsTest` pins the two error kinds and the not-XML
+case. 26 tests in the module; the engine's 26 classes unchanged.
+
+**Audited as it landed — six findings, two of them not about SAX at all.**
+(1) *The plan's premise on locations was wrong:* engine `Message` is `(severity, text)`; it
+carries no location. The messages go on unlocated, which is honest, and the promise of source
+positions is D10's still-open locator work, not something this phase inherited. (2) *The
+migration could not run inside Stroom.* `Ds3Parser` (engine) set the JAXP 1.5 external-access
+limits on whatever `DocumentBuilderFactory` JAXP found; on the pipeline's classpath that is
+Xerces, which rejects them by name. Every legacy fixture failed in the first run. Fixed in the
+engine: the limits are tried and an unrecognised one ignored, which is safe because DOCTYPEs are
+already refused and validation is off. (3) *Three normalisations, each a fact about DS3 rather
+than a convenience:* DS3 emits no whitespace where the migration writes the serialiser's
+indentation; DS3 puts its two `xmlns` declarations in the root's `Attributes` as well as in
+`startPrefixMapping`, where a namespace-aware parser reports them only as mappings; DS3 never
+calls `endPrefixMapping`. `EventRecorder` names all three. (4) *The vendored goldens are not
+Stroom's bytes.* Stroom's serialiser wraps long attributes onto their own line (003, 007, 009,
+019 all show it); every vendored golden is unwrapped. Event-identical, so the port is unharmed,
+but Appendix A's "attribute on the same line" is ds-rs's rule, and S2's byte-identity is to
+ds-rs's re-serialisation, not to Stroom's serialiser — stated in the appendix now.
+(5) *E33 reaches into the vendored goldens.* Live DS3 trims 007's message values and 009's
+`User `/`Query ` names; stroom-pipeline's own goldens have the trimmed forms; the vendored ones
+do not. The port matches ds-rs, not Stroom, on those two, and the event test holds them as
+must-differ until E33 is ruled — E33 is updated with the provenance. 20 of 22 legacy fixtures
+are event-identical to live DS3 (008 rejected by both, as the ledger says). (6) A small one:
+`LoggingErrorReceiver.getTotal` calls `checkRecord(-1)`, which clears the summary
+`getMessage()` reads, so a test that asks for the count first sees no message; the tests read
+the indicators instead. Not built, deliberately: the pipeline element class, document type,
+chooser and Guice binding — the exit criterion was the oracle, and the element's registration is
+Stroom integration that deserves its own phase-1b with a stepping test. Original wording follows.
 
 `stroom-shapeshifter-pipeline` gains `ShapeshifterParser`: an `XMLReader` over
 `Shapeshifter.runWhole`. The engine writes to a byte buffer; the buffer is parsed by the same
@@ -360,6 +400,13 @@ contains `&quot;`**: the migration's `escapeAttribute` writes it for *literal* c
 which no legacy fixture exercises with a quote — so the serialiser writes `&#34;` for every
 quote, and that is Stroom's form, not a choice. Design 20 was right about `&#34;` for the
 wrong reason (it named the migration; it is the serialiser's form that the migration copies).
+
+**What the vendored bytes are (phase 1 finding).** Stroom's serialiser wraps a `<data>` whose
+attributes run long onto two lines, the value indented under the name (003, 007, 009, 019 in
+stroom-pipeline's own goldens). No vendored golden is wrapped: ds-rs re-serialised Stroom's
+events, and that is what the engine reproduces. S2's byte-identity is therefore to ds-rs's
+serialisation of DS3's events — one attribute line, always — and not to Stroom's serialiser,
+which the census had assumed were the same thing.
 
 **Not pinned by any golden, and therefore free for phase 2 to choose — but chosen once:**
 content escaping (text between tags — `&`, `<`, `>` as `&amp;`, `&lt;`, `&gt;`, `"` and `'`

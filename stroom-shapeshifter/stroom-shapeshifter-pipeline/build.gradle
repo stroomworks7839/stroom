@@ -24,6 +24,10 @@ dependencies {
     // to run configurations; nothing depends on it yet.
     implementation project(':stroom-pipeline')
     implementation project(':stroom-shapeshifter:stroom-shapeshifter-engine')
+    // ErrorHandlerAdaptor's Severity and ElementId, and the hardened SAXParserFactory every
+    // Stroom parser is built from.
+    implementation project(':stroom-util')
+    implementation project(':stroom-util-shared')
 
     testImplementation libs.bundles.common.test.implementation
     testRuntimeOnly libs.bundles.common.test.runtime
