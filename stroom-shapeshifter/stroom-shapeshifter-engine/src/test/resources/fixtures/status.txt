@@ -31,6 +31,7 @@ legacy/018_split_only_match                   PASS
 legacy/019_single_line_split                  PASS
 legacy/020_escaped_values                     PASS      design 21 phase 0: the five escapes in a referenced name and value, golden from Stroom's DS3 on 2026-09-03
 legacy/021_trimmed_values                     PENDING   E33: DS3 trims every name and value and drops the empty; found by phase 0's &#xD; probe, golden from Stroom's DS3 on 2026-09-03
+legacy/022_empty_input                        PENDING   E34: DS3 self-closes the empty root, the migration writes it paired; found by the phase-0 audit, golden from Stroom's DS3 on 2026-09-03
 
 # --- native: hand-written project.json over the legacy inputs and goldens ---
 native/001_csv_with_header                    PASS

@@ -45,7 +45,16 @@ green. (3) *The module builds.* `stroom-shapeshifter-pipeline` with
 and `ParserFactory` with no module-system or Guice obstacle; `ShapeshifterParserFactory`
 compiles a project once and `ShapeshifterParser.parse` refuses by name, two tests pinning both.
 How the factory is *found* — document type, chooser, binding — is phase 1's and was not
-pretended here. The serialisation census is Appendix A; its one surprise is that
+pretended here. **Audit of the audit, same day, two more findings.** (4) The census claimed
+the empty root is "still paired, never self-closed" with no golden behind it; a fixture with
+an empty input (`022_empty_input`) went through Stroom's DS3 and came back self-closed — E34,
+`PENDING`, and free under phase 3's containers. Rule for the census from here: every line
+names the golden that pins it or says *unpinned*. (5) `escapeCaptures` was checked for
+coverage, not just existence: `LegacyRefs.parse` yields only `Text` and `Capture`, so every
+reference kind the migration can produce is escaped. Also caught: design 20 §7 and §9 named
+`win_sec` and `ausearch` as the byte-pinned fixtures, but those are hand-written `projects/`
+text configurations phase 3 never touches — the pinned families are `legacy/` and `native/`,
+and the wording is corrected. 64 fixtures in the ledger, 2 pending (021, 022), 0 failures. The serialisation census is Appendix A; its one surprise is that
 `escapeAttribute`'s `&quot;` for literal quotes is pinned by nothing, so the serialiser has one
 form, `&#34;`, Stroom's. Original wording follows.
 
@@ -220,7 +229,9 @@ has not touched them.
 `element records { namespace "" "records:2"; namespace xsi …; … }` with the census's
 whitespace as `text`; `<data>` becomes `element data { attribute name {…}; attribute value {…} }`;
 `escapeAttribute` and `escapeCaptures` are deleted; escaping is no longer written, generated
-or forgotten.
+or forgotten. E33 (DS3 trims every name and value) is ruled before or with this phase: if the
+ruling is the `trim` property on `attribute`, it lands here and `021_trimmed_values` is
+promoted with the rest; if it is a generated `trim` step, it lands earlier and independently.
 
 **Two semantics the fused expression carried that a container does not, and the plan names
 them because phase 3 will meet them on its first fixture:**
@@ -318,7 +329,9 @@ something a byte-identity failure in phase 3 will be traced back to.
   nine spaces, `version="2.0">`. Namespace declarations first, default before `xsi`, then the
   attributes — the order Stroom's serialiser chose and the migration's `RECORDS_HEADER` copies.
 - Footer `\n</records>\n`: a trailing newline after the root's close, and nothing after it.
-  When no record was written the root is still paired, never self-closed.
+  **When no record was written the root is self-closed** — `version="2.0"/>` then the
+  newline — pinned by `022_empty_input` (the audit's fixture; the census first said "still
+  paired", from memory, and was wrong: E34). The engine pairs it today.
 
 **Records.**
 - `\n   <record>` (three spaces) … `\n   </record>`; written only when the body produced

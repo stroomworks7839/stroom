@@ -12,8 +12,8 @@ so when a phase of the port makes one work the build breaks until the line is pr
 
 ## The three families
 
-- **`legacy/`** — 19 vendored DS3 XML configurations plus two of ours (020, 021 — design 21
-  phase 0, 2026-09-03), with their inputs, and golden output produced by
+- **`legacy/`** — 19 vendored DS3 XML configurations plus three of ours (020–022 — design 21
+  phase 0 and its audit, 2026-09-03), with their inputs, and golden output produced by
   **Java Stroom's own DS3**. These are the corpus's real external oracle. One,
   `008_invalid_xml_FAIL`, has no golden output because its expectation is that the config is
   *rejected*; the Rust suite skips it, ours asserts the rejection.

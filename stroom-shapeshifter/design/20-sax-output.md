@@ -211,9 +211,11 @@ Under option B the migration stops assembling `<data name="…" value="…"/>` a
 better — `escapeCaptures` and its generated variables disappear and the "either the whole tag or nothing" property
 that the fused expression exists to guarantee comes free, because an element is atomic.
 
-The constraint from §4 applies with full force here: `win_sec`, `win_app`, `ausearch` and the
-rest pin their bytes, so the structured path must serialise to the same bytes the fused
-expression produces today, down to `&#34;`. If it cannot, the goldens change in one commit
+The constraint from §4 applies with full force here: the nineteen vendored legacy fixtures and
+the eighteen native ones pin their bytes against Stroom's own DS3 (the `projects/` family —
+`win_sec`, `apache_httpd` — is hand-written text and phase 3 does not touch it), so the
+structured path must serialise to the same bytes the fused expression produces today, down to
+`&#34;`. If it cannot, the goldens change in one commit
 that says exactly which bytes moved and why — and the DS3 comparison, which is what those
 goldens are *for*, has to be re-argued rather than quietly rebased.
 
@@ -238,7 +240,7 @@ goldens are *for*, has to be re-argued rather than quietly rebased.
 `Shapeshifter.run`, parsing the engine's bytes and forwarding events, with errors mapped onto
 `ErrorReceiver` through the same locator work D10 already owes. No engine change beyond the
 element. *Exit: a shapeshifter parser element in a pipeline produces the same events the DS3
-element does for a migrated configuration, proven against a converted `win_sec`.*
+element does for a migrated configuration, proven against the legacy family.*
 
 **Phase 2 — structured emitters in the model.** `element` and `attribute` (containers) and
 `namespace` (a leaf) in `OutputNode`, the codec, the compiler and the executor; the structural

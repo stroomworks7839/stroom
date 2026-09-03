@@ -1024,3 +1024,17 @@ copy, and `021_trimmed_values` is `QUARANTINED` with that reason. The first is t
 one and the cheapest; the second is the right one if phase 3 lands first, since it makes the
 trim a property of the emitted attribute rather than a step. Either way the fixture already
 holds the golden, and the ratchet fails the build the day the engine agrees with it.
+
+### E34 — An empty run writes `<records …>\n</records>`; DS3 writes `<records …/>`
+**`open` — found 2026-09-03 by the design 21 phase 0 audit, fixture `legacy/022_empty_input` (`PENDING`).**
+
+The census in design 21 Appendix A asserted that the root is always paired; no vendored golden
+has zero records, so nothing had checked. Stroom's serialiser self-closes an element with no
+content, and DS3's root is one when no record was written. `Ds3Migration` emits
+`RECORDS_HEADER` and `RECORDS_FOOTER` as unconditional `Text`, so the engine always pairs.
+
+Under design 21 phase 3 this costs nothing: `element records { … }` on the sink's deferred
+start self-closes when its body wrote nothing (Appendix A's rule for `<data>`, now for the
+root too). Until then the fix would be a conditional footer in the migration — the same
+buffered-body shape `wrapAsRecord` uses — and it is not worth building twice; the fixture holds
+the golden and the ratchet decides when.
