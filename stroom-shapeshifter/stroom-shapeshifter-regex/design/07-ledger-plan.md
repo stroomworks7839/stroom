@@ -141,10 +141,13 @@ this machine; the end-anchored rows keep their three orders of magnitude either 
 
 ## Phase 5 — The cheap unlocks *(each an afternoon; each opens a recorded row)*
 
-- **A key=value benchmark row for `ReverseSuffix`** (06 §6 phase 5). Its prerequisite landed
-  the same day it was deferred; the only unmet trigger is the row existing. Write the row —
-  DS's `reverse` feature's actual shape, keys verified backwards from `=` — and let it say
-  whether the phase is worth its change.
+- **`ReverseSuffix`'s trigger, read correctly** (06 §6 phase 5). Its prerequisite, the reverse
+  program, landed the same day it was deferred, and the key=value row already exists
+  (`EndAnchoredSearchBenchmark` KV_HIT / KV_MISS — corrected 2026-09-03; this plan first said
+  the row was missing). What 06 actually gates on is *a workload asking*: the corpus holds no
+  pattern the suffix strategy would move. So the unlock is not a row but evidence — a real
+  configuration using DS's `reverse` feature over a key=value shape — and the row stays parked
+  with the standing rows below until one arrives.
 - **First-byte refutation, in the ruled order** (06 §1). Try the library-internal shape first:
   the `ANCHORED` entry refutes on the first byte before any setup, nothing published. Only if
   the per-refuted-call scaffolding is what remains does `firstBytes()` cross the seam with the
