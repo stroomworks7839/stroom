@@ -28,6 +28,27 @@ dependencies {
     // Stroom parser is built from.
     implementation project(':stroom-util')
     implementation project(':stroom-util-shared')
+    // The document type (ShapeshifterDoc lives in stroom-core-shared so the explorer and the
+    // client can see it), its store, its import/export and its REST resource.
+    implementation project(':stroom-core-shared')
+    implementation project(':stroom-docref')
+    implementation project(':stroom-docstore:stroom-docstore-api')
+    implementation project(':stroom-importexport:stroom-importexport-api')
+    implementation project(':stroom-event-logging-rs:stroom-event-logging-rs-api')
+    implementation project(':stroom-cache:stroom-cache-api')
+    implementation project(':stroom-security:stroom-security-api')
+    implementation project(':stroom-explorer:stroom-explorer-api')
+
+    // What a Stroom service module needs to be one: injection, Guice, logging, the REST
+    // annotations the shared resource interface carries, and Saxon, because the pipeline's
+    // ProcessException is an UncheckedXPathException.
+    implementation libs.guice
+    implementation libs.jakarta.inject
+    implementation libs.restygwt
+    implementation libs.saxon.he
+    implementation libs.slf4j.api
+    implementation libs.swagger.annotations
+    implementation libs.ws.rs.api
 
     testImplementation libs.bundles.common.test.implementation
     testRuntimeOnly libs.bundles.common.test.runtime

@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Design 21 phase 1: the two kinds of error reach the pipeline's error receiver, and are told
  * apart — the engine's messages about the input, the parser's about the output.
  */
-class ShapeshifterParserErrorsTest {
+class ShapeshifterReaderErrorsTest {
 
     private static final Path FIXTURES = Paths.get(
             "..", "stroom-shapeshifter-engine", "src", "test", "resources", "fixtures");

@@ -101,6 +101,8 @@ public class CliModule extends AbstractModule {
         install(new stroom.pipeline.PipelineModule());
         install(new stroom.pipeline.factory.PipelineFactoryModule());
         install(new stroom.pipeline.factory.CommonPipelineElementModule());
+        install(new stroom.shapeshifter.pipeline.ShapeshifterModule());
+        install(new stroom.shapeshifter.pipeline.ShapeshifterPipelineElementModule());
         install(new stroom.pipeline.xsltfunctions.CommonXsltFunctionModule());
 //        install(new stroom.pipeline.stepping.PipelineSteppingModule());
 //        install(new stroom.pipeline.task.PipelineStreamTaskModule());

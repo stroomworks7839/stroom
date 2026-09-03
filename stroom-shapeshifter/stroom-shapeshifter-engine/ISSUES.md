@@ -942,9 +942,10 @@ route already works (`xml_to_json` matches serialised XML today).
 ### E31 — SAX events as output
 **`open` — designed 2026-08-28 in [design 20](../design/20-sax-output.md); ruled in full
 2026-09-03 (design 20 §10, eleven rulings); planned in [design 21](../design/21-sax-bridge-plan.md),
-five phases with tests and gates. Phase 1 done 2026-09-03: `ShapeshifterParser` in
+five phases with tests and gates. Phase 1 done 2026-09-03: `ShapeshifterReader` in
 `stroom-shapeshifter-pipeline` parses and forwards, and produces live DS3's events for 20 of 22
-legacy fixtures, the two exceptions being E33's. Both paths, phased: parse-and-forward first (design 21
+legacy fixtures, the two exceptions being E33's. Phase 1b done the same day: `ShapeshifterDoc`,
+its store and resource, and the `ShapeshifterParser` pipeline element, proven in a real pipeline. Both paths, phased: parse-and-forward first (design 21
 phase 1), structured emitters second — `element` and `attribute` containers, `namespace` a
 leaf, `text`/`value-of` untouched with `OutputSink` interpreting `write` by the container it
 is in — byte-identical to today's goldens as the gate. Bridging to SAX is optional — the

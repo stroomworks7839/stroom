@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Phase 0 of design 21: the module exists and sees both sides.
  */
-class ShapeshifterParserTest {
+class ShapeshifterReaderTest {
 
     private static final String MINIMAL = """
             {"name": "phase0", "version": 3,
@@ -41,7 +41,7 @@ class ShapeshifterParserTest {
         final Project project = ProjectReader.read(MINIMAL);
         final XMLReader reader = new ShapeshifterParserFactory(project).getParser();
 
-        assertThat(reader).isInstanceOf(ShapeshifterParser.class);
+        assertThat(reader).isInstanceOf(ShapeshifterReader.class);
         final DefaultHandler handler = new DefaultHandler();
         reader.setContentHandler(handler);
         assertThat(reader.getContentHandler()).isSameAs(handler);

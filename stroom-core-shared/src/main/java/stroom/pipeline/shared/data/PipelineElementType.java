@@ -74,6 +74,7 @@ public class PipelineElementType implements Comparable<PipelineElementType>, Has
     // to use hard coded strings.
     public static final String TYPE_COMBINED_PARSER = "CombinedParser";
     public static final String TYPE_DS_PARSER = "DSParser";
+    public static final String TYPE_SHAPESHIFTER_PARSER = "ShapeshifterParser";
     public static final String TYPE_XML_FRAGMENT_PARSER = "XMLFragmentParser";
 
     @JsonProperty

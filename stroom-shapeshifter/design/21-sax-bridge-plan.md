@@ -184,7 +184,45 @@ produces, modulo the whitespace finding written down. E31 moves to `in progress`
 
 ---
 
-## Phase 1b — The element and its document *(Stroom integration; added 2026-09-03)*
+## Phase 1b — The element and its document *(Stroom integration; added 2026-09-03)* — **Done 2026-09-03**
+
+**As built.** `ShapeshifterDoc` in `stroom-core-shared` (`stroom.shapeshifter.shared`, beside
+`ShapeshifterResource`), an embeddable document whose `data` is the project JSON; registered as
+`DocumentTypeRegistry.SHAPESHIFTER_DOCUMENT_TYPE` in the transformation group, and
+`PipelineElementType.TYPE_SHAPESHIFTER_PARSER`. In `stroom-shapeshifter-pipeline`: the store
+(`ShapeshifterStore`/`Impl` on `AbstractDocumentStore`), the serialiser (the JSON travels as its
+own `json` asset, as a TextConverter's XML does), the REST resource, a
+`ShapeshifterParserFactoryPool` on `AbstractDocPool` keyed on the document and evicted by its
+entity events, and the element — `ShapeshifterParser`, `DSParser`'s shape exactly: document
+loaded fresh per stream, factory borrowed from the pool, stepping's injected code bypassing it,
+name-pattern lookup through `PipelineDocFinder`. Two Guice modules, `ShapeshifterModule` (store,
+resource, pool) and `ShapeshifterPipelineElementModule` (the element), installed in `CoreModule`,
+`CliModule` and the test `MockServiceModule`. The phase-1 `XMLReader` is renamed
+`ShapeshifterReader` so the element can carry the name the pipeline shows.
+
+**Tests.** `TestShapeshifterParser` in `stroom-app`'s integration harness: a migrated
+`001_csv_with_header` written into a document, a pipeline of `ShapeshifterParser →
+RecordCountFilter → XMLWriter → FileAppender`, six records read, every `<data>` element
+Stroom's golden holds present in the output in order and nothing else; and the document
+exported and imported, the asset's bytes equal to the JSON and the document equal to itself.
+Both passed first time; the pipeline module's 26 tests and `stroom-core-shared`'s suite
+unchanged.
+
+**Audited as it landed — three findings, none a defect.** (1) The module needed nine
+dependencies the phase-0 skeleton did not: being a Stroom *service* module (injection, Guice,
+logging, the REST annotations, Saxon because `ProcessException` is an `UncheckedXPathException`,
+and the explorer, docstore, import/export, cache and security APIs). Phase 0's "the module
+builds" was true of a parser, not of a service; the README says which it is now. (2) The pool
+reuses `ParserConfig`'s cache configuration rather than adding a Shapeshifter one — one knob
+for all parser pools, and a second would be a decision nobody has asked for. (3) The document
+borrows the TextConverter icon. **Not built, and named:** the client — the GWT plugin,
+descriptor and editor are design 18's, and until then the document exists in the explorer
+without a UI to open it; and input locations. The stepping test the phase as written asked for
+— "the element reports its input location for a matched record" — is not written, because the
+reader's locator is the output parser's and the messages are unlocated (phase 1's finding 1):
+mapping output positions back to input positions needs the trace's spans, and that is phase 4's
+attribution work wearing a different hat. Recorded as the phase's one open item, to be closed
+with phase 4 or before it if stepping is wanted sooner. Original wording follows.
 
 What phase 1 built is an `XMLReader`; what a pipeline needs is an element that can be placed
 in it and a document that holds the configuration. Prior art is `DSParser` and

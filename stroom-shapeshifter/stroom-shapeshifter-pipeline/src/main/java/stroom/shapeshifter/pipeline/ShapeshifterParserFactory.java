@@ -41,6 +41,6 @@ public class ShapeshifterParserFactory implements ParserFactory {
 
     @Override
     public XMLReader getParser() {
-        return new ShapeshifterParser(compiled);
+        return new ShapeshifterReader(compiled);
     }
 }

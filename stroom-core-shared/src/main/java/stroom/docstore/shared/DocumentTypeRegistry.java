@@ -175,6 +175,11 @@ public class DocumentTypeRegistry {
             "TextConverter",
             "Text Converter",
             SvgImage.DOCUMENT_TEXT_CONVERTER);
+    public static final DocumentType SHAPESHIFTER_DOCUMENT_TYPE = new DocumentType(
+            DocumentTypeGroup.TRANSFORMATION,
+            "Shapeshifter",
+            "Shapeshifter",
+            SvgImage.DOCUMENT_TEXT_CONVERTER);
     public static final DocumentType VIEW_DOCUMENT_TYPE = new DocumentType(
             DocumentTypeGroup.INDEXING,
             "View",
@@ -279,6 +284,7 @@ public class DocumentTypeRegistry {
         put(STATISTIC_STORE_DOCUMENT_TYPE);
         put(SYSTEM_DOCUMENT_TYPE);
         put(TEXT_CONVERTER_DOCUMENT_TYPE);
+        put(SHAPESHIFTER_DOCUMENT_TYPE);
         put(VIEW_DOCUMENT_TYPE);
         put(VISUALISATION_DOCUMENT_TYPE);
         put(XML_SCHEMA_DOCUMENT_TYPE);

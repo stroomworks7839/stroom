@@ -15,5 +15,12 @@ over the legacy corpus and compares event streams; it is the module's oracle. St
 emitters (design 20) arrive in phase 2 and give the same element a second, native path; the
 parse-and-forward path stays, permanently, for every configuration whose output is not XML.
 
-How a factory is *found* — the document type, the chooser beside `DSChooser`, the Guice
-binding — is also phase 1's, and depends on nothing this module has decided yet.
+Phase 1b made it a Stroom service module: `ShapeshifterDoc` (in `stroom-core-shared`, so the
+explorer and the client can see it) with its store, serialiser and REST resource;
+`ShapeshifterParserFactoryPool`, compiled configurations keyed on the document; and the
+`ShapeshifterParser` element, `DSParser`'s shape exactly. `ShapeshifterModule` binds the
+services and `ShapeshifterPipelineElementModule` the element; `CoreModule`, `CliModule` and the
+test `MockServiceModule` install both. `TestShapeshifterParser` in `stroom-app` runs a migrated
+configuration through a real pipeline and round-trips the document through import/export.
+What is not here yet: the client plugin and editor (design 18), and input locations for
+stepping (design 21 phase 4).
