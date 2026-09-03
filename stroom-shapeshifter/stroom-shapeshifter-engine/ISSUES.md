@@ -649,7 +649,9 @@ lowering that silently widened what matches fails loudly. The binary atoms canno
 interpreted regardless.
 
 ### E15 — What the output sink's other implementation is
-**`blocked` on [D10](../design/00-decisions.md).**
+**`open` — answered by [design 20](../design/20-sax-output.md), ruled 2026-09-03: SAX, in
+two phases, the first a parser over the byte path. Was `blocked` on
+[D10](../design/00-decisions.md); now proceeds under E31.**
 
 Configurations describe their output as bytes that happen to be XML. A Stroom pipeline element
 will want something else — SAX events are the obvious candidate and explicitly not the only one.
@@ -938,18 +940,22 @@ is a much larger design, it splits the engine's model in two, and the fixtures s
 route already works (`xml_to_json` matches serialised XML today).
 
 ### E31 — SAX events as output
-**`open` — designed 2026-08-28 in [design 20](../design/20-sax-output.md), awaiting the
-rulings in its §10. Overlaps E15, which is `blocked` on D10; this is the concrete form that
-unblocks it.**
+**`open` — designed 2026-08-28 in [design 20](../design/20-sax-output.md); ruled in full
+2026-09-03 (design 20 §10, eleven rulings); planned in [design 21](../design/21-sax-bridge-plan.md),
+five phases with tests and gates. Both paths, phased: parse-and-forward first (design 21
+phase 1), structured emitters second — `element` and `attribute` containers, `namespace` a
+leaf, `text`/`value-of` untouched with `OutputSink` interpreting `write` by the container it
+is in — byte-identical to today's goldens as the gate. Bridging to SAX is optional — the
+deployment picks the sink, the byte path stays for every non-XML configuration. E15 unblocks
+on this.**
 
 `OutputSink` exists for exactly this and says so in its javadoc: every write funnels through one
 interface so the second implementation is one place to answer. What it does not solve is that
 **the instructions emit text** — and design 20 found the cost of that twice over while it was
 being written: `apache_httpd`'s configuration carries **244 `translate` steps** whose only job
-is to escape `& " < >` by hand, and `Ds3Migration.dataReference` splices *reference* values
-into attributes with no escaping at all, so a captured field carrying `&` or `<` emits
-ill-formed XML (latent: no fixture captures such a field today). Stroom's own DS3 cannot have
-that bug, because it emits events and the serialiser escapes by construction. `Text` and `ValueOf` write bytes that happen to be XML; nothing
+is to escape `& " < >` by hand, and `Ds3Migration` generates a `translate` per captured
+attribute value to do the same (correct — goldens 002/007 pin it — but machinery Stroom's own
+DS3 never needed, because it emits events and the serialiser escapes by construction). `Text` and `ValueOf` write bytes that happen to be XML; nothing
 in the model names an element, an attribute or a namespace. So the design chooses:
 
 - **Parse and forward.** Serialise as today, parse the bytes, emit events. Configurations are

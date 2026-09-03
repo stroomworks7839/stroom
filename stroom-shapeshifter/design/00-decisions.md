@@ -1153,3 +1153,37 @@ regex 07 Phase 4, which now carries this datapoint. The simulation's `line_miss`
 and is the D37 coin row: a padding field in `PikeVm` did not move it, and Phase 3's guarded
 static gate moved it a further −4% while lifting the simulation's real-work row +3.7%. Landed
 with the cost recorded, by direction (2026-09-03), rather than parked behind Phases 3 and 4.
+
+## D40 — Output bridges to SAX by parsing; structured emitters come second, and the sink interprets bytes by container
+
+**Ruled by Jon, 2026-09-03**, eleven rulings in [design 20 §10](20-sax-output.md), on a draft
+written 2026-08-28. The question was how an engine whose native output is bytes-that-happen-to-be-XML
+meets a pipeline that consumes SAX events, and what that does to the instruction vocabulary,
+the goldens and the editor's trace.
+
+**Both, phased.** A pipeline element wraps the byte output in a parser and forwards events,
+and that path is permanent — it is the only one that ever serves a configuration whose output
+is not XML, and it is what a text-emitting configuration in a SAX pipeline gets. Bridging to
+SAX is *optional*: the deployment chooses the sink, a configuration says only what it emits,
+and the engine never refuses. Structured emitters — `element` and `attribute` as containers
+whose bodies are their content and whose end events are emitted by construction, `namespace`
+as a leaf, both leaves preceding content — arrive second, and must serialise byte-identically
+to today's text path, the twenty-odd fixtures that pin their bytes against Stroom's own DS3
+being the gate rather than something to rebase.
+
+**The ruling that moved three times in one sitting, and where it rested.** How `text` and
+`value-of` behave inside a container was first ruled "reinterpreted as character data",
+then "unchanged, but wrapped in a new `characters` instruction", and finally: unchanged, and
+no wrapper — the executor already knows the container it is in, so `OutputSink` is told and
+interprets `write` accordingly (raw at document level, content in an element, value in an
+attribute). The distinction that settled it is which layer holds the fact: not the instruction,
+the sink. No instruction changes meaning by where it sits, no new instruction exists to say
+what the nesting already says, and a configuration that opens no container is byte-transparent
+by construction. Attribution follows the same instinct: event ordinals when writing events,
+byte offsets when writing bytes, one `Instrument` contract that says which.
+
+The plan with tests and gates is [design 21](21-sax-bridge-plan.md). Its phase 0 corrected
+the draft's one factual error before anything was built on it: the migration's reference
+values were never unescaped — `escapeCaptures` generates a `translate` per value — which
+turned a claimed defect into the sharper point that the port had to generate machinery DS3
+never needed. E31 proceeds; E15, `blocked` on D10 since 2026-08-17, unblocks.

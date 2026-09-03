@@ -1,0 +1,281 @@
+# SAX bridge plan — the phases design 20's rulings owe
+
+Design 20 ruled the shape: bytes stay the engine's native output, a pipeline element bridges
+to SAX by parsing them, and structured emitters arrive second — `element` and `attribute` as
+containers, `namespace` as a leaf, `text`/`value-of` untouched with `OutputSink` interpreting
+`write` by the container it is in. What it did not do is say what gets built in what order,
+what each step is measured against, and where the plan is most likely to be wrong. This is
+that. Statuses move here; design 20 does not change again unless a phase overturns a ruling,
+in which case the ruling is re-put, not quietly bent.
+
+**What exists, so the plan does not re-plan it.** `OutputSink` (`write`, `position()`, one
+stream implementation whose javadoc has been waiting for this). `Instrument.onOutput` with byte
+spans, consumed by the editor's output pane (design 18 §5.4). `Ds3Migration` assembling
+`<records>`, `<record>` and `<data>` as `Text` and fused `RefExpression`s, with `escapeAttribute`
+for literals only. Nineteen legacy fixtures whose goldens are **Java Stroom's own DS3 output**,
+eighteen native ones over the same goldens, and a fixture ledger that ratchets. In
+`stroom-pipeline`: `xml.converter.AbstractParser implements XMLReader`, `DS3ParserFactory`,
+`DSChooser`, and `TestDS3` with a `LoggingContentHandler` that records events — the prior art
+for every test in phases 1 and 3. Not existing: `stroom-shapeshifter-pipeline` (named by D10 on
+2026-08-17, never created); any dependency from `stroom-pipeline` on the engine.
+
+The method is the repository's: one phase at a time; every phase ends with the full fixture
+suite green and the ledger moved on purpose; an audit is appended to the phase when it lands,
+findings included; deviations from the phase as written are recorded, not silent.
+
+---
+
+## Phase 0 — Make the gap honest *(small; no engine change)*
+
+Three things are known to be true and none is pinned.
+
+**The hazard that was not one, and the fixture that is still worth having.** Design 20 §1 as
+first drafted said `Ds3Migration.dataReference` splices reference values into attributes
+unescaped. Phase 0's first act was to check, and it is false: `emitDataTag` routes every
+captured value through `escapeCaptures`, which generates a `translate` per reference over
+six substitutions, and goldens 002 and 007 pin the result against Stroom's own output
+(`&#34;`, `&lt;`, `&amp;`, `&#xA;`). Design 20 is corrected in place. What the goldens do
+*not* reach: `\r` → `&#xD;`, `>` in a value, and any special character in a data *name*
+taken from a reference (`name="$heading$1"`, which 001, 003, 009 and 019 use with clean
+headings). Phase 0 writes `legacy/020_escaped_values` to reach them — a DS3 XML config and an
+input carrying all six characters in both a referenced name and a referenced value — with a
+golden produced the way every legacy golden was, by Java Stroom's DS3 through `TestDS3`'s
+harness. It enters the ledger as `PASS`: the migration already does this, and the fixture's
+job is to be the pin phase 3's byte-identity gate is measured against where 002 and 007 stop.
+
+**The dependency is checked, not assumed.** D10 said `stroom-shapeshifter-pipeline`; nobody has
+tried to build it. Phase 0 creates the module skeleton with `implementation project(':stroom-pipeline')`
+and `project(':stroom-shapeshifter:stroom-shapeshifter-engine')`, one class that extends
+`xml.converter.AbstractParser`, and a test that instantiates it. What this is looking for:
+whether the engine's Java level and module conventions meet `stroom-pipeline`'s, whether
+`ParserFactory`/`DSChooser` registration needs Guice wiring the module cannot provide from
+outside `stroom-pipeline`, and whether the answer is a module or a package. Either answer is
+fine; an unchecked one is not.
+
+**The serialisation census.** S2 makes byte-identity phase 2's exit. Before phase 2 designs a
+serialiser, phase 0 lists exactly which serialisation choices the goldens pin, from the code
+and the nineteen goldens rather than from memory: entity forms (`escapeAttribute` writes
+`&quot;`, `&amp;`, `&lt;`, `&gt;`; design 20 said `&#34;` — the census settles which, and the
+draft was wrong if it is `&quot;`), self-closing versus paired `<data>`, the `\n` + three-space
+indentation carried in `Text` nodes, attribute order (`name` before `value`, always), the
+`<records>` header's two namespace declarations and their order. The list goes in this
+document as an appendix and phase 2's byte serialiser is written to it.
+
+**Exit:** design 20's escaping claim is corrected and the corner it left unpinned has a
+Stroom-produced golden; the pipeline module
+either builds or the reason it cannot is written down; the serialisation choices phase 2 must
+reproduce are enumerated.
+
+---
+
+## Phase 1 — Parse and forward *(the pipeline element exists)*
+
+`stroom-shapeshifter-pipeline` gains `ShapeshifterParser`: an `XMLReader` over
+`Shapeshifter.runWhole`. The engine writes to a byte buffer; the buffer is parsed by the same
+`SAXParserFactoryFactory` product `DS3ParserFactory` uses; events go to the pipeline's
+`ContentHandler`. Whole-buffer rather than piped is not laziness: D37 ruled complete inputs
+only, the output of a complete input is a complete document, and a pipe would add a thread to
+carry a stream the engine never produces. If a feed is large enough for that to matter, the
+answer is the pipeline's existing splitting, not a streaming bridge.
+
+**Errors, two kinds, kept apart.** Engine `Message`s carry input locations already; they map
+onto `ErrorReceiver` with the source location, severity preserved, exactly as the engine's
+`.messages` goldens record them. Parser errors — the output was not well-formed — are a
+different thing and are reported as such: the location is a line and column in *generated
+text the user never sees*, so the message must say so and carry the offending output line,
+because design 20 §4A promised that A's errors land far from their cause and the least the
+element can do is say where they landed. A configuration factory (`ShapeshifterParserFactory`,
+the document type from D10) compiles once and caches, as `DS3ParserFactory` does.
+
+**Tests, all in the pipeline module, all in `TestDS3`'s style** — direct `XMLReader` plus a
+recording `ContentHandler`, no pipeline runtime:
+
+- **Event identity against DS3, the phase's oracle.** For each legacy fixture: run
+  `DS3Parser` on the DS3 XML config and its input, record events; migrate the config, run
+  `ShapeshifterParser`, record events; compare. Expect a finding here rather than a pass: DS3
+  emits elements and attributes and no whitespace, while the migrated configuration writes
+  the indentation DS3's *serialiser* wrote, so the shapeshifter stream will carry
+  whitespace-only `characters()` events the DS3 stream does not. The test normalises exactly
+  that — whitespace-only character events dropped — and **records the normalisation as a
+  finding**, because it is the first evidence of what phase 3's structured migration should
+  and should not emit. Any other difference is a defect.
+- **Errors.** An engine-level error (a fixture with `.messages` content) reaches
+  `ErrorReceiver` with the same severity and text the golden records. A configuration writing
+  unbalanced text reaches `ErrorReceiver` as a parse error that names the output line.
+- **Not XML.** `projects/xml_to_json` through the element: the parse fails, the error says the
+  output is not XML, and nothing is forwarded. This is S6 and S7 together — the deployment
+  chose a sink the configuration cannot serve, and the element says so.
+- **The engine suite unchanged**, trivially, since the engine did not change.
+
+**Exit:** a shapeshifter parser element produces, for every legacy fixture, the events DS3
+produces, modulo the whitespace finding written down. E31 moves to `in progress`; E15 closes.
+
+---
+
+## Phase 2 — The sink is a state machine *(the ruled shape; the measured risk is S2)*
+
+### 2a — The spike that decides whether 2b is as planned
+
+Before the model changes, a byte serialiser is written to the phase-0 census and driven **by
+hand** — no new instructions, a test that calls `startElement`/`startAttribute`/`write`/
+`endAttribute`/`endElement` in the sequence phase 3 will generate — for one legacy fixture,
+`legacy/001_csv_with_header`, and compared byte for byte with its golden. If it matches, 2b
+proceeds. If it cannot match without contortion — an entity form that depends on which
+instruction wrote it, whitespace that is not content — the spike reports what it could not
+reproduce and S2 is re-put to the user with evidence, before anything downstream is built on
+the assumption.
+
+### 2b — `OutputSink` widens; `write` gains its context
+
+The interface gains `startElement(name, uri)`, `endElement()`, `startAttribute(name, uri)`,
+`endAttribute()`, `namespace(prefix, uri)`. `write` keeps its three overloads and every
+caller; `position()` keeps its contract (see phase 4 for what it counts on the event sink).
+
+**The byte sink** tracks the innermost open container. At document level `write` is raw, as
+today — a configuration that never opens a container is byte-transparent, which the whole
+existing suite proves. Inside an element it is content: `&`, `<`, `>` escaped per the census.
+Inside an attribute it is the value: `&`, `<`, `"` escaped per the census. `startElement`
+defers writing `<name` until the first `namespace`, `attribute`, content or child element,
+so that attributes can be accumulated; `endElement` with nothing written since the start
+emits the self-closing form the census pins, else the paired close.
+
+**The event sink** does the same bookkeeping against a `ContentHandler`: `namespace` →
+`startPrefixMapping` (and `endPrefixMapping` at the element's close); attribute bytes
+accumulate into an `AttributesImpl` decoded as UTF-8; the deferred `startElement` fires on
+first content or child; content → `characters()`; document-level bytes are dropped if
+whitespace and otherwise an error, per design 20 §4B, reported through the executor against
+the instruction that wrote them.
+
+**The model.** `OutputNode.Element(String name, String namespace, List<OutputNode> body)`,
+`OutputNode.Attribute(String name, String namespace, List<OutputNode> body)`,
+`OutputNode.Namespace(String prefix, String uri)`; JSON spellings `element`, `attribute`,
+`namespace`, read and written by `ProjectJson` beside `if` and `variable`. `Compiler.bodyChecks`
+gains the ordering rule: within an element body, `attribute` and `namespace` may not follow a
+`text`, `value-of`, `element` or an instruction that can produce content (`apply-templates`,
+`call-template`, `value-of` of a variable) — a `ConfigException` naming the instruction. The
+executor gains three `CompiledOp`s that bracket their body with the sink calls; nothing else in
+`Executor` changes, which is the point of putting the fact in the sink.
+
+**Tests.**
+
+- *Byte sink, by context*: `OutputSinkTest` — raw at document level (bytes through untouched,
+  including `<` and `&`); content escaping; attribute escaping with the census's entity forms
+  pinned by name; deferred start and self-closing on empty; nested elements; a `namespace`
+  producing `xmlns=` and `xmlns:p=` in declaration order.
+- *Event sink, by context*: the same sequences against a recording `ContentHandler` —
+  `startPrefixMapping` scope, `Attributes` content and order, `characters()` for content, the
+  document-level rule (whitespace dropped, other bytes an error).
+- *Both sinks, one sequence*: parse the byte sink's output and assert it yields the event
+  sink's events. This is the invariant that makes S7's parse-and-forward and the native path
+  interchangeable for a structured configuration, and it stays as a property test.
+- *Compiler*: attribute after content refused, with the message naming the instruction;
+  attribute after `apply-templates` refused; namespace after attribute allowed (the census
+  says where `xmlns` sits relative to attributes and the test pins it).
+- *Executor, runtime ordering*: a template whose element body calls `apply-templates` before an
+  `attribute` and whose child writes content — the compiler cannot see it, the sink refuses it,
+  and the error names the attribute instruction.
+- *A hand-written structured configuration*: `projects/event_logging_structured`, emitting
+  `event-logging:3` with a default namespace, a prefixed one, attributes built from captures
+  (one carrying `&`), nested elements and conditionals inside a body. Two goldens: the byte
+  sink's output, and an event-stream golden in the pipeline module. The same input through
+  `projects/apache_httpd`'s text configuration is *not* expected to match it — that fixture
+  keeps its 244 `translate` steps and its own golden, and stays as the proof that text
+  configurations are untouched.
+- *The whole existing suite, unchanged*: byte-transparency of the byte sink for every
+  configuration that opens no container.
+
+**Exit:** the hand-written configuration is byte-identical on one sink and event-identical on
+the other; the compiler and the sink each refuse what design 20 §4B says they refuse; the
+existing corpus does not move by a byte. The instructions exist for authors; the migration
+has not touched them.
+
+---
+
+## Phase 3 — The migration moves onto them *(S2's gate, in full)*
+
+`Ds3Migration` stops assembling markup. `RECORDS_HEADER`/`RECORDS_FOOTER` become
+`element records { namespace "" "records:2"; namespace xsi …; … }` with the census's
+whitespace as `text`; `<data>` becomes `element data { attribute name {…}; attribute value {…} }`;
+`escapeAttribute` and `escapeCaptures` are deleted; escaping is no longer written, generated
+or forgotten.
+
+**Two semantics the fused expression carried that a container does not, and the plan names
+them because phase 3 will meet them on its first fixture:**
+
+- **P1 — the empty record.** `wrapAsRecord` runs the body into a variable and writes
+  `<record>` only if something came out, because Java's DS3 writes no empty record. Under the
+  container that variable holds rendered `<data>` markup, and `value-of` of it inside
+  `element record` is *content* — escaped, wrong. The variable trick cannot survive the
+  sink-level ruling; the semantics must. *Recommendation:* `element` gains an
+  `omit-if-empty` flag, free to implement because the sink already defers the start — an
+  `endElement` arriving with nothing written since the start and the flag set emits nothing.
+  Put to the user at phase 3's start, not decided here.
+- **P2 — the absent value.** The fused expression exists so that an absent reference yields
+  no `<data>` at all rather than half a tag (`AbsentAndMalformedValuesTest` pins it). Under
+  containers an absent `$1` yields an element with one attribute missing, and the golden says
+  DS3 drops the element. *Recommendation:* `attribute` gains `required`; an absent required
+  attribute suppresses its element. This is the fused expression's guarantee made structural,
+  and it is the second thing put at phase 3's start.
+
+Both are the kind of question design 20 §4B could not have seen without phase 2 existing,
+which is why they sit here and not there.
+
+**Tests.** The nineteen legacy and eighteen native fixtures byte-identical — this is the phase,
+and there is no partial credit: a fixture that moves is a bug in the serialiser, a bug in the
+migration, or a ruling to re-put, and the commit says which. `legacy/020_escaped_values` still `PASS`, its golden untouched since phase 0, and `Ds3ImportTest`
+asserting the migration no longer emits a `Translate` for escaping. The phase-1 event
+identity test re-run against the structured migration, with the whitespace finding revisited:
+if the structured migration can emit exactly DS3's events *and* exactly DS3's serialised
+bytes, the normalisation goes; if it cannot do both, the plan records which one the goldens
+chose and why. `Ds3ImportTest` extended to assert the migration emits no `Text` node
+containing `<`.
+
+**Exit:** no configuration in the corpus escapes XML by hand; `escapeAttribute` is gone; the
+`020_escaped_values` still passes without a `translate` in sight; every golden is where it was. E31 moves to `done` for output; the
+issue that remains is E30's input half.
+
+---
+
+## Phase 4 — Attribution speaks its currency *(reaches the editor)*
+
+S5: event ordinals when writing events, byte offsets when writing bytes, one contract that
+says which. The cheapest honest shape, and the one recommended here: the event sink's
+`position()` counts *events*, so the executor's existing `before`/`after` bracketing in
+`Executor` (lines ~485 and ~904) works unchanged, and `Instrument.onOutput` gains one
+argument — the sink's `OutputUnit` (`BYTES` | `EVENTS`) — that the executor reads once from
+the sink. A recording instrument sees the same call shape it sees today plus a unit.
+
+The preview endpoint (design 18 §11) carries the unit in its payload; the output pane's span
+model is already span-shaped rather than byte-shaped and needs to learn only that a span in
+`EVENTS` is rendered against the serialised preview by mapping ordinal → serialised range,
+which the preview can compute because it has both. Design 18 §5.4 is updated in the same
+commit — the same rule design 16 and 19 held to.
+
+**Tests.** `InstrumentTest` extended: the recorder on the byte sink reports `BYTES` and the
+offsets it reports today; on the event sink it reports `EVENTS` with ordinals that, when the
+same run is serialised, bracket the same elements. A preview test in the editor's API module
+that the four-way hover link (input ↔ template ↔ dispatch ↔ output) resolves to the same
+template for a span in either unit.
+
+**Exit:** the editor colours output identically whether the preview ran to bytes or to events,
+and the trace says which it did.
+
+---
+
+## What could move this plan, in the order it would find out
+
+1. **Phase 0's dependency check** could turn the pipeline module into a package inside
+   `stroom-pipeline`, which changes where phases 1 and 3's tests live and nothing else.
+2. **Phase 2a's spike** is the S2 risk made cheap: if the serialiser cannot reproduce the
+   goldens, the user re-rules S2 with a diff in hand rather than the plan absorbing it.
+3. **P1 and P2** may show that containers need one or two flags the rulings did not name;
+   they are put as questions, and the fallback if both are refused is that the migration keeps
+   its fused expressions for `<data>` and uses containers only for `<records>` and
+   `<record>` — a smaller phase 3, recorded as such.
+4. **Phase 1's whitespace finding** may show that "the same events DS3 emits" and "the same
+   bytes DS3's serialiser wrote" are not both reachable from one configuration. If so, S2's
+   bytes win, because that is what the goldens are, and the event comparison keeps its
+   normalisation permanently with the reason written beside it.
+
+Out of scope, and said so it is not read as forgotten: SAX as *input* (E30, its own design);
+the function registry (E32); a third sink.
