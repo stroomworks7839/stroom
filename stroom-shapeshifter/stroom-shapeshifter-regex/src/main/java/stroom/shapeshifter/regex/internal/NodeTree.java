@@ -214,24 +214,8 @@ public final class NodeTree {
             }
 
             for (int at = start; at <= lastStart; at++) {
-                if (at < to && at > regionFrom && anchor != Nfa.ANCHOR_NONE
-                    && (anchor == Nfa.ANCHOR_INPUT || data[at - 1] != '\n')) {
-                    if (anchored) {
-                        break;
-                    }
-                    continue;
-                }
-                if (ctx.form.splitsCharacter(data, at, contextEnd)) {
-                    // A match may not begin inside a character; anchored searches stop here.
-                    if (anchored) {
-                        break;
-                    }
-                    continue;
-                }
-                // A table exists only for a non-nullable pattern, so minLength >= 1 caps the
-                // loop at to - 1: at == to is unreachable and the read is in bounds (the D37
-                // audit's proof; the dropped test was the deleted edge iteration's).
-                if (firstBytes != null && firstBytes[data[at] & 0xFF] == 0) {
+                if (cannotStartAt(data, regionFrom, to, at, anchor, firstBytes)) {
+                    // Anchored searches stop at the first position no match can begin at.
                     if (anchored) {
                         break;
                     }
@@ -259,6 +243,33 @@ public final class NodeTree {
                 }
             }
             return PlanRunner.NO_MATCH;
+        }
+
+        /**
+         * Whether no match can begin at {@code at}: not an anchor position, inside a character,
+         * or on a byte the pattern cannot start with. The three tests lived in {@link #search}'s
+         * loop until 2026-09-03, when the encoding plan's form gate took that method from 321 to
+         * 330 bytecodes — over C2's {@code FreqInlineSize} of 325 — and it stopped inlining into
+         * {@code ByteMatcher.runLinear}, costing every tree search 6–11% (design 06 §1). Splitting
+         * the predicate out keeps both halves under the threshold; the JIT inlines this one back.
+         * <p>A first-byte table exists only for a non-nullable pattern, so minLength >= 1 caps the
+         * caller's loop at to - 1: at == to is unreachable and the read is in bounds (the D37
+         * audit's proof; the dropped test was the deleted edge iteration's).
+         */
+        private boolean cannotStartAt(final byte[] data,
+                                      final int regionFrom,
+                                      final int to,
+                                      final int at,
+                                      final int anchor,
+                                      final byte[] firstBytes) {
+            if (at < to && at > regionFrom && anchor != Nfa.ANCHOR_NONE
+                && (anchor == Nfa.ANCHOR_INPUT || data[at - 1] != '\n')) {
+                return true;
+            }
+            if (ctx.form.splitsCharacter(data, at, contextEnd)) {
+                return true;
+            }
+            return firstBytes != null && firstBytes[data[at] & 0xFF] == 0;
         }
     }
 
