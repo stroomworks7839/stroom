@@ -25,8 +25,8 @@ geometry — an inlining threshold and a lost value range — not algorithms.
 
 ## Phase 0 — The row of record *(tonight's slot; no code)*
 
-The paired full set `4aa6181941 → 0600a56a0a` on one boot: the pre-plan tree against the
-encoding plan with its three fixes. It does two jobs. It **acquits** the fixes across all 223
+The paired full set `4aa6181941 → 98a0132736` on one boot: the pre-plan tree against the
+encoding plan with its three fixes and D39. It does two jobs. It **acquits** the fixes across all 223
 rows — the probe rows and canaries convicted the problems; only the full set can clear the
 cure — and it becomes the **row of record on this machine**, the baseline every phase below is
 paired against. Read it the way the last one was read: row-set diff first, JDK controls next,
