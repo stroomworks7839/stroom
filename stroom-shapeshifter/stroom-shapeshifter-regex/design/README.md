@@ -1,6 +1,6 @@
 # The regex library's design record
 
-Six documents, kept with the module they describe: the language it accepts, the engines that
+Seven documents, kept with the module they describe: the language it accepts, the engines that
 run it, and every measurement that shaped them. The module is meant to be readable — and
 buildable — on its own, so its design record lives here rather than one directory up.
 
@@ -12,6 +12,7 @@ buildable — on its own, so its design record lives here rather than one direct
 | [04-corpus-analysis.md](04-corpus-analysis.md) | What this repository's own DS3 configurations actually use, and how much of it the cheapest tier covers. |
 | [05-engine-benchmarks.md](05-engine-benchmarks.md) | The engine against `java.util.regex`, corpus coverage and throughput. Tables here are rendered from the run files, never transcribed. |
 | [06-performance-plan.md](06-performance-plan.md) | The open performance work, its method notes, and the standing benchmark-gate rules. The first thing to read before touching a hot path. |
+| [07-ledger-plan.md](07-ledger-plan.md) | Every open row from 06 and ISSUES.md — the two mis-reading benchmark rows, the 64 KiB cliff, the other engines' gates, the class-shape cost — in phases with gates and exits. Planned 2026-09-03. |
 
 And beneath them, [benchmarks/](benchmarks/README.md): every JMH run this module has recorded,
 one file per run, checked in so that any number in the prose above can be traced to the run that

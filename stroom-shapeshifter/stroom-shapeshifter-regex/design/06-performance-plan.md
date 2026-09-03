@@ -12,6 +12,9 @@ under a favourable boot while its drift-control rows read clean. Comparing acros
 re-running the baseline commit on the current boot first (the ledger's benchmark-gate section
 holds the worked example, two disproven hypotheses included).
 
+**The open rows here, in §2, §5 and §6, and ISSUES.md's open entries are sequenced with gates
+and exits in [07-ledger-plan.md](07-ledger-plan.md) (2026-09-03). Statuses still move here.**
+
 ## 1. Quick wins — mechanism proven elsewhere in the codebase
 
 | Item | Status | Notes |

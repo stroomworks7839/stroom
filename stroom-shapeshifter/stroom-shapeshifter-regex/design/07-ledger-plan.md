@@ -1,0 +1,199 @@
+# The regex ledger plan — every open row, phased and gated
+
+As of 2026-09-03 the library is ahead of `java.util.regex` on 28 of 30 scoreboard variants,
+at parity on two, and behind on one shape it does not optimise ([README](../README.md)). What
+remains is not a deficit to close but a ledger to work through: rows spread across
+[06](06-performance-plan.md) §1, §2, §5 and §6, the open entries in [ISSUES.md](../ISSUES.md),
+two benchmark rows that read wrong, and the one cliff a ported configuration could still
+fall off. This document gathers them into an order and gives each an exit. It plans nothing
+new; every item below already exists somewhere with a measurement behind it.
+
+The method is the fixed one. One change at a time, measured on this machine — every file
+dated before 2026-09-02 is from hardware that no longer exists
+([benchmarks/README](benchmarks/README.md)). Any edit touching a search or match path gates on
+the buffer-CSV and per-match-datetime canaries, paired against the previous commit minutes
+apart — same boot is not the same hour. Claims wait for numbers. Statuses move here, and the
+rows in 06 and ISSUES.md move with them.
+
+Three lessons from the last two days set the order. **Probe, don't reason**: all three of the
+encoding plan's costs were invisible to reading, to the stack profiler and to bytecode sizes,
+and each fell to a bisect plus a single-edit variant. **Instruments first**: a row that reads
+wrong misleads every decision after it. **Shape is a cost**: two of the three were C2
+geometry — an inlining threshold and a lost value range — not algorithms.
+
+---
+
+## Phase 0 — The row of record *(tonight's slot; no code)*
+
+The paired full set `4aa6181941 → 0600a56a0a` on one boot: the pre-plan tree against the
+encoding plan with its three fixes. It does two jobs. It **acquits** the fixes across all 223
+rows — the probe rows and canaries convicted the problems; only the full set can clear the
+cure — and it becomes the **row of record on this machine**, the baseline every phase below is
+paired against. Read it the way the last one was read: row-set diff first, JDK controls next,
+per-fork spread before any single number.
+
+**Exit:** a checked-in pair, the README's charts re-rendered from its after-file, and one of two
+sentences in 06 §1 — the fixes hold across the set, or a named row does not and it is the first
+item of Phase 2.
+
+## Phase 1 — Make the two rows read true *(the pollution workload; harness, then engine)*
+
+Buffer `NETWORK` reads 0.77× and `KEYVALUE` 0.99×. Both diagnoses are on record and they are
+different: NETWORK **measures at parity fork-per-side** (156 vs 160 ns/record) and its 0.77×
+"exists only inside JMH's harness conditions, which flatter the JDK's steady state" (06 §2);
+KEYVALUE is described as the engine's honest weak case — many capture groups over very short
+fields, dominated by per-group slot writes ([05 §2.1](05-engine-benchmarks.md)). Both were
+diagnosed on the old CPU.
+
+The harness condition that flatters the JDK has a name in 06 §5's own list of blind spots: a
+JMH fork runs **one pattern per JVM**, which hands `java.util.regex` monomorphic type profiles
+that no real pipeline — dozens of templates, hundreds of patterns — ever gives it, while these
+engines are interpreter-shaped and pollution-immune. The missing "many-hundreds-of-patterns
+pollution workload" and the NETWORK artifact are one item.
+
+1. **Re-establish both diagnoses on this machine** before touching anything: the fork-per-side
+   NETWORK pair, and a KEYVALUE probe with the group count varied (the same pattern with two,
+   four and six groups) to see whether the cost scales with slot writes as 05 says.
+2. **Build the polluted variant of `CorpusBenchmark`**: a `@Setup` that compiles and warms the
+   whole pattern corpus through both `java.util.regex` and `BytePattern` before the measured
+   loop — the per-match suite's `everything` already does this shape. Report it beside the
+   clean row, not instead of it: the clean row is what a single hot template sees; the polluted
+   row is what a pipeline sees. The scoreboard shows the polluted one, footnoted the other way.
+3. **If KEYVALUE is real, price the slot writes.** Every search attempt does
+   `Arrays.fill(slots, -1)` and every match writes 2×(groups+1) ints; for six groups over
+   twelve-byte fields that is a measurable share. Candidates, each a single-edit probe: clear
+   slots lazily on first capture rather than per attempt; skip the fill when the previous
+   attempt never captured. Gate: KEYVALUE and NETWORK against the row of record, canaries
+   paired.
+
+**Exit:** the two rows read what the fork-per-side truth says, on a harness whose flattery of
+either side is a footnote rather than a number; or the engine's weak case is priced and either
+fixed or accepted with its cost in ISSUES.md.
+
+## Phase 2 — The cliff: the lazy-run skip for the stateful `Loop` *(known shape; the one behind-row)*
+
+`LazyRunBenchmark` FAR_LINE / MISS_LINE at 64 KiB: the JDK is 8–42× ahead, because the line
+idiom `((?:[^\n]*\n)*?)lit` is a lazy run the tree cannot walk at that distance within its step
+budget, so the simulation pays. Recorded 2026-08-28 as condition-gated on "a real config spells
+a lazy run as a nested loop over large regions". It is un-gated here by direction, and the case
+for doing it now rather than waiting is that the idiom is exactly the hand-optimisation a DS3
+author *did* reach for before the dot-all spelling was fast — so a ported configuration is the
+likeliest thing to carry it, and it is the one row on the scoreboard's terms where the library
+loses outright.
+
+The mechanism is the seam that already exists: the general lazy `Loop` answers `leadingByte()`
+for its continuation exactly as `StarClass` does — resolved through group heads and tails,
+compile-time — and its lazy branch skips positions that byte is not at, walking with the
+loop's own stepping so every stop is one the unfiltered loop would have visited. The hairier
+part is that the offer sites live in the JDK-style loop-back machinery rather than a single
+`scan`/`skipTo` pair; the correctness argument is unchanged. The step budget still charges
+the bytes passed over.
+
+**Gate:** FAR_LINE / MISS_LINE for the win; ENTRY_LINE / BATCH_LINE as the small-region
+controls (they must not lose their 1.0×); all four dot-all rows flat; canaries paired. **Exit:**
+the line idiom over 64 KiB is within 2× of the JDK or better, and 06 §1's row moves to Done
+with the numbers. If the budget bails before the skip earns its keep, the row records why and
+what a `Loop`-aware budget would cost.
+
+## Phase 3 — The other engines' gates *(same finding, four more sites)*
+
+The encoding plan put `nfa.form.splitsCharacter(...)` into `PikeVm.search`,
+`Backtracker.attempt`, `FancyBacktracker.attempt` and `ReverseScanner.findStart`, and
+`form.continuation(...)` into the fancy and tree back-off loops. None of those methods was
+near the 325-byte threshold (587, 483, 1318, 376 bytes), so no cliff — but `ByteMatcher`'s
+gate cost 5.5× on the search loop without a cliff, from the call alone failing to inline,
+and the paired run's simulate rows read −1.7 to −5.0% with nothing else to blame. The
+tree's back-off `continuation` was probed and cleared (`vc`, −13.5% ≈ noise); the rest is
+unmeasured.
+
+One probe per engine, on the row that engine owns: `simulate` ENTRY_DOTALL and BATCH_LINE
+for the Pike VM, `fancy` ENTRY_DOTALL for the fancy tier, the `EndAnchored` KV rows for the
+reverse scanner. Where a gate costs, the fix is the one already shipped and pinned — a static
+call guarded by the form's own `singleByte()` fact, equivalent by `ByteFormInvariantTest`'s
+sealed-set argument — spelled once per engine.
+
+**Exit:** each engine's gate is measured, and either flat or fixed; the paired run's simulate
+losses are attributed or dissolved.
+
+## Phase 4 — The class-shape cost on `ByteMatcher` *(the open ISSUES entry; a design question)*
+
+Open since 2026-08-25: the end-anchor programme's tail-window machinery cost buffer CSV
+−12–14% through nothing but three instance fields on `ByteMatcher` — identical hot-path
+bytecode, every inlining verdict unchanged, two clusters of forks. D37 then flipped the coin
+the other way by deleting a field. The recorded fix shape is to get the end-anchored state off
+the common matcher's shape — a per-pattern matcher selection the original entry dismissed and
+its supersession reinstated.
+
+This is first re-measured, not assumed: the strip-variant probe (machinery out) against the
+row of record, on this machine, on buffer CSV and the BOUNDED rows. If the cost is still
+there, the design lands as a small change — the end-anchored fields move to a matcher subtype
+or a side object chosen at compile time, and `ByteMatcher`'s shape returns to the one the
+flat path had. If the new CPU has dissolved it, the entry closes as machine-specific with the
+numbers.
+
+**Exit:** the ISSUES entry moves to `resolved` or `accepted` with a paired measurement from
+this machine; the end-anchored rows keep their three orders of magnitude either way.
+
+## Phase 5 — The cheap unlocks *(each an afternoon; each opens a recorded row)*
+
+- **A key=value benchmark row for `ReverseSuffix`** (06 §6 phase 5). Its prerequisite landed
+  the same day it was deferred; the only unmet trigger is the row existing. Write the row —
+  DS's `reverse` feature's actual shape, keys verified backwards from `=` — and let it say
+  whether the phase is worth its change.
+- **First-byte refutation, in the ruled order** (06 §1). Try the library-internal shape first:
+  the `ANCHORED` entry refutes on the first byte before any setup, nothing published. Only if
+  the per-refuted-call scaffolding is what remains does `firstBytes()` cross the seam with the
+  parser's signature. Byte-compiled classes make either shape a read of the compiled form.
+  The engine's E12 is waiting on this.
+- **The weblog guard residual**, 2.2% on a row with a bimodal JIT state: one more shape probe
+  (a `singleByteForm`-specialised search loop chosen once at construction) and then either
+  shipped or written off as noise-floor. It does not block anything.
+
+**Exit:** three rows with numbers where they had conditions.
+
+## Phase 6 — The D37 measure-first simplifications *(hot-loop hygiene, under gates)*
+
+ISSUES.md's open list from the streaming retirement's audit: the anchor gates' `at < to`
+exemption surviving its deleted reason; `PikeVm`'s subsumed exit and range disjuncts;
+`PlanRunner` MATCH_LITERAL comparing bytes of a literal that cannot fit; the engines' int-end
+returns and `Backrefs.TRUNCATED` collapsing to what their callers use. Each changes a
+measured method's shape, which after this week is reason enough to do them one commit at a
+time with the coin watched — and reason enough not to skip them, since shape cuts both ways.
+One of them, the `contextEnd` seam, **needs a ruling first**: deleting it forecloses the
+tighter-context bound the audit also named.
+
+**Exit:** each landed or declined with its paired numbers; the ruling on `contextEnd`
+recorded in the decision log.
+
+## Phase 7 — The last blind spot *(a workload with catastrophically ambiguous input)*
+
+Only the budget tests exercise the shape where the tree gives up and the simulation
+finishes in linear time. A `CorpusBenchmark` workload built for it — nested quantifiers over
+input designed to defeat backtracking — measures what the linear-time guarantee costs when it
+is the thing actually running, and gives the step budget a number instead of a promise.
+
+**Exit:** the row exists, is on the scoreboard, and 06 §5's list of blind spots is empty.
+
+## Standing rows — gated, and staying gated
+
+Each stays parked behind the condition it was recorded with, restated here so nothing above
+is mistaken for reopening it:
+
+- **The lazy-run skip's extension ladder** — memchr where the class accepts every byte
+  (exactly there the walk provably equals the search), a small byte-set, memmem for the whole
+  literal. Trigger: a workload loses on one. Phase 2 may produce that workload.
+- **Tier-0 strictness on contract-violating input** — the D38 closing move (validate the
+  scanned span only when it held a high byte). Trigger: composition proves unable to supply
+  the validity contract in practice.
+- **Literal runs as one instruction** — fallback-engine-only since D31/D32. Trigger: the
+  fallback shows up in a measurement.
+- **Accepted costs** in ISSUES.md — R1's −2–4% on the tree, the D26 greedy-permissive chains,
+  the simulation's Unicode-width floor — stay accepted.
+
+## The evidence gate over everything
+
+Every row above measures the benchmark corpus, and half the triggers in this document are
+spelled "a real config …". Real DS3 configurations are the evidence that revises the
+scoreboard's sentence and fires or retires those triggers; the harvest path exists
+([04](04-corpus-analysis.md)), synthetic generation was deferred for exactly this reason. When
+they arrive, Phase 1's polluted harness is the instrument to run them through first.
