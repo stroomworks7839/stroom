@@ -159,8 +159,18 @@ exemption surviving its deleted reason; `PikeVm`'s subsumed exit and range disju
 returns and `Backrefs.TRUNCATED` collapsing to what their callers use. Each changes a
 measured method's shape, which after this week is reason enough to do them one commit at a
 time with the coin watched — and reason enough not to skip them, since shape cuts both ways.
-One of them, the `contextEnd` seam, **needs a ruling first**: deleting it forecloses the
-tighter-context bound the audit also named.
+One of them, the `contextEnd` seam, was flagged as **needing a ruling first** because deleting it
+forecloses a tighter-context bound. Read against the record, that ruling has already been made:
+the seam's only consumer on every engine is the one-byte look past the region end
+(`splitsCharacter`), its value is `data.length` on both entries and nothing else ever binds it,
+and the 2026-08-27 stale-byte resolution declared the bound-context API *moot* — "the contract
+is the answer, not an API": the array holds the caller's data up to its length, the executor
+blanks its window's tail, `RegionContextTest` and `WindowTailTest` pin both halves.
+**Recommendation: delete the seam** — read `data.length` where `contextEnd` is consulted, drop
+the per-engine field, the five binding stores and `ReverseScanner`'s fifth argument. It retires
+R1's accepted store cost on the tree's instant-rejection rows and the `match()` setup store, and
+shrinks four engines' shape; gated like every other row here because shape cuts both ways.
+Awaiting Jon's yes; the D-number lands with the commit.
 
 **Exit:** each landed or declined with its paired numbers; the ruling on `contextEnd`
 recorded in the decision log.
