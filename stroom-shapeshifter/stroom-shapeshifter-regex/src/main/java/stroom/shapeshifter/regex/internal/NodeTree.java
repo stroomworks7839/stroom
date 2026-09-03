@@ -545,7 +545,16 @@ public final class NodeTree {
             }
             final int lead = ctx.data[pos] & 0xFF;
             if (lead < 0x80) {
-                return ascii[lead];
+                // Spelled as a branch on the table byte rather than returned as the byte itself.
+                // The two are the same value, and the phase-2 audit simplified this to
+                // {@code return ascii[lead]} - which cost the tree 8-12% on every ASCII row
+                // (LazyRunBenchmark BATCH_DOTALL -7.7%, CorpusBenchmark shapeshifterTree NETWORK
+                // -11.8%, design 06 §1, 2026-09-03). C2 knows this form yields 0 or 1 and folds
+                // every caller's {@code end += advanced} and {@code advanced == 0} on that; a raw
+                // byte load carries no such range, and the loops around it compile worse.
+                return ascii[lead] != 0
+                        ? 1
+                        : 0;
             }
             final int matched = form.matchAt(ctx.data, pos, ctx.to);
             return matched < 0
