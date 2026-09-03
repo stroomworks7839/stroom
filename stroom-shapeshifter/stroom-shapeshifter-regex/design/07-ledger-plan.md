@@ -231,6 +231,20 @@ is the thing actually running, and gives the step budget a number instead of a p
 
 **Exit:** the row exists, is on the scoreboard, and 06 §5's list of blind spots is empty.
 
+## Audit record — 2026-09-03
+
+Everything landed today was audited the same day, in the 08-28 manner. `RunLoop`'s audit is
+under Phase 2. The rest, by reading, each closed: the `cannotStartAt` split (`7b6301a1a7`) is
+the same three tests in the same order, each mapped to `return true`, behind one `anchored`
+break — identical to the loop it left; D39's deletion leaves every engine read past the
+region bounded by `to` or by `data.length` under `ByteMatcher`'s contract (backrefs and word
+boundaries decode to `to`; the reverse scanner's probe at `to` reads `at < data.length`); the
+Phase 3 revert is total (no engine carries a `singleByte` field; `ByteFormInvariantTest`
+remains, guarding `ByteMatcher`'s spelling); and the pollution harness pollutes — 114
+patterns × their inputs × 200 passes through both libraries, past C2's thresholds by two
+orders, with the measured pattern compiled after. Two tests (`RunLoopTest`,
+`PollutedCorpusBenchmark`) were corrected for checkstyle; nothing in production code moved.
+
 ## Standing rows — gated, and staying gated
 
 Each stays parked behind the condition it was recorded with, restated here so nothing above
