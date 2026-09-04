@@ -75,9 +75,14 @@ final class FilterRun {
 
     FilterRun(final ShapeshifterReader reader, final int pipeCapacity,
               final ContentHandler downstream, final ErrorHandler errors) {
+        this(reader, pipeCapacity, downstream, errors, false);
+    }
+
+    FilterRun(final ShapeshifterReader reader, final int pipeCapacity,
+              final ContentHandler downstream, final ErrorHandler errors, final boolean preserveWhitespace) {
         this.reader = reader;
         this.pipe = new BoundedPipe(pipeCapacity);
-        this.image = new EventImage(new Draining(pipe));
+        this.image = new EventImage(new Draining(pipe), preserveWhitespace);
         this.downstream = downstream;
         this.errors = errors;
         this.structured = reader.compiled().structured();

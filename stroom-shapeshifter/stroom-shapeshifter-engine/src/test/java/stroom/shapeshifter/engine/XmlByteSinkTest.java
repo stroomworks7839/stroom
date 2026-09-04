@@ -111,7 +111,37 @@ class XmlByteSinkTest {
         s.write("x");
         s.write("  ");
         s.endElement();
-        assertThat(bytes.toString(StandardCharsets.UTF_8)).isEqualTo("<d>  x</d>\n");
+        // Once an element has text, its whitespace is its text — before, between and after.
+        assertThat(bytes.toString(StandardCharsets.UTF_8)).isEqualTo("<d>  x  </d>\n");
+    }
+
+    @Test
+    void mixedContentIsNotIndentedInsideItsText() {
+        sink.startElement("p");
+        sink.write("Hello ");
+        sink.startElement("b");
+        sink.write("big");
+        sink.endElement();
+        sink.write(" world");
+        sink.endElement();
+        assertThat(output()).isEqualTo("<p>Hello <b>big</b> world</p>\n");
+    }
+
+    @Test
+    void theFaithfulLayoutAddsNothingAndDropsNothing() {
+        final XmlByteSink faithful = new XmlByteSink(bytes, XmlByteSink.Layout.FAITHFUL);
+        faithful.startElement("pre");
+        faithful.startAttribute("name");
+        faithful.write("a very long attribute value that would wrap under the indenting layout, being past eighty");
+        faithful.endAttribute();
+        faithful.write("  two\n   spaces\n");
+        faithful.startElement("i");
+        faithful.endElement();
+        faithful.write("\n");
+        faithful.endElement();
+        assertThat(output()).isEqualTo(
+                "<pre name=\"a very long attribute value that would wrap under the indenting layout, being past "
+                + "eighty\">  two\n   spaces\n<i/>\n</pre>");
     }
 
     @Test

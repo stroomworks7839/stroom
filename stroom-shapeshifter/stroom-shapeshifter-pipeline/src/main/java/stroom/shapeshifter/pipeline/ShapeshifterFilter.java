@@ -93,6 +93,7 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
     private DocRef shapeshifterRef;
     private String namePattern;
     private boolean suppressDocumentNotFoundWarnings;
+    private boolean preserveWhitespace;
     private String injectedCode;
     private boolean usePool = true;
     private PoolItem<StoredParserFactory> poolItem;
@@ -178,7 +179,7 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
         if (!(reader instanceof ShapeshifterReader shapeshifter)) {
             throw new SAXException("The configuration's parser is not a Shapeshifter reader");
         }
-        document = new FilterRun(shapeshifter, PIPE_CAPACITY, getContentHandler(), errorHandler());
+        document = new FilterRun(shapeshifter, PIPE_CAPACITY, getContentHandler(), errorHandler(), preserveWhitespace);
         document.input().startDocument();
     }
 
@@ -313,6 +314,15 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
             displayPriority = 3)
     public void setSuppressDocumentNotFoundWarnings(final boolean suppressDocumentNotFoundWarnings) {
         this.suppressDocumentNotFoundWarnings = suppressDocumentNotFoundWarnings;
+    }
+
+    @PipelineProperty(
+            description = "Match the input as it came — every character kept, no indentation added — rather "
+                          + "than as an indenting XMLWriter would write it. For documents whose whitespace matters.",
+            defaultValue = "false",
+            displayPriority = 4)
+    public void setPreserveWhitespace(final boolean preserveWhitespace) {
+        this.preserveWhitespace = preserveWhitespace;
     }
 
     @Override

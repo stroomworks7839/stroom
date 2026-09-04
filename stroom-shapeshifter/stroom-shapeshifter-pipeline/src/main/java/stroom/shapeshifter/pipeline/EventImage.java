@@ -33,7 +33,8 @@ import java.util.List;
  *
  * <p>Prefix mappings arrive before their element and are held until it opens; {@code xmlns}
  * attributes, which some upstreams report as well, are the same declarations again and are
- * dropped. Processing instructions and skipped entities have no place in the image.
+ * dropped. Processing instructions and skipped entities have no place in the image. With
+ * {@code preserveWhitespace} the sink adds no indentation and drops no whitespace.
  */
 final class EventImage implements ContentHandler {
 
@@ -43,7 +44,17 @@ final class EventImage implements ContentHandler {
     private final List<String[]> pendingNamespaces = new ArrayList<>();
 
     EventImage(final OutputStream into) {
-        this.sink = new XmlByteSink(into);
+        this(into, false);
+    }
+
+    /**
+     * @param preserveWhitespace the faithful image (design 22 phase 3): every character kept as
+     *                           it came and no indentation added, for a document whose whitespace
+     *                           is its own
+     */
+    EventImage(final OutputStream into, final boolean preserveWhitespace) {
+        this.sink = new XmlByteSink(
+                into, preserveWhitespace ? XmlByteSink.Layout.FAITHFUL : XmlByteSink.Layout.INDENTED);
     }
 
     @Override

@@ -61,7 +61,20 @@ public final class XmlByteSink implements OutputSink {
     private static final int LINE_LENGTH = 80;
     private static final int INDENT = 3;
 
+    /**
+     * How the bytes are laid out. {@link #INDENTED} is Saxon's: children on their own lines at
+     * three per level, long start tags wrapped, whitespace between elements the indenter's.
+     * {@link #FAITHFUL} adds nothing and drops nothing: every character written is written,
+     * no line is broken, which is the image a whitespace-significant document needs (design 22
+     * phase 3, {@code preserveWhitespace}).
+     */
+    public enum Layout {
+        INDENTED,
+        FAITHFUL
+    }
+
     private final OutputStream out;
+    private final Layout layout;
     private final Deque<Element> open = new ArrayDeque<>();
     private long position;
     private Attribute attribute;
@@ -69,7 +82,12 @@ public final class XmlByteSink implements OutputSink {
     private byte[] carry = new byte[0];
 
     public XmlByteSink(final OutputStream out) {
+        this(out, Layout.INDENTED);
+    }
+
+    public XmlByteSink(final OutputStream out, final Layout layout) {
         this.out = out;
+        this.layout = layout;
     }
 
     // -----------------------------------------------------------------------------------
@@ -138,19 +156,20 @@ public final class XmlByteSink implements OutputSink {
         final Element element = current("endElement");
         checkNoAttributeOpen("endElement " + element.qName);
         flushCarry();
+        settleWhitespace(element);
         if (!element.started) {
             if (element.omitIfEmpty && element.declarations.isEmpty() && element.attributes.isEmpty()) {
                 open.pop();
                 return;
             }
             emitStartTag(element, true);
-        } else if (element.hasElementChildren && !element.hasText) {
+        } else if (indented() && element.hasElementChildren && !element.hasText) {
             emit("\n" + spaces((element.level - 1) * INDENT) + "</" + element.qName + ">");
         } else {
             emit("</" + element.qName + ">");
         }
         open.pop();
-        if (open.isEmpty()) {
+        if (open.isEmpty() && indented()) {
             // Saxon ends an indented document with a newline after the root's close.
             emit("\n");
         }
@@ -183,7 +202,7 @@ public final class XmlByteSink implements OutputSink {
     }
 
     private void content(final Element element, final String text) {
-        if (text.isBlank()) {
+        if (text.isBlank() && indented()) {
             // Whitespace between elements is the indenter's to write, not the author's — but
             // whitespace inside text is the text's. Held until the next thing says which: text
             // keeps it, a child element or the close discards it. (Design 22 phase 1 audit: a
@@ -198,6 +217,21 @@ public final class XmlByteSink implements OutputSink {
             element.pendingWhitespace.setLength(0);
         }
         emit(escapeContent(text));
+    }
+
+    /**
+     * Pending whitespace at a boundary — a child starting, the element closing. In an element that
+     * has text it is text, and is written (a parser splits one text node at line ends, so the last
+     * line of a {@code <pre>} arrives alone); in element-only content it is the indenter's, and goes.
+     */
+    private void settleWhitespace(final Element element) {
+        if (element.pendingWhitespace.isEmpty()) {
+            return;
+        }
+        if (element.hasText) {
+            emit(escapeContent(element.pendingWhitespace.toString()));
+        }
+        element.pendingWhitespace.setLength(0);
     }
 
     private void flushCarry() {
@@ -240,18 +274,22 @@ public final class XmlByteSink implements OutputSink {
     }
 
     private void emitStartTag(final Element element, final boolean selfClose) {
+        // Indentation is for element-only content: once a parent has text, its children sit in
+        // that text as Saxon leaves them (mixed content), and in the faithful layout nothing is
+        // ever added.
+        final boolean indentThis = indented() && element.level > 1 && !element.parent.hasText;
         if (element.parent != null) {
             ensureStarted(element.parent);
             element.parent.hasElementChildren = true;
-            element.parent.pendingWhitespace.setLength(0);
+            settleWhitespace(element.parent);
         }
         final StringBuilder tag = new StringBuilder();
-        if (element.level > 1) {
+        if (indentThis) {
             tag.append('\n').append(spaces((element.level - 1) * INDENT));
         }
         tag.append('<').append(element.qName);
 
-        final boolean wrap = saxonAttributeLength(element) > LINE_LENGTH;
+        final boolean wrap = indented() && saxonAttributeLength(element) > LINE_LENGTH;
         final String continuation = "\n" + spaces((element.level - 1) * INDENT + element.qName.length() + 2);
         int written = 0;
         for (final String[] declaration : element.declarations) {
@@ -357,6 +395,10 @@ public final class XmlByteSink implements OutputSink {
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private boolean indented() {
+        return layout == Layout.INDENTED;
     }
 
     private static String spaces(final int n) {

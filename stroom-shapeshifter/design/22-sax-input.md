@@ -230,8 +230,24 @@ locations resolved through event-unit spans instead of byte spans (phase 4's swe
 other currency). *Exit:* `StructuredEventsTest`'s invariant holds through both elements, and
 the re-parse is gone where it is not needed.
 
-**Phase 3 — `preserveWhitespace`**, if and when a document needs it: the faithful image as a
-per-element property, with its own golden.
+**Phase 3 — `preserveWhitespace` — Done 2026-09-04.** *As built:* `XmlByteSink.Layout` —
+`INDENTED`, Saxon's, and `FAITHFUL`, which adds nothing and drops nothing: no indentation, no
+wrapping, no final newline, every character written as it came. `EventImage` takes the choice,
+`FilterRun` carries it, and `ShapeshifterFilter.setPreserveWhitespace` is the property. Two
+images of one document are pinned as files (`images/mixed.xml` → `.indented.xml`,
+`.faithful.xml`); the faithful one ends at `</doc>`, since nothing after the root is a
+parser's to report.
+
+*Found on the way, and fixed for both layouts:* the indenter indented child elements inside
+mixed content — `<p>Hello <b>big</b> world</p>` grew a line break before `<b>` — which Saxon
+does not do and which is text corrupted, not layout; and whitespace at a boundary (before a
+child, before the close) was always the indenter's to drop, when in an element that has text
+it is the text's: a parser splits one text node at line ends, so the last line of a
+`<pre>` arrived as a whitespace-only chunk and was lost. The rule in both sinks is now: an
+element with text keeps every whitespace chunk; element-only content drops the ones between
+elements. Both pinned, in both sinks. The corpus did not move — its documents are element-only.
+
+**Status: design 22 complete — three phases built and audited.**
 
 ---
 

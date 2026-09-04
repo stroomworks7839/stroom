@@ -83,9 +83,12 @@ class SaxEventSinkTest {
         sink.startElement("e");
         sink.endElement();
         sink.endElement();
+        // d has text, so the whitespace before its child is text too (mixed content); an
+        // element-only parent would have dropped it.
         assertThat(events).containsExactly(
                 "startDocument", "startElement {}d d []", "characters \"a\"", "characters \" \"",
-                "characters \"b\"", "startElement {}e e []", "endElement {}e", "endElement {}d", "endDocument");
+                "characters \"b\"", "characters \"\n   \"", "startElement {}e e []", "endElement {}e",
+                "endElement {}d", "endDocument");
     }
 
     @Test

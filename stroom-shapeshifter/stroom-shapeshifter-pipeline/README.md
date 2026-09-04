@@ -33,5 +33,6 @@ reads on a worker thread, and the output is forwarded on the pipeline's thread a
 `endDocument` — or, for a structured configuration, delivered as the engine emits them, the
 pipeline's thread draining the worker's queue between the events it pushes, so both ends
 stream. A structured configuration takes that native path in the parser element too, with each
-event located live from the running match. What is not here yet: the client plugin and editor
-(design 18).
+event located live from the running match. `preserveWhitespace` on the filter matches the
+input as it came — every character, no indentation — for a document whose whitespace is its
+own. What is not here yet: the client plugin and editor (design 18).
