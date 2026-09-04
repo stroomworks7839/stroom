@@ -367,7 +367,34 @@ than a difference to match. 144 green.
 elements; `line-from` and friends from the engine's own offsets. *Tests:* each against the
 holder it reads, and a full pipeline with meta.
 
-**Phase 4 — group C.** Lookups over `ReferenceData` with the pipeline references, and the HTTP
+**Phase 4 — group C — Done 2026-09-04.** *As built:* `ShapeshifterServices` gained
+`ReferenceData` and `HttpClientProviderCache`; `lookup` and `bitmap-lookup` share
+`AbstractLookupFunction`, which is `AbstractLookup`'s shape over the engine's context — the
+map, the key, an optional lookup time (the stream's creation time otherwise), `ignoreWarnings`
+and `trace`; the element's `pipelineReference` properties; `ReferenceData.
+ensureReferenceDataAvailability`; and the messages Stroom's lookups write, "no reference
+loaders", "no effective streams", "map not found in effective streams", "key not found", "key
+found … found in stream: N", at the severities Stroom gives them and under the same
+trace/ignore-warnings gate. A value is read through `RefDataValueProxy.supplyValue()` rather
+than Saxon's consumers: a string value as it is, a FastInfoset value serialised through
+Stroom's own `FastInfosetUtil` with the declaration dropped, a null value absent.
+`bitmap-lookup` joins the values it finds with a comma (ruling 4). `http-call` and `fetch-json`
+run Stroom's own `CommonHttpClient` — whose constructor is now public, the one change outside
+the module — over the injected client cache, so a configuration gets exactly the client
+configuration a stylesheet gets; `http-call` builds its content type with `ContentType.parse`
+where the Saxon class uses `create`, which refuses the charset parameter the default media
+type carries. The response is the `stroom-http` document the Saxon class builds, as text;
+`fetch-json` is absent for a 404 and an ERROR for any other failure, where the Saxon class
+swallows them. *What Stroom's tests do not give:* `TestHttpCall` is a manual test against a
+developer's own TLS server, so the HTTP pair is pinned against a JDK `HttpServer` on this
+machine through a client the cache would hand out; the lookups are pinned the way
+`TestLookup` pins them, reference data stubbed to fill in each outcome, plus an XML value and
+the bitmap's bit-by-bit keys. Not built: a lookup against a reference stream loaded through
+`ReferenceData` itself — that needs Stroom's stores, and belongs in stroom-app when a
+Shapeshifter reference-data test is written there. 154 pipeline tests green; the drift pin
+covers all fifty-seven.
+
+*As written:* Lookups over `ReferenceData` with the pipeline references, and the HTTP
 pair under Stroom's controls. *Tests:* lookups against a reference stream loaded the way
 `TestReferenceData` does it; `http-call` against a local server, and refused where Stroom would
 refuse it.

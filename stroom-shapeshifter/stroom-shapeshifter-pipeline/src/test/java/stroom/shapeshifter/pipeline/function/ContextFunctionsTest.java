@@ -89,6 +89,12 @@ class ContextFunctionsTest {
 
         @Override
         public void message(final Severity severity, final String message) {
+            switch (severity) {
+                case ERROR, FATAL -> errors.add(message);
+                case WARNING -> warnings.add(message);
+                default -> {
+                }
+            }
             all.add(severity + " " + message);
         }
 
@@ -153,7 +159,7 @@ class ContextFunctionsTest {
         assertThat(BY_NAME.get("add-meta").purity()).isEqualTo(Purity.IMPURE);
         assertThat(BY_NAME.get("link").purity()).isEqualTo(Purity.PURE);
         assertThat(BY_NAME.get("feed-name").purity()).isEqualTo(Purity.CONTEXT);
-        assertThat(ShapeshifterFunctionModule.all()).hasSize(53);
+        assertThat(ShapeshifterFunctionModule.all()).hasSize(57);
     }
 
     @Test

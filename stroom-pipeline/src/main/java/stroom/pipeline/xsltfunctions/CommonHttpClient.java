@@ -41,7 +41,7 @@ public class CommonHttpClient {
     private final HttpClientProviderCache httpClientProviderCache;
     private final Map<String, HttpClientConfiguration> configCache = new HashMap<>();
 
-    CommonHttpClient(final HttpClientProviderCache httpClientProviderCache) {
+    public CommonHttpClient(final HttpClientProviderCache httpClientProviderCache) {
         this.httpClientProviderCache = httpClientProviderCache;
     }
 

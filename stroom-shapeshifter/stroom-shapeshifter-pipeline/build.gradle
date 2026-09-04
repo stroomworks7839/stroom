@@ -44,6 +44,8 @@ dependencies {
     implementation project(':stroom-data:stroom-data-store-api')
     implementation project(':stroom-dictionary:stroom-dictionary-api')
     implementation project(':stroom-meta:stroom-meta-api')
+    // Phase 4: http-call and fetch-json run Stroom's own HTTP client.
+    implementation libs.http.client
 
     // What a Stroom service module needs to be one: injection, Guice, logging, the REST
     // annotations the shared resource interface carries, and Saxon, because the pipeline's
@@ -59,6 +61,8 @@ dependencies {
     // The full-pipeline tests build real pipelines through PipelineFactory, whose task context
     // is the task API's.
     testImplementation project(':stroom-task:stroom-task-api')
+    // The lookup tests build a FastInfoset value the way the reference data loader does.
+    testImplementation libs.fast.infoset
     testImplementation libs.bundles.common.test.implementation
     testRuntimeOnly libs.bundles.common.test.runtime
 }

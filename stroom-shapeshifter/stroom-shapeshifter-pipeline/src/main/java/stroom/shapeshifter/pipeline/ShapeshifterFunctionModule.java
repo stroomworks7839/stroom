@@ -18,6 +18,7 @@ package stroom.shapeshifter.pipeline;
 
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.pipeline.function.AddMetaFunction;
+import stroom.shapeshifter.pipeline.function.BitmapLookupFunction;
 import stroom.shapeshifter.pipeline.function.CidrToNumericIpRangeFunction;
 import stroom.shapeshifter.pipeline.function.ClassificationFunction;
 import stroom.shapeshifter.pipeline.function.ColFromFunction;
@@ -31,6 +32,7 @@ import stroom.shapeshifter.pipeline.function.DictionaryFunction;
 import stroom.shapeshifter.pipeline.function.EncodeUrlFunction;
 import stroom.shapeshifter.pipeline.function.FeedAttributeFunction;
 import stroom.shapeshifter.pipeline.function.FeedNameFunction;
+import stroom.shapeshifter.pipeline.function.FetchJsonFunction;
 import stroom.shapeshifter.pipeline.function.FormatDateFunction;
 import stroom.shapeshifter.pipeline.function.FormatDateTimeFunction;
 import stroom.shapeshifter.pipeline.function.FromUnixTimeFunction;
@@ -41,12 +43,14 @@ import stroom.shapeshifter.pipeline.function.HexToOctFunction;
 import stroom.shapeshifter.pipeline.function.HexToStringFunction;
 import stroom.shapeshifter.pipeline.function.HostAddressFunction;
 import stroom.shapeshifter.pipeline.function.HostNameFunction;
+import stroom.shapeshifter.pipeline.function.HttpCallFunction;
 import stroom.shapeshifter.pipeline.function.IpInCidrFunction;
 import stroom.shapeshifter.pipeline.function.JsonToXmlFunction;
 import stroom.shapeshifter.pipeline.function.LineFromFunction;
 import stroom.shapeshifter.pipeline.function.LineToFunction;
 import stroom.shapeshifter.pipeline.function.LinkFunction;
 import stroom.shapeshifter.pipeline.function.LogFunction;
+import stroom.shapeshifter.pipeline.function.LookupFunction;
 import stroom.shapeshifter.pipeline.function.ManifestForIdFunction;
 import stroom.shapeshifter.pipeline.function.ManifestNoArgsFunction;
 import stroom.shapeshifter.pipeline.function.MetaAttributeFunction;
@@ -75,8 +79,9 @@ import java.util.List;
 
 /**
  * Stroom's XSLT functions as Shapeshifter functions, under Stroom's names (design 26 §5).
- * Group A, the pure ones and the clock, and group B, the pipeline's context, are here; the
- * lookups and the network (group C) follow in phase 4.
+ * Group A, the pure ones and the clock; group B, the pipeline's context; group C, reference
+ * data and the network. Fifty-seven of Stroom's fifty-eight; {@code split-document} has no
+ * counterpart (design 26 ruling 6).
  */
 public class ShapeshifterFunctionModule extends AbstractShapeshifterFunctionModule {
 
@@ -164,6 +169,20 @@ public class ShapeshifterFunctionModule extends AbstractShapeshifterFunctionModu
         bindFunction(SourceFunction.class);
         bindFunction(SourceIdFunction.class);
         bindFunction(StreamIdNamedFunction.class);
+        // Group C (phase 4): reference data and the network.
+        bindFunction(BitmapLookupFunction.class);
+        bindFunction(FetchJsonFunction.class);
+        bindFunction(HttpCallFunction.class);
+        bindFunction(LookupFunction.class);
+    }
+
+    /** Group C as instances: reference data and the network. */
+    public static List<FunctionDefinition> groupC() {
+        return List.of(
+                new BitmapLookupFunction(),
+                new FetchJsonFunction(),
+                new HttpCallFunction(),
+                new LookupFunction());
     }
 
     /** Group B as instances: the pipeline's context. */
@@ -205,6 +224,7 @@ public class ShapeshifterFunctionModule extends AbstractShapeshifterFunctionModu
     public static List<FunctionDefinition> all() {
         final List<FunctionDefinition> all = new java.util.ArrayList<>(groupA());
         all.addAll(groupB());
+        all.addAll(groupC());
         return List.copyOf(all);
     }
 }

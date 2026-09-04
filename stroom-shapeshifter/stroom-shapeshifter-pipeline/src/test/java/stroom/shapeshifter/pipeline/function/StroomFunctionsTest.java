@@ -166,7 +166,7 @@ class StroomFunctionsTest {
         final List<String> expected = ShapeshifterFunctionModule.all().stream()
                 .map(FunctionDefinition::name).sorted().toList();
         assertThat(bound.stream().map(FunctionDefinition::name).sorted().toList()).isEqualTo(expected);
-        assertThat(new StroomFunctionLibrary(bound).registry().size()).isEqualTo(53);
+        assertThat(new StroomFunctionLibrary(bound).registry().size()).isEqualTo(57);
     }
 
     @Test

@@ -23,6 +23,7 @@ import stroom.dictionary.api.WordListProvider;
 import stroom.feed.api.FeedProperties;
 import stroom.pipeline.LocationFactoryProxy;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
+import stroom.pipeline.refdata.ReferenceData;
 import stroom.pipeline.shared.data.PipelineReference;
 import stroom.pipeline.state.CurrentUserHolder;
 import stroom.pipeline.state.FeedHolder;
@@ -32,6 +33,7 @@ import stroom.pipeline.state.PipelineHolder;
 import stroom.pipeline.state.SearchIdHolder;
 import stroom.shapeshifter.engine.function.Services;
 import stroom.util.io.PathCreator;
+import stroom.util.jersey.HttpClientProviderCache;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
@@ -41,7 +43,8 @@ import java.util.List;
 /**
  * Everything Stroom's context functions are injected with, gathered once so an element can hand
  * a document's run all of it (design 26 §5): the pipeline-scoped holders through their
- * providers, and the services behind meta attributes, parts, feeds and dictionaries. Null
+ * providers, the services behind meta attributes, parts, feeds and dictionaries, reference
+ * data and the HTTP clients. Null
  * where a build has none — a harness outside Stroom — and then absent from the services.
  */
 public class ShapeshifterServices {
@@ -57,6 +60,8 @@ public class ShapeshifterServices {
     private final Provider<AttributeMapFactory> attributeMapFactory;
     private final Provider<Store> store;
     private final Provider<WordListProvider> wordListProvider;
+    private final Provider<ReferenceData> referenceData;
+    private final Provider<HttpClientProviderCache> httpClients;
 
     @Inject
     public ShapeshifterServices(final Provider<MetaHolder> metaHolder,
@@ -69,7 +74,11 @@ public class ShapeshifterServices {
                                 final Provider<DataService> dataService,
                                 final Provider<AttributeMapFactory> attributeMapFactory,
                                 final Provider<Store> store,
-                                final Provider<WordListProvider> wordListProvider) {
+                                final Provider<WordListProvider> wordListProvider,
+                                final Provider<ReferenceData> referenceData,
+                                final Provider<HttpClientProviderCache> httpClients) {
+        this.referenceData = referenceData;
+        this.httpClients = httpClients;
         this.metaHolder = metaHolder;
         this.metaDataHolder = metaDataHolder;
         this.feedHolder = feedHolder;
@@ -107,6 +116,8 @@ public class ShapeshifterServices {
         services.put(AttributeMapFactory.class, get(attributeMapFactory));
         services.put(Store.class, get(store));
         services.put(WordListProvider.class, get(wordListProvider));
+        services.put(ReferenceData.class, get(referenceData));
+        services.put(HttpClientProviderCache.class, get(httpClients));
         return services;
     }
 

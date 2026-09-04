@@ -38,6 +38,7 @@ import stroom.pipeline.filter.SchemaFilter;
 import stroom.pipeline.filter.SchemaFilterSplit;
 import stroom.pipeline.filter.SplitFilter;
 import stroom.pipeline.parser.XMLParser;
+import stroom.pipeline.refdata.ReferenceData;
 import stroom.pipeline.shared.PipelineDataMerger;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineData;
@@ -70,6 +71,7 @@ import stroom.shapeshifter.pipeline.ShapeshifterStore;
 import stroom.shapeshifter.shared.ShapeshifterDoc;
 import stroom.task.api.SimpleTaskContext;
 import stroom.util.io.SimplePathCreator;
+import stroom.util.jersey.HttpClientProviderCache;
 import stroom.util.json.JsonUtil;
 import stroom.util.shared.ResultPage;
 import stroom.xmlschema.shared.XmlSchemaDoc;
@@ -121,7 +123,8 @@ public final class ModulePipelines implements ElementRegistryFactory, ElementFac
             CurrentUserHolder::new, SearchIdHolder::new,
             () -> Mockito.mock(FeedProperties.class), () -> Mockito.mock(DataService.class),
             () -> Mockito.mock(AttributeMapFactory.class), () -> Mockito.mock(Store.class),
-            () -> Mockito.mock(WordListProvider.class));
+            () -> Mockito.mock(WordListProvider.class),
+            () -> Mockito.mock(ReferenceData.class), () -> Mockito.mock(HttpClientProviderCache.class));
     private final RecordCountService recordCountService = new RecordCountService();
     private final XmlSchemaCache schemaCache;
     private final Map<SchemaKey, StoredSchema> compiledSchemas = new HashMap<>();
