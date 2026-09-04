@@ -304,10 +304,35 @@ spreads over `StarClass.scan`, `Machine.search` and `Assert.match` as separate f
 `Node.match` sites that were bimorphic for one pattern are megamorphic for the corpus, and the
 inline caches they lose are the tree's whole speed. Step 3's case is made.
 
-**Step 3, not started.** The design the scan plan's hardiness points at — hot node boundaries
-dispatched through a kind switch rather than a virtual call, the way `PlanRunner` dispatches
-on an opcode — is a measured-method change to the primary engine's hottest paths, and a
-week's work with its own audit. Scheduled by direction, not by this plan.
+**Step 3 — the design, on paper (2026-09-04), unscheduled.** Three shapes, and the order to try
+them is fixed by what the clean harness would lose:
+
+1. **A kind switch at the hot boundaries.** Every `Node` carries an `int kind` set once when the
+   compiler links it; the 22 `next.match(ctx, at)` sites in the fifteen node classes become
+   `Node.run(next, ctx, at)`, a static method that switches on `kind` and calls the concrete
+   class's `match` directly — a monomorphic call per case, which C2 can inline whatever the
+   receiver profile says, the way `PlanRunner`'s opcode switch is immune. **The risk is the
+   clean row, not the polluted one:** today's clean speed is inline caches folding a pattern's
+   whole chain — `ByteSeq.match` → `GroupTail.match` → … — into one compilation unit, and
+   `Node.run` is recursive (`run` → `ByteSeq.match` → `run` → …), which C2 inlines only one
+   level deep (`MaxRecursiveInlineLevel`). A switch that stops the chain folding could cost the
+   clean harness what it buys the polluted one. So the first act is a probe, not a design:
+   `Node.run` at the eight hottest boundaries (`ByteSeq`, `OneChar`, `GroupHead`, `GroupTail`,
+   `StarClass`, `RunLoop`, `CountedClass`, `Assert`), measured clean and polluted on the tree's
+   NETWORK and KEYVALUE. If clean holds and polluted recovers, the design is this; if clean
+   pays, it is not.
+2. **Flatten the tree to a program.** Compile the node tree to an opcode array with an explicit
+   continuation stack — the fancy backtracker's family — and give up the per-pattern JIT
+   specialisation D30 chose the tree for. Polluted and clean would converge, from both sides.
+   A rewrite of the primary engine; only if 1 fails and the pipeline number matters more than
+   the microbenchmark one.
+3. **Accept, and let the harness tell the truth.** Polluted, the tree still beats the JDK by
+   1.5× on these rows, and the *scan plan* now beats the tree there (NETWORK 5,123 against
+   4,906; KEYVALUE 6,369 against 5,792) — the flat engines are the pollution-hardy ones. The
+   honest scoreboard is the polluted one; 06 §2's "immune" becomes "hardier than the JDK by
+   a wide margin, and the tree by less than the scan plan". No code.
+
+The probe in 1 is an afternoon and settles which of the three this is. Scheduled by direction.
 
 **Gate:** `PollutedCorpusBenchmark`'s tree rows against `CorpusBenchmark`'s, paired, plus the
 clean canaries — a fix that buys the polluted row by costing the clean one has to say so.
