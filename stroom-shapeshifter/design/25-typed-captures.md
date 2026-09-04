@@ -49,6 +49,22 @@ That is the whole design. What follows is where the tag comes from, who reads it
 | a function result | UTF-8, or a non-`Bytes` kind |
 | under a transcode-family source (UTF-16, design 19 phase 6) | UTF-8: the stream was decoded whole before matching, so every slice already is |
 
+**The one place the principle bends, named.** The transcode family — UTF-16, Shift_JIS,
+ISO-2022-JP — is converted to UTF-8 *before* matching, so a capture under it is a slice of the
+transcoded stream, not of the input. That is the byte matcher's limitation, not the value
+model's: it lowers character classes for UTF-8 and the single-byte encodings and cannot match
+those multi-byte encodings in their own bytes, so design 19 phase 6 decodes the stream whole
+and accepts that spans are offsets into the decoded bytes (its §4.0). The UTF-8 tag on such a
+capture is truthful — those are the bytes it has — and it does not pretend to be the input.
+Nothing in the byte-identity story depends on it: `raw`, UTF-8, ASCII and every single-byte
+encoding reach the matcher as the bytes they were. Binary declared as UTF-16 is an authoring
+contradiction, not a gap. The exit, should anyone need it, is the matcher learning UTF-16
+natively (regex-module work) or original byte spans kept beside the transcoded ones, which
+design 19 gave up as not worth it for encodings that never preserved offsets. The same is true
+one layer up: on Stroom's `Reader` path the bytes were decoded before the engine was involved
+and `ReaderBytes` makes UTF-8 from characters; the raw `InputStream` path (design 23 phase 1)
+shows the engine the true bytes and is the one the parser element prefers.
+
 `MatchResult` gets the encoding at construction — the three places that build one
 (`regexMatch`, the delimiter match, `Steps.match`) all have `effective(template)` in reach —
 and tags its groups. `normalise` is deleted; `bindCaptures` stores what the match gives it.
