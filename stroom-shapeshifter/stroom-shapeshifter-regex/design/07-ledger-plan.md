@@ -232,11 +232,20 @@ machine; the end-anchored rows keep their three orders of magnitude.
   pattern the suffix strategy would move. So the unlock is not a row but evidence — a real
   configuration using DS's `reverse` feature over a key=value shape — and the row stays parked
   with the standing rows below until one arrives.
-- **First-byte refutation, in the ruled order** (06 §1). Try the library-internal shape first:
-  the `ANCHORED` entry refutes on the first byte before any setup, nothing published. Only if
-  the per-refuted-call scaffolding is what remains does `firstBytes()` cross the seam with the
-  parser's signature. Byte-compiled classes make either shape a read of the compiled form.
-  The engine's E12 is waiting on this.
+- **First-byte refutation — a library-internal fix, not a published fact** (06 §1; corrected
+  2026-09-04 against engine design 10 §9–11). The anchoring arc already ruled the shape of this:
+  the engine's caller-side sniff was the thing that was wrong, the library exiting early on its
+  own parsed knowledge was the fix, and a fact crosses the seam only with the parser's
+  signature and only when measurement shows the library cannot act on it alone. Here it can.
+  The scan plan's `ANCHORED` entry — `run(from, ANCHORED)` → `attempt(from)` — fills the slot
+  array and enters `PlanRunner` before its first op refutes, while `plan.firstBytes()` sits
+  unread on that path (the search loop reads it; the anchored entry does not; the tree's
+  `cannotStartAt` does). One table lookup before the fill turns strict dispatch's ~57 refuted
+  attempts per line (`win_sec_strict`, design 10 §11) from a prologue each into a byte read
+  each — nothing published, nothing engine-side. Gate: the engine benchmark's `win_sec_strict`
+  and `win_sec_xml`, plus per-match datetime (the anchored per-match canary). `firstBytes()`
+  crossing the seam for an engine-side candidate table stays where the arc left it: only if,
+  after this, the per-call scaffolding is what remains — and E12's row should say that too.
 - **The weblog guard residual**, 2.2% on a row with a bimodal JIT state: one more shape probe
   (a `singleByteForm`-specialised search loop chosen once at construction) and then either
   shipped or written off as noise-floor. It does not block anything.
