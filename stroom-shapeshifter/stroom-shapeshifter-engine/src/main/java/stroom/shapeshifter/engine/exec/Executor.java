@@ -172,6 +172,12 @@ public final class Executor {
             // The input failed mid-read. Everything already said still stands, so the failure
             // joins the messages rather than throwing them away.
             messages.add(new Message(Severity.FATAL, "Reading the input failed: " + e.getCause()));
+        } catch (final OutputSink.StructureException e) {
+            // A write the sink could not place — text at document level on the event sink is
+            // the case — rather than a structural call, which structure() has already named.
+            // The same rule as above: a misplaced write is the run's last message, not an
+            // exception through the caller.
+            messages.add(new Message(Severity.FATAL, "Output structure: " + e.getMessage()));
         }
         return List.copyOf(messages);
     }

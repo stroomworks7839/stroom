@@ -22,8 +22,10 @@ import stroom.shapeshifter.engine.fixture.EngineHarness;
 import stroom.shapeshifter.engine.fixture.EngineHarness.Outcome;
 
 import org.junit.jupiter.api.Test;
+import org.xml.sax.helpers.DefaultHandler;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -113,6 +115,19 @@ class StructureTest {
                 .startsWith("Fatal")
                 .contains("attribute 'late'")
                 .contains("after the content of <e>"));
+    }
+
+    @Test
+    void textOutsideAnyElementOnTheEventSinkIsTheRunsLastMessageNotAnException() {
+        final String json = project("{\"text\": \"<records/>\"}");
+        final List<Message> messages = Shapeshifter.runWhole(
+                Shapeshifter.compile(ProjectReader.read(json)),
+                "x".getBytes(StandardCharsets.UTF_8),
+                new SaxEventSink(new DefaultHandler()));
+        assertThat(messages).singleElement().asString()
+                .startsWith("Fatal")
+                .contains("Output structure")
+                .contains("outside any element");
     }
 
     @Test

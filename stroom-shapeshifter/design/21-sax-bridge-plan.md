@@ -361,8 +361,21 @@ the ledger, 10 pending, 0 failures.
 **Two choices named.** The event sink drops an XML declaration written as document-level text,
 since a configuration that writes one for the file target is not wrong to run here and the
 declaration has no event. And a variable's body is its own document: structure inside a
-variable serialises into the variable as bytes, which is P1's problem and phase 3's. Original
-wording follows.
+variable serialises into the variable as bytes, which is P1's problem and phase 3's.
+
+**Audited 2026-09-04 — one defect, three checks.** (1) *A misplaced write escaped the run.*
+`structure()` turned a refused structural call into the run's fatal, but the event sink also
+refuses a *write* — text at document level — and that path runs through the `text` and
+`value-of` arms, so a text-only configuration on `SaxEventSink` came out of `Shapeshifter.run`
+as an exception rather than a message. The run's top now treats a `StructureException` as it
+treats a failed read: the last message, fatal. Pinned. (2) `RootSplit`'s three shapes read
+through by hand: no apply (all prologue, empty tail), apply at the top (before/after, nothing
+opened), apply under one or more elements (each level's prologue then its element, each tail
+then its close, innermost first) — and the fixture exercises the third. (3) The stroom-app
+integration test, which runs the parse-and-forward reader over `OutputSink.of` — now
+`XmlByteSink` — re-run and green: the byte sink's transparency holds through a real pipeline,
+not only the corpus. Carried to phase 4 unchanged: under the deferred start tag a child's byte
+span absorbs its parent's tag. Original wording follows.
 
 The interface gains `startElement(name, uri)`, `endElement()`, `startAttribute(name, uri)`,
 `endAttribute()`, `namespace(prefix, uri)`. `write` keeps its three overloads and every
