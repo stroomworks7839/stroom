@@ -265,7 +265,32 @@ a user can open.
 
 ## Phase 2 — The sink is a state machine *(the ruled shape; the measured risk is S2)*
 
-### 2a — The spike that decides whether 2b is as planned
+### 2a — The spike that decides whether 2b is as planned — **Done 2026-09-04: 2b is as planned**
+
+**As built.** `XmlByteSink` in the engine, an `OutputSink` with the structural calls
+(`startElement`, `namespace`, `startAttribute`/`endAttribute`, `endElement`) and `write`
+meaning what design 20 §4B says by container. Saxon's forms throughout, and Saxon's wrapping
+rule **read from `XMLIndenter.startContent`'s bytecode** rather than inferred: sum `9 + uri`
+per default namespace declaration, `prefix + 10 + uri` per prefixed one, `name + value + 8`
+per attribute (`+ 9` with a prefix, raw lengths); over 80, every attribute after the first goes
+on its own line aligned under the first. Appendix A is corrected to it. The ordering rule the
+compiler cannot see — a namespace or attribute after content — is refused here by name.
+
+**The spike was made as strong as it could be.** The plan said one fixture by hand. Phase 1's
+`Ds3Oracle` drives Stroom's DS3 live, and Stroom's goldens *are* Saxon's serialisation of DS3's
+events, so `XmlByteSinkDs3GoldenTest` feeds those events through the sink for every legacy
+fixture and compares bytes with the golden: **22 of 22 identical on the first run**, including
+003, 007, 009, 019, 021 and 022 — the ones the *engine* cannot yet reproduce, which this test
+does not involve. That is S2 answered for the serialiser: the bytes are reachable. What
+remains pending is the migration's side (E33's trim, phase 3) and the migration moving onto
+the sink at all (phase 3), not the serialiser. `XmlByteSinkTest` pins the contexts, the
+entities, the wrap threshold at exactly 80 and 81 (the goldens leave 81–92 unseen), the
+namespace alignment, an attribute value split mid-character across writes, and the refusals.
+
+**Two choices made here and named for 2b.** Whitespace-only content inside an element is
+dropped — indentation is the indenter's, and phase 3's migration stops writing it as text.
+And the XML declaration is the caller's to write as document-level text, which is what the
+DS3-event adapter does and what the migration's header will be. Original wording follows.
 
 Before the model changes, a byte serialiser is written to the phase-0 census — and, since D41,
 to Saxon's indenter (E35): one attribute line until the 80th column, then each attribute after
@@ -456,7 +481,8 @@ something a byte-identity failure in phase 3 will be traced back to.
   newline, nine spaces, `xsi:schemaLocation="records:2 file://records-v2.0.xsd"`, newline,
   nine spaces, `version="2.0">`. Namespace declarations first, default before `xsi`, then the
   attributes — the order Stroom's serialiser chose and the migration's `RECORDS_HEADER` copies.
-- Footer `\n</records>\n`: a trailing newline after the root's close, and nothing after it.
+- Footer `\n</records>\n`: a trailing newline after the root's close, and nothing after it —
+  Saxon's end-of-document newline, which the sink writes after the root closes.
   **When no record was written the root is self-closed** — `version="2.0"/>` then the
   newline — pinned by `022_empty_input` (the audit's fixture; the census first said "still
   paired", from memory, and was wrong: E34). The engine pairs it today.
@@ -489,12 +515,15 @@ which no legacy fixture exercises with a quote — so the serialiser writes `&#3
 quote, and that is Stroom's form, not a choice. Design 20 was right about `&#34;` for the
 wrong reason (it named the migration; it is the serialiser's form that the migration copies).
 
-**What the vendored bytes are (phase 1 finding).** Stroom's serialiser wraps a `<data>` whose
-attributes run long onto two lines, the value indented under the name (003, 007, 009, 019 in
-stroom-pipeline's own goldens). No vendored golden is wrapped: the prototype re-serialised Stroom's
-events, and that is what the engine reproduces. S2's byte-identity is therefore to the prototype's
-serialisation of DS3's events — one attribute line, always — and not to Stroom's serialiser,
-which the census had assumed were the same thing.
+**The wrapping rule (phase 2a, read from Saxon's bytecode, superseding the phase-1 guess).**
+`XMLIndenter.startContent` sums, on raw lengths, `9 + uri` for a default namespace
+declaration, `prefix + 10 + uri` for a prefixed one, `name + value + 8` for an attribute
+(`+ 9` with a prefix); the indent, the element name and the first attribute do not count. If
+the sum exceeds 80, each attribute after the first goes on its own line, indented
+`(level − 1) × 3 + name + 2` — under the first attribute. Every legacy golden reproduces
+under it (`XmlByteSinkDs3GoldenTest`). Under D41 the goldens are Stroom's, so this is the
+rule the engine must meet, and the four fixtures that wrap are `PENDING` until phase 3
+moves the migration onto `XmlByteSink`.
 
 **Not pinned by any golden, and therefore free for phase 2 to choose — but chosen once:**
 content escaping (text between tags — `&`, `<`, `>` as `&amp;`, `&lt;`, `&gt;`, `"` and `'`

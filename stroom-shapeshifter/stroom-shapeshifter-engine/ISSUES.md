@@ -1060,7 +1060,10 @@ the golden and the ratchet decides when.
 
 ### E35 — Stroom's serialiser wraps long attributes; the engine's text output does not
 **`open` — found 2026-09-03 by design 21 phase 1, when the legacy goldens were re-vendored from
-`stroom-pipeline` under D41. Fixtures 003, 007 and 019 (`PENDING`, both families).**
+`stroom-pipeline` under D41. Fixtures 003, 007 and 019 (`PENDING`, both families). The rule is
+known and built: phase 2a's `XmlByteSink` (2026-09-04) reproduces every legacy golden from
+DS3's own events. What remains is phase 3 — the migration writing structure to the sink
+instead of text.**
 
 The DS3 goldens are written by Saxon (`XMLUtil.createTransformerHandler(true)`: indent, amount
 3, XML 1.1). Saxon's indenter keeps a start tag on one line until it would pass the 80th
