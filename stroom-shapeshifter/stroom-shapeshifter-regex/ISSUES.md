@@ -67,7 +67,10 @@ field, is in D39's postscript. The −3.2% on buffer CSV above went with it: +13
 
 
 **The tail-window machinery costs −12–14% on buffer workloads that never jump
-(`open`, measured 2026-08-25 — supersedes the accepted entry below).** The nightly
+(`superseded` 2026-09-04: on the 9950X3D, with D39's field restored, stripping the machinery reads
+−16.8% on the same row — the class's field set is a two-cluster JIT mode and the current set is the
+fast cluster; any field change is gated on buffer CSV, paired. Was `open`, measured 2026-08-25 —
+supersedes the accepted entry below).** The nightly
 gate's first full-suite run since Phase 2 found buffer CSV at −11.3%, per-match `quoted`
 −8.0%, `datetime` −5.0%, with `shapeshifterTree` and every JDK row flat on the same
 workloads; an independent re-check pair reproduced it (−12.7%, −4.4%, −3.8%). A

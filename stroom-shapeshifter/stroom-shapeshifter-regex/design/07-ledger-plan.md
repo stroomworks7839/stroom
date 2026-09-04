@@ -191,7 +191,7 @@ and was drift; paired minutes apart, the full phase — all five gates and the f
 **Exit:** each engine's gate is measured, and either flat or fixed; the paired run's simulate
 losses are attributed or dissolved.
 
-## Phase 4 — The class-shape cost on `ByteMatcher` *(the open ISSUES entry; a design question)*
+## Phase 4 — The class-shape cost on `ByteMatcher` *(the open ISSUES entry; a design question)* — **Closed 2026-09-04: re-measured on this machine, the machinery is on the fast side**
 
 Open since 2026-08-25: the end-anchor programme's tail-window machinery cost buffer CSV
 −12–14% through nothing but three instance fields on `ByteMatcher` — identical hot-path
@@ -207,8 +207,21 @@ or a side object chosen at compile time, and `ByteMatcher`'s shape returns to th
 flat path had. If the new CPU has dissolved it, the entry closes as machine-specific with the
 numbers.
 
-**Exit:** the ISSUES entry moves to `resolved` or `accepted` with a paired measurement from
-this machine; the end-anchored rows keep their three orders of magnitude either way.
+**Re-measured 2026-09-04, quiet box, the strip variant against the tip.** With the tail-window
+machinery removed from `ByteMatcher` — fields, constructor computation, `endgameSearch`, the
+entry ternary — buffer CSV's scan plan reads **6,011 against 7,228 (−16.8%)**, both at fork
+spread ≤ 1.01; the tree −2.4%; per-match weblog flat (+0.6% / +3.3%). The August finding does not
+reproduce: on this CPU, with D39's `contextEnd` field restored, the current field set is the
+fast cluster of the two this row has always shown, and removing three fields lands in the slow
+one — the same coin the D39 remedy just flipped the other way. A design that moves the
+end-anchored state off the class would cost 17% today. So: **no design.** What is recorded
+instead is the rule the two measurements agree on: buffer CSV's scan plan is a two-cluster JIT
+mode keyed to `ByteMatcher`'s field set, ~7.2k against ~6.0–6.4k, and any change to that class's
+fields is gated on this row, paired, before it lands. The ISSUES entry is superseded with this
+datapoint; the end-anchored rows keep their three orders of magnitude.
+
+**Exit (reached):** the ISSUES entry moves to `superseded` with a paired measurement from this
+machine; the end-anchored rows keep their three orders of magnitude.
 
 ## Phase 5 — The cheap unlocks *(each an afternoon; each opens a recorded row)*
 
