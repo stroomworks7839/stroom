@@ -913,7 +913,10 @@ design before code; each is recorded here so the shape of the gap is written dow
 remembered. They are independent of one another and of the port's own backlog.
 
 ### E30 — SAX events as input
-**`resolved` 2026-09-04 — designed, ruled and built in [design 22](../design/22-sax-input.md),
+**`resolved` 2026-09-04 for the mid-pipeline shape; the input *streaming* contract it assumed
+is corrected in [design 23](../design/23-streaming-contract.md) (the elements held input whole
+where the engine streams — a terabyte-scale defect). Designed, ruled and built in
+[design 22](../design/22-sax-input.md),
 all three phases the same day: `ShapeshifterFilter`, events in through a bounded pipe to the
 engine on a worker thread and events out on the pipeline's; the native event path for
 structured configurations in both elements, streaming at both ends; and `preserveWhitespace`,
@@ -944,7 +947,10 @@ is a much larger design, it splits the engine's model in two, and the fixtures s
 route already works (`xml_to_json` matches serialised XML today).
 
 ### E31 — SAX events as output
-**`resolved` 2026-09-04 — design 21's five phases are done: parse-and-forward, the document
+**`resolved` 2026-09-04 for the vocabulary and the sinks; the output *streaming* contract —
+text output held whole, and where the text→SAX bridge belongs — is reopened by
+[design 23](../design/23-streaming-contract.md) §3b for a separate output round.
+Design 21's five phases are done: parse-and-forward, the document
 and element, the two sinks and the structural instructions, the migration on them, and
 attribution by currency with input locations for stepping. Designed 2026-08-28 in
 [design 20](../design/20-sax-output.md); ruled in full

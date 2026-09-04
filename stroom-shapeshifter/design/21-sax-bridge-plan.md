@@ -102,6 +102,11 @@ reproduce are enumerated.
 
 ## Phase 1 — Parse and forward *(the pipeline element exists)* — **Done 2026-09-03**
 
+> **Superseded in part by [design 23](23-streaming-contract.md) (2026-09-04):** this phase read
+> the input whole (`runWhole`) and held the text output whole. The engine streams; the element
+> must too. Design 23 corrects the input; the output is a separate round. The record below
+> stands as what was built at the time.
+
 **As built.** `ShapeshifterParser.parse` runs `Shapeshifter.runWhole` to a buffer, parses it with
 `SAXParserFactoryFactory`'s product, and forwards to the content handler; the engine's messages
 go to the error handler with their severity through `ErrorHandlerAdaptor` (or as

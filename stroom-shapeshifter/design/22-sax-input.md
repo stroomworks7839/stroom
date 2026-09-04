@@ -260,7 +260,11 @@ section arrives as characters and is written escaped, an empty element pair arri
 and end and is written self-closed, and the declaration is the image's own line. A document
 whose bytes must survive exactly wants the parser element and a file, not events.
 
-**Status: design 22 complete — three phases built and audited.**
+**Status: design 22 complete — three phases built and audited.** *Amended by
+[design 23](23-streaming-contract.md) (2026-09-04): the filter's input streams and is re-audited
+against the streaming contract; its text-output path holds the output whole, which the output
+round addresses. The pipe is being reconsidered as pipeline plumbing rather than an engine
+concern.*
 
 ---
 
