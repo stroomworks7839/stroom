@@ -210,7 +210,7 @@ class EncodedInputTest {
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
                 OutputSink.of(output));
-        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é\u201C]");
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é“]"); // U+201C, left double quotation mark
     }
 
     /**
@@ -274,7 +274,7 @@ class EncodedInputTest {
                 OutputSink.of(replaced));
         // How many code units the decoder folds into one replacement is its own business;
         // what matters is that data flowed and the malformed span became U+FFFD, not a loss.
-        assertThat(replaced.toString(StandardCharsets.UTF_8)).contains("a\uFFFD");
+        assertThat(replaced.toString(StandardCharsets.UTF_8)).contains("a�"); // U+FFFD, the replacement character
     }
 
     @Test
@@ -507,8 +507,8 @@ class EncodedInputTest {
                      "body": [{"value-of": {"parts": [{"capture": {"group": 1}}]}}]}]
                 }
                 """;
-        final String line = "x".repeat(8191) + "\uD800\uDF48" + "y\n"
-                            + "tail\uD800\uDF48\n";
+        final String line = "x".repeat(8191) + "𐍈" + "y\n" // U+10348, a supplementary character: four bytes
+                            + "tail𐍈\n";
         final byte[] input = line.getBytes(java.nio.charset.StandardCharsets.UTF_16LE);
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         Shapeshifter.run(
@@ -516,7 +516,7 @@ class EncodedInputTest {
                 new ByteArrayInputStream(input),
                 OutputSink.of(output));
         final String out = output.toString(StandardCharsets.UTF_8);
-        assertThat(out).contains("\uD800\uDF48y");
-        assertThat(out).contains("tail\uD800\uDF48");
+        assertThat(out).contains("𐍈y");
+        assertThat(out).contains("tail𐍈");
     }
 }

@@ -67,7 +67,7 @@ class TableEncodingTest {
         // 0x93 is a left curly quote in windows-1252 and a continuation byte in UTF-8. The
         // phase-4 audit found ByteMatcher's start gate still asking UTF-8's question, which
         // silently unseeded every match starting in 0x80–0xBF under a single-byte form.
-        final ByteMatcher m = matcher("(\u201C[a-z]+\u201D)");
+        final ByteMatcher m = matcher("(“[a-z]+”)"); // U+201C and U+201D, the curly double quotes
         final byte[] data = {(byte) 0x93, 'h', 'i', (byte) 0x94};
         assertThat(m.find(data)).isTrue();
         assertThat(m.start(1)).isEqualTo(0);
