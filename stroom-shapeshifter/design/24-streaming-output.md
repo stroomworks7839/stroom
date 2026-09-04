@@ -219,10 +219,12 @@ where the stylesheet was, reading the records document's image and building the 
 Shapeshifter configuration stands where the DS3 configuration and a stylesheet were; as in
 Stroom's, it emits `Eventy` for the 59 `/bad` requests, and the schema filter marks them and
 the record output filter drops them — 200 read, 141 written, 59 errors, Stroom's own
-`validateProcess` numbers. The XML and filter shapes match their golden. The text shape
-matches its golden but for its newlines: Stroom's text stylesheet ends each `Event` with a
-whitespace-only text node, and the event sink drops it under design 21's rule (E38, open for
-a ruling); until then the pin is the golden without them. *As written:* Parser → `TextWriter` → appender, byte-for-byte,
+`validateProcess` numbers. All three shapes match their golden. The text shape did not at
+first: Stroom's text stylesheet ends each `Event` with a whitespace-only text node, and the
+event sink dropped it under design 21's rule. Filed as E38 and ruled the same day — the event
+sink delivers whitespace as the author wrote it, the byte sink keeps Saxon's rule because it
+is a serialiser and the serialiser at the end of a pipeline decides, as it does for a
+stylesheet's text nodes — after which the text shape matches byte for byte. *As written:* Parser → `TextWriter` → appender, byte-for-byte,
 windowed.
 
 Each phase is audited before the next, as the others were.

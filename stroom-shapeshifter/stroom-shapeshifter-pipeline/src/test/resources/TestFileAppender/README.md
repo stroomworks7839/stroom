@@ -13,8 +13,8 @@ them and the record output filter that drops them — 200 read, 141 written, 59 
 
 - `TestFileAppender_Text.shapeshifter.json` + `_Text_Pipeline.json` — parser, the chain,
   `TextWriter`, `FileAppender`; the event-logging tree with a newline text node in each `Event`,
-  as Stroom's text stylesheet builds it; the file is the text golden — but for its newlines,
-  which the event sink drops (E38).
+  as Stroom's text stylesheet builds it; the file is the text golden byte for byte (the newline
+  text nodes are delivered as written — E38).
 - `TestFileAppender_XML.shapeshifter.json` + `_XML_Pipeline.json` — parser, the chain,
   `XMLWriter`, `FileAppender`; the file is the XML golden as a document — the `XMLWriter`'s
   whitespace is its own.

@@ -73,8 +73,14 @@ class SaxEventSinkTest {
                 "startDocument", "startElement {}a a [{}v=é]", "characters \"x < y\"", "endElement {}a", "endDocument");
     }
 
+    /**
+     * E38 (ruled 2026-09-04): whitespace an author writes inside an element is delivered as
+     * written, whether or not the element has other text — the byte sink is a serialiser and
+     * applies Saxon's indenting rule; this sink is not, and whatever serialises the events at
+     * the end of the pipeline applies its own, as it does to a stylesheet's text nodes.
+     */
     @Test
-    void whitespaceInsideTextIsKeptAndWhitespaceBeforeAChildIsNot() {
+    void whitespaceInsideAnElementIsDeliveredAsWrittenAndTheSerialiserDecides() {
         sink.startElement("d");
         sink.write("a");
         sink.write(" ");
@@ -82,13 +88,22 @@ class SaxEventSinkTest {
         sink.write("\n   ");
         sink.startElement("e");
         sink.endElement();
+        sink.write("\n   ");
+        // f is element-only: its whitespace is delivered all the same.
+        sink.startElement("f");
+        sink.write("\n      ");
+        sink.startElement("g");
         sink.endElement();
-        // d has text, so the whitespace before its child is text too (mixed content); an
-        // element-only parent would have dropped it.
+        sink.write("\n   ");
+        sink.endElement();
+        sink.write("\n");
+        sink.endElement();
         assertThat(events).containsExactly(
                 "startDocument", "startElement {}d d []", "characters \"a\"", "characters \" \"",
                 "characters \"b\"", "characters \"\n   \"", "startElement {}e e []", "endElement {}e",
-                "endElement {}d", "endDocument");
+                "characters \"\n   \"", "startElement {}f f []", "characters \"\n      \"",
+                "startElement {}g g []", "endElement {}g", "characters \"\n   \"", "endElement {}f",
+                "characters \"\n\"", "endElement {}d", "endDocument");
     }
 
     @Test

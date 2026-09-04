@@ -64,20 +64,15 @@ class FullPipelineTest {
     @TempDir
     Path temp;
 
-    /**
-     * Everything in Stroom's text golden reaches the file except its newlines. Stroom's text
-     * stylesheet ends each {@code Event} with a text node of one newline, which the schema filter
-     * accepts and the {@code TextWriter} writes; the configuration here writes the same text node,
-     * and the event sink drops it — whitespace-only text in an element with no text of its own is
-     * nobody's under design 21's rule. Open as E38; until it is ruled the pin is the golden
-     * without its newlines.
-     */
     @Test
-    void textPipelineWritesStroomsTextGoldenButForTheNewlinesE38() throws Exception {
+    void textPipelineWritesStroomsTextGolden() throws Exception {
         final Path written = run("Text", "TestFileAppender_Text.shapeshifter.json",
                 "TestFileAppender_Text_Pipeline.json", "shapeshifterParser", fixture("TestFileAppender.in"));
-        final String golden = new String(fixture("TestFileAppender_Text.out"), StandardCharsets.UTF_8);
-        assertThat(Files.readString(written)).isEqualTo(golden.replace("\n", ""));
+        // Stroom's text stylesheet ends each Event with a text node of one newline, which the
+        // schema filter accepts and the TextWriter writes; the configuration writes the same
+        // text node and the event sink delivers it (E38).
+        assertThat(Files.readString(written)).isEqualTo(
+                new String(fixture("TestFileAppender_Text.out"), StandardCharsets.UTF_8));
     }
 
     @Test

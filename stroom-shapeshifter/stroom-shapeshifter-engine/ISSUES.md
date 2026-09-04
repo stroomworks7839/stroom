@@ -1123,7 +1123,16 @@ silence is not: the compiler knows which template is the root and can see a capt
 in its body, and should refuse it by name, as it refuses captures on an eater. Not started.
 
 ### E38 — A structured configuration cannot author a whitespace-only text node inside an element
-**`open` 2026-09-04.** Found by the module's full-pipeline tests (`FullPipelineTest`), which
+**`resolved` 2026-09-04, the same day, by the user's ruling: the event sink delivers whitespace
+as the author wrote it; the byte sink keeps Saxon's rule, because it is a serialiser and an
+indenting serialiser at the end of a pipeline applies that rule anyway, while a non-indenting
+one writes the author's text as authored — the serialiser decides, which is Stroom's existing
+behaviour for a stylesheet's text nodes. `SaxEventSink` lost its pending-whitespace logic;
+`FullPipelineTest`'s text shape now matches Stroom's golden byte for byte. One consequence
+named: `omit-if-empty` on an element whose only content is whitespace omits it on the byte
+path and emits it with that whitespace on the event path, by the same division.**
+
+Original text (found open): Found by the module's full-pipeline tests (`FullPipelineTest`), which
 mirror Stroom's `TestFileAppender` with Shapeshifter where the DS3 configuration and the
 stylesheets were. Stroom's *text* stylesheet builds the same event-logging tree as its XML one
 and ends each `Event` with a text node of one newline — `<xsl:text>&#010;</xsl:text>` — which
@@ -1138,4 +1147,4 @@ path; on the event path there is no indenter, and the rule only loses authored t
 keep the rule on the byte path and drop it on the event path (a text node an author wrote is
 delivered; the byte sink's indentation stays its own); or an explicit escape — a `text` that
 declares itself content; or leave it, and accept that this shape of Stroom pipeline cannot be
-reproduced. Until ruled, `FullPipelineTest` pins the text golden without its newlines.
+reproduced. Until ruled, `FullPipelineTest` pins the text golden without its newlines. *(Ruled the same day; see above.)*

@@ -128,7 +128,6 @@ public final class SaxEventSink implements OutputSink {
         final Element element = current("endElement");
         checkNoAttributeOpen("endElement " + element.qName);
         flushCarry();
-        settleWhitespace(element);
         if (!element.started && element.omitIfEmpty
             && element.declarations.isEmpty() && element.attributes.isEmpty()) {
             open.pop();
@@ -191,34 +190,14 @@ public final class SaxEventSink implements OutputSink {
             throw new StructureException(
                     "text outside any element cannot be forwarded as events: '" + excerpt(text) + "'");
         }
-        if (text.isBlank()) {
-            // As in the byte sink: whitespace between elements is nobody's, whitespace inside
-            // text is the text's, and only the next thing says which.
-            element.pendingWhitespace.append(text);
-            return;
-        }
+        // Whitespace inside an element is the author's, delivered as written — unlike the byte
+        // sink, which is a serialiser and applies Saxon's rule that an element-only element's
+        // whitespace is the indenter's. On the event path there is no indenter; whatever
+        // serialises the events at the end of the pipeline applies its own rule, as it does to
+        // a stylesheet's text nodes (E38, ruled 2026-09-04).
         ensureStarted(element);
-        if (!element.pendingWhitespace.isEmpty()) {
-            final char[] pending = element.pendingWhitespace.toString().toCharArray();
-            element.pendingWhitespace.setLength(0);
-            sax(() -> handler.characters(pending, 0, pending.length));
-        }
-        element.hasText = true;
         final char[] chars = text.toCharArray();
         sax(() -> handler.characters(chars, 0, chars.length));
-    }
-
-    /** As the byte sink's: pending whitespace is text in an element that has text, and gone otherwise. */
-    private void settleWhitespace(final Element element) {
-        if (element.pendingWhitespace.isEmpty()) {
-            return;
-        }
-        if (element.hasText) {
-            ensureStarted(element);
-            final char[] pending = element.pendingWhitespace.toString().toCharArray();
-            sax(() -> handler.characters(pending, 0, pending.length));
-        }
-        element.pendingWhitespace.setLength(0);
     }
 
     private void flushCarry() {
@@ -240,7 +219,6 @@ public final class SaxEventSink implements OutputSink {
         element.started = true;
         if (element.parent != null) {
             ensureStarted(element.parent);
-            settleWhitespace(element.parent);
         } else if (!documentStarted) {
             sax(handler::startDocument);
             documentStarted = true;
@@ -327,10 +305,8 @@ public final class SaxEventSink implements OutputSink {
         private final List<String[]> declarations = new ArrayList<>();
         private final List<String[]> attributes = new ArrayList<>();
         private boolean started;
-        private boolean hasText;
         private String uri;
         private String localName;
-        private final StringBuilder pendingWhitespace = new StringBuilder();
 
         private Element(final String qName, final Element parent, final boolean omitIfEmpty) {
             this.qName = qName;
