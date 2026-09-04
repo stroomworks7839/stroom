@@ -43,6 +43,7 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import javax.xml.parsers.ParserConfigurationException;
@@ -118,7 +119,7 @@ public class ShapeshifterReader extends AbstractParser {
         final InputLocations.LineIndex lines = new InputLocations.LineIndex(input);
         locations.bound(lines);
         final LiveLocatingHandler handler = new LiveLocatingHandler(target, locations, lines);
-        final List<Message> messages;
+        List<Message> messages;
         if (compiled.structured()) {
             messages = Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations);
         } else {
@@ -127,7 +128,13 @@ public class ShapeshifterReader extends AbstractParser {
             try {
                 sink.end();
             } catch (final OutputSink.StructureException e) {
-                throw new SAXException(e.getMessage(), e);
+                // A refusal of the document's end is reported the way the engine reports a
+                // refusal mid-run: as the run's last message, after everything it had to say,
+                // rather than as an exception that would carry those messages away with it
+                // (design 24 phase 1 audit).
+                messages = new ArrayList<>(messages);
+                messages.add(new Message(stroom.shapeshifter.engine.Severity.FATAL,
+                        "Output structure: " + e.getMessage()));
             }
         }
         reportAll(messages);

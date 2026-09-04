@@ -126,7 +126,38 @@ and `TextWriterGoldenTest` runs all seven `projects/text_*` fixtures through a r
 `TextWriter` into a byte destination and compares the bytes with the golden, with the reader's
 messages compared to the engine's own for the same fixture (003's unmatched separator is an
 error DS3 reports too, and the earlier draft of the pin wrongly expected silence). Corpus
-unchanged, 625 tests across the two modules green. *As written:* `CharacterSink` with its carry-over,
+unchanged, 625 tests across the two modules green.
+
+*Audited 2026-09-04.* **One claim of this design is false, and needs a ruling.** §2 says the
+refusal of a text configuration in front of an XML consumer is the consumer's own: "text
+outside a root element is not well-formed". It is not well-formed XML, but it is a valid XDM
+document node with one text child, and Saxon builds it without complaint: probed with the
+reader as a `SAXSource` into a Saxon `DocumentBuilder`, then a stylesheet with a template on
+`/` — built, transformed, `<out>hello </out>`. So an `XSLTFilter` after a text configuration
+does not refuse; it runs the stylesheet over a document with no elements, and every template
+on an element matches nothing, silently. That is exactly the silent wrongness the user's
+direction ("must enforce SAX emission") was meant to exclude, and this design's argument for
+leaving it to the consumer rested on a fact that is wrong for the consumer that matters most.
+*Recommendation, not built:* text output goes straight into a writer. At `startProcessing`,
+a text configuration whose immediate targets are not all writers (`AbstractWriter`, the
+writer role) is refused by name. The design's worry about chains does not apply, because the
+things that sit between a parser and a writer — `SplitFilter`, `RecordCountFilter`,
+`XSLTFilter`, `SchemaFilter` — are all element-shaped machinery that has no meaning over
+text; a text configuration has nothing to say to any of them, so "straight into a writer" is
+not a restriction on anything sensible. Held for the user. **One defect, fixed:** a downstream
+that refused the *end* of a text document threw through `parse`, carrying the engine's
+messages away unreported, while a refusal mid-run becomes the engine's own FATAL message and
+the messages survive. The end's refusal is now the run's last message in the same words;
+pinned with a downstream that refuses `endDocument` after an engine error. **Named and
+left:** every write copies the carry and the data into one array before decoding, as the
+event sink does — an extra copy per write that a carry-empty fast path would remove, held
+until a workload asks. **Seen in passing, not this design's:** a `value-of` of a capture in
+the root `source` template's body is silently empty, in the streamed and the whole run alike,
+because the root body runs against an empty match (`Executor.run`, `MatchResult.empty()`);
+the compiler could refuse it. Filed as E37. The parser element's description now says what a
+text configuration produces.
+
+*As written:* `CharacterSink` with its carry-over,
 pinned on a split multi-byte character and on the `text_*_exact` fixtures through a real
 `TextWriter`; the reader's text path live; parse-and-forward deleted with its resolver and the
 byte-path spans; the errors pins replaced. *Test:* every pipeline test green with the deletions;

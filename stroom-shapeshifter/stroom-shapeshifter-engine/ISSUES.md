@@ -1111,3 +1111,13 @@ character-based by nature and design 24 rightly does not bypass it for text. Tex
 a `raw` value keep decoding to the byte-as-code-point image, which is what makes byte
 operations expressible through character ones until real byte functions exist beside them.
 Not started; design after the streaming contract (23, 24) and the carrier (25) have landed.
+
+### E37 — A capture referenced from the root template's body is silently empty
+**`open` 2026-09-04.** Seen during design 24 phase 1's audit, in a probe configuration whose
+root `source` template wrote `{"value-of": {"parts": [{"capture": {"group": 0}}]}}` and got
+nothing. The root body runs against an empty match — `Executor.run` splits it into prologues
+and tails around its `apply-templates` and runs each with `MatchResult.empty()` — so a
+reference to a capture there resolves to nothing, in the streamed and the whole run alike. The
+reason is sound (under design 23 the root has no match; the input is the windows), but the
+silence is not: the compiler knows which template is the root and can see a capture reference
+in its body, and should refuse it by name, as it refuses captures on an eater. Not started.

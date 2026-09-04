@@ -26,7 +26,9 @@ import stroom.util.shared.StoredError;
 
 import org.junit.jupiter.api.Test;
 import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.XMLFilterImpl;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -100,6 +102,49 @@ class ShapeshifterReaderErrorsTest {
         assertThat(receiver.getTotal(Severity.FATAL_ERROR)).isZero();
         assertThat(recorder.events()).noneMatch(event -> event.startsWith("startElement"));
         assertThat(recorder.events()).anyMatch(event -> event.startsWith("characters \"{"));
+    }
+
+    /**
+     * Design 24 phase 1 audit: a downstream that refuses the end of a text document must not
+     * carry the engine's messages away with its exception. The refusal is the run's last
+     * message, in the engine's own words for a refusal mid-run, after everything it said.
+     */
+    @Test
+    void refusalOfTheDocumentsEndKeepsTheEnginesMessages() throws Exception {
+        final Project project = ProjectReader.read("""
+                {"name": "text", "version": 5,
+                 "source": {"buffer_size": 64, "ignore_errors": false, "encoding": "utf-8"},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                   "body": [{"text": "<r>"},
+                            {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "l"}},
+                            {"text": "</r>"}]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "l",
+                   "match": {"regex": {"pattern": "([a-z0-9]+)\\n"}},
+                   "body": [{"text": "<l>"}, {"value-of": {"parts": [{"capture": {"group": 1}}]}}, {"text": "</l>"}]}
+                 ]}
+                """);
+        final EventRecorder recorder = new EventRecorder();
+        final XMLFilterImpl refusing = new XMLFilterImpl() {
+            @Override
+            public void endDocument() throws SAXException {
+                throw new SAXException("no more documents today");
+            }
+        };
+        refusing.setContentHandler(recorder);
+
+        final LoggingErrorReceiver receiver = new LoggingErrorReceiver();
+        final XMLReader parser = new ShapeshifterParserFactory(project).getParser();
+        parser.setContentHandler(refusing);
+        parser.setErrorHandler(Ds3Oracle.errorHandler("ShapeshifterParser", receiver));
+        // The last line has no newline, so the line template cannot take it: an engine error.
+        parser.parse(new InputSource(new ByteArrayInputStream("one\ntwo\nthree".getBytes(StandardCharsets.UTF_8))));
+
+        assertThat(String.join("", recorder.events())).contains("<l>one</l><l>two</l>").doesNotContain("endDocument");
+        assertThat(messages(receiver)).hasSize(2);
+        assertThat(messages(receiver).get(0)).contains("Expressions failed to match all of the content");
+        assertThat(messages(receiver).get(1)).contains("FATAL").contains("Output structure")
+                .contains("no more documents today");
     }
 
     /** Everything logged against the parser, as text — the receiver's own summary is per record and clears. */

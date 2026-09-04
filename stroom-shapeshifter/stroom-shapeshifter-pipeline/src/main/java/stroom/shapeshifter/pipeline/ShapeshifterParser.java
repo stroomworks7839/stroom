@@ -61,8 +61,9 @@ import java.util.function.Consumer;
         type = PipelineElementType.TYPE_SHAPESHIFTER_PARSER,
         category = Category.PARSER,
         description = """
-                A parser that runs a Shapeshifter configuration over the input and emits the XML it \
-                produces as events. The configuration is a Shapeshifter document.
+                A parser that runs a Shapeshifter configuration over the input. A configuration that \
+                emits structure produces XML events; one that emits text produces characters, for a \
+                TextWriter. The configuration is a Shapeshifter document.
                 """,
         roles = {
                 PipelineElementType.ROLE_PARSER,
