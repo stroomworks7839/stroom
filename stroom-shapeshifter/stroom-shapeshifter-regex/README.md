@@ -18,10 +18,13 @@ turns into folklore.
 
 **Performance.** Against `java.util.regex` reading the same bytes in the same run, with the
 engine chosen automatically, the library is **ahead on every per-match category** (14 of 14,
-1.33–2.78×) and on **fourteen of the sixteen buffer workloads** (1.09–5.27×). The other two
-are at parity: `KEYVALUE` at 0.99× inside its error bars, and `NETWORK` at 0.77× as recorded,
-which measures at parity fork-per-side and is a documented JMH-harness artifact
-([06 §1](design/06-performance-plan.md)). The one shape it was behind on — a lazy run spelt
+1.30–2.77×) and on **fourteen of the sixteen buffer workloads** (1.04–5.23×). The other two:
+`UNICODE` at 1.05× inside its interval — parity, a 6.5% cost attributed to the encoding plan's
+phase 3 and cleared of every probe-reachable mechanism (06 §1) — and `NETWORK` at 0.81× as
+recorded, a documented JMH-harness artifact. On the **pollution harness** — the same workloads
+in a JVM that has run the whole corpus, which is what a pipeline's JVM looks like — the library
+is ahead on all sixteen, 1.50–5.77×, with `NETWORK` at 2.07× and `KEYVALUE` at 1.98×
+([`PollutedCorpusBenchmark`](src/test/java/stroom/shapeshifter/regex/bench/PollutedCorpusBenchmark.java)). The one shape it was behind on — a lazy run spelt
 as a nested line loop over large regions, `LazyRunBenchmark` `FAR_LINE` / `MISS_LINE` at
 64 KiB, where the JDK was 8–42× ahead — closed on 2026-09-03 (`RunLoop`, 06 §1): those rows
 now read 1.26× and 6.9× ahead, and the natural dot-all spelling of the same job 2.5–3.7×. These are the benchmark corpus's numbers ([04](design/04-corpus-analysis.md) says what

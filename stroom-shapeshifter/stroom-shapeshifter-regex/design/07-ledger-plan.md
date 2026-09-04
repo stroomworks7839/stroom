@@ -33,7 +33,7 @@ geometry — an inlining threshold and a lost value range — not algorithms.
 
 ---
 
-## Phase 0 — The row of record *(tonight's slot; no code)*
+## Phase 0 — The row of record *(tonight's slot; no code)* — **Run 2026-09-03/04; read 2026-09-04**
 
 The paired full set `4aa6181941 → 98a0132736` on one boot: the pre-plan tree against the
 encoding plan with its three fixes and D39. It does two jobs. It **acquits** the fixes across all 223
@@ -42,9 +42,21 @@ cure — and it becomes the **row of record on this machine**, the baseline ever
 paired against. Read it the way the last one was read: row-set diff first, JDK controls next,
 per-fork spread before any single number.
 
-**Exit:** a checked-in pair, the README's charts re-rendered from its after-file, and one of two
-sentences in 06 §1 — the fixes hold across the set, or a named row does not and it is the first
-item of Phase 2.
+**Read.** Four points on one boot, 18:28 to 04:26: `4aa6181941` → `98a0132736` → `7a4149d8b5`
+→ `b81229148b`; row sets identical (223) at the first three and 287 at the last, the 64 polluted
+rows one-sided by design; JDK controls at median +0.08%, +0.09%, −0.23% per step. Steps 2 and 3
+acquit `RunLoop` and the harness across the full set. Step 1 did **not** acquit the fix batch:
+scan-plan `line_miss` read 3,074 — the seeding-gate fix's own row, undone — and with it SPARSE
+−8.1%, UNICODE −7.7%, the tree's `BOUNDED_MISS` −18.1%. A bisect of the four fix commits on
+those rows gave three different answers: `line_miss` was D39 (remedied the same morning by
+`ByteMatcher` keeping the bound as a field, `5bd6636429`, which also took buffer CSV's scan plan
++13.7%); `BOUNDED_MISS` was the search split's inlining topology (a ruling, above in 06 §1);
+SPARSE and UNICODE were inside the plan all along — phase 4 and phase 3 respectively — cleared
+of every probe-reachable mechanism and deprioritised at 5.2× and parity. The chain's files are
+the run of record; the README's charts render from its last point.
+
+**Exit (reached):** a checked-in chain, the charts re-rendered, and the named rows that did not
+hold are each attributed, remedied, ruled on or recorded — none left as a number without a cause.
 
 ## Phase 1 — Make the two rows read true *(the pollution workload; harness, then engine)* — **harness landed 2026-09-03; the rows read 2.1× and 2.1× polluted**
 
