@@ -1,0 +1,800 @@
+{
+ "name": "text_007_regex_dotall_exact",
+ "version": 3,
+ "source": {
+  "buffer_size": 20000,
+  "ignore_errors": false,
+  "encoding": "auto"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n<records xmlns=\"records:2\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"records:2 file://records-v2.0.xsd\"\n         version=\"2.0\">"
+       }
+      ]
+     }
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "root"
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "\n</records>\n"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "log_entry",
+   "mode": "root",
+   "match": {
+    "regex": {
+     "pattern": "^(?:INFO|DEBUG|WARN|ERROR|TRACE) +.*?(?=(?:(?:INFO|DEBUG|WARN|ERROR|TRACE) +)|\\z)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": true
+     }
+    }
+   },
+   "body": [
+    {
+     "variable": {
+      "name": "__record_body__",
+      "body": [
+       {
+        "apply-templates": {
+         "select": {
+          "parts": [
+           {
+            "capture": {
+             "group": 0
+            }
+           }
+          ]
+         },
+         "mode": "entry_fields"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "if": {
+      "test": {
+       "exists": {
+        "select": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "__record_body__",
+            "group": 0,
+            "match_index": {
+             "index": 0,
+             "is_offset": true
+            }
+           }
+          }
+         ]
+        }
+       }
+      },
+      "then": [
+       {
+        "value-of": {
+         "parts": [
+          {
+           "text": "\n   <record>"
+          }
+         ]
+        }
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "__record_body__",
+            "group": 0,
+            "match_index": {
+             "index": 0,
+             "is_offset": true
+            }
+           }
+          }
+         ]
+        }
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "text": "\n   </record>"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "log_fields",
+   "mode": "entry_fields",
+   "match": {
+    "regex": {
+     "pattern": "^([A-Z]+) +([\\S]+) - (.*)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": true
+     }
+    }
+   },
+   "body": [
+    {
+     "trim": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 1
+          }
+         }
+        ]
+       }
+      ],
+      "name": "__v_level"
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "not-equals": {
+          "select": {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "__v_level",
+              "group": 0,
+              "match_index": {
+               "index": 0,
+               "is_offset": true
+              }
+             }
+            }
+           ]
+          },
+          "value": ""
+         }
+        },
+        "body": [
+         {
+          "translate": {
+           "select": [
+            {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "__v_level",
+                "group": 0,
+                "match_index": {
+                 "index": 0,
+                 "is_offset": true
+                }
+               }
+              }
+             ]
+            }
+           ],
+           "from": [
+            "&",
+            "\"",
+            "<",
+            ">",
+            "\n",
+            "\r",
+            "\t"
+           ],
+           "to": [
+            "&amp;",
+            "&#34;",
+            "&lt;",
+            "&gt;",
+            "&#xA;",
+            "&#xD;",
+            "&#x9;"
+           ],
+           "name": "__e_level"
+          }
+         },
+         {
+          "string-length": {
+           "select": [
+            {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "__v_level",
+                "group": 0,
+                "match_index": {
+                 "index": 0,
+                 "is_offset": true
+                }
+               }
+              }
+             ]
+            }
+           ],
+           "name": "__l_level"
+          }
+         },
+         {
+          "add": {
+           "select": [
+            {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "__l_level",
+                "group": 0,
+                "match_index": {
+                 "index": 0,
+                 "is_offset": true
+                }
+               }
+              }
+             ]
+            },
+            {
+             "parts": [
+              {
+               "text": "33"
+              }
+             ]
+            }
+           ],
+           "name": "__s_level"
+          }
+         },
+         {
+          "choose": {
+           "when": [
+            {
+             "test": {
+              "greater-than": {
+               "select": {
+                "parts": [
+                 {
+                  "capture": {
+                   "var_id": "__s_level",
+                   "group": 0,
+                   "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                   }
+                  }
+                 }
+                ]
+               },
+               "value": 80
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n      <data name=\"logLevel\"\n            value=\""
+                 },
+                 {
+                  "capture": {
+                   "var_id": "__e_level",
+                   "group": 0,
+                   "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                   }
+                  }
+                 },
+                 {
+                  "text": "\"/>"
+                 }
+                ]
+               }
+              }
+             ]
+            }
+           ],
+           "otherwise": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "\n      <data name=\"logLevel\" value=\""
+               },
+               {
+                "capture": {
+                 "var_id": "__e_level",
+                 "group": 0,
+                 "match_index": {
+                  "index": 0,
+                  "is_offset": true
+                 }
+                }
+               },
+               {
+                "text": "\"/>"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "text": "\n      <data name=\"logLevel\"/>"
+       }
+      ]
+     }
+    },
+    {
+     "trim": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 2
+          }
+         }
+        ]
+       }
+      ],
+      "name": "__v_logger"
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "not-equals": {
+          "select": {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "__v_logger",
+              "group": 0,
+              "match_index": {
+               "index": 0,
+               "is_offset": true
+              }
+             }
+            }
+           ]
+          },
+          "value": ""
+         }
+        },
+        "body": [
+         {
+          "translate": {
+           "select": [
+            {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "__v_logger",
+                "group": 0,
+                "match_index": {
+                 "index": 0,
+                 "is_offset": true
+                }
+               }
+              }
+             ]
+            }
+           ],
+           "from": [
+            "&",
+            "\"",
+            "<",
+            ">",
+            "\n",
+            "\r",
+            "\t"
+           ],
+           "to": [
+            "&amp;",
+            "&#34;",
+            "&lt;",
+            "&gt;",
+            "&#xA;",
+            "&#xD;",
+            "&#x9;"
+           ],
+           "name": "__e_logger"
+          }
+         },
+         {
+          "string-length": {
+           "select": [
+            {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "__v_logger",
+                "group": 0,
+                "match_index": {
+                 "index": 0,
+                 "is_offset": true
+                }
+               }
+              }
+             ]
+            }
+           ],
+           "name": "__l_logger"
+          }
+         },
+         {
+          "add": {
+           "select": [
+            {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "__l_logger",
+                "group": 0,
+                "match_index": {
+                 "index": 0,
+                 "is_offset": true
+                }
+               }
+              }
+             ]
+            },
+            {
+             "parts": [
+              {
+               "text": "31"
+              }
+             ]
+            }
+           ],
+           "name": "__s_logger"
+          }
+         },
+         {
+          "choose": {
+           "when": [
+            {
+             "test": {
+              "greater-than": {
+               "select": {
+                "parts": [
+                 {
+                  "capture": {
+                   "var_id": "__s_logger",
+                   "group": 0,
+                   "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                   }
+                  }
+                 }
+                ]
+               },
+               "value": 80
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n      <data name=\"logger\"\n            value=\""
+                 },
+                 {
+                  "capture": {
+                   "var_id": "__e_logger",
+                   "group": 0,
+                   "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                   }
+                  }
+                 },
+                 {
+                  "text": "\"/>"
+                 }
+                ]
+               }
+              }
+             ]
+            }
+           ],
+           "otherwise": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "\n      <data name=\"logger\" value=\""
+               },
+               {
+                "capture": {
+                 "var_id": "__e_logger",
+                 "group": 0,
+                 "match_index": {
+                  "index": 0,
+                  "is_offset": true
+                 }
+                }
+               },
+               {
+                "text": "\"/>"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "text": "\n      <data name=\"logger\"/>"
+       }
+      ]
+     }
+    },
+    {
+     "trim": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 3
+          }
+         }
+        ]
+       }
+      ],
+      "name": "__v_message"
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "not-equals": {
+          "select": {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "__v_message",
+              "group": 0,
+              "match_index": {
+               "index": 0,
+               "is_offset": true
+              }
+             }
+            }
+           ]
+          },
+          "value": ""
+         }
+        },
+        "body": [
+         {
+          "translate": {
+           "select": [
+            {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "__v_message",
+                "group": 0,
+                "match_index": {
+                 "index": 0,
+                 "is_offset": true
+                }
+               }
+              }
+             ]
+            }
+           ],
+           "from": [
+            "&",
+            "\"",
+            "<",
+            ">",
+            "\n",
+            "\r",
+            "\t"
+           ],
+           "to": [
+            "&amp;",
+            "&#34;",
+            "&lt;",
+            "&gt;",
+            "&#xA;",
+            "&#xD;",
+            "&#x9;"
+           ],
+           "name": "__e_message"
+          }
+         },
+         {
+          "string-length": {
+           "select": [
+            {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "__v_message",
+                "group": 0,
+                "match_index": {
+                 "index": 0,
+                 "is_offset": true
+                }
+               }
+              }
+             ]
+            }
+           ],
+           "name": "__l_message"
+          }
+         },
+         {
+          "add": {
+           "select": [
+            {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "__l_message",
+                "group": 0,
+                "match_index": {
+                 "index": 0,
+                 "is_offset": true
+                }
+               }
+              }
+             ]
+            },
+            {
+             "parts": [
+              {
+               "text": "32"
+              }
+             ]
+            }
+           ],
+           "name": "__s_message"
+          }
+         },
+         {
+          "choose": {
+           "when": [
+            {
+             "test": {
+              "greater-than": {
+               "select": {
+                "parts": [
+                 {
+                  "capture": {
+                   "var_id": "__s_message",
+                   "group": 0,
+                   "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                   }
+                  }
+                 }
+                ]
+               },
+               "value": 80
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n      <data name=\"message\"\n            value=\""
+                 },
+                 {
+                  "capture": {
+                   "var_id": "__e_message",
+                   "group": 0,
+                   "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                   }
+                  }
+                 },
+                 {
+                  "text": "\"/>"
+                 }
+                ]
+               }
+              }
+             ]
+            }
+           ],
+           "otherwise": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "\n      <data name=\"message\" value=\""
+               },
+               {
+                "capture": {
+                 "var_id": "__e_message",
+                 "group": 0,
+                 "match_index": {
+                  "index": 0,
+                  "is_offset": true
+                 }
+                }
+               },
+               {
+                "text": "\"/>"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "text": "\n      <data name=\"message\"/>"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

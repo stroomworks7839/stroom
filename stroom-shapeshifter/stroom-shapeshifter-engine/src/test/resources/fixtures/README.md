@@ -29,6 +29,15 @@ so when a phase of the port makes one work the build breaks until the line is pr
   the text path's own serialisation as their goldens: not Stroom's bytes, and not meant to be
   — they pin what a text configuration produces, so both output styles keep fixtures.
 
+  Three beside those, `text_007_regex_dotall_exact`, `text_021_trimmed_values_exact` and
+  `text_022_empty_input_exact`, prove the other direction: a text configuration *can* reach
+  Stroom's golden byte for byte, given the instructions — `trim` and a `not-equals` test for
+  the dropped attribute, `translate` for the entities, `string-length` + `add` +
+  `greater-than 80` for Saxon's wrap (the sum counts the attribute names: `name` + value +
+  25 for a `<data>`), and a `sequence` counted from the record template so the root can
+  choose `/>` over `>` after the loop. Read them beside the structured natives for the cost
+  D40 moved into the sink.
+
   Five more sit beside them, each written to hold a feature the rest of the corpus cannot
   reach: `win_sec_strict`, `strict_kv`, `classify_alerts` and
   `lexer_tokens` for D36/E20's dispatch modes, and `log_sessions` for design/16 and /17 —

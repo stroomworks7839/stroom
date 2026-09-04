@@ -478,7 +478,23 @@ as a literal because a reference begins with its sigil. Two stale descriptions c
 migration's class javadoc still said the conversion writes the indentation and the escaping,
 and design 20 §1 described `escapeCaptures` in the present tense. The commit's thirty-two files
 are the phase's: the code, the four regenerated natives, the four text variants with their
-goldens, the ledgers and the record. Original wording follows.
+goldens, the ledgers and the record.
+
+**Corrected 2026-09-04, on the user's challenge — and a miss the audit had not caught.** The
+phase's record said a text configuration "cannot" trim or wrap. It can: every instruction
+exists. `projects/text_007_regex_dotall_exact`, `text_021_trimmed_values_exact` and
+`text_022_empty_input_exact` reach Stroom's goldens byte for byte from text alone — `trim`
+and a `not-equals` test for the dropped attribute, `translate` for the entities,
+`string-length` + `add` + `greater-than 80` for Saxon's wrap (the sum counts the attribute
+names: `name` + value + 25 for a `<data>`, which the first draft of the fixture got wrong by
+nine), and a `sequence` counted from the record template so the root chooses `/>` or `>`
+after the loop. The accurate statement, now in E35 and the corpus README: not by default, at
+the cost of writing the serialiser as instructions — which is what D40 moved into the sink,
+and these three fixtures beside the structured natives are that cost, countable. The miss:
+the four `text_003…019` variants the phase claimed to keep were on disk but never in the
+ledger — the insertion's guard matched the natives' own notes and skipped — so they had never
+run, and the corpus-count test passed at the old number because nothing had been added. Listed
+now, run now (they pass), and the count is 49. Original wording follows.
 
 `Ds3Migration` stops assembling markup. `RECORDS_HEADER`/`RECORDS_FOOTER` become
 `element records { namespace "" "records:2"; namespace xsi …; … }` with the census's

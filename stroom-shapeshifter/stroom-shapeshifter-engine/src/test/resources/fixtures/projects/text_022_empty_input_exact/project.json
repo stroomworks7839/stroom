@@ -1,0 +1,354 @@
+{
+ "name": "text_022_empty_input_exact",
+ "version": 5,
+ "source": {
+  "buffer_size": 20000,
+  "ignore_errors": true,
+  "encoding": "utf-8"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
+    {
+     "text": "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n<records xmlns=\"records:2\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"records:2 file://records-v2.0.xsd\"\n         version=\"2.0\""
+    },
+    {
+     "sequence": {
+      "name": "__records"
+     }
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "mode": "lines"
+     }
+    },
+    {
+     "count": {
+      "select": "__records",
+      "name": "__written"
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "equals": {
+          "select": {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "__written",
+              "group": 0,
+              "match_index": {
+               "index": 0,
+               "is_offset": true
+              }
+             }
+            }
+           ]
+          },
+          "value": "0"
+         }
+        },
+        "body": [
+         {
+          "text": "/>\n"
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "text": "\n</records>\n"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "line",
+   "mode": "lines",
+   "match": {
+    "regex": {
+     "pattern": "([^=\\n]+)=([^\\n]*)\\n?"
+    }
+   },
+   "body": [
+    {
+     "count": {
+      "select": "__records",
+      "name": "__before"
+     }
+    },
+    {
+     "if": {
+      "test": {
+       "equals": {
+        "select": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "__before",
+            "group": 0,
+            "match_index": {
+             "index": 0,
+             "is_offset": true
+            }
+           }
+          }
+         ]
+        },
+        "value": "0"
+       }
+      },
+      "then": [
+       {
+        "text": ">"
+       }
+      ]
+     }
+    },
+    {
+     "append": {
+      "name": "__records",
+      "select": {
+       "parts": [
+        {
+         "text": "1"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "text": "\n   <record>"
+    },
+    {
+     "trim": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 1
+          }
+         }
+        ]
+       }
+      ],
+      "name": "__name"
+     }
+    },
+    {
+     "trim": {
+      "select": [
+       {
+        "parts": [
+         {
+          "capture": {
+           "group": 2
+          }
+         }
+        ]
+       }
+      ],
+      "name": "__value"
+     }
+    },
+    {
+     "text": "\n      <data"
+    },
+    {
+     "if": {
+      "test": {
+       "not-equals": {
+        "select": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "__name",
+            "group": 0,
+            "match_index": {
+             "index": 0,
+             "is_offset": true
+            }
+           }
+          }
+         ]
+        },
+        "value": ""
+       }
+      },
+      "then": [
+       {
+        "translate": {
+         "select": [
+          {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "__name",
+              "group": 0,
+              "match_index": {
+               "index": 0,
+               "is_offset": true
+              }
+             }
+            }
+           ]
+          }
+         ],
+         "from": [
+          "&",
+          "\"",
+          "<",
+          ">",
+          "\n",
+          "\r",
+          "\t"
+         ],
+         "to": [
+          "&amp;",
+          "&#34;",
+          "&lt;",
+          "&gt;",
+          "&#xA;",
+          "&#xD;",
+          "&#x9;"
+         ],
+         "name": "__ename"
+        }
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "text": " name=\""
+          },
+          {
+           "capture": {
+            "var_id": "__ename",
+            "group": 0,
+            "match_index": {
+             "index": 0,
+             "is_offset": true
+            }
+           }
+          },
+          {
+           "text": "\""
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "if": {
+      "test": {
+       "not-equals": {
+        "select": {
+         "parts": [
+          {
+           "capture": {
+            "var_id": "__value",
+            "group": 0,
+            "match_index": {
+             "index": 0,
+             "is_offset": true
+            }
+           }
+          }
+         ]
+        },
+        "value": ""
+       }
+      },
+      "then": [
+       {
+        "translate": {
+         "select": [
+          {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "__value",
+              "group": 0,
+              "match_index": {
+               "index": 0,
+               "is_offset": true
+              }
+             }
+            }
+           ]
+          }
+         ],
+         "from": [
+          "&",
+          "\"",
+          "<",
+          ">",
+          "\n",
+          "\r",
+          "\t"
+         ],
+         "to": [
+          "&amp;",
+          "&#34;",
+          "&lt;",
+          "&gt;",
+          "&#xA;",
+          "&#xD;",
+          "&#x9;"
+         ],
+         "name": "__evalue"
+        }
+       },
+       {
+        "value-of": {
+         "parts": [
+          {
+           "text": " value=\""
+          },
+          {
+           "capture": {
+            "var_id": "__evalue",
+            "group": 0,
+            "match_index": {
+             "index": 0,
+             "is_offset": true
+            }
+           }
+          },
+          {
+           "text": "\""
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "text": "/>\n   </record>"
+    }
+   ]
+  }
+ ]
+}

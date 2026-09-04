@@ -1069,7 +1069,9 @@ the golden and the ratchet decides when.
 ### E35 — Stroom's serialiser wraps long attributes; the engine's text output does not
 **`resolved` 2026-09-04 by design 21 phase 3: the migration writes structure and `XmlByteSink`
 wraps as Saxon does; 003, 007 and 019 pass Stroom's goldens in both families. The text path
-still does not wrap — by nature, and `projects/text_003…019` pin what it does produce. Found
+does not wrap by default — `projects/text_003…019` pin what it produces as written — but it
+can: `projects/text_007_regex_dotall_exact` reaches Stroom's golden with the wrap arithmetic,
+the trim and the escaping written as instructions, which is the cost D40 moved into the sink. Found
 2026-09-03 by phase 1 under D41; the rule was read from Saxon's bytecode in phase 2a.**
 
 The DS3 goldens are written by Saxon (`XMLUtil.createTransformerHandler(true)`: indent, amount

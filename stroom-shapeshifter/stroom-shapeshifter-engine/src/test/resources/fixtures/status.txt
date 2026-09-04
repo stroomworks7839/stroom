@@ -70,6 +70,13 @@ projects/win_app_xml                          PASS
 projects/win_sec                              PASS      config fixed under E6 and E16
 projects/win_sec_strict                       PASS      D36/E20: the lax config converted to strict — two dispatch attributes and two line eaters, byte-identical output
 projects/strict_kv                            PASS      D36/E20: the strict idiom — anchored pairs, an eater that says what it swallowed
+projects/text_003_multiline_regex              PASS      design 21 phase 3: the text-output variant of native/003_multiline_regex, pinning the text path's own serialisation rather than Stroom's
+projects/text_007_regex_dotall                 PASS      design 21 phase 3: the text-output variant of native/007_regex_dotall, pinning the text path's own serialisation rather than Stroom's
+projects/text_009_multiline_regex_2            PASS      design 21 phase 3: the text-output variant of native/009_multiline_regex_2, pinning the text path's own serialisation rather than Stroom's
+projects/text_019_single_line_split            PASS      design 21 phase 3: the text-output variant of native/019_single_line_split, pinning the text path's own serialisation rather than Stroom's
+projects/text_007_regex_dotall_exact          PASS      a text configuration reaching Stroom's golden: trim, omit-if-empty, escaping and Saxon's wrap arithmetic written as instructions
+projects/text_021_trimmed_values_exact        PASS      a text configuration reaching Stroom's golden: trimmed and omitted attributes, the root closed by a record count
+projects/text_022_empty_input_exact           PASS      a text configuration reaching Stroom's golden: the empty root self-closed by a record count
 projects/event_logging_structured             PASS      design 21 phase 2b: hand-written structured emitters — element, attribute, namespace — to event-logging:3, Saxon-shaped bytes
 projects/classify_alerts                      PASS      D36/E20: classify — every matching template runs once, nothing consumes
 projects/lexer_tokens                         PASS      D36/E20: lexer — maximal munch, => beats the first-listed =
