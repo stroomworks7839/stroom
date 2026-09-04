@@ -93,6 +93,8 @@ public final class Executor {
     private final Map<String, Object> functionState = new HashMap<>();
     private final Set<String> notRunInPreview = new HashSet<>();
     private long callOffset = Instrument.UNLOCATABLE;
+    private long callLength = -1;
+    private long records;
     private final VarRegistry vars = new VarRegistry();
 
     /**
@@ -230,6 +232,21 @@ public final class Executor {
         @Override
         public long inputOffset() {
             return callOffset;
+        }
+
+        @Override
+        public long inputLength() {
+            return callLength;
+        }
+
+        @Override
+        public long recordNumber() {
+            return records;
+        }
+
+        @Override
+        public void message(final Severity severity, final String message) {
+            messages.add(new Message(severity, function + ": " + message));
         }
 
         @Override
@@ -828,6 +845,7 @@ public final class Executor {
             }
 
             counts[winner]++;
+            records++;
             processMatch(candidate, match, counts[winner], window, start,
                     consumedTotal, sink, ignoreErrors, 0, true);
             consumedTotal += match.advance();
@@ -1451,6 +1469,7 @@ public final class Executor {
         }
         final FunctionCall bound = library.get(function);
         callOffset = inputBase + match.matchStart();
+        callLength = match.advance() - match.matchStart();
         TypedValue result = null;
         try {
             result = bound.call(new stroom.shapeshifter.engine.function.Arguments(values, raw, sequences));
@@ -1461,6 +1480,7 @@ public final class Executor {
             messages.add(new Message(Severity.ERROR, function + ": " + describe(e)));
         } finally {
             callOffset = Instrument.UNLOCATABLE;
+            callLength = -1;
         }
         emit(result, op.name(), matchCount, sink);
     }

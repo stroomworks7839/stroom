@@ -93,6 +93,8 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
     private final ShapeshifterParserFactoryPool pool;
     private final ShapeshifterStore store;
     private final List<PipelineReference> pipelineReferences = new ArrayList<>();
+    private final ShapeshifterServices services;
+    private final PipelineState state = new PipelineState();
     private final PathCreator pathCreator;
     private final Provider<FeedHolder> feedHolder;
     private final Provider<PipelineHolder> pipelineHolder;
@@ -115,7 +117,9 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
                               final PathCreator pathCreator,
                               final Provider<FeedHolder> feedHolder,
                               final Provider<PipelineHolder> pipelineHolder,
-                              final DocFinder docFinder) {
+                              final DocFinder docFinder,
+                              final ShapeshifterServices services) {
+        this.services = services;
         this.errorReceiverProxy = errorReceiverProxy;
         this.pool = pool;
         this.store = store;
@@ -189,8 +193,8 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
             throw new SAXException("The configuration's parser is not a Shapeshifter reader");
         }
         // Design 26: what this document's functions may reach — the element's holders.
-        shapeshifter.setServices(ElementServices.of(
-                errorReceiverProxy, null, pathCreator, feedHolder, pipelineHolder, pipelineReferences));
+        shapeshifter.setServices(services.forElement(
+                errorReceiverProxy, null, pathCreator, pipelineReferences, state));
         document = new FilterRun(shapeshifter, PIPE_CAPACITY, getContentHandler(), errorHandler(), preserveWhitespace);
         document.input().startDocument();
     }

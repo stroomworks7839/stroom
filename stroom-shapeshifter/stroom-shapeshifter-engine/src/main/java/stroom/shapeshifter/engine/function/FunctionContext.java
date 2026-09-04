@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine.function;
 
+import stroom.shapeshifter.engine.Severity;
+
 import java.util.Map;
 
 /**
@@ -33,6 +35,27 @@ public interface FunctionContext {
 
     /** Where the innermost running match began in the input, or {@code Instrument.UNLOCATABLE}. */
     long inputOffset();
+
+    /** How many bytes the innermost running match covers, or -1 when nothing is running. */
+    default long inputLength() {
+        return -1;
+    }
+
+    /** The number of the top-level record being processed, from 1; 0 before the first. */
+    default long recordNumber() {
+        return 0;
+    }
+
+    /**
+     * A message of any severity, prefixed with the function's name. The default folds INFO into
+     * a warning and FATAL into an error; the engine's own context keeps the severity.
+     */
+    default void message(final Severity severity, final String message) {
+        switch (severity) {
+            case ERROR, FATAL -> error(message);
+            default -> warn(message);
+        }
+    }
 
     /** The run's scratch space, shared by every function bound to the run. */
     Map<String, Object> state();

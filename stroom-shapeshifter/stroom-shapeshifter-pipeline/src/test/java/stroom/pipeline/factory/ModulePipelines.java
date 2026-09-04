@@ -16,7 +16,12 @@
 
 package stroom.pipeline.factory;
 
+import stroom.data.store.api.AttributeMapFactory;
+import stroom.data.store.api.DataService;
+import stroom.data.store.api.Store;
+import stroom.dictionary.api.WordListProvider;
 import stroom.docref.DocRef;
+import stroom.feed.api.FeedProperties;
 import stroom.pipeline.LocationFactoryProxy;
 import stroom.pipeline.cache.PoolItem;
 import stroom.pipeline.cache.PoolKey;
@@ -38,9 +43,15 @@ import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineData;
 import stroom.pipeline.shared.data.PipelineLayer;
 import stroom.pipeline.source.SourceElement;
+import stroom.pipeline.state.CurrentUserHolder;
+import stroom.pipeline.state.FeedHolder;
+import stroom.pipeline.state.MetaDataHolder;
+import stroom.pipeline.state.MetaHolder;
 import stroom.pipeline.state.PipelineContext;
+import stroom.pipeline.state.PipelineHolder;
 import stroom.pipeline.state.RecordCount;
 import stroom.pipeline.state.RecordCountService;
+import stroom.pipeline.state.SearchIdHolder;
 import stroom.pipeline.writer.FileAppender;
 import stroom.pipeline.writer.TextWriter;
 import stroom.pipeline.writer.XMLWriter;
@@ -54,6 +65,7 @@ import stroom.shapeshifter.pipeline.ShapeshifterFunctionModule;
 import stroom.shapeshifter.pipeline.ShapeshifterParser;
 import stroom.shapeshifter.pipeline.ShapeshifterParserFactory;
 import stroom.shapeshifter.pipeline.ShapeshifterParserFactoryPool;
+import stroom.shapeshifter.pipeline.ShapeshifterServices;
 import stroom.shapeshifter.pipeline.ShapeshifterStore;
 import stroom.shapeshifter.shared.ShapeshifterDoc;
 import stroom.task.api.SimpleTaskContext;
@@ -99,6 +111,17 @@ public final class ModulePipelines implements ElementRegistryFactory, ElementFac
     private final Map<String, ShapeshifterDoc> docs = new HashMap<>();
     private final List<XmlSchemaDoc> schemas = new ArrayList<>();
     private final RecordCount recordCount = new RecordCount();
+    /** The holders a document's functions read, one of each for the harness, and mocked stores. */
+    private final MetaHolder metaHolder = new MetaHolder();
+    private final MetaDataHolder metaDataHolder = new MetaDataHolder();
+    private final FeedHolder feedHolder = new FeedHolder();
+    private final PipelineHolder pipelineHolder = new PipelineHolder();
+    private final ShapeshifterServices shapeshifterServices = new ShapeshifterServices(
+            () -> metaHolder, () -> metaDataHolder, () -> feedHolder, () -> pipelineHolder,
+            CurrentUserHolder::new, SearchIdHolder::new,
+            () -> Mockito.mock(FeedProperties.class), () -> Mockito.mock(DataService.class),
+            () -> Mockito.mock(AttributeMapFactory.class), () -> Mockito.mock(Store.class),
+            () -> Mockito.mock(WordListProvider.class));
     private final RecordCountService recordCountService = new RecordCountService();
     private final XmlSchemaCache schemaCache;
     private final Map<SchemaKey, StoredSchema> compiledSchemas = new HashMap<>();
@@ -120,7 +143,7 @@ public final class ModulePipelines implements ElementRegistryFactory, ElementFac
         public PoolItem<StoredParserFactory> borrowObject(final ShapeshifterDoc doc, final boolean usePool) {
             return new PoolItem<>(new PoolKey<>(doc.getUuid()), new StoredParserFactory(
                     new ShapeshifterParserFactory(ProjectReader.read(doc.getData()),
-                            FunctionRegistry.of(ShapeshifterFunctionModule.groupA())), new StoredErrorReceiver()));
+                            FunctionRegistry.of(ShapeshifterFunctionModule.all())), new StoredErrorReceiver()));
         }
 
         @Override
@@ -153,6 +176,19 @@ public final class ModulePipelines implements ElementRegistryFactory, ElementFac
                           final String schemaGroup, final String xsd) {
         schemas.add(XmlSchemaDoc.builder().uuid(UUID.randomUUID().toString()).name(name)
                 .namespaceURI(namespaceUri).systemId(systemId).schemaGroup(schemaGroup).data(xsd).build());
+    }
+
+    /** The stream every document is processed as, for the functions that read it. */
+    public MetaHolder metaHolder() {
+        return metaHolder;
+    }
+
+    public MetaDataHolder metaDataHolder() {
+        return metaDataHolder;
+    }
+
+    public FeedHolder feedHolder() {
+        return feedHolder;
     }
 
     /** What the record count filters counted. */
@@ -193,10 +229,11 @@ public final class ModulePipelines implements ElementRegistryFactory, ElementFac
     @Override
     public <T extends Element> T getElementInstance(final Class<T> elementClass) {
         if (elementClass.equals(ShapeshifterParser.class)) {
-            return (T) new ShapeshifterParser(errors, new LocationFactoryProxy(), pool, store, paths, null, null, null);
+            return (T) new ShapeshifterParser(errors, new LocationFactoryProxy(), pool, store, paths, null, null, null,
+                    shapeshifterServices);
         }
         if (elementClass.equals(ShapeshifterFilter.class)) {
-            return (T) new ShapeshifterFilter(errors, pool, store, paths, null, null, null);
+            return (T) new ShapeshifterFilter(errors, pool, store, paths, null, null, null, shapeshifterServices);
         }
         if (elementClass.equals(XMLParser.class)) {
             return (T) new XMLParser(errors, new LocationFactoryProxy());

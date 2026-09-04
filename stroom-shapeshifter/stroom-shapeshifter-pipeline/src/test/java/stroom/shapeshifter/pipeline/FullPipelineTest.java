@@ -156,6 +156,68 @@ class FullPipelineTest {
         assertThat(lines.getFirst()).isEqualTo("2013-04-09T00:00:50.000Z 2071690107 5d9c68c6c50ed3d02a2fcf54f63993b6");
     }
 
+    /**
+     * Design 26 phase 3: the context functions through a real pipeline — the stream's identity
+     * and feed from the element's holders, the record's number and line from the engine's own
+     * offsets, and a value put by one record and read by the next.
+     */
+    @Test
+    void configurationReadingThePipelinesContextRunsThroughAPipeline() throws Exception {
+        final String configuration = """
+                {"name": "context", "version": 5,
+                 "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                   "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "lines"}}]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "lines",
+                   "match": {"regex": {"pattern": "([^ ]+) [^\\\\n]*\\\\n"}},
+                   "body": [
+                     {"call": {"function": "feed-name"}}, {"text": " "},
+                     {"call": {"function": "stream-id"}}, {"text": " "},
+                     {"call": {"function": "record-no"}}, {"text": " "},
+                     {"call": {"function": "line-from"}}, {"text": ":"},
+                     {"call": {"function": "col-from"}}, {"text": " prev="},
+                     {"call": {"function": "get", "select": [{"parts": [{"text": "last"}]}]}},
+                     {"call": {"function": "put", "select": [{"parts": [{"text": "last"}]},
+                                                             {"parts": [{"capture": {"group": 1}}]}]}},
+                     {"text": "\\n"}]}
+                 ]}
+                """;
+        final String pipelineJson = """
+                {"elements": {"add": [
+                   {"id": "shapeshifterParser", "type": "ShapeshifterParser"},
+                   {"id": "textWriter", "type": "TextWriter"},
+                   {"id": "fileAppender", "type": "FileAppender"}]},
+                 "properties": {"add": [
+                   {"element": "fileAppender", "name": "outputPaths",
+                    "value": {"string": "${stroom.temp}/TestFileAppender_Context.tmp"}}]},
+                 "links": {"add": [
+                   {"from": "shapeshifterParser", "to": "textWriter"},
+                   {"from": "textWriter", "to": "fileAppender"}]}}
+                """;
+        final LoggingErrorReceiver receiver = new LoggingErrorReceiver();
+        final ModulePipelines pipelines = new ModulePipelines(new ErrorReceiverProxy(receiver), temp);
+        pipelines.feedHolder().setFeedName("APACHE-EVENTS");
+        final stroom.meta.shared.Meta meta = org.mockito.Mockito.mock(stroom.meta.shared.Meta.class);
+        org.mockito.Mockito.when(meta.getId()).thenReturn(4242L);
+        pipelines.metaHolder().setMeta(meta);
+        final DocRef doc = pipelines.shapeshifterDoc("context", configuration);
+        final PipelineData data = new PipelineDataBuilder(ModulePipelines.pipelineData(pipelineJson))
+                .addProperty(PipelineDataUtil.createProperty("shapeshifterParser", "shapeshifter", doc))
+                .build();
+        final Pipeline pipeline = pipelines.create(data);
+        pipeline.startProcessing();
+        pipeline.process(new ByteArrayInputStream("a x\nb y\nc z\n".getBytes(StandardCharsets.UTF_8)),
+                StandardCharsets.UTF_8.name());
+        pipeline.endProcessing();
+        assertThat(receiver.isAllOk()).as(receiver.getMessage()).isTrue();
+
+        assertThat(Files.readAllLines(temp.resolve("TestFileAppender_Context.tmp"))).containsExactly(
+                "APACHE-EVENTS 4242 1 1:1 prev=",
+                "APACHE-EVENTS 4242 2 2:1 prev=a",
+                "APACHE-EVENTS 4242 3 3:1 prev=b");
+    }
+
     /** Build the pipeline, point its Shapeshifter element at the configuration, run the input through it. */
     private Path run(final String variant, final String configuration, final String pipelineJson,
                      final String element, final byte[] input) throws IOException {

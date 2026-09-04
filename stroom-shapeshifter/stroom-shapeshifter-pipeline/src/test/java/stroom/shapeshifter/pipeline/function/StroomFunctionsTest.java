@@ -163,10 +163,10 @@ class StroomFunctionsTest {
         final Set<FunctionDefinition> bound = Guice.createInjector(new ShapeshifterFunctionModule())
                 .getInstance(Key.get(new TypeLiteral<Set<FunctionDefinition>>() {
                 }));
-        final List<String> expected = ShapeshifterFunctionModule.groupA().stream()
+        final List<String> expected = ShapeshifterFunctionModule.all().stream()
                 .map(FunctionDefinition::name).sorted().toList();
         assertThat(bound.stream().map(FunctionDefinition::name).sorted().toList()).isEqualTo(expected);
-        assertThat(new StroomFunctionLibrary(bound).registry().size()).isEqualTo(23);
+        assertThat(new StroomFunctionLibrary(bound).registry().size()).isEqualTo(53);
     }
 
     @Test

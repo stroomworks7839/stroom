@@ -137,11 +137,15 @@ public class ShapeshifterReader extends AbstractParser {
     List<Message> runInto(final InputLocations.LineIndex lines,
                           final InputLocations locations,
                           final ContentHandler handler) {
+        // This run's own service: where an offset is, over the same line index that locates
+        // the events (design 26 phase 3).
+        final RunLocations runLocations = new RunLocations(lines);
+        final Services run = type -> type == RunLocations.class ? runLocations : services.lookup(type);
         if (compiled.structured()) {
-            return Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations, mode, services);
+            return Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations, mode, run);
         }
         final CharacterSink sink = new CharacterSink(handler);
-        List<Message> messages = Shapeshifter.run(compiled, lines, sink, locations, mode, services);
+        List<Message> messages = Shapeshifter.run(compiled, lines, sink, locations, mode, run);
         try {
             sink.end();
         } catch (final OutputSink.StructureException e) {

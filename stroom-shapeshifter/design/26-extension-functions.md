@@ -323,7 +323,30 @@ on the same inputs Stroom's own tests use (`TestFormatDate`, `TestHexToDec` and 
 stroom-pipeline's tests are the source of the cases), and a full-pipeline test in
 `FullPipelineTest`'s shape calling several from a configuration.
 
-**Phase 3 — group B.** The context-dependent variants, with the holders wired through the
+**Phase 3 — group B — Done 2026-09-04.** *As built:* the engine's `FunctionContext` gained
+`inputLength()`, `recordNumber()` and `message(severity, text)` as defaults, with the executor
+keeping the running match's extent and counting top-level records; pinned in `FunctionsTest`.
+In the pipeline module, `ShapeshifterServices` is injected once with everything Stroom's
+context functions are injected with — the six pipeline-scoped holders through their providers,
+`FeedProperties`, `DataService`, `AttributeMapFactory`, the data `Store`, `WordListProvider` —
+and both elements take it and hand each document's run `forElement(...)`: those, plus the
+element's error receiver, location factory, path creator, `pipelineReference` properties and a
+`PipelineState`, one map per element instance, which is what `put` writes and `get` reads
+across streams as Stroom's pipeline-scoped `TaskScopeMap` does. The reader overlays each run
+with `RunLocations`, lines and columns over the same line index that locates events, so
+`line-from` and its siblings answer from the engine's own offsets with no `LocationHolder`:
+`from` is the match's first byte, `to` its last, `record-no` the top-level match's number.
+The thirty variants are under Stroom's names; `feed-attribute` and `meta` share one lookup, as
+Stroom binds one class to both, and so do `source-id` and `stream-id`; `manifest`,
+`meta-stream` and `source` return the `stroom-meta` documents the Saxon classes build, as
+indented text, with entries sorted by key; `meta-keys` joins with a comma; `log` maps Stroom's
+severity names onto the run's messages, unknown names an error. *Pins:* `ContextFunctionsTest`
+against real holders and mocked stores, set up as Stroom's own tests set them up, including
+the per-run caches of `parent-for-id` and `dictionary`; a full pipeline reading feed, stream
+id, record number, line and column from the engine, and a value put by one record and read
+by the next. 143 pipeline tests green; the drift pin now covers all fifty-three.
+
+*As written:* The context-dependent variants, with the holders wired through the
 elements; `line-from` and friends from the engine's own offsets. *Tests:* each against the
 holder it reads, and a full pipeline with meta.
 

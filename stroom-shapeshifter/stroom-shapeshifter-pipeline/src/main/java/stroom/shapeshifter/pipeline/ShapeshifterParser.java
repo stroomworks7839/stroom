@@ -85,6 +85,8 @@ public class ShapeshifterParser extends AbstractParser implements SupportsCodeIn
     private final LocationFactoryProxy locationFactory;
     private final PathCreator pathCreator;
     private final List<PipelineReference> pipelineReferences = new ArrayList<>();
+    private final ShapeshifterServices services;
+    private final PipelineState state = new PipelineState();
     private final PipelineDocFinder<ShapeshifterDoc> pipelineDocFinder;
 
     private DocRef shapeshifterRef;
@@ -102,8 +104,10 @@ public class ShapeshifterParser extends AbstractParser implements SupportsCodeIn
                               final PathCreator pathCreator,
                               final Provider<FeedHolder> feedHolder,
                               final Provider<PipelineHolder> pipelineHolder,
-                              final DocFinder docFinder) {
+                              final DocFinder docFinder,
+                              final ShapeshifterServices services) {
         super(errorReceiverProxy, locationFactory);
+        this.services = services;
         this.pool = pool;
         this.store = store;
         this.feedHolder = feedHolder;
@@ -131,9 +135,8 @@ public class ShapeshifterParser extends AbstractParser implements SupportsCodeIn
             final XMLReader reader = parserFactory.getParser();
             if (reader instanceof ShapeshifterReader shapeshifter) {
                 // Design 26: what this document's functions may reach — the element's holders.
-                shapeshifter.setServices(ElementServices.of(
-                        getErrorReceiverProxy(), locationFactory, pathCreator,
-                        feedHolder, pipelineHolder, pipelineReferences));
+                shapeshifter.setServices(services.forElement(
+                        getErrorReceiverProxy(), locationFactory, pathCreator, pipelineReferences, state));
             }
             return reader;
         }

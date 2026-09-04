@@ -37,6 +37,7 @@ import org.xml.sax.helpers.DefaultHandler;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -89,6 +90,14 @@ class FilterRunTest {
 
     private static ErrorHandler errors() {
         return Ds3Oracle.errorHandler("ShapeshifterFilter", new LoggingErrorReceiver());
+    }
+
+    /** Stroom's DS3 with a configuration over the text given, its events delivered to the handler given. */
+    private static void ds3(final String config, final String input, final ContentHandler handler) throws Exception {
+        final XMLReader ds3 = Ds3Oracle.parser(config);
+        ds3.setContentHandler(handler);
+        ds3.setErrorHandler(Ds3Oracle.errorHandler("DS3Parser", new LoggingErrorReceiver()));
+        ds3.parse(new InputSource(new StringReader(input)));
     }
 
     /** Stroom's DS3 over a legacy fixture, its events delivered to the handler given. */
@@ -245,15 +254,22 @@ class FilterRunTest {
         assertThat(reader(USERS).compiled().structured()).isTrue();
         assertThat(reader(USERS_AS_TEXT).compiled().structured()).isFalse();
 
+        // Enough records that the pipe fills many times over: delivery before the end is then
+        // forced by back-pressure, not left to whether the worker's thread was scheduled first.
+        final StringBuilder csv = new StringBuilder("dt,who,where,what\n");
+        for (int i = 0; i < 2000; i++) {
+            csv.append("2020-06-17T08:00:00.000Z,user").append(i).append(",office,logon\n");
+        }
+        final String config = Files.readString(LEGACY.resolve("001_csv_with_header.ds3.xml"));
         final EventRecorder viaText = new EventRecorder();
         final FilterRun text = new FilterRun(reader(USERS_AS_TEXT), 4096, viaText, errors());
-        ds3("001_csv_with_header", text.input());
+        ds3(config, csv.toString(), text.input());
         final int deliveredBeforeTheEnd = text.delivered();
         text.finish();
 
         final EventRecorder viaStructure = new EventRecorder();
         final FilterRun structured = new FilterRun(reader(USERS), 4096, viaStructure, errors());
-        ds3("001_csv_with_header", structured.input());
+        ds3(config, csv.toString(), structured.input());
         structured.finish();
 
         assertThat(deliveredBeforeTheEnd).isGreaterThan(0);

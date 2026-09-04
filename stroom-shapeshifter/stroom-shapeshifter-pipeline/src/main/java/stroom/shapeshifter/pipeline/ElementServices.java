@@ -16,15 +16,8 @@
 
 package stroom.shapeshifter.pipeline;
 
-import stroom.pipeline.LocationFactoryProxy;
-import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.shared.data.PipelineReference;
-import stroom.pipeline.state.FeedHolder;
-import stroom.pipeline.state.PipelineHolder;
 import stroom.shapeshifter.engine.function.Services;
-import stroom.util.io.PathCreator;
-
-import jakarta.inject.Provider;
 
 import java.util.HashMap;
 import java.util.List;
@@ -32,34 +25,18 @@ import java.util.Map;
 
 /**
  * What an element makes reachable to a document's functions (design 26 §5): the holders and
- * services Stroom's own XSLT functions are injected with, looked up by type. A holder the element
- * does not have — a provider that is null, outside a pipeline — is simply absent, and a function
- * that needs it says so.
+ * services Stroom's own XSLT functions are injected with, looked up by type, gathered by
+ * {@link ShapeshifterServices#forElement}. A service the element does not have — a provider
+ * that is null, outside a pipeline — is simply absent, and a function that needs it says so.
  */
 public final class ElementServices implements Services {
 
     private final Map<Class<?>, Object> byType = new HashMap<>();
 
-    private ElementServices() {
+    ElementServices() {
     }
 
-    static Services of(final ErrorReceiverProxy errorReceiverProxy,
-                       final LocationFactoryProxy locationFactory,
-                       final PathCreator pathCreator,
-                       final Provider<FeedHolder> feedHolder,
-                       final Provider<PipelineHolder> pipelineHolder,
-                       final List<PipelineReference> pipelineReferences) {
-        final ElementServices services = new ElementServices();
-        services.put(ErrorReceiverProxy.class, errorReceiverProxy);
-        services.put(LocationFactoryProxy.class, locationFactory);
-        services.put(PathCreator.class, pathCreator);
-        services.put(FeedHolder.class, feedHolder == null ? null : feedHolder.get());
-        services.put(PipelineHolder.class, pipelineHolder == null ? null : pipelineHolder.get());
-        services.put(PipelineReferences.class, new PipelineReferences(List.copyOf(pipelineReferences)));
-        return services;
-    }
-
-    private void put(final Class<?> type, final Object service) {
+    void put(final Class<?> type, final Object service) {
         if (service != null) {
             byType.put(type, service);
         }

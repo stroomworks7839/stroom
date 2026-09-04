@@ -92,6 +92,14 @@ class FunctionsTest {
                     }),
             FunctionDefinition.of("where", Signature.of(Kind.INTEGER), Purity.CONTEXT,
                     context -> args -> new TypedValue.Int(context.inputOffset())),
+            FunctionDefinition.of("extent", Signature.of(Kind.STRING), Purity.CONTEXT,
+                    context -> args -> TypedValue.of(context.recordNumber() + "@" + context.inputOffset()
+                                                     + "+" + context.inputLength())),
+            FunctionDefinition.of("say", Signature.of(Kind.STRING, Kind.STRING), Purity.IMPURE,
+                    context -> args -> {
+                        context.message(Severity.INFO, "noted " + args.string(0));
+                        return null;
+                    }),
             FunctionDefinition.of("greeting", Signature.of(Kind.STRING), Purity.CONTEXT,
                     context -> args -> TypedValue.of(String.valueOf(context.service(String.class)))),
             FunctionDefinition.of("unbindable", Signature.of(Kind.STRING), Purity.PURE,
@@ -284,6 +292,18 @@ class FunctionsTest {
     @Test
     void selectMayBeOmittedForAFunctionOfNoArguments() {
         assertThat(run(lines("{\"call\": {\"function\": \"clock\"}}"), "a\n").output()).isEqualTo("tick|");
+    }
+
+    /** Phase 3 needs: the running match's extent and the record number, and a message of any severity. */
+    @Test
+    void contextReportsTheMatchsExtentTheRecordNumberAndMessagesOfAnySeverity() {
+        assertThat(run(lines(call("extent", "", null)), "ab\ncd\n").output()).isEqualTo("1@0+3|2@3+3|");
+        final Run said = run(lines(call("say", GROUP1, null)), "a\n");
+        assertThat(said.output()).isEqualTo("|");
+        assertThat(said.messages()).singleElement().satisfies(m -> {
+            assertThat(m.severity()).isEqualTo(Severity.INFO);
+            assertThat(m.text()).isEqualTo("say: noted a");
+        });
     }
 
     @Test

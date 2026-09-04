@@ -1,0 +1,63 @@
+/*
+ * Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.shapeshifter.pipeline.function;
+
+import stroom.shapeshifter.engine.function.FunctionCall;
+import stroom.shapeshifter.engine.function.FunctionContext;
+import stroom.shapeshifter.engine.function.Kind;
+import stroom.shapeshifter.engine.function.Purity;
+import stroom.shapeshifter.engine.function.Signature;
+
+/**
+ * {@code link}: as {@code stroom.pipeline.xsltfunctions.Link}: a Stroom link, {@code [text](url){type}},
+ * from a url alone, a text and a url, or those and a type.
+ */
+public final class LinkFunction extends StroomFunction {
+
+    public LinkFunction() {
+        super("link", Signature.of(1, Kind.STRING, Kind.STRING, Kind.STRING, Kind.STRING), Purity.PURE);
+    }
+
+    @Override
+    public FunctionCall bind(final FunctionContext context) {
+        return arguments -> {
+            final String text;
+            final String href;
+            final String type;
+            if (arguments.size() == 1) {
+                text = requiredString(context, arguments, 0);
+                href = text;
+                type = null;
+            } else {
+                text = requiredString(context, arguments, 0);
+                href = requiredString(context, arguments, 1);
+                type = arguments.size() == 3 ? requiredString(context, arguments, 2) : null;
+            }
+            final StringBuilder link = new StringBuilder();
+            if (text != null) {
+                link.append('[').append(text).append(']');
+            }
+            if (href != null) {
+                link.append('(').append(href).append(')');
+            }
+            if (type != null) {
+                link.append('{').append(type).append('}');
+            }
+            return text(link.toString());
+        };
+    }
+}
