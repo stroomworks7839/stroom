@@ -194,7 +194,16 @@ migrated configuration has a root element, so nothing observes it. *As written:*
 `FilterRun`; `Run` gone; the text-variant test rewritten as §4. *Test:* both currencies through the pipe under a live DS3 upstream, the too-large record
 still FATAL through the pipe (design 23 phase 2's pin) on both.
 
-**Phase 3 — the app pin.** Parser → `TextWriter` → appender, byte-for-byte, windowed.
+**Phase 3 — the app pin — Done 2026-09-04.** *As built:* `TestShapeshifterParser` gains a
+real pipeline of `ShapeshifterParser` → `TextWriter` → `FileAppender`, the Shapeshifter document
+a text configuration over the CSV (one line of text per row, a `consume` template for the
+header, no elements), the window 4096 bytes and the input 5000 rows — over forty windows — and
+the file compared byte for byte with the text the configuration must have written. The golden
+is computed beside the input rather than read from a fixture, since no fixture has an input of
+that size; the `projects/text_*` goldens are pinned through a `TextWriter` in the pipeline
+module (phase 1). Passed first time; nothing in the pipeline layer needed touching, which is
+the point of phases 1 and 2. *As written:* Parser → `TextWriter` → appender, byte-for-byte,
+windowed.
 
 Each phase is audited before the next, as the others were.
 

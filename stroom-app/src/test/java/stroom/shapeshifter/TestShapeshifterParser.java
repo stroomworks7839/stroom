@@ -137,6 +137,84 @@ class TestShapeshifterParser extends AbstractProcessIntegrationTest {
         assertThat(dataElements(output)).containsExactlyElementsOf(dataElements(golden()));
     }
 
+    /** Parser, then Stroom's TextWriter, then a FileAppender: the byte sink a text configuration streams to. */
+    private static final String TEXT_PIPELINE = """
+            {
+              "elements" : { "add" : [
+                { "id" : "shapeshifterParser", "type" : "ShapeshifterParser" },
+                { "id" : "textWriter", "type" : "TextWriter" },
+                { "id" : "fileAppender", "type" : "FileAppender" } ] },
+              "properties" : { "add" : [
+                { "element" : "fileAppender", "name" : "outputPaths",
+                  "value" : { "string" : "${stroom.temp}/TestShapeshifterParser.txt" } } ] },
+              "links" : { "add" : [
+                { "from" : "shapeshifterParser", "to" : "textWriter" },
+                { "from" : "textWriter", "to" : "fileAppender" } ] }
+            }
+            """;
+
+    /**
+     * A text configuration over the CSV: one line of text per user, no elements. The window is
+     * small so a run over thousands of rows refills it many times (design 23), and every byte
+     * of the output leaves as it is written (design 24).
+     */
+    private static final String USERS_AS_TEXT = """
+            {"name": "users-as-text", "version": 5,
+             "source": {"buffer_size": 4096, "ignore_errors": true, "encoding": "utf-8"},
+             "templates": [
+              {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+               "body": [{"text": "users\\n"},
+                        {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "rows"}},
+                        {"text": "end\\n"}]},
+              {"id": "00000000-0000-0000-0000-000000000002", "name": "header", "mode": "rows", "consume": true,
+               "match": {"regex": {"pattern": "dt,who,where,what\\n"}}, "body": []},
+              {"id": "00000000-0000-0000-0000-000000000003", "name": "row", "mode": "rows",
+               "match": {"regex": {"pattern": "([^,\\n]*),([^,\\n]*),([^,\\n]*),([^,\\n]*)\\n"}},
+               "body": [{"text": "user "}, {"value-of": {"parts": [{"capture": {"group": 2}}]}}, {"text": "\\n"}]}
+             ]}
+            """;
+
+    private static final int ROWS = 5000;
+
+    /**
+     * Design 24 phase 3: a text configuration in front of a {@code TextWriter} and an appender,
+     * end to end through a real pipeline, over an input that crosses the window many times —
+     * and what reaches the file is the configuration's text, byte for byte.
+     */
+    @Test
+    void textConfigurationStreamsThroughATextWriterToAnAppenderByteForByte() throws IOException {
+        final DocRef docRef = shapeshifterStore.createDocument("users-as-text");
+        shapeshifterStore.writeDocument(shapeshifterStore.readDocument(docRef).copy().data(USERS_AS_TEXT).build());
+        final DocRef pipelineRef = createPipeline(TEXT_PIPELINE, docRef);
+        final Path outputFile = getCurrentTestDir().resolve("TestShapeshifterParser.txt");
+        FileUtil.deleteFile(outputFile);
+        FileUtil.deleteFile(getCurrentTestDir().resolve("TestShapeshifterParser.txt.lock"));
+
+        final StringBuilder csv = new StringBuilder("dt,who,where,what\n");
+        final StringBuilder expected = new StringBuilder("users\n");
+        for (int i = 0; i < ROWS; i++) {
+            csv.append("2020-06-17T08:00:00.000Z,user").append(i).append(",office,logon\n");
+            expected.append("user user").append(i).append("\n");
+        }
+        expected.append("end\n");
+        final byte[] input = csv.toString().getBytes(StandardCharsets.UTF_8);
+        assertThat(input.length).isGreaterThan(4096 * 40);
+
+        pipelineScopeRunnable.scopeRunnable(() -> {
+            final LoggingErrorReceiver errors = new LoggingErrorReceiver();
+            errorReceiverProvider.get().setErrorReceiver(errors);
+            final PipelineDoc pipelineDoc = pipelineStore.readDocument(pipelineRef);
+            final PipelineData pipelineData = pipelineDataCache.get(pipelineDoc);
+            final Pipeline pipeline = pipelineFactoryProvider.get().create(pipelineData, new SimpleTaskContext());
+            pipeline.startProcessing();
+            pipeline.process(new java.io.ByteArrayInputStream(input), StandardCharsets.UTF_8.name());
+            pipeline.endProcessing();
+            assertThat(errors.isAllOk()).as(errors.getMessage()).isTrue();
+        });
+
+        assertThat(Files.readAllBytes(outputFile)).isEqualTo(expected.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
     @Test
     void theDocumentRoundTripsThroughImportExportByteForByte() throws IOException {
         final DocRef docRef = createShapeshifterDoc();
@@ -162,7 +240,11 @@ class TestShapeshifterParser extends AbstractProcessIntegrationTest {
     }
 
     private DocRef createPipeline(final DocRef shapeshifterRef) {
-        final DocRef pipelineRef = PipelineTestUtil.createTestPipeline(pipelineStore, PIPELINE);
+        return createPipeline(PIPELINE, shapeshifterRef);
+    }
+
+    private DocRef createPipeline(final String json, final DocRef shapeshifterRef) {
+        final DocRef pipelineRef = PipelineTestUtil.createTestPipeline(pipelineStore, json);
         final PipelineDoc pipelineDoc = pipelineStore.readDocument(pipelineRef);
         final PipelineDataBuilder builder = new PipelineDataBuilder(pipelineDoc.getPipelineData());
         builder.addProperty(PipelineDataUtil.createProperty("shapeshifterParser", "shapeshifter", shapeshifterRef));
