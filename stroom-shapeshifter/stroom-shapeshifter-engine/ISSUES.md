@@ -1121,3 +1121,21 @@ reference to a capture there resolves to nothing, in the streamed and the whole 
 reason is sound (under design 23 the root has no match; the input is the windows), but the
 silence is not: the compiler knows which template is the root and can see a capture reference
 in its body, and should refuse it by name, as it refuses captures on an eater. Not started.
+
+### E38 — A structured configuration cannot author a whitespace-only text node inside an element
+**`open` 2026-09-04.** Found by the module's full-pipeline tests (`FullPipelineTest`), which
+mirror Stroom's `TestFileAppender` with Shapeshifter where the DS3 configuration and the
+stylesheets were. Stroom's *text* stylesheet builds the same event-logging tree as its XML one
+and ends each `Event` with a text node of one newline — `<xsl:text>&#010;</xsl:text>` — which
+the schema filter accepts as whitespace and the `TextWriter` writes, so the text golden is one
+line per event. A structured Shapeshifter configuration writes the same text node, and both
+sinks drop it: under design 21 phase 2b's rule, whitespace-only text in an element that has no
+text of its own is the indenter's, not the author's (`XmlByteSinkTest.
+childrenIndentByThreeAndWhitespaceContentIsTheIndentersNotTheAuthors`,
+`SaxEventSinkTest.whitespaceInsideTextIsKeptAndWhitespaceBeforeAChildIsNot`). The rule exists
+so that a configuration pretty-printed by hand does not get its whitespace twice on the byte
+path; on the event path there is no indenter, and the rule only loses authored text. Options:
+keep the rule on the byte path and drop it on the event path (a text node an author wrote is
+delivered; the byte sink's indentation stays its own); or an explicit escape — a `text` that
+declares itself content; or leave it, and accept that this shape of Stroom pipeline cannot be
+reproduced. Until ruled, `FullPipelineTest` pins the text golden without its newlines.

@@ -1,32 +1,123 @@
 {
-  "elements" : {
-    "add" : [ {
-      "id" : "shapeshifterParser",
-      "type" : "ShapeshifterParser"
-    }, {
-      "id" : "xmlWriter",
-      "type" : "XMLWriter"
-    }, {
-      "id" : "fileAppender",
-      "type" : "FileAppender"
-    } ]
-  },
-  "properties" : {
-    "add" : [ {
-      "element" : "fileAppender",
-      "name" : "outputPaths",
-      "value" : {
-        "string" : "${stroom.temp}/TestFileAppender_XML.tmp"
+  "elements": {
+    "add": [
+      {
+        "id": "shapeshifterParser",
+        "type": "ShapeshifterParser"
+      },
+      {
+        "id": "readRecordCountFilter",
+        "type": "RecordCountFilter"
+      },
+      {
+        "id": "splitFilter",
+        "type": "SplitFilter"
+      },
+      {
+        "id": "schemaFilter",
+        "type": "SchemaFilter"
+      },
+      {
+        "id": "recordOutputFilter",
+        "type": "RecordOutputFilter"
+      },
+      {
+        "id": "writeRecordCountFilter",
+        "type": "RecordCountFilter"
+      },
+      {
+        "id": "xmlWriter",
+        "type": "XMLWriter"
+      },
+      {
+        "id": "fileAppender",
+        "type": "FileAppender"
       }
-    } ]
+    ]
   },
-  "links" : {
-    "add" : [ {
-      "from" : "shapeshifterParser",
-      "to" : "xmlWriter"
-    }, {
-      "from" : "xmlWriter",
-      "to" : "fileAppender"
-    } ]
+  "properties": {
+    "add": [
+      {
+        "element": "readRecordCountFilter",
+        "name": "countRead",
+        "value": {
+          "boolean": true
+        }
+      },
+      {
+        "element": "splitFilter",
+        "name": "splitDepth",
+        "value": {
+          "integer": 1
+        }
+      },
+      {
+        "element": "splitFilter",
+        "name": "splitCount",
+        "value": {
+          "integer": 100
+        }
+      },
+      {
+        "element": "schemaFilter",
+        "name": "schemaGroup",
+        "value": {
+          "string": "EVENTS"
+        }
+      },
+      {
+        "element": "writeRecordCountFilter",
+        "name": "countRead",
+        "value": {
+          "boolean": false
+        }
+      },
+      {
+        "element": "xmlWriter",
+        "name": "indentOutput",
+        "value": {
+          "boolean": true
+        }
+      },
+      {
+        "element": "fileAppender",
+        "name": "outputPaths",
+        "value": {
+          "string": "${stroom.temp}/TestFileAppender_XML.tmp"
+        }
+      }
+    ]
+  },
+  "links": {
+    "add": [
+      {
+        "from": "shapeshifterParser",
+        "to": "readRecordCountFilter"
+      },
+      {
+        "from": "readRecordCountFilter",
+        "to": "splitFilter"
+      },
+      {
+        "from": "splitFilter",
+        "to": "schemaFilter"
+      },
+      {
+        "from": "schemaFilter",
+        "to": "recordOutputFilter"
+      },
+      {
+        "from": "recordOutputFilter",
+        "to": "writeRecordCountFilter"
+      },
+      {
+        "from": "writeRecordCountFilter",
+        "to": "xmlWriter"
+      },
+      {
+        "from": "xmlWriter",
+        "to": "fileAppender"
+      }
+    ]
   }
 }

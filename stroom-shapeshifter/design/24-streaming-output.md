@@ -211,13 +211,18 @@ full-pipeline tests of its own that mimic Stroom's, with Shapeshifter in place o
 `FullPipelineTest` runs a mirror of `TestFileAppender`'s fixture set (its input, its two
 goldens, its writers and appender) through a real `PipelineFactory` built inside the module —
 `ModulePipelines`, in `stroom.pipeline.factory` for the registry's constructor, elements by
-hand, documents in a map, a mocked store — in three shapes: a text configuration to a
-`TextWriter` (the text golden byte for byte); a structured configuration to an `XMLWriter`
-(the XML golden as a document); and, after an `XMLParser`, the filter reading the image of the
-events and writing the text golden back. One Shapeshifter configuration replaces a DS3
-configuration, two stylesheets, a schema filter and a record output filter in each; the 59
-`/bad` requests the original's schema filter dropped are left out by a `choose`. All three
-passed on their first run. *As written:* Parser → `TextWriter` → appender, byte-for-byte,
+hand, documents in a map, a mocked store — keeping Stroom's whole downstream chain — record
+count, split, schema filter, record output filter, record count, writer, appender — on the
+user's direction, in three shapes: the parser to a `TextWriter`; the parser to an `XMLWriter`
+(the XML golden as a document); and, after Stroom's own DS3 has parsed the log, the filter
+where the stylesheet was, reading the records document's image and building the events. One
+Shapeshifter configuration stands where the DS3 configuration and a stylesheet were; as in
+Stroom's, it emits `Eventy` for the 59 `/bad` requests, and the schema filter marks them and
+the record output filter drops them — 200 read, 141 written, 59 errors, Stroom's own
+`validateProcess` numbers. The XML and filter shapes match their golden. The text shape
+matches its golden but for its newlines: Stroom's text stylesheet ends each `Event` with a
+whitespace-only text node, and the event sink drops it under design 21's rule (E38, open for
+a ruling); until then the pin is the golden without them. *As written:* Parser → `TextWriter` → appender, byte-for-byte,
 windowed.
 
 Each phase is audited before the next, as the others were.

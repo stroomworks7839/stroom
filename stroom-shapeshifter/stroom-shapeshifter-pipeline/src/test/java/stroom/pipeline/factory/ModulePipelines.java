@@ -20,18 +20,33 @@ import stroom.docref.DocRef;
 import stroom.pipeline.LocationFactoryProxy;
 import stroom.pipeline.cache.PoolItem;
 import stroom.pipeline.cache.PoolKey;
+import stroom.pipeline.cache.SchemaKey;
+import stroom.pipeline.cache.SchemaLoaderImpl;
+import stroom.pipeline.cache.SchemaPool;
 import stroom.pipeline.cache.StoredParserFactory;
+import stroom.pipeline.cache.StoredSchema;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.errorhandler.StoredErrorReceiver;
+import stroom.pipeline.filter.RecordCountFilter;
+import stroom.pipeline.filter.RecordOutputFilter;
+import stroom.pipeline.filter.SchemaFilter;
+import stroom.pipeline.filter.SchemaFilterSplit;
+import stroom.pipeline.filter.SplitFilter;
 import stroom.pipeline.parser.XMLParser;
 import stroom.pipeline.shared.PipelineDataMerger;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineData;
 import stroom.pipeline.shared.data.PipelineLayer;
 import stroom.pipeline.source.SourceElement;
+import stroom.pipeline.state.PipelineContext;
+import stroom.pipeline.state.RecordCount;
+import stroom.pipeline.state.RecordCountService;
 import stroom.pipeline.writer.FileAppender;
 import stroom.pipeline.writer.TextWriter;
 import stroom.pipeline.writer.XMLWriter;
+import stroom.pipeline.xmlschema.XmlSchemaCache;
+import stroom.pipeline.xmlschema.XmlSchemaStore;
+import stroom.security.api.SecurityContext;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.pipeline.ShapeshifterFilter;
 import stroom.shapeshifter.pipeline.ShapeshifterParser;
@@ -42,20 +57,26 @@ import stroom.shapeshifter.shared.ShapeshifterDoc;
 import stroom.task.api.SimpleTaskContext;
 import stroom.util.io.SimplePathCreator;
 import stroom.util.json.JsonUtil;
+import stroom.util.shared.ResultPage;
+import stroom.xmlschema.shared.XmlSchemaDoc;
 
 import org.mockito.Mockito;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Real pipelines in the Shapeshifter pipeline module, without a Stroom: the elements are built
- * by hand, the documents live in a map, and the pipeline is what {@link PipelineFactory} makes of
- * the same JSON Stroom's own full-pipeline tests use. In this package because the element
- * registry's constructor is, as {@code MockPipelineElementRegistryFactory} in stroom-app is.
+ * by hand, the documents and schemas live in lists, and the pipeline is what
+ * {@link PipelineFactory} makes of the same JSON Stroom's own full-pipeline tests use — record
+ * counting, splitting, schema validation, record output and the writers and appender included.
+ * In this package because the element registry's constructor is, as
+ * {@code MockPipelineElementRegistryFactory} in stroom-app is.
  */
 public final class ModulePipelines implements ElementRegistryFactory, ElementFactory {
 
@@ -64,12 +85,33 @@ public final class ModulePipelines implements ElementRegistryFactory, ElementFac
             ShapeshifterParser.class,
             ShapeshifterFilter.class,
             XMLParser.class,
+            RecordCountFilter.class,
+            SplitFilter.class,
+            SchemaFilterSplit.class,
+            RecordOutputFilter.class,
             TextWriter.class,
             XMLWriter.class,
             FileAppender.class));
     private final ErrorReceiverProxy errors;
     private final SimplePathCreator paths;
     private final Map<String, ShapeshifterDoc> docs = new HashMap<>();
+    private final List<XmlSchemaDoc> schemas = new ArrayList<>();
+    private final RecordCount recordCount = new RecordCount();
+    private final RecordCountService recordCountService = new RecordCountService();
+    private final XmlSchemaCache schemaCache;
+    private final Map<SchemaKey, StoredSchema> compiledSchemas = new HashMap<>();
+    private final SchemaPool schemaPool = new SchemaPool() {
+        @Override
+        public PoolItem<StoredSchema> borrowObject(final SchemaKey key, final boolean usePool) {
+            return new PoolItem<>(new PoolKey<>(key), compiledSchemas.computeIfAbsent(key, k ->
+                    new SchemaLoaderImpl(schemaCache).load(k.getSchemaLanguage(), k.getData(),
+                            k.getFindXMLSchemaCriteria())));
+        }
+
+        @Override
+        public void returnObject(final PoolItem<StoredSchema> poolItem, final boolean usePool) {
+        }
+    };
     private final ShapeshifterStore store = Mockito.mock(ShapeshifterStore.class);
     private final ShapeshifterParserFactoryPool pool = new ShapeshifterParserFactoryPool() {
         @Override
@@ -92,6 +134,27 @@ public final class ModulePipelines implements ElementRegistryFactory, ElementFac
         this.paths = new SimplePathCreator(() -> tempDir, () -> tempDir);
         Mockito.when(store.readDocument(Mockito.any()))
                 .thenAnswer(invocation -> docs.get(((DocRef) invocation.getArgument(0)).getUuid()));
+        // The schema cache is Stroom's own, over a store that knows the schemas given here and a
+        // security context that runs whatever it is asked to.
+        final XmlSchemaStore schemaStore = Mockito.mock(XmlSchemaStore.class);
+        Mockito.when(schemaStore.find(Mockito.any()))
+                .thenAnswer(invocation -> new ResultPage<>(List.copyOf(schemas)));
+        final SecurityContext security = Mockito.mock(SecurityContext.class);
+        Mockito.when(security.asProcessingUserResult(Mockito.any()))
+                .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(0)).get());
+        this.schemaCache = new XmlSchemaCache(schemaStore, security);
+    }
+
+    /** An XML schema the schema filter can validate against, as the content pack declares it. */
+    public void xmlSchema(final String name, final String namespaceUri, final String systemId,
+                          final String schemaGroup, final String xsd) {
+        schemas.add(XmlSchemaDoc.builder().uuid(UUID.randomUUID().toString()).name(name)
+                .namespaceURI(namespaceUri).systemId(systemId).schemaGroup(schemaGroup).data(xsd).build());
+    }
+
+    /** What the record count filters counted. */
+    public RecordCount recordCount() {
+        return recordCount;
     }
 
     /** A Shapeshifter document the parser and filter elements can be pointed at. */
@@ -134,6 +197,19 @@ public final class ModulePipelines implements ElementRegistryFactory, ElementFac
         }
         if (elementClass.equals(XMLParser.class)) {
             return (T) new XMLParser(errors, new LocationFactoryProxy());
+        }
+        if (elementClass.equals(RecordCountFilter.class)) {
+            return (T) new RecordCountFilter(recordCountService, recordCount);
+        }
+        if (elementClass.equals(SplitFilter.class)) {
+            return (T) new SplitFilter();
+        }
+        if (elementClass.equals(SchemaFilterSplit.class)) {
+            return (T) new SchemaFilterSplit(new SchemaFilter(schemaPool, schemaCache, errors,
+                    new LocationFactoryProxy(), new PipelineContext()), null);
+        }
+        if (elementClass.equals(RecordOutputFilter.class)) {
+            return (T) new RecordOutputFilter(errors);
         }
         if (elementClass.equals(TextWriter.class)) {
             return (T) new TextWriter(errors);
