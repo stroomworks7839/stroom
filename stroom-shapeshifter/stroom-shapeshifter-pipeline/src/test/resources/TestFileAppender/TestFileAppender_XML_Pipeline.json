@@ -1,0 +1,32 @@
+{
+  "elements" : {
+    "add" : [ {
+      "id" : "shapeshifterParser",
+      "type" : "ShapeshifterParser"
+    }, {
+      "id" : "xmlWriter",
+      "type" : "XMLWriter"
+    }, {
+      "id" : "fileAppender",
+      "type" : "FileAppender"
+    } ]
+  },
+  "properties" : {
+    "add" : [ {
+      "element" : "fileAppender",
+      "name" : "outputPaths",
+      "value" : {
+        "string" : "${stroom.temp}/TestFileAppender_XML.tmp"
+      }
+    } ]
+  },
+  "links" : {
+    "add" : [ {
+      "from" : "shapeshifterParser",
+      "to" : "xmlWriter"
+    }, {
+      "from" : "xmlWriter",
+      "to" : "fileAppender"
+    } ]
+  }
+}

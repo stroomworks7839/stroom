@@ -1,0 +1,38 @@
+{
+  "elements" : {
+    "add" : [ {
+      "id" : "xmlParser",
+      "type" : "XMLParser"
+    }, {
+      "id" : "shapeshifterFilter",
+      "type" : "ShapeshifterFilter"
+    }, {
+      "id" : "textWriter",
+      "type" : "TextWriter"
+    }, {
+      "id" : "fileAppender",
+      "type" : "FileAppender"
+    } ]
+  },
+  "properties" : {
+    "add" : [ {
+      "element" : "fileAppender",
+      "name" : "outputPaths",
+      "value" : {
+        "string" : "${stroom.temp}/TestFileAppender_Filter.tmp"
+      }
+    } ]
+  },
+  "links" : {
+    "add" : [ {
+      "from" : "xmlParser",
+      "to" : "shapeshifterFilter"
+    }, {
+      "from" : "shapeshifterFilter",
+      "to" : "textWriter"
+    }, {
+      "from" : "textWriter",
+      "to" : "fileAppender"
+    } ]
+  }
+}

@@ -50,6 +50,9 @@ dependencies {
     implementation libs.swagger.annotations
     implementation libs.ws.rs.api
 
+    // The full-pipeline tests build real pipelines through PipelineFactory, whose task context
+    // is the task API's.
+    testImplementation project(':stroom-task:stroom-task-api')
     testImplementation libs.bundles.common.test.implementation
     testRuntimeOnly libs.bundles.common.test.runtime
 }

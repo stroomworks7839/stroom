@@ -1,0 +1,468 @@
+{
+  "name": "TestFileAppender_XML",
+  "version": 5,
+  "source": {
+    "buffer_size": 20000,
+    "ignore_errors": true,
+    "encoding": "utf-8"
+  },
+  "templates": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "source",
+      "match": "source",
+      "body": [
+        {
+          "element": {
+            "name": "Events",
+            "body": [
+              {
+                "namespace": {
+                  "prefix": "xsi",
+                  "uri": "http://www.w3.org/2001/XMLSchema-instance"
+                }
+              },
+              {
+                "namespace": {
+                  "prefix": "stroom",
+                  "uri": "stroom"
+                }
+              },
+              {
+                "attribute": {
+                  "name": "xsi:schemaLocation",
+                  "body": [
+                    {
+                      "text": "event-logging:3 file://event-logging-v3.0.0.xsd"
+                    }
+                  ]
+                }
+              },
+              {
+                "attribute": {
+                  "name": "Version",
+                  "body": [
+                    {
+                      "text": "3.0.0"
+                    }
+                  ]
+                }
+              },
+              {
+                "apply-templates": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "group": 0,
+                          "var_id": null
+                        }
+                      }
+                    ]
+                  },
+                  "mode": "lines"
+                }
+              }
+            ],
+            "namespace": "event-logging:3"
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "line",
+      "match": {
+        "regex": {
+          "pattern": "([^ ]+) ([^ ]+) ([^ ]+) \\[([^\\]]+)\\] \"([^ ]+) ([^ ]+) ([^\"]+)\" ([^ ]+) ([^ ]+) \"([^\"]*)\" \"([^\"]*)\"\\n"
+        }
+      },
+      "body": [
+        {
+          "choose": {
+            "when": [
+              {
+                "test": {
+                  "contains": {
+                    "select": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "group": 6,
+                            "var_id": null
+                          }
+                        }
+                      ]
+                    },
+                    "substring": "good"
+                  }
+                },
+                "body": [
+                  {
+                    "element": {
+                      "name": "Event",
+                      "body": [
+                        {
+                          "element": {
+                            "name": "EventTime",
+                            "body": [
+                              {
+                                "element": {
+                                  "name": "TimeCreated",
+                                  "body": [
+                                    {
+                                      "parse-date": {
+                                        "select": [
+                                          {
+                                            "parts": [
+                                              {
+                                                "capture": {
+                                                  "group": 4,
+                                                  "var_id": null
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        ],
+                                        "pattern": "dd/MMM/yyyy:HH:mm:ss Z",
+                                        "name": "t"
+                                      }
+                                    },
+                                    {
+                                      "format-date": {
+                                        "select": [
+                                          {
+                                            "parts": [
+                                              {
+                                                "capture": {
+                                                  "group": 0,
+                                                  "var_id": "t"
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        ],
+                                        "pattern": "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+                                        "timezone": "UTC"
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "element": {
+                            "name": "EventSource",
+                            "body": [
+                              {
+                                "element": {
+                                  "name": "System",
+                                  "body": [
+                                    {
+                                      "element": {
+                                        "name": "Name",
+                                        "body": [
+                                          {
+                                            "text": "Test"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "element": {
+                                        "name": "Environment",
+                                        "body": [
+                                          {
+                                            "text": "Test"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "element": {
+                                  "name": "Generator",
+                                  "body": [
+                                    {
+                                      "text": "Apache"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "element": {
+                                  "name": "Device",
+                                  "body": [
+                                    {
+                                      "element": {
+                                        "name": "HostName",
+                                        "body": [
+                                          {
+                                            "text": "test.test.com"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "element": {
+                                  "name": "Client",
+                                  "body": [
+                                    {
+                                      "element": {
+                                        "name": "IPAddress",
+                                        "body": [
+                                          {
+                                            "value-of": {
+                                              "parts": [
+                                                {
+                                                  "capture": {
+                                                    "group": 1,
+                                                    "var_id": null
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "if": {
+                                  "test": {
+                                    "not-equals": {
+                                      "select": {
+                                        "parts": [
+                                          {
+                                            "capture": {
+                                              "group": 3,
+                                              "var_id": null
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "value": "-"
+                                    }
+                                  },
+                                  "then": [
+                                    {
+                                      "element": {
+                                        "name": "User",
+                                        "body": [
+                                          {
+                                            "element": {
+                                              "name": "Id",
+                                              "body": [
+                                                {
+                                                  "value-of": {
+                                                    "parts": [
+                                                      {
+                                                        "capture": {
+                                                          "group": 3,
+                                                          "var_id": null
+                                                        }
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "element": {
+                            "name": "EventDetail",
+                            "body": [
+                              {
+                                "element": {
+                                  "name": "TypeId",
+                                  "body": [
+                                    {
+                                      "text": "1234"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "element": {
+                                  "name": "View",
+                                  "body": [
+                                    {
+                                      "element": {
+                                        "name": "Resource",
+                                        "body": [
+                                          {
+                                            "element": {
+                                              "name": "URL",
+                                              "body": [
+                                                {
+                                                  "value-of": {
+                                                    "parts": [
+                                                      {
+                                                        "capture": {
+                                                          "group": 6,
+                                                          "var_id": null
+                                                        }
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "if": {
+                                              "test": {
+                                                "not-equals": {
+                                                  "select": {
+                                                    "parts": [
+                                                      {
+                                                        "capture": {
+                                                          "group": 10,
+                                                          "var_id": null
+                                                        }
+                                                      }
+                                                    ]
+                                                  },
+                                                  "value": "-"
+                                                }
+                                              },
+                                              "then": [
+                                                {
+                                                  "element": {
+                                                    "name": "Referrer",
+                                                    "body": [
+                                                      {
+                                                        "value-of": {
+                                                          "parts": [
+                                                            {
+                                                              "capture": {
+                                                                "group": 10,
+                                                                "var_id": null
+                                                              }
+                                                            }
+                                                          ]
+                                                        }
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "element": {
+                                              "name": "HTTPMethod",
+                                              "body": [
+                                                {
+                                                  "value-of": {
+                                                    "parts": [
+                                                      {
+                                                        "capture": {
+                                                          "group": 5,
+                                                          "var_id": null
+                                                        }
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "element": {
+                                              "name": "HTTPVersion",
+                                              "body": [
+                                                {
+                                                  "value-of": {
+                                                    "parts": [
+                                                      {
+                                                        "capture": {
+                                                          "group": 7,
+                                                          "var_id": null
+                                                        }
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "element": {
+                                              "name": "UserAgent",
+                                              "body": [
+                                                {
+                                                  "value-of": {
+                                                    "parts": [
+                                                      {
+                                                        "capture": {
+                                                          "group": 11,
+                                                          "var_id": null
+                                                        }
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "element": {
+                                              "name": "ResponseCode",
+                                              "body": [
+                                                {
+                                                  "value-of": {
+                                                    "parts": [
+                                                      {
+                                                        "capture": {
+                                                          "group": 8,
+                                                          "var_id": null
+                                                        }
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "mode": "lines"
+    }
+  ]
+}

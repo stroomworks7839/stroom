@@ -202,7 +202,22 @@ the file compared byte for byte with the text the configuration must have writte
 is computed beside the input rather than read from a fixture, since no fixture has an input of
 that size; the `projects/text_*` goldens are pinned through a `TextWriter` in the pipeline
 module (phase 1). Passed first time; nothing in the pipeline layer needed touching, which is
-the point of phases 1 and 2. *As written:* Parser → `TextWriter` → appender, byte-for-byte,
+the point of phases 1 and 2.
+
+*Audited 2026-09-04.* The pin is sound as far as it goes — a real pipeline, a real writer and
+appender, the bytes compared whole — and its one weakness is that it is alone: a single
+computed golden, in stroom-app, behind a Stroom. On the user's direction the module now has
+full-pipeline tests of its own that mimic Stroom's, with Shapeshifter in place of DS3 and XSLT:
+`FullPipelineTest` runs a mirror of `TestFileAppender`'s fixture set (its input, its two
+goldens, its writers and appender) through a real `PipelineFactory` built inside the module —
+`ModulePipelines`, in `stroom.pipeline.factory` for the registry's constructor, elements by
+hand, documents in a map, a mocked store — in three shapes: a text configuration to a
+`TextWriter` (the text golden byte for byte); a structured configuration to an `XMLWriter`
+(the XML golden as a document); and, after an `XMLParser`, the filter reading the image of the
+events and writing the text golden back. One Shapeshifter configuration replaces a DS3
+configuration, two stylesheets, a schema filter and a record output filter in each; the 59
+`/bad` requests the original's schema filter dropped are left out by a `choose`. All three
+passed on their first run. *As written:* Parser → `TextWriter` → appender, byte-for-byte,
 windowed.
 
 Each phase is audited before the next, as the others were.

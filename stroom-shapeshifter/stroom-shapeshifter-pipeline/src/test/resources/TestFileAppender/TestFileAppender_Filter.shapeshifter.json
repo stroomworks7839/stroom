@@ -1,0 +1,219 @@
+{
+  "name": "TestFileAppender_Filter",
+  "version": 5,
+  "source": {
+    "buffer_size": 20000,
+    "ignore_errors": true,
+    "encoding": "utf-8"
+  },
+  "templates": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "source",
+      "match": "source",
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "capture": {
+                    "group": 0,
+                    "var_id": null
+                  }
+                }
+              ]
+            },
+            "mode": "events"
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "event",
+      "match": {
+        "regex": {
+          "pattern": "\\s*<Event>.*?<TimeCreated>([^<]*)</TimeCreated>.*?<Name>([^<]*)</Name>.*?<Environment>([^<]*)</Environment>.*?<Generator>([^<]*)</Generator>.*?<HostName>([^<]*)</HostName>.*?<IPAddress>([^<]*)</IPAddress>.*?<Id>([^<]*)</Id>.*?<TypeId>([^<]*)</TypeId>.*?<URL>([^<]*)</URL>.*?<HTTPMethod>([^<]*)</HTTPMethod>.*?<HTTPVersion>([^<]*)</HTTPVersion>.*?<UserAgent>([^<]*)</UserAgent>.*?<ResponseCode>([^<]*)</ResponseCode>.*?</Event>",
+          "flags": {
+            "dot_all": true
+          }
+        }
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 1,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 2,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 3,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 4,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 5,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 6,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 7,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 8,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 9,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 10,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 11,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 12,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "capture": {
+                  "group": 13,
+                  "var_id": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "\n"
+        }
+      ],
+      "mode": "events"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "name": "between",
+      "match": {
+        "regex": {
+          "pattern": "[^<]*<(?!Event>)[^>]*>"
+        }
+      },
+      "body": [],
+      "mode": "events",
+      "consume": true
+    }
+  ]
+}

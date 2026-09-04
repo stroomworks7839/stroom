@@ -1,0 +1,263 @@
+{
+  "name": "TestFileAppender_Text",
+  "version": 5,
+  "source": {
+    "buffer_size": 20000,
+    "ignore_errors": true,
+    "encoding": "utf-8"
+  },
+  "templates": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "source",
+      "match": "source",
+      "body": [
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "capture": {
+                    "group": 0,
+                    "var_id": null
+                  }
+                }
+              ]
+            },
+            "mode": "lines"
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "line",
+      "match": {
+        "regex": {
+          "pattern": "([^ ]+) ([^ ]+) ([^ ]+) \\[([^\\]]+)\\] \"([^ ]+) ([^ ]+) ([^\"]+)\" ([^ ]+) ([^ ]+) \"([^\"]*)\" \"([^\"]*)\"\\n"
+        }
+      },
+      "body": [
+        {
+          "choose": {
+            "when": [
+              {
+                "test": {
+                  "contains": {
+                    "select": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "group": 6,
+                            "var_id": null
+                          }
+                        }
+                      ]
+                    },
+                    "substring": "good"
+                  }
+                },
+                "body": [
+                  {
+                    "parse-date": {
+                      "select": [
+                        {
+                          "parts": [
+                            {
+                              "capture": {
+                                "group": 4,
+                                "var_id": null
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "pattern": "dd/MMM/yyyy:HH:mm:ss Z",
+                      "name": "t"
+                    }
+                  },
+                  {
+                    "format-date": {
+                      "select": [
+                        {
+                          "parts": [
+                            {
+                              "capture": {
+                                "group": 0,
+                                "var_id": "t"
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "pattern": "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+                      "timezone": "UTC"
+                    }
+                  },
+                  {
+                    "text": "Test"
+                  },
+                  {
+                    "text": "Test"
+                  },
+                  {
+                    "text": "Apache"
+                  },
+                  {
+                    "text": "test.test.com"
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "group": 1,
+                            "var_id": null
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "test": {
+                        "not-equals": {
+                          "select": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "group": 3,
+                                  "var_id": null
+                                }
+                              }
+                            ]
+                          },
+                          "value": "-"
+                        }
+                      },
+                      "then": [
+                        {
+                          "value-of": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "group": 3,
+                                  "var_id": null
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "text": "1234"
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "group": 6,
+                            "var_id": null
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "test": {
+                        "not-equals": {
+                          "select": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "group": 10,
+                                  "var_id": null
+                                }
+                              }
+                            ]
+                          },
+                          "value": "-"
+                        }
+                      },
+                      "then": [
+                        {
+                          "value-of": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "group": 10,
+                                  "var_id": null
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "group": 5,
+                            "var_id": null
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "group": 7,
+                            "var_id": null
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "group": 11,
+                            "var_id": null
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value-of": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "group": 8,
+                            "var_id": null
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "text": "\n"
+                  }
+                ]
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "mode": "lines"
+    }
+  ]
+}
