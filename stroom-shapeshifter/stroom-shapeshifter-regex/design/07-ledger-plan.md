@@ -263,6 +263,38 @@ is the thing actually running, and gives the step budget a number instead of a p
 
 **Exit:** the row exists, is on the scoreboard, and 06 §5's list of blind spots is empty.
 
+## Phase 8 — The tree under pollution *(found by Phase 1; the pipeline-shaped row)*
+
+Phase 1's harness found what 06 §2 had wrong: these engines are not pollution-immune. In a
+JVM that has run the whole corpus, the scan plan loses 18% on CSV and the tree 26–39%
+(NETWORK 6,608 → 4,906, KEYVALUE 8,860 → 5,768, CSV 4,147 → 2,530), against the JDK's
+53–62%. Still 2× ahead where it matters — but this is the row a deployment actually runs
+on, and the tree is the default engine for every ambiguous pattern.
+
+Diagnosis before design, in this order:
+
+1. **Whose pollution is it?** Three variants of the harness's `@Setup`: pollute with our
+   patterns only, with the JDK's only, with both. If the tree's loss needs the JDK's patterns
+   present, it is shared JIT infrastructure (the code cache, inlining budget spent elsewhere);
+   if our own patterns suffice, it is our dispatch.
+2. **Which sites?** `PrintInlining` on a polluted fork against a clean one, filtered to
+   `NodeTree$*::match` and `PlanRunner::run`: the expected signature is `Node.match` call
+   sites going from bimorphic (one pattern's two or three node kinds per site) to megamorphic
+   (the corpus's dozen), and losing their inline caches — the same class of mechanism as
+   `ByteMatcher`'s gate, spread over every node boundary.
+3. **The design, only if 2 says so.** The scan plan's smaller loss points at the answer's
+   shape: `PlanRunner` dispatches through one `switch` on an opcode, which no profile can
+   pollute, where the tree dispatches through virtual `match` calls, which every pattern
+   pollutes for every other. A tree walker whose hot boundaries — `StarClass` → `next`,
+   `GroupHead`/`GroupTail`, `ByteSeq` — go through a kind switch rather than a virtual call
+   is a measured-method change to the primary engine's hottest paths, gated on the full
+   pair. Not attempted until 1 and 2 have made the case.
+
+**Gate:** `PollutedCorpusBenchmark`'s tree rows against `CorpusBenchmark`'s, paired, plus the
+clean canaries — a fix that buys the polluted row by costing the clean one has to say so.
+**Exit:** the tree's polluted loss is attributed, and either closed or accepted with its
+number; 06 §2's "pollution-immune" is rewritten to what the harness measures.
+
 ## Audit record — 2026-09-03
 
 Everything landed today was audited the same day, in the 08-28 manner. `RunLoop`'s audit is
