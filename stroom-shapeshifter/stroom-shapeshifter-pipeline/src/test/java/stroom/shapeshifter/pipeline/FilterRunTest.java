@@ -238,6 +238,49 @@ class FilterRunTest {
         assertThat(run.workerDone(5_000)).isTrue();
     }
 
+    /** A downstream that refuses the first element, as a failing XSLT would. */
+    private static final class Refusing extends DefaultHandler {
+
+        @Override
+        public void startElement(final String uri, final String local, final String qName, final Attributes atts)
+                throws org.xml.sax.SAXException {
+            throw new org.xml.sax.SAXException("downstream refused " + qName);
+        }
+    }
+
+    @Test
+    void downstreamThatThrowsMidStreamDoesNotLeaveTheWorkerWaitingOnTheQueue() throws Exception {
+        final StringBuilder csv = new StringBuilder("dt,who,where,what\n");
+        for (int i = 0; i < 3000; i++) {
+            csv.append("2020-06-17T08:00:00.000Z,user").append(i).append(",office,logon\n");
+        }
+        final FilterRun run = new FilterRun(reader(USERS), 4096, new Refusing(), errors());
+        final XMLReader ds3 = Ds3Oracle.parser(Files.readString(LEGACY.resolve("001_csv_with_header.ds3.xml")));
+        ds3.setContentHandler(run.input());
+        ds3.setErrorHandler(Ds3Oracle.errorHandler("DS3Parser", new LoggingErrorReceiver()));
+        // The refusal reaches the pipeline's thread inside the image's write, as the element sees it.
+        assertThatThrownBy(() -> ds3.parse(new InputSource(new InputStreamReader(
+                new ByteArrayInputStream(csv.toString().getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8))))
+                .hasMessageContaining("downstream refused");
+        run.abandon(new IllegalStateException("abandoned after the refusal"));
+        assertThat(run.workerDone(5_000)).as("the worker must not wait on a queue nobody drains").isTrue();
+    }
+
+    @Test
+    void refusalDuringTheFinalDrainIsThrownFromFinishAndTheRunIsAbandoned() throws Exception {
+        // endDocument is the one event the worker can only produce after the pipe is closed, so a
+        // downstream that refuses it fails inside finish()'s own drain, deterministically.
+        final FilterRun run = new FilterRun(reader(USERS), 4096, new DefaultHandler() {
+            @Override
+            public void endDocument() throws org.xml.sax.SAXException {
+                throw new org.xml.sax.SAXException("downstream refused the end");
+            }
+        }, errors());
+        ds3("001_csv_with_header", run.input());
+        assertThatThrownBy(run::finish).hasMessageContaining("downstream refused the end");
+        assertThat(run.workerDone(5_000)).as("finish must not leave a worker behind").isTrue();
+    }
+
     @Test
     void workerThatDiesUnblocksTheWriterAndSurfacesAtTheJoin() throws Exception {
         final ShapeshifterReader failing = new ShapeshifterReader(reader(USERS_AS_TEXT).compiled()) {

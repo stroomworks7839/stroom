@@ -69,6 +69,7 @@ final class FilterRun {
     private volatile ShapeshifterReader.Run result;
     private volatile List<Message> messages;
     private volatile Throwable failure;
+    private volatile boolean abandoned;
     private boolean downstreamLocated;
     private int delivered;
 
@@ -120,16 +121,22 @@ final class FilterRun {
     void finish() throws IOException, SAXException {
         pipe.closeWriter();
         try {
-            while (worker.isAlive()) {
-                drain();
-                worker.join(WAIT_MILLIS);
+            try {
+                while (worker.isAlive()) {
+                    drain();
+                    worker.join(WAIT_MILLIS);
+                }
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted waiting for the engine", e);
             }
-        } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            pipe.fail(e);
-            throw new IOException("Interrupted waiting for the engine", e);
+            drain();
+        } catch (final RuntimeException | IOException | SAXException e) {
+            // Whatever stopped the delivery, the worker must not be left waiting on a queue
+            // nobody will drain again (design 22 phase 2 audit).
+            abandon(e);
+            throw e;
         }
-        drain();
         if (failure != null) {
             if (failure instanceof RuntimeException runtime) {
                 throw runtime;
@@ -145,8 +152,12 @@ final class FilterRun {
         }
     }
 
-    /** Abandon the document: fail the pipe so the worker's read ends and the worker with it. */
+    /**
+     * Abandon the document: fail the pipe so the worker's read ends, and mark the run so a
+     * worker waiting on the output queue — which nobody will drain again — stops waiting too.
+     */
     void abandon(final Throwable cause) {
+        abandoned = true;
         pipe.fail(cause);
     }
 
@@ -248,9 +259,10 @@ final class FilterRun {
         private void enqueue(final Event event) {
             try {
                 // Blocks when the caller's thread has not delivered: back-pressure on the output.
+                // An abandoned run has no deliverer left, so the wait must end.
                 while (!events.offer(event, WAIT_MILLIS, TimeUnit.MILLISECONDS)) {
-                    if (Thread.currentThread().isInterrupted()) {
-                        throw new IllegalStateException("Interrupted while queueing an event");
+                    if (abandoned) {
+                        throw new IllegalStateException("The document was abandoned while an event waited");
                     }
                 }
             } catch (final InterruptedException e) {

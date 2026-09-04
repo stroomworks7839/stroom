@@ -207,6 +207,22 @@ structured fixture; through the filter, a text configuration and its structured 
 the same events; five thousand records through a 4 KB pipe with more than a thousand events
 delivered before `endDocument`; and the locator, both elements, every existing pin.
 
+*Audited 2026-09-04 — the threading, and one leak with two doors.* The deadlock analysis
+holds: the pipeline's thread never waits more than twenty milliseconds without draining, and
+the worker's wait on the output queue is only ever for a drain the next input write or
+`finish()` performs. But `abandon()` failed the *pipe*, and a worker blocked on the *output
+queue* — full, with nobody left to drain it because the downstream had just thrown on the
+pipeline's thread — never looked at the pipe again. Two doors: a downstream refusing an event
+during a drain inside the image's write (the element abandons, the worker waited for ever), and
+a refusal during `finish()`'s own drain (nothing abandoned at all). Closed both: the enqueue
+loop honours an abandoned flag, and `finish()` abandons on any failure before rethrowing.
+Pinned, each with the failure where it really happens — the first on the first element, the
+second on `endDocument`, the one event the worker can only produce after the pipe is closed.
+Read through and left: a structured configuration that emits no root at all (every element
+omitted) forwards no document events, where the byte path would have reported a parse error;
+a fatal mid-run on the native path leaves the document unclosed downstream, as DS3's own
+fatals do; processing instructions have no place in either path.
+
 **Phase 2 as written:** The compiler
 already knows whether a configuration carries structure; when it does, the filter and the
 parser run `SaxEventSink` straight into the downstream and skip the serialise-and-parse, with
