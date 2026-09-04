@@ -25,6 +25,12 @@ full set, bisected in the morning, and are remedied below; neither would have sh
 probe set drawn from the mechanism rather than the motivation. Before any commit under this
 plan: name the paths the edit touches, and take one row from each.
 
+A stopping rule, **proposed 2026-09-04** after a morning spent attributing three sub-8% rows to
+code generation: a cost below ~5% on a synthetic row is attributed to a commit and recorded,
+and not probed further unless a real workload, the pollution harness, or a full-set step shows
+it moving. The rows that repaid chasing this week were the 5.5×, the 51×, the 8–12% and the
+26–39%; the ones that did not were SPARSE, UNICODE and the coins. Ruling awaited.
+
 Three lessons from the last two days set the order. **Probe, don't reason**: all three of the
 encoding plan's costs were invisible to reading, to the stack profiler and to bytecode sizes,
 and each fell to a bisect plus a single-edit variant. **Instruments first**: a row that reads
@@ -54,6 +60,10 @@ those rows gave three different answers: `line_miss` was D39 (remedied the same 
 SPARSE and UNICODE were inside the plan all along — phase 4 and phase 3 respectively — cleared
 of every probe-reachable mechanism and deprioritised at 5.2× and parity. The chain's files are
 the run of record; the README's charts render from its last point.
+
+Also settled by the set: the tree's per-match datetime, which the 09-03 canary had read at −1.8%
+against the edge of its own spread, moved +0.9% pre-plan → after-fixes with the JDK rows flat —
+noise, as recorded, not a cost.
 
 **Exit (reached):** a checked-in chain, the charts re-rendered, and the named rows that did not
 hold are each attributed, remedied, ruled on or recorded — none left as a number without a cause.
