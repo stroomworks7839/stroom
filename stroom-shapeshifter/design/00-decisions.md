@@ -1208,3 +1208,17 @@ nor decoded. The "local group converts, stored value passes through" split in th
 — correct under E3 — is deleted because the value carries the rule itself. Design 25; ruled and deferred
 the same day — the build waits, design 24 goes first. The binary vocabulary a JPEG
 would need — framing, integers, slicing, a byte-writing element — is E36, not this.
+
+## D44 — Extension functions: a registry and a contract in the engine, Stroom's functions in the pipeline
+
+*2026-09-04.* Design 26, ruled in full. The engine gains a function contract mirrored on
+Stroom's Saxon library — a definition with a name, a signature over design 17's kinds (plus a
+`SEQUENCE` argument that resolves a store's entries), and a purity; a call bound once per run
+against a context of messages, the input offset, run state and configured services; a registry
+at compile time, a library at run time. A configuration calls one through a single `call`
+instruction in design 17 §4's shape; the built-ins keep their own keys. Preview mode skips
+impure functions with one warning each and runs context functions. Functions that return XML
+fragments in Saxon return serialised text for now; fragments as structure is a later design.
+The pipeline module binds a variant of every one of Stroom's functions under Stroom's own
+names, fifty-seven of fifty-eight — `split-document` has no counterpart — and both elements
+gain a `pipelineReference` property for the lookups.

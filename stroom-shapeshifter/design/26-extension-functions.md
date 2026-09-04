@@ -1,6 +1,6 @@
 # Extension functions: a registry and a contract in the engine, Stroom's functions in the pipeline
 
-**Status: design, opened 2026-09-04 on the user's direction. §7 collects what needs ruling.
+**Status: design, ruled 2026-09-04 (D44) — every §7 question answered as recommended.
 Resolves E32 when built.**
 
 The engine's functions are a closed set: `Translate`, `StringJoin`, `Replace` and the rest are
@@ -238,7 +238,7 @@ refuse it.
 
 Each phase audited before the next.
 
-## 7. Rulings needed
+## 7. Rulings — all ruled 2026-09-04, each as recommended (D44)
 
 1. **One `call` instruction** (`{"call": {"function": …, "select": […], "name": …}}`) rather
    than a JSON key per registered function. *Recommendation:* `call`. It keeps the codec closed
