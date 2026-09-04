@@ -67,10 +67,13 @@ for a caller that holds bytes anyway. It is wrong for a pipeline element.
 and runs `runWhole`; on the byte path it then holds the whole output and parses it. A terabyte
 in, a terabyte held, then held again.
 
-**Input.** Whichever it takes — the raw byte stream or a decoded `Reader` (§5.3, the open
-question) — `Shapeshifter.run` streams it through the window rather than reading it whole. The
-byte engine would rather have bytes; the reader convention would rather hand it characters; the
-recommendation and the trade are in §5.3.
+**Input.** The pipeline hands the element the raw byte stream (`setInputStream`, the default
+with no reader element in front) or a decoded `Reader` (`setReader`, when a reader element
+sits between source and parser) — the framework's own `TakesInput`/`TakesReader` shape, as
+`XMLParser` has it (§5.3). Either way `Shapeshifter.run` streams it through the window rather
+than reading it whole; a raw byte stream keeps `source.encoding` real, a reader is UTF-8. The
+only element-level work is to stop `AbstractParser.getInputSource` decoding a byte stream that
+should stay bytes.
 
 **Output, structured configuration.** Already streams: the native path (design 22 phase 2)
 runs `SaxEventSink` straight into the downstream on the pipeline's own thread, each event
@@ -141,7 +144,7 @@ text→SAX, and where the pipe plumbing lives. Opened once phase 1 lands.
 
 ---
 
-## 5. Decisions — input
+## 5. Decisions — input (5.1, 5.2 ruled 2026-09-04; 5.3 resolved by the framework)
 
 1. **A root match that fills the whole window while the input is not exhausted is FATAL**
    (ruled 2026-09-04). Not only an end-anchored one — *any* top-level match whose consumption
@@ -158,15 +161,21 @@ text→SAX, and where the pipe plumbing lives. Opened once phase 1 lands.
    byte-holding path, never a pipeline element's. Ruled by the correction that opened this
    document.
 
-3. **How the parser element takes its input — raw bytes or a decoded reader — is the open
-   question, and it is an input question.** Stroom's parser convention hands a parser a
-   `Reader` of characters (`AbstractParser.getInputSource` wraps a byte stream in one using the
-   feed's charset). Taking that reader means the engine re-encodes to UTF-8 on the fly and a
-   configuration's `source.encoding` can only be UTF-8 — which is design 20's existing position
-   and is fine for XML-shaped text, but forfeits the engine's own reason to be byte-based: RAW
-   matching, single-byte tables, binary formats, and `transcode` honouring a declared encoding.
-   Taking the raw byte stream instead (the parser is also `TakesInput`) preserves all of that
-   and makes `source.encoding` real, at the cost of stepping outside the reader convention the
-   other parsers follow. **Recommendation: take the raw byte stream** — a byte engine should be
-   given bytes — with the decoded-reader path available only where a configuration declares
-   UTF-8 and an upstream reader is already in place. Put for ruling.
+3. **The parser takes whichever the pipeline hands it — raw bytes or a decoded reader — and
+   that is the framework's own design, not a choice this document makes** (corrected 2026-09-04
+   on the user's recollection). `AbstractParser` implements `TakesInput` *and* `TakesReader`,
+   exactly as `XMLParser` does: with no reader element in front, the pipeline calls
+   `setInputStream(stream, encoding)` and the parser has the raw feed; a reader element
+   (BOM removal, a charset decode) makes it `setReader(reader)` and the parser has characters.
+   So a byte engine is given bytes by default, and `source.encoding` is real — RAW, single-byte
+   tables, binary formats and `transcode` all work — and the decoded-reader path exists for the
+   configuration that declares UTF-8 with an upstream reader already in place, where the
+   compiler's existing UTF-8-compatible refusal covers it.
+
+   The one thing in the way is not the framework but a helper: `AbstractParser.getInputSource`
+   wraps *even a raw byte stream* in an `InputStreamReader` and hands the subclass a
+   `BufferedReader`, so `ShapeshifterReader` currently receives characters and re-encodes them.
+   The fix is element-level and small: when the source carries a byte stream, pass it through to
+   the engine with its declared encoding rather than decoding it first; when it carries a
+   character stream, the decode already happened upstream and the engine's input is UTF-8. No
+   ruling needed — this is `XMLParser`'s own shape, and phase 1 adopts it.
