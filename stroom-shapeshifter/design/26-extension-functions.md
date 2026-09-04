@@ -268,7 +268,37 @@ against cases read from the class's source where it is not. This is the design's
 risk, and it is named here rather than in an audit: a variant that agrees with its own reading
 of the source is not proven, and the second pin is the one that counts.
 
-**Phase 2 — the pipeline module's library and group A.** The Guice module, the library, the
+**Phase 2 — the pipeline module's library and group A — Done 2026-09-04.** *As built:*
+`AbstractShapeshifterFunctionModule` (a multibinder of `FunctionDefinition`, `bindFunction`)
+and `ShapeshifterFunctionModule` (group A bound; `groupA()` as instances for a registry built
+without Guice), installed from `ShapeshifterModule`; `StroomFunctionLibrary` collects the set
+into one registry and the parser factory pool compiles every document against it
+(`ShapeshifterParserFactory(project, registry)`; the one-argument form means the empty
+registry). `ShapeshifterReader` carries a run's `Services` and `RunMode`; both elements give
+each document's reader `ElementServices` — the error receiver proxy, the location factory, the
+path creator, the feed and pipeline holders, and the element's `pipelineReference` properties,
+by type — and both gained that property. **One thing outside the module changed:** the
+reference-date parser that `FormatDate` and `ParseDateTime` each carried inline — the
+week-based and missing-year completion from the stream's creation time — is now
+`stroom.util.date.ReferenceDateParser`, and the two Saxon classes delegate to it; their 173
+tests pass unchanged, and the Shapeshifter `format-date` and `parse-dateTime` run the same
+code rather than a copy, which is the fidelity the design asked for. The twenty-three group-A
+variants are in `stroom.shapeshifter.pipeline.function`, each a `StroomFunction` naming the
+Saxon class it follows; `host-name` and `host-address` are impure (DNS); `format-date` and
+`parse-dateTime` are context functions reading `MetaHolder` through the services, now
+otherwise; `cidr-to-numeric-ip-range` returns "network,broadcast"; `json-to-xml` and
+`parse-uri` return indented text through Stroom's own serialiser with no declaration, and
+`parse-uri` wraps its nine part elements in a `uri` element because text needs one root where
+the Saxon class returns siblings. *Pins:* `StroomFunctionsTest`, the variants on the cases
+Stroom's own tests use (`TestHexToDec` … `TestFormatDate`'s reference-date cases included,
+with a mocked `MetaHolder`); `StroomFunctionsVersusSaxonTest`, in `stroom.pipeline.
+xsltfunctions` because the Saxon classes are package-private, running thirty-five inputs
+through the Saxon class and the variant and requiring the same string — the design's second
+pin, for fourteen of the functions; and a full-pipeline test calling `format-date`,
+`numeric-ip` and `hash` from a configuration through a real pipeline into a `TextWriter`.
+133 pipeline tests green.
+
+*As written:* The Guice module, the library, the
 pool compiling with the registry, both elements binding a context per document, the
 `pipelineReference` property; the twenty-three group-A variants. *Tests:* every variant pinned
 on the same inputs Stroom's own tests use (`TestFormatDate`, `TestHexToDec` and the rest in

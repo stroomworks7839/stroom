@@ -48,7 +48,9 @@ import stroom.pipeline.xmlschema.XmlSchemaCache;
 import stroom.pipeline.xmlschema.XmlSchemaStore;
 import stroom.security.api.SecurityContext;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.pipeline.ShapeshifterFilter;
+import stroom.shapeshifter.pipeline.ShapeshifterFunctionModule;
 import stroom.shapeshifter.pipeline.ShapeshifterParser;
 import stroom.shapeshifter.pipeline.ShapeshifterParserFactory;
 import stroom.shapeshifter.pipeline.ShapeshifterParserFactoryPool;
@@ -117,7 +119,8 @@ public final class ModulePipelines implements ElementRegistryFactory, ElementFac
         @Override
         public PoolItem<StoredParserFactory> borrowObject(final ShapeshifterDoc doc, final boolean usePool) {
             return new PoolItem<>(new PoolKey<>(doc.getUuid()), new StoredParserFactory(
-                    new ShapeshifterParserFactory(ProjectReader.read(doc.getData())), new StoredErrorReceiver()));
+                    new ShapeshifterParserFactory(ProjectReader.read(doc.getData()),
+                            FunctionRegistry.of(ShapeshifterFunctionModule.groupA())), new StoredErrorReceiver()));
         }
 
         @Override

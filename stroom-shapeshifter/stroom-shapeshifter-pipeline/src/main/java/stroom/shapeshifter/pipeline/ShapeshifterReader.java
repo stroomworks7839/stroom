@@ -24,6 +24,8 @@ import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.SaxEventSink;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.compile.CompiledProject;
+import stroom.shapeshifter.engine.function.RunMode;
+import stroom.shapeshifter.engine.function.Services;
 import stroom.util.shared.Severity;
 
 import org.xml.sax.ContentHandler;
@@ -73,9 +75,22 @@ public class ShapeshifterReader extends AbstractParser {
     private static final Locator UNLOCATED = unlocated();
 
     private final CompiledProject compiled;
+    // Design 26: what this document's run makes reachable to its functions, and how it is run.
+    private Services services = Services.NONE;
+    private RunMode mode = RunMode.NORMAL;
 
     public ShapeshifterReader(final CompiledProject compiled) {
         this.compiled = Objects.requireNonNull(compiled, "compiled");
+    }
+
+    /** What the run's functions may reach through their context — the element's holders, in a pipeline. */
+    public void setServices(final Services services) {
+        this.services = Objects.requireNonNull(services, "services");
+    }
+
+    /** How the run is used; {@link RunMode#PREVIEW} does not call impure functions. */
+    public void setMode(final RunMode mode) {
+        this.mode = Objects.requireNonNull(mode, "mode");
     }
 
     /** The configuration this parser runs. */
@@ -123,10 +138,10 @@ public class ShapeshifterReader extends AbstractParser {
                           final InputLocations locations,
                           final ContentHandler handler) {
         if (compiled.structured()) {
-            return Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations);
+            return Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations, mode, services);
         }
         final CharacterSink sink = new CharacterSink(handler);
-        List<Message> messages = Shapeshifter.run(compiled, lines, sink, locations);
+        List<Message> messages = Shapeshifter.run(compiled, lines, sink, locations, mode, services);
         try {
             sink.end();
         } catch (final OutputSink.StructureException e) {

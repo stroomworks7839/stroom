@@ -34,6 +34,7 @@ import stroom.pipeline.filter.PipelineDocFinder;
 import stroom.pipeline.parser.AbstractParser;
 import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineElementType.Category;
+import stroom.pipeline.shared.data.PipelineReference;
 import stroom.pipeline.state.FeedHolder;
 import stroom.pipeline.state.PipelineHolder;
 import stroom.pipeline.xml.converter.ParserFactory;
@@ -49,6 +50,8 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -79,6 +82,9 @@ public class ShapeshifterParser extends AbstractParser implements SupportsCodeIn
     private final ShapeshifterStore store;
     private final Provider<FeedHolder> feedHolder;
     private final Provider<PipelineHolder> pipelineHolder;
+    private final LocationFactoryProxy locationFactory;
+    private final PathCreator pathCreator;
+    private final List<PipelineReference> pipelineReferences = new ArrayList<>();
     private final PipelineDocFinder<ShapeshifterDoc> pipelineDocFinder;
 
     private DocRef shapeshifterRef;
@@ -101,6 +107,8 @@ public class ShapeshifterParser extends AbstractParser implements SupportsCodeIn
         this.pool = pool;
         this.store = store;
         this.feedHolder = feedHolder;
+        this.locationFactory = locationFactory;
+        this.pathCreator = pathCreator;
         this.pipelineHolder = pipelineHolder;
         this.pipelineDocFinder = new PipelineDocFinder<>(ShapeshifterDoc.TYPE, pathCreator, docFinder);
     }
@@ -120,7 +128,14 @@ public class ShapeshifterParser extends AbstractParser implements SupportsCodeIn
         final ParserFactory parserFactory = stored.getParserFactory();
 
         if (storedErrorReceiver.getTotalErrors() == 0 && parserFactory != null) {
-            return parserFactory.getParser();
+            final XMLReader reader = parserFactory.getParser();
+            if (reader instanceof ShapeshifterReader shapeshifter) {
+                // Design 26: what this document's functions may reach — the element's holders.
+                shapeshifter.setServices(ElementServices.of(
+                        getErrorReceiverProxy(), locationFactory, pathCreator,
+                        feedHolder, pipelineHolder, pipelineReferences));
+            }
+            return reader;
         }
         storedErrorReceiver.replay(new ErrorReceiverIdDecorator(getElementId(), getErrorReceiverProxy()));
         throw ProcessException.create("Unable to create parser");
@@ -176,6 +191,12 @@ public class ShapeshifterParser extends AbstractParser implements SupportsCodeIn
     @PipelinePropertyDocRef(types = ShapeshifterDoc.TYPE, canEmbed = true)
     public void setShapeshifter(final DocRef shapeshifterRef) {
         this.shapeshifterRef = shapeshifterRef;
+    }
+
+    @PipelineProperty(description = "A list of places to load reference data from if required.",
+            displayPriority = 5)
+    public void setPipelineReference(final PipelineReference pipelineReference) {
+        pipelineReferences.add(pipelineReference);
     }
 
     @PipelineProperty(description = "A name pattern to load a Shapeshifter configuration dynamically.",

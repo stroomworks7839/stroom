@@ -98,6 +98,64 @@ class FullPipelineTest {
                 events(fixture("TestFileAppender_XML.out")));
     }
 
+    /**
+     * Design 26 phase 2: a configuration calling Stroom's functions, through a real pipeline into
+     * a {@code TextWriter} — the registry the pool compiles against is the module's, and the
+     * element gives each document's run its services.
+     */
+    @Test
+    void configurationCallingStroomsFunctionsRunsThroughAPipeline() throws Exception {
+        final String configuration = """
+                {"name": "calls", "version": 5,
+                 "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                   "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "lines"}}]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "lines",
+                   "match": {"regex": {"pattern": "([^ ]+) [^ ]+ ([^ ]+) \\\\[([^\\\\]]+)\\\\] [^\\\\n]*\\\\n"}},
+                   "body": [
+                     {"call": {"function": "format-date", "select": [
+                        {"parts": [{"capture": {"group": 3}}]},
+                        {"parts": [{"text": "dd/MMM/yyyy:HH:mm:ss Z"}]}]}},
+                     {"text": " "},
+                     {"call": {"function": "numeric-ip", "select": [{"parts": [{"capture": {"group": 1}}]}]}},
+                     {"text": " "},
+                     {"call": {"function": "hash", "select": [
+                        {"parts": [{"capture": {"group": 2}}]}, {"parts": [{"text": "MD5"}]}]}},
+                     {"text": "\\n"}]}
+                 ]}
+                """;
+        final String pipelineJson = """
+                {"elements": {"add": [
+                   {"id": "shapeshifterParser", "type": "ShapeshifterParser"},
+                   {"id": "textWriter", "type": "TextWriter"},
+                   {"id": "fileAppender", "type": "FileAppender"}]},
+                 "properties": {"add": [
+                   {"element": "fileAppender", "name": "outputPaths",
+                    "value": {"string": "${stroom.temp}/TestFileAppender_Calls.tmp"}}]},
+                 "links": {"add": [
+                   {"from": "shapeshifterParser", "to": "textWriter"},
+                   {"from": "textWriter", "to": "fileAppender"}]}}
+                """;
+        final LoggingErrorReceiver receiver = new LoggingErrorReceiver();
+        final ModulePipelines pipelines = new ModulePipelines(new ErrorReceiverProxy(receiver), temp);
+        final DocRef doc = pipelines.shapeshifterDoc("calls", configuration);
+        final PipelineData data = new PipelineDataBuilder(ModulePipelines.pipelineData(pipelineJson))
+                .addProperty(PipelineDataUtil.createProperty("shapeshifterParser", "shapeshifter", doc))
+                .build();
+        final Pipeline pipeline = pipelines.create(data);
+        pipeline.startProcessing();
+        pipeline.process(new ByteArrayInputStream(fixture("TestFileAppender.in")), StandardCharsets.UTF_8.name());
+        pipeline.endProcessing();
+        assertThat(receiver.isAllOk()).as(receiver.getMessage()).isTrue();
+
+        final List<String> lines = Files.readAllLines(temp.resolve("TestFileAppender_Calls.tmp"));
+        assertThat(lines).hasSize(200);
+        // 123.123.123.123 - testuser [09/Apr/2013:01:00:50 +0100] ... : the date in Stroom's normal
+        // form, the address as a number, the user's MD5.
+        assertThat(lines.getFirst()).isEqualTo("2013-04-09T00:00:50.000Z 2071690107 5d9c68c6c50ed3d02a2fcf54f63993b6");
+    }
+
     /** Build the pipeline, point its Shapeshifter element at the configuration, run the input through it. */
     private Path run(final String variant, final String configuration, final String pipelineJson,
                      final String element, final byte[] input) throws IOException {

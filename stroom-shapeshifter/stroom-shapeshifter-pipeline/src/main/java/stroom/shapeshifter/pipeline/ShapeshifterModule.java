@@ -40,6 +40,8 @@ public class ShapeshifterModule extends AbstractModule {
                 .bind(ShapeshifterResourceImpl.class);
 
         bind(ShapeshifterParserFactoryPool.class).to(ShapeshifterParserFactoryPoolImpl.class);
+        // Design 26: Stroom's functions as Shapeshifter functions, one multibinder like the XSLT ones.
+        install(new ShapeshifterFunctionModule());
         GuiceUtil.buildMultiBinder(binder(), Clearable.class)
                 .addBinding(ShapeshifterParserFactoryPoolImpl.class);
         GuiceUtil.buildMultiBinder(binder(), EntityEvent.Handler.class)

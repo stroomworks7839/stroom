@@ -49,17 +49,21 @@ class ShapeshifterParserFactoryPoolImpl
     private static final Logger LOGGER = LoggerFactory.getLogger(ShapeshifterParserFactoryPoolImpl.class);
     private static final ElementId ELEMENT_ID = new ElementId(ShapeshifterParserFactoryPool.class.getSimpleName());
 
+    private final StroomFunctionLibrary functions;
+
     @Inject
     ShapeshifterParserFactoryPoolImpl(final CacheManager cacheManager,
                                       final Provider<ParserConfig> parserConfigProvider,
                                       final DocumentPermissionCache documentPermissionCache,
-                                      final SecurityContext securityContext) {
+                                      final SecurityContext securityContext,
+                                      final StroomFunctionLibrary functions) {
         // The same cache configuration as DS3's parser factories: one knob for all parser pools.
         super(cacheManager,
                 "Shapeshifter Parser Factory Pool",
                 () -> parserConfigProvider.get().getCacheConfig(),
                 documentPermissionCache,
                 securityContext);
+        this.functions = functions;
     }
 
     @Override
@@ -69,7 +73,7 @@ class ShapeshifterParserFactoryPoolImpl
         ShapeshifterParserFactory factory = null;
         try {
             final Project project = ProjectReader.read(doc.getData() == null ? "" : doc.getData());
-            factory = new ShapeshifterParserFactory(project);
+            factory = new ShapeshifterParserFactory(project, functions.registry());
         } catch (final RuntimeException e) {
             // A configuration that will not read or compile is a fatal error against the document,
             // reported once here and replayed by every element that borrows it.

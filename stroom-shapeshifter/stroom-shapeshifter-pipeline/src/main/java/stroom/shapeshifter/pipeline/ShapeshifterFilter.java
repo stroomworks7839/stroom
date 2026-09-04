@@ -33,6 +33,7 @@ import stroom.pipeline.filter.AbstractXMLFilter;
 import stroom.pipeline.filter.PipelineDocFinder;
 import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineElementType.Category;
+import stroom.pipeline.shared.data.PipelineReference;
 import stroom.pipeline.state.FeedHolder;
 import stroom.pipeline.state.PipelineHolder;
 import stroom.pipeline.xml.converter.ParserFactory;
@@ -51,6 +52,8 @@ import org.xml.sax.SAXParseException;
 import org.xml.sax.XMLReader;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -89,6 +92,8 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
     private final ErrorReceiverProxy errorReceiverProxy;
     private final ShapeshifterParserFactoryPool pool;
     private final ShapeshifterStore store;
+    private final List<PipelineReference> pipelineReferences = new ArrayList<>();
+    private final PathCreator pathCreator;
     private final Provider<FeedHolder> feedHolder;
     private final Provider<PipelineHolder> pipelineHolder;
     private final PipelineDocFinder<ShapeshifterDoc> pipelineDocFinder;
@@ -116,6 +121,7 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
         this.store = store;
         this.feedHolder = feedHolder;
         this.pipelineHolder = pipelineHolder;
+        this.pathCreator = pathCreator;
         this.pipelineDocFinder = new PipelineDocFinder<>(ShapeshifterDoc.TYPE, pathCreator, docFinder);
     }
 
@@ -182,6 +188,9 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
         if (!(reader instanceof ShapeshifterReader shapeshifter)) {
             throw new SAXException("The configuration's parser is not a Shapeshifter reader");
         }
+        // Design 26: what this document's functions may reach — the element's holders.
+        shapeshifter.setServices(ElementServices.of(
+                errorReceiverProxy, null, pathCreator, feedHolder, pipelineHolder, pipelineReferences));
         document = new FilterRun(shapeshifter, PIPE_CAPACITY, getContentHandler(), errorHandler(), preserveWhitespace);
         document.input().startDocument();
     }
@@ -303,6 +312,12 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
     @PipelinePropertyDocRef(types = ShapeshifterDoc.TYPE, canEmbed = true)
     public void setShapeshifter(final DocRef shapeshifterRef) {
         this.shapeshifterRef = shapeshifterRef;
+    }
+
+    @PipelineProperty(description = "A list of places to load reference data from if required.",
+            displayPriority = 5)
+    public void setPipelineReference(final PipelineReference pipelineReference) {
+        pipelineReferences.add(pipelineReference);
     }
 
     @PipelineProperty(description = "A name pattern to load a Shapeshifter configuration dynamically.",

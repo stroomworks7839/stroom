@@ -20,6 +20,7 @@ import stroom.pipeline.xml.converter.ParserFactory;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.Project;
+import stroom.shapeshifter.engine.function.FunctionRegistry;
 
 import org.xml.sax.XMLReader;
 
@@ -36,7 +37,12 @@ public class ShapeshifterParserFactory implements ParserFactory {
     private final CompiledProject compiled;
 
     public ShapeshifterParserFactory(final Project project) {
-        this.compiled = Shapeshifter.compile(project);
+        this(project, FunctionRegistry.EMPTY);
+    }
+
+    /** Compile against the functions the configuration may call (design 26). */
+    public ShapeshifterParserFactory(final Project project, final FunctionRegistry registry) {
+        this.compiled = Shapeshifter.compile(project, registry);
     }
 
     @Override
