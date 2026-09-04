@@ -102,7 +102,7 @@ class TestShapeshifterParser extends AbstractProcessIntegrationTest {
     private ShapeshifterSerialiser serialiser;
 
     @Test
-    void aMigratedConfigurationInAPipelineProducesStroomsRecords() throws IOException {
+    void migratedConfigurationInAPipelineProducesStroomsRecords() throws IOException {
         final DocRef docRef = createShapeshifterDoc();
         final DocRef pipelineRef = createPipeline(docRef);
         final Path outputFile = getCurrentTestDir().resolve("TestShapeshifterParser.xml");

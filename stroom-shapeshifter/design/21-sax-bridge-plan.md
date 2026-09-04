@@ -222,7 +222,25 @@ without a UI to open it; and input locations. The stepping test the phase as wri
 reader's locator is the output parser's and the messages are unlocated (phase 1's finding 1):
 mapping output positions back to input positions needs the trace's spans, and that is phase 4's
 attribution work wearing a different hat. Recorded as the phase's one open item, to be closed
-with phase 4 or before it if stepping is wanted sooner. Original wording follows.
+with phase 4 or before it if stepping is wanted sooner.
+
+**Audit of the audit, 2026-09-04 — five checks against the tree, two findings.** (4) *Checkstyle
+had never been run over any of this.* `test` does not run it; `check` does. Two violations were
+mine — `TreeSet` declared as a type where the rules want `SortedSet`, and a test method name
+whose second character was a capital — both fixed; six are pre-existing in the engine's
+`EncodedInputTest` (escaped Unicode literals, the encoding plan's) and are left for that
+work's owner, named here so they are not mistaken for this phase's. (5) *The serialiser's
+empty-document path is safe*: a never-edited document exports with no `json` asset,
+`getExtAssetData` returns null for it, `EncodingUtil.asString(null)` is null, and the import
+is a document with no data — the same behaviour as a TextConverter's. Checked, not assumed.
+Verified clean: `TestRestResources` scans every bound resource, the new one included, 220
+checks green; the commit's twenty-seven files are exactly the phase's, no build output or
+staging swept in; GWT is untouched by design, since a feature's `shared` package enters the
+client build only through that feature's own descriptor. **Not verifiable here:** the
+production injector. `TestAppModule` and `TestBootStrapModule` build it against a database
+and fail on the connection before reaching any binding; the mock injector installs the same
+two modules and builds. The first run of a real node is where a wrong binding would show, and
+it is named so nobody reads the green suite as having covered it. Original wording follows.
 
 What phase 1 built is an `XMLReader`; what a pipeline needs is an element that can be placed
 in it and a document that holds the configuration. Prior art is `DSParser` and

@@ -22,6 +22,7 @@ import org.xml.sax.Locator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.SortedSet;
 import java.util.TreeSet;
 
 /**
@@ -87,7 +88,7 @@ final class EventRecorder implements ContentHandler {
                              final String qName,
                              final Attributes atts) {
         flush();
-        final TreeSet<String> attributes = new TreeSet<>();
+        final SortedSet<String> attributes = new TreeSet<>();
         for (int i = 0; i < atts.getLength(); i++) {
             final String q = atts.getQName(i);
             if (q.equals("xmlns") || q.startsWith("xmlns:")) {
