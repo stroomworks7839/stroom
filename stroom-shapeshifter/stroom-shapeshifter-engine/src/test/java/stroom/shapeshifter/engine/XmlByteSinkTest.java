@@ -76,6 +76,26 @@ class XmlByteSinkTest {
     }
 
     @Test
+    void contentMaySplitAMultiByteCharacterAcrossWritesToo() {
+        final byte[] text = "a€b".getBytes(StandardCharsets.UTF_8); // € is three bytes
+        sink.startElement("d");
+        sink.write(text, 0, 2);
+        sink.write(text, 2, 1);
+        sink.write(text, 3, 2);
+        sink.endElement();
+        assertThat(output()).isEqualTo("<d>a€b</d>\n");
+
+        bytes.reset();
+        final XmlByteSink s = new XmlByteSink(bytes);
+        final byte[] e = "é".getBytes(StandardCharsets.UTF_8);
+        s.startElement("d");
+        s.write(e, 0, 1);
+        s.write(e, 1, 1);
+        s.endElement();
+        assertThat(bytes.toString(StandardCharsets.UTF_8)).isEqualTo("<d>é</d>\n");
+    }
+
+    @Test
     void childrenIndentByThreeAndWhitespaceContentIsTheIndentersNotTheAuthors() {
         sink.startElement("records");
         sink.write("\n   ");

@@ -290,7 +290,22 @@ namespace alignment, an attribute value split mid-character across writes, and t
 **Two choices made here and named for 2b.** Whitespace-only content inside an element is
 dropped — indentation is the indenter's, and phase 3's migration stops writing it as text.
 And the XML declaration is the caller's to write as document-level text, which is what the
-DS3-event adapter does and what the migration's header will be. Original wording follows.
+DS3-event adapter does and what the migration's header will be.
+
+**Audited 2026-09-04, against uses the goldens do not reach — one defect, three notes.**
+(1) *Content split across writes corrupted a multi-byte character.* Attribute values were
+buffered as bytes and decoded once; content was decoded per write, so an `é` arriving as two
+writes became two replacement characters. The executor writes whole values today, but
+`OutputSink.write(byte[], off, len)` promises bytes, not characters. Fixed: a trailing
+incomplete UTF-8 sequence is carried to the next write or flushed at the structural call
+that ends the content; pinned for a two- and a three-byte character. (2) *A whitespace-only
+element self-closes* (`<a/>`) where Saxon writes `<a>   </a>` — a consequence of "whitespace
+is dropped" the choice above did not name. Unpinned, and left as it is: no configuration in
+the corpus writes one, and the rule stays simple. (3) *Two top-level elements* each get the
+end-of-document newline. Unpinned, and left. (4) *For phase 4:* under a deferred start tag, a
+child's byte span absorbs its parent's start tag — the bytes are attributed to whoever
+triggered the flush. Not a defect, a fact the attribution design must know. Original wording
+follows.
 
 Before the model changes, a byte serialiser is written to the phase-0 census — and, since D41,
 to Saxon's indenter (E35): one attribute line until the 80th column, then each attribute after

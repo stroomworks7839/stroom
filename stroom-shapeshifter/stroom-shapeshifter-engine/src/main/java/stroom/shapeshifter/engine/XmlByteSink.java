@@ -58,6 +58,8 @@ public final class XmlByteSink implements OutputSink {
     private final Deque<Element> open = new ArrayDeque<>();
     private long position;
     private Attribute attribute;
+    /** The tail of the last content write that did not finish a UTF-8 sequence; see {@link #write}. */
+    private byte[] carry = new byte[0];
 
     public XmlByteSink(final OutputStream out) {
         this.out = out;
@@ -70,6 +72,7 @@ public final class XmlByteSink implements OutputSink {
     /** Open an element. Its start tag is written when its first content arrives, or it closes. */
     public void startElement(final String qName) {
         checkNoAttributeOpen("startElement " + qName);
+        flushCarry();
         final Element parent = open.peek();
         if (parent != null) {
             ensureStarted(parent);
@@ -110,6 +113,7 @@ public final class XmlByteSink implements OutputSink {
     public void endElement() {
         final Element element = current("endElement");
         checkNoAttributeOpen("endElement " + element.qName);
+        flushCarry();
         if (!element.started) {
             emitStartTag(element, true);
         } else if (element.hasElementChildren && !element.hasText) {
@@ -139,7 +143,18 @@ public final class XmlByteSink implements OutputSink {
             raw(data, offset, length);
             return;
         }
-        final String text = new String(data, offset, length, StandardCharsets.UTF_8);
+        // Content is escaped as characters, and a write may end mid-character: the interface
+        // promises bytes, not whole strings. Whatever does not complete a UTF-8 sequence waits
+        // for the next write, or for the structural call that ends the content.
+        final byte[] bytes = new byte[carry.length + length];
+        System.arraycopy(carry, 0, bytes, 0, carry.length);
+        System.arraycopy(data, offset, bytes, carry.length, length);
+        final int complete = bytes.length - incompleteTail(bytes);
+        carry = java.util.Arrays.copyOfRange(bytes, complete, bytes.length);
+        content(element, new String(bytes, 0, complete, StandardCharsets.UTF_8));
+    }
+
+    private void content(final Element element, final String text) {
         if (text.isBlank()) {
             // Whitespace between elements is the indenter's to write, not the author's.
             return;
@@ -147,6 +162,30 @@ public final class XmlByteSink implements OutputSink {
         ensureStarted(element);
         element.hasText = true;
         emit(escapeContent(text));
+    }
+
+    private void flushCarry() {
+        if (carry.length > 0) {
+            final byte[] bytes = carry;
+            carry = new byte[0];
+            final Element element = open.peek();
+            if (element != null) {
+                content(element, new String(bytes, StandardCharsets.UTF_8));
+            }
+        }
+    }
+
+    /** How many trailing bytes begin a UTF-8 sequence the array does not finish. */
+    private static int incompleteTail(final byte[] bytes) {
+        for (int back = 1; back <= 3 && back <= bytes.length; back++) {
+            final int b = bytes[bytes.length - back] & 0xFF;
+            if ((b & 0xC0) != 0x80) {
+                // A lead byte (or ASCII): the sequence it starts needs this many bytes in total.
+                final int needed = b < 0x80 ? 1 : b < 0xE0 ? 2 : b < 0xF0 ? 3 : 4;
+                return needed > back ? back : 0;
+            }
+        }
+        return 0;
     }
 
     @Override
