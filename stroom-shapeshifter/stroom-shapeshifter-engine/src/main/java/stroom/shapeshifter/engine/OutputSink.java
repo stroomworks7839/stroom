@@ -56,11 +56,25 @@ public interface OutputSink {
     }
 
     /**
-     * How far the output has got, in the sink's own currency: bytes for a byte sink, events for
-     * an event sink. Used for attribution — which template produced which part of the output —
-     * rather than for anything the engine needs to run.
+     * How far the output has got, in the sink's own currency — {@link #unit()} says which. Used
+     * for attribution — which template produced which part of the output — rather than for
+     * anything the engine needs to run.
      */
     long position();
+
+    /** The currency {@link #position()} counts in. Bytes unless a sink says otherwise. */
+    default Unit unit() {
+        return Unit.BYTES;
+    }
+
+    /**
+     * What a position is (design 20 S5): a byte offset when the target is bytes, an event ordinal
+     * when it is events. One {@link Instrument} contract, told which it is speaking.
+     */
+    enum Unit {
+        BYTES,
+        EVENTS
+    }
 
     /**
      * Open an element. Its start is written when its first content arrives or it closes, so that

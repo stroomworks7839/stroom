@@ -940,7 +940,10 @@ is a much larger design, it splits the engine's model in two, and the fixtures s
 route already works (`xml_to_json` matches serialised XML today).
 
 ### E31 — SAX events as output
-**`open` — designed 2026-08-28 in [design 20](../design/20-sax-output.md); ruled in full
+**`resolved` 2026-09-04 — design 21's five phases are done: parse-and-forward, the document
+and element, the two sinks and the structural instructions, the migration on them, and
+attribution by currency with input locations for stepping. Designed 2026-08-28 in
+[design 20](../design/20-sax-output.md); ruled in full
 2026-09-03 (design 20 §10, eleven rulings); planned in [design 21](../design/21-sax-bridge-plan.md),
 five phases with tests and gates. Phase 1 done 2026-09-03: `ShapeshifterReader` in
 `stroom-shapeshifter-pipeline` parses and forwards, and produces live DS3's events for 20 of 22

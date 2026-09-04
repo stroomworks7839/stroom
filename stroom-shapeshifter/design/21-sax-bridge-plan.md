@@ -541,7 +541,30 @@ issue that remains is E30's input half.
 
 ---
 
-## Phase 4 — Attribution speaks its currency *(reaches the editor)*
+## Phase 4 — Attribution speaks its currency *(reaches the editor)* — **Done 2026-09-04, engine side**
+
+**As built.** `OutputSink.unit()` — `BYTES` unless a sink says otherwise; `SaxEventSink` says
+`EVENTS` and its `position()` counts events. `Instrument.onOutput` gains the unit as its fifth
+argument; the executor reads it from the sink and its bracketing is otherwise unchanged. The
+rule the deferred start tag imposes is now stated on the contract and pinned in both
+currencies: an enclosing element opened by a parent is written when the first child emits, so
+the first child's span begins with the parent's start tag (bytes) or start event (events), and
+the parent's span covers it. **And 1b's open item closes:** `InputLocations`, an `Instrument`
+the reader runs with, pairs each match's input offset with its output byte span — by
+bracketing, since `onMatch` and `onOutput` enclose a body in order and a match index restarts
+with each parent match, so a key would not do — and, while the output is parsed, resolves the
+parser's line and column in the generated text to an output byte offset, the innermost span
+holding it, and that match's input line and column. The `Locator` the pipeline's filters
+receive is that one, not the parser's. `InputLocationsTest`: fixture 001's six records report
+lines 2–7 and each of their twenty-four `<data>` elements reports its record's line.
+
+**Not built, and where it goes.** The preview endpoint does not exist yet — design 18 §11 is
+still a design — so "the preview payload carries the unit" is a sentence in design 18, added
+with this phase, not code. When the endpoint is built it carries `unit` beside each span and
+the output pane maps `EVENTS` ordinals onto the serialised preview it also has. One limit
+named: the parser's column counts characters and the input's column is bytes; the same for
+ASCII, and named so the difference is not mistaken for a bug when it is not. Original wording
+follows.
 
 S5: event ordinals when writing events, byte offsets when writing bytes, one contract that
 says which. The cheapest honest shape, and the one recommended here: the event sink's

@@ -51,12 +51,17 @@ class InstrumentTest {
 
     }
 
+    private record UnitOutput(int index, long offset, long length, OutputSink.Unit unit) {
+
+    }
+
     /** Keeps everything it is told, which is what an editor would do. */
     private static final class Recorder implements Instrument {
 
         private final List<Match> matches = new ArrayList<>();
         private final List<Capture> captures = new ArrayList<>();
         private final List<Output> outputs = new ArrayList<>();
+        private final List<UnitOutput> unitOutputs = new ArrayList<>();
         private final List<byte[]> unlocatable = new ArrayList<>();
         private int attempts;
 
@@ -79,8 +84,9 @@ class InstrumentTest {
 
         @Override
         public void onOutput(final UUID templateId, final int matchIndex, final long outputOffset,
-                             final long outputLength) {
+                             final long outputLength, final OutputSink.Unit unit) {
             outputs.add(new Output(matchIndex, outputOffset, outputLength));
+            unitOutputs.add(new UnitOutput(matchIndex, outputOffset, outputLength, unit));
         }
 
         @Override
@@ -164,6 +170,92 @@ class InstrumentTest {
         // Each record wrote "<x>", one after the other, with nothing in between.
         assertThat(recorder.outputs.getFirst()).isEqualTo(new Output(1, 0, 3));
         assertThat(recorder.outputs.get(1)).isEqualTo(new Output(2, 3, 3));
+    }
+
+    /** Rows as elements under a root the document template opens: the deferred-start shape. */
+    private static final String STRUCTURED = """
+            {
+              "name": "watched", "version": 5,
+              "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+              "templates": [
+                {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                 "body": [{"element": {"name": "r", "body": [
+                   {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "row"}}]}}]},
+                {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                 "match": {"delimiter": {"delimiter": "\\n"}},
+                 "body": [{"element": {"name": "x", "body": [{"value-of": {"parts": [{"capture": {"group": 1}}]}}]}}]}
+              ]
+            }
+            """;
+
+    private static Recorder watchStructured(final OutputSink sink) {
+        final Recorder recorder = new Recorder();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(STRUCTURED)),
+                new ByteArrayInputStream("a\nb\n".getBytes(StandardCharsets.UTF_8)),
+                sink,
+                recorder);
+        return recorder;
+    }
+
+    @Test
+    void theByteSinkReportsBytesAndTheFirstChildsSpanBeginsWithTheParentsDeferredStartTag() {
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        final Recorder recorder = watchStructured(OutputSink.of(out));
+        final String text = out.toString(StandardCharsets.UTF_8);
+        assertThat(text).isEqualTo("<r>\n   <x>a</x>\n   <x>b</x>\n</r>\n");
+        assertThat(recorder.unitOutputs).extracting(UnitOutput::unit).containsOnly(OutputSink.Unit.BYTES);
+        // Row 1's body caused "<r>" to be written, so its span starts at 0 and includes it;
+        // row 2's begins where row 1's ended. The root's close is nobody's span.
+        final UnitOutput first = recorder.unitOutputs.get(0);
+        final UnitOutput second = recorder.unitOutputs.get(1);
+        assertThat(first.offset()).isZero();
+        assertThat(text.substring(0, (int) first.length())).isEqualTo("<r>\n   <x>a</x>");
+        assertThat(second.offset()).isEqualTo(first.length());
+        assertThat(text.substring((int) second.offset(), (int) (second.offset() + second.length())))
+                .isEqualTo("\n   <x>b</x>");
+    }
+
+    @Test
+    void theEventSinkReportsEventOrdinalsThatBracketTheSameElements() {
+        final List<String> events = new ArrayList<>();
+        final Recorder recorder = watchStructured(new SaxEventSink(new org.xml.sax.helpers.DefaultHandler() {
+            @Override
+            public void startDocument() {
+                events.add("startDocument");
+            }
+
+            @Override
+            public void startElement(final String uri, final String local, final String qName,
+                                     final org.xml.sax.Attributes atts) {
+                events.add("start " + qName);
+            }
+
+            @Override
+            public void characters(final char[] ch, final int start, final int length) {
+                events.add("chars " + new String(ch, start, length));
+            }
+
+            @Override
+            public void endElement(final String uri, final String local, final String qName) {
+                events.add("end " + qName);
+            }
+
+            @Override
+            public void endDocument() {
+                events.add("endDocument");
+            }
+        }));
+        assertThat(recorder.unitOutputs).extracting(UnitOutput::unit).containsOnly(OutputSink.Unit.EVENTS);
+        final UnitOutput first = recorder.unitOutputs.get(0);
+        final UnitOutput second = recorder.unitOutputs.get(1);
+        // The same rule in the other currency: row 1's span begins with the document and root
+        // start its first element forced, row 2's is its own three events.
+        assertThat(events.subList((int) first.offset(), (int) (first.offset() + first.length())))
+                .containsExactly("startDocument", "start r", "start x", "chars a", "end x");
+        assertThat(events.subList((int) second.offset(), (int) (second.offset() + second.length())))
+                .containsExactly("start x", "chars b", "end x");
+        assertThat(events).endsWith("end r", "endDocument");
     }
 
     @Test

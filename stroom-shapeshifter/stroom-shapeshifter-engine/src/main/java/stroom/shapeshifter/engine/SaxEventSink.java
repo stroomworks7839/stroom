@@ -169,6 +169,11 @@ public final class SaxEventSink implements OutputSink {
         return events;
     }
 
+    @Override
+    public Unit unit() {
+        return Unit.EVENTS;
+    }
+
     private void content(final String text) {
         if (text.isEmpty()) {
             return;

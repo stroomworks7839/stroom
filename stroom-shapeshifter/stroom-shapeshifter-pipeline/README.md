@@ -22,5 +22,8 @@ explorer and the client can see it) with its store, serialiser and REST resource
 services and `ShapeshifterPipelineElementModule` the element; `CoreModule`, `CliModule` and the
 test `MockServiceModule` install both. `TestShapeshifterParser` in `stroom-app` runs a migrated
 configuration through a real pipeline and round-trips the document through import/export.
-What is not here yet: the client plugin and editor (design 18), and input locations for
-stepping (design 21 phase 4).
+Every event the reader forwards carries the input position behind it: `InputLocations` pairs
+each match's input offset with its output span while the configuration runs, and resolves the
+parser's position in the generated text back through them while it is parsed, so the
+`Locator` the pipeline's filters see points at the record that produced the event (design 21
+phase 4). What is not here yet: the client plugin and editor (design 18).

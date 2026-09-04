@@ -138,7 +138,7 @@ rich per-frame attribution view is new in kind, not just in degree.
 | `onCapture(templateId, name, value, matchIndex)` | every variable binding, in execution order, per match |
 | `onMatchContent(templateId, content)` | the matched bytes when they came from a variable (offset reported as `UNLOCATABLE`) |
 | `startTiming()` / `stopTiming(templateId, token, matched)` | every *attempt*, including failures — the profiler and the "tried 4,012 times, matched 0" signal |
-| `onOutput(templateId, matchIndex, outputOffset, outputLength)` | output attribution — which template wrote which output span |
+| `onOutput(templateId, matchIndex, outputOffset, outputLength, unit)` | output attribution — which template wrote which output span, and in which currency: `BYTES` for the byte sink, `EVENTS` (ordinals) for the event sink (design 20 S5, design 21 phase 4). Spans nest; a child whose first emission forced an enclosing element's deferred start tag has that tag at the start of its span. The preview payload carries `unit` beside each span, and the output pane maps `EVENTS` onto the serialised preview it also has. |
 
 `PatternInfo.inspect(pattern)` gives editor-time pattern facts (validity, error text,
 groups with names) through the engine's own compile path. `BytePattern.explain()` and

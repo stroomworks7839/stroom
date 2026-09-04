@@ -61,9 +61,10 @@ import javax.xml.parsers.SAXParserFactory;
  * XML, which is the configuration speaking about <i>itself</i>: its line and column are in text
  * the user never sees, so the message says so and quotes the offending output line, and the
  * location handed on is deliberately unknown rather than a number that would be read as an input
- * position. The document locator the content handler receives is the parser's, and its positions
- * are in the output too — a known limit of this phase that the native path (design 20, phase 2)
- * removes.
+ * position. The document locator the content handler receives is <i>not</i> the parser's: every
+ * event is forwarded with the input position behind it, resolved through the run's trace
+ * ({@link InputLocations}, design 21 phase 4), so stepping and indicators point at the record
+ * that produced the event.
  *
  * <p>An input that arrives as characters rather than bytes — which is how the pipeline hands data
  * to a parser — is re-encoded as UTF-8 before the engine sees it. The engine matches bytes and the
@@ -91,7 +92,8 @@ public class ShapeshifterReader extends AbstractParser {
     public void parse(final InputSource input) throws IOException, SAXException {
         final byte[] bytes = bytesOf(input);
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
-        final List<Message> messages = Shapeshifter.runWhole(compiled, bytes, OutputSink.of(output));
+        final InputLocations locations = new InputLocations();
+        final List<Message> messages = Shapeshifter.runWhole(compiled, bytes, OutputSink.of(output), locations);
 
         boolean fatal = false;
         for (final Message message : messages) {
@@ -103,18 +105,22 @@ public class ShapeshifterReader extends AbstractParser {
             // managed to write would only add a second, misleading error to the first.
             return;
         }
-        forward(output.toByteArray());
+        forward(output.toByteArray(), locations.resolver(bytes, output.toByteArray()));
     }
 
     // -----------------------------------------------------------------------------------
     // Forwarding the output as events
     // -----------------------------------------------------------------------------------
 
-    private void forward(final byte[] output) throws IOException, SAXException {
-        final ContentHandler contentHandler = getContentHandler();
-        if (contentHandler == null) {
+    private void forward(final byte[] output, final InputLocations.Resolver locations)
+            throws IOException, SAXException {
+        final ContentHandler target = getContentHandler();
+        if (target == null) {
             throw new SAXException("No content handler set");
         }
+        // Every event is forwarded with the input position behind it, not the parser's position
+        // in the generated text (design 21 phase 4; D10's locator).
+        final ContentHandler contentHandler = new LocatingHandler(target, locations);
         final XMLReader reader;
         try {
             reader = PARSER_FACTORY.newSAXParser().getXMLReader();
@@ -133,6 +139,96 @@ public class ShapeshifterReader extends AbstractParser {
             }
             // The parser stops after a fatal error, which has already been reported in the output's
             // own terms. Like DS3, the stream carries the error rather than the parser throwing it.
+        }
+    }
+
+    /**
+     * Forwards events with the document locator replaced by the input's: before each event the
+     * parser's position in the output is resolved to the input position behind it, and that is
+     * what the pipeline's filters read.
+     */
+    private static final class LocatingHandler implements ContentHandler {
+
+        private final ContentHandler target;
+        private final InputLocations.Resolver locations;
+        private Locator parser;
+
+        private LocatingHandler(final ContentHandler target, final InputLocations.Resolver locations) {
+            this.target = target;
+            this.locations = locations;
+        }
+
+        private void locate() {
+            if (parser != null) {
+                locations.at(parser);
+            }
+        }
+
+        @Override
+        public void setDocumentLocator(final Locator locator) {
+            parser = locator;
+            target.setDocumentLocator(locations);
+        }
+
+        @Override
+        public void startDocument() throws SAXException {
+            locate();
+            target.startDocument();
+        }
+
+        @Override
+        public void endDocument() throws SAXException {
+            locate();
+            target.endDocument();
+        }
+
+        @Override
+        public void startPrefixMapping(final String prefix, final String uri) throws SAXException {
+            locate();
+            target.startPrefixMapping(prefix, uri);
+        }
+
+        @Override
+        public void endPrefixMapping(final String prefix) throws SAXException {
+            locate();
+            target.endPrefixMapping(prefix);
+        }
+
+        @Override
+        public void startElement(final String uri, final String localName, final String qName,
+                                 final org.xml.sax.Attributes atts) throws SAXException {
+            locate();
+            target.startElement(uri, localName, qName, atts);
+        }
+
+        @Override
+        public void endElement(final String uri, final String localName, final String qName) throws SAXException {
+            locate();
+            target.endElement(uri, localName, qName);
+        }
+
+        @Override
+        public void characters(final char[] ch, final int start, final int length) throws SAXException {
+            locate();
+            target.characters(ch, start, length);
+        }
+
+        @Override
+        public void ignorableWhitespace(final char[] ch, final int start, final int length) throws SAXException {
+            locate();
+            target.ignorableWhitespace(ch, start, length);
+        }
+
+        @Override
+        public void processingInstruction(final String piTarget, final String data) throws SAXException {
+            locate();
+            target.processingInstruction(piTarget, data);
+        }
+
+        @Override
+        public void skippedEntity(final String name) throws SAXException {
+            locate();
+            target.skippedEntity(name);
         }
     }
 

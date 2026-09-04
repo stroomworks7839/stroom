@@ -119,14 +119,24 @@ public interface Instrument {
     /**
      * A match's body finished writing.
      *
+     * <p>The span is measured on the sink's {@link OutputSink#position()} before and after the
+     * body, in the sink's own currency — byte offsets for a byte sink, event ordinals for an
+     * event sink — and {@code unit} says which (design 20 S5). Spans nest: a parent's span
+     * covers its children's. One consequence of the deferred start tag (design 21 phase 2a):
+     * an enclosing element opened by a parent is written when the first child emits, so the
+     * first child's span begins with the parent's start tag or start event. That is where the
+     * bytes went, and the parent's span covers them too.
+     *
      * @param templateId   which template
      * @param matchIndex   which match
      * @param outputOffset where its output starts
      * @param outputLength how much it wrote
+     * @param unit         what offset and length count
      */
     default void onOutput(final UUID templateId,
                           final int matchIndex,
                           final long outputOffset,
-                          final long outputLength) {
+                          final long outputLength,
+                          final OutputSink.Unit unit) {
     }
 }

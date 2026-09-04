@@ -562,7 +562,7 @@ public final class Executor {
                 body(candidate.body(), match, matchCount, content.asBytes(), sink,
                         locateBase, ignoreErrors, depth, effective(candidate));
                 instrument.onOutput(template.id(), matchCount, before,
-                        sink.position() - before);
+                        sink.position() - before, sink.unit());
             }
         }
     }
@@ -980,7 +980,7 @@ public final class Executor {
                 final long before = sink.position();
                 body(candidate.body(), match, 1, content.asBytes(), sink,
                         inputBase, ignoreErrors, depth, effective(candidate));
-                instrument.onOutput(template.id(), 1, before, sink.position() - before);
+                instrument.onOutput(template.id(), 1, before, sink.position() - before, sink.unit());
             }
         }
         return 0;
