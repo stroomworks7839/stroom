@@ -345,7 +345,16 @@ them is fixed by what the clean harness would lose:
    honest scoreboard is the polluted one; 06 §2's "immune" becomes "hardier than the JDK by
    a wide margin, and the tree by less than the scan plan". No code.
 
-The probe in 1 is an afternoon and settles which of the three this is. Scheduled by direction.
+**The probe in 1, run 2026-09-04 (09:06–09:12).** `Node.run` at the eight hot boundaries
+(ten call sites rewritten), tree tests green, then the tree's rows: clean NETWORK −9.4%,
+KEYVALUE −17.0%; polluted NETWORK −8.0%, KEYVALUE −14.4%; per-match datetime −2.3%, weblog
+−8.8%. It loses on both sides — the recursive switch stops the chain folding exactly as feared,
+and it does not buy the polluted row back either, because what pollution takes is the inline
+caches *inside* the chain, which a switch at the boundary cannot restore. **Shape 1 is
+rejected.** What remains is 2 (flatten the tree to a program — a rewrite of the primary engine,
+converging the two harnesses from both sides) and 3 (accept, and let the polluted scoreboard be
+the honest one). Recommendation: 3, with 2 recorded as the one lever left if the pipeline
+number ever needs the tree's clean speed. Ruling awaited.
 
 **Gate:** `PollutedCorpusBenchmark`'s tree rows against `CorpusBenchmark`'s, paired, plus the
 clean canaries — a fix that buys the polluted row by costing the clean one has to say so.
