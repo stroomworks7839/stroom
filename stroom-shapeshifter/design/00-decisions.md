@@ -1196,10 +1196,14 @@ encoding its bytes are in — the template's effective encoding for a slice of t
 decode step's output, UTF-8 for literals, composites and function results — and a consumer
 that needs text asks for the UTF-8 form, computed once and remembered. A write transcodes
 from the value's encoding to the one the sink declares (`OutputSink.encoding()`, UTF-8 by
-default and for every XML and character sink). The internal-text guarantee is unchanged, and
-so is every function, condition and comparison; the corpus and `EncodedInputTest` pin that.
-What is new is the byte identity: a `raw` capture into a `raw` sink is the bytes it matched,
-and a binary payload passed through is neither inflated nor decoded. The "local group
-converts, stored value passes through" split in the write path is deleted with the latent
-wrong answer it carried. Design 25; lands before design 24. The binary vocabulary a JPEG
+default and for every XML and character sink). The reason is design 17 §3.1: the casting table is
+the single source of every conversion, every other kind converts when asked, and `Bytes`
+alone was cast eagerly at capture, outside the table, losing what it was. The user ruled that
+captures are typed values like every other variable and parameter. The internal-text
+guarantee is unchanged, and so is every function, condition and comparison; the corpus and
+`EncodedInputTest` pin that. What falls out is the byte identity: a `raw` capture into a
+`raw` sink is the bytes it matched, and a binary payload passed through is neither inflated
+nor decoded. The "local group converts, stored value passes through" split in the write path
+— correct under E3 — is deleted because the value carries the rule itself. Design 25; lands
+before design 24. The binary vocabulary a JPEG
 would need — framing, integers, slicing, a byte-writing element — is E36, not this.

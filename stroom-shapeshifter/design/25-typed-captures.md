@@ -10,9 +10,19 @@ already. That gives the engine one internal text form, which every function, con
 comparison relies on. It also means the engine cannot write a byte it read: under `raw`, the
 byte 0x93 leaves as the two bytes C2 93, and a binary payload captured for pass-through is
 inflated on capture and re-encoded on write, twice, for nothing. `EncodedInputTest.
-matchesWithARegexUnderRaw` pins exactly that. The user asked whether captures should carry
-their type instead of being transcoded, and the answer is yes: the same guarantee, stated one
-step later, with the byte identity falling out of it.
+matchesWithARegexUnderRaw` pins exactly that.
+
+The reason to change it is not capability and not efficiency; it is consistency with the type
+model the engine already has. Design 17 §3.1 made the casting table the single source of
+every conversion, and every other kind obeys it: an `Int` is not rendered to decimal when it
+is captured, an `Instant` is not formatted until someone asks for a string. `Bytes` alone is
+converted eagerly, outside the table, at capture — a hidden cast applied to everything whether
+or not anyone asks, which is why "the internal form is UTF-8" has had to be a rule every
+consumer knows implicitly rather than a fact the value carries. The user's ruling: captures
+are typed values like every other variable and parameter, cast when asked, by what they are.
+Bytes that represent something other than text — a decoded payload, a binary field — stay
+what they are until a cast says otherwise. The byte identity and the untouched pass-through
+are what falls out of that, not the goal.
 
 ---
 
@@ -63,9 +73,9 @@ compares through the casts.
 
 **Writes.** One seam, `Output.write(sink, value)`: `sink.write(value.bytes(sink.encoding()))`.
 `Refs.resolve`, `CompiledRefs.write` and `emit` all go through it. The "only a local group
-converts; a stored value passes through" split — E3's implementation, and a latent wrong
-answer whenever a stored value is written by a template whose encoding differs from the one
-that captured it — is deleted, because the value knows and the template need not. Literal
+converts; a stored value passes through" split — E3's implementation, and correct, since every
+route into a store normalised — is deleted because the value knows and the template need not:
+the rule moves from the caller's provenance to the value's tag. Literal
 `text` ops hold a UTF-8-tagged value and take the same seam; for a UTF-8 sink that is today's
 byte copy.
 
@@ -118,7 +128,7 @@ instrument call), `Transforms`, and the two sinks' attribute buffers.
   0x93 0xE9, the literal brackets around them); Latin-1 into Latin-1 likewise; a literal
   above 0xFF into `raw` is `?`; structure into a non-UTF-8 sink is refused; a value captured
   under one template's encoding and written by another with a different one is right (the
-  deleted split's latent case); the UTF-8 form is computed once per value (a counting
+  case the deleted split answered by provenance, now answered by the tag); the UTF-8 form is computed once per value (a counting
   encoding in the test).
 
 ## 7. Phasing, and why this lands before design 24
