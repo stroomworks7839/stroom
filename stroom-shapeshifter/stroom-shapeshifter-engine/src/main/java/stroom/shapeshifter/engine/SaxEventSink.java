@@ -190,7 +190,18 @@ public final class SaxEventSink implements OutputSink {
             throw new StructureException(
                     "text outside any element cannot be forwarded as events: '" + excerpt(text) + "'");
         }
+        if (text.isBlank()) {
+            // As in the byte sink: whitespace between elements is nobody's, whitespace inside
+            // text is the text's, and only the next thing says which.
+            element.pendingWhitespace.append(text);
+            return;
+        }
         ensureStarted(element);
+        if (!element.pendingWhitespace.isEmpty()) {
+            final char[] pending = element.pendingWhitespace.toString().toCharArray();
+            element.pendingWhitespace.setLength(0);
+            sax(() -> handler.characters(pending, 0, pending.length));
+        }
         final char[] chars = text.toCharArray();
         sax(() -> handler.characters(chars, 0, chars.length));
     }
@@ -214,6 +225,7 @@ public final class SaxEventSink implements OutputSink {
         element.started = true;
         if (element.parent != null) {
             ensureStarted(element.parent);
+            element.parent.pendingWhitespace.setLength(0);
         } else if (!documentStarted) {
             sax(handler::startDocument);
             documentStarted = true;
@@ -313,6 +325,7 @@ public final class SaxEventSink implements OutputSink {
         private boolean started;
         private String uri;
         private String localName;
+        private final StringBuilder pendingWhitespace = new StringBuilder();
 
         private Element(final String qName, final Element parent, final boolean omitIfEmpty) {
             this.qName = qName;

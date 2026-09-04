@@ -165,6 +165,21 @@ time by a user of the locator, and pinned. (3) The `startProcessing` path refuse
 configuration that will not compile with the stored errors replayed and a fatal, before any
 document arrives — which is how an invalid test configuration first showed itself.
 
+*Audited 2026-09-04 — two defects, both in what a fixture cannot show.* (1) `XmlByteSink`
+dropped any whitespace-only write outright. The rule was written for indentation between
+elements, and a parser splits character data anywhere it likes: `"a"`, `" "`, `"b"` arriving
+as three events became `ab` in the image — and the engine's own `element d { value-of; text
+" "; value-of }` became `ab` on the way out, a latent phase-2b defect the input side found.
+Whitespace is now held as pending in both sinks: text that follows keeps it, a child element
+or the close discards it, which is the indenter's own rule. Pinned in both sinks and in the
+image. (2) A document that never reached `endDocument` — an upstream failure mid-stream —
+left its worker waiting on the pipe for ever. `endProcessing` and a fresh `startDocument` now
+abandon an open document, failing the pipe so the worker's read ends and the worker with it,
+with a warning against the element. Pinned: an abandoned run's worker is gone within the
+join. Read through and left: a fatal in `image()` is logged by the filter and then again by
+the parser element that catches the `SAXException`, twice in the indicators, once in truth;
+the pipe's 64 KB is a constant, not a property, until a stream shows it matters.
+
 **Phase 1 as written:** `ShapeshifterFilter` as §3, feeding
 `XmlByteSink` and forwarding through `ShapeshifterReader`. *Tests:* the filter driven directly
 with Stroom's DS3 as the upstream — `Ds3Oracle` produces the events, a configuration written

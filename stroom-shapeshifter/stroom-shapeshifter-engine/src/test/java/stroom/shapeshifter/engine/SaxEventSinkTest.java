@@ -74,6 +74,21 @@ class SaxEventSinkTest {
     }
 
     @Test
+    void whitespaceInsideTextIsKeptAndWhitespaceBeforeAChildIsNot() {
+        sink.startElement("d");
+        sink.write("a");
+        sink.write(" ");
+        sink.write("b");
+        sink.write("\n   ");
+        sink.startElement("e");
+        sink.endElement();
+        sink.endElement();
+        assertThat(events).containsExactly(
+                "startDocument", "startElement {}d d []", "characters \"a\"", "characters \" \"",
+                "characters \"b\"", "startElement {}e e []", "endElement {}e", "endElement {}d", "endDocument");
+    }
+
+    @Test
     void anUnprefixedAttributeIsInNoNamespaceEvenUnderADefaultNamespace() {
         sink.startElement("a", "urn:a");
         sink.startAttribute("plain");

@@ -149,6 +149,7 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
     @Override
     public void endProcessing() {
         try {
+            abandonIfOpen("the stream ended before the document did");
             super.endProcessing();
         } finally {
             if (poolItem != null) {
@@ -158,8 +159,18 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
         }
     }
 
+    /** A document left open — no endDocument came — would leave its worker waiting for ever. */
+    private void abandonIfOpen(final String why) {
+        if (document != null) {
+            document.abandon(new IllegalStateException(why));
+            document = null;
+            errorReceiverProxy.log(Severity.WARNING, null, getElementId(), "Document abandoned: " + why, null);
+        }
+    }
+
     @Override
     public void startDocument() throws SAXException {
+        abandonIfOpen("a new document began before the last ended");
         if (factory == null) {
             throw new SAXException("No Shapeshifter configuration is loaded");
         }

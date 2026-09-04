@@ -96,6 +96,25 @@ class XmlByteSinkTest {
     }
 
     @Test
+    void whitespaceInsideTextIsKeptAndWhitespaceBetweenElementsIsNot() {
+        sink.startElement("d");
+        sink.write("a");
+        sink.write(" ");
+        sink.write("b");
+        sink.endElement();
+        assertThat(output()).isEqualTo("<d>a b</d>\n");
+
+        bytes.reset();
+        final XmlByteSink s = new XmlByteSink(bytes);
+        s.startElement("d");
+        s.write("  ");
+        s.write("x");
+        s.write("  ");
+        s.endElement();
+        assertThat(bytes.toString(StandardCharsets.UTF_8)).isEqualTo("<d>  x</d>\n");
+    }
+
+    @Test
     void childrenIndentByThreeAndWhitespaceContentIsTheIndentersNotTheAuthors() {
         sink.startElement("records");
         sink.write("\n   ");

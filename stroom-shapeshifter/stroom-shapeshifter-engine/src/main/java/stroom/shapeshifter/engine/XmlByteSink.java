@@ -184,11 +184,19 @@ public final class XmlByteSink implements OutputSink {
 
     private void content(final Element element, final String text) {
         if (text.isBlank()) {
-            // Whitespace between elements is the indenter's to write, not the author's.
+            // Whitespace between elements is the indenter's to write, not the author's — but
+            // whitespace inside text is the text's. Held until the next thing says which: text
+            // keeps it, a child element or the close discards it. (Design 22 phase 1 audit: a
+            // parser splits character data anywhere, and "a", " ", "b" is "a b".)
+            element.pendingWhitespace.append(text);
             return;
         }
         ensureStarted(element);
         element.hasText = true;
+        if (!element.pendingWhitespace.isEmpty()) {
+            emit(escapeContent(element.pendingWhitespace.toString()));
+            element.pendingWhitespace.setLength(0);
+        }
         emit(escapeContent(text));
     }
 
@@ -235,6 +243,7 @@ public final class XmlByteSink implements OutputSink {
         if (element.parent != null) {
             ensureStarted(element.parent);
             element.parent.hasElementChildren = true;
+            element.parent.pendingWhitespace.setLength(0);
         }
         final StringBuilder tag = new StringBuilder();
         if (element.level > 1) {
@@ -367,6 +376,7 @@ public final class XmlByteSink implements OutputSink {
         private boolean started;
         private boolean hasElementChildren;
         private boolean hasText;
+        private final StringBuilder pendingWhitespace = new StringBuilder();
 
         private Element(final String qName, final int level, final Element parent, final boolean omitIfEmpty) {
             this.qName = qName;

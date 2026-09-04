@@ -89,9 +89,15 @@ final class FilterRun {
         reader.forward(result);
     }
 
-    /** Abandon the document: unblock and discard the worker. */
+    /** Abandon the document: fail the pipe so the worker's read ends and the worker with it. */
     void abandon(final Throwable cause) {
         pipe.fail(cause);
+    }
+
+    /** Whether the worker has finished, waiting up to the time given. */
+    boolean workerDone(final long millis) throws InterruptedException {
+        worker.join(millis);
+        return !worker.isAlive();
     }
 
     /** An output stream whose failures are the pipe's, surfaced where the image is written. */

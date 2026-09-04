@@ -185,6 +185,30 @@ class FilterRunTest {
     }
 
     @Test
+    void charactersSplitAcrossEventsKeepTheirWhitespaceInTheImage() throws Exception {
+        final ByteArrayOutputStream image = new ByteArrayOutputStream();
+        final EventImage handler = new EventImage(image);
+        handler.startDocument();
+        handler.startElement("", "d", "d", new org.xml.sax.helpers.AttributesImpl());
+        handler.characters("a".toCharArray(), 0, 1);
+        handler.characters(" ".toCharArray(), 0, 1);
+        handler.characters("b".toCharArray(), 0, 1);
+        handler.endElement("", "d", "d");
+        assertThat(image.toString(StandardCharsets.UTF_8)).endsWith("<d>a b</d>\n");
+    }
+
+    @Test
+    void anAbandonedDocumentReleasesItsWorker() throws Exception {
+        final FilterRun run = new FilterRun(reader(USERS), 64);
+        run.input().startDocument();
+        run.input().startElement("", "records", "records", new org.xml.sax.helpers.AttributesImpl());
+        // No endDocument ever comes: the worker is waiting on the pipe for more.
+        assertThat(run.workerDone(50)).isFalse();
+        run.abandon(new IllegalStateException("the stream ended before the document did"));
+        assertThat(run.workerDone(5_000)).isTrue();
+    }
+
+    @Test
     void workerThatDiesUnblocksTheWriterAndSurfacesAtTheJoin() throws Exception {
         final ShapeshifterReader failing = new ShapeshifterReader(reader(USERS).compiled()) {
             @Override
