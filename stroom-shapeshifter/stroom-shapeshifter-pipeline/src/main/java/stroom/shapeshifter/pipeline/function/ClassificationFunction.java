@@ -18,6 +18,8 @@ package stroom.shapeshifter.pipeline.function;
 
 import stroom.feed.api.FeedProperties;
 import stroom.pipeline.state.FeedHolder;
+import stroom.shapeshifter.engine.exec.TypedValue;
+import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.Kind;
@@ -33,17 +35,28 @@ public final class ClassificationFunction extends StroomFunction {
 
     @Override
     public FunctionCall bind(final FunctionContext context) {
-        return arguments -> {
-            final FeedHolder feedHolder = context.service(FeedHolder.class);
-            final FeedProperties feedProperties = context.service(FeedProperties.class);
-            if (feedHolder == null || feedProperties == null || feedHolder.getFeedName() == null) {
-                return null;
-            }
-            try {
-                return text(feedProperties.getDisplayClassification(feedHolder.getFeedName()));
-            } catch (final RuntimeException e) {
-                context.error(e.getMessage());
-                return null;
+        return new FunctionCall() {
+            // As the Saxon class: looked up once per feed, not once per record.
+            private String feedName;
+            private String classification;
+
+            @Override
+            public TypedValue call(final Arguments arguments) {
+                final FeedHolder feedHolder = context.service(FeedHolder.class);
+                final FeedProperties feedProperties = context.service(FeedProperties.class);
+                if (feedHolder == null || feedProperties == null || feedHolder.getFeedName() == null) {
+                    return null;
+                }
+                try {
+                    if (feedName == null || !feedName.equals(feedHolder.getFeedName())) {
+                        feedName = feedHolder.getFeedName();
+                        classification = feedProperties.getDisplayClassification(feedName);
+                    }
+                    return text(classification);
+                } catch (final RuntimeException e) {
+                    context.error(e.getMessage());
+                    return null;
+                }
             }
         };
     }

@@ -324,6 +324,40 @@ class ContextFunctionsTest {
         assertThat(call("link", "here", "http://x", "browser")).isEqualTo("[here](http://x){browser}");
     }
 
+    /**
+     * Phase 3 audit: {@code log} at FATAL puts a FATAL in the run's messages, which the pipeline
+     * hears after the run, and the run itself goes on — a message is not a failure.
+     */
+    @Test
+    void logAtFatalIsReportedAndTheRunGoesOn() {
+        final String json = """
+                {"name": "log", "version": 5,
+                 "source": {"buffer_size": 4096, "ignore_errors": false, "encoding": "utf-8"},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                   "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "l"}}]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "l",
+                   "match": {"regex": {"pattern": "([^\\\\n]*)\\\\n"}},
+                   "body": [{"call": {"function": "log", "select": [{"parts": [{"text": "FATAL"}]},
+                                                                    {"parts": [{"capture": {"group": 1}}]}]}},
+                            {"value-of": {"parts": [{"capture": {"group": 1}}]}}, {"text": "|"}]}
+                 ]}
+                """;
+        final java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+        final List<stroom.shapeshifter.engine.Message> messages = stroom.shapeshifter.engine.Shapeshifter.run(
+                stroom.shapeshifter.engine.Shapeshifter.compile(
+                        stroom.shapeshifter.engine.config.ProjectReader.read(json),
+                        stroom.shapeshifter.engine.function.FunctionRegistry.of(new LogFunction())),
+                new java.io.ByteArrayInputStream("a\nb\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                stroom.shapeshifter.engine.OutputSink.of(output),
+                stroom.shapeshifter.engine.Instrument.NONE,
+                stroom.shapeshifter.engine.function.RunMode.NORMAL,
+                stroom.shapeshifter.engine.function.Services.NONE);
+        assertThat(output.toString(java.nio.charset.StandardCharsets.UTF_8)).isEqualTo("a|b|");
+        assertThat(messages).extracting(m -> m.severity() + " " + m.text())
+                .containsExactly("FATAL log: a", "FATAL log: b");
+    }
+
     @Test
     void dictionary() {
         final WordListProvider provider = Mockito.mock(WordListProvider.class);

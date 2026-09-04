@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.pipeline.function;
 
+import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.Kind;
@@ -58,7 +59,7 @@ abstract class LocationFunction extends StroomFunction {
 
     static long from(final FunctionContext context) {
         final long offset = context.inputOffset();
-        return offset >= Long.MAX_VALUE / 2 ? -1 : offset;
+        return offset >= Instrument.UNLOCATABLE ? -1 : offset;
     }
 
     static long to(final FunctionContext context) {

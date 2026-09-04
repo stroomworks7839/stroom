@@ -346,6 +346,23 @@ the per-run caches of `parent-for-id` and `dictionary`; a full pipeline reading 
 id, record number, line and column from the engine, and a value put by one record and read
 by the next. 143 pipeline tests green; the drift pin now covers all fifty-three.
 
+*Audited 2026-09-04.* No defect in what the functions answer. **Tidied:** the location
+functions detected "no match running" by comparing the offset with half of `Long.MAX_VALUE`
+rather than with the engine's `UNLOCATABLE`; they use the constant. `classification` looked
+the feed up on every record where the Saxon class looks it up once per feed; it caches per
+feed now. **Pinned, because it is a divergence worth knowing:** `log` at FATAL puts a FATAL
+in the run's messages and the run goes on; the pipeline's error receiver hears it after the
+run, where Stroom's receiver hears it mid-stream — the stream ends marked fatal either way,
+but a Shapeshifter run finishes its output first, and a configuration that wants to stop
+has nothing but the engine's own failure for it. **Named and left:** columns are byte
+columns, from the line index; Stroom's are characters — the same for ASCII, and a difference
+for a multi-byte character earlier on the line. `record-no` counts the engine's top-level
+matches; Stroom's counts the split filter's records, which for a DS3 parser are the
+`record` elements — the same number for the usual configuration, not by construction.
+`meta-attribute` fetches the stream's attributes once per run where the Saxon class keeps them
+for the life of the call object, across documents, which is the Saxon class's defect rather
+than a difference to match. 144 green.
+
 *As written:* The context-dependent variants, with the holders wired through the
 elements; `line-from` and friends from the engine's own offsets. *Tests:* each against the
 holder it reads, and a full pipeline with meta.
