@@ -50,10 +50,12 @@ import java.util.UUID;
  * {@code apply-templates} naming that mode.
  *
  * <p>The other half is that DS3 has a fixed output format. It always produces {@code records:2}
- * XML with {@code <data>} elements, so the conversion also has to <i>write the XML</i>: the
- * envelope, the indentation, the attribute escaping, and the rule that a record only appears
- * when it has content. All of that becomes ordinary output instructions, which is why the result
- * runs on the same engine as everything else rather than needing a DS3 mode.
+ * XML with {@code <data>} elements, so the conversion also has to say what the output <i>is</i>:
+ * the envelope, the record, the data element and its attributes, as the structural instructions
+ * of design 20. It says nothing about how they look — indentation, escaping and wrapping are
+ * the sink's (D41, Saxon's bytes) — and the rule that a record only appears when it has content
+ * is the element's {@code omit-if-empty}. The result runs on the same engine as everything else
+ * rather than needing a DS3 mode.
  *
  * <p>No configuration has to be migrated — D4 kept DS3 running untouched — but its fixtures are
  * the only external oracle this port has, so the conversion has to be exact.

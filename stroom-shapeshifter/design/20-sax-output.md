@@ -40,8 +40,9 @@ through `escapeCaptures`, which wraps each reference in a generated `translate` 
 per captured attribute value, in every migrated configuration. It is correct: goldens 002 and
 007 pin `&#34;Big, Bad Fred&#34;`, `&lt;`, `&amp;` and `&#xA;` against Stroom's own output.
 (An earlier draft of this document called the reference path an unescaped defect; it was
-misread — `emitDataTag` routes every reference through `escapeCaptures` — and the correction
-is recorded in design 21 phase 0.) The point survives the correction and sharpens: the
+misread — `emitDataTag` routed every reference through `escapeCaptures` — and the correction
+is recorded in design 21 phase 0. Both are gone since phase 3: the migration writes structure
+and the sink escapes.) The point survives the correction and sharpens: the
 migration had to *generate machinery* to do what **Stroom's own DS3 never thinks about**,
 because DS3 emits events and the serialiser escapes by construction. The port inherited the
 work along with the text model.

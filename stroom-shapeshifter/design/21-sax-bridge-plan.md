@@ -468,7 +468,17 @@ carried its `__esc_` and `__record_body__` names), and their text-output forms a
 `projects/text_003…019` under their own goldens — the text path's serialisation, pinned as
 what a text configuration produces, per the ruling that both output styles keep fixtures.
 `Ds3EventIdentityTest`'s two side-ledgers empty: every legacy fixture is event-identical to
-live DS3 as well as byte-identical to its serialiser. Original wording follows.
+live DS3 as well as byte-identical to its serialiser.
+
+**Audited 2026-09-04 — against live DS3, not only the goldens; no defect.** The goldens do
+not pin what an attribute does with a literal mixed into a reference, a padded literal name,
+a reference name that did not participate, or a padded literal value, so a probe put all four
+through both engines as events: identical, including `value="pre-$2-post"`, which both treat
+as a literal because a reference begins with its sigil. Two stale descriptions corrected — the
+migration's class javadoc still said the conversion writes the indentation and the escaping,
+and design 20 §1 described `escapeCaptures` in the present tense. The commit's thirty-two files
+are the phase's: the code, the four regenerated natives, the four text variants with their
+goldens, the ledgers and the record. Original wording follows.
 
 `Ds3Migration` stops assembling markup. `RECORDS_HEADER`/`RECORDS_FOOTER` become
 `element records { namespace "" "records:2"; namespace xsi …; … }` with the census's
