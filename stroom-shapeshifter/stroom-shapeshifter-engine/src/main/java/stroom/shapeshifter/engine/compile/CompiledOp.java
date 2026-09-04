@@ -131,6 +131,19 @@ public sealed interface CompiledOp {
 
     }
 
+    /** Design 20's structural instructions, bracketing their bodies with the sink's calls. */
+    record Element(String name, String namespace, List<CompiledOp> body) implements CompiledOp {
+
+    }
+
+    record Attribute(String name, List<CompiledOp> body) implements CompiledOp {
+
+    }
+
+    record Namespace(String prefix, String uri) implements CompiledOp {
+
+    }
+
     /** Map a value through a lookup table. */
     record ValueMap(CompiledRef select,
                     List<OutputNode.Entry> entries,
@@ -290,6 +303,11 @@ public sealed interface CompiledOp {
                                 .toList());
                 case OutputNode.Variable value ->
                         new Variable(value.name(), compile(value.body(), patterns, regexEncoding, project));
+                case OutputNode.Element value -> new Element(
+                        value.name(), value.namespace(), compile(value.body(), patterns, regexEncoding, project));
+                case OutputNode.Attribute value ->
+                        new Attribute(value.name(), compile(value.body(), patterns, regexEncoding, project));
+                case OutputNode.Namespace value -> new Namespace(value.prefix(), value.uri());
                 case OutputNode.ValueMap value -> new ValueMap(
                         CompiledRef.of(value.select()), value.entries(), value.defaultValue(), value.name());
                 case OutputNode.Translate value -> transform(single("translate", value.select()),

@@ -201,14 +201,7 @@ public final class Executor {
                 || (streamDirective != null && streamDirective.ignoreErrors());
 
         final MatchResult nothing = MatchResult.empty();
-        List<CompiledOp> prologue = List.of();
-        List<CompiledOp> epilogue = List.of();
-        if (source != null) {
-            final List<CompiledOp> body = source.body();
-            final int apply = indexOfApply(body);
-            prologue = apply < 0 ? body : body.subList(0, apply);
-            epilogue = apply < 0 ? List.of() : body.subList(apply + 1, body.size());
-        }
+        final RootSplit split = source == null ? RootSplit.NONE : RootSplit.of(source.body());
 
         for (final Template template : compiled.project().templates()) {
             for (final CaptureBinding capture : template.captures()) {
@@ -216,8 +209,17 @@ public final class Executor {
             }
         }
 
-        if (!prologue.isEmpty()) {
-            body(prologue, nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
+        // What comes before the apply-templates, with any element it sits inside opened on the
+        // way down (design 21 phase 2b: `element records { apply-templates }` is the shape the
+        // migration takes, and the sink's deferred start tag is what makes opening-then-looping
+        // serialise as if the body had run in one piece).
+        for (int i = 0; i < split.prologues.size(); i++) {
+            body(split.prologues.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
+            if (i < split.opened.size()) {
+                final CompiledOp.Element element = split.opened.get(i);
+                structure(() -> output.startElement(element.name(), element.namespace()),
+                        "element '" + element.name() + "'");
+            }
         }
 
         final int bufferSize = wholeBuffer
@@ -253,27 +255,98 @@ public final class Executor {
             stream(roots, input, bufferSize, output, rootIgnoreErrors, rootDispatch);
         }
 
-        if (!epilogue.isEmpty()) {
-            body(epilogue, nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
+        // And what comes after it, closing the opened elements on the way back up.
+        for (int i = split.tails.size() - 1; i >= 0; i--) {
+            body(split.tails.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
+            if (i > 0) {
+                final CompiledOp.Element element = split.opened.get(i - 1);
+                structure(output::endElement, "element '" + element.name() + "'");
+            }
         }
     }
 
+    /**
+     * The document template's first {@code apply-templates}, looked for at the top of its body
+     * and inside any {@code element} that encloses it — the same descent {@link RootSplit} makes.
+     */
     private static ApplyDirective applyDirective(final Template template) {
-        for (final OutputNode node : template.body()) {
+        return applyDirective(template.body());
+    }
+
+    private static ApplyDirective applyDirective(final List<OutputNode> body) {
+        for (final OutputNode node : body) {
             if (node instanceof OutputNode.ApplyTemplates apply) {
                 return apply.directive();
+            }
+            if (node instanceof OutputNode.Element element) {
+                final ApplyDirective inside = applyDirective(element.body());
+                if (inside != null) {
+                    return inside;
+                }
             }
         }
         return null;
     }
 
-    private static int indexOfApply(final List<CompiledOp> body) {
-        for (int i = 0; i < body.size(); i++) {
-            if (body.get(i) instanceof CompiledOp.Apply) {
-                return i;
+    /**
+     * The document template's body, split around its apply-templates.
+     *
+     * <p>Level 0 is the body itself; each element enclosing the apply adds a level. Running the
+     * prologues in order with each level's element opened after its prologue, then the loop,
+     * then the tails in reverse with each element closed after its tail, is the body run in one
+     * piece with the loop where the apply-templates was. A body with no apply-templates is all
+     * prologue.
+     */
+    private record RootSplit(List<List<CompiledOp>> prologues,
+                             List<CompiledOp.Element> opened,
+                             List<List<CompiledOp>> tails) {
+
+        private static final RootSplit NONE = new RootSplit(List.of(), List.of(), List.of());
+
+        static RootSplit of(final List<CompiledOp> body) {
+            final List<List<CompiledOp>> prologues = new ArrayList<>();
+            final List<CompiledOp.Element> opened = new ArrayList<>();
+            final List<List<CompiledOp>> tails = new ArrayList<>();
+            List<CompiledOp> level = body;
+            while (true) {
+                final int at = indexOfApplyOrEnclosingElement(level);
+                if (at < 0) {
+                    prologues.add(level);
+                    tails.add(List.of());
+                    break;
+                }
+                prologues.add(level.subList(0, at));
+                tails.add(level.subList(at + 1, level.size()));
+                if (level.get(at) instanceof CompiledOp.Element element) {
+                    opened.add(element);
+                    level = element.body();
+                } else {
+                    break;
+                }
             }
+            return new RootSplit(prologues, opened, tails);
         }
-        return -1;
+
+        private static int indexOfApplyOrEnclosingElement(final List<CompiledOp> body) {
+            for (int i = 0; i < body.size(); i++) {
+                final CompiledOp op = body.get(i);
+                if (op instanceof CompiledOp.Apply
+                    || (op instanceof CompiledOp.Element element && containsApply(element.body()))) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private static boolean containsApply(final List<CompiledOp> body) {
+            for (final CompiledOp op : body) {
+                if (op instanceof CompiledOp.Apply
+                    || (op instanceof CompiledOp.Element element && containsApply(element.body()))) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     // -----------------------------------------------------------------------------------
@@ -1105,6 +1178,22 @@ public final class Executor {
                 }
                 case CompiledOp.Variable value ->
                         variable(value, match, matchCount, content, inputBase, ignoreErrors, depth, contentEncoding);
+                case CompiledOp.Element value -> {
+                    structure(() -> sink.startElement(value.name(), value.namespace()),
+                            "element '" + value.name() + "'");
+                    body(value.body(), match, matchCount, content, sink,
+                            inputBase, ignoreErrors, depth, contentEncoding);
+                    structure(sink::endElement, "element '" + value.name() + "'");
+                }
+                case CompiledOp.Attribute value -> {
+                    structure(() -> sink.startAttribute(value.name()), "attribute '" + value.name() + "'");
+                    body(value.body(), match, matchCount, content, sink,
+                            inputBase, ignoreErrors, depth, contentEncoding);
+                    structure(sink::endAttribute, "attribute '" + value.name() + "'");
+                }
+                case CompiledOp.Namespace value ->
+                        structure(() -> sink.namespace(value.prefix(), value.uri()),
+                                "namespace '" + value.prefix() + "'");
                 case CompiledOp.Call value ->
                         call(value, match, matchCount, content, sink, inputBase, ignoreErrors, depth, contentEncoding);
                 case CompiledOp.ValueMap value -> {
@@ -1685,6 +1774,21 @@ public final class Executor {
                     inputBase, ignoreErrors, depth, contentEncoding);
         }
         vars.pop();
+    }
+
+    /**
+     * A structural call, with the sink's refusal turned into the run's last message. The sink
+     * knows the rule (an attribute after content, a close with nothing open); the executor knows
+     * which instruction broke it, and a fatal is where a misshapen document stops rather than a
+     * half-written one continuing.
+     */
+    private void structure(final Runnable call, final String instruction) {
+        try {
+            call.run();
+        } catch (final OutputSink.StructureException e) {
+            messages.add(new Message(Severity.FATAL, "Output structure at " + instruction + ": " + e.getMessage()));
+            throw new AbortRun();
+        }
     }
 
     /**

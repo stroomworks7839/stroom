@@ -1,0 +1,4 @@
+2026-09-04T10:00:00.000Z login alice 10.0.0.1 "Mozilla/5.0 <Linux> & friends"
+2026-09-04T10:00:07.250Z logout bob 10.0.0.2 "curl/8.0" 3
+2026-09-04T10:00:09.000Z login carol 2001:db8::1 "a very long user agent string that pushes this element past Saxon's eightieth column"
+this line is junk and the eater says so

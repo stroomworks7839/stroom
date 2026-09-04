@@ -1,0 +1,55 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<Events xmlns="event-logging:3"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="event-logging:3 file://event-logging-v3.4.2.xsd"
+        Version="3.4.2">
+   <Event>
+      <EventTime>
+         <TimeCreated>2026-09-04T10:00:00.000Z</TimeCreated>
+      </EventTime>
+      <EventSource>
+         <User>
+            <Id>alice</Id>
+         </User>
+         <Client>
+            <IPAddress>10.0.0.1</IPAddress>
+         </Client>
+      </EventSource>
+      <EventDetail Action="LOGIN" Agent="Mozilla/5.0 &lt;Linux&gt; &amp; friends">
+         <Description>login by alice</Description>
+      </EventDetail>
+   </Event>
+   <Event>
+      <EventTime>
+         <TimeCreated>2026-09-04T10:00:07.250Z</TimeCreated>
+      </EventTime>
+      <EventSource>
+         <User>
+            <Id>bob</Id>
+         </User>
+         <Client>
+            <IPAddress>10.0.0.2</IPAddress>
+         </Client>
+      </EventSource>
+      <EventDetail Attempts="3" Action="LOGOUT" Agent="curl/8.0">
+         <Description>logout by bob</Description>
+      </EventDetail>
+   </Event>
+   <Event>
+      <EventTime>
+         <TimeCreated>2026-09-04T10:00:09.000Z</TimeCreated>
+      </EventTime>
+      <EventSource>
+         <User>
+            <Id>carol</Id>
+         </User>
+         <Client>
+            <IPAddress>2001:db8::1</IPAddress>
+         </Client>
+      </EventSource>
+      <EventDetail Action="LOGIN"
+                   Agent="a very long user agent string that pushes this element past Saxon's eightieth column">
+         <Description>login by carol</Description>
+      </EventDetail>
+   </Event>
+</Events>

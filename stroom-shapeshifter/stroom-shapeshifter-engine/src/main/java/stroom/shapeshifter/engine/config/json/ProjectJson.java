@@ -1098,6 +1098,22 @@ public final class ProjectJson {
                 yield new OutputNode.Variable(
                         text(body, "name", "variable"), list(body.get("body"), "body", ProjectJson::readOutput));
             }
+            case "element" -> {
+                checkFields(body, "element", "name", "namespace", "body");
+                yield new OutputNode.Element(
+                        text(body, "name", "element"),
+                        optionalText(body, "namespace"),
+                        list(body.get("body"), "body", ProjectJson::readOutput));
+            }
+            case "attribute" -> {
+                checkFields(body, "attribute", "name", "body");
+                yield new OutputNode.Attribute(
+                        text(body, "name", "attribute"), list(body.get("body"), "body", ProjectJson::readOutput));
+            }
+            case "namespace" -> {
+                checkFields(body, "namespace", "prefix", "uri");
+                yield new OutputNode.Namespace(optionalText(body, "prefix"), text(body, "uri", "namespace"));
+            }
             case "value-map" -> {
                 checkFields(body, "value-map", "select", "entries", "default", "name");
                 yield new OutputNode.ValueMap(
@@ -1354,6 +1370,27 @@ public final class ProjectJson {
                 body.put("name", value.name());
                 body.set("body", array(value.body(), ProjectJson::writeOutput));
                 yield wrap("variable", body);
+            }
+            case OutputNode.Element value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("name", value.name());
+                if (value.namespace() != null) {
+                    body.put("namespace", value.namespace());
+                }
+                body.set("body", array(value.body(), ProjectJson::writeOutput));
+                yield wrap("element", body);
+            }
+            case OutputNode.Attribute value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("name", value.name());
+                body.set("body", array(value.body(), ProjectJson::writeOutput));
+                yield wrap("attribute", body);
+            }
+            case OutputNode.Namespace value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("prefix", value.prefix());
+                body.put("uri", value.uri());
+                yield wrap("namespace", body);
             }
             case OutputNode.ValueMap value -> {
                 final ObjectNode body = NODES.objectNode();

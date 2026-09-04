@@ -23,8 +23,11 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * An {@link OutputSink} that serialises structure the way Stroom's own serialiser does.
@@ -47,7 +50,11 @@ import java.util.List;
  * and {@code &#x9;} for the whitespace controls in attribute values, {@code &#xD;} in content.
  *
  * <p>The ordering rule of design 20 §4B is enforced here for what the compiler cannot see: a
- * namespace or attribute arriving after content is refused by name.
+ * namespace or attribute arriving after content is refused by name. Prefixes are the author's:
+ * an element whose namespace is given and whose prefix is not already bound to it declares the
+ * binding itself (S3's element-declared form); one whose prefix is unbound is written as told,
+ * since bytes cannot be wrong about a URI they do not carry — the event sink is where that is
+ * refused.
  */
 public final class XmlByteSink implements OutputSink {
 
@@ -69,8 +76,8 @@ public final class XmlByteSink implements OutputSink {
     // Structure
     // -----------------------------------------------------------------------------------
 
-    /** Open an element. Its start tag is written when its first content arrives, or it closes. */
-    public void startElement(final String qName) {
+    @Override
+    public void startElement(final String qName, final String namespace) {
         checkNoAttributeOpen("startElement " + qName);
         flushCarry();
         final Element parent = open.peek();
@@ -78,38 +85,54 @@ public final class XmlByteSink implements OutputSink {
             ensureStarted(parent);
             parent.hasElementChildren = true;
         }
-        open.push(new Element(qName, open.size() + 1));
+        final Element element = new Element(qName, open.size() + 1, parent == null ? Map.of() : parent.scope);
+        open.push(element);
+        if (namespace != null) {
+            // Element-declared (S3): the prefix's binding in scope serves if it already says so,
+            // otherwise the element declares it.
+            final String prefix = prefixOf(qName);
+            if (!namespace.equals(element.scope.get(prefix))) {
+                declare(element, prefix, namespace);
+            }
+        }
     }
 
-    /** Declare a prefix binding on the open element; the empty prefix is the default namespace. */
+    @Override
     public void namespace(final String prefix, final String uri) {
         final Element element = current("namespace " + prefix);
         if (element.started) {
-            throw new IllegalStateException(
+            throw new StructureException(
                     "namespace '" + prefix + "' arrived after the content of <" + element.qName + "> had begun");
         }
-        element.declarations.add(new String[]{prefix, uri});
+        declare(element, prefix, uri);
     }
 
-    /** Begin an attribute; every write until {@link #endAttribute} is its value. */
+    private static void declare(final Element element, final String prefix, final String uri) {
+        element.declarations.add(new String[]{prefix, uri});
+        element.scope.put(prefix, uri);
+    }
+
+    @Override
     public void startAttribute(final String qName) {
         final Element element = current("attribute " + qName);
         checkNoAttributeOpen("startAttribute " + qName);
         if (element.started) {
-            throw new IllegalStateException(
+            throw new StructureException(
                     "attribute '" + qName + "' arrived after the content of <" + element.qName + "> had begun");
         }
         attribute = new Attribute(qName);
     }
 
+    @Override
     public void endAttribute() {
         if (attribute == null) {
-            throw new IllegalStateException("endAttribute with no attribute open");
+            throw new StructureException("endAttribute with no attribute open");
         }
         open.peek().attributes.add(new String[]{attribute.qName, attribute.value.toString(StandardCharsets.UTF_8)});
         attribute = null;
     }
 
+    @Override
     public void endElement() {
         final Element element = current("endElement");
         checkNoAttributeOpen("endElement " + element.qName);
@@ -150,7 +173,7 @@ public final class XmlByteSink implements OutputSink {
         System.arraycopy(carry, 0, bytes, 0, carry.length);
         System.arraycopy(data, offset, bytes, carry.length, length);
         final int complete = bytes.length - incompleteTail(bytes);
-        carry = java.util.Arrays.copyOfRange(bytes, complete, bytes.length);
+        carry = Arrays.copyOfRange(bytes, complete, bytes.length);
         content(element, new String(bytes, 0, complete, StandardCharsets.UTF_8));
     }
 
@@ -288,15 +311,20 @@ public final class XmlByteSink implements OutputSink {
     private Element current(final String call) {
         final Element element = open.peek();
         if (element == null) {
-            throw new IllegalStateException(call + " with no element open");
+            throw new StructureException(call + " with no element open");
         }
         return element;
     }
 
     private void checkNoAttributeOpen(final String call) {
         if (attribute != null) {
-            throw new IllegalStateException(call + " while attribute '" + attribute.qName + "' is open");
+            throw new StructureException(call + " while attribute '" + attribute.qName + "' is open");
         }
+    }
+
+    static String prefixOf(final String qName) {
+        final int colon = qName.indexOf(':');
+        return colon < 0 ? "" : qName.substring(0, colon);
     }
 
     private void emit(final String text) {
@@ -321,15 +349,18 @@ public final class XmlByteSink implements OutputSink {
 
         private final String qName;
         private final int level;
+        /** Prefix bindings in scope here: the parent's, plus this element's own declarations. */
+        private final Map<String, String> scope;
         private final List<String[]> declarations = new ArrayList<>();
         private final List<String[]> attributes = new ArrayList<>();
         private boolean started;
         private boolean hasElementChildren;
         private boolean hasText;
 
-        private Element(final String qName, final int level) {
+        private Element(final String qName, final int level, final Map<String, String> inherited) {
             this.qName = qName;
             this.level = level;
+            this.scope = new HashMap<>(inherited);
         }
     }
 

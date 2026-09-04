@@ -318,7 +318,51 @@ instruction wrote it, whitespace that is not content — the spike reports what 
 reproduce and S2 is re-put to the user with evidence, before anything downstream is built on
 the assumption.
 
-### 2b — `OutputSink` widens; `write` gains its context
+### 2b — `OutputSink` widens; `write` gains its context — **Done 2026-09-04**
+
+**As built.** `OutputSink` carries the structural calls with defaults that refuse by name, so
+a byte counter or a benchmark sink still compiles; `OutputSink.of(stream)` is `XmlByteSink`,
+which is byte-transparent for a configuration that opens nothing — the whole existing corpus
+proves it. `SaxEventSink` is the second implementation: declarations become
+`startPrefixMapping`, attribute bytes accumulate into `Attributes`, the deferred start fires
+at first content, content is `characters()`, the root brackets the document, an unbound
+prefix is refused when its element is emitted, and `position()` counts events. Both sinks
+resolve prefixes through a per-element scope, so an element whose namespace is given and
+whose prefix is not already bound to it declares the binding itself (S3's element-declared
+form) and `namespace` is the explicit one. In the model: `Element(name, namespace, body)`,
+`Attribute(name, body)`, `Namespace(prefix, uri)`; in the codec `element`, `attribute`,
+`namespace`; in the compiler a `Structure` pass — an attribute or namespace after content in
+the same element body, or any structure inside an attribute's value, is a `ConfigException`
+naming the template, the instruction and the element, while an attribute at a template's top
+level is allowed because it may be running inside a caller's element; in the executor three
+arms that bracket their bodies with the sink's calls and turn a `StructureException` into the
+run's fatal, named for the instruction.
+
+**One thing the phase found that the design had not:** the document template's body is split
+at its `apply-templates` — prologue once, the loop over the input, epilogue once — and the
+split looked only at the top level, so `element records { apply-templates }`, the exact
+shape phase 3 needs, dispatched nothing (and so did an apply inside an `if` or a `variable`,
+which is pre-existing and stays: a conditional root loop is not a thing). `RootSplit` now
+descends through enclosing elements, opening each after its prologue and closing each after
+its tail, which the sink's deferred start tag makes indistinguishable from the body having run
+in one piece.
+
+**Tests.** `XmlByteSinkTest` (10), `SaxEventSinkTest` (6), `StructureTest` (5: the three
+compile refusals, the run-time refusal across two child templates the compiler cannot see, and
+a structured body serialised as Stroom would with a variable as its own document), the
+`EveryVariantTest` round-trip through the codec, and the hand-written fixture
+`projects/event_logging_structured` — `event-logging:3` with a default and a prefixed
+namespace, a conditional attribute, an attribute value carrying `&` and `<`, an attribute list
+long enough to wrap, text content, an eater — with its byte golden; and in the pipeline module
+`StructuredEventsTest`, the invariant that the native event sink and a parser over the byte
+sink's output agree event for event and message for message. Whole corpus unchanged: 65 in
+the ledger, 10 pending, 0 failures.
+
+**Two choices named.** The event sink drops an XML declaration written as document-level text,
+since a configuration that writes one for the file target is not wrong to run here and the
+declaration has no event. And a variable's body is its own document: structure inside a
+variable serialises into the variable as bytes, which is P1's problem and phase 3's. Original
+wording follows.
 
 The interface gains `startElement(name, uri)`, `endElement()`, `startAttribute(name, uri)`,
 `endAttribute()`, `namespace(prefix, uri)`. `write` keeps its three overloads and every

@@ -108,6 +108,44 @@ public sealed interface OutputNode {
     }
 
     /**
+     * Open an element around a body; it closes when the body finishes. XSLT: {@code xsl:element}.
+     *
+     * <p>The three structural instructions (design 20, D40). Inside an element's body, what
+     * {@code text} and {@code value-of} write is content; the sink escapes it. Attributes and
+     * namespaces must come before any content — the compiler checks the body as written, the
+     * sink checks what arrives.
+     *
+     * @param name      the qualified name, prefix included if it has one
+     * @param namespace the namespace URI, or null to use whatever the prefix is bound to in scope;
+     *                  given, and not already bound to the prefix, the element declares it
+     */
+    record Element(String name, String namespace, List<OutputNode> body) implements OutputNode {
+
+        public Element {
+            body = body == null ? List.of() : List.copyOf(body);
+        }
+    }
+
+    /**
+     * An attribute of the enclosing element whose value is what the body writes.
+     * XSLT: {@code xsl:attribute}. The body may write text and values, not structure.
+     */
+    record Attribute(String name, List<OutputNode> body) implements OutputNode {
+
+        public Attribute {
+            body = body == null ? List.of() : List.copyOf(body);
+        }
+    }
+
+    /** Declare a prefix on the enclosing element; the empty prefix is the default namespace. */
+    record Namespace(String prefix, String uri) implements OutputNode {
+
+        public Namespace {
+            prefix = prefix == null ? "" : prefix;
+        }
+    }
+
+    /**
      * Map a value through a lookup table.
      *
      * @param select       the value to look up

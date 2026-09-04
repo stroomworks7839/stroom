@@ -209,6 +209,10 @@ class EveryVariantTest {
                 new OutputNode.EmitError(Severity.WARNING, ref()),
                 new OutputNode.CallTemplate("named", List.of(new Param("depth", ref()))),
                 new OutputNode.Variable("bound", List.of(new OutputNode.Text("value"))),
+                new OutputNode.Element("el", "urn:e", List.of(
+                        new OutputNode.Namespace("p", "urn:p"),
+                        new OutputNode.Attribute("p:a", List.of(new OutputNode.Text("v"))),
+                        new OutputNode.Text("content"))),
                 new OutputNode.ValueMap(ref(), List.of(new Entry("1", "one")), "unknown", "mapped"),
                 new OutputNode.Translate(select, List.of("ab"), List.of("AB"), "translated"),
                 new OutputNode.StringJoin(select, ", ", null),

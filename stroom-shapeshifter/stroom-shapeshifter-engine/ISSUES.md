@@ -945,7 +945,10 @@ route already works (`xml_to_json` matches serialised XML today).
 five phases with tests and gates. Phase 1 done 2026-09-03: `ShapeshifterReader` in
 `stroom-shapeshifter-pipeline` parses and forwards, and produces live DS3's events for 20 of 22
 legacy fixtures, the two exceptions being E33's. Phase 1b done the same day: `ShapeshifterDoc`,
-its store and resource, and the `ShapeshifterParser` pipeline element, proven in a real pipeline. Both paths, phased: parse-and-forward first (design 21
+its store and resource, and the `ShapeshifterParser` pipeline element, proven in a real pipeline.
+Phase 2 done 2026-09-04: `element`, `attribute`, `namespace` in the model, `XmlByteSink` and
+`SaxEventSink` interpreting `write` by container, the compiler's ordering check, and the
+structured `event-logging:3` fixture agreeing event for event on both sinks. Both paths, phased: parse-and-forward first (design 21
 phase 1), structured emitters second — `element` and `attribute` containers, `namespace` a
 leaf, `text`/`value-of` untouched with `OutputSink` interpreting `write` by the container it
 is in — byte-identical to today's goldens as the gate. Bridging to SAX is optional — the

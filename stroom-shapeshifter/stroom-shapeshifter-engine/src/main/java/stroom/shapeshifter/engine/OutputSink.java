@@ -16,24 +16,29 @@
 
 package stroom.shapeshifter.engine;
 
-import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 
 /**
  * Where a run's output goes.
  *
- * <p>Every write the engine performs goes through this interface, and that is the whole point of
- * it existing while there is only one implementation. Shapeshifter's configurations currently
- * describe output as a byte stream that happens to be XML, and a Stroom pipeline element will
- * want something else — SAX events are the obvious candidate but not the only one, and that
- * choice is deliberately still open (D10). Funnelling the writes through one interface now costs
- * an indirection; retrofitting it later would mean revisiting every output instruction a second
- * time.
+ * <p>Every write the engine performs goes through this interface. There are two kinds of call.
+ * The <b>structural</b> ones — {@link #startElement}, {@link #namespace},
+ * {@link #startAttribute}/{@link #endAttribute}, {@link #endElement} — say where the output is;
+ * {@link #write} carries bytes, and what those bytes <i>mean</i> is decided by the innermost open
+ * container (design 20 §4B, D40): raw at document level, content inside an element, the value
+ * inside an attribute. The instructions that write — {@code text}, {@code value-of}, the
+ * transforms — do not know which; the sink does. A configuration that never opens a container
+ * therefore gets the byte-transparent stream it always had.
  *
- * <p>It is not a pretence that a byte sink and an event sink are the same thing. It is a single
- * place to stand when they turn out not to be.
+ * <p>Two implementations, one per target: {@link XmlByteSink} serialises the structure as Stroom's
+ * own serialiser would (D41), and {@link SaxEventSink} forwards it as SAX events. A sink that
+ * cannot do structure — a byte counter, a benchmark — keeps the defaults, which refuse it by name.
+ *
+ * <p>Ordering is the one rule enforced here rather than by the compiler: a namespace or attribute
+ * that arrives after an element's content has begun is a {@link StructureException}, because the
+ * content may have come through {@code apply-templates} from a template the compiler never saw
+ * beside the attribute.
  */
 public interface OutputSink {
 
@@ -51,32 +56,57 @@ public interface OutputSink {
     }
 
     /**
-     * How many bytes have been written so far.
-     *
-     * <p>Used for attribution — which template produced which part of the output — rather than
-     * for anything the engine needs to run.
+     * How far the output has got, in the sink's own currency: bytes for a byte sink, events for
+     * an event sink. Used for attribution — which template produced which part of the output —
+     * rather than for anything the engine needs to run.
      */
     long position();
 
-    /** A sink that writes to a stream. */
+    /**
+     * Open an element. Its start is written when its first content arrives or it closes, so that
+     * namespaces and attributes can still be added.
+     *
+     * @param name      the qualified name, prefix included if it has one
+     * @param namespace the namespace URI the name is in, or null to take it from the prefix's
+     *                  binding in scope; a URI the prefix is not already bound to is declared here
+     */
+    default void startElement(final String name, final String namespace) {
+        throw new StructureException("This sink does not carry structure: element " + name);
+    }
+
+    /** Open an element in whatever namespace its prefix is bound to. */
+    default void startElement(final String name) {
+        startElement(name, null);
+    }
+
+    /** Declare a prefix binding on the open element; the empty prefix is the default namespace. */
+    default void namespace(final String prefix, final String uri) {
+        throw new StructureException("This sink does not carry structure: namespace " + prefix);
+    }
+
+    /** Begin an attribute on the open element; every write until {@link #endAttribute} is its value. */
+    default void startAttribute(final String name) {
+        throw new StructureException("This sink does not carry structure: attribute " + name);
+    }
+
+    default void endAttribute() {
+        throw new StructureException("This sink does not carry structure: endAttribute");
+    }
+
+    default void endElement() {
+        throw new StructureException("This sink does not carry structure: endElement");
+    }
+
+    /** A byte sink over a stream: raw bytes at document level, Stroom's serialisation inside structure. */
     static OutputSink of(final OutputStream stream) {
-        return new OutputSink() {
-            private long position;
+        return new XmlByteSink(stream);
+    }
 
-            @Override
-            public void write(final byte[] data, final int offset, final int length) {
-                try {
-                    stream.write(data, offset, length);
-                    position += length;
-                } catch (final IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-            }
+    /** The output's structure was misused — an attribute after content, a close with nothing open. */
+    final class StructureException extends IllegalStateException {
 
-            @Override
-            public long position() {
-                return position;
-            }
-        };
+        public StructureException(final String message) {
+            super(message);
+        }
     }
 }

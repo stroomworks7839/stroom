@@ -204,8 +204,157 @@ public final class Compiler {
         final BodyScan scan = new BodyScan(project, warnings);
         for (final Template template : project.templates()) {
             scan.template(template);
+            Structure.check(template);
         }
         scan.report();
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Structure: what an element's body may contain, and in what order
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * The compile-time half of design 20 §4B's ordering rule. Within an element's body, as
+     * written, an attribute or namespace may not follow anything that produces content; within
+     * an attribute's body nothing structural may appear at all. What the compiler cannot see —
+     * content arriving through {@code apply-templates} from another template before an
+     * attribute — the sink refuses at run time. An attribute or namespace at a template's top
+     * level is therefore allowed here: it may be running inside a caller's element.
+     */
+    private static final class Structure {
+
+        private enum Container { NONE, ELEMENT, ATTRIBUTE }
+
+        private final String templateName;
+
+        private Structure(final String templateName) {
+            this.templateName = templateName;
+        }
+
+        static void check(final Template template) {
+            new Structure(template.name()).body(template.body(), Container.NONE, null, new boolean[1]);
+        }
+
+        private void body(final List<OutputNode> nodes,
+                          final Container container,
+                          final String containerName,
+                          final boolean[] contentSeen) {
+            for (final OutputNode node : nodes) {
+                switch (node) {
+                    case OutputNode.Element value -> {
+                        refuseInAttribute(container, containerName, "element '" + value.name() + "'");
+                        contentSeen[0] = true;
+                        body(value.body(), Container.ELEMENT, value.name(), new boolean[1]);
+                    }
+                    case OutputNode.Attribute value -> {
+                        refuseInAttribute(container, containerName, "attribute '" + value.name() + "'");
+                        refuseAfterContent(container, containerName, contentSeen, "attribute '" + value.name() + "'");
+                        body(value.body(), Container.ATTRIBUTE, value.name(), new boolean[1]);
+                    }
+                    case OutputNode.Namespace value -> {
+                        refuseInAttribute(container, containerName, "namespace '" + value.prefix() + "'");
+                        refuseAfterContent(container, containerName, contentSeen, "namespace '" + value.prefix() + "'");
+                    }
+                    case OutputNode.If value -> body(value.then(), container, containerName, contentSeen);
+                    case OutputNode.Choose value -> {
+                        value.when().forEach(branch -> body(branch.body(), container, containerName, contentSeen));
+                        body(value.otherwise(), container, containerName, contentSeen);
+                    }
+                    case OutputNode.Switch value -> {
+                        value.cases().forEach(c -> body(c.body(), container, containerName, contentSeen));
+                        body(value.defaultBody(), container, containerName, contentSeen);
+                    }
+                    case OutputNode.ForEach value -> body(value.body(), container, containerName, contentSeen);
+                    case OutputNode.ForEachGroup value -> body(value.body(), container, containerName, contentSeen);
+                    // A variable's body writes to its own buffer: a document of its own.
+                    case OutputNode.Variable value -> body(value.body(), Container.NONE, null, new boolean[1]);
+                    default -> {
+                        if (producesContent(node)) {
+                            contentSeen[0] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void refuseInAttribute(final Container container, final String containerName, final String what) {
+            if (container == Container.ATTRIBUTE) {
+                throw new ConfigException("Template '" + templateName + "': " + what
+                                          + " inside the value of attribute '" + containerName
+                                          + "' — an attribute's body may write text and values only");
+            }
+        }
+
+        private void refuseAfterContent(final Container container,
+                                        final String containerName,
+                                        final boolean[] contentSeen,
+                                        final String what) {
+            if (container == Container.ELEMENT && contentSeen[0]) {
+                throw new ConfigException("Template '" + templateName + "': " + what + " follows content in element '"
+                                          + containerName + "' — attributes and namespaces must come before text, "
+                                          + "values, child elements and apply-templates");
+            }
+        }
+
+        /** Whether an instruction writes to the output, as opposed to binding, declaring or reporting. */
+        private static boolean producesContent(final OutputNode node) {
+            return switch (node) {
+                case OutputNode.Text ignored -> true;
+                case OutputNode.ValueOf ignored -> true;
+                case OutputNode.ApplyTemplates ignored -> true;
+                case OutputNode.CallTemplate ignored -> true;
+                case OutputNode.EmitError ignored -> false;
+                case OutputNode.Sequence ignored -> false;
+                case OutputNode.Append ignored -> false;
+                case OutputNode.Key ignored -> false;
+                case OutputNode.ValueMap value -> value.name() == null;
+                case OutputNode.Translate value -> value.name() == null;
+                case OutputNode.StringJoin value -> value.name() == null;
+                case OutputNode.Replace value -> value.name() == null;
+                case OutputNode.LowerCase value -> value.name() == null;
+                case OutputNode.UpperCase value -> value.name() == null;
+                case OutputNode.NormalizeSpace value -> value.name() == null;
+                case OutputNode.Trim value -> value.name() == null;
+                case OutputNode.Substring value -> value.name() == null;
+                case OutputNode.Tokenize value -> value.name() == null;
+                case OutputNode.Number value -> value.name() == null;
+                case OutputNode.Add value -> value.name() == null;
+                case OutputNode.Subtract value -> value.name() == null;
+                case OutputNode.Multiply value -> value.name() == null;
+                case OutputNode.Divide value -> value.name() == null;
+                case OutputNode.Mod value -> value.name() == null;
+                case OutputNode.Round value -> value.name() == null;
+                case OutputNode.Floor value -> value.name() == null;
+                case OutputNode.Ceiling value -> value.name() == null;
+                case OutputNode.Abs value -> value.name() == null;
+                case OutputNode.StringLength value -> value.name() == null;
+                case OutputNode.SubstringBefore value -> value.name() == null;
+                case OutputNode.SubstringAfter value -> value.name() == null;
+                case OutputNode.StartsWith value -> value.name() == null;
+                case OutputNode.EndsWith value -> value.name() == null;
+                case OutputNode.Contains value -> value.name() == null;
+                case OutputNode.FormatNumber value -> value.name() == null;
+                case OutputNode.KeyGet value -> value.name() == null;
+                case OutputNode.Count value -> value.name() == null;
+                case OutputNode.Sum value -> value.name() == null;
+                case OutputNode.Avg value -> value.name() == null;
+                case OutputNode.Min value -> value.name() == null;
+                case OutputNode.Max value -> value.name() == null;
+                case OutputNode.DistinctValues value -> value.name() == null;
+                case OutputNode.ParseDate value -> value.name() == null;
+                case OutputNode.FormatDate value -> value.name() == null;
+                // The containers are walked, not judged; the structural three are judged above.
+                case OutputNode.If ignored -> false;
+                case OutputNode.Choose ignored -> false;
+                case OutputNode.Switch ignored -> false;
+                case OutputNode.ForEach ignored -> false;
+                case OutputNode.ForEachGroup ignored -> false;
+                case OutputNode.Variable ignored -> false;
+                case OutputNode.Element ignored -> true;
+                case OutputNode.Attribute ignored -> false;
+                case OutputNode.Namespace ignored -> false;
+            };
+        }
     }
 
     /**
@@ -354,6 +503,10 @@ public final class Compiler {
                 case OutputNode.Variable value -> {
                     writable.add(value.name());
                     body(value.body());
+                }
+                case OutputNode.Element value -> body(value.body());
+                case OutputNode.Attribute value -> body(value.body());
+                case OutputNode.Namespace ignored -> {
                 }
                 case OutputNode.ValueMap value -> transform(List.of(value.select()), value.name());
                 case OutputNode.Translate value -> transform(value.select(), value.name());
@@ -773,6 +926,8 @@ public final class Compiler {
                     collectCalls(value.defaultBody(), names);
                 }
                 case OutputNode.Variable value -> collectCalls(value.body(), names);
+                case OutputNode.Element value -> collectCalls(value.body(), names);
+                case OutputNode.Attribute value -> collectCalls(value.body(), names);
                 default -> {
                     // Leaves as far as calls are concerned.
                 }
@@ -795,6 +950,8 @@ public final class Compiler {
                     collectApplies(value.defaultBody(), applies);
                 }
                 case OutputNode.Variable value -> collectApplies(value.body(), applies);
+                case OutputNode.Element value -> collectApplies(value.body(), applies);
+                case OutputNode.Attribute value -> collectApplies(value.body(), applies);
                 default -> {
                     // Leaves as far as dispatch is concerned.
                 }
@@ -841,6 +998,8 @@ public final class Compiler {
                     collect(value.defaultBody(), template, patterns, encoding);
                 }
                 case OutputNode.Variable value -> collect(value.body(), template, patterns, encoding);
+                case OutputNode.Element value -> collect(value.body(), template, patterns, encoding);
+                case OutputNode.Attribute value -> collect(value.body(), template, patterns, encoding);
                 default -> {
                     // Every other instruction is a leaf as far as patterns are concerned.
                 }
