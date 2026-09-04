@@ -88,15 +88,24 @@ public class PollutedCorpusBenchmark {
         groups = theirs.matcher("").groupCount();
     }
 
+    /**
+     * Which library's patterns the setup runs: {@code both} (the default, a pipeline's JVM),
+     * {@code ours} or {@code jdk}. Design 07 Phase 8's first question — whose pollution costs the
+     * tree its 26–39% — is answered by the difference between the three.
+     */
+    private static final String POLLUTE_WITH = System.getProperty("shapeshifter.pollute", "both");
+
     /** Every corpus pattern, both libraries, over its category's inputs, repeatedly. */
     private static void pollute() {
-        final List<Pattern> jdk = new ArrayList<>();
+        final boolean jdk = !"ours".equals(POLLUTE_WITH);
+        final boolean ours = !"jdk".equals(POLLUTE_WITH);
+        final List<Pattern> jdkPatterns = new ArrayList<>();
         final List<BytePattern> ss = new ArrayList<>();
         final List<List<byte[]>> inputs = new ArrayList<>();
         final List<List<String>> texts = new ArrayList<>();
         for (final PatternCorpus.Category category : PatternCorpus.categories()) {
             for (final String pattern : category.patterns()) {
-                jdk.add(Pattern.compile(pattern));
+                jdkPatterns.add(Pattern.compile(pattern));
                 ss.add(BytePattern.compile(pattern));
                 texts.add(category.inputs());
                 inputs.add(category.inputs().stream()
@@ -106,17 +115,21 @@ public class PollutedCorpusBenchmark {
         }
         long sink = 0;
         for (int pass = 0; pass < POLLUTION_PASSES; pass++) {
-            for (int i = 0; i < jdk.size(); i++) {
-                for (final String input : texts.get(i)) {
-                    final Matcher m = jdk.get(i).matcher(input);
-                    if (m.find()) {
-                        sink += m.end();
+            for (int i = 0; i < jdkPatterns.size(); i++) {
+                if (jdk) {
+                    for (final String input : texts.get(i)) {
+                        final Matcher m = jdkPatterns.get(i).matcher(input);
+                        if (m.find()) {
+                            sink += m.end();
+                        }
                     }
                 }
-                final ByteMatcher matcher = ss.get(i).matcher();
-                for (final byte[] input : inputs.get(i)) {
-                    if (matcher.match(input, 0, input.length, Anchoring.UNANCHORED)) {
-                        sink += matcher.end();
+                if (ours) {
+                    final ByteMatcher matcher = ss.get(i).matcher();
+                    for (final byte[] input : inputs.get(i)) {
+                        if (matcher.match(input, 0, input.length, Anchoring.UNANCHORED)) {
+                            sink += matcher.end();
+                        }
                     }
                 }
             }

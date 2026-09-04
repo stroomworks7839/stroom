@@ -263,7 +263,7 @@ is the thing actually running, and gives the step budget a number instead of a p
 
 **Exit:** the row exists, is on the scoreboard, and 06 §5's list of blind spots is empty.
 
-## Phase 8 — The tree under pollution *(found by Phase 1; the pipeline-shaped row)*
+## Phase 8 — The tree under pollution *(found by Phase 1; the pipeline-shaped row)* — **diagnosed 2026-09-04: it is our dispatch**
 
 Phase 1's harness found what 06 §2 had wrong: these engines are not pollution-immune. In a
 JVM that has run the whole corpus, the scan plan loses 18% on CSV and the tree 26–39%
@@ -289,6 +289,25 @@ Diagnosis before design, in this order:
    `GroupHead`/`GroupTail`, `ByteSeq` — go through a kind switch rather than a virtual call
    is a measured-method change to the primary engine's hottest paths, gated on the full
    pair. Not attempted until 1 and 2 have made the case.
+
+**Steps 1 and 2, run 2026-09-04 (07:46–08:13, quiet box).** Whose pollution: with the JDK's
+patterns only, the tree is flat (NETWORK +0.2%, KEYVALUE −1.2%) and the JDK loses its 54%;
+with ours only, the tree loses **−27.1% / −35.3%** and the JDK is flat; with both, −30.6% /
+−34.3%. The scan plan reads −5.4% / −7.3% under our own patterns — hardier, not immune. So the
+tree's loss needs nothing but the library's own patterns having run: it is our dispatch, not
+shared JIT infrastructure. Which sites: `PrintInlining` polluted against clean on the tree's
+NETWORK — the node chain that compiled as one unit in a clean fork (the stack profile sits in
+`ByteSeq.match` and `GroupTail.match`, everything under them inlined) breaks apart polluted:
+`CharClass.matchAt`, `runLinear` and `attempt` flip to "already compiled into a medium method"
+and "callee is too large", "no static binding / virtual" mentions go 18 → 67, and the profile
+spreads over `StarClass.scan`, `Machine.search` and `Assert.match` as separate frames. The
+`Node.match` sites that were bimorphic for one pattern are megamorphic for the corpus, and the
+inline caches they lose are the tree's whole speed. Step 3's case is made.
+
+**Step 3, not started.** The design the scan plan's hardiness points at — hot node boundaries
+dispatched through a kind switch rather than a virtual call, the way `PlanRunner` dispatches
+on an opcode — is a measured-method change to the primary engine's hottest paths, and a
+week's work with its own audit. Scheduled by direction, not by this plan.
 
 **Gate:** `PollutedCorpusBenchmark`'s tree rows against `CorpusBenchmark`'s, paired, plus the
 clean canaries — a fix that buys the polluted row by costing the clean one has to say so.
