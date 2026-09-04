@@ -146,9 +146,6 @@ public final class Executor {
                      final Services services) {
         this.mode = mode;
         this.services = services;
-        for (final FunctionDefinition definition : compiled.functions()) {
-            library.put(definition.name(), definition.bind(new Context(definition.name())));
-        }
         this.compiled = compiled;
         this.output = sink;
         this.instrument = instrument;
@@ -187,6 +184,28 @@ public final class Executor {
                         compiled.project().source().ignoreErrors())
                 : input;
         return new Executor(compiled, sink, instrument, mode, services).execute(source, wholeBuffer);
+    }
+
+    /**
+     * Bind every function the configuration calls, once, before the run (design 26 §3). A
+     * definition that cannot be bound — a service it needs is missing — is the run's first and
+     * last message, FATAL, rather than an exception through the caller (phase 1 audit).
+     */
+    private void bindFunctions() {
+        for (final FunctionDefinition definition : compiled.functions()) {
+            try {
+                library.put(definition.name(), definition.bind(new Context(definition.name())));
+            } catch (final RuntimeException e) {
+                messages.add(new Message(Severity.FATAL,
+                        definition.name() + ": could not be bound to this run: " + describe(e)));
+                throw new AbortRun();
+            }
+        }
+    }
+
+    /** An exception as a message: its own message, or its class when it has none. */
+    private static String describe(final RuntimeException e) {
+        return e.getMessage() != null ? e.getMessage() : e.getClass().getName();
     }
 
     /** What a bound function may reach (design 26 §2), for one function by name. */
@@ -238,6 +257,7 @@ public final class Executor {
 
     private List<Message> execute(final InputStream input, final boolean wholeBuffer) {
         try {
+            bindFunctions();
             run(input, wholeBuffer);
         } catch (final AbortRun ignored) {
             // The fatal message is the last thing the run has to say.
@@ -1438,7 +1458,7 @@ public final class Executor {
             messages.add(new Message(Severity.FATAL, function + ": " + e.getMessage()));
             throw new AbortRun();
         } catch (final RuntimeException e) {
-            messages.add(new Message(Severity.ERROR, function + ": " + e));
+            messages.add(new Message(Severity.ERROR, function + ": " + describe(e)));
         } finally {
             callOffset = Instrument.UNLOCATABLE;
         }

@@ -230,6 +230,24 @@ reaching a call, and the codec's round trip; `EveryVariantTest` covers `Call`. C
 every prior test unchanged: 549 green. *Named:* `Executor` is past checkstyle's 2,000-line
 warning (2,126) — a split is due, not in this phase.
 
+*Audited 2026-09-04.* **One defect, fixed:** the run bound its functions in the executor's
+constructor, outside the catch that turns a run's failures into messages, so a definition whose
+`bind` threw — a service it needs missing, the ordinary case for a pipeline function outside
+a pipeline — escaped `Shapeshifter.run` as a raw exception rather than as the run's message.
+Binding now happens first inside the run, and a bind that throws is the run's one FATAL,
+"<name>: could not be bound to this run: <why>", and the run stops; pinned. **Tidied:** a
+throwing function's ERROR carried the exception's `toString`, class name and all; it now
+carries the message, with the class as fallback for an exception that has none, which is what
+Stroom's `outputError` appends. **Confirmed and pinned:** a call to a function of no arguments
+may leave `select` out — the codec reads a missing list as empty — so `{"call": {"function":
+"current-time"}}` is the whole instruction. **Named and left:** at root level, in a prologue or
+tail, a function's `inputOffset()` is 0 rather than unlocatable, because the root body runs
+against an empty match at offset 0 and the two are indistinguishable there; a location
+function at root level is a configuration oddity and a `0` is not a wrong answer for one. And
+the instrument has no hook for a call — the editor's trace (design 18) will not show a
+function ran; that is design 18's to ask for. The `function` package gained its package-info.
+551 green.
+
 *As written:* `function` package: the contract (§2), `FunctionRegistry`,
 `FunctionLibrary`, the run mode; the `call` output node in model, codec and compiler;
 `CompiledOp.Call` and its execution with positional-null arguments, casting, catching,

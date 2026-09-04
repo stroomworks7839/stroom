@@ -94,6 +94,10 @@ class FunctionsTest {
                     context -> args -> new TypedValue.Int(context.inputOffset())),
             FunctionDefinition.of("greeting", Signature.of(Kind.STRING), Purity.CONTEXT,
                     context -> args -> TypedValue.of(String.valueOf(context.service(String.class)))),
+            FunctionDefinition.of("unbindable", Signature.of(Kind.STRING), Purity.PURE,
+                    context -> {
+                        throw new IllegalStateException("no such service");
+                    }),
             FunctionDefinition.of("bound", Signature.of(Kind.INTEGER), Purity.CONTEXT,
                     context -> {
                         final int binding = COUNTER.incrementAndGet();
@@ -219,7 +223,7 @@ class FunctionsTest {
         assertThat(run.output()).isEqualTo("||");
         assertThat(run.messages()).hasSize(2).allSatisfy(m -> {
             assertThat(m.severity()).isEqualTo(Severity.ERROR);
-            assertThat(m.text()).contains("boom: ").contains("kaboom");
+            assertThat(m.text()).isEqualTo("boom: kaboom");
         });
     }
 
@@ -263,6 +267,23 @@ class FunctionsTest {
         assertThat(run(lines(call("bound", "", null) + ", " + call("bound", "", null)), "a\nb\n").output())
                 .isEqualTo((before + 1) + "" + (before + 1) + "|" + (before + 1) + "" + (before + 1) + "|");
         assertThat(COUNTER.get()).isEqualTo(before + 1);
+    }
+
+    /** Phase 1 audit: a definition that cannot be bound is the run's one FATAL, not an exception. */
+    @Test
+    void definitionThatCannotBeBoundIsAFatalMessageNotAnException() {
+        final Run run = run(lines(call("unbindable", "", null)), "a\n");
+        assertThat(run.output()).isEqualTo("");
+        assertThat(run.messages()).singleElement().satisfies(m -> {
+            assertThat(m.severity()).isEqualTo(Severity.FATAL);
+            assertThat(m.text()).isEqualTo("unbindable: could not be bound to this run: no such service");
+        });
+    }
+
+    /** A call to a function of no arguments may leave select out altogether. */
+    @Test
+    void selectMayBeOmittedForAFunctionOfNoArguments() {
+        assertThat(run(lines("{\"call\": {\"function\": \"clock\"}}"), "a\n").output()).isEqualTo("tick|");
     }
 
     @Test
