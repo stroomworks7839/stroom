@@ -996,7 +996,10 @@ Under events there are no byte offsets — the trace needs an event-indexed span
 one, and that decision reaches the UI.
 
 ### E32 — An extensible function library
-**`open` — needs a design.**
+**`open` — design 26 written 2026-09-04 on the user's direction: a registry and contract in the
+engine mirrored on Stroom's Saxon library, a `call` instruction, purity with a preview mode, and
+the pipeline module carrying a variant of each of Stroom's fifty-eight functions (fifty-seven;
+`split-document` has no counterpart). Awaiting its §7 rulings.**
 
 There is no registry, and the shape of the code is the reason: transform functions are a
 **closed** set of records in `OutputNode` (`Translate`, `StringJoin`, `Replace`, `LowerCase`, …),
