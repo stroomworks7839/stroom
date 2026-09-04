@@ -160,7 +160,7 @@ public final class SaxEventSink implements OutputSink {
         final byte[] bytes = new byte[carry.length + length];
         System.arraycopy(carry, 0, bytes, 0, carry.length);
         System.arraycopy(data, offset, bytes, carry.length, length);
-        final int complete = bytes.length - incompleteTail(bytes);
+        final int complete = bytes.length - Utf8.incompleteTail(bytes);
         carry = Arrays.copyOfRange(bytes, complete, bytes.length);
         content(new String(bytes, 0, complete, StandardCharsets.UTF_8));
     }
@@ -318,17 +318,6 @@ public final class SaxEventSink implements OutputSink {
     }
 
     /** How many trailing bytes begin a UTF-8 sequence the array does not finish. */
-    private static int incompleteTail(final byte[] bytes) {
-        for (int back = 1; back <= 3 && back <= bytes.length; back++) {
-            final int b = bytes[bytes.length - back] & 0xFF;
-            if ((b & 0xC0) != 0x80) {
-                final int needed = b < 0x80 ? 1 : b < 0xE0 ? 2 : b < 0xF0 ? 3 : 4;
-                return needed > back ? back : 0;
-            }
-        }
-        return 0;
-    }
-
     private static final class Element {
 
         private final String qName;

@@ -18,6 +18,7 @@ package stroom.shapeshifter.pipeline;
 
 import stroom.pipeline.errorhandler.ErrorHandlerAdaptor;
 import stroom.pipeline.xml.converter.AbstractParser;
+import stroom.shapeshifter.engine.CharacterSink;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.SaxEventSink;
@@ -50,29 +51,29 @@ import javax.xml.parsers.SAXParserFactory;
 /**
  * A Shapeshifter configuration as a pipeline parser: bytes in, SAX events out.
  *
- * <p>This is design 21's phase 1 — parse and forward. The configuration runs to a byte buffer
- * exactly as it would to a file, the buffer is parsed by the same hardened {@link SAXParserFactory}
- * every Stroom parser is built from, and the events go to the content handler. D37 ruled complete
- * inputs only, so the output of one input is one document, and buffering it is the honest shape
- * rather than a shortcut: a pipe would add a thread to carry a stream the engine never produces.
+ * <p>The configuration runs straight into a sink that delivers as it goes (designs 22 and 24): a
+ * structured configuration's elements as element events, a text configuration's output as
+ * {@code characters} events, one per emitter write. Nothing is held and nothing is re-parsed. A
+ * text configuration produces a document of characters and no elements — what {@code TextWriter}
+ * consumes — and anything downstream that needs XML says so in its own terms (D42: the refusal
+ * is the consumer's).
  *
- * <p>Two kinds of error, kept apart on their way to the error handler. The engine's own
- * {@link Message}s — a template that did not match, content nothing consumed — are the
- * configuration speaking about the <i>input</i>, and are reported with their severity and no
- * location, because the engine's messages carry none. A parse error is the output failing to be
- * XML, which is the configuration speaking about <i>itself</i>: its line and column are in text
- * the user never sees, so the message says so and quotes the offending output line, and the
- * location handed on is deliberately unknown rather than a number that would be read as an input
- * position. The document locator the content handler receives is <i>not</i> the parser's: every
- * event is forwarded with the input position behind it, resolved through the run's trace
- * ({@link InputLocations}, design 21 phase 4), so stepping and indicators point at the record
- * that produced the event.
+ * <p>The engine's own {@link Message}s — a template that did not match, content nothing consumed
+ * — are the configuration speaking about the <i>input</i>, and are reported with their severity
+ * after the events, because the run collects them and the events cannot wait. The document
+ * locator the content handler receives is not a parser's: every event carries the input position
+ * of the innermost running match at the moment it was made ({@link InputLocations}), so stepping
+ * and indicators point at the record that produced it.
  *
  * <p>The input is streamed through the engine's window (design 23), never read whole: the feed's
  * bytes as they are when the pipeline hands the element a byte stream, so the configuration's
  * {@code source.encoding} is real; or, when a reader element upstream has already decoded it,
  * characters encoded to UTF-8 as they are read, which is then the only encoding the configuration
  * can truthfully declare.
+ *
+ * <p>What remains of design 21 phase 1's parse-and-forward — {@link Run}, {@link #runStreamed},
+ * {@link #forward(Run)} and the output parse behind it — serves the filter's byte path until
+ * design 24 phase 2 moves that onto the character sink too, and goes then.
  */
 public class ShapeshifterReader extends AbstractParser {
 
@@ -97,20 +98,18 @@ public class ShapeshifterReader extends AbstractParser {
         // byte stream as it is, a reader encoded to UTF-8 as it is read.
         final InputStream stream = streamOf(input);
         checkEncoding(input);
-        if (compiled.structured()) {
-            parseNative(stream);
-        } else {
-            forward(runStreamed(stream));
-        }
+        parseLive(stream);
     }
 
     /**
-     * A structured configuration runs straight into the event sink (design 22 phase 2): no
-     * serialisation, no re-parse, and each event located live from the innermost running match.
-     * The engine's messages come after the events, because the run collects them and the events
-     * cannot wait.
+     * The configuration runs straight into a sink that delivers as it goes: the event sink for a
+     * structured configuration (design 22 phase 2), the character sink for a text one (design 24)
+     * — no serialisation, no re-parse, no held output, and each event located live from the
+     * innermost running match. The engine's messages come after the events, because the run
+     * collects them and the events cannot wait. A text run has no root to end its document, so
+     * the sink is told when the run is over.
      */
-    private void parseNative(final InputStream input) throws SAXException {
+    private void parseLive(final InputStream input) throws SAXException {
         final ContentHandler target = getContentHandler();
         if (target == null) {
             throw new SAXException("No content handler set");
@@ -119,7 +118,18 @@ public class ShapeshifterReader extends AbstractParser {
         final InputLocations.LineIndex lines = new InputLocations.LineIndex(input);
         locations.bound(lines);
         final LiveLocatingHandler handler = new LiveLocatingHandler(target, locations, lines);
-        final List<Message> messages = Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations);
+        final List<Message> messages;
+        if (compiled.structured()) {
+            messages = Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations);
+        } else {
+            final CharacterSink sink = new CharacterSink(handler);
+            messages = Shapeshifter.run(compiled, lines, sink, locations);
+            try {
+                sink.end();
+            } catch (final OutputSink.StructureException e) {
+                throw new SAXException(e.getMessage(), e);
+            }
+        }
         reportAll(messages);
     }
 

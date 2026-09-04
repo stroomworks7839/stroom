@@ -38,8 +38,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Design 21 phase 1: the two kinds of error reach the pipeline's error receiver, and are told
- * apart — the engine's messages about the input, the parser's about the output.
+ * The engine's messages reach the pipeline's error receiver with their severity; and, since
+ * design 24, a text configuration's output is characters rather than a document to be parsed,
+ * so there is no second kind of error for the parser to report about its own output.
  */
 class ShapeshifterReaderErrorsTest {
 
@@ -61,8 +62,14 @@ class ShapeshifterReaderErrorsTest {
                 .contains("Expressions failed to match all of the content");
     }
 
+    /**
+     * Design 24 (D42): a text configuration's output is characters, not a document to be parsed.
+     * What looked like ill-formed XML under design 21 phase 1 is now text, delivered as it is,
+     * with no elements and nothing to be fatal about — a {@code TextWriter} downstream writes it,
+     * and anything that needs XML refuses it in its own words.
+     */
     @Test
-    void illFormedOutputIsReportedAgainstTheOutputLineNotTheInput() throws Exception {
+    void textConfigurationIsCharactersOnlyAndNothingIsParsed() throws Exception {
         final Project project = ProjectReader.read("""
                 {"name": "unbalanced", "version": 3,
                  "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "auto"},
@@ -76,17 +83,13 @@ class ShapeshifterReaderErrorsTest {
 
         final LoggingErrorReceiver receiver = run(project, "anything".getBytes(StandardCharsets.UTF_8), recorder);
 
-        assertThat(receiver.getTotal(Severity.FATAL_ERROR)).isEqualTo(1);
-        assertThat(messages(receiver)).singleElement().asString()
-                .contains("not well-formed XML")
-                .contains("line 2, column")
-                .contains("of the output, not the input")
-                .contains("Output line 2: </b>");
-        assertThat(recorder.events()).contains("startElement {}a []");
+        assertThat(receiver.isAllOk()).as(receiver.getMessage()).isTrue();
+        assertThat(recorder.events()).containsExactly(
+                "startDocument", "characters \"<a>\n</b>\n</a>\n\"", "endDocument");
     }
 
     @Test
-    void outputThatIsNotXmlIsOneFatalAndNoElements() throws Exception {
+    void outputThatIsNotXmlIsCharactersAndNoElements() throws Exception {
         final Path fixture = FIXTURES.resolve("projects").resolve("xml_to_json");
         final Project project = ProjectReader.read(Files.readString(fixture.resolve("project.json")));
         final byte[] input = Files.readAllBytes(fixture.resolve("input.txt"));
@@ -94,10 +97,9 @@ class ShapeshifterReaderErrorsTest {
 
         final LoggingErrorReceiver receiver = run(project, input, recorder);
 
-        assertThat(receiver.getTotal(Severity.FATAL_ERROR)).isEqualTo(1);
-        assertThat(messages(receiver)).singleElement().asString()
-                .contains("not well-formed XML").contains("Output line 1: {");
+        assertThat(receiver.getTotal(Severity.FATAL_ERROR)).isZero();
         assertThat(recorder.events()).noneMatch(event -> event.startsWith("startElement"));
+        assertThat(recorder.events()).anyMatch(event -> event.startsWith("characters \"{"));
     }
 
     /** Everything logged against the parser, as text — the receiver's own summary is per record and clears. */

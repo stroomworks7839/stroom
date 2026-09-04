@@ -104,7 +104,29 @@ the fixture's golden, over an input large enough to cross several windows.
 
 ## 5. Phasing
 
-**Phase 1 — the character sink and the parser element.** `CharacterSink` with its carry-over,
+**Phase 1 — the character sink and the parser element — Done 2026-09-04.** *As built:*
+`CharacterSink` in the engine, an `OutputSink` of `Unit.EVENTS`: each write is one `characters`
+event, an incomplete UTF-8 sequence at the end of a write is held for the next (the helper is
+now `Utf8.incompleteTail`, shared with `SaxEventSink`), the document starts with the first
+write and ends at `end()`, which the caller owes it since a text run has no root to say when
+it is over; a run with no output is still one document. `ShapeshifterReader.parse` has one
+path, `parseLive`, choosing the sink by `structured()`; the text path holds nothing and each
+characters event is located live through `LiveLocatingHandler` like an element event. *Kept
+for phase 2, deliberately:* `Run`, `runStreamed`, `forward(Run)`, the output parse behind it,
+`LocatingHandler`, `OutputErrorHandler` and `InputLocations.Resolver` with the byte-path spans
+— the filter's byte path still runs on them, and deleting them here would have moved phase
+2's change into phase 1; the reader's javadoc names them as phase 2's. *Pins:* the sink's own
+(`CharacterSinkTest`: one event per write, a split character whole, an incomplete tail at the
+end as it decodes, no output is still a document, structure and late writes refused); the two
+output-parse pins in `ShapeshifterReaderErrorsTest` replaced by characters-only-and-nothing-
+parsed pins (the once "ill-formed" text is delivered as text with nothing fatal; `xml_to_json`
+is characters and no elements); `StreamedInputTest.textConfigurationStreamsItsInputToo` now
+pins the output side too — the first characters arrive with under a quarter of the input read;
+and `TextWriterGoldenTest` runs all seven `projects/text_*` fixtures through a real
+`TextWriter` into a byte destination and compares the bytes with the golden, with the reader's
+messages compared to the engine's own for the same fixture (003's unmatched separator is an
+error DS3 reports too, and the earlier draft of the pin wrongly expected silence). Corpus
+unchanged, 625 tests across the two modules green. *As written:* `CharacterSink` with its carry-over,
 pinned on a split multi-byte character and on the `text_*_exact` fixtures through a real
 `TextWriter`; the reader's text path live; parse-and-forward deleted with its resolver and the
 byte-path spans; the errors pins replaced. *Test:* every pipeline test green with the deletions;

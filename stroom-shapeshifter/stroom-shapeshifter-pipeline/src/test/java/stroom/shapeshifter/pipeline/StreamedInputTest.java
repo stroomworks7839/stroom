@@ -28,9 +28,13 @@ import stroom.util.shared.StoredError;
 
 import org.junit.jupiter.api.Test;
 import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.XMLFilterImpl;
 
 import java.io.ByteArrayInputStream;
+import java.io.FilterInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
@@ -136,12 +140,63 @@ class StreamedInputTest {
         for (int i = 0; i < 2000; i++) {
             lines.append("line").append(i).append("\n");
         }
+        final byte[] input = lines.toString().getBytes(StandardCharsets.UTF_8);
         final LoggingErrorReceiver receiver = new LoggingErrorReceiver();
-        final EventRecorder events = throughReader(text,
-                new InputSource(new ByteArrayInputStream(lines.toString().getBytes(StandardCharsets.UTF_8))), receiver);
+        // Design 24: the output streams too. The first characters arrive while most of the
+        // input is still unread — the run is not held until the end of the input.
+        final CountingInput counting = new CountingInput(new ByteArrayInputStream(input));
+        final long[] readAtFirstCharacters = {-1};
+        final EventRecorder recorder = new EventRecorder();
+        final XMLFilterImpl watching = new XMLFilterImpl() {
+            @Override
+            public void characters(final char[] ch, final int start, final int length) throws SAXException {
+                if (readAtFirstCharacters[0] < 0) {
+                    readAtFirstCharacters[0] = counting.read;
+                }
+                super.characters(ch, start, length);
+            }
+        };
+        watching.setContentHandler(recorder);
+        final XMLReader reader = new ShapeshifterParserFactory(ProjectReader.read(text)).getParser();
+        reader.setContentHandler(watching);
+        reader.setErrorHandler(Ds3Oracle.errorHandler("ShapeshifterParser", receiver));
+        reader.parse(new InputSource(counting));
+
         assertThat(receiver.isAllOk()).as(receiver.getMessage()).isTrue();
-        assertThat(events.events().stream().filter(e -> e.equals("startElement {}l []")).count()).isEqualTo(2000);
-        assertThat(events.events()).contains("characters \"line1999\"");
+        final String all = String.join("", recorder.events());
+        assertThat(all).contains("<r>").contains("<l>line0</l>").contains("<l>line1999</l></r>");
+        assertThat(recorder.events()).first().isEqualTo("startDocument");
+        assertThat(recorder.events()).last().isEqualTo("endDocument");
+        assertThat(recorder.events()).noneMatch(e -> e.startsWith("startElement"));
+        assertThat(readAtFirstCharacters[0]).isBetween(0L, (long) input.length / 4);
+    }
+
+    /** An input stream that counts what has been read from it. */
+    private static final class CountingInput extends FilterInputStream {
+
+        private long read;
+
+        private CountingInput(final InputStream in) {
+            super(in);
+        }
+
+        @Override
+        public int read() throws IOException {
+            final int b = super.read();
+            if (b >= 0) {
+                read++;
+            }
+            return b;
+        }
+
+        @Override
+        public int read(final byte[] into, final int offset, final int length) throws IOException {
+            final int n = super.read(into, offset, length);
+            if (n > 0) {
+                read += n;
+            }
+            return n;
+        }
     }
 
     @Test
