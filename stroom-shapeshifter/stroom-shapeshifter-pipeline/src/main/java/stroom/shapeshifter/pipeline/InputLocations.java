@@ -21,7 +21,6 @@ import stroom.shapeshifter.engine.OutputSink;
 
 import org.xml.sax.Locator;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,6 +50,9 @@ final class InputLocations implements Instrument {
 
     private record Span(long offset, long length, long inputOffset) {
 
+        long end() {
+            return offset + length;
+        }
     }
 
     private record Open(UUID templateId, int matchIndex, long inputOffset) {
@@ -108,25 +110,54 @@ final class InputLocations implements Instrument {
         return new Resolver(input, output);
     }
 
+    /**
+     * Resolves in a single forward sweep. The parser reports positions in output order, so the
+     * spans — sorted by offset, parents before the children they enclose — are opened as the
+     * sweep reaches them and closed as it passes their ends; the innermost open span is the top
+     * of that stack. Amortised linear in events plus spans, and nothing is decoded: a column,
+     * which the parser counts in characters, is walked to on the bytes of its own line.
+     */
     final class Resolver implements Locator {
 
+        private final byte[] output;
         private final long[] inputLineStarts;
-        private final int[] outputLineStartChars;
-        private final int[] outputByteOfChar;
+        private final long[] outputLineStarts;
+        private final List<Span> ordered;
+        private final Deque<Span> active = new ArrayDeque<>();
+        private int next;
+        private long lastOffset = -1;
         private int line = -1;
         private int column = -1;
 
         private Resolver(final byte[] input, final byte[] output) {
+            this.output = output;
             this.inputLineStarts = lineStarts(input);
-            final String text = new String(output, StandardCharsets.UTF_8);
-            this.outputLineStartChars = lineStartChars(text);
-            this.outputByteOfChar = byteOfChar(text);
+            this.outputLineStarts = lineStarts(output);
+            this.ordered = new ArrayList<>(spans);
+            this.ordered.sort((a, b) -> a.offset != b.offset
+                    ? Long.compare(a.offset, b.offset)
+                    : Long.compare(b.length, a.length));
         }
 
         /** Move to the input position behind the parser's current output position. */
         void at(final Locator parser) {
             final long outputOffset = outputOffset(parser.getLineNumber(), parser.getColumnNumber());
-            final Span span = innermost(outputOffset);
+            if (outputOffset < lastOffset) {
+                // Not expected of a parser, but a sweep that went backwards would answer wrongly.
+                active.clear();
+                next = 0;
+            }
+            lastOffset = outputOffset;
+            while (!active.isEmpty() && active.peek().end() <= outputOffset) {
+                active.pop();
+            }
+            while (next < ordered.size() && ordered.get(next).offset <= outputOffset) {
+                final Span span = ordered.get(next++);
+                if (span.end() > outputOffset) {
+                    active.push(span);
+                }
+            }
+            final Span span = active.peek();
             if (span == null || span.inputOffset >= Instrument.UNLOCATABLE) {
                 line = -1;
                 column = -1;
@@ -137,27 +168,23 @@ final class InputLocations implements Instrument {
             column = (int) (span.inputOffset - inputLineStarts[at]) + 1;
         }
 
+        /**
+         * The output byte just before the parser's position, which is inside whatever it has just
+         * reported. The parser's column counts UTF-16 units, so a four-byte sequence counts two.
+         */
         private long outputOffset(final int parserLine, final int parserColumn) {
-            if (parserLine < 1 || parserLine > outputLineStartChars.length) {
+            if (parserLine < 1 || parserLine > outputLineStarts.length) {
                 return -1;
             }
-            final int charIndex = Math.min(
-                    outputByteOfChar.length - 1,
-                    outputLineStartChars[parserLine - 1] + Math.max(0, parserColumn - 1));
-            // The parser's position is just after what it reported; the byte before it is
-            // inside the thing that produced it.
-            return Math.max(0, outputByteOfChar[charIndex] - 1);
-        }
-
-        private Span innermost(final long outputOffset) {
-            Span best = null;
-            for (final Span span : spans) {
-                if (outputOffset >= span.offset && outputOffset < span.offset + span.length
-                    && (best == null || span.length < best.length)) {
-                    best = span;
-                }
+            long at = outputLineStarts[parserLine - 1];
+            int units = 0;
+            while (units < parserColumn - 1 && at < output.length) {
+                final int lead = output[(int) at] & 0xFF;
+                final int width = lead < 0x80 ? 1 : lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4;
+                units += width == 4 ? 2 : 1;
+                at += width;
             }
-            return best;
+            return Math.max(0, at - 1);
         }
 
         @Override
@@ -198,43 +225,6 @@ final class InputLocations implements Instrument {
             }
         }
         return Arrays.copyOf(starts, n);
-    }
-
-    private static int[] lineStartChars(final String text) {
-        int[] starts = new int[16];
-        int n = 0;
-        starts[n++] = 0;
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) == '\n') {
-                if (n == starts.length) {
-                    starts = Arrays.copyOf(starts, n * 2);
-                }
-                starts[n++] = i + 1;
-            }
-        }
-        return Arrays.copyOf(starts, n);
-    }
-
-    /** The byte offset at which each character starts, plus the total at the end. */
-    private static int[] byteOfChar(final String text) {
-        final int[] table = new int[text.length() + 1];
-        int bytes = 0;
-        for (int i = 0; i < text.length(); i++) {
-            table[i] = bytes;
-            final char c = text.charAt(i);
-            if (c < 0x80) {
-                bytes += 1;
-            } else if (c < 0x800) {
-                bytes += 2;
-            } else if (Character.isHighSurrogate(c)) {
-                bytes += 4;
-                table[++i] = bytes; // the low surrogate has no start of its own
-            } else {
-                bytes += 3;
-            }
-        }
-        table[text.length()] = bytes;
-        return table;
     }
 
     private static int lineIndex(final long[] lineStarts, final long offset) {

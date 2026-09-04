@@ -563,8 +563,22 @@ still a design — so "the preview payload carries the unit" is a sentence in de
 with this phase, not code. When the endpoint is built it carries `unit` beside each span and
 the output pane maps `EVENTS` ordinals onto the serialised preview it also has. One limit
 named: the parser's column counts characters and the input's column is bytes; the same for
-ASCII, and named so the difference is not mistaken for a bug when it is not. Original wording
-follows.
+ASCII, and named so the difference is not mistaken for a bug when it is not.
+
+**Audited 2026-09-04 — one defect, and the right kind: it passed the test and would have
+failed the feed.** The first `Resolver` decoded the whole output to a `String` and an `int[]`
+of one entry per character — about six bytes for every output byte, on top of the output — and
+`innermost()` scanned every span for every event, which is fine for fixture 001's six records
+and a matter of minutes for a hundred thousand. Rewritten as a single forward sweep: the spans
+sorted by offset with parents before the children they enclose, opened as the parser's
+position reaches them and closed as it passes their ends, the innermost the top of a stack;
+and the parser's character column walked to on the bytes of its own line, a four-byte
+sequence counting two. Amortised linear, nothing decoded. Pinned by five thousand records
+resolving correctly in under half a second, a run the old code would have measured in minutes.
+Read through and left: the root's `<?xml …?>` and `</records>` report no position, since no
+match wrote them; an eater's `onMatch` with no `onOutput` is discarded when its enclosing
+match closes; a parser that never sets a locator leaves the downstream one unset, as before.
+Original wording follows.
 
 S5: event ordinals when writing events, byte offsets when writing bytes, one contract that
 says which. The cheapest honest shape, and the one recommended here: the event sink's

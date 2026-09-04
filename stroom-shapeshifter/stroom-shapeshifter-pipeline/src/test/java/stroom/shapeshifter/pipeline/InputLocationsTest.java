@@ -27,6 +27,7 @@ import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -78,6 +79,41 @@ class InputLocationsTest {
         assertThat(dataLines).hasSize(24);
         for (int i = 0; i < dataLines.size(); i++) {
             assertThat(dataLines.get(i)).as("data " + i).isEqualTo(2 + i / 4);
+        }
+    }
+
+    @Test
+    void fiveThousandRecordsResolveInOneSweep() throws Exception {
+        // Phase 4's audit: the first resolver scanned every span for every event, which is fine
+        // for six records and a matter of minutes for a feed. This many would show it.
+        final String config = Files.readString(LEGACY.resolve("001_csv_with_header.ds3.xml"));
+        final StringBuilder csv = new StringBuilder("dt,who,where,what\n");
+        for (int i = 0; i < 5000; i++) {
+            csv.append("2020-06-17T08:00:00.000Z,user").append(i).append(",office,logon\n");
+        }
+        final List<Integer> recordLines = new ArrayList<>();
+        final XMLReader reader = new ShapeshifterParserFactory(Ds3Migration.importXml(config)).getParser();
+        reader.setContentHandler(new DefaultHandler() {
+            private Locator locator;
+
+            @Override
+            public void setDocumentLocator(final Locator locator) {
+                this.locator = locator;
+            }
+
+            @Override
+            public void startElement(final String uri, final String local, final String qName, final Attributes atts) {
+                if (local.equals("record")) {
+                    recordLines.add(locator.getLineNumber());
+                }
+            }
+        });
+        reader.setErrorHandler(Ds3Oracle.errorHandler("ShapeshifterParser", new LoggingErrorReceiver()));
+        reader.parse(new InputSource(new ByteArrayInputStream(csv.toString().getBytes(StandardCharsets.UTF_8))));
+
+        assertThat(recordLines).hasSize(5000);
+        for (int i = 0; i < 5000; i++) {
+            assertThat(recordLines.get(i)).isEqualTo(2 + i);
         }
     }
 }
