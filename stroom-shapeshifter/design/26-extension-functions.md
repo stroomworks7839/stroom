@@ -45,7 +45,7 @@ public interface FunctionDefinition {
 }
 
 public record Signature(int minArgs, int maxArgs, List<Kind> argKinds, Kind result) { }
-public enum Kind { STRING, NUMBER, INTEGER, BOOLEAN, DATE, ANY }
+public enum Kind { STRING, NUMBER, INTEGER, BOOLEAN, DATE, ANY, SEQUENCE }
 public enum Purity { PURE, CONTEXT, IMPURE }
 
 public interface FunctionCall {
@@ -68,6 +68,14 @@ input shifts positions. Registered functions have Stroom's shape — optional tr
 that mean something by position (`format-date`'s output pattern is argument four) — so a call
 passes every position, null where the reference resolved to nothing, and the arity check is on
 positions written, not values present. A function that wants "absent means skip" says so.
+
+**`SEQUENCE` is a select that names a store.** Two of Stroom's functions take a sequence
+where the engine's other instructions take a value — `cosine-similarity` takes two vectors,
+`pointIsInsideXYPolygon` the polygon's x and y lists. A `SEQUENCE` argument is a select
+resolved the way `count`, `distinct-values` and the folds already resolve theirs
+(`Executor.entries`): every entry of the named store, in order, as a `List<TypedValue>`
+carried in a `TypedValue.Seq`-shaped argument the call unpacks. No new value kind enters the
+model (design 17 §3 refused one); the list exists only for the length of the call.
 
 **Kinds are cast, not checked, at run time.** The compiler checks arity against the signature.
 At run time each argument is cast to its declared kind through design 17 §3.1's table; a value
@@ -128,7 +136,8 @@ Every definition declares one of:
 - **`CONTEXT`** — depends on the run's context (the feed, the meta, the record number, the
   clock) but has no effect. Runs anywhere; not memoised across runs.
 - **`IMPURE`** — has an effect or reaches outside: `http-call`, `fetch-json`, `log`,
-  `add-meta`, `put`.
+  `add-meta`, `put`, and `host-name` and `host-address`, which resolve through DNS — an
+  editor re-running on every keystroke should not be a DNS client either.
 
 The engine's run has a **mode**: `NORMAL` or `PREVIEW`. Design 18's editor re-runs the whole
 configuration on every edit, debounced, and the preview endpoint runs it again to draw the
@@ -174,7 +183,7 @@ stays), `parse-dateTime`, `format-dateTime`, `from-unixTime`, `to-unixTime`, `ha
 `current-unixTime` (CONTEXT), `split-document` (**not carried**: it splits the XSLT's document,
 which has no counterpart).
 
-*B — the pipeline's context (26).* `feed-name`, `pipeline-name`, `meta`, `meta-attribute`,
+*B — the pipeline's context (30).* `feed-name`, `pipeline-name`, `meta`, `meta-attribute`,
 `meta-keys`, `feed-attribute`, `classification`, `current-user`, `record-no`, `search-id`,
 `part-no`, `source-id`, `stream-id`, `parent-id`, `parent-for-id`, `manifest`,
 `manifest-for-id`, `meta-stream`, `meta-stream-for-id`, `source` (the current location as text
@@ -199,6 +208,17 @@ test functions pinning arity refusal by name, unknown-name refusal, positional a
 to each kind, absent result, a throwing function as ERROR, a `FunctionFailure` as FATAL,
 `IMPURE` skipped in preview with one warning, `CONTEXT` run in preview, `state()` shared
 across calls in a run, the corpus untouched (no fixture calls a function).
+
+**Where the pins come from — and where they cannot.** Twenty-five of the fifty-eight have a
+test of their own in stroom-pipeline (`TestFormatDate`, `TestHexToDec`, `TestLookup`,
+`TestHttpCall` and the rest); their cases are the variants' cases, verbatim. The other
+thirty-three do not: `parse-uri`, `encode-url`, `link`, `dictionary`, `meta`, the location
+four, `cidr-to-numeric-ip-range` and more are pinned by Stroom's stylesheets and integration
+tests only. For those, each variant is pinned two ways: against Stroom's own class where it is
+constructible without a pipeline (most of group A: hand a Saxon `Sequence` in and compare), and
+against cases read from the class's source where it is not. This is the design's real fidelity
+risk, and it is named here rather than in an audit: a variant that agrees with its own reading
+of the source is not proven, and the second pin is the one that counts.
 
 **Phase 2 — the pipeline module's library and group A.** The Guice module, the library, the
 pool compiling with the registry, both elements binding a context per document, the
