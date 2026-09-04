@@ -1096,3 +1096,18 @@ configuration cannot know a captured value's length at conversion time. So this 
 migration fix: it is the byte serialiser design 21 phase 2a builds, which reproduces Saxon's
 rule, and phase 3 moves the migration onto it. D41 accepts configuration tweaks to match
 Stroom's whitespace; here none would suffice, and the serialiser is the honest place.
+
+### E36 — A binary vocabulary: framing, integer fields, slicing, and a byte-writing element
+**`open` 2026-09-04.** Design 25 (D43) makes a captured value carry its encoding, so a `raw`
+capture written to a `raw` sink is the bytes it matched and a binary payload passes through
+untouched. That is the carrier. What genuinely binary data — a JPEG was the example — needs
+beyond it, and DS3 cannot do at all, is vocabulary: a match step that takes N bytes where N is
+an integer just captured (every JPEG segment is a marker, a 2-byte big-endian length, then that
+many bytes); integer fields read from bytes with a declared endianness (segment lengths, TIFF's
+byte-order mark, IFD counts and offsets); slicing a captured value by offset and length (EXIF
+offsets are relative to the TIFF header inside the segment); and, on the Stroom side, an
+element in the writer role that holds destinations and writes bytes, since `TextWriter` is
+character-based by nature and design 24 rightly does not bypass it for text. Text functions on
+a `raw` value keep decoding to the byte-as-code-point image, which is what makes byte
+operations expressible through character ones until real byte functions exist beside them.
+Not started; design after the streaming contract (23, 24) and the carrier (25) have landed.

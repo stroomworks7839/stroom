@@ -1187,3 +1187,19 @@ of the element's targets, which are usually a chain. If a text→XML re-parse is
 is a separate pipeline element. The engine's output is UTF-8 by construction, so the decode
 to characters is lossless and a UTF-8 `TextWriter` writes the engine's bytes exactly.
 Design 24; completes design 23 §3b.
+
+## D43 — A value knows its encoding; nothing is transcoded until someone asks
+
+*2026-09-04.* Captured bytes are no longer converted to UTF-8 at capture (E3's
+`normalise`) with stored values assumed UTF-8 thereafter. A `Bytes` value carries the
+encoding its bytes are in — the template's effective encoding for a slice of the match or a
+decode step's output, UTF-8 for literals, composites and function results — and a consumer
+that needs text asks for the UTF-8 form, computed once and remembered. A write transcodes
+from the value's encoding to the one the sink declares (`OutputSink.encoding()`, UTF-8 by
+default and for every XML and character sink). The internal-text guarantee is unchanged, and
+so is every function, condition and comparison; the corpus and `EncodedInputTest` pin that.
+What is new is the byte identity: a `raw` capture into a `raw` sink is the bytes it matched,
+and a binary payload passed through is neither inflated nor decoded. The "local group
+converts, stored value passes through" split in the write path is deleted with the latent
+wrong answer it carried. Design 25; lands before design 24. The binary vocabulary a JPEG
+would need — framing, integers, slicing, a byte-writing element — is E36, not this.
