@@ -16,11 +16,8 @@
 
 package stroom.shapeshifter.pipeline;
 
-import stroom.pipeline.destination.Destination;
-import stroom.pipeline.destination.DestinationProvider;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
-import stroom.pipeline.factory.AbstractElement;
 import stroom.pipeline.writer.TextWriter;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
@@ -38,7 +35,6 @@ import org.xml.sax.XMLReader;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -108,41 +104,5 @@ class TextWriterGoldenTest {
         return indicators == null
                 ? List.of()
                 : indicators.getErrorList().stream().map(StoredError::toString).toList();
-    }
-
-    /** A destination that is one byte array — what a {@code FileAppender} is to a file. */
-    private static final class CapturingDestination extends AbstractElement
-            implements DestinationProvider, Destination {
-
-        private final OutputStream bytes;
-
-        private CapturingDestination(final OutputStream bytes) {
-            this.bytes = bytes;
-            setElementId(new ElementId("Destination"));
-        }
-
-        @Override
-        public Destination borrowDestination() {
-            return this;
-        }
-
-        @Override
-        public void returnDestination(final Destination destination) {
-        }
-
-        @Override
-        public OutputStream getOutputStream() {
-            return bytes;
-        }
-
-        @Override
-        public OutputStream getOutputStream(final byte[] header, final byte[] footer) {
-            return bytes;
-        }
-
-        @Override
-        public java.util.List<stroom.pipeline.factory.Processor> createProcessors() {
-            return java.util.List.of();
-        }
     }
 }

@@ -16,7 +16,9 @@
 
 package stroom.shapeshifter.pipeline;
 
+import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
+import stroom.pipeline.writer.TextWriter;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
@@ -191,7 +193,43 @@ class FilterRunTest {
         assertThat(downstream.events()).contains("characters \"user4999\"");
     }
 
-    /** The same transformation as text: the byte path, forwarded whole at the end. */
+    /**
+     * Design 24 phase 2 audit: the filter's text path into a real {@code TextWriter}, the
+     * consumer it is for — what reaches the destination is the text the configuration wrote,
+     * and it is the text the event recorder saw, character for character.
+     */
+    @Test
+    void textConfigurationThroughTheFilterReachesATextWriterAsWritten() throws Exception {
+        final EventRecorder recorded = new EventRecorder();
+        final FilterRun plain = new FilterRun(reader(USERS_AS_TEXT), 4096, recorded, errors());
+        ds3("001_csv_with_header", plain.input());
+        plain.finish();
+        final String expected = recorded.events().stream()
+                .filter(e -> e.startsWith("characters \""))
+                .map(e -> e.substring("characters \"".length(), e.length() - 1))
+                .collect(java.util.stream.Collectors.joining());
+
+        final ByteArrayOutputStream destination = new ByteArrayOutputStream();
+        final LoggingErrorReceiver receiver = new LoggingErrorReceiver();
+        final TextWriter writer = new TextWriter(new ErrorReceiverProxy(receiver));
+        writer.setElementId(new ElementId("TextWriter"));
+        writer.addTarget(new CapturingDestination(destination));
+        final FilterRun run = new FilterRun(reader(USERS_AS_TEXT), 4096, writer,
+                Ds3Oracle.errorHandler("ShapeshifterFilter", receiver));
+        writer.startProcessing();
+        try {
+            ds3("001_csv_with_header", run.input());
+            run.finish();
+        } finally {
+            writer.endProcessing();
+        }
+
+        assertThat(receiver.isAllOk()).isTrue();
+        assertThat(destination.toString(StandardCharsets.UTF_8)).isEqualTo(expected)
+                .startsWith("<users><user>").endsWith("</user></users>");
+    }
+
+    /** The same transformation as text, delivered as characters as it is written. */
     private static final String USERS_AS_TEXT = USERS
             .replace("{\"element\": {\"name\": \"users\", \"body\": [", "{\"text\": \"<users>\"}, ")
             .replace("\"mode\": \"records\"}}]}}]},", "\"mode\": \"records\"}}, {\"text\": \"</users>\"}]},")

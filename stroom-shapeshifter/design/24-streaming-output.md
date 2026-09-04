@@ -176,7 +176,21 @@ the messages. Deleted: `Run`, `runStreamed`, both `forward`s, `LocatingHandler`,
 they fall behind. The text-variant filter test pins that characters are delivered while the
 input is still arriving and that the values, extracted from the text, are the structured
 variant's values in order; the worker-dies test fails `runInto` instead of `runStreamed`.
-81 pipeline tests and both stroom-app integration tests green. *As written:* One path in
+81 pipeline tests and both stroom-app integration tests green.
+
+*Audited 2026-09-04.* No defect in the paths or the deletions. What the audit found was a
+gap in the pins: the filter's text path had only ever been run into the event recorder, never
+into the consumer it exists for. Added: the filter under a live DS3 upstream into a real
+`TextWriter` over a byte destination, with what reaches the destination compared character
+for character with what the recorder saw, and the writer's error receiver clean; the capturing
+destination is now a shared test class. Confirmed on the way: the worker's abandonment still
+ends a text run — the enqueuer's refusal is a runtime exception, not a `SAXException`, so it
+passes through the character sink untouched and reaches the worker's catch as before; a
+text run's document is always started and ended, so a consumer sees one document per input
+document even when the configuration wrote nothing. *Noted, not this design's:* a structured
+configuration whose run opens no root element delivers no document events at all, since the
+event sink starts the document with the root's first event (design 22 phase 2); every
+migrated configuration has a root element, so nothing observes it. *As written:* One path in
 `FilterRun`; `Run` gone; the text-variant test rewritten as §4. *Test:* both currencies through the pipe under a live DS3 upstream, the too-large record
 still FATAL through the pipe (design 23 phase 2's pin) on both.
 
