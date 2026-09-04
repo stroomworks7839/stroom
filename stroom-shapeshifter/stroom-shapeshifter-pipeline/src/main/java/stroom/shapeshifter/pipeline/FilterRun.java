@@ -117,6 +117,11 @@ final class FilterRun {
             failure = t;
             // The writer may be blocked on a full pipe; it must find out.
             pipe.fail(t);
+        } finally {
+            // The engine may finish before the document does — a FATAL ends its run with the
+            // rest of the image still to come. The writer must not wait on a reader that has
+            // gone (design 23 phase 2).
+            pipe.closeReader();
         }
     }
 

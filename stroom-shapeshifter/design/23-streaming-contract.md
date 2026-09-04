@@ -175,9 +175,28 @@ engine's `runWhole` stays for tests and byte-holding callers; the reader's own c
 produces the same events as today, holding neither the input nor — for a structured
 configuration — the output; a record larger than `buffer_size` is FATAL.*
 
-**Phase 2 — the filter's input, already done (design 22), re-audited against this contract.**
-Confirm the filter streams the engine's input from the pipe under the same window rules and the
-same truncation ruling, and that its structured path holds nothing.
+**Phase 2 — the filter's input, already done (design 22), re-audited against this contract —
+Done 2026-09-04.** *Confirmed:* the worker reads the engine's window from the pipe through the
+same line index and the same `Executor.stream` as the parser element, so `buffer_size` rules
+the window and the pipe's 64 KiB capacity is only back-pressure, not a second buffer; on the
+structured path neither end holds the stream — the event queue is 1024 deep and the pipeline's
+thread drains it between the input events it pushes and while it waits on a full pipe. The
+probe for one more byte after a full-window match blocks on an *empty* pipe until the
+pipeline's thread writes or closes, and that thread is never blocked at the same moment, since
+what blocks it is a *full* pipe. *One defect:* the ruling did not reach the pipeline. A FATAL
+ends the engine's run normally — the worker returned, and never told the pipe — while the
+pipeline's thread still had most of the image to write; it filled the pipe and waited on it
+in 20 ms turns for ever. The pipe now has a reader-side close: once the reader has gone,
+whatever the writer still has is accepted and discarded, the writer reaches endDocument, and
+the FATAL is what it hears there. The worker closes the reader on every exit. Pinned through
+the pipe with a record larger than the window under a live DS3 upstream. *Parity, named and
+not changed:* when nothing matches a full window with input still unread, the run ends —
+an ERROR without `ignore_errors`, nothing at all with it — and the rest of the stream goes
+unread. That is DS3's exact behaviour (`process` returns on no advance; the parse's tail check
+is gated on `ignoreErrors`); a ruling could make it FATAL like the matched case, since on a
+terabyte the silence costs the same. The text path still holds its output — the output round's.
+*Original wording follows.* Confirm the filter streams the engine's input from the pipe under
+the same window rules and the same truncation ruling, and that its structured path holds nothing.
 
 **Phase 3 — the output round.** Separate design: the byte-sink target, the refusal of
 text→SAX, and where the pipe plumbing lives. Opened once phase 1 lands.

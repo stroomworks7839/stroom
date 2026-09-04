@@ -19,7 +19,11 @@ package stroom.shapeshifter.pipeline;
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.ds3.Ds3Migration;
+import stroom.util.shared.ElementId;
+import stroom.util.shared.Severity;
+import stroom.util.shared.StoredError;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
@@ -37,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -296,5 +301,47 @@ class FilterRunTest {
         assertThatThrownBy(run::finish)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("the engine fell over");
+    }
+
+    /**
+     * Design 23 phase 2: the truncation ruling through the pipe. A record larger than
+     * {@code buffer_size} ends the engine's run with a FATAL — on the worker, with most of the
+     * image still to be written by the pipeline's thread. That thread must not be left writing
+     * into a pipe nobody reads: the rest of the document is discarded, endDocument is reached,
+     * and the FATAL is what the pipeline hears.
+     */
+    @Test
+    void recordLargerThanTheWindowThroughThePipeIsFatalAndDoesNotHangTheWriter() throws Exception {
+        final StringBuilder csv = new StringBuilder("dt,who,where,what\n");
+        csv.append("2020-06-17T08:00:00.000Z,").append("x".repeat(2000)).append(",office,logon\n");
+        for (int i = 0; i < 2000; i++) {
+            csv.append("2020-06-17T08:00:00.000Z,user").append(i).append(",office,logon\n");
+        }
+        final String config = Files.readString(LEGACY.resolve("001_csv_with_header.ds3.xml"));
+        final XMLReader ds3 = Ds3Oracle.parser(config);
+        final LoggingErrorReceiver receiver = new LoggingErrorReceiver();
+        final EventRecorder downstream = new EventRecorder();
+        // A record pattern that takes the rest of the window when no </record> is in it: the
+        // truncated view fills the window and the ruling applies. (A pattern that simply fails
+        // on such a record ends the run the way DS3's does — nothing matched, nothing more said.)
+        final String oversize = USERS
+                .replace("\"buffer_size\": 20000", "\"buffer_size\": 1024")
+                .replace("\\\\s*<record>.*?</record>", "\\\\s*<record>(?:.*?</record>|.*)");
+        assertThat(oversize).contains("(?:.*?</record>|.*)");
+        final FilterRun run = new FilterRun(reader(oversize), 4096, downstream,
+                Ds3Oracle.errorHandler("ShapeshifterFilter", receiver));
+        ds3.setContentHandler(run.input());
+        ds3.setErrorHandler(Ds3Oracle.errorHandler("DS3Parser", new LoggingErrorReceiver()));
+        Assertions.assertTimeoutPreemptively(Duration.ofSeconds(20), () -> {
+            ds3.parse(new InputSource(new InputStreamReader(
+                    new ByteArrayInputStream(csv.toString().getBytes(StandardCharsets.UTF_8)),
+                    StandardCharsets.UTF_8)));
+            run.finish();
+        });
+        assertThat(receiver.getTotal(Severity.FATAL_ERROR)).isEqualTo(1);
+        assertThat(receiver.getIndicators(new ElementId("ShapeshifterFilter")).getErrorList().stream()
+                .map(StoredError::toString).toList())
+                .anySatisfy(m -> assertThat(m).contains("larger than source buffer_size"));
+        assertThat(run.workerDone(1000)).isTrue();
     }
 }

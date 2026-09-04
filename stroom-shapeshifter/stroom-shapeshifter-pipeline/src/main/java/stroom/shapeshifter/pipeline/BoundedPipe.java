@@ -35,6 +35,7 @@ final class BoundedPipe {
     private int head;
     private int size;
     private boolean writerClosed;
+    private boolean readerClosed;
     private Throwable failure;
 
     BoundedPipe(final int capacity) {
@@ -52,6 +53,18 @@ final class BoundedPipe {
     /** No more bytes will be written; the reader drains what is there and then sees the end. */
     synchronized void closeWriter() {
         writerClosed = true;
+        notifyAll();
+    }
+
+    /**
+     * The reader has finished with the stream: whatever the writer still has is accepted and
+     * discarded, without blocking. Design 23 phase 2 — an engine run that ended early (a FATAL,
+     * the record larger than its window) has said all it will say; the rest of the document is
+     * not an error, only unread, and the writer must reach its own end to hear the verdict.
+     */
+    synchronized void closeReader() {
+        readerClosed = true;
+        size = 0;
         notifyAll();
     }
 
@@ -91,6 +104,9 @@ final class BoundedPipe {
     /** Put what fits without waiting; zero means full. */
     synchronized int tryPut(final byte[] data, final int offset, final int length) throws IOException {
         checkFailure();
+        if (readerClosed) {
+            return length;
+        }
         if (size == ring.length) {
             return 0;
         }
@@ -106,7 +122,7 @@ final class BoundedPipe {
 
     /** Wait for space, but not longer than the time given: the caller has other things to do. */
     synchronized void awaitSpace(final long millis) throws IOException {
-        if (size == ring.length && failure == null) {
+        if (size == ring.length && failure == null && !readerClosed) {
             try {
                 wait(millis);
             } catch (final InterruptedException e) {
@@ -118,10 +134,13 @@ final class BoundedPipe {
     }
 
     private synchronized int put(final byte[] data, final int offset, final int length) throws IOException {
-        while (size == ring.length && failure == null) {
+        while (size == ring.length && failure == null && !readerClosed) {
             await();
         }
         checkFailure();
+        if (readerClosed) {
+            return length;
+        }
         final int n = Math.min(length, ring.length - size);
         final int tail = (head + size) % ring.length;
         final int first = Math.min(n, ring.length - tail);
