@@ -32,6 +32,7 @@ import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.exec.Codecs;
 import stroom.shapeshifter.engine.exec.EngineVars;
+import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.regex.BytePattern;
@@ -43,6 +44,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -68,6 +70,15 @@ public final class Compiler {
      * @throws ConfigException if anything in it cannot be compiled
      */
     public static CompiledProject compile(final Project project) {
+        return compile(project, FunctionRegistry.EMPTY);
+    }
+
+    /**
+     * Compile a configuration against the functions it may call (design 26 §3): an unknown name
+     * or a wrong arity is a {@link ConfigException}, by name.
+     */
+    public static CompiledProject compile(final Project project, final FunctionRegistry registry) {
+        final Functions functions = new Functions(registry, new LinkedHashMap<>());
         final Encoding sourceEncoding = encoding(project.source().encoding());
         // A transcode-family source (design 19 phase 6) is decoded whole to UTF-8 before the
         // window machinery sees it, so everything below compiles as a UTF-8 feed: delimiters,
@@ -177,14 +188,14 @@ public final class Compiler {
             templates.add(new CompiledTemplate(template,
                     compileMatch(template, matchEncoding, project),
                     CompiledOp.compile(template.body(), patterns,
-                            stroom.shapeshifter.regex.Encoding.UTF_8, project),
+                            stroom.shapeshifter.regex.Encoding.UTF_8, project, functions),
                     declared));
         }
         resolveTemplateNames(project);
         dispatchChecks(project, templates, warnings);
         bodyChecks(project, warnings);
         return new CompiledProject(project, templates, patterns, encoding, transcodeFrom,
-                warnings);
+                warnings, List.copyOf(functions.used().values()));
     }
 
     /**
@@ -307,6 +318,7 @@ public final class Compiler {
                 case OutputNode.Sequence ignored -> false;
                 case OutputNode.Append ignored -> false;
                 case OutputNode.Key ignored -> false;
+                case OutputNode.Call value -> value.name() == null;
                 case OutputNode.ValueMap value -> value.name() == null;
                 case OutputNode.Translate value -> value.name() == null;
                 case OutputNode.StringJoin value -> value.name() == null;
@@ -511,6 +523,7 @@ public final class Compiler {
                 case OutputNode.ValueMap value -> transform(List.of(value.select()), value.name());
                 case OutputNode.Translate value -> transform(value.select(), value.name());
                 case OutputNode.StringJoin value -> transform(value.select(), value.name());
+                case OutputNode.Call value -> transform(value.select(), value.name());
                 case OutputNode.Replace value -> transform(value.select(), value.name());
                 case OutputNode.LowerCase value -> transform(value.select(), value.name());
                 case OutputNode.UpperCase value -> transform(value.select(), value.name());

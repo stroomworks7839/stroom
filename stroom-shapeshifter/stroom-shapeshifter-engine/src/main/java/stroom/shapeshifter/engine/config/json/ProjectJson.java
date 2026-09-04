@@ -1056,6 +1056,11 @@ public final class ProjectJson {
         return switch (tagged.name()) {
             case "text" -> new OutputNode.Text(body.asString());
             case "value-of" -> new OutputNode.ValueOf(readRef(body));
+            case "call" -> {
+                checkFields(body, "call", "function", "select", "name");
+                yield new OutputNode.Call(text(body, "function", "call"),
+                        list(body.get("select"), "select", ProjectJson::readRef), optionalText(body, "name"));
+            }
             case "if" -> {
                 checkFields(body, "if", "test", "then");
                 yield new OutputNode.If(
@@ -1330,6 +1335,13 @@ public final class ProjectJson {
         return switch (output) {
             case OutputNode.Text value -> wrap("text", NODES.stringNode(value.value()));
             case OutputNode.ValueOf value -> wrap("value-of", writeRef(value.select()));
+            case OutputNode.Call value -> {
+                final ObjectNode body = NODES.objectNode();
+                body.put("function", value.function());
+                body.set("select", array(value.select(), ProjectJson::writeRef));
+                putIfPresent(body, "name", value.name());
+                yield wrap("call", body);
+            }
             case OutputNode.If value -> {
                 final ObjectNode body = NODES.objectNode();
                 body.set("test", writeCondition(value.test()));

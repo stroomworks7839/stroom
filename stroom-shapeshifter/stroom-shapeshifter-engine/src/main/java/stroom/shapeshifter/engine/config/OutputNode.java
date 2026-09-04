@@ -174,6 +174,15 @@ public sealed interface OutputNode {
     // -----------------------------------------------------------------------------------
 
     /**
+     * A call to a registered function (design 26 §3): the function by name, its arguments as a
+     * select list — positional, absent where a reference resolves to nothing — and, with a
+     * name, a binding rather than a write.
+     */
+    record Call(String function, List<RefExpression> select, String name) implements OutputNode {
+
+    }
+
+    /**
      * Substitute substrings, one search string at a time, in order: each {@code from} entry is
      * replaced throughout by the {@code to} entry at the same index, or deleted when {@code to}
      * has no entry there. Whole substrings, not characters — this is <i>not</i> XSLT's

@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.config.Project;
+import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 
@@ -47,6 +48,8 @@ public final class CompiledProject {
 
     /** The source encoding a whole-source transcode decodes from, or null for none. */
     private final Encoding transcodeFrom;
+    /** The registered functions the configuration calls, each once — what a run binds. */
+    private final List<FunctionDefinition> functions;
     private final List<Message> warnings;
     /** Whether any body carries an element, attribute or namespace instruction (design 22 phase 2). */
     private final boolean structured;
@@ -73,8 +76,10 @@ public final class CompiledProject {
                            final Map<PatternKey, BytePattern> patterns,
                            final Encoding encoding,
                            final Encoding transcodeFrom,
-                           final List<Message> warnings) {
+                           final List<Message> warnings,
+                           final List<FunctionDefinition> functions) {
         this.transcodeFrom = transcodeFrom;
+        this.functions = List.copyOf(functions);
         this.project = project;
         this.templates = List.copyOf(templates);
         this.patterns = Map.copyOf(patterns);
@@ -143,6 +148,11 @@ public final class CompiledProject {
     /** The template a name means, or null. A duplicated name means its first bearer. */
     public CompiledTemplate template(final String name) {
         return templatesByName.get(name);
+    }
+
+    /** The registered functions the configuration calls (design 26 §3), each once. */
+    public List<FunctionDefinition> functions() {
+        return functions;
     }
 
     /** The encoding the input stream is transcoded from before matching, or null. */

@@ -26,9 +26,13 @@ import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
+import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.exec.Dates;
 import stroom.shapeshifter.engine.exec.Transforms;
 import stroom.shapeshifter.engine.exec.TypedValue;
+import stroom.shapeshifter.engine.function.FunctionDefinition;
+import stroom.shapeshifter.engine.function.Kind;
+import stroom.shapeshifter.engine.function.Signature;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
@@ -154,6 +158,18 @@ public sealed interface CompiledOp {
     }
 
     /**
+     * A call to a registered function (design 26): {@code select.get(i)} is the reference at
+     * position {@code i}, or null where {@code sequences.get(i)} names the store whose entries
+     * that position receives.
+     */
+    record CallFunction(FunctionDefinition definition,
+                        List<CompiledRef> select,
+                        List<String> sequences,
+                        String name) implements CompiledOp {
+
+    }
+
+    /**
      * Run a transform function over resolved inputs — every {@code translate}, {@code replace},
      * {@code substring} and the rest, as one instruction with its parameters already closed
      * over. What kind it was matters at authoring time; at run time there is only "resolve the
@@ -263,27 +279,30 @@ public sealed interface CompiledOp {
     static List<CompiledOp> compile(final List<OutputNode> body,
                                     final Map<PatternKey, BytePattern> patterns,
                                     final stroom.shapeshifter.regex.Encoding regexEncoding,
-                                    final Project project) {
+                                    final Project project,
+                                    final Functions functions) {
         final List<CompiledOp> ops = new ArrayList<>(body.size());
         for (final OutputNode node : body) {
             final CompiledOp op = switch (node) {
                 case OutputNode.Text text ->
                         new Text(text.value().getBytes(StandardCharsets.UTF_8));
                 case OutputNode.ValueOf valueOf -> new ValueOf(CompiledRef.of(valueOf.select()));
+                case OutputNode.Call value -> call(value, functions);
                 case OutputNode.If value ->
-                        new If(value.test(), compile(value.then(), patterns, regexEncoding, project));
+                        new If(value.test(), compile(value.then(), patterns, regexEncoding, project, functions));
                 case OutputNode.Choose value -> new Choose(
                         value.when().stream()
                                 .map(branch -> new When(branch.test(),
-                                        compile(branch.body(), patterns, regexEncoding, project)))
+                                        compile(branch.body(), patterns, regexEncoding, project, functions)))
                                 .toList(),
-                        compile(value.otherwise(), patterns, regexEncoding, project));
+                        compile(value.otherwise(), patterns, regexEncoding, project, functions));
                 case OutputNode.Switch value -> new Switch(
                         CompiledRef.of(value.select()),
                         value.cases().stream()
-                                .map(c -> new Case(c.value(), compile(c.body(), patterns, regexEncoding, project)))
+                                .map(c -> new Case(c.value(),
+                                        compile(c.body(), patterns, regexEncoding, project, functions)))
                                 .toList(),
-                        compile(value.defaultBody(), patterns, regexEncoding, project));
+                        compile(value.defaultBody(), patterns, regexEncoding, project, functions));
                 case OutputNode.ApplyTemplates apply -> {
                     // Whole-parent-content is the group-0 special case of a local group, so
                     // being a local group is the whole of being locatable.
@@ -303,12 +322,13 @@ public sealed interface CompiledOp {
                                 .map(param -> new Arg(param.name(), CompiledRef.of(param.value())))
                                 .toList());
                 case OutputNode.Variable value ->
-                        new Variable(value.name(), compile(value.body(), patterns, regexEncoding, project));
+                        new Variable(value.name(), compile(value.body(), patterns, regexEncoding, project, functions));
                 case OutputNode.Element value -> new Element(
                         value.name(), value.namespace(), value.omitIfEmpty(),
-                        compile(value.body(), patterns, regexEncoding, project));
+                        compile(value.body(), patterns, regexEncoding, project, functions));
                 case OutputNode.Attribute value -> new Attribute(
-                        value.name(), value.omitIfEmpty(), compile(value.body(), patterns, regexEncoding, project));
+                        value.name(), value.omitIfEmpty(),
+                                compile(value.body(), patterns, regexEncoding, project, functions));
                 case OutputNode.Namespace value -> new Namespace(value.prefix(), value.uri());
                 case OutputNode.ValueMap value -> new ValueMap(
                         CompiledRef.of(value.select()), value.entries(), value.defaultValue(), value.name());
@@ -413,12 +433,12 @@ public sealed interface CompiledOp {
                         CompiledRef.of(value.select()), value.name());
                 case OutputNode.ForEachGroup value -> new ForEachGroup(value.select(),
                         value.groupBy() == null ? null : CompiledRef.of(value.groupBy()),
-                        compile(value.body(), patterns, regexEncoding, project));
+                        compile(value.body(), patterns, regexEncoding, project, functions));
                 case OutputNode.ForEach value -> new ForEach(value.select(), value.as(),
                         value.sort().stream()
                                 .map(key -> new SortKey(CompiledRef.of(key.by()), key.order(), key.as()))
                                 .toList(),
-                        compile(value.body(), patterns, regexEncoding, project));
+                        compile(value.body(), patterns, regexEncoding, project, functions));
                 case OutputNode.FormatDate value -> {
                     final Dates.Formatter formatter = Dates.compileFormatter(
                             value.pattern(), value.timezone(), "format-date");
@@ -440,6 +460,55 @@ public sealed interface CompiledOp {
             ops.add(op);
         }
         return List.copyOf(ops);
+    }
+
+    /**
+     * A call to a registered function (design 26 §3): the name resolved now, by name; the
+     * arity checked now against the signature; a {@code SEQUENCE} position required to name a
+     * store, since that is what it receives. The definition is remembered so the run can bind it.
+     */
+    private static CallFunction call(final OutputNode.Call value, final Functions functions) {
+        final FunctionDefinition definition = functions.registry().lookup(value.function());
+        if (definition == null) {
+            throw new ConfigException("Unknown function: '" + value.function() + "'"
+                                      + (functions.registry().size() == 0
+                    ? " (no functions are registered)"
+                    : ""));
+        }
+        final Signature signature = definition.signature();
+        final int written = value.select().size();
+        if (written < signature.minArgs() || written > signature.maxArgs()) {
+            throw new ConfigException("Function '" + value.function() + "' takes "
+                                      + (signature.minArgs() == signature.maxArgs()
+                    ? "exactly " + signature.maxArgs()
+                    : signature.minArgs() + " to " + signature.maxArgs())
+                                      + (signature.maxArgs() == 1 ? " argument" : " arguments")
+                                      + ", but the call has " + written);
+        }
+        final List<CompiledRef> select = new ArrayList<>(written);
+        final List<String> sequences = new ArrayList<>(written);
+        for (int i = 0; i < written; i++) {
+            final RefExpression ref = value.select().get(i);
+            if (signature.argKinds().get(i) == Kind.SEQUENCE) {
+                final String store = ref.parts().size() == 1
+                                     && ref.parts().getFirst() instanceof RefPart.Capture capture
+                                     && capture.varId() != null
+                        ? capture.varId()
+                        : null;
+                if (store == null) {
+                    throw new ConfigException("Function '" + value.function() + "': argument " + (i + 1)
+                                              + " is a sequence and must name a variable,"
+                                              + " whose every entry it receives");
+                }
+                sequences.add(store);
+                select.add(null);
+            } else {
+                sequences.add(null);
+                select.add(CompiledRef.of(ref));
+            }
+        }
+        functions.used().putIfAbsent(definition.name(), definition);
+        return new CallFunction(definition, select, sequences, value.name());
     }
 
     private static Transform transform(final List<RefExpression> select,

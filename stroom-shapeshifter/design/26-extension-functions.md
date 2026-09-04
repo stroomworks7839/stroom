@@ -200,7 +200,37 @@ Fifty-seven carried, one not.
 
 ## 6. Phasing
 
-**Phase 1 — the engine.** `function` package: the contract (§2), `FunctionRegistry`,
+**Phase 1 — the engine — Done 2026-09-04.** *As built:* `stroom.shapeshifter.engine.function`
+holds `Kind`, `Purity`, `RunMode`, `Signature` (with `of` factories), `FunctionDefinition`
+(with an `of` factory over a binder lambda), `FunctionCall`, `FunctionContext`, `Arguments`,
+`FunctionFailure`, `FunctionRegistry` (immutable, `EMPTY`, `of`, duplicates refused) and
+`Services` (`NONE`; what `FunctionContext.service` reads). Two things differ from §2 as
+sketched: a call receives an `Arguments` object rather than a bare list — `value(i)` cast,
+`raw(i)` before casting, `miscast(i)`, `sequence(i)`, and `string`/`number`/`integer`/`bool`/
+`date` helpers, Stroom's `getSafeString` family in one place — and the run's services come in
+through `Services`, a one-method lookup the engine never looks inside. There is no separate
+`FunctionLibrary` class: `Executor` binds each definition the compiled project uses at
+construction, one `Context` per function (so a warning is prefixed with its name), and holds
+the calls in a map. The `call` node is read and written by the codec (`function`, `select`,
+`name`), walked by the compiler's one-walk checks, classified as content when unnamed, and
+compiled by `CompiledOp.call` — unknown name refused by name (and "no functions are
+registered" when the registry is empty), arity checked against the signature, a `SEQUENCE`
+position required to name a variable — into `CompiledOp.CallFunction` (`Call` was taken by
+`call-template`). `CompiledProject.functions()` lists the definitions used. The executor
+casts each written position through the casting table, expands a sequence position through
+the existing `entries`, sets the context's input offset to the running match's, skips an
+impure function in preview with one warning, turns a runtime exception into an ERROR and an
+absent result and a `FunctionFailure` into a FATAL abort. `Shapeshifter.compile(project,
+registry)` and `run(compiled, input, sink, instrument, mode, services)` are the new facade
+methods; every existing one is unchanged and means the empty registry and `NORMAL`.
+*Pins:* `FunctionsTest`, thirteen cases over a registry of sixteen throwaway functions,
+covering everything the phase promised plus positional absence with an optional trailing
+argument, miscast warning being the function's choice, binding once per run, services
+reaching a call, and the codec's round trip; `EveryVariantTest` covers `Call`. Corpus and
+every prior test unchanged: 549 green. *Named:* `Executor` is past checkstyle's 2,000-line
+warning (2,126) — a split is due, not in this phase.
+
+*As written:* `function` package: the contract (§2), `FunctionRegistry`,
 `FunctionLibrary`, the run mode; the `call` output node in model, codec and compiler;
 `CompiledOp.Call` and its execution with positional-null arguments, casting, catching,
 messages; `Shapeshifter.compile(project, registry)` and `run(…, mode)`. *Tests:* a registry of

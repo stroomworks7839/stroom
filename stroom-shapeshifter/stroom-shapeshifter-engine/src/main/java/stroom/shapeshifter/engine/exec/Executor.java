@@ -33,6 +33,14 @@ import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.engine.function.FunctionCall;
+import stroom.shapeshifter.engine.function.FunctionContext;
+import stroom.shapeshifter.engine.function.FunctionDefinition;
+import stroom.shapeshifter.engine.function.FunctionFailure;
+import stroom.shapeshifter.engine.function.Kind;
+import stroom.shapeshifter.engine.function.Purity;
+import stroom.shapeshifter.engine.function.RunMode;
+import stroom.shapeshifter.engine.function.Services;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.Transcode;
 import stroom.shapeshifter.regex.Anchoring;
@@ -46,8 +54,12 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -73,6 +85,14 @@ public final class Executor {
     private final OutputSink output;
     private final Instrument instrument;
     private final List<Message> messages = new ArrayList<>();
+    // Design 26: the run's mode, the services its functions may reach, and the functions bound
+    // to it — one call per definition the configuration uses, bound at construction.
+    private final RunMode mode;
+    private final Services services;
+    private final Map<String, FunctionCall> library = new HashMap<>();
+    private final Map<String, Object> functionState = new HashMap<>();
+    private final Set<String> notRunInPreview = new HashSet<>();
+    private long callOffset = Instrument.UNLOCATABLE;
     private final VarRegistry vars = new VarRegistry();
 
     /**
@@ -119,7 +139,16 @@ public final class Executor {
      */
     private Encoding encoding;
 
-    private Executor(final CompiledProject compiled, final OutputSink sink, final Instrument instrument) {
+    private Executor(final CompiledProject compiled,
+                     final OutputSink sink,
+                     final Instrument instrument,
+                     final RunMode mode,
+                     final Services services) {
+        this.mode = mode;
+        this.services = services;
+        for (final FunctionDefinition definition : compiled.functions()) {
+            library.put(definition.name(), definition.bind(new Context(definition.name())));
+        }
         this.compiled = compiled;
         this.output = sink;
         this.instrument = instrument;
@@ -141,13 +170,58 @@ public final class Executor {
                                     final OutputSink sink,
                                     final Instrument instrument,
                                     final boolean wholeBuffer) {
+        return run(compiled, input, sink, instrument, wholeBuffer, RunMode.NORMAL, Services.NONE);
+    }
+
+    public static List<Message> run(final CompiledProject compiled,
+                                    final InputStream input,
+                                    final OutputSink sink,
+                                    final Instrument instrument,
+                                    final boolean wholeBuffer,
+                                    final RunMode mode,
+                                    final Services services) {
         // Phase 6 (design 19): a transcode-family source becomes UTF-8 bytes before the
         // window machinery reads it; report by default, replace under ignore_errors.
         final InputStream source = compiled.transcodeFrom() != null
                 ? Transcode.wrap(input, compiled.transcodeFrom().charset(),
                         compiled.project().source().ignoreErrors())
                 : input;
-        return new Executor(compiled, sink, instrument).execute(source, wholeBuffer);
+        return new Executor(compiled, sink, instrument, mode, services).execute(source, wholeBuffer);
+    }
+
+    /** What a bound function may reach (design 26 §2), for one function by name. */
+    private final class Context implements FunctionContext {
+
+        private final String function;
+
+        private Context(final String function) {
+            this.function = function;
+        }
+
+        @Override
+        public void warn(final String message) {
+            messages.add(new Message(Severity.WARNING, function + ": " + message));
+        }
+
+        @Override
+        public void error(final String message) {
+            messages.add(new Message(Severity.ERROR, function + ": " + message));
+        }
+
+        @Override
+        public long inputOffset() {
+            return callOffset;
+        }
+
+        @Override
+        public Map<String, Object> state() {
+            return functionState;
+        }
+
+        @Override
+        public <T> T service(final Class<T> type) {
+            return type.cast(services.lookup(type));
+        }
     }
 
     // -----------------------------------------------------------------------------------
@@ -1202,6 +1276,8 @@ public final class Executor {
                 }
                 case CompiledOp.Transform value ->
                         transform(value, match, matchCount, sink, contentEncoding);
+                case CompiledOp.CallFunction value ->
+                        call(value, match, matchCount, sink, inputBase, contentEncoding);
                 case CompiledOp.Sequence value -> {
                     // Declared here, emptied here: an accumulation that outlived its previous
                     // run would carry the last stream's values into this one.
@@ -1309,6 +1385,79 @@ public final class Executor {
                           final Encoding contentEncoding) {
         final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars, contentEncoding);
         return resolved == null ? "" : resolved;
+    }
+
+    /**
+     * Call a registered function (design 26 §3) and write or bind what it returns. Arguments
+     * are positional and absent is null, so an optional trailing argument keeps its place; each
+     * is cast to the signature's kind through design 17's table, and a {@code SEQUENCE} position
+     * receives every entry of the store it named. In preview an impure function is not called —
+     * absent, and said once. A function that throws is an error and an absent result; one that
+     * throws {@link FunctionFailure} ends the run.
+     */
+    private void call(final CompiledOp.CallFunction op,
+                      final MatchResult match,
+                      final int matchCount,
+                      final OutputSink sink,
+                      final long inputBase,
+                      final Encoding contentEncoding) {
+        final FunctionDefinition definition = op.definition();
+        final String function = definition.name();
+        if (mode == RunMode.PREVIEW && definition.purity() == Purity.IMPURE) {
+            if (notRunInPreview.add(function)) {
+                messages.add(new Message(Severity.WARNING, function + ": not run in preview"));
+            }
+            emit(null, op.name(), matchCount, sink);
+            return;
+        }
+        final List<Kind> kinds = definition.signature().argKinds();
+        final int written = op.select().size();
+        final List<TypedValue> values = new ArrayList<>(written);
+        final List<TypedValue> raw = new ArrayList<>(written);
+        final List<List<TypedValue>> sequences = new ArrayList<>(written);
+        for (int i = 0; i < written; i++) {
+            final String store = op.sequences().get(i);
+            if (store != null) {
+                raw.add(null);
+                values.add(null);
+                sequences.add(entries(store));
+                continue;
+            }
+            final TypedValue resolved = CompiledRefs.resolveValue(
+                    op.select().get(i), match, matchCount, vars, contentEncoding);
+            raw.add(resolved);
+            values.add(resolved == null ? null : castTo(resolved, kinds.get(i)));
+            sequences.add(null);
+        }
+        final FunctionCall bound = library.get(function);
+        callOffset = inputBase + match.matchStart();
+        TypedValue result = null;
+        try {
+            result = bound.call(new stroom.shapeshifter.engine.function.Arguments(values, raw, sequences));
+        } catch (final FunctionFailure e) {
+            messages.add(new Message(Severity.FATAL, function + ": " + e.getMessage()));
+            throw new AbortRun();
+        } catch (final RuntimeException e) {
+            messages.add(new Message(Severity.ERROR, function + ": " + e));
+        } finally {
+            callOffset = Instrument.UNLOCATABLE;
+        }
+        emit(result, op.name(), matchCount, sink);
+    }
+
+    /** A value read as a kind through the casting table (design 17 §3.1); null when it has no such reading. */
+    private static TypedValue castTo(final TypedValue value, final Kind kind) {
+        return switch (kind) {
+            case ANY, SEQUENCE -> value;
+            case STRING -> Comparisons.cast(value, Cast.STRING);
+            case NUMBER -> Comparisons.cast(value, Cast.NUMBER);
+            case INTEGER -> {
+                final Long whole = value.asInteger();
+                yield whole == null ? null : new TypedValue.Int(whole);
+            }
+            case BOOLEAN -> Comparisons.cast(value, Cast.BOOLEAN);
+            case DATE -> Comparisons.cast(value, Cast.DATE);
+        };
     }
 
     /**

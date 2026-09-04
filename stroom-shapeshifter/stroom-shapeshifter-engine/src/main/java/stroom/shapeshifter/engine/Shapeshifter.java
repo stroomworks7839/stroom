@@ -20,6 +20,9 @@ import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.Compiler;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.exec.Executor;
+import stroom.shapeshifter.engine.function.FunctionRegistry;
+import stroom.shapeshifter.engine.function.RunMode;
+import stroom.shapeshifter.engine.function.Services;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -43,6 +46,27 @@ public final class Shapeshifter {
      */
     public static CompiledProject compile(final Project project) {
         return Compiler.compile(project);
+    }
+
+    /**
+     * Compile a configuration against the functions it may call (design 26): an unknown name or
+     * a wrong arity is a {@link stroom.shapeshifter.engine.config.ConfigException}, by name.
+     */
+    public static CompiledProject compile(final Project project, final FunctionRegistry registry) {
+        return Compiler.compile(project, registry);
+    }
+
+    /**
+     * Run a configuration in a mode, with the services its functions may reach (design 26 §3–4).
+     * {@link RunMode#PREVIEW} does not call impure functions.
+     */
+    public static List<Message> run(final CompiledProject compiled,
+                                    final InputStream input,
+                                    final OutputSink sink,
+                                    final Instrument instrument,
+                                    final RunMode mode,
+                                    final Services services) {
+        return Executor.run(compiled, input, sink, instrument, false, mode, services);
     }
 
     /**

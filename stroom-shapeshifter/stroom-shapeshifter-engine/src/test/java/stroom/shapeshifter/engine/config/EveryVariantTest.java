@@ -193,6 +193,7 @@ class EveryVariantTest {
         final List<OutputNode> body = new ArrayList<>(List.of(
                 new OutputNode.Text("literal"),
                 new OutputNode.ValueOf(ref()),
+                new OutputNode.Call("hex-to-dec", List.of(ref()), "called"),
                 new OutputNode.If(eq(ref(), "x"), List.of(new OutputNode.Text("then"))),
                 new OutputNode.Choose(
                         List.of(new WhenBranch(new Condition.Compare(Condition.Compare.Op.NE,
