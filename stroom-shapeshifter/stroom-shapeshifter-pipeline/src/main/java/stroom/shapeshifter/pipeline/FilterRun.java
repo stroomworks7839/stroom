@@ -17,8 +17,6 @@
 package stroom.shapeshifter.pipeline;
 
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.SaxEventSink;
-import stroom.shapeshifter.engine.Shapeshifter;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
@@ -30,7 +28,6 @@ import org.xml.sax.helpers.AttributesImpl;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -41,12 +38,11 @@ import java.util.concurrent.TimeUnit;
  * caller's thread, the engine reading it on a worker, and what the engine produces delivered
  * downstream on the caller's thread.
  *
- * <p>Two paths, chosen by the configuration. A text configuration's output is bytes, complete
- * only when the run is: it is forwarded through the reader — parsed, located — at
- * {@link #finish}. A structured configuration runs straight into an event sink (phase 2): the
- * worker enqueues each event, located live, and the caller's thread drains the queue between
- * the input events it pushes — and while it waits on a full input pipe, so neither thread can
- * hold the other — which is what makes both ends stream.
+ * <p>One path, whatever the configuration's currency (design 24 phase 2): the worker runs the
+ * engine into a sink that delivers as it goes — element events for structure, characters for
+ * text — and enqueues each event, located live; the caller's thread drains the queue between
+ * the input events it pushes, and while it waits on a full input pipe, so neither thread can
+ * hold the other. That is what makes both ends stream, and nothing is held for the end.
  *
  * <p>Separated from the element so that the mechanics — back-pressure both ways, the join,
  * failure in either direction — can be tested without a pipeline.
@@ -62,11 +58,9 @@ final class FilterRun {
     private final EventImage image;
     private final ContentHandler downstream;
     private final ErrorHandler errors;
-    private final boolean structured;
     private final BlockingQueue<Event> events;
     private final ShapeshifterReader.LiveLocator locator = new ShapeshifterReader.LiveLocator();
     private final Thread worker;
-    private volatile ShapeshifterReader.Run result;
     private volatile List<Message> messages;
     private volatile Throwable failure;
     private volatile boolean abandoned;
@@ -85,8 +79,7 @@ final class FilterRun {
         this.image = new EventImage(new Draining(pipe), preserveWhitespace);
         this.downstream = downstream;
         this.errors = errors;
-        this.structured = reader.compiled().structured();
-        this.events = structured ? new ArrayBlockingQueue<>(EVENT_QUEUE_CAPACITY) : null;
+        this.events = new ArrayBlockingQueue<>(EVENT_QUEUE_CAPACITY);
         this.worker = new Thread(this::run, "shapeshifter-filter");
         this.worker.setDaemon(true);
         this.worker.start();
@@ -104,15 +97,10 @@ final class FilterRun {
 
     private void run() {
         try {
-            if (structured) {
-                final InputLocations locations = new InputLocations();
-                final InputLocations.LineIndex lines = new InputLocations.LineIndex(pipe.reader());
-                locations.bound(lines);
-                messages = Shapeshifter.run(reader.compiled(), lines,
-                        new SaxEventSink(new Enqueuer(locations, lines)), locations);
-            } else {
-                result = reader.runStreamed(pipe.reader());
-            }
+            final InputLocations locations = new InputLocations();
+            final InputLocations.LineIndex lines = new InputLocations.LineIndex(pipe.reader());
+            locations.bound(lines);
+            messages = reader.runInto(lines, locations, new Enqueuer(locations, lines));
         } catch (final Throwable t) {
             failure = t;
             // The writer may be blocked on a full pipe; it must find out.
@@ -156,11 +144,7 @@ final class FilterRun {
         }
         reader.setContentHandler(downstream);
         reader.setErrorHandler(errors);
-        if (structured) {
-            reader.reportAll(messages);
-        } else {
-            reader.forward(result);
-        }
+        reader.reportAll(messages);
     }
 
     /**
@@ -184,9 +168,6 @@ final class FilterRun {
 
     /** Deliver every event the worker has queued so far. */
     private void drain() throws SAXException {
-        if (events == null) {
-            return;
-        }
         Event event;
         while ((event = events.poll()) != null) {
             if (!downstreamLocated) {

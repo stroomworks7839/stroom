@@ -18,7 +18,6 @@ package stroom.shapeshifter.pipeline;
 
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
 import stroom.shapeshifter.engine.config.ProjectReader;
-import stroom.shapeshifter.engine.ds3.Ds3Migration;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
@@ -35,7 +34,6 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -200,15 +198,19 @@ class FilterRunTest {
             .replace("{\"element\": {\"name\": \"user\", \"body\": [", "{\"text\": \"<user>\"}, ")
             .replace("\"mode\": \"fields\"}}]}}]},", "\"mode\": \"fields\"}}, {\"text\": \"</user>\"}]},");
 
+    /**
+     * Design 24 phase 2: the text variant streams too — characters delivered while the input is
+     * still arriving — and carries the same values, in the same order, as the structured one.
+     */
     @Test
-    void textConfigurationTakesTheBytePathAndAgreesWithTheStructuredOne() throws Exception {
+    void textConfigurationStreamsCharactersAndCarriesTheSameValuesAsTheStructuredOne() throws Exception {
         assertThat(reader(USERS).compiled().structured()).isTrue();
         assertThat(reader(USERS_AS_TEXT).compiled().structured()).isFalse();
 
         final EventRecorder viaText = new EventRecorder();
         final FilterRun text = new FilterRun(reader(USERS_AS_TEXT), 4096, viaText, errors());
         ds3("001_csv_with_header", text.input());
-        assertThat(text.delivered()).as("a text configuration cannot deliver before the end").isZero();
+        final int deliveredBeforeTheEnd = text.delivered();
         text.finish();
 
         final EventRecorder viaStructure = new EventRecorder();
@@ -216,7 +218,23 @@ class FilterRunTest {
         ds3("001_csv_with_header", structured.input());
         structured.finish();
 
-        assertThat(viaText.events()).containsExactlyElementsOf(viaStructure.events());
+        assertThat(deliveredBeforeTheEnd).isGreaterThan(0);
+        assertThat(viaText.events()).noneMatch(e -> e.startsWith("startElement"));
+        final String joined = viaText.events().stream()
+                .filter(e -> e.startsWith("characters \""))
+                .map(e -> e.substring("characters \"".length(), e.length() - 1))
+                .collect(java.util.stream.Collectors.joining());
+        final List<String> textValues = new ArrayList<>();
+        final java.util.regex.Matcher users = java.util.regex.Pattern.compile("<user>([^<]*)</user>").matcher(joined);
+        while (users.find()) {
+            textValues.add(users.group(1));
+        }
+        final List<String> structuredValues = viaStructure.events().stream()
+                .filter(e -> e.startsWith("characters \""))
+                .map(e -> e.substring("characters \"".length(), e.length() - 1))
+                .toList();
+        assertThat(joined).startsWith("<users>").endsWith("</users>");
+        assertThat(textValues).isNotEmpty().isEqualTo(structuredValues);
     }
 
     @Test
@@ -290,7 +308,9 @@ class FilterRunTest {
     void workerThatDiesUnblocksTheWriterAndSurfacesAtTheJoin() throws Exception {
         final ShapeshifterReader failing = new ShapeshifterReader(reader(USERS_AS_TEXT).compiled()) {
             @Override
-            Run runStreamed(final InputStream input) {
+            List<stroom.shapeshifter.engine.Message> runInto(final InputLocations.LineIndex lines,
+                                                             final InputLocations locations,
+                                                             final ContentHandler handler) {
                 throw new IllegalStateException("the engine fell over");
             }
         };

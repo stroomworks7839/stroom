@@ -25,7 +25,6 @@ import stroom.shapeshifter.engine.SaxEventSink;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.util.shared.Severity;
-import stroom.util.xml.SAXParserFactoryFactory;
 
 import org.xml.sax.ContentHandler;
 import org.xml.sax.ErrorHandler;
@@ -33,11 +32,8 @@ import org.xml.sax.InputSource;
 import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
-import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.LocatorImpl;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -46,8 +42,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParserFactory;
 
 /**
  * A Shapeshifter configuration as a pipeline parser: bytes in, SAX events out.
@@ -71,14 +65,10 @@ import javax.xml.parsers.SAXParserFactory;
  * {@code source.encoding} is real; or, when a reader element upstream has already decoded it,
  * characters encoded to UTF-8 as they are read, which is then the only encoding the configuration
  * can truthfully declare.
- *
- * <p>What remains of design 21 phase 1's parse-and-forward — {@link Run}, {@link #runStreamed},
- * {@link #forward(Run)} and the output parse behind it — serves the filter's byte path until
- * design 24 phase 2 moves that onto the character sink too, and goes then.
+
  */
 public class ShapeshifterReader extends AbstractParser {
 
-    private static final SAXParserFactory PARSER_FACTORY = SAXParserFactoryFactory.newInstance();
     private static final int EXCERPT_LENGTH = 200;
     private static final Locator UNLOCATED = unlocated();
 
@@ -118,26 +108,33 @@ public class ShapeshifterReader extends AbstractParser {
         final InputLocations locations = new InputLocations();
         final InputLocations.LineIndex lines = new InputLocations.LineIndex(input);
         locations.bound(lines);
-        final LiveLocatingHandler handler = new LiveLocatingHandler(target, locations, lines);
-        List<Message> messages;
+        reportAll(runInto(lines, locations, new LiveLocatingHandler(target, locations, lines)));
+    }
+
+    /**
+     * Run the configuration over the window, delivering to the handler as it goes — the sink by
+     * the configuration's currency — and say what the engine said. Shared with the filter, whose
+     * worker runs this and whose pipeline thread delivers (design 24 phase 2). A text run has no
+     * root to end its document, so the sink is told when the run is over; a refusal of that end
+     * is the run's last message, in the words the engine uses for a refusal mid-run, rather than
+     * an exception that would carry the messages away with it (phase 1 audit).
+     */
+    List<Message> runInto(final InputLocations.LineIndex lines,
+                          final InputLocations locations,
+                          final ContentHandler handler) {
         if (compiled.structured()) {
-            messages = Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations);
-        } else {
-            final CharacterSink sink = new CharacterSink(handler);
-            messages = Shapeshifter.run(compiled, lines, sink, locations);
-            try {
-                sink.end();
-            } catch (final OutputSink.StructureException e) {
-                // A refusal of the document's end is reported the way the engine reports a
-                // refusal mid-run: as the run's last message, after everything it had to say,
-                // rather than as an exception that would carry those messages away with it
-                // (design 24 phase 1 audit).
-                messages = new ArrayList<>(messages);
-                messages.add(new Message(stroom.shapeshifter.engine.Severity.FATAL,
-                        "Output structure: " + e.getMessage()));
-            }
+            return Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations);
         }
-        reportAll(messages);
+        final CharacterSink sink = new CharacterSink(handler);
+        List<Message> messages = Shapeshifter.run(compiled, lines, sink, locations);
+        try {
+            sink.end();
+        } catch (final OutputSink.StructureException e) {
+            messages = new ArrayList<>(messages);
+            messages.add(new Message(stroom.shapeshifter.engine.Severity.FATAL,
+                    "Output structure: " + e.getMessage()));
+        }
+        return messages;
     }
 
     /**
@@ -172,74 +169,6 @@ public class ShapeshifterReader extends AbstractParser {
     void reportAll(final List<Message> messages) throws SAXException {
         for (final Message message : messages) {
             report(message);
-        }
-    }
-
-    /**
-     * What a run produced, before any of it is forwarded: the output, the messages and the
-     * trace that maps output positions back to the input. Produced on any thread — the engine
-     * needs nothing of the pipeline's — and forwarded on the pipeline's (design 22 §2).
-     */
-    record Run(byte[] output, List<Message> messages, InputLocations.Resolver locations) {
-
-    }
-
-    /** Run over a stream, in windows of the configuration's buffer size, holding the output for the parse. */
-    Run runStreamed(final InputStream input) {
-        final ByteArrayOutputStream output = new ByteArrayOutputStream();
-        final InputLocations locations = new InputLocations();
-        final InputLocations.LineIndex lines = new InputLocations.LineIndex(input);
-        final List<Message> messages = Shapeshifter.run(compiled, lines, OutputSink.of(output), locations);
-        return new Run(output.toByteArray(), messages,
-                locations.resolver(lines.lineStarts(), output.toByteArray()));
-    }
-
-    /** Report the run's messages, then parse and forward its output — on the pipeline's thread. */
-    void forward(final Run run) throws IOException, SAXException {
-        boolean fatal = false;
-        for (final Message message : run.messages()) {
-            report(message);
-            fatal |= message.severity() == stroom.shapeshifter.engine.Severity.FATAL;
-        }
-        if (fatal) {
-            // A run that could not read its input did not produce a document; parsing what it
-            // managed to write would only add a second, misleading error to the first.
-            return;
-        }
-        forward(run.output(), run.locations());
-    }
-
-    // -----------------------------------------------------------------------------------
-    // Forwarding the output as events
-    // -----------------------------------------------------------------------------------
-
-    private void forward(final byte[] output, final InputLocations.Resolver locations)
-            throws IOException, SAXException {
-        final ContentHandler target = getContentHandler();
-        if (target == null) {
-            throw new SAXException("No content handler set");
-        }
-        // Every event is forwarded with the input position behind it, not the parser's position
-        // in the generated text (design 21 phase 4; D10's locator).
-        final ContentHandler contentHandler = new LocatingHandler(target, locations);
-        final XMLReader reader;
-        try {
-            reader = PARSER_FACTORY.newSAXParser().getXMLReader();
-        } catch (final ParserConfigurationException e) {
-            throw new SAXException(e);
-        }
-        final OutputErrorHandler errors = new OutputErrorHandler(output);
-        reader.setContentHandler(contentHandler);
-        reader.setErrorHandler(errors);
-        try {
-            reader.parse(new InputSource(new ByteArrayInputStream(output)));
-        } catch (final SAXParseException e) {
-            if (!errors.reportedFatal) {
-                // Not the parser's — a downstream filter threw it — so it is not ours to swallow.
-                throw e;
-            }
-            // The parser stops after a fatal error, which has already been reported in the output's
-            // own terms. Like DS3, the stream carries the error rather than the parser throwing it.
         }
     }
 
@@ -303,96 +232,6 @@ public class ShapeshifterReader extends AbstractParser {
 
         @Override
         public void setDocumentLocator(final Locator ignored) {
-        }
-
-        @Override
-        public void startDocument() throws SAXException {
-            locate();
-            target.startDocument();
-        }
-
-        @Override
-        public void endDocument() throws SAXException {
-            locate();
-            target.endDocument();
-        }
-
-        @Override
-        public void startPrefixMapping(final String prefix, final String uri) throws SAXException {
-            locate();
-            target.startPrefixMapping(prefix, uri);
-        }
-
-        @Override
-        public void endPrefixMapping(final String prefix) throws SAXException {
-            locate();
-            target.endPrefixMapping(prefix);
-        }
-
-        @Override
-        public void startElement(final String uri, final String localName, final String qName,
-                                 final org.xml.sax.Attributes atts) throws SAXException {
-            locate();
-            target.startElement(uri, localName, qName, atts);
-        }
-
-        @Override
-        public void endElement(final String uri, final String localName, final String qName) throws SAXException {
-            locate();
-            target.endElement(uri, localName, qName);
-        }
-
-        @Override
-        public void characters(final char[] ch, final int start, final int length) throws SAXException {
-            locate();
-            target.characters(ch, start, length);
-        }
-
-        @Override
-        public void ignorableWhitespace(final char[] ch, final int start, final int length) throws SAXException {
-            locate();
-            target.ignorableWhitespace(ch, start, length);
-        }
-
-        @Override
-        public void processingInstruction(final String piTarget, final String data) throws SAXException {
-            locate();
-            target.processingInstruction(piTarget, data);
-        }
-
-        @Override
-        public void skippedEntity(final String name) throws SAXException {
-            locate();
-            target.skippedEntity(name);
-        }
-    }
-
-    /**
-     * Forwards events with the document locator replaced by the input's: before each event the
-     * parser's position in the output is resolved to the input position behind it, and that is
-     * what the pipeline's filters read.
-     */
-    private static final class LocatingHandler implements ContentHandler {
-
-        private final ContentHandler target;
-        private final InputLocations.Resolver locations;
-        private Locator parser;
-
-        private LocatingHandler(final ContentHandler target, final InputLocations.Resolver locations) {
-            this.target = target;
-            this.locations = locations;
-        }
-
-        private void locate() {
-            if (parser != null) {
-                locations.at(parser);
-            }
-        }
-
-        @Override
-        public void setDocumentLocator(final Locator locator) {
-            parser = locator;
-            target.setDocumentLocator(locations);
         }
 
         @Override

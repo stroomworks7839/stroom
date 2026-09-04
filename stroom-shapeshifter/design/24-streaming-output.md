@@ -39,13 +39,15 @@ sink's mouth.**
   running match at the moment it was made — `InputLocations.currentInputOffset()` through the
   live line index, exactly as the event path does today. The post-run resolver that mapped
   *output* positions to input positions goes: there is no output document to have positions in.
-- **The refusal is the consumer's.** A text configuration produces a document of characters
-  and no elements. `TextWriter` is content; anything that needs XML — an `XSLTFilter`, a
-  `SchemaFilter` — fails on its own terms, because text outside a root element is not
-  well-formed, and says so in its own words. The element does not inspect its targets: the
-  immediate target is usually a chain (`SplitFilter`, `RecordCountFilter`) and the check would
-  be unreliable. If a text→XML re-parse is ever wanted it is a separate pipeline element, built
-  as one, not Shapeshifter's.
+- **No refusal — ruled 2026-09-04 after phase 1's audit.** A text configuration produces a
+  document of characters and no elements. `TextWriter` writes it. An XML consumer downstream
+  *accepts* it too: a characters-only document is a valid XDM document node with one text
+  child, Saxon builds it, and a stylesheet runs over it with its element templates matching
+  nothing (the audit probed this). The user ruled that this is acceptable and needs no check
+  of the element's targets. If a text→XML re-parse is ever wanted it is a separate pipeline
+  element, built as one, not Shapeshifter's. *As first written:* "the refusal is the
+  consumer's … text outside a root element is not well-formed" — true of XML, not of XDM, and
+  withdrawn.
 - **Bytes and characters.** The engine's output is UTF-8 by construction under E3: captures
   are decoded by the source encoding and re-encoded as UTF-8 (`Refs`, `Steps`), and literals
   are Java strings. So the decode in the character sink is lossless, and a `TextWriter` set to
@@ -163,8 +165,19 @@ pinned on a split multi-byte character and on the `text_*_exact` fixtures throug
 byte-path spans; the errors pins replaced. *Test:* every pipeline test green with the deletions;
 the corpus unchanged.
 
-**Phase 2 — the filter.** One path in `FilterRun`; `Run` gone; the text-variant test rewritten
-as §4. *Test:* both currencies through the pipe under a live DS3 upstream, the too-large record
+**Phase 2 — the filter — Done 2026-09-04.** *As built:* `ShapeshifterReader.runInto(lines,
+locations, handler)` is the one live run — sink by currency, the text sink told when the run
+is over, a refusal of that end the run's last message — used by the parser's `parseLive` and
+by the filter's worker alike; `FilterRun` has one path and one queue, and `finish` reports
+the messages. Deleted: `Run`, `runStreamed`, both `forward`s, `LocatingHandler`,
+`OutputErrorHandler`, the hardened parser factory and the excerpt helpers in the reader;
+`Span`, the byte-path branch of `onOutput`, `Lines.of`, `resolver`, `lineStarts` (both) and
+`Resolver` in `InputLocations`, which now records only the open matches and forgets lines as
+they fall behind. The text-variant filter test pins that characters are delivered while the
+input is still arriving and that the values, extracted from the text, are the structured
+variant's values in order; the worker-dies test fails `runInto` instead of `runStreamed`.
+81 pipeline tests and both stroom-app integration tests green. *As written:* One path in
+`FilterRun`; `Run` gone; the text-variant test rewritten as §4. *Test:* both currencies through the pipe under a live DS3 upstream, the too-large record
 still FATAL through the pipe (design 23 phase 2's pin) on both.
 
 **Phase 3 — the app pin.** Parser → `TextWriter` → appender, byte-for-byte, windowed.

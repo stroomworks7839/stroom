@@ -22,10 +22,8 @@ import stroom.shapeshifter.engine.OutputSink;
 import org.xml.sax.Locator;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -48,13 +46,6 @@ import java.util.UUID;
  */
 final class InputLocations implements Instrument {
 
-    private record Span(long offset, long length, long inputOffset) {
-
-        long end() {
-            return offset + length;
-        }
-    }
-
     private record Open(UUID templateId, int matchIndex, long inputOffset) {
 
     }
@@ -67,7 +58,6 @@ final class InputLocations implements Instrument {
      * and no output; its entry is discarded when the enclosing match closes.
      */
     private final Deque<Open> open = new ArrayDeque<>();
-    private final List<Span> spans = new ArrayList<>();
     /** The live path's line index, told what it may forget; null on the byte path. */
     private LineIndex lines;
 
@@ -102,15 +92,12 @@ final class InputLocations implements Instrument {
                          final long outputLength,
                          final OutputSink.Unit unit) {
         // The match closes whatever the sink's currency: the stack must fall back to the
-        // enclosing match, and must not grow with the stream (design 23 phase 1 audit). A byte
-        // span is kept only for the byte path, which resolves after the run.
+        // enclosing match, and must not grow with the stream (design 23 phase 1 audit). Nothing
+        // is kept of the output's position: every event is located live, as it is made.
         long closed = -1;
         while (!open.isEmpty()) {
             final Open match = open.pop();
             if (match.templateId.equals(templateId) && match.matchIndex == matchIndex) {
-                if (unit == OutputSink.Unit.BYTES) {
-                    spans.add(new Span(outputOffset, outputLength, match.inputOffset));
-                }
                 closed = match.inputOffset;
                 break;
             }
@@ -125,7 +112,7 @@ final class InputLocations implements Instrument {
     }
 
     // -----------------------------------------------------------------------------------
-    // Resolving, during the parse
+    // Locating, live
     // -----------------------------------------------------------------------------------
 
     /** Where the innermost running match began in the input, or {@link #UNLOCATABLE} — live. */
@@ -140,45 +127,10 @@ final class InputLocations implements Instrument {
         static final Position NONE = new Position(-1, -1);
     }
 
-    /** Lines of an input, whether held whole or being read. */
+    /** Lines of an input, as it is being read. */
     interface Lines {
 
         Position locate(long offset);
-
-        static Lines of(final long[] lineStarts) {
-            return offset -> {
-                if (offset >= Instrument.UNLOCATABLE) {
-                    return Position.NONE;
-                }
-                final int at = lineIndex(lineStarts, offset);
-                return new Position(at + 1, (int) (offset - lineStarts[at]) + 1);
-            };
-        }
-    }
-
-    /**
-     * A locator over an input and the output the run produced from it. The input is described
-     * by where its lines start, because a streamed input (design 22) is not held to be scanned:
-     * {@link LineIndex} records the starts as the bytes go by.
-     */
-    Resolver resolver(final long[] inputLineStarts, final byte[] output) {
-        return new Resolver(inputLineStarts, output);
-    }
-
-    /** Where each line of a byte sequence starts, for one that is held whole. */
-    static long[] lineStarts(final byte[] bytes) {
-        long[] starts = new long[16];
-        int n = 0;
-        starts[n++] = 0;
-        for (int i = 0; i < bytes.length; i++) {
-            if (bytes[i] == '\n') {
-                if (n == starts.length) {
-                    starts = Arrays.copyOf(starts, n * 2);
-                }
-                starts[n++] = i + 1L;
-            }
-        }
-        return Arrays.copyOf(starts, n);
     }
 
     /** An input stream that records where its lines start as they are read. */
@@ -194,9 +146,6 @@ final class InputLocations implements Instrument {
             super(in);
         }
 
-        long[] lineStarts() {
-            return Arrays.copyOf(starts, count);
-        }
 
         /** How many line starts are held right now — the bound the contract is about. */
         synchronized int held() {
@@ -262,115 +211,5 @@ final class InputLocations implements Instrument {
                 starts[count++] = position + 1;
             }
         }
-    }
-
-    /**
-     * Resolves in a single forward sweep. The parser reports positions in output order, so the
-     * spans — sorted by offset, parents before the children they enclose — are opened as the
-     * sweep reaches them and closed as it passes their ends; the innermost open span is the top
-     * of that stack. Amortised linear in events plus spans, and nothing is decoded: a column,
-     * which the parser counts in characters, is walked to on the bytes of its own line.
-     */
-    final class Resolver implements Locator {
-
-        private final byte[] output;
-        private final long[] inputLineStarts;
-        private final long[] outputLineStarts;
-        private final List<Span> ordered;
-        private final Deque<Span> active = new ArrayDeque<>();
-        private int next;
-        private long lastOffset = -1;
-        private int line = -1;
-        private int column = -1;
-
-        private Resolver(final long[] inputLineStarts, final byte[] output) {
-            this.output = output;
-            this.inputLineStarts = inputLineStarts;
-            this.outputLineStarts = lineStarts(output);
-            this.ordered = new ArrayList<>(spans);
-            this.ordered.sort((a, b) -> a.offset != b.offset
-                    ? Long.compare(a.offset, b.offset)
-                    : Long.compare(b.length, a.length));
-        }
-
-        /** Move to the input position behind the parser's current output position. */
-        void at(final Locator parser) {
-            final long outputOffset = outputOffset(parser.getLineNumber(), parser.getColumnNumber());
-            if (outputOffset < lastOffset) {
-                // Not expected of a parser, but a sweep that went backwards would answer wrongly.
-                active.clear();
-                next = 0;
-            }
-            lastOffset = outputOffset;
-            while (!active.isEmpty() && active.peek().end() <= outputOffset) {
-                active.pop();
-            }
-            while (next < ordered.size() && ordered.get(next).offset <= outputOffset) {
-                final Span span = ordered.get(next++);
-                if (span.end() > outputOffset) {
-                    active.push(span);
-                }
-            }
-            final Span span = active.peek();
-            if (span == null || span.inputOffset >= Instrument.UNLOCATABLE) {
-                line = -1;
-                column = -1;
-                return;
-            }
-            final int at = lineIndex(inputLineStarts, span.inputOffset);
-            line = at + 1;
-            column = (int) (span.inputOffset - inputLineStarts[at]) + 1;
-        }
-
-        /**
-         * The output byte just before the parser's position, which is inside whatever it has just
-         * reported. The parser's column counts UTF-16 units, so a four-byte sequence counts two.
-         */
-        private long outputOffset(final int parserLine, final int parserColumn) {
-            if (parserLine < 1 || parserLine > outputLineStarts.length) {
-                return -1;
-            }
-            long at = outputLineStarts[parserLine - 1];
-            int units = 0;
-            while (units < parserColumn - 1 && at < output.length) {
-                final int lead = output[(int) at] & 0xFF;
-                final int width = lead < 0x80 ? 1 : lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4;
-                units += width == 4 ? 2 : 1;
-                at += width;
-            }
-            return Math.max(0, at - 1);
-        }
-
-        @Override
-        public int getLineNumber() {
-            return line;
-        }
-
-        @Override
-        public int getColumnNumber() {
-            return column;
-        }
-
-        @Override
-        public String getPublicId() {
-            return null;
-        }
-
-        @Override
-        public String getSystemId() {
-            return null;
-        }
-    }
-
-    // -----------------------------------------------------------------------------------
-    // Tables
-    // -----------------------------------------------------------------------------------
-
-    private static int lineIndex(final long[] lineStarts, final long offset) {
-        int at = Arrays.binarySearch(lineStarts, offset);
-        if (at < 0) {
-            at = -at - 2;
-        }
-        return Math.max(0, Math.min(at, lineStarts.length - 1));
     }
 }

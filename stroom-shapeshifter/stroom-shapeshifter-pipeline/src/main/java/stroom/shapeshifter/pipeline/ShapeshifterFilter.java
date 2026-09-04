@@ -59,15 +59,18 @@ import java.util.function.Consumer;
  * <p>The same document, pool and properties as {@link ShapeshifterParser}; what differs is
  * where the bytes come from. Each document's events are written as the byte image
  * ({@link EventImage}) into a pipe the engine reads on a worker thread, with the pipe's
- * capacity as back-pressure; at {@code endDocument} the worker is joined and the output is
- * forwarded downstream on this thread, which is the pipeline's.
+ * capacity as back-pressure; what the engine produces — element events for a structured
+ * configuration, characters for a text one (design 24) — is delivered downstream on this
+ * thread, which is the pipeline's, as it is produced; at {@code endDocument} the worker is
+ * joined and its messages reported.
  */
 @ConfigurableElement(
         type = PipelineElementType.TYPE_SHAPESHIFTER_FILTER,
         category = Category.FILTER,
         description = """
-                A filter that runs a Shapeshifter configuration over the XML it receives and emits the XML the \
-                configuration produces. The input is matched as the text an indenting XMLWriter would write at \
+                A filter that runs a Shapeshifter configuration over the XML it receives and emits what the \
+                configuration produces: XML events for a configuration that emits structure, characters for \
+                one that emits text. The input is matched as the text an indenting XMLWriter would write at \
                 this point in the pipeline. The configuration is a Shapeshifter document.
                 """,
         roles = {

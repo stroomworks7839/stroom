@@ -1181,9 +1181,10 @@ output leaves the element as `characters` events, one per emitter write, as the 
 and `TextWriter` is the byte sink's mouth — the shape every other text output in Stroom
 already has. A structured configuration's output leaves as element events (D40's second half,
 which stands). Both are located live at the input position of the innermost running match;
-the post-run resolver over output positions is gone with the buffer it resolved. The refusal
-of text in front of an XML consumer is the consumer's own well-formedness error, not a check
-of the element's targets, which are usually a chain. If a text→XML re-parse is ever wanted it
+the post-run resolver over output positions is gone with the buffer it resolved. Text in front
+of an XML consumer is not refused by anyone — a characters-only document is a valid XDM
+document node and Saxon accepts it (design 24 phase 1's audit) — and the user ruled after the
+audit that no check of the element's targets is wanted. If a text→XML re-parse is ever wanted it
 is a separate pipeline element. The engine's output is UTF-8 by construction, so the decode
 to characters is lossless and a UTF-8 `TextWriter` writes the engine's bytes exactly.
 Design 24; completes design 23 §3b.
