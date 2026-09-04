@@ -36,7 +36,7 @@ import java.util.Map;
  * does not have — a provider that is null, outside a pipeline — is simply absent, and a function
  * that needs it says so.
  */
-final class ElementServices implements Services {
+public final class ElementServices implements Services {
 
     private final Map<Class<?>, Object> byType = new HashMap<>();
 
@@ -71,7 +71,7 @@ final class ElementServices implements Services {
     }
 
     /** The element's {@code pipelineReference} properties, for the lookups (design 26 phase 4). */
-    record PipelineReferences(List<PipelineReference> references) {
+    public record PipelineReferences(List<PipelineReference> references) {
 
     }
 }

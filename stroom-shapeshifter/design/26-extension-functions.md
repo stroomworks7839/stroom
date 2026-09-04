@@ -298,6 +298,24 @@ pin, for fourteen of the functions; and a full-pipeline test calling `format-dat
 `numeric-ip` and `hash` from a configuration through a real pipeline into a `TextWriter`.
 133 pipeline tests green.
 
+*Audited 2026-09-04.* No defect. Confirmed: the parser element creates its reader once, at
+`startProcessing`, and hands it the *holders* rather than their values, so a function reads
+the stream's feed and meta at call time, and the run — and with it each function's binding
+and `format-date`'s parser cache and reference time — is per stream, as `FormatDate`'s
+`configure` per document is; the filter binds services before it starts its worker. **Added,
+a drift guard:** the Guice module binds classes and `groupA()` lists instances, and nothing
+kept the two the same; a pin now builds an injector from the module and requires the bound
+set's names to equal `groupA()`'s. `ElementServices` and its `PipelineReferences` record are
+public, since phase 4's lookups in the `function` package will read them. **Named and left:**
+`hash` digests `getBytes()` in the platform's default charset, because the Saxon class does —
+parity over correctness, and a difference between machines that Stroom already has. The
+`versus-Saxon` pin covers fourteen functions; the other nine of group A (`cosine-similarity`,
+`pointIsInsideXYPolygon`, `json-to-xml`, `parse-uri`, the clock, `random`, `host-name`,
+`hex-to-oct` beyond one input, `cidr-to-numeric-ip-range`) are pinned on Stroom's cases or on
+cases from the source only, as §6 said they would be: the Saxon classes for the first four
+need a Saxon `Configuration` or sequence arguments the harness does not build, and the rest
+are non-deterministic or return arrays. 134 green.
+
 *As written:* The Guice module, the library, the
 pool compiling with the registry, both elements binding a context per document, the
 `pipelineReference` property; the twenty-three group-A variants. *Tests:* every variant pinned

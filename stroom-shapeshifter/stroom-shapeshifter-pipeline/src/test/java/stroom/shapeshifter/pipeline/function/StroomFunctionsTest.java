@@ -27,9 +27,13 @@ import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Purity;
 import stroom.shapeshifter.pipeline.ShapeshifterFunctionModule;
+import stroom.shapeshifter.pipeline.StroomFunctionLibrary;
 import stroom.util.date.DateUtil;
 import stroom.util.net.IpAddressUtil;
 
+import com.google.inject.Guice;
+import com.google.inject.Key;
+import com.google.inject.TypeLiteral;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -38,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -147,6 +152,21 @@ class StroomFunctionsTest {
         assertThat(registry.lookup("hex-to-dec").signature().argKinds()).containsExactly(Kind.STRING);
         assertThat(registry.lookup("cosine-similarity").signature().argKinds())
                 .containsExactly(Kind.SEQUENCE, Kind.SEQUENCE);
+    }
+
+    /**
+     * Phase 2 audit: the Guice module binds classes and {@code groupA()} lists instances, and
+     * nothing but this keeps the two the same.
+     */
+    @Test
+    void theGuiceModuleBindsExactlyGroupA() {
+        final Set<FunctionDefinition> bound = Guice.createInjector(new ShapeshifterFunctionModule())
+                .getInstance(Key.get(new TypeLiteral<Set<FunctionDefinition>>() {
+                }));
+        final List<String> expected = ShapeshifterFunctionModule.groupA().stream()
+                .map(FunctionDefinition::name).sorted().toList();
+        assertThat(bound.stream().map(FunctionDefinition::name).sorted().toList()).isEqualTo(expected);
+        assertThat(new StroomFunctionLibrary(bound).registry().size()).isEqualTo(23);
     }
 
     @Test
