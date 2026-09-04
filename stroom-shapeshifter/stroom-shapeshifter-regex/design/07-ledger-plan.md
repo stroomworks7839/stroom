@@ -242,10 +242,40 @@ machine; the end-anchored rows keep their three orders of magnitude.
   unread on that path (the search loop reads it; the anchored entry does not; the tree's
   `cannotStartAt` does). One table lookup before the fill turns strict dispatch's ~57 refuted
   attempts per line (`win_sec_strict`, design 10 §11) from a prologue each into a byte read
-  each — nothing published, nothing engine-side. Gate: the engine benchmark's `win_sec_strict`
-  and `win_sec_xml`, plus per-match datetime (the anchored per-match canary). `firstBytes()`
-  crossing the seam for an engine-side candidate table stays where the arc left it: only if,
-  after this, the per-call scaffolding is what remains — and E12's row should say that too.
+  each — nothing published, nothing engine-side.
+
+  **The change, specifically.** `ByteMatcher.run(from, anchoring)`, the last branch —
+  `return !splitsCharacter(from) && attempt(from) >= 0;` — is the only anchored entry in the
+  library that does not consult the pattern's first-byte table: `PikeVm`, `Backtracker`,
+  `FancyBacktracker` and `NodeTree.Machine` each read theirs before any setup. It becomes
+
+  ```java
+  final byte[] firstBytes = plan.firstBytes();
+  if (firstBytes != null && (from >= regionTo || firstBytes[data[from] & 0xFF] == 0)) {
+      return false;   // a non-nullable pattern cannot begin here
+  }
+  return !splitsCharacter(from) && attempt(from) >= 0;
+  ```
+
+  The bounds argument is the search loop's: a first-byte table exists only for a non-nullable
+  pattern, so `minLength >= 1`, a match needs at least one byte, and `from >= regionTo` is a
+  refusal without a read (the D37 audit's proof, reused). Cheapest test first — the table
+  lookup before `splitsCharacter` — since both are pure. `attempt()` itself stays as it is;
+  `Arrays.fill(slots, -1)` is what the refuted attempts were paying for. Tests: the anchored
+  differential suites already pin the answers; add one pin that an anchored match against an
+  empty region of a non-nullable pattern is `false` (the `from == regionTo` edge), and one that
+  a nullable pattern (no table) is unaffected. **Gate**, paired against the previous commit: the
+  library's own row for this — `AnchoredSearchBenchmark` scan_plan `anchored_miss` (a failed
+  anchored attempt is exactly what changes) with `anchored_hit` as the must-not-lose control;
+  both canaries (the entry is a search path); and the engine benchmark's `win_sec_strict` and
+  `win_sec_xml`, where design 10 §11 priced the ~57 attempts per line. It is a `ByteMatcher`
+  method-shape change, so the 325-byte threshold on `run()` and the CSV coin rule both apply:
+  `run()` is the tiny dispatcher the tier-0 audit says must stay tiny — if the branch grows it
+  past a cliff, the check moves into a private method, and the CSV row is read before landing.
+
+  `firstBytes()` crossing the seam for an engine-side candidate table stays where the arc left
+  it: only if, after this, the per-call scaffolding is what remains — and the engine's record
+  now says so (design 10 §11, corrected 2026-09-04).
 - **The weblog guard residual**, 2.2% on a row with a bimodal JIT state: one more shape probe
   (a `singleByteForm`-specialised search loop chosen once at construction) and then either
   shipped or written off as noise-floor. It does not block anything.
