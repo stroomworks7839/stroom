@@ -247,6 +247,19 @@ it is the text's: a parser splits one text node at line ends, so the last line o
 element with text keeps every whitespace chunk; element-only content drops the ones between
 elements. Both pinned, in both sinks. The corpus did not move — its documents are element-only.
 
+*Audited 2026-09-04 by probing what the two goldens do not reach; no defect.* Text arriving
+after a child (`<p><b>x</b> tail</p>`): indented, `<p>\n   <b>x</b> tail</p>` — the child was
+indented before anyone knew text would follow, and the close sits in the text, which is what
+Saxon's own on-the-fly indenter does; faithful, exact. A whitespace-only element: indented,
+`<a/>` (the 2a audit's known departure from Saxon, unchanged and still unpinned by any
+document); faithful, `<a>   </a>`. Whitespace around a child in element-only content: dropped
+when indented, kept when faithful. Two roots: each gets the document newline when indented,
+nothing when faithful. A character split across writes: whole in both. Named and left: the
+faithful image is faithful to the *events* — comments never reach a `ContentHandler`, a CDATA
+section arrives as characters and is written escaped, an empty element pair arrives as start
+and end and is written self-closed, and the declaration is the image's own line. A document
+whose bytes must survive exactly wants the parser element and a file, not events.
+
 **Status: design 22 complete — three phases built and audited.**
 
 ---
