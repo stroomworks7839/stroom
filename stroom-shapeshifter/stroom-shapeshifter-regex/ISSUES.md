@@ -31,6 +31,19 @@ deleted. What remains in this file is the accepted-cost record and the one open 
 
 ## Accepted costs — measured, kept, and why
 
+**The search split costs the tree's bounded-tail rows ~20% (`accepted`, ruled by Jon
+2026-09-04).** `NodeTree.Machine.search` at 330 bytecodes did not inline; split to 255 it does,
+into `runPinnedTree`/`run`/`match`, and the phase-3 cliff cost went with that — tree
+`anchored_miss` +11%, weblog's tree-routed patterns +5–7%. The end-anchored `BOUNDED_MISS` /
+`BOUNDED_HIT` rows — one short search near the region's end per record, all prologue — read
+−21.6% / −6.5% from inside the larger unit (7,266,258 → 5,700,239). A second cut with the same
+byte count reads the same; `PrintInlining` either side shows the topology flip and nothing
+else; no cut keeps `search` inlined for one class of tiny operation and not the other. Kept on
+the hit-trade precedent: the winners are the rows where both engines do real work, the losers
+are early-exit rows still 7,000× ahead of the JDK. Evidence: `2026-09-04-*-fixbisect-*-tree_bmiss`,
+`*-splitrecut-v3-*`, `*-split-bmiss-*`.
+
+
 **D39's seam deletion leaves buffer CSV's scan plan at −3.2% (`resolved` 2026-09-04 — the bound
 restored as a `ByteMatcher` field: CSV 6,357 → 7,228 paired, the bimodality gone with it; kept as
 the record of a probe set that missed the row that mattered).** Deleting `contextEnd` — field, setter, six

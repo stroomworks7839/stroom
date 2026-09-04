@@ -50,7 +50,7 @@ scan-plan `line_miss` read 3,074 — the seeding-gate fix's own row, undone — 
 −8.1%, UNICODE −7.7%, the tree's `BOUNDED_MISS` −18.1%. A bisect of the four fix commits on
 those rows gave three different answers: `line_miss` was D39 (remedied the same morning by
 `ByteMatcher` keeping the bound as a field, `5bd6636429`, which also took buffer CSV's scan plan
-+13.7%); `BOUNDED_MISS` was the search split's inlining topology (a ruling, above in 06 §1);
++13.7%); `BOUNDED_MISS` was the search split's inlining topology (ruled kept by Jon, 2026-09-04 — an accepted cost in ISSUES.md);
 SPARSE and UNICODE were inside the plan all along — phase 4 and phase 3 respectively — cleared
 of every probe-reachable mechanism and deprioritised at 5.2× and parity. The chain's files are
 the run of record; the README's charts render from its last point.
