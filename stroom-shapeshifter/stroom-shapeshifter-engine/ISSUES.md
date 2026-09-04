@@ -913,7 +913,10 @@ design before code; each is recorded here so the shape of the gap is written dow
 remembered. They are independent of one another and of the port's own backlog.
 
 ### E30 — SAX events as input
-**`open` — needs a design.**
+**`open` — designed and ruled 2026-09-04 in [design 22](../design/22-sax-input.md); phase 1
+done the same day: `ShapeshifterFilter`, events in through a bounded pipe to the engine on a
+worker thread, events out through the reader. Phase 2 (the native event path in both elements)
+and phase 3 (`preserveWhitespace`) remain.**
 
 The engine reads bytes: `Shapeshifter.run` takes an `InputStream`, and `Executor` *pulls* —
 filling a `bufferSize` window, probing exhaustion through a `PushbackInputStream`. SAX pushes.

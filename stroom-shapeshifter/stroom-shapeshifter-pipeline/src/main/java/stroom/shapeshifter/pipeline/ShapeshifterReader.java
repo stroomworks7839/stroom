@@ -91,12 +91,41 @@ public class ShapeshifterReader extends AbstractParser {
     @Override
     public void parse(final InputSource input) throws IOException, SAXException {
         final byte[] bytes = bytesOf(input);
+        forward(runWhole(bytes));
+    }
+
+    /**
+     * What a run produced, before any of it is forwarded: the output, the messages and the
+     * trace that maps output positions back to the input. Produced on any thread — the engine
+     * needs nothing of the pipeline's — and forwarded on the pipeline's (design 22 §2).
+     */
+    record Run(byte[] output, List<Message> messages, InputLocations.Resolver locations) {
+
+    }
+
+    /** Run over an input held whole: one window, no edge. The parser element's path. */
+    Run runWhole(final byte[] bytes) {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         final InputLocations locations = new InputLocations();
         final List<Message> messages = Shapeshifter.runWhole(compiled, bytes, OutputSink.of(output), locations);
+        return new Run(output.toByteArray(), messages,
+                locations.resolver(InputLocations.lineStarts(bytes), output.toByteArray()));
+    }
 
+    /** Run over a stream, in windows of the configuration's buffer size. The filter's path. */
+    Run runStreamed(final InputStream input) {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        final InputLocations locations = new InputLocations();
+        final InputLocations.LineIndex lines = new InputLocations.LineIndex(input);
+        final List<Message> messages = Shapeshifter.run(compiled, lines, OutputSink.of(output), locations);
+        return new Run(output.toByteArray(), messages,
+                locations.resolver(lines.lineStarts(), output.toByteArray()));
+    }
+
+    /** Report the run's messages, then parse and forward its output — on the pipeline's thread. */
+    void forward(final Run run) throws IOException, SAXException {
         boolean fatal = false;
-        for (final Message message : messages) {
+        for (final Message message : run.messages()) {
             report(message);
             fatal |= message.severity() == stroom.shapeshifter.engine.Severity.FATAL;
         }
@@ -105,7 +134,7 @@ public class ShapeshifterReader extends AbstractParser {
             // managed to write would only add a second, misleading error to the first.
             return;
         }
-        forward(output.toByteArray(), locations.resolver(bytes, output.toByteArray()));
+        forward(run.output(), run.locations());
     }
 
     // -----------------------------------------------------------------------------------

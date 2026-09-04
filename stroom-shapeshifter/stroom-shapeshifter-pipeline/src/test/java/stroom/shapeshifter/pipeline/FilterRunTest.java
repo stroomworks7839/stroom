@@ -1,0 +1,203 @@
+/*
+ * Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.shapeshifter.pipeline;
+
+import stroom.pipeline.errorhandler.LoggingErrorReceiver;
+import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.ds3.Ds3Migration;
+
+import org.junit.jupiter.api.Test;
+import org.xml.sax.Attributes;
+import org.xml.sax.ContentHandler;
+import org.xml.sax.ErrorHandler;
+import org.xml.sax.InputSource;
+import org.xml.sax.Locator;
+import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.DefaultHandler;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * Design 22 phase 1: the filter's mechanics, driven with Stroom's own DS3 as the upstream.
+ */
+class FilterRunTest {
+
+    private static final Path LEGACY = Paths.get(
+            "..", "stroom-shapeshifter-engine", "src", "test", "resources", "fixtures", "legacy");
+
+    /**
+     * Over the records image: each record's {@code who} becomes a {@code <user>}. The eater
+     * between records must never be able to take {@code <record>} itself: under the streamed run a
+     * record at a window's edge cannot match yet, and an eater that could take its open tag would
+     * dissolve it (design 22 phase 1's finding).
+     */
+    private static final String USERS = """
+            {"name": "users", "version": 5,
+             "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
+             "templates": [
+              {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+               "body": [{"element": {"name": "users", "body": [
+                 {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "records"}}]}}]},
+              {"id": "00000000-0000-0000-0000-000000000002", "name": "record", "mode": "records",
+               "match": {"regex": {"pattern": "\\\\s*<record>.*?</record>", "flags": {"dot_all": true}}},
+               "body": [{"element": {"name": "user", "body": [
+                 {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "fields"}}]}}]},
+              {"id": "00000000-0000-0000-0000-000000000003", "name": "who", "mode": "fields",
+               "match": {"regex": {"pattern": "\\\\s*<data name=\\"who\\" value=\\"([^\\"]*)\\"/>"}},
+               "body": [{"value-of": {"parts": [{"capture": {"group": 1}}]}}]},
+              {"id": "00000000-0000-0000-0000-000000000004", "name": "rest", "mode": "fields", "consume": true,
+               "match": {"regex": {"pattern": "[^<]*<[^>]*>"}}, "body": []},
+              {"id": "00000000-0000-0000-0000-000000000005", "name": "between", "mode": "records", "consume": true,
+               "match": {"regex": {"pattern": "[^<]*<(?!record>)[^>]*>"}}, "body": []}
+             ]}
+            """;
+
+    private static ShapeshifterReader reader(final String json) {
+        return (ShapeshifterReader) new ShapeshifterParserFactory(ProjectReader.read(json)).getParser();
+    }
+
+    private static ErrorHandler errors() {
+        return Ds3Oracle.errorHandler("ShapeshifterFilter", new LoggingErrorReceiver());
+    }
+
+    /** Stroom's DS3 over a legacy fixture, its events delivered to the handler given. */
+    private static void ds3(final String stem, final ContentHandler handler) throws Exception {
+        final String config = Files.readString(LEGACY.resolve(stem + ".ds3.xml"));
+        final byte[] input = Files.readAllBytes(LEGACY.resolve(stem + ".in"));
+        final XMLReader ds3 = Ds3Oracle.parser(config);
+        ds3.setContentHandler(handler);
+        ds3.setErrorHandler(Ds3Oracle.errorHandler("DS3Parser", new LoggingErrorReceiver()));
+        ds3.parse(new InputSource(new InputStreamReader(new ByteArrayInputStream(input), StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    void theImageOfAnEventStreamIsTheFileTheUpstreamWouldHaveWritten() throws Exception {
+        // I1's contract as a file: DS3's events through the image are Stroom's golden, byte for byte.
+        final ByteArrayOutputStream image = new ByteArrayOutputStream();
+        ds3("001_csv_with_header", new EventImage(image));
+        assertThat(image.toString(StandardCharsets.UTF_8))
+                .isEqualTo(Files.readString(LEGACY.resolve("001_csv_with_header.out.xml")));
+    }
+
+    @Test
+    void configurationGluedAfterDs3ProducesWhatItProducesFromTheFile() throws Exception {
+        // Through the filter: DS3 events -> pipe -> engine -> forwarded events.
+        final EventRecorder viaFilter = new EventRecorder();
+        final FilterRun run = new FilterRun(reader(USERS), ShapeshifterFilter.PIPE_CAPACITY);
+        ds3("001_csv_with_header", run.input());
+        run.finish(viaFilter, errors());
+
+        // From the file the DS3 element would have written: the parser element's path.
+        final EventRecorder viaFile = new EventRecorder();
+        final ShapeshifterReader fromFile = reader(USERS);
+        fromFile.setContentHandler(viaFile);
+        fromFile.setErrorHandler(errors());
+        fromFile.parse(new InputSource(Files.newInputStream(LEGACY.resolve("001_csv_with_header.out.xml"))));
+
+        assertThat(viaFilter.events()).containsExactlyElementsOf(viaFile.events());
+        assertThat(viaFilter.events()).contains("characters \"jim\"", "characters \"fred\"");
+        assertThat(viaFilter.events().stream().filter(e -> e.startsWith("startElement {}user ")).count()).isEqualTo(6);
+    }
+
+    @Test
+    void theLocatorPointsIntoTheImage() throws Exception {
+        final ByteArrayOutputStream imageBytes = new ByteArrayOutputStream();
+        ds3("001_csv_with_header", new EventImage(imageBytes));
+        final List<String> imageLines = imageBytes.toString(StandardCharsets.UTF_8).lines().toList();
+        final List<Integer> expected = new ArrayList<>();
+        for (int i = 0; i < imageLines.size(); i++) {
+            if (imageLines.get(i).strip().equals("<record>")) {
+                expected.add(i + 1);
+            }
+        }
+
+        final List<Integer> reported = new ArrayList<>();
+        final FilterRun run = new FilterRun(reader(USERS), ShapeshifterFilter.PIPE_CAPACITY);
+        ds3("001_csv_with_header", run.input());
+        run.finish(new DefaultHandler() {
+            private Locator locator;
+
+            @Override
+            public void setDocumentLocator(final Locator locator) {
+                this.locator = locator;
+            }
+
+            @Override
+            public void startElement(final String uri, final String local, final String qName, final Attributes atts) {
+                if (local.equals("user")) {
+                    reported.add(locator.getLineNumber());
+                }
+            }
+        }, errors());
+
+        // <user>'s start tag is deferred until its first child emits, so it belongs to the
+        // who-field's span (design 21 phase 4's rule), and that match's leading \\s* begins on the
+        // newline that ends the line before <data name="who"> — the record's line plus one.
+        assertThat(expected).hasSize(6);
+        assertThat(reported).containsExactlyElementsOf(expected.stream().map(line -> line + 1).toList());
+    }
+
+    @Test
+    void pipeFarSmallerThanTheStreamCompletesUnderBackPressure() throws Exception {
+        final StringBuilder csv = new StringBuilder("dt,who,where,what\n");
+        for (int i = 0; i < 5000; i++) {
+            csv.append("2020-06-17T08:00:00.000Z,user").append(i).append(",office,logon\n");
+        }
+        final String config = Files.readString(LEGACY.resolve("001_csv_with_header.ds3.xml"));
+        final XMLReader ds3 = Ds3Oracle.parser(config);
+        final EventRecorder downstream = new EventRecorder();
+        final FilterRun run = new FilterRun(reader(USERS), 4096);
+        ds3.setContentHandler(run.input());
+        ds3.setErrorHandler(Ds3Oracle.errorHandler("DS3Parser", new LoggingErrorReceiver()));
+        ds3.parse(new InputSource(new InputStreamReader(
+                new ByteArrayInputStream(csv.toString().getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8)));
+        run.finish(downstream, errors());
+
+        assertThat(downstream.events().stream().filter(e -> e.startsWith("startElement {}user ")).count())
+                .isEqualTo(5000);
+        assertThat(downstream.events()).contains("characters \"user4999\"");
+    }
+
+    @Test
+    void workerThatDiesUnblocksTheWriterAndSurfacesAtTheJoin() throws Exception {
+        final ShapeshifterReader failing = new ShapeshifterReader(reader(USERS).compiled()) {
+            @Override
+            Run runStreamed(final InputStream input) {
+                throw new IllegalStateException("the engine fell over");
+            }
+        };
+        final FilterRun run = new FilterRun(failing, 64);
+        // More than the pipe holds: without the failure propagating, this write would block for ever.
+        assertThatThrownBy(() -> ds3("001_csv_with_header", run.input()))
+                .hasMessageContaining("the engine fell over");
+        assertThatThrownBy(() -> run.finish(new EventRecorder(), errors()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("the engine fell over");
+    }
+}

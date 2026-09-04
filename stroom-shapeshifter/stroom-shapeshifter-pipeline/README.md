@@ -26,4 +26,9 @@ Every event the reader forwards carries the input position behind it: `InputLoca
 each match's input offset with its output span while the configuration runs, and resolves the
 parser's position in the generated text back through them while it is parsed, so the
 `Locator` the pipeline's filters see points at the record that produced the event (design 21
-phase 4). What is not here yet: the client plugin and editor (design 18).
+phase 4). `ShapeshifterFilter` (design 22) is the same configuration in the middle of a
+pipeline: the events it receives are written as the byte image an indenting `XMLWriter` would
+produce — the contract a configuration is written against — into a bounded pipe the engine
+reads on a worker thread, and the output is forwarded on the pipeline's thread at
+`endDocument`. What is not here yet: the client plugin and editor (design 18), and the native
+event path for structured configurations (design 22 phase 2).

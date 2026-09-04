@@ -105,9 +105,74 @@ final class InputLocations implements Instrument {
     // Resolving, during the parse
     // -----------------------------------------------------------------------------------
 
-    /** A locator over an input and the output the run produced from it. */
-    Resolver resolver(final byte[] input, final byte[] output) {
-        return new Resolver(input, output);
+    /**
+     * A locator over an input and the output the run produced from it. The input is described
+     * by where its lines start, because a streamed input (design 22) is not held to be scanned:
+     * {@link LineIndex} records the starts as the bytes go by.
+     */
+    Resolver resolver(final long[] inputLineStarts, final byte[] output) {
+        return new Resolver(inputLineStarts, output);
+    }
+
+    /** Where each line of a byte sequence starts, for one that is held whole. */
+    static long[] lineStarts(final byte[] bytes) {
+        long[] starts = new long[16];
+        int n = 0;
+        starts[n++] = 0;
+        for (int i = 0; i < bytes.length; i++) {
+            if (bytes[i] == '\n') {
+                if (n == starts.length) {
+                    starts = Arrays.copyOf(starts, n * 2);
+                }
+                starts[n++] = i + 1L;
+            }
+        }
+        return Arrays.copyOf(starts, n);
+    }
+
+    /** An input stream that records where its lines start as they are read. */
+    static final class LineIndex extends java.io.FilterInputStream {
+
+        private long[] starts = new long[16];
+        private int count = 1;
+        private long position;
+
+        LineIndex(final java.io.InputStream in) {
+            super(in);
+        }
+
+        long[] lineStarts() {
+            return Arrays.copyOf(starts, count);
+        }
+
+        @Override
+        public int read() throws java.io.IOException {
+            final int b = super.read();
+            if (b >= 0) {
+                note((byte) b);
+                position++;
+            }
+            return b;
+        }
+
+        @Override
+        public int read(final byte[] into, final int offset, final int length) throws java.io.IOException {
+            final int n = super.read(into, offset, length);
+            for (int i = 0; i < n; i++) {
+                note(into[offset + i]);
+                position++;
+            }
+            return n;
+        }
+
+        private void note(final byte b) {
+            if (b == '\n') {
+                if (count == starts.length) {
+                    starts = Arrays.copyOf(starts, count * 2);
+                }
+                starts[count++] = position + 1;
+            }
+        }
     }
 
     /**
@@ -129,9 +194,9 @@ final class InputLocations implements Instrument {
         private int line = -1;
         private int column = -1;
 
-        private Resolver(final byte[] input, final byte[] output) {
+        private Resolver(final long[] inputLineStarts, final byte[] output) {
             this.output = output;
-            this.inputLineStarts = lineStarts(input);
+            this.inputLineStarts = inputLineStarts;
             this.outputLineStarts = lineStarts(output);
             this.ordered = new ArrayList<>(spans);
             this.ordered.sort((a, b) -> a.offset != b.offset
@@ -211,21 +276,6 @@ final class InputLocations implements Instrument {
     // -----------------------------------------------------------------------------------
     // Tables
     // -----------------------------------------------------------------------------------
-
-    private static long[] lineStarts(final byte[] bytes) {
-        long[] starts = new long[16];
-        int n = 0;
-        starts[n++] = 0;
-        for (int i = 0; i < bytes.length; i++) {
-            if (bytes[i] == '\n') {
-                if (n == starts.length) {
-                    starts = Arrays.copyOf(starts, n * 2);
-                }
-                starts[n++] = i + 1L;
-            }
-        }
-        return Arrays.copyOf(starts, n);
-    }
 
     private static int lineIndex(final long[] lineStarts, final long offset) {
         int at = Arrays.binarySearch(lineStarts, offset);

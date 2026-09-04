@@ -23,5 +23,6 @@ public class ShapeshifterPipelineElementModule extends PipelineElementModule {
     @Override
     protected void configureElements() {
         bindElement(ShapeshifterParser.class);
+        bindElement(ShapeshifterFilter.class);
     }
 }
