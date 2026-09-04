@@ -1,7 +1,10 @@
 # Typed captures: a value knows its encoding, and nothing is transcoded until someone asks
 
-**Status: design, ruled 2026-09-04 (D43). Amends E3's "stores hold UTF-8" and design 17
-§3.1's string row; lands before design 24 (see §7). Engine only.**
+**Status: design, ruled 2026-09-04 (D43) and deferred the same day by the user: the design
+stands, the build waits. Amends E3's "stores hold UTF-8" and design 17 §3.1's string row when
+built. Engine only. Design 24 builds first; its character sink decodes the internal UTF-8 form
+under E3 and gains the sink declaration of §4 when this lands (§7's ordering argument was
+about pinning once, and is outweighed by not doing this now).**
 
 Today a captured slice of the input is converted to UTF-8 the moment it is bound to a
 variable (`Executor.normalise`, E3), and a slice of the *current* match is converted on the

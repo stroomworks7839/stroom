@@ -1204,6 +1204,6 @@ guarantee is unchanged, and so is every function, condition and comparison; the 
 `EncodedInputTest` pin that. What falls out is the byte identity: a `raw` capture into a
 `raw` sink is the bytes it matched, and a binary payload passed through is neither inflated
 nor decoded. The "local group converts, stored value passes through" split in the write path
-— correct under E3 — is deleted because the value carries the rule itself. Design 25; lands
-before design 24. The binary vocabulary a JPEG
+— correct under E3 — is deleted because the value carries the rule itself. Design 25; ruled and deferred
+the same day — the build waits, design 24 goes first. The binary vocabulary a JPEG
 would need — framing, integers, slicing, a byte-writing element — is E36, not this.

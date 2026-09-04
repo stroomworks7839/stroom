@@ -1,8 +1,9 @@
 # Streaming output: text is characters, structure is events, and nothing is parsed twice
 
 **Status: design, ruled 2026-09-04. Completes design 23's output round (its §3b); supersedes
-design 21 phase 1's parse-and-forward and amends design 22's byte path. D42. Builds after
-design 25 (D43), whose sink declaration this design's character sink is written against.**
+design 21 phase 1's parse-and-forward and amends design 22's byte path. D42. Builds now;
+design 25 (D43) is ruled but deferred, and its sink declaration is added to this design's
+character sink when it lands.**
 
 Design 23 settled the input side of the streaming contract: the engine windows its input by
 `buffer_size`, and both pipeline elements feed it a stream. This document settles the output
@@ -45,12 +46,11 @@ sink's mouth.**
   immediate target is usually a chain (`SplitFilter`, `RecordCountFilter`) and the check would
   be unreliable. If a text→XML re-parse is ever wanted it is a separate pipeline element, built
   as one, not Shapeshifter's.
-- **Bytes and characters.** The character sink declares UTF-8 (design 25, D43), so every
-  value written to it is transcoded to UTF-8 at the write — the identity for a UTF-8 feed —
-  and its decode to characters is lossless. A `TextWriter` set to UTF-8 (its default) then
-  writes the engine's bytes exactly. *As first written:* "the engine's output is UTF-8 by
-  construction" — true under E3's normalise-at-capture, restated by design 25 as the sink's
-  declaration. Any other writer encoding is the writer's
+- **Bytes and characters.** The engine's output is UTF-8 by construction under E3: captures
+  are decoded by the source encoding and re-encoded as UTF-8 (`Refs`, `Steps`), and literals
+  are Java strings. So the decode in the character sink is lossless, and a `TextWriter` set to
+  UTF-8 (its default) writes the engine's bytes exactly. When design 25 (D43, deferred) lands,
+  the same fact is restated as the sink declaring UTF-8 and every write transcoding to it. Any other writer encoding is the writer's
   transcoding, as it is for every other text output in Stroom. The three `text_*_exact`
   fixtures pin the identity through a real `TextWriter`.
 
