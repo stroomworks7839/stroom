@@ -37,7 +37,6 @@ import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.Transcode;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
-import stroom.shapeshifter.regex.TrailingAnchor;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -706,40 +705,24 @@ public final class Executor {
             }
 
             if (end == filled && !eof) {
-                // For an end-of-input-anchored pattern this is not a maybe: every match ends
-                // exactly at the region end, so a full-buffer match with input genuinely
-                // unread has provably matched the buffer's edge, not the input's end. The
-                // library publishes the fact (BytePattern.trailingAnchor(), single-sourced
-                // from its parser, as D35 established for the leading anchor), so the refusal
-                // is certain, not a sniff. Two audited subtleties shape this block: eof only
-                // means the stream's -1 has not been read yet — an input of exactly the
-                // buffer's capacity fills the window without observing it — so the one probe
-                // byte settles that before refusing; and the probe can block on a live
-                // source, so it runs only here, where a hard refusal actually needs the
-                // certainty — the warning below stays hedged and never blocks. Both
-                // ignore_errors levels downgrade the refusal to that warning, as the skip
-                // error honours them; the port's kept limitation — processing ends after a
-                // full-window match — is unchanged either way.
-                if (!ignoreErrors && !template.ignoreErrors()
-                    && candidate.match() instanceof CompiledMatch.Regex regex
-                    && regex.pattern().trailingAnchor() == TrailingAnchor.INPUT) {
-                    if (probeExhausted(source)) {
-                        // The match genuinely ends at the input's end; nothing to say.
-                        eof = true;
-                    } else {
-                        messages.add(new Message(Severity.ERROR,
-                                "Template '" + template.name() + "' is anchored to the end of "
-                                + "input but matched to the end of a full buffer with input "
-                                + "still unread — the match is against the buffer's edge, not "
-                                + "the input's end. Increase source buffer_size (currently "
-                                + capacity + ")."));
-                        break;
-                    }
+                // The match reached the end of a full window. If the stream is exhausted the
+                // record simply ended where the input did; the probe byte settles that, since
+                // eof only means the -1 has not been read yet (an input of exactly the window's
+                // capacity fills it without observing the end). Otherwise the record is larger
+                // than the window, whatever its pattern: it has matched the buffer's edge, not
+                // the data's shape, and nothing correct can follow — the next window would
+                // begin in its middle — so it is fatal, for every root match and regardless of
+                // ignore_errors, which is for skipping past something, not for having nowhere
+                // to go (design 23 §5.1, ruled 2026-09-04; DS3's grow-and-recover not adopted).
+                if (probeExhausted(source)) {
+                    eof = true;
                 } else {
-                    messages.add(new Message(Severity.WARNING,
-                            "Expressions consumed entire buffer (" + match.advance()
-                            + " bytes). If data is truncated, increase source "
-                            + "buffer_size (currently " + capacity + ")."));
+                    messages.add(new Message(Severity.FATAL,
+                            "Template '" + template.name() + "' consumed the entire buffer ("
+                            + match.advance() + " bytes) with input still unread: the record is "
+                            + "larger than source buffer_size (currently " + capacity
+                            + "). Increase buffer_size."));
+                    throw new AbortRun();
                 }
             }
 

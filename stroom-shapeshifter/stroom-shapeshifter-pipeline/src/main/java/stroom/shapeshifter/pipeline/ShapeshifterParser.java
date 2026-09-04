@@ -44,9 +44,11 @@ import stroom.util.shared.Severity;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
+import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
+import java.io.IOException;
 import java.util.function.Consumer;
 
 /**
@@ -121,6 +123,30 @@ public class ShapeshifterParser extends AbstractParser implements SupportsCodeIn
         }
         storedErrorReceiver.replay(new ErrorReceiverIdDecorator(getElementId(), getErrorReceiverProxy()));
         throw ProcessException.create("Unable to create parser");
+    }
+
+    /**
+     * The pipeline hands a parser the raw feed ({@code setInputStream}) unless a reader element
+     * sits in front of it, and {@code AbstractParser.getInputSource} would decode that feed into
+     * a {@code BufferedReader} before the reader saw it. A byte engine is given bytes: a byte
+     * stream passes through with its declared encoding, and only a character stream — already
+     * decoded upstream — is taken as such (design 23 §5.3).
+     */
+    @Override
+    protected InputSource getInputSource(final InputSource inputSource) throws IOException {
+        final InputSource raw = rawBytes(inputSource);
+        return raw != null ? raw : super.getInputSource(inputSource);
+    }
+
+    /** The source unchanged if it carries a byte stream, else null. */
+    static InputSource rawBytes(final InputSource inputSource) {
+        if (inputSource == null || inputSource.getByteStream() == null) {
+            return null;
+        }
+        final InputSource raw = new InputSource(inputSource.getByteStream());
+        raw.setEncoding(inputSource.getEncoding());
+        raw.setSystemId(inputSource.getSystemId());
+        return raw;
     }
 
     @Override

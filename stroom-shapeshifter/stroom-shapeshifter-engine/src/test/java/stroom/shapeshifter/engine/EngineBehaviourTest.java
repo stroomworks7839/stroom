@@ -133,13 +133,27 @@ class EngineBehaviourTest {
     }
 
     @Test
-    void warnsWhenATemplateSwallowsAWholeFullBuffer() {
-        // A record longer than the buffer cannot be matched whole, and the engine says so rather
-        // than quietly emitting half of it. This is the limitation the port kept on purpose.
+    void failsWhenARecordIsLargerThanTheBuffer() {
+        // A record longer than the window cannot be matched whole, and nothing correct can follow
+        // it — the next window would begin in its middle — so the run fails rather than emitting
+        // half of it (design 23 §5.1: DS3's contract, sharpened from a warning to a fatal).
         final Run result = run(lines(4), "abcdefgh\n");
         assertThat(result.messages()).isNotEmpty();
-        assertThat(result.messages().getFirst().text()).contains("consumed entire buffer");
-        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.WARNING);
+        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.FATAL);
+        assertThat(result.messages().getFirst().text())
+                .contains("consumed the entire buffer")
+                .contains("larger than source buffer_size");
+    }
+
+    @Test
+    void ignoreErrorsDoesNotDowngradeTheTooLargeRecord() {
+        // ignore_errors is for skipping past something; a record that does not fit has nowhere
+        // to skip to.
+        final Run result = run(lines(4).replace("\"ignore_errors\": false", "\"ignore_errors\": true"),
+                "abcdefgh\n");
+        assertThat(result.messages()).isNotEmpty();
+        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.FATAL);
+        assertThat(result.messages().getFirst().text()).contains("larger than source buffer_size");
     }
 
     @Test
@@ -163,11 +177,12 @@ class EngineBehaviourTest {
                   ]
                 }
                 """, "abcdefgh");
+        // The end-anchored case is no longer special: every root match that fills the window
+        // with input unread is the same fatal (design 23 §5.1).
         assertThat(result.messages()).isNotEmpty();
-        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.ERROR);
+        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.FATAL);
         assertThat(result.messages().getFirst().text())
-                .contains("anchored to the end of input")
-                .contains("buffer_size");
+                .contains("larger than source buffer_size");
     }
 
     @Test
@@ -195,9 +210,10 @@ class EngineBehaviourTest {
     }
 
     @Test
-    void ignoreErrorsDowngradesTheEndAnchoredRefusalToAWarning() {
-        // The same escape hatch the unmatched-content error honours: the operator keeps the
-        // (possibly truncated) output and a warning instead of a dead pipeline.
+    void ignoreErrorsDoesNotDowngradeTheEndAnchoredRefusalEither() {
+        // Design 23 §5.1 reversed the earlier escape hatch: a record that does not fit the window
+        // has nowhere to skip to, so ignore_errors leaves it fatal and nothing half-written
+        // reaches the output.
         final Run result = run("""
                 {
                   "name": "endanchoredlax", "version": 3,
@@ -213,9 +229,10 @@ class EngineBehaviourTest {
                   ]
                 }
                 """, "abcdefgh");
-        assertThat(result.output()).isNotEmpty();
+        assertThat(result.output()).isEmpty();
         assertThat(result.messages()).isNotEmpty();
-        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.WARNING);
+        assertThat(result.messages().getFirst().severity()).isEqualTo(Severity.FATAL);
+        assertThat(result.messages().getFirst().text()).contains("larger than source buffer_size");
     }
 
     @Test

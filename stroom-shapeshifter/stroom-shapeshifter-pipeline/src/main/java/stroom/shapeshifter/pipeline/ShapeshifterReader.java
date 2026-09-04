@@ -67,10 +67,11 @@ import javax.xml.parsers.SAXParserFactory;
  * ({@link InputLocations}, design 21 phase 4), so stepping and indicators point at the record
  * that produced the event.
  *
- * <p>An input that arrives as characters rather than bytes — which is how the pipeline hands data
- * to a parser — is re-encoded as UTF-8 before the engine sees it. The engine matches bytes and the
- * configuration declares their encoding; by the time the pipeline has decoded the stream that
- * declaration can only truthfully be UTF-8.
+ * <p>The input is streamed through the engine's window (design 23), never read whole: the feed's
+ * bytes as they are when the pipeline hands the element a byte stream, so the configuration's
+ * {@code source.encoding} is real; or, when a reader element upstream has already decoded it,
+ * characters encoded to UTF-8 as they are read, which is then the only encoding the configuration
+ * can truthfully declare.
  */
 public class ShapeshifterReader extends AbstractParser {
 
@@ -91,11 +92,13 @@ public class ShapeshifterReader extends AbstractParser {
 
     @Override
     public void parse(final InputSource input) throws IOException, SAXException {
-        final byte[] bytes = bytesOf(input);
+        // Design 23: the input is streamed through the engine's window, never read whole — a
+        // byte stream as it is, a reader encoded to UTF-8 as it is read.
+        final InputStream stream = streamOf(input);
         if (compiled.structured()) {
-            parseNative(bytes);
+            parseNative(stream);
         } else {
-            forward(runWhole(bytes));
+            forward(runStreamed(stream));
         }
     }
 
@@ -105,15 +108,15 @@ public class ShapeshifterReader extends AbstractParser {
      * The engine's messages come after the events, because the run collects them and the events
      * cannot wait.
      */
-    private void parseNative(final byte[] bytes) throws SAXException {
+    private void parseNative(final InputStream input) throws SAXException {
         final ContentHandler target = getContentHandler();
         if (target == null) {
             throw new SAXException("No content handler set");
         }
         final InputLocations locations = new InputLocations();
-        final LiveLocatingHandler handler = new LiveLocatingHandler(
-                target, locations, InputLocations.Lines.of(InputLocations.lineStarts(bytes)));
-        final List<Message> messages = Shapeshifter.runWhole(compiled, bytes, new SaxEventSink(handler), locations);
+        final InputLocations.LineIndex lines = new InputLocations.LineIndex(input);
+        final LiveLocatingHandler handler = new LiveLocatingHandler(target, locations, lines);
+        final List<Message> messages = Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations);
         reportAll(messages);
     }
 
@@ -132,16 +135,7 @@ public class ShapeshifterReader extends AbstractParser {
 
     }
 
-    /** Run over an input held whole: one window, no edge. The parser element's path. */
-    Run runWhole(final byte[] bytes) {
-        final ByteArrayOutputStream output = new ByteArrayOutputStream();
-        final InputLocations locations = new InputLocations();
-        final List<Message> messages = Shapeshifter.runWhole(compiled, bytes, OutputSink.of(output), locations);
-        return new Run(output.toByteArray(), messages,
-                locations.resolver(InputLocations.lineStarts(bytes), output.toByteArray()));
-    }
-
-    /** Run over a stream, in windows of the configuration's buffer size. The filter's path. */
+    /** Run over a stream, in windows of the configuration's buffer size, holding the output for the parse. */
     Run runStreamed(final InputStream input) {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         final InputLocations locations = new InputLocations();
@@ -520,22 +514,74 @@ public class ShapeshifterReader extends AbstractParser {
     // The input's bytes
     // -----------------------------------------------------------------------------------
 
-    private static byte[] bytesOf(final InputSource input) throws IOException, SAXException {
+    /**
+     * The input as a stream of bytes. A byte stream is the feed itself, with the configuration's
+     * own {@code source.encoding} to read it by; a character stream was decoded upstream by a
+     * reader element and is encoded to UTF-8 as it is read, never held.
+     */
+    private static InputStream streamOf(final InputSource input) throws SAXException {
         final InputStream byteStream = input.getByteStream();
         if (byteStream != null) {
-            return byteStream.readAllBytes();
+            return byteStream;
         }
         final Reader characterStream = input.getCharacterStream();
         if (characterStream != null) {
-            final StringBuilder text = new StringBuilder();
-            final char[] buffer = new char[8192];
-            int read;
-            while ((read = characterStream.read(buffer)) >= 0) {
-                text.append(buffer, 0, read);
-            }
-            return text.toString().getBytes(StandardCharsets.UTF_8);
+            return new ReaderBytes(characterStream);
         }
         throw new SAXException("The input source carries neither bytes nor characters");
+    }
+
+    /** A reader as a UTF-8 byte stream, encoded a chunk at a time. */
+    static final class ReaderBytes extends InputStream {
+
+        private final Reader reader;
+        private final char[] chars = new char[4096];
+        private byte[] bytes = new byte[0];
+        private int at;
+
+        ReaderBytes(final Reader reader) {
+            this.reader = reader;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (at == bytes.length && !fill()) {
+                return -1;
+            }
+            return bytes[at++] & 0xFF;
+        }
+
+        @Override
+        public int read(final byte[] into, final int offset, final int length) throws IOException {
+            if (length == 0) {
+                return 0;
+            }
+            if (at == bytes.length && !fill()) {
+                return -1;
+            }
+            final int n = Math.min(length, bytes.length - at);
+            System.arraycopy(bytes, at, into, offset, n);
+            at += n;
+            return n;
+        }
+
+        private boolean fill() throws IOException {
+            int n;
+            do {
+                n = reader.read(chars);
+            } while (n == 0);
+            if (n < 0) {
+                return false;
+            }
+            bytes = new String(chars, 0, n).getBytes(StandardCharsets.UTF_8);
+            at = 0;
+            return bytes.length > 0 || fill();
+        }
+
+        @Override
+        public void close() throws IOException {
+            reader.close();
+        }
     }
 
     private static Locator unlocated() {

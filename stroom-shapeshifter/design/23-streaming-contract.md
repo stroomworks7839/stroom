@@ -126,12 +126,29 @@ does not do it.
 
 ## 4. Phasing — input first
 
-**Phase 1 — the parser element streams its input.** `ShapeshifterReader.parse` stops reading
+**Phase 1 — the parser element streams its input — Done 2026-09-04.** *As built:* the engine's
+full-window case is one rule — probe the stream; exhausted means the record simply ended where
+the input did, otherwise FATAL, "the record is larger than source buffer_size", for every root
+match and regardless of `ignore_errors`; the end-anchored special case and the trailing-anchor
+import are gone. `ShapeshifterParser.getInputSource` passes a byte stream through with its
+declared encoding rather than letting `AbstractParser` decode it; `ShapeshifterReader.parse`
+streams whatever it is given — a byte stream as it is, a reader encoded to UTF-8 a chunk at a
+time (`ReaderBytes`) — through `Shapeshifter.run`, the structured path straight into the event
+sink and the text path into the held output the output round will address; the reader's
+`runWhole` and whole-input read are deleted. *Pinned:* `EngineBehaviourTest` — a record larger
+than the window is fatal, `ignore_errors` does not downgrade it, an input of exactly the window
+is not truncation, an end-anchored match is no longer special; `StreamedInputTest` — five
+thousand records through a 4 KB window produce exactly the whole-buffer events, a reader
+produces the byte stream's events, a text configuration streams its input, a record larger
+than the window reaches the pipeline as one fatal, and the element passes bytes through
+undecoded. 68 of 68 fixtures unchanged, which is the corpus saying the window loop was always
+DS3's. *Original wording follows.* `ShapeshifterReader.parse` stops reading
 the `InputSource` whole and stops calling `runWhole`; it runs `Shapeshifter.run` over the
-source's stream, windowed by `buffer_size`, DS3's contract. The structured output path is
-unchanged — it already streams. A text configuration on this element that feeds a SAX consumer
-becomes a refusal (§3); a text configuration writing bytes is a later output-round concern.
-`runWhole` stays for tests and byte-holding callers. *Exit: a feed larger than any window
+source's stream, windowed by `buffer_size`, DS3's contract, whether the pipeline hands it a
+byte stream or a reader. The structured output path is unchanged — it already streams. The
+text output path still holds its output whole: what becomes of it (a byte sink, a refusal
+before a SAX consumer, an external bridge) is the output round's, not this phase's. The
+engine's `runWhole` stays for tests and byte-holding callers; the reader's own copy goes. *Exit: a feed larger than any window
 produces the same events as today, holding neither the input nor — for a structured
 configuration — the output; a record larger than `buffer_size` is FATAL.*
 
@@ -152,8 +169,10 @@ text→SAX, and where the pipe plumbing lives. Opened once phase 1 lands.
    data's shape, and the record is larger than `buffer_size`. This replaces the engine's
    current split (FATAL for an end-anchored pattern, a WARNING otherwise): the warning is
    promoted to a fatal for every root match. The message keeps its shape — the record is too
-   large; increase `buffer_size`. Nested matches are unaffected: they work within a region a
-   parent already bounded, not against the raw window. DS3's grow-and-recover is *not* adopted;
+   large; increase `buffer_size`. `ignore_errors` does not downgrade it: a skip can be ignored
+   because there is something after it to move to, and here there is not — the next window
+   would begin in the middle of the record. Nested matches are unaffected: they work within a
+   region a parent already bounded, not against the raw window. DS3's grow-and-recover is *not* adopted;
    the fixed window with a hard limit is the contract (D33's kept limitation, now sharpened
    from "processing ends" to "the run fails").
 
