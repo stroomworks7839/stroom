@@ -15,6 +15,16 @@ the buffer-CSV and per-match-datetime canaries, paired against the previous comm
 apart — same boot is not the same hour. Claims wait for numbers. Statuses move here, and the
 rows in 06 and ISSUES.md move with them.
 
+A fourth lesson, from the first overnight chain over this plan's work (2026-09-04): **a probe
+set must carry every row the change's mechanism can reach, not only the rows that motivated
+it.** The search split was probed on `anchored_miss` and weblog and won there; it touched every
+tree search, and the tree's end-anchored `BOUNDED_MISS` lost 21.6% unmeasured. D39 was probed
+on seven rows and cleared; it touched every scan-plan candidate position, and `line_miss` —
+the seeding-gate fix's own row — fell from 22,909 to 3,074 unmeasured. Both were found by the
+full set, bisected in the morning, and are remedied below; neither would have shipped past a
+probe set drawn from the mechanism rather than the motivation. Before any commit under this
+plan: name the paths the edit touches, and take one row from each.
+
 Three lessons from the last two days set the order. **Probe, don't reason**: all three of the
 encoding plan's costs were invisible to reading, to the stack profiler and to bytecode sizes,
 and each fell to a bisect plus a single-edit variant. **Instruments first**: a row that reads

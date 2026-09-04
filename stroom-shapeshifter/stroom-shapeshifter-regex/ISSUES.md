@@ -31,8 +31,9 @@ deleted. What remains in this file is the accepted-cost record and the one open 
 
 ## Accepted costs — measured, kept, and why
 
-**D39's seam deletion leaves buffer CSV's scan plan at −3.2% (`open`, 2026-09-03 — a
-datapoint for the class-shape entry below).** Deleting `contextEnd` — field, setter, six
+**D39's seam deletion leaves buffer CSV's scan plan at −3.2% (`resolved` 2026-09-04 — the bound
+restored as a `ByteMatcher` field: CSV 6,357 → 7,228 paired, the bimodality gone with it; kept as
+the record of a probe set that missed the row that mattered).** Deleting `contextEnd` — field, setter, six
 binding stores, the parameter from `Utf8.splitsCharacter` and `ByteForm.splitsCharacter` —
 retired R1's accepted store (tree `anchored_hit` +0.9%, `anchored_miss` +1.8%) and the
 `match()` setup store (scan-plan `anchored_miss` +3.0%, weblog +1.6%), left per-match datetime
@@ -47,6 +48,9 @@ padding field does not move it, and Phase 3's guarded static gate moves it a fur
 while lifting `LazyRunBenchmark` simulate ENTRY_DOTALL +3.7% — the D37 coin row moving
 opposite to real work, recorded not chased. Landed by direction with this entry open; the
 class-shape fix (07 Phase 4) is where both close. Evidence: `2026-09-03-*-d39-*.json`.
+*2026-09-04:* the overnight chain found a second cost the probe set had missed — scan-plan
+`line_miss` back at 3,074 from 22,909 — and its remedy, `ByteMatcher` keeping the bound as a
+field, is in D39's postscript. The −3.2% on buffer CSV above went with it: +13.7% paired, spread 1.01.
 
 
 **The tail-window machinery costs −12–14% on buffer workloads that never jump
