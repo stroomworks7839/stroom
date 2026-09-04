@@ -26,8 +26,9 @@ as a nested line loop over large regions, `LazyRunBenchmark` `FAR_LINE` / `MISS_
 64 KiB, where the JDK was 8–42× ahead — closed on 2026-09-03 (`RunLoop`, 06 §1): those rows
 now read 1.26× and 6.9× ahead, and the natural dot-all spelling of the same job 2.5–3.7×. These are the benchmark corpus's numbers ([04](design/04-corpus-analysis.md) says what
 it contains); real DS3 configurations are the evidence that would revise them. Run of record:
-[`2026-09-02-2146-75f6bbaa1c-chain-after-plan.json`](design/benchmarks/2026-09-02-2146-75f6bbaa1c-chain-after-plan.json),
-plus the three fixes measured on 2026-09-03 and recorded in 06 §1.
+[`2026-09-04-0123-b81229148b-chain-phase1-polluted.json`](design/benchmarks/2026-09-04-0123-b81229148b-chain-phase1-polluted.json) — the last point of the
+2026-09-03 overnight chain (pre-plan → plan and fixes → `RunLoop` → the pollution harness),
+read in 07 Phase 0.
 
 **Bytes.** Once compiled, matching is bytes all the way down. A pattern is authored in code
 points and lowered **once, at compile time**, through its declared encoding — UTF-8, any
