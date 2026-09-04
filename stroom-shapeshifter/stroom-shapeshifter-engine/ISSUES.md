@@ -948,7 +948,9 @@ legacy fixtures, the two exceptions being E33's. Phase 1b done the same day: `Sh
 its store and resource, and the `ShapeshifterParser` pipeline element, proven in a real pipeline.
 Phase 2 done 2026-09-04: `element`, `attribute`, `namespace` in the model, `XmlByteSink` and
 `SaxEventSink` interpreting `write` by container, the compiler's ordering check, and the
-structured `event-logging:3` fixture agreeing event for event on both sinks. Both paths, phased: parse-and-forward first (design 21
+structured `event-logging:3` fixture agreeing event for event on both sinks. Phase 3 done the
+same day: the migration writes structure, no configuration in the corpus escapes XML by hand,
+every legacy fixture is byte- and event-identical to Stroom's DS3. Both paths, phased: parse-and-forward first (design 21
 phase 1), structured emitters second — `element` and `attribute` containers, `namespace` a
 leaf, `text`/`value-of` untouched with `OutputSink` interpreting `write` by the container it
 is in — byte-identical to today's goldens as the gate. Bridging to SAX is optional — the
@@ -1011,8 +1013,10 @@ What the design has to settle:
   — a pipeline that can call out is a security surface, not only a feature.
 
 ### E33 — DS3 trims every data name and value; the migration does not
-**`open` — found 2026-09-03 by design 21 phase 0, fixture `legacy/021_trimmed_values` (`PENDING`);
-ruled the same day under D41: Stroom's behaviour is matched. Lands structurally in design 21
+**`resolved` 2026-09-04 by design 21 phase 3: the migration's `<data>` attributes are
+`attribute { omit-if-empty; trim(…) }`, 007, 009 and 021 pass Stroom's goldens. Found
+2026-09-03 by phase 0, fixture `legacy/021_trimmed_values`; ruled under D41: Stroom's behaviour
+is matched.** Lands structurally in design 21
 phase 3 — the trim and the drop-if-empty become properties of the structured `attribute` the
 migration generates — rather than as a generated `trim` step that phase 3 would then remove.
 Until then 007, 009 and 021 hold Stroom's goldens as `PENDING`.**
@@ -1048,7 +1052,8 @@ trim a property of the emitted attribute rather than a step. Either way the fixt
 holds the golden, and the ratchet fails the build the day the engine agrees with it.
 
 ### E34 — An empty run writes `<records …>\n</records>`; DS3 writes `<records …/>`
-**`open` — found 2026-09-03 by the design 21 phase 0 audit, fixture `legacy/022_empty_input` (`PENDING`).**
+**`resolved` 2026-09-04 by design 21 phase 3: the root is an element and the sink self-closes
+it when nothing arrived. Found 2026-09-03 by the phase 0 audit, fixture `legacy/022_empty_input`.**
 
 The census in design 21 Appendix A asserted that the root is always paired; no vendored golden
 has zero records, so nothing had checked. Stroom's serialiser self-closes an element with no
@@ -1062,11 +1067,10 @@ buffered-body shape `wrapAsRecord` uses — and it is not worth building twice; 
 the golden and the ratchet decides when.
 
 ### E35 — Stroom's serialiser wraps long attributes; the engine's text output does not
-**`open` — found 2026-09-03 by design 21 phase 1, when the legacy goldens were re-vendored from
-`stroom-pipeline` under D41. Fixtures 003, 007 and 019 (`PENDING`, both families). The rule is
-known and built: phase 2a's `XmlByteSink` (2026-09-04) reproduces every legacy golden from
-DS3's own events. What remains is phase 3 — the migration writing structure to the sink
-instead of text.**
+**`resolved` 2026-09-04 by design 21 phase 3: the migration writes structure and `XmlByteSink`
+wraps as Saxon does; 003, 007 and 019 pass Stroom's goldens in both families. The text path
+still does not wrap — by nature, and `projects/text_003…019` pin what it does produce. Found
+2026-09-03 by phase 1 under D41; the rule was read from Saxon's bytecode in phase 2a.**
 
 The DS3 goldens are written by Saxon (`XMLUtil.createTransformerHandler(true)`: indent, amount
 3, XML 1.1). Saxon's indenter keeps a start tag on one line until it would pass the 80th

@@ -71,12 +71,21 @@ public interface OutputSink {
      *                  binding in scope; a URI the prefix is not already bound to is declared here
      */
     default void startElement(final String name, final String namespace) {
+        startElement(name, namespace, false);
+    }
+
+    /**
+     * Open an element that, if {@code omitIfEmpty}, leaves no trace when nothing arrives before it
+     * closes — no declaration, attribute or content. Its parent's start is deferred with it, so a
+     * parent whose every child was omitted is still empty when it closes.
+     */
+    default void startElement(final String name, final String namespace, final boolean omitIfEmpty) {
         throw new StructureException("This sink does not carry structure: element " + name);
     }
 
     /** Open an element in whatever namespace its prefix is bound to. */
     default void startElement(final String name) {
-        startElement(name, null);
+        startElement(name, null, false);
     }
 
     /** Declare a prefix binding on the open element; the empty prefix is the default namespace. */
@@ -86,6 +95,11 @@ public interface OutputSink {
 
     /** Begin an attribute on the open element; every write until {@link #endAttribute} is its value. */
     default void startAttribute(final String name) {
+        startAttribute(name, false);
+    }
+
+    /** Begin an attribute that, if {@code omitIfEmpty}, is dropped when its value comes out empty. */
+    default void startAttribute(final String name, final boolean omitIfEmpty) {
         throw new StructureException("This sink does not carry structure: attribute " + name);
     }
 

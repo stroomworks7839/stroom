@@ -58,25 +58,16 @@ class Ds3EventIdentityTest {
 
     /**
      * Fixtures the byte ledger holds as {@code PENDING} whose remaining difference is invisible to
-     * events — a paired empty root and a self-closed one are the same two events, and Saxon's
-     * wrapping of a long start tag (E35) is whitespace the parser never reports. Each must still
-     * agree here, so the ratchet holds in both currencies.
+     * events, and so must still agree here. Empty since design 21 phase 3 closed E33, E34 and
+     * E35; kept because the ratchet's two directions are the point of it.
      */
-    private static final Map<String, String> EVENT_IDENTICAL_WHILE_BYTE_PENDING = Map.of(
-            "003_multiline_regex", "E35: Saxon's attribute wrapping is a serialisation difference only",
-            "019_single_line_split", "E35: Saxon's attribute wrapping is a serialisation difference only",
-            "022_empty_input", "E34 is a serialisation difference only");
+    private static final Map<String, String> EVENT_IDENTICAL_WHILE_BYTE_PENDING = Map.of();
 
     /**
-     * The reverse: fixtures the byte ledger holds as {@code PASS} — the engine reproduces the
-     * vendored golden — whose events nonetheless differ from live DS3's. Phase 1 found that the
-     * vendored goldens for these are the prototype's, not Stroom's: stroom-pipeline's own copies carry the
-     * trimmed names and values DS3 has emitted since 2019 (E33). Each must keep differing here until
-     * E33 is ruled, so the ratchet holds.
+     * The reverse: fixtures the byte ledger holds as {@code PASS} whose events nonetheless
+     * differ from live DS3's. Empty since phase 3; each entry must keep differing while listed.
      */
-    private static final Map<String, String> EVENT_DIFFERS_WHILE_BYTE_PASS = Map.of(
-            "007_regex_dotall", "E33: DS3 trims the trailing newline off every message value",
-            "009_multiline_regex_2", "E33: DS3 trims the trailing space off the User and Query names");
+    private static final Map<String, String> EVENT_DIFFERS_WHILE_BYTE_PASS = Map.of();
 
     @TestFactory
     Stream<DynamicTest> legacyFixtures() throws IOException {

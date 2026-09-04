@@ -441,7 +441,34 @@ has not touched them.
 
 ---
 
-## Phase 3 — The migration moves onto them *(S2's gate, in full)*
+## Phase 3 — The migration moves onto them *(S2's gate, in full)* — **Done 2026-09-04**
+
+**Ruled at the start (P1, P2):** `omit-if-empty` on both `element` and `attribute` — one word,
+two places, general rather than DS3's. P2's draft had it backwards: DS3 always writes the
+`<data>` element and drops each *attribute* whose trimmed value is empty (`DataAttributes`,
+`normaliseBuffer`); "the whole tag or nothing" was the prototype's. Trim needs no property —
+the existing `trim` transform writes the trimmed value into the attribute.
+
+**As built.** `Element(name, namespace, omitIfEmpty, body)`, `Attribute(name, omitIfEmpty, body)`;
+in both sinks a child no longer starts its parent when it opens but when it first *emits*, so
+an omitted child leaves its parent as empty as it found it — which is what lets the root
+self-close on an empty run (E34) while the record it never started leaves no trace (P1).
+`Ds3Migration` writes the declaration as text and everything else as structure: the root is
+`element records` with DS3's two declarations and two attributes; a record is
+`element record { omit-if-empty }` around the group's body; a `<data>` is `element data` with
+`attribute name { omit-if-empty; trim(…) }` and the same for `value`, children nested inside.
+`escapeAttribute`, `escapeCaptures`, the buffered record body, the buffered children and the
+indentation arithmetic are gone; the migration no longer knows what XML looks like.
+
+**The gate.** The engine suite went green on the rewritten migration's first run: every
+legacy fixture byte-identical to Stroom's, 003/007/009/019/021/022 promoted — E33, E34 and E35
+closed on this path — and nothing else moved. The four natives that were Stroom-pending are
+regenerated from the migration, which is the provenance they always had (their bodies
+carried its `__esc_` and `__record_body__` names), and their text-output forms are kept as
+`projects/text_003…019` under their own goldens — the text path's serialisation, pinned as
+what a text configuration produces, per the ruling that both output styles keep fixtures.
+`Ds3EventIdentityTest`'s two side-ledgers empty: every legacy fixture is event-identical to
+live DS3 as well as byte-identical to its serialiser. Original wording follows.
 
 `Ds3Migration` stops assembling markup. `RECORDS_HEADER`/`RECORDS_FOOTER` become
 `element records { namespace "" "records:2"; namespace xsi …; … }` with the census's

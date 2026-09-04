@@ -1099,16 +1099,19 @@ public final class ProjectJson {
                         text(body, "name", "variable"), list(body.get("body"), "body", ProjectJson::readOutput));
             }
             case "element" -> {
-                checkFields(body, "element", "name", "namespace", "body");
+                checkFields(body, "element", "name", "namespace", "omit-if-empty", "body");
                 yield new OutputNode.Element(
                         text(body, "name", "element"),
                         optionalText(body, "namespace"),
+                        body.has("omit-if-empty") && body.get("omit-if-empty").asBoolean(),
                         list(body.get("body"), "body", ProjectJson::readOutput));
             }
             case "attribute" -> {
-                checkFields(body, "attribute", "name", "body");
+                checkFields(body, "attribute", "name", "omit-if-empty", "body");
                 yield new OutputNode.Attribute(
-                        text(body, "name", "attribute"), list(body.get("body"), "body", ProjectJson::readOutput));
+                        text(body, "name", "attribute"),
+                        body.has("omit-if-empty") && body.get("omit-if-empty").asBoolean(),
+                        list(body.get("body"), "body", ProjectJson::readOutput));
             }
             case "namespace" -> {
                 checkFields(body, "namespace", "prefix", "uri");
@@ -1377,12 +1380,18 @@ public final class ProjectJson {
                 if (value.namespace() != null) {
                     body.put("namespace", value.namespace());
                 }
+                if (value.omitIfEmpty()) {
+                    body.put("omit-if-empty", true);
+                }
                 body.set("body", array(value.body(), ProjectJson::writeOutput));
                 yield wrap("element", body);
             }
             case OutputNode.Attribute value -> {
                 final ObjectNode body = NODES.objectNode();
                 body.put("name", value.name());
+                if (value.omitIfEmpty()) {
+                    body.put("omit-if-empty", true);
+                }
                 body.set("body", array(value.body(), ProjectJson::writeOutput));
                 yield wrap("attribute", body);
             }

@@ -1,0 +1,879 @@
+{
+  "name": "text_009_multiline_regex_2",
+  "version": 3,
+  "source": {
+    "buffer_size": 20000,
+    "ignore_errors": false,
+    "encoding": "auto"
+  },
+  "templates": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "source",
+      "match": "source",
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n<records xmlns=\"records:2\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"records:2 file://records-v2.0.xsd\"\n         version=\"2.0\">"
+              }
+            ]
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "capture": {
+                    "group": 0
+                  }
+                }
+              ]
+            },
+            "mode": "root"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n</records>\n"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "query_record",
+      "mode": "root",
+      "match": {
+        "regex": {
+          "pattern": "((?>\n*|^)(?>.+\n)+?)\n((?>\n*|^)(?>.+\n)+?(?>\n|$))",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          }
+        }
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n   <record>"
+              }
+            ]
+          }
+        },
+        {
+          "variable": {
+            "name": "__query_body__",
+            "body": [
+              {
+                "apply-templates": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "group": 1
+                        }
+                      }
+                    ]
+                  },
+                  "mode": "query_fields"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "test": {
+              "exists": {
+                "select": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__query_body__",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "then": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n      <data name=\"query\">"
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__query_body__",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n      </data>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "test": {
+              "not": {
+                "exists": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "var_id": "__query_body__",
+                          "group": 0,
+                          "match_index": {
+                            "index": 0,
+                            "is_offset": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n      <data name=\"query\"/>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "variable": {
+            "name": "__results_body__",
+            "body": [
+              {
+                "apply-templates": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "group": 2
+                        }
+                      }
+                    ]
+                  },
+                  "mode": "results_fields"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "test": {
+              "exists": {
+                "select": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__results_body__",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "then": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n      <data name=\"results\">"
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__results_body__",
+                        "group": 0,
+                        "match_index": {
+                          "index": 0,
+                          "is_offset": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n      </data>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "test": {
+              "not": {
+                "exists": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "var_id": "__results_body__",
+                          "group": 0,
+                          "match_index": {
+                            "index": 0,
+                            "is_offset": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "value-of": {
+                  "parts": [
+                    {
+                      "text": "\n      <data name=\"results\"/>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n   </record>"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000010",
+      "name": "query_header",
+      "mode": "query_fields",
+      "match": {
+        "regex": {
+          "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)"
+        }
+      },
+      "match_limits": {
+        "max_match": 1
+      },
+      "body": [
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_q1"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 2
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_q2"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 3
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_q3"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 4
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_q4"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\"date\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_q1",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\"time\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_q2",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_q3",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_q4",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000011",
+      "name": "query_continuation",
+      "mode": "query_fields",
+      "match": {
+        "regex": {
+          "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)"
+        }
+      },
+      "body": [
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 3
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_qo3"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 4
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_qo4"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_qo3",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_qo4",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000020",
+      "name": "results_header",
+      "mode": "results_fields",
+      "match": {
+        "regex": {
+          "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*):+"
+        }
+      },
+      "match_limits": {
+        "max_match": 1
+      },
+      "body": [
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_r1"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 2
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_r2"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\"date\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_r1",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\"time\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_r2",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000021",
+      "name": "results_continuation",
+      "mode": "results_fields",
+      "match": {
+        "regex": {
+          "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)"
+        }
+      },
+      "body": [
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 3
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_ro3"
+          }
+        },
+        {
+          "translate": {
+            "select": [
+              {
+                "parts": [
+                  {
+                    "capture": {
+                      "group": 4
+                    }
+                  }
+                ]
+              }
+            ],
+            "from": [
+              "&",
+              "\"",
+              "<",
+              ">",
+              "\n",
+              "\r"
+            ],
+            "to": [
+              "&amp;",
+              "&#34;",
+              "&lt;",
+              "&gt;",
+              "&#xA;",
+              "&#xD;"
+            ],
+            "name": "__esc_ro4"
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n         <data name=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_ro3",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\" value=\""
+              },
+              {
+                "capture": {
+                  "var_id": "__esc_ro4",
+                  "group": 0,
+                  "match_index": {
+                    "index": 0,
+                    "is_offset": true
+                  }
+                }
+              },
+              {
+                "text": "\"/>"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

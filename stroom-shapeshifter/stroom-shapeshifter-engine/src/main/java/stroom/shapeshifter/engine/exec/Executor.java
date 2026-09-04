@@ -223,7 +223,7 @@ public final class Executor {
             body(split.prologues.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
             if (i < split.opened.size()) {
                 final CompiledOp.Element element = split.opened.get(i);
-                structure(() -> output.startElement(element.name(), element.namespace()),
+                structure(() -> output.startElement(element.name(), element.namespace(), element.omitIfEmpty()),
                         "element '" + element.name() + "'");
             }
         }
@@ -1185,14 +1185,15 @@ public final class Executor {
                 case CompiledOp.Variable value ->
                         variable(value, match, matchCount, content, inputBase, ignoreErrors, depth, contentEncoding);
                 case CompiledOp.Element value -> {
-                    structure(() -> sink.startElement(value.name(), value.namespace()),
+                    structure(() -> sink.startElement(value.name(), value.namespace(), value.omitIfEmpty()),
                             "element '" + value.name() + "'");
                     body(value.body(), match, matchCount, content, sink,
                             inputBase, ignoreErrors, depth, contentEncoding);
                     structure(sink::endElement, "element '" + value.name() + "'");
                 }
                 case CompiledOp.Attribute value -> {
-                    structure(() -> sink.startAttribute(value.name()), "attribute '" + value.name() + "'");
+                    structure(() -> sink.startAttribute(value.name(), value.omitIfEmpty()),
+                            "attribute '" + value.name() + "'");
                     body(value.body(), match, matchCount, content, sink,
                             inputBase, ignoreErrors, depth, contentEncoding);
                     structure(sink::endAttribute, "attribute '" + value.name() + "'");

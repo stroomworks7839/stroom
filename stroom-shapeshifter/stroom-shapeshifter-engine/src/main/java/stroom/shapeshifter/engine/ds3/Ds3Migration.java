@@ -60,30 +60,18 @@ import java.util.UUID;
  */
 public final class Ds3Migration {
 
-    private static final String RECORDS_HEADER = """
-            <?xml version="1.1" encoding="UTF-8"?>
-            <records xmlns="records:2"
-                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                     xsi:schemaLocation="records:2 file://records-v2.0.xsd"
-                     version="2.0">""";
-
-    private static final String RECORDS_FOOTER = "\n</records>\n";
+    /** The declaration is document-level text; the sink writes everything from the root down. */
+    private static final String XML_DECLARATION = "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n";
+    private static final String RECORDS_NAMESPACE = "records:2";
+    private static final String XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance";
+    private static final String SCHEMA_LOCATION = "records:2 file://records-v2.0.xsd";
+    private static final String RECORDS_VERSION = "2.0";
 
     /** The mode the envelope dispatches to, and therefore the one root expressions carry. */
     private static final String ROOT_MODE = "__root";
 
-    /** Where a record's buffered body is held while deciding whether to emit a record at all. */
-    private static final String RECORD_BODY = "__record_body__";
-
-    /** The characters that cannot appear raw in an XML attribute, and what they become. */
-    private static final List<String> ESCAPE_FROM = List.of("&", "\"", "<", ">", "\n", "\r");
-    private static final List<String> ESCAPE_TO =
-            List.of("&amp;", "&#34;", "&lt;", "&gt;", "&#xA;", "&#xD;");
-
     private final List<Template> templates = new ArrayList<>();
     private int modeCounter;
-    private int variableCounter;
-    private int escapeCounter;
 
     private Ds3Migration() {
     }
@@ -109,7 +97,7 @@ public final class Ds3Migration {
         for (int i = 0; i < rootChildren.size(); i++) {
             final Ds3Config child = rootChildren.get(i);
             if (child.isExpression()) {
-                expression(child, null, true, 0, "dataSplitter/" + kind(child) + "[" + i + "]");
+                expression(child, null, true, "dataSplitter/" + kind(child) + "[" + i + "]");
             } else if (root instanceof Ds3Config.Root) {
                 // Anything else at the root would be dropped, and a dropped element is the
                 // quietly-wrong import this package refuses to be.
@@ -149,11 +137,17 @@ public final class Ds3Migration {
                 MatchLimits.unlimited(),
                 List.of(),
                 List.of(
-                        new OutputNode.Text(RECORDS_HEADER),
-                        new OutputNode.ApplyTemplates(new ApplyDirective(
-                                RefExpression.group(0), ROOT_MODE, List.of(),
-                                ApplyDirective.DEFAULT_MAX_DEPTH, null, false, null)),
-                        new OutputNode.Text(RECORDS_FOOTER)),
+                        new OutputNode.Text(XML_DECLARATION),
+                        // DS3's fixed root, as DS3Parser.startDocument declares it: the default
+                        // prefix and xsi, then the schema location and version.
+                        new OutputNode.Element("records", null, false, List.of(
+                                new OutputNode.Namespace("", RECORDS_NAMESPACE),
+                                new OutputNode.Namespace("xsi", XSI_NAMESPACE),
+                                literalAttribute("xsi:schemaLocation", SCHEMA_LOCATION),
+                                literalAttribute("version", RECORDS_VERSION),
+                                new OutputNode.ApplyTemplates(new ApplyDirective(
+                                        RefExpression.group(0), ROOT_MODE, List.of(),
+                                        ApplyDirective.DEFAULT_MAX_DEPTH, null, false, null))))),
                 null,
                 false);
     }
@@ -168,13 +162,11 @@ public final class Ds3Migration {
      * @param mode        the mode this template answers to, or null for a root expression
      * @param recordWrap  whether a match here is a record, and so needs the {@code <record>}
      *                    wrapper. True at the root and false below it — records do not nest
-     * @param dataDepth   how far down the {@code <data>} nesting is, which sets the indentation
      * @param path        where this node sits in the DS3 tree, for deriving a stable identifier
      */
     private void expression(final Ds3Config node,
                             final String mode,
                             final boolean recordWrap,
-                            final int dataDepth,
                             final String path) {
         final List<CaptureBinding> captures = new ArrayList<>();
         final List<OutputNode> body = new ArrayList<>();
@@ -194,7 +186,7 @@ public final class Ds3Migration {
 
         // The expression owns the record wrapper when it has one, so its children never add a
         // second: a group inside a wrapped expression is part of the record, not another record.
-        children(children, captures, body, false, dataDepth, childPath);
+        children(children, captures, body, false, childPath);
 
         if (recordWrap) {
             wrapAsRecord(body);
@@ -224,22 +216,20 @@ public final class Ds3Migration {
     }
 
     /**
-     * Wrap a body so that it emits a {@code <record>} only when it produced something.
+     * Wrap a body in a {@code <record>} that is written only if the body wrote something.
      *
-     * <p>Java's DS3 does not write an empty record, and a line that matched but yielded no data
-     * must therefore leave no trace. The only way to know is to run the body first, so it goes
-     * into a variable and the wrapper is written around the result if there is one.
+     * <p>Java's DS3 starts a record lazily, at its first {@code <data>}, so a line that matched but
+     * yielded no data leaves no trace. {@code omit-if-empty} is that laziness as a property of
+     * the element: the sink defers the start tag anyway, and drops it if nothing ever arrives.
      */
     private static void wrapAsRecord(final List<OutputNode> body) {
         final List<OutputNode> inner = List.copyOf(body);
         body.clear();
-        body.add(new OutputNode.Variable(RECORD_BODY, inner));
-        body.add(new OutputNode.If(
-                new Condition.Exists(currentMatchOf(RECORD_BODY)),
-                List.of(
-                        new OutputNode.Text("\n   <record>"),
-                        new OutputNode.ValueOf(currentMatchOf(RECORD_BODY)),
-                        new OutputNode.Text("\n   </record>"))));
+        body.add(record(inner));
+    }
+
+    private static OutputNode record(final List<OutputNode> body) {
+        return new OutputNode.Element("record", null, true, body);
     }
 
     // -----------------------------------------------------------------------------------
@@ -250,7 +240,6 @@ public final class Ds3Migration {
                           final List<CaptureBinding> captures,
                           final List<OutputNode> body,
                           final boolean recordWrap,
-                          final int dataDepth,
                           final String path) {
         // Sibling expressions share one mode and one dispatch, as they do at the root and in a
         // group: DS3 runs them in order against a single cursor over the parent's content, so a
@@ -266,12 +255,12 @@ public final class Ds3Migration {
             final String childPath = path + "/" + kind(child) + "[" + i + "]";
             switch (child) {
                 case Ds3Config.Var var -> variable(var, captures, body);
-                case Ds3Config.Data data -> data(data, captures, body, dataDepth, childPath);
+                case Ds3Config.Data data -> data(data, captures, body, childPath);
                 case Ds3Config.Group group ->
-                        group(group, captures, body, recordWrap, dataDepth, childPath);
+                        group(group, captures, body, recordWrap, childPath);
                 default -> {
                     if (child.isExpression()) {
-                        expression(child, subMode, false, dataDepth, childPath);
+                        expression(child, subMode, false, childPath);
                         if (!dispatched) {
                             // One dispatch, at the first sibling's position: the level it opens
                             // is where all of them live.
@@ -318,17 +307,14 @@ public final class Ds3Migration {
                        final List<CaptureBinding> captures,
                        final List<OutputNode> body,
                        final boolean recordWrap,
-                       final int dataDepth,
                        final String path) {
         final List<Ds3Config> members = group.children();
         final boolean hasExpression = members.stream().anyMatch(Ds3Config::isExpression);
         if (!hasExpression) {
+            final List<OutputNode> into = recordWrap ? new ArrayList<>() : body;
+            children(members, captures, into, false, path);
             if (recordWrap) {
-                body.add(new OutputNode.Text("\n   <record>"));
-            }
-            children(members, captures, body, false, dataDepth, path);
-            if (recordWrap) {
-                body.add(new OutputNode.Text("\n   </record>"));
+                body.add(record(into));
             }
             return;
         }
@@ -337,18 +323,15 @@ public final class Ds3Migration {
         for (int i = 0; i < members.size(); i++) {
             final Ds3Config child = members.get(i);
             if (child.isExpression()) {
-                expression(child, subMode, false, dataDepth,
-                        path + "/" + kind(child) + "[" + i + "]");
+                expression(child, subMode, false, path + "/" + kind(child) + "[" + i + "]");
             }
         }
 
-        if (recordWrap) {
-            body.add(new OutputNode.Text("\n   <record>"));
-        }
+        final List<OutputNode> into = recordWrap ? new ArrayList<>() : body;
         // The group's ignoreErrors gates the level its content is dispatched to — the container
         // owns the gate in DS3, and the directive is where the container's intent survives
         // flattening.
-        body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
+        into.add(new OutputNode.ApplyTemplates(new ApplyDirective(
                 group.value() == null ? RefExpression.group(0) : LegacyRefs.parse(group.value()),
                 subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, null, group.ignoreErrors(), null)));
         for (int i = 0; i < members.size(); i++) {
@@ -359,14 +342,14 @@ public final class Ds3Migration {
                         if (var.value() == null) {
                             captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0)));
                         } else {
-                            body.add(new OutputNode.Variable(var.id(),
+                            into.add(new OutputNode.Variable(var.id(),
                                     List.of(new OutputNode.ValueOf(
                                             indexed(LegacyRefs.parse(var.value()))))));
                         }
                     }
-                    case Ds3Config.Data data -> data(data, captures, body, dataDepth,
+                    case Ds3Config.Data data -> data(data, captures, into,
                             path + "/" + kind(child) + "[" + i + "]");
-                    case Ds3Config.Group nested -> group(nested, captures, body, false, dataDepth,
+                    case Ds3Config.Group nested -> group(nested, captures, into, false,
                             path + "/" + kind(child) + "[" + i + "]");
                     default -> {
                         // Nothing else can appear here.
@@ -375,108 +358,44 @@ public final class Ds3Migration {
             }
         }
         if (recordWrap) {
-            body.add(new OutputNode.Text("\n   </record>"));
+            body.add(record(into));
         }
     }
 
     /**
-     * A {@code <data>}: one element of the output.
+     * A {@code <data>}: one element of the output, exactly as {@code DS3Parser} writes it.
      *
-     * <p>A leaf is one instruction. One with children is three, because whether the element is
-     * self-closing depends on whether its children write anything, and that is only knowable
-     * after running them.
+     * <p>The element is always written; each attribute is written only if its value, trimmed,
+     * is not empty ({@code normaliseBuffer}, E33); children nest inside it, and the sink
+     * self-closes it if they wrote nothing. Nothing here escapes anything — the sink does, by
+     * construction — which is what design 20 §1 was for.
      */
     private void data(final Ds3Config.Data data,
                       final List<CaptureBinding> captures,
                       final List<OutputNode> body,
-                      final int dataDepth,
                       final String path) {
-        final String indent = " ".repeat(6 + dataDepth * 3);
-
-        if (data.children().isEmpty()) {
-            emitDataTag(dataReference(data, indent, false), body);
-            return;
+        final List<OutputNode> inner = new ArrayList<>();
+        if (data.name() != null) {
+            inner.add(dataAttribute("name", data.name()));
         }
-
-        final List<OutputNode> openTag = new ArrayList<>();
-        emitDataTag(dataReference(data, indent, true), openTag);
-
-        final String childVar = "__data_children_" + variableCounter++ + "__";
-        final List<OutputNode> childBody = new ArrayList<>();
-        children(data.children(), captures, childBody, false, dataDepth + 1, path);
-
-        body.add(new OutputNode.Variable(childVar, childBody));
-
-        final List<OutputNode> withChildren = new ArrayList<>(openTag);
-        withChildren.add(new OutputNode.ValueOf(currentMatchOf(childVar)));
-        withChildren.add(new OutputNode.Text("\n" + indent + "</data>"));
-        body.add(new OutputNode.If(new Condition.Exists(currentMatchOf(childVar)), withChildren));
-
-        final List<OutputNode> withoutChildren = new ArrayList<>();
-        emitDataTag(dataReference(data, indent, false), withoutChildren);
-        body.add(new OutputNode.If(
-                new Condition.Not(new Condition.Exists(currentMatchOf(childVar))), withoutChildren));
+        if (data.value() != null) {
+            inner.add(dataAttribute("value", data.value()));
+        }
+        children(data.children(), captures, inner, false, path);
+        body.add(new OutputNode.Element("data", null, false, inner));
     }
 
-    /** Write a data tag, escaping any captured value on the way into the attribute. */
-    private void emitDataTag(final RefExpression reference, final List<OutputNode> body) {
-        if (reference != null) {
-            body.addAll(escapeCaptures(reference));
-        }
+    /** A {@code name} or {@code value} attribute: a literal or a reference, trimmed, dropped if empty. */
+    private static OutputNode dataAttribute(final String attribute, final String text) {
+        final RefExpression value = isReference(text)
+                ? indexed(LegacyRefs.parse(text))
+                : RefExpression.text(text);
+        return new OutputNode.Attribute(attribute, true, List.of(new OutputNode.Trim(List.of(value), null)));
     }
 
-    /**
-     * Build the whole {@code <data …>} tag as one expression.
-     *
-     * <p>Fusing the markup and the values into a single expression rather than a sequence of
-     * instructions is what keeps a tag from being half-written: either the expression produces
-     * the element or it produces nothing.
-     */
-    private static RefExpression dataReference(final Ds3Config.Data data,
-                                               final String indent,
-                                               final boolean hasChildren) {
-        final String closing = hasChildren ? "\">" : "\"/>";
-        final String name = data.name();
-        final String value = data.value();
-        final List<RefPart> parts = new ArrayList<>();
-
-        if (name != null && value != null) {
-            if (isReference(name)) {
-                parts.add(new RefPart.Text("\n" + indent + "<data name=\""));
-                parts.addAll(LegacyRefs.parse(name).parts());
-                parts.add(new RefPart.Text("\" value=\""));
-            } else {
-                parts.add(new RefPart.Text(
-                        "\n" + indent + "<data name=\"" + escapeAttribute(name) + "\" value=\""));
-            }
-            if (isReference(value)) {
-                parts.addAll(LegacyRefs.parse(value).parts());
-            } else {
-                parts.add(new RefPart.Text(escapeAttribute(value)));
-            }
-            parts.add(new RefPart.Text(closing));
-        } else if (name != null) {
-            if (isReference(name)) {
-                parts.add(new RefPart.Text("\n" + indent + "<data name=\""));
-                parts.addAll(LegacyRefs.parse(name).parts());
-                parts.add(new RefPart.Text(closing));
-            } else {
-                parts.add(new RefPart.Text(
-                        "\n" + indent + "<data name=\"" + escapeAttribute(name) + closing));
-            }
-        } else if (value != null) {
-            parts.add(new RefPart.Text("\n" + indent + "<data value=\""));
-            if (isReference(value)) {
-                parts.addAll(LegacyRefs.parse(value).parts());
-            } else {
-                parts.add(new RefPart.Text(escapeAttribute(value)));
-            }
-            parts.add(new RefPart.Text(closing));
-        } else {
-            return null;
-        }
-
-        return indexed(new RefExpression(parts));
+    /** A fixed attribute of the root, written as it is. */
+    private static OutputNode literalAttribute(final String attribute, final String text) {
+        return new OutputNode.Attribute(attribute, false, List.of(new OutputNode.Text(text)));
     }
 
     /** Apply {@link #indexVarReads} across a whole expression. */
@@ -505,56 +424,13 @@ public final class Ds3Migration {
         return part;
     }
 
-    /**
-     * Route every captured value in an expression through XML escaping.
-     *
-     * <p>A captured value is data, and it is about to be written into an attribute, so it has to
-     * be escaped — but only the captured parts. The surrounding markup this conversion generated
-     * is markup and must stay as it is. So each capture becomes a {@code translate} bound to a
-     * generated variable, and the expression is rewritten to read those instead.
-     */
-    private List<OutputNode> escapeCaptures(final RefExpression expression) {
-        final boolean anyCapture = expression.parts().stream().anyMatch(RefPart.Capture.class::isInstance);
-        if (!anyCapture) {
-            return List.of(new OutputNode.ValueOf(expression));
-        }
-
-        final List<OutputNode> result = new ArrayList<>();
-        final List<RefPart> rewritten = new ArrayList<>(expression.parts().size());
-        for (final RefPart part : expression.parts()) {
-            if (part instanceof RefPart.Capture) {
-                final String escaped = "__esc_" + escapeCounter++;
-                result.add(new OutputNode.Translate(
-                        List.of(new RefExpression(List.of(part))), ESCAPE_FROM, ESCAPE_TO, escaped));
-                rewritten.add(new RefPart.Capture(escaped, 0, new MatchIndex(0, true, false, null)));
-            } else {
-                rewritten.add(part);
-            }
-        }
-        result.add(new OutputNode.ValueOf(new RefExpression(rewritten)));
-        return result;
-    }
-
     // -----------------------------------------------------------------------------------
     // Small pieces
     // -----------------------------------------------------------------------------------
 
-    /** A read of a variable at the current match, rather than whatever was stored last. */
-    private static RefExpression currentMatchOf(final String name) {
-        return new RefExpression(List.of(
-                new RefPart.Capture(name, 0, new MatchIndex(0, true, false, null))));
-    }
-
     private static boolean isReference(final String text) {
         // The same three sigils LegacyRefs.parse() recognises — anything else is a literal.
         return text.startsWith("$") || text.startsWith("'") || text.startsWith("@");
-    }
-
-    private static String escapeAttribute(final String text) {
-        return text.replace("&", "&amp;")
-                .replace("\"", "&quot;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;");
     }
 
     private String nextMode() {

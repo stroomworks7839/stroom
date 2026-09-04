@@ -2,8 +2,9 @@
 
 The layers above matching: reading a configuration, running it over an input, and writing the
 result. Stroom's own DS3 is the oracle it is measured against ([D41](../design/00-decisions.md)):
-51 of 61 in-scope fixtures pass on Stroom's goldens and 10 are `PENDING` on two named
-differences (E33, E35) that design 21 phases 2 and 3 close.
+every in-scope fixture passes on Stroom's goldens since design 21 phase 3 (2026-09-04) — the
+legacy and native families byte-identical to Stroom's DS3, the structured emitters serialising
+as Saxon does.
 
 ```java
 final Project project = ProjectReader.read(Files.readString(config));

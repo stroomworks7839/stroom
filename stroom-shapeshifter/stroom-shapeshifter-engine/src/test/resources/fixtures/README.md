@@ -14,16 +14,20 @@ so when a phase of the port makes one work the build breaks until the line is pr
   phase 0 and its audit, 2026-09-03), with their inputs, and golden output produced by
   **Java Stroom's own DS3**: since D41 (2026-09-03) every `.out.xml` here is a byte-for-byte
   copy of `stroom-pipeline/src/test/resources/TestDS3/`, and 020 to 022 were produced through
-  the same harness. The four the engine does not yet reproduce — 003, 007, 009, 019 — are
-  `PENDING` under [E33](../../../../ISSUES.md) (DS3 trims) and E35 (Saxon wraps), and are the
-  proof that the corpus is Stroom's, not the port's. One,
+  the same harness. All twenty-one pass, byte for byte, since design 21 phase 3 (2026-09-04). One,
   `008_invalid_xml_FAIL`, has no golden output because its expectation is that the config is
   *rejected*; the Rust suite skips it, ours asserts the rejection.
-- **`native/`** — 18 hand-written `project.json` configurations that reproduce the legacy
-  configs in the modern format. They reuse the legacy inputs and the same Stroom goldens, so
-  they check the new config format against the old engine's behaviour.
+- **`native/`** — 18 `project.json` configurations that reproduce the legacy configs in the
+  modern format, reusing the legacy inputs and the same Stroom goldens. Fourteen are text
+  configurations; four (003, 007, 009, 019) are structured — element, attribute, namespace —
+  because a text configuration cannot trim as DS3 does or wrap as Saxon does, and those four
+  are the migration's output, which this family's bodies always were.
 - **`projects/`** — 18 end-to-end fixtures with their own inputs and expected output. Three
   need Avro, Parquet or Protobuf and are skipped while those are deferred (D33).
+
+  Four more, `text_003…019`, are the text-output forms of the four structured natives, with
+  the text path's own serialisation as their goldens: not Stroom's bytes, and not meant to be
+  — they pin what a text configuration produces, so both output styles keep fixtures.
 
   Five more sit beside them, each written to hold a feature the rest of the corpus cannot
   reach: `win_sec_strict`, `strict_kv`, `classify_alerts` and

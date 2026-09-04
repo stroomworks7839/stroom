@@ -77,15 +77,13 @@ public final class XmlByteSink implements OutputSink {
     // -----------------------------------------------------------------------------------
 
     @Override
-    public void startElement(final String qName, final String namespace) {
+    public void startElement(final String qName, final String namespace, final boolean omitIfEmpty) {
         checkNoAttributeOpen("startElement " + qName);
         flushCarry();
         final Element parent = open.peek();
-        if (parent != null) {
-            ensureStarted(parent);
-            parent.hasElementChildren = true;
-        }
-        final Element element = new Element(qName, open.size() + 1, parent == null ? Map.of() : parent.scope);
+        // The parent is not started here: a child that turns out to be omitted must leave the
+        // parent as empty as it found it. The child's own first emission starts the parent.
+        final Element element = new Element(qName, open.size() + 1, parent, omitIfEmpty);
         open.push(element);
         if (namespace != null) {
             // Element-declared (S3): the prefix's binding in scope serves if it already says so,
@@ -113,14 +111,14 @@ public final class XmlByteSink implements OutputSink {
     }
 
     @Override
-    public void startAttribute(final String qName) {
+    public void startAttribute(final String qName, final boolean omitIfEmpty) {
         final Element element = current("attribute " + qName);
         checkNoAttributeOpen("startAttribute " + qName);
         if (element.started) {
             throw new StructureException(
                     "attribute '" + qName + "' arrived after the content of <" + element.qName + "> had begun");
         }
-        attribute = new Attribute(qName);
+        attribute = new Attribute(qName, omitIfEmpty);
     }
 
     @Override
@@ -128,7 +126,10 @@ public final class XmlByteSink implements OutputSink {
         if (attribute == null) {
             throw new StructureException("endAttribute with no attribute open");
         }
-        open.peek().attributes.add(new String[]{attribute.qName, attribute.value.toString(StandardCharsets.UTF_8)});
+        final String value = attribute.value.toString(StandardCharsets.UTF_8);
+        if (!(attribute.omitIfEmpty && value.isEmpty())) {
+            open.peek().attributes.add(new String[]{attribute.qName, value});
+        }
         attribute = null;
     }
 
@@ -138,6 +139,10 @@ public final class XmlByteSink implements OutputSink {
         checkNoAttributeOpen("endElement " + element.qName);
         flushCarry();
         if (!element.started) {
+            if (element.omitIfEmpty && element.declarations.isEmpty() && element.attributes.isEmpty()) {
+                open.pop();
+                return;
+            }
             emitStartTag(element, true);
         } else if (element.hasElementChildren && !element.hasText) {
             emit("\n" + spaces((element.level - 1) * INDENT) + "</" + element.qName + ">");
@@ -227,6 +232,10 @@ public final class XmlByteSink implements OutputSink {
     }
 
     private void emitStartTag(final Element element, final boolean selfClose) {
+        if (element.parent != null) {
+            ensureStarted(element.parent);
+            element.parent.hasElementChildren = true;
+        }
         final StringBuilder tag = new StringBuilder();
         if (element.level > 1) {
             tag.append('\n').append(spaces((element.level - 1) * INDENT));
@@ -349,6 +358,8 @@ public final class XmlByteSink implements OutputSink {
 
         private final String qName;
         private final int level;
+        private final Element parent;
+        private final boolean omitIfEmpty;
         /** Prefix bindings in scope here: the parent's, plus this element's own declarations. */
         private final Map<String, String> scope;
         private final List<String[]> declarations = new ArrayList<>();
@@ -357,20 +368,24 @@ public final class XmlByteSink implements OutputSink {
         private boolean hasElementChildren;
         private boolean hasText;
 
-        private Element(final String qName, final int level, final Map<String, String> inherited) {
+        private Element(final String qName, final int level, final Element parent, final boolean omitIfEmpty) {
             this.qName = qName;
             this.level = level;
-            this.scope = new HashMap<>(inherited);
+            this.parent = parent;
+            this.omitIfEmpty = omitIfEmpty;
+            this.scope = new HashMap<>(parent == null ? Map.of() : parent.scope);
         }
     }
 
     private static final class Attribute {
 
         private final String qName;
+        private final boolean omitIfEmpty;
         private final ByteArrayOutputStream value = new ByteArrayOutputStream();
 
-        private Attribute(final String qName) {
+        private Attribute(final String qName, final boolean omitIfEmpty) {
             this.qName = qName;
+            this.omitIfEmpty = omitIfEmpty;
         }
     }
 }

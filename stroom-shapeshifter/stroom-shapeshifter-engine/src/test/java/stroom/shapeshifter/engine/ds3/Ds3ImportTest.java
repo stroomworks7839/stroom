@@ -337,6 +337,8 @@ class Ds3ImportTest {
         switch (node) {
             case OutputNode.Variable variable -> variable.body().forEach(n -> walk(n, into));
             case OutputNode.If condition -> condition.then().forEach(n -> walk(n, into));
+            case OutputNode.Element element -> element.body().forEach(n -> walk(n, into));
+            case OutputNode.Attribute attribute -> attribute.body().forEach(n -> walk(n, into));
             default -> {
                 // The migration emits nothing else with children.
             }
@@ -358,6 +360,7 @@ class Ds3ImportTest {
                 case OutputNode.ValueOf valueOf -> parts.addAll(valueOf.select().parts());
                 case OutputNode.Translate translate ->
                         translate.select().forEach(select -> parts.addAll(select.parts()));
+                case OutputNode.Trim trim -> trim.select().forEach(select -> parts.addAll(select.parts()));
                 case OutputNode.ApplyTemplates apply ->
                         parts.addAll(apply.directive().select().parts());
                 default -> {

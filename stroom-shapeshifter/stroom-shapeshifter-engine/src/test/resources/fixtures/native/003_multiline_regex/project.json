@@ -1,859 +1,556 @@
 {
-  "name": "003_multiline_regex",
-  "version": 3,
-  "source": {
-    "buffer_size": 5000000,
-    "ignore_errors": false,
-    "encoding": "auto"
+  "name" : "003_multiline_regex",
+  "version" : 3,
+  "source" : {
+    "buffer_size" : 5000000,
+    "ignore_errors" : false,
+    "encoding" : "auto"
   },
-  "templates": [
-    {
-      "id": "00000000-0000-0000-0000-000000000001",
-      "name": "source",
-      "match": "source",
-      "body": [
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n<records xmlns=\"records:2\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"records:2 file://records-v2.0.xsd\"\n         version=\"2.0\">"
-              }
-            ]
+  "templates" : [ {
+    "id" : "a3df0c0b-0ad1-33c9-ac55-0770a7f096ac",
+    "name" : "envelope",
+    "match" : "source",
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
+    },
+    "body" : [ {
+      "text" : "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n"
+    }, {
+      "element" : {
+        "name" : "records",
+        "body" : [ {
+          "namespace" : {
+            "prefix" : "",
+            "uri" : "records:2"
           }
-        },
-        {
-          "apply-templates": {
-            "select": {
-              "parts": [
-                {
-                  "capture": {
-                    "group": 0
-                  }
+        }, {
+          "namespace" : {
+            "prefix" : "xsi",
+            "uri" : "http://www.w3.org/2001/XMLSchema-instance"
+          }
+        }, {
+          "attribute" : {
+            "name" : "xsi:schemaLocation",
+            "body" : [ {
+              "text" : "records:2 file://records-v2.0.xsd"
+            } ]
+          }
+        }, {
+          "attribute" : {
+            "name" : "version",
+            "body" : [ {
+              "text" : "2.0"
+            } ]
+          }
+        }, {
+          "apply-templates" : {
+            "select" : {
+              "parts" : [ {
+                "capture" : {
+                  "group" : 0
                 }
-              ]
+              } ]
             },
-            "mode": "root"
+            "mode" : "__root",
+            "max_depth" : 64
           }
+        } ]
+      }
+    } ]
+  }, {
+    "id" : "f517a399-0cf4-392d-a184-fc92f66a8e55",
+    "name" : "unnamed",
+    "mode" : "__auto_2",
+    "match" : {
+      "regex" : {
+        "pattern" : "^(.+):(.+)",
+        "flags" : {
+          "case_insensitive" : false,
+          "dot_all" : false
         },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n</records>\n"
-              }
-            ]
-          }
-        }
-      ]
+        "advance" : 0
+      }
     },
-    {
-      "id": "00000000-0000-0000-0000-000000000002",
-      "name": "audit_section",
-      "mode": "root",
-      "match": {
-        "delimiter": {
-          "delimiter": "\n----\n"
-        }
-      },
-      "body": [
-        {
-          "variable": {
-            "name": "__record_body__",
-            "body": [
-              {
-                "apply-templates": {
-                  "select": {
-                    "parts": [
-                      {
-                        "capture": {
-                          "group": 1
-                        }
-                      }
-                    ]
-                  },
-                  "mode": "section_lines"
-                }
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
+    },
+    "body" : [ {
+      "element" : {
+        "name" : "data",
+        "body" : [ {
+          "attribute" : {
+            "name" : "name",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "text" : "eventTime"
+                  } ]
+                } ]
               }
-            ]
+            } ]
           }
-        },
-        {
-          "if": {
-            "test": {
-              "exists": {
-                "select": {
-                  "parts": [
-                    {
-                      "capture": {
-                        "var_id": "__record_body__",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
-                      }
+        }, {
+          "attribute" : {
+            "name" : "value",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "capture" : {
+                      "group" : 1
                     }
-                  ]
-                }
+                  } ]
+                } ]
               }
+            } ]
+          }
+        } ]
+      }
+    }, {
+      "element" : {
+        "name" : "data",
+        "body" : [ {
+          "attribute" : {
+            "name" : "name",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "text" : "eventId"
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "attribute" : {
+            "name" : "value",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "capture" : {
+                      "group" : 2
+                    }
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        } ]
+      }
+    } ]
+  }, {
+    "id" : "6673c57d-c39f-39bd-81b8-bb9f08ee2888",
+    "name" : "unnamed",
+    "mode" : "__auto_3",
+    "match" : {
+      "regex" : {
+        "pattern" : "argc=(.+) a0=([^\\s]+) (.+)",
+        "flags" : {
+          "case_insensitive" : false,
+          "dot_all" : false
+        },
+        "advance" : 0
+      }
+    },
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
+    },
+    "body" : [ {
+      "element" : {
+        "name" : "data",
+        "body" : [ {
+          "attribute" : {
+            "name" : "name",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "text" : "argc"
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "attribute" : {
+            "name" : "value",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "capture" : {
+                      "group" : 1
+                    }
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        } ]
+      }
+    }, {
+      "element" : {
+        "name" : "data",
+        "body" : [ {
+          "attribute" : {
+            "name" : "name",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "text" : "a0"
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "attribute" : {
+            "name" : "value",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "capture" : {
+                      "group" : 2
+                    }
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        } ]
+      }
+    }, {
+      "element" : {
+        "name" : "data",
+        "body" : [ {
+          "attribute" : {
+            "name" : "name",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "text" : "a1"
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "attribute" : {
+            "name" : "value",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "capture" : {
+                      "group" : 3
+                    }
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        } ]
+      }
+    } ]
+  }, {
+    "id" : "e23d0cbe-aa01-3491-a6c1-92eb47b2c31c",
+    "name" : "unnamed",
+    "mode" : "__auto_3",
+    "match" : {
+      "regex" : {
+        "pattern" : "\\(?([^= ]+)=([^ \\(]+(\\([^\\)]+\\))?|\\([^\\)]+\\))",
+        "flags" : {
+          "case_insensitive" : false,
+          "dot_all" : false
+        },
+        "advance" : 0
+      }
+    },
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
+    },
+    "body" : [ {
+      "element" : {
+        "name" : "data",
+        "body" : [ {
+          "attribute" : {
+            "name" : "name",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "capture" : {
+                      "group" : 1
+                    }
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "attribute" : {
+            "name" : "value",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "capture" : {
+                      "group" : 2
+                    }
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        } ]
+      }
+    } ]
+  }, {
+    "id" : "35767ad9-493f-3ac2-923e-7706524c0da0",
+    "name" : "unnamed",
+    "mode" : "__auto_1",
+    "match" : {
+      "regex" : {
+        "pattern" : "^(\\s*node=)?([^ ]+) type=([^ ]+) msg=audit\\(([^\\)]+)(\\) :)?(.+)",
+        "flags" : {
+          "case_insensitive" : false,
+          "dot_all" : false
+        },
+        "advance" : 0
+      }
+    },
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
+    },
+    "body" : [ {
+      "element" : {
+        "name" : "data",
+        "body" : [ {
+          "attribute" : {
+            "name" : "name",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "text" : "type"
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "attribute" : {
+            "name" : "value",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "capture" : {
+                      "group" : 3
+                    }
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "element" : {
+            "name" : "data",
+            "body" : [ {
+              "attribute" : {
+                "name" : "name",
+                "omit-if-empty" : true,
+                "body" : [ {
+                  "trim" : {
+                    "select" : [ {
+                      "parts" : [ {
+                        "text" : "type"
+                      } ]
+                    } ]
+                  }
+                } ]
+              }
+            }, {
+              "attribute" : {
+                "name" : "value",
+                "omit-if-empty" : true,
+                "body" : [ {
+                  "trim" : {
+                    "select" : [ {
+                      "parts" : [ {
+                        "capture" : {
+                          "group" : 3
+                        }
+                      } ]
+                    } ]
+                  }
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "element" : {
+            "name" : "data",
+            "body" : [ {
+              "attribute" : {
+                "name" : "name",
+                "omit-if-empty" : true,
+                "body" : [ {
+                  "trim" : {
+                    "select" : [ {
+                      "parts" : [ {
+                        "text" : "node"
+                      } ]
+                    } ]
+                  }
+                } ]
+              }
+            }, {
+              "attribute" : {
+                "name" : "value",
+                "omit-if-empty" : true,
+                "body" : [ {
+                  "trim" : {
+                    "select" : [ {
+                      "parts" : [ {
+                        "capture" : {
+                          "group" : 2
+                        }
+                      } ]
+                    } ]
+                  }
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "apply-templates" : {
+            "select" : {
+              "parts" : [ {
+                "capture" : {
+                  "group" : 4
+                }
+              } ]
             },
-            "then": [
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n   <record>"
-                    }
-                  ]
-                }
-              },
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "capture": {
-                        "var_id": "__record_body__",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
-                      }
-                    }
-                  ]
-                }
-              },
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n   </record>"
-                    }
-                  ]
-                }
-              }
-            ]
+            "mode" : "__auto_2",
+            "max_depth" : 64
           }
-        }
-      ]
-    },
-    {
-      "id": "00000000-0000-0000-0000-000000000003",
-      "name": "audit_line",
-      "mode": "section_lines",
-      "match": {
-        "delimiter": {
-          "delimiter": "\n"
-        }
-      },
-      "body": [
-        {
-          "apply-templates": {
-            "select": {
-              "parts": [
-                {
-                  "capture": {
-                    "group": 0
-                  }
+        }, {
+          "apply-templates" : {
+            "select" : {
+              "parts" : [ {
+                "capture" : {
+                  "group" : 6
                 }
-              ]
+              } ]
             },
-            "mode": "line_parsers"
+            "mode" : "__auto_3",
+            "max_depth" : 64,
+            "ignore_errors" : true
           }
-        }
-      ]
+        } ]
+      }
+    } ]
+  }, {
+    "id" : "60dbf29f-f679-3a51-9910-dad28b431030",
+    "name" : "unnamed",
+    "mode" : "__auto_1",
+    "match" : {
+      "regex" : {
+        "pattern" : "^----\\n",
+        "flags" : {
+          "case_insensitive" : false,
+          "dot_all" : false
+        },
+        "advance" : 0
+      }
     },
-    {
-      "id": "00000000-0000-0000-0000-000000000004",
-      "name": "audit_event",
-      "mode": "line_parsers",
-      "match": {
-        "regex": {
-          "pattern": "^(\\s*node=)?([^ ]+) type=([^ ]+) msg=audit\\(([^\\)]+)(\\) :)?(.+)"
-        }
-      },
-      "body": [
-        {
-          "translate": {
-            "select": [
-              {
-                "parts": [
-                  {
-                    "capture": {
-                      "group": 3
-                    }
-                  }
-                ]
-              }
-            ],
-            "from": [
-              "&",
-              "\"",
-              "<",
-              ">",
-              "\n",
-              "\r"
-            ],
-            "to": [
-              "&amp;",
-              "&#34;",
-              "&lt;",
-              "&gt;",
-              "&#xA;",
-              "&#xD;"
-            ],
-            "name": "__esc_type"
-          }
-        },
-        {
-          "translate": {
-            "select": [
-              {
-                "parts": [
-                  {
-                    "capture": {
-                      "group": 2
-                    }
-                  }
-                ]
-              }
-            ],
-            "from": [
-              "&",
-              "\"",
-              "<",
-              ">",
-              "\n",
-              "\r"
-            ],
-            "to": [
-              "&amp;",
-              "&#34;",
-              "&lt;",
-              "&gt;",
-              "&#xA;",
-              "&#xD;"
-            ],
-            "name": "__esc_node"
-          }
-        },
-        {
-          "variable": {
-            "name": "__data_type_body__",
-            "body": [
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n         <data name=\"type\" value=\""
-                    },
-                    {
-                      "capture": {
-                        "var_id": "__esc_type",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
-                      }
-                    },
-                    {
-                      "text": "\"/>"
-                    }
-                  ]
-                }
-              },
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n         <data name=\"node\" value=\""
-                    },
-                    {
-                      "capture": {
-                        "var_id": "__esc_node",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
-                      }
-                    },
-                    {
-                      "text": "\"/>"
-                    }
-                  ]
-                }
-              },
-              {
-                "apply-templates": {
-                  "select": {
-                    "parts": [
-                      {
-                        "capture": {
-                          "group": 4
-                        }
-                      }
-                    ]
-                  },
-                  "mode": "event_fields"
-                }
-              },
-              {
-                "apply-templates": {
-                  "select": {
-                    "parts": [
-                      {
-                        "capture": {
-                          "group": 6
-                        }
-                      }
-                    ]
-                  },
-                  "mode": "tail_fields"
-                }
-              }
-            ]
-          }
-        },
-        {
-          "if": {
-            "test": {
-              "exists": {
-                "select": {
-                  "parts": [
-                    {
-                      "capture": {
-                        "var_id": "__data_type_body__",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            "then": [
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n      <data name=\"type\" value=\""
-                    },
-                    {
-                      "capture": {
-                        "var_id": "__esc_type",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
-                      }
-                    },
-                    {
-                      "text": "\">"
-                    }
-                  ]
-                }
-              },
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "capture": {
-                        "var_id": "__data_type_body__",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
-                      }
-                    }
-                  ]
-                }
-              },
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n      </data>"
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        },
-        {
-          "if": {
-            "test": {
-              "not": {
-                "exists": {
-                  "select": {
-                    "parts": [
-                      {
-                        "capture": {
-                          "var_id": "__data_type_body__",
-                          "group": 0,
-                          "match_index": {
-                            "index": 0,
-                            "is_offset": true
-                          }
-                        }
-                      }
-                    ]
-                  }
-                }
-              }
-            },
-            "then": [
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n      <data name=\"type\" value=\""
-                    },
-                    {
-                      "capture": {
-                        "var_id": "__esc_type",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
-                      }
-                    },
-                    {
-                      "text": "\"/>"
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "00000000-0000-0000-0000-000000000005",
-      "name": "delimiter_line",
-      "mode": "line_parsers",
-      "match": {
-        "regex": {
-          "pattern": "^----\\n"
-        }
-      },
-      "body": []
-    },
-    {
-      "id": "00000000-0000-0000-0000-000000000006",
-      "name": "event_timestamp",
-      "mode": "event_fields",
-      "match": {
-        "regex": {
-          "pattern": "^(.+):(.+)"
-        }
-      },
-      "body": [
-        {
-          "translate": {
-            "select": [
-              {
-                "parts": [
-                  {
-                    "capture": {
-                      "group": 1
-                    }
-                  }
-                ]
-              }
-            ],
-            "from": [
-              "&",
-              "\"",
-              "<",
-              ">",
-              "\n",
-              "\r"
-            ],
-            "to": [
-              "&amp;",
-              "&#34;",
-              "&lt;",
-              "&gt;",
-              "&#xA;",
-              "&#xD;"
-            ],
-            "name": "__esc_etime"
-          }
-        },
-        {
-          "translate": {
-            "select": [
-              {
-                "parts": [
-                  {
-                    "capture": {
-                      "group": 2
-                    }
-                  }
-                ]
-              }
-            ],
-            "from": [
-              "&",
-              "\"",
-              "<",
-              ">",
-              "\n",
-              "\r"
-            ],
-            "to": [
-              "&amp;",
-              "&#34;",
-              "&lt;",
-              "&gt;",
-              "&#xA;",
-              "&#xD;"
-            ],
-            "name": "__esc_eid"
-          }
-        },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n         <data name=\"eventTime\" value=\""
-              },
-              {
-                "capture": {
-                  "var_id": "__esc_etime",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
-                }
-              },
-              {
-                "text": "\"/>"
-              }
-            ]
-          }
-        },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n         <data name=\"eventId\" value=\""
-              },
-              {
-                "capture": {
-                  "var_id": "__esc_eid",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
-                }
-              },
-              {
-                "text": "\"/>"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "00000000-0000-0000-0000-000000000007",
-      "name": "argc_fields",
-      "mode": "tail_fields",
-      "ignore_errors": true,
-      "match": {
-        "regex": {
-          "pattern": "argc=(.+) a0=([^\\s]+) (.+)"
-        }
-      },
-      "body": [
-        {
-          "translate": {
-            "select": [
-              {
-                "parts": [
-                  {
-                    "capture": {
-                      "group": 1
-                    }
-                  }
-                ]
-              }
-            ],
-            "from": [
-              "&",
-              "\"",
-              "<",
-              ">",
-              "\n",
-              "\r"
-            ],
-            "to": [
-              "&amp;",
-              "&#34;",
-              "&lt;",
-              "&gt;",
-              "&#xA;",
-              "&#xD;"
-            ],
-            "name": "__esc_argc"
-          }
-        },
-        {
-          "translate": {
-            "select": [
-              {
-                "parts": [
-                  {
-                    "capture": {
-                      "group": 2
-                    }
-                  }
-                ]
-              }
-            ],
-            "from": [
-              "&",
-              "\"",
-              "<",
-              ">",
-              "\n",
-              "\r"
-            ],
-            "to": [
-              "&amp;",
-              "&#34;",
-              "&lt;",
-              "&gt;",
-              "&#xA;",
-              "&#xD;"
-            ],
-            "name": "__esc_a0"
-          }
-        },
-        {
-          "translate": {
-            "select": [
-              {
-                "parts": [
-                  {
-                    "capture": {
-                      "group": 3
-                    }
-                  }
-                ]
-              }
-            ],
-            "from": [
-              "&",
-              "\"",
-              "<",
-              ">",
-              "\n",
-              "\r"
-            ],
-            "to": [
-              "&amp;",
-              "&#34;",
-              "&lt;",
-              "&gt;",
-              "&#xA;",
-              "&#xD;"
-            ],
-            "name": "__esc_a1"
-          }
-        },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n         <data name=\"argc\" value=\""
-              },
-              {
-                "capture": {
-                  "var_id": "__esc_argc",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
-                }
-              },
-              {
-                "text": "\"/>"
-              }
-            ]
-          }
-        },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n         <data name=\"a0\" value=\""
-              },
-              {
-                "capture": {
-                  "var_id": "__esc_a0",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
-                }
-              },
-              {
-                "text": "\"/>"
-              }
-            ]
-          }
-        },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n         <data name=\"a1\" value=\""
-              },
-              {
-                "capture": {
-                  "var_id": "__esc_a1",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
-                }
-              },
-              {
-                "text": "\"/>"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "00000000-0000-0000-0000-000000000008",
-      "name": "kv_pair",
-      "mode": "tail_fields",
-      "ignore_errors": true,
-      "match": {
-        "regex": {
-          "pattern": "\\(?([^= ]+)=([^ \\(]+(\\([^\\)]+\\))?|\\([^\\)]+\\))"
-        }
-      },
-      "body": [
-        {
-          "translate": {
-            "select": [
-              {
-                "parts": [
-                  {
-                    "capture": {
-                      "group": 1
-                    }
-                  }
-                ]
-              }
-            ],
-            "from": [
-              "&",
-              "\"",
-              "<",
-              ">",
-              "\n",
-              "\r"
-            ],
-            "to": [
-              "&amp;",
-              "&#34;",
-              "&lt;",
-              "&gt;",
-              "&#xA;",
-              "&#xD;"
-            ],
-            "name": "__esc_kv_name"
-          }
-        },
-        {
-          "translate": {
-            "select": [
-              {
-                "parts": [
-                  {
-                    "capture": {
-                      "group": 2
-                    }
-                  }
-                ]
-              }
-            ],
-            "from": [
-              "&",
-              "\"",
-              "<",
-              ">",
-              "\n",
-              "\r"
-            ],
-            "to": [
-              "&amp;",
-              "&#34;",
-              "&lt;",
-              "&gt;",
-              "&#xA;",
-              "&#xD;"
-            ],
-            "name": "__esc_kv_val"
-          }
-        },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n         <data name=\""
-              },
-              {
-                "capture": {
-                  "var_id": "__esc_kv_name",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
-                }
-              },
-              {
-                "text": "\" value=\""
-              },
-              {
-                "capture": {
-                  "var_id": "__esc_kv_val",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
-                }
-              },
-              {
-                "text": "\"/>"
-              }
-            ]
-          }
-        }
-      ]
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
     }
-  ]
+  }, {
+    "id" : "692d518c-364e-3cc0-85c2-309df379ef1e",
+    "name" : "unnamed",
+    "mode" : "__auto_0",
+    "match" : {
+      "delimiter" : {
+        "delimiter" : "\n"
+      }
+    },
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
+    },
+    "body" : [ {
+      "apply-templates" : {
+        "select" : {
+          "parts" : [ {
+            "capture" : {
+              "group" : 0
+            }
+          } ]
+        },
+        "mode" : "__auto_1",
+        "max_depth" : 64
+      }
+    } ]
+  }, {
+    "id" : "c54d6396-9d2d-3b19-9363-0e2d3423f26b",
+    "name" : "unnamed",
+    "mode" : "__root",
+    "match" : {
+      "delimiter" : {
+        "delimiter" : "\n----\n"
+      }
+    },
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
+    },
+    "body" : [ {
+      "element" : {
+        "name" : "record",
+        "omit-if-empty" : true,
+        "body" : [ {
+          "apply-templates" : {
+            "select" : {
+              "parts" : [ {
+                "capture" : {
+                  "group" : 1
+                }
+              } ]
+            },
+            "mode" : "__auto_0",
+            "max_depth" : 64
+          }
+        } ]
+      }
+    } ]
+  } ]
 }

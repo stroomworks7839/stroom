@@ -1,234 +1,207 @@
 {
-  "name": "019_single_line_split",
-  "version": 3,
-  "source": {
-    "buffer_size": 20000,
-    "ignore_errors": false,
-    "encoding": "auto"
+  "name" : "019_single_line_split",
+  "version" : 3,
+  "source" : {
+    "buffer_size" : 20000,
+    "ignore_errors" : false,
+    "encoding" : "auto"
   },
-  "templates": [
-    {
-      "id": "00000000-0000-0000-0000-000000000001",
-      "name": "source",
-      "match": "source",
-      "body": [
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n<records xmlns=\"records:2\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"records:2 file://records-v2.0.xsd\"\n         version=\"2.0\">"
-              }
-            ]
-          }
-        },
-        {
-          "apply-templates": {
-            "select": {
-              "parts": [
-                {
-                  "capture": {
-                    "group": 0
-                  }
-                }
-              ]
-            },
-            "mode": "root"
-          }
-        },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n</records>\n"
-              }
-            ]
-          }
-        }
-      ]
+  "templates" : [ {
+    "id" : "a3df0c0b-0ad1-33c9-ac55-0770a7f096ac",
+    "name" : "envelope",
+    "match" : "source",
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
     },
-    {
-      "id": "00000000-0000-0000-0000-000000000002",
-      "name": "header_record",
-      "mode": "root",
-      "match": {
-        "delimiter": {
-          "delimiter": "|"
-        }
-      },
-      "match_limits": {
-        "max_match": 1
-      },
-      "body": [
-        {
-          "apply-templates": {
-            "select": {
-              "parts": [
-                {
-                  "capture": {
-                    "group": 1
-                  }
+    "body" : [ {
+      "text" : "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n"
+    }, {
+      "element" : {
+        "name" : "records",
+        "body" : [ {
+          "namespace" : {
+            "prefix" : "",
+            "uri" : "records:2"
+          }
+        }, {
+          "namespace" : {
+            "prefix" : "xsi",
+            "uri" : "http://www.w3.org/2001/XMLSchema-instance"
+          }
+        }, {
+          "attribute" : {
+            "name" : "xsi:schemaLocation",
+            "body" : [ {
+              "text" : "records:2 file://records-v2.0.xsd"
+            } ]
+          }
+        }, {
+          "attribute" : {
+            "name" : "version",
+            "body" : [ {
+              "text" : "2.0"
+            } ]
+          }
+        }, {
+          "apply-templates" : {
+            "select" : {
+              "parts" : [ {
+                "capture" : {
+                  "group" : 0
                 }
-              ]
+              } ]
             },
-            "mode": "header_columns"
+            "mode" : "__root",
+            "max_depth" : 64
           }
-        }
-      ]
+        } ]
+      }
+    } ]
+  }, {
+    "id" : "692d518c-364e-3cc0-85c2-309df379ef1e",
+    "name" : "unnamed",
+    "mode" : "__auto_0",
+    "match" : {
+      "delimiter" : {
+        "delimiter" : ",",
+        "container_start" : "\"",
+        "container_end" : "\""
+      }
     },
-    {
-      "id": "00000000-0000-0000-0000-000000000003",
-      "name": "header_column",
-      "mode": "header_columns",
-      "match": {
-        "delimiter": {
-          "delimiter": ",",
-          "container_start": "\"",
-          "container_end": "\""
-        }
-      },
-      "captures": [
-        {
-          "name": "heading",
-          "select": {
-            "group": 1
-          }
-        }
-      ],
-      "body": []
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
     },
-    {
-      "id": "00000000-0000-0000-0000-000000000004",
-      "name": "data_record",
-      "mode": "root",
-      "match": {
-        "delimiter": {
-          "delimiter": "|"
-        }
-      },
-      "body": [
-        {
-          "variable": {
-            "name": "__record_body__",
-            "body": [
-              {
-                "apply-templates": {
-                  "select": {
-                    "parts": [
-                      {
-                        "capture": {
-                          "group": 1
-                        }
-                      }
-                    ]
-                  },
-                  "mode": "data_columns"
+    "captures" : [ {
+      "name" : "heading",
+      "select" : {
+        "group" : 1
+      }
+    } ]
+  }, {
+    "id" : "c54d6396-9d2d-3b19-9363-0e2d3423f26b",
+    "name" : "unnamed",
+    "mode" : "__root",
+    "match" : {
+      "delimiter" : {
+        "delimiter" : "|"
+      }
+    },
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : 1
+    },
+    "body" : [ {
+      "element" : {
+        "name" : "record",
+        "omit-if-empty" : true,
+        "body" : [ {
+          "apply-templates" : {
+            "select" : {
+              "parts" : [ {
+                "capture" : {
+                  "group" : 1
                 }
-              }
-            ]
-          }
-        },
-        {
-          "if": {
-            "test": {
-              "exists": {
-                "select": {
-                  "parts": [
-                    {
-                      "capture": {
-                        "var_id": "__record_body__",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
+              } ]
             },
-            "then": [
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n   <record>"
-                    }
-                  ]
-                }
-              },
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "capture": {
-                        "var_id": "__record_body__",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+            "mode" : "__auto_0",
+            "max_depth" : 64
+          }
+        } ]
+      }
+    } ]
+  }, {
+    "id" : "732d85ac-6f5c-3168-a336-8347ea8f7e3a",
+    "name" : "unnamed",
+    "mode" : "__auto_1",
+    "match" : {
+      "delimiter" : {
+        "delimiter" : ",",
+        "container_start" : "\"",
+        "container_end" : "\""
+      }
+    },
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
+    },
+    "body" : [ {
+      "element" : {
+        "name" : "data",
+        "body" : [ {
+          "attribute" : {
+            "name" : "name",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "capture" : {
+                      "var_id" : "heading",
+                      "group" : 0,
+                      "match_index" : {
+                        "index" : 0,
+                        "is_offset" : false,
+                        "is_last" : false,
+                        "var_ref" : "__match_count"
                       }
                     }
-                  ]
-                }
-              },
-              {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n   </record>"
+                  } ]
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "attribute" : {
+            "name" : "value",
+            "omit-if-empty" : true,
+            "body" : [ {
+              "trim" : {
+                "select" : [ {
+                  "parts" : [ {
+                    "capture" : {
+                      "group" : 1
                     }
-                  ]
-                }
+                  } ]
+                } ]
               }
-            ]
+            } ]
           }
-        }
-      ]
+        } ]
+      }
+    } ]
+  }, {
+    "id" : "1ed68926-e504-37f2-9d34-3b520e5319fc",
+    "name" : "unnamed",
+    "mode" : "__root",
+    "match" : {
+      "delimiter" : {
+        "delimiter" : "|"
+      }
     },
-    {
-      "id": "00000000-0000-0000-0000-000000000005",
-      "name": "data_column",
-      "mode": "data_columns",
-      "match": {
-        "delimiter": {
-          "delimiter": ",",
-          "container_start": "\"",
-          "container_end": "\""
-        }
-      },
-      "body": [
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n      <data name=\""
-              },
-              {
-                "capture": {
-                  "var_id": "heading",
-                  "group": 0,
-                  "match_index": {
-                    "var_ref": "__match_count"
-                  }
+    "match_limits" : {
+      "min_match" : 0,
+      "max_match" : -1
+    },
+    "body" : [ {
+      "element" : {
+        "name" : "record",
+        "omit-if-empty" : true,
+        "body" : [ {
+          "apply-templates" : {
+            "select" : {
+              "parts" : [ {
+                "capture" : {
+                  "group" : 1
                 }
-              },
-              {
-                "text": "\" value=\""
-              },
-              {
-                "capture": {
-                  "group": 1
-                }
-              },
-              {
-                "text": "\"/>"
-              }
-            ]
+              } ]
+            },
+            "mode" : "__auto_1",
+            "max_depth" : 64
           }
-        }
-      ]
-    }
-  ]
+        } ]
+      }
+    } ]
+  } ]
 }

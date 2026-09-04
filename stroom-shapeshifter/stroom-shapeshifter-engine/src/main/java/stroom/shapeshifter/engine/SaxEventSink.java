@@ -66,22 +66,16 @@ public final class SaxEventSink implements OutputSink {
     // -----------------------------------------------------------------------------------
 
     @Override
-    public void startElement(final String qName, final String namespace) {
+    public void startElement(final String qName, final String namespace, final boolean omitIfEmpty) {
         checkNoAttributeOpen("startElement " + qName);
         flushCarry();
         final Element parent = open.peek();
-        if (parent == null) {
-            if (documentEnded) {
-                throw new StructureException("element " + qName + " after the document element has closed");
-            }
-            if (!documentStarted) {
-                sax(handler::startDocument);
-                documentStarted = true;
-            }
-        } else {
-            ensureStarted(parent);
+        if (parent == null && documentEnded) {
+            throw new StructureException("element " + qName + " after the document element has closed");
         }
-        final Element element = new Element(qName, parent == null ? rootScope() : parent.scope);
+        // As in the byte sink: the parent starts when this child first emits, not now, so an
+        // omitted child leaves it untouched — and the document starts with its root's first event.
+        final Element element = new Element(qName, parent, omitIfEmpty);
         open.push(element);
         if (namespace != null) {
             final String prefix = XmlByteSink.prefixOf(qName);
@@ -107,14 +101,14 @@ public final class SaxEventSink implements OutputSink {
     }
 
     @Override
-    public void startAttribute(final String qName) {
+    public void startAttribute(final String qName, final boolean omitIfEmpty) {
         final Element element = current("attribute " + qName);
         checkNoAttributeOpen("startAttribute " + qName);
         if (element.started) {
             throw new StructureException(
                     "attribute '" + qName + "' arrived after the content of <" + element.qName + "> had begun");
         }
-        attribute = new Attribute(qName);
+        attribute = new Attribute(qName, omitIfEmpty);
     }
 
     @Override
@@ -122,7 +116,10 @@ public final class SaxEventSink implements OutputSink {
         if (attribute == null) {
             throw new StructureException("endAttribute with no attribute open");
         }
-        open.peek().attributes.add(new String[]{attribute.qName, attribute.value.toString(StandardCharsets.UTF_8)});
+        final String value = attribute.value.toString(StandardCharsets.UTF_8);
+        if (!(attribute.omitIfEmpty && value.isEmpty())) {
+            open.peek().attributes.add(new String[]{attribute.qName, value});
+        }
         attribute = null;
     }
 
@@ -131,6 +128,11 @@ public final class SaxEventSink implements OutputSink {
         final Element element = current("endElement");
         checkNoAttributeOpen("endElement " + element.qName);
         flushCarry();
+        if (!element.started && element.omitIfEmpty
+            && element.declarations.isEmpty() && element.attributes.isEmpty()) {
+            open.pop();
+            return;
+        }
         ensureStarted(element);
         sax(() -> handler.endElement(element.uri, element.localName, element.qName));
         for (int i = element.declarations.size() - 1; i >= 0; i--) {
@@ -205,6 +207,12 @@ public final class SaxEventSink implements OutputSink {
             return;
         }
         element.started = true;
+        if (element.parent != null) {
+            ensureStarted(element.parent);
+        } else if (!documentStarted) {
+            sax(handler::startDocument);
+            documentStarted = true;
+        }
         for (final String[] declaration : element.declarations) {
             sax(() -> handler.startPrefixMapping(declaration[0], declaration[1]));
         }
@@ -292,6 +300,8 @@ public final class SaxEventSink implements OutputSink {
     private static final class Element {
 
         private final String qName;
+        private final Element parent;
+        private final boolean omitIfEmpty;
         private final Map<String, String> scope;
         private final List<String[]> declarations = new ArrayList<>();
         private final List<String[]> attributes = new ArrayList<>();
@@ -299,19 +309,23 @@ public final class SaxEventSink implements OutputSink {
         private String uri;
         private String localName;
 
-        private Element(final String qName, final Map<String, String> inherited) {
+        private Element(final String qName, final Element parent, final boolean omitIfEmpty) {
             this.qName = qName;
-            this.scope = new HashMap<>(inherited);
+            this.parent = parent;
+            this.omitIfEmpty = omitIfEmpty;
+            this.scope = new HashMap<>(parent == null ? rootScope() : parent.scope);
         }
     }
 
     private static final class Attribute {
 
         private final String qName;
+        private final boolean omitIfEmpty;
         private final ByteArrayOutputStream value = new ByteArrayOutputStream();
 
-        private Attribute(final String qName) {
+        private Attribute(final String qName, final boolean omitIfEmpty) {
             this.qName = qName;
+            this.omitIfEmpty = omitIfEmpty;
         }
     }
 }

@@ -115,11 +115,14 @@ public sealed interface OutputNode {
      * namespaces must come before any content — the compiler checks the body as written, the
      * sink checks what arrives.
      *
-     * @param name      the qualified name, prefix included if it has one
-     * @param namespace the namespace URI, or null to use whatever the prefix is bound to in scope;
-     *                  given, and not already bound to the prefix, the element declares it
+     * @param name        the qualified name, prefix included if it has one
+     * @param namespace   the namespace URI, or null to use whatever the prefix is bound to in scope;
+     *                    given, and not already bound to the prefix, the element declares it
+     * @param omitIfEmpty leave no trace if nothing arrived — no declaration, attribute or content
+     *                    (DS3's lazy {@code <record>}, P1 in design 21)
      */
-    record Element(String name, String namespace, List<OutputNode> body) implements OutputNode {
+    record Element(String name, String namespace, boolean omitIfEmpty, List<OutputNode> body)
+            implements OutputNode {
 
         public Element {
             body = body == null ? List.of() : List.copyOf(body);
@@ -129,8 +132,11 @@ public sealed interface OutputNode {
     /**
      * An attribute of the enclosing element whose value is what the body writes.
      * XSLT: {@code xsl:attribute}. The body may write text and values, not structure.
+     *
+     * @param omitIfEmpty drop the attribute if its value came out empty (DS3's normalised
+     *                    {@code <data>} attributes, P2 in design 21)
      */
-    record Attribute(String name, List<OutputNode> body) implements OutputNode {
+    record Attribute(String name, boolean omitIfEmpty, List<OutputNode> body) implements OutputNode {
 
         public Attribute {
             body = body == null ? List.of() : List.copyOf(body);
