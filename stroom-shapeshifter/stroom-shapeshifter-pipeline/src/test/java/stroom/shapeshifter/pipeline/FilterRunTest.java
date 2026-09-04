@@ -109,9 +109,9 @@ class FilterRunTest {
     void configurationGluedAfterDs3ProducesWhatItProducesFromTheFile() throws Exception {
         // Through the filter: DS3 events -> pipe -> engine -> forwarded events.
         final EventRecorder viaFilter = new EventRecorder();
-        final FilterRun run = new FilterRun(reader(USERS), ShapeshifterFilter.PIPE_CAPACITY);
+        final FilterRun run = new FilterRun(reader(USERS), ShapeshifterFilter.PIPE_CAPACITY, viaFilter, errors());
         ds3("001_csv_with_header", run.input());
-        run.finish(viaFilter, errors());
+        run.finish();
 
         // From the file the DS3 element would have written: the parser element's path.
         final EventRecorder viaFile = new EventRecorder();
@@ -138,9 +138,7 @@ class FilterRunTest {
         }
 
         final List<Integer> reported = new ArrayList<>();
-        final FilterRun run = new FilterRun(reader(USERS), ShapeshifterFilter.PIPE_CAPACITY);
-        ds3("001_csv_with_header", run.input());
-        run.finish(new DefaultHandler() {
+        final FilterRun run = new FilterRun(reader(USERS), ShapeshifterFilter.PIPE_CAPACITY, new DefaultHandler() {
             private Locator locator;
 
             @Override
@@ -155,6 +153,8 @@ class FilterRunTest {
                 }
             }
         }, errors());
+        ds3("001_csv_with_header", run.input());
+        run.finish();
 
         // <user>'s start tag is deferred until its first child emits, so it belongs to the
         // who-field's span (design 21 phase 4's rule), and that match's leading \\s* begins on the
@@ -172,16 +172,46 @@ class FilterRunTest {
         final String config = Files.readString(LEGACY.resolve("001_csv_with_header.ds3.xml"));
         final XMLReader ds3 = Ds3Oracle.parser(config);
         final EventRecorder downstream = new EventRecorder();
-        final FilterRun run = new FilterRun(reader(USERS), 4096);
+        final FilterRun run = new FilterRun(reader(USERS), 4096, downstream, errors());
         ds3.setContentHandler(run.input());
         ds3.setErrorHandler(Ds3Oracle.errorHandler("DS3Parser", new LoggingErrorReceiver()));
         ds3.parse(new InputSource(new InputStreamReader(
                 new ByteArrayInputStream(csv.toString().getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8)));
-        run.finish(downstream, errors());
+        // Both ends stream: a structured configuration's events were delivered while the input
+        // was still arriving, not held until endDocument (phase 2).
+        final int deliveredBeforeTheEnd = run.delivered();
+        run.finish();
 
+        assertThat(deliveredBeforeTheEnd).isGreaterThan(1000);
         assertThat(downstream.events().stream().filter(e -> e.startsWith("startElement {}user ")).count())
                 .isEqualTo(5000);
         assertThat(downstream.events()).contains("characters \"user4999\"");
+    }
+
+    /** The same transformation as text: the byte path, forwarded whole at the end. */
+    private static final String USERS_AS_TEXT = USERS
+            .replace("{\"element\": {\"name\": \"users\", \"body\": [", "{\"text\": \"<users>\"}, ")
+            .replace("\"mode\": \"records\"}}]}}]},", "\"mode\": \"records\"}}, {\"text\": \"</users>\"}]},")
+            .replace("{\"element\": {\"name\": \"user\", \"body\": [", "{\"text\": \"<user>\"}, ")
+            .replace("\"mode\": \"fields\"}}]}}]},", "\"mode\": \"fields\"}}, {\"text\": \"</user>\"}]},");
+
+    @Test
+    void textConfigurationTakesTheBytePathAndAgreesWithTheStructuredOne() throws Exception {
+        assertThat(reader(USERS).compiled().structured()).isTrue();
+        assertThat(reader(USERS_AS_TEXT).compiled().structured()).isFalse();
+
+        final EventRecorder viaText = new EventRecorder();
+        final FilterRun text = new FilterRun(reader(USERS_AS_TEXT), 4096, viaText, errors());
+        ds3("001_csv_with_header", text.input());
+        assertThat(text.delivered()).as("a text configuration cannot deliver before the end").isZero();
+        text.finish();
+
+        final EventRecorder viaStructure = new EventRecorder();
+        final FilterRun structured = new FilterRun(reader(USERS), 4096, viaStructure, errors());
+        ds3("001_csv_with_header", structured.input());
+        structured.finish();
+
+        assertThat(viaText.events()).containsExactlyElementsOf(viaStructure.events());
     }
 
     @Test
@@ -199,7 +229,7 @@ class FilterRunTest {
 
     @Test
     void anAbandonedDocumentReleasesItsWorker() throws Exception {
-        final FilterRun run = new FilterRun(reader(USERS), 64);
+        final FilterRun run = new FilterRun(reader(USERS), 64, new EventRecorder(), errors());
         run.input().startDocument();
         run.input().startElement("", "records", "records", new org.xml.sax.helpers.AttributesImpl());
         // No endDocument ever comes: the worker is waiting on the pipe for more.
@@ -210,17 +240,17 @@ class FilterRunTest {
 
     @Test
     void workerThatDiesUnblocksTheWriterAndSurfacesAtTheJoin() throws Exception {
-        final ShapeshifterReader failing = new ShapeshifterReader(reader(USERS).compiled()) {
+        final ShapeshifterReader failing = new ShapeshifterReader(reader(USERS_AS_TEXT).compiled()) {
             @Override
             Run runStreamed(final InputStream input) {
                 throw new IllegalStateException("the engine fell over");
             }
         };
-        final FilterRun run = new FilterRun(failing, 64);
+        final FilterRun run = new FilterRun(failing, 64, new EventRecorder(), errors());
         // More than the pipe holds: without the failure propagating, this write would block for ever.
         assertThatThrownBy(() -> ds3("001_csv_with_header", run.input()))
                 .hasMessageContaining("the engine fell over");
-        assertThatThrownBy(() -> run.finish(new EventRecorder(), errors()))
+        assertThatThrownBy(run::finish)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("the engine fell over");
     }

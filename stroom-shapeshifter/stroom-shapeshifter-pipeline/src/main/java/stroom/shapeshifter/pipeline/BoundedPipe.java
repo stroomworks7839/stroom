@@ -88,6 +88,35 @@ final class BoundedPipe {
         };
     }
 
+    /** Put what fits without waiting; zero means full. */
+    synchronized int tryPut(final byte[] data, final int offset, final int length) throws IOException {
+        checkFailure();
+        if (size == ring.length) {
+            return 0;
+        }
+        final int n = Math.min(length, ring.length - size);
+        final int tail = (head + size) % ring.length;
+        final int first = Math.min(n, ring.length - tail);
+        System.arraycopy(data, offset, ring, tail, first);
+        System.arraycopy(data, offset + first, ring, 0, n - first);
+        size += n;
+        notifyAll();
+        return n;
+    }
+
+    /** Wait for space, but not longer than the time given: the caller has other things to do. */
+    synchronized void awaitSpace(final long millis) throws IOException {
+        if (size == ring.length && failure == null) {
+            try {
+                wait(millis);
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while waiting on the pipe", e);
+            }
+        }
+        checkFailure();
+    }
+
     private synchronized int put(final byte[] data, final int offset, final int length) throws IOException {
         while (size == ring.length && failure == null) {
             await();

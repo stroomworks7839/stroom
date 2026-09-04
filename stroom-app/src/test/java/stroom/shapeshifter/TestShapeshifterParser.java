@@ -129,14 +129,12 @@ class TestShapeshifterParser extends AbstractProcessIntegrationTest {
             }
         });
 
-        // The XMLWriter's serialisation is not Saxon's, so the comparison is on content: every
-        // data element Stroom's DS3 wrote is in the output, and nothing else is.
+        // The XMLWriter's serialisation is not Saxon's — and since design 22 phase 2 a structured
+        // configuration reaches it as events with no whitespace between them, so the output may be
+        // one line — so the comparison is on content: every data element Stroom's DS3 wrote is in
+        // the output, in order, and nothing else is.
         final String output = Files.readString(outputFile);
-        final List<String> expectedData = golden().lines().map(String::strip)
-                .filter(line -> line.startsWith("<data ")).toList();
-        final List<String> actualData = output.lines().map(String::strip)
-                .filter(line -> line.startsWith("<data ")).toList();
-        assertThat(actualData).containsExactlyElementsOf(expectedData);
+        assertThat(dataElements(output)).containsExactlyElementsOf(dataElements(golden()));
     }
 
     @Test
@@ -174,6 +172,11 @@ class TestShapeshifterParser extends AbstractProcessIntegrationTest {
 
     private static String golden() throws IOException {
         return Files.readString(LEGACY.resolve(FIXTURE + ".out.xml"));
+    }
+
+    private static List<String> dataElements(final String xml) {
+        return java.util.regex.Pattern.compile("<data [^>]*/>").matcher(xml).results()
+                .map(java.util.regex.MatchResult::group).toList();
     }
 
     private static long recordsIn(final String golden) {

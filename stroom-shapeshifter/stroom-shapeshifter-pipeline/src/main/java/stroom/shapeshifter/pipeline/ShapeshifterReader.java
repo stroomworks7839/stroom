@@ -20,6 +20,7 @@ import stroom.pipeline.errorhandler.ErrorHandlerAdaptor;
 import stroom.pipeline.xml.converter.AbstractParser;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
+import stroom.shapeshifter.engine.SaxEventSink;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.util.shared.Severity;
@@ -91,7 +92,35 @@ public class ShapeshifterReader extends AbstractParser {
     @Override
     public void parse(final InputSource input) throws IOException, SAXException {
         final byte[] bytes = bytesOf(input);
-        forward(runWhole(bytes));
+        if (compiled.structured()) {
+            parseNative(bytes);
+        } else {
+            forward(runWhole(bytes));
+        }
+    }
+
+    /**
+     * A structured configuration runs straight into the event sink (design 22 phase 2): no
+     * serialisation, no re-parse, and each event located live from the innermost running match.
+     * The engine's messages come after the events, because the run collects them and the events
+     * cannot wait.
+     */
+    private void parseNative(final byte[] bytes) throws SAXException {
+        final ContentHandler target = getContentHandler();
+        if (target == null) {
+            throw new SAXException("No content handler set");
+        }
+        final InputLocations locations = new InputLocations();
+        final LiveLocatingHandler handler = new LiveLocatingHandler(
+                target, locations, InputLocations.Lines.of(InputLocations.lineStarts(bytes)));
+        final List<Message> messages = Shapeshifter.runWhole(compiled, bytes, new SaxEventSink(handler), locations);
+        reportAll(messages);
+    }
+
+    void reportAll(final List<Message> messages) throws SAXException {
+        for (final Message message : messages) {
+            report(message);
+        }
     }
 
     /**
@@ -168,6 +197,130 @@ public class ShapeshifterReader extends AbstractParser {
             }
             // The parser stops after a fatal error, which has already been reported in the output's
             // own terms. Like DS3, the stream carries the error rather than the parser throwing it.
+        }
+    }
+
+    /** A locator whose position is set by whoever forwards the events. */
+    static final class LiveLocator implements Locator {
+
+        private InputLocations.Position position = InputLocations.Position.NONE;
+
+        void at(final InputLocations.Position position) {
+            this.position = position;
+        }
+
+        @Override
+        public int getLineNumber() {
+            return position.line();
+        }
+
+        @Override
+        public int getColumnNumber() {
+            return position.column();
+        }
+
+        @Override
+        public String getPublicId() {
+            return null;
+        }
+
+        @Override
+        public String getSystemId() {
+            return null;
+        }
+    }
+
+    /**
+     * Forwards the event sink's events as they are emitted, each located from the innermost
+     * running match at that moment — which, under the deferred start tag, is the match whose
+     * emission forced the tag (design 21 phase 4's rule, the same in this currency).
+     */
+    static final class LiveLocatingHandler implements ContentHandler {
+
+        private final ContentHandler target;
+        private final InputLocations locations;
+        private final InputLocations.Lines lines;
+        private final LiveLocator locator = new LiveLocator();
+        private boolean located;
+
+        LiveLocatingHandler(final ContentHandler target, final InputLocations locations,
+                            final InputLocations.Lines lines) {
+            this.target = target;
+            this.locations = locations;
+            this.lines = lines;
+        }
+
+        private void locate() {
+            if (!located) {
+                target.setDocumentLocator(locator);
+                located = true;
+            }
+            locator.at(lines.locate(locations.currentInputOffset()));
+        }
+
+        @Override
+        public void setDocumentLocator(final Locator ignored) {
+        }
+
+        @Override
+        public void startDocument() throws SAXException {
+            locate();
+            target.startDocument();
+        }
+
+        @Override
+        public void endDocument() throws SAXException {
+            locate();
+            target.endDocument();
+        }
+
+        @Override
+        public void startPrefixMapping(final String prefix, final String uri) throws SAXException {
+            locate();
+            target.startPrefixMapping(prefix, uri);
+        }
+
+        @Override
+        public void endPrefixMapping(final String prefix) throws SAXException {
+            locate();
+            target.endPrefixMapping(prefix);
+        }
+
+        @Override
+        public void startElement(final String uri, final String localName, final String qName,
+                                 final org.xml.sax.Attributes atts) throws SAXException {
+            locate();
+            target.startElement(uri, localName, qName, atts);
+        }
+
+        @Override
+        public void endElement(final String uri, final String localName, final String qName) throws SAXException {
+            locate();
+            target.endElement(uri, localName, qName);
+        }
+
+        @Override
+        public void characters(final char[] ch, final int start, final int length) throws SAXException {
+            locate();
+            target.characters(ch, start, length);
+        }
+
+        @Override
+        public void ignorableWhitespace(final char[] ch, final int start, final int length) throws SAXException {
+            locate();
+            target.ignorableWhitespace(ch, start, length);
+        }
+
+        @Override
+        public void processingInstruction(final String piTarget, final String data) throws SAXException {
+            locate();
+            target.processingInstruction(piTarget, data);
+        }
+
+        @Override
+        public void skippedEntity(final String name) throws SAXException {
+            locate();
+            target.skippedEntity(name);
         }
     }
 

@@ -178,7 +178,7 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
         if (!(reader instanceof ShapeshifterReader shapeshifter)) {
             throw new SAXException("The configuration's parser is not a Shapeshifter reader");
         }
-        document = new FilterRun(shapeshifter, PIPE_CAPACITY);
+        document = new FilterRun(shapeshifter, PIPE_CAPACITY, getContentHandler(), errorHandler());
         document.input().startDocument();
     }
 
@@ -188,7 +188,7 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
             return;
         }
         try {
-            document.finish(getContentHandler(), errorHandler());
+            document.finish();
         } catch (final IOException e) {
             errorReceiverProxy.log(Severity.FATAL_ERROR, null, getElementId(), e.getMessage(), e);
         } finally {

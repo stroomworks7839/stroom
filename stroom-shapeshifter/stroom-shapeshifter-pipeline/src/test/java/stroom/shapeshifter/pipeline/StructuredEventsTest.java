@@ -71,6 +71,20 @@ class StructuredEventsTest {
         assertThat(byteMessages).hasSize(1);
         assertThat(eventMessages).isEqualTo(byteMessages);
         assertThat(viaEvents.events()).isNotEmpty().containsExactlyElementsOf(viaBytes.events());
+
+        // And the reader itself, which since design 22 phase 2 runs a structured configuration
+        // straight into the event sink, agrees with a parse of the byte sink's output.
+        final EventRecorder viaReader = new EventRecorder();
+        assertThat(compiled.structured()).isTrue();
+        final ByteArrayOutputStream parsed = new ByteArrayOutputStream();
+        Shapeshifter.runWhole(compiled, input, new XmlByteSink(parsed));
+        final EventRecorder viaParse = new EventRecorder();
+        final XMLReader plain = new ShapeshifterParserFactory(ProjectReader.read(
+                Files.readString(FIXTURE.resolve("project.json")))).getParser();
+        plain.setContentHandler(viaReader);
+        plain.setErrorHandler(Ds3Oracle.errorHandler("ShapeshifterParser", new LoggingErrorReceiver()));
+        plain.parse(new InputSource(new ByteArrayInputStream(input)));
+        assertThat(viaReader.events()).containsExactlyElementsOf(viaEvents.events());
         assertThat(bytes.toString()).startsWith("<?xml version=\"1.1\"");
     }
 }

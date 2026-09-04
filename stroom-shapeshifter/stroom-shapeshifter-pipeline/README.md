@@ -30,5 +30,8 @@ phase 4). `ShapeshifterFilter` (design 22) is the same configuration in the midd
 pipeline: the events it receives are written as the byte image an indenting `XMLWriter` would
 produce — the contract a configuration is written against — into a bounded pipe the engine
 reads on a worker thread, and the output is forwarded on the pipeline's thread at
-`endDocument`. What is not here yet: the client plugin and editor (design 18), and the native
-event path for structured configurations (design 22 phase 2).
+`endDocument` — or, for a structured configuration, delivered as the engine emits them, the
+pipeline's thread draining the worker's queue between the events it pushes, so both ends
+stream. A structured configuration takes that native path in the parser element too, with each
+event located live from the running match. What is not here yet: the client plugin and editor
+(design 18).

@@ -48,6 +48,8 @@ public final class CompiledProject {
     /** The source encoding a whole-source transcode decodes from, or null for none. */
     private final Encoding transcodeFrom;
     private final List<Message> warnings;
+    /** Whether any body carries an element, attribute or namespace instruction (design 22 phase 2). */
+    private final boolean structured;
 
     /** Templates per mode, in authored order. The no-mode templates sit under the null key. */
     private final Map<String, List<CompiledTemplate>> templatesByMode = new HashMap<>();
@@ -78,6 +80,7 @@ public final class CompiledProject {
         this.patterns = Map.copyOf(patterns);
         this.encoding = encoding;
         this.warnings = List.copyOf(warnings);
+        this.structured = project.templates().stream().anyMatch(t -> carriesStructure(t.body()));
 
         for (final CompiledTemplate template : this.templates) {
             templatesByMode
@@ -86,6 +89,40 @@ public final class CompiledProject {
             templatesByName.putIfAbsent(template.template().name(), template);
         }
         templatesByMode.replaceAll((mode, list) -> List.copyOf(list));
+    }
+
+    /**
+     * Whether the configuration writes structure. A structured configuration can be run straight
+     * into an event sink; a text one must be serialised and parsed (design 20 S7, design 22
+     * phase 2).
+     */
+    public boolean structured() {
+        return structured;
+    }
+
+    private static boolean carriesStructure(final List<stroom.shapeshifter.engine.config.OutputNode> body) {
+        for (final stroom.shapeshifter.engine.config.OutputNode node : body) {
+            final boolean found = switch (node) {
+                case stroom.shapeshifter.engine.config.OutputNode.Element ignored -> true;
+                case stroom.shapeshifter.engine.config.OutputNode.Attribute ignored -> true;
+                case stroom.shapeshifter.engine.config.OutputNode.Namespace ignored -> true;
+                case stroom.shapeshifter.engine.config.OutputNode.If value -> carriesStructure(value.then());
+                case stroom.shapeshifter.engine.config.OutputNode.Choose value ->
+                        value.when().stream().anyMatch(w -> carriesStructure(w.body()))
+                        || carriesStructure(value.otherwise());
+                case stroom.shapeshifter.engine.config.OutputNode.Switch value ->
+                        value.cases().stream().anyMatch(c -> carriesStructure(c.body()))
+                        || carriesStructure(value.defaultBody());
+                case stroom.shapeshifter.engine.config.OutputNode.ForEach value -> carriesStructure(value.body());
+                case stroom.shapeshifter.engine.config.OutputNode.ForEachGroup value -> carriesStructure(value.body());
+                case stroom.shapeshifter.engine.config.OutputNode.Variable value -> carriesStructure(value.body());
+                default -> false;
+            };
+            if (found) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The authored configuration. */

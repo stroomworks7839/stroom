@@ -105,6 +105,34 @@ final class InputLocations implements Instrument {
     // Resolving, during the parse
     // -----------------------------------------------------------------------------------
 
+    /** Where the innermost running match began in the input, or {@link #UNLOCATABLE} — live. */
+    long currentInputOffset() {
+        final Open innermost = open.peek();
+        return innermost == null ? Instrument.UNLOCATABLE : innermost.inputOffset;
+    }
+
+    /** A line and column, one-based; {@code -1} when there is none. */
+    record Position(int line, int column) {
+
+        static final Position NONE = new Position(-1, -1);
+    }
+
+    /** Lines of an input, whether held whole or being read. */
+    interface Lines {
+
+        Position locate(long offset);
+
+        static Lines of(final long[] lineStarts) {
+            return offset -> {
+                if (offset >= Instrument.UNLOCATABLE) {
+                    return Position.NONE;
+                }
+                final int at = lineIndex(lineStarts, offset);
+                return new Position(at + 1, (int) (offset - lineStarts[at]) + 1);
+            };
+        }
+    }
+
     /**
      * A locator over an input and the output the run produced from it. The input is described
      * by where its lines start, because a streamed input (design 22) is not held to be scanned:
@@ -131,7 +159,7 @@ final class InputLocations implements Instrument {
     }
 
     /** An input stream that records where its lines start as they are read. */
-    static final class LineIndex extends java.io.FilterInputStream {
+    static final class LineIndex extends java.io.FilterInputStream implements Lines {
 
         private long[] starts = new long[16];
         private int count = 1;
@@ -145,8 +173,22 @@ final class InputLocations implements Instrument {
             return Arrays.copyOf(starts, count);
         }
 
+        /** Locate without copying: the read is always ahead of any match, so the line is known. */
         @Override
-        public int read() throws java.io.IOException {
+        public synchronized Position locate(final long offset) {
+            if (offset >= Instrument.UNLOCATABLE) {
+                return Position.NONE;
+            }
+            int at = Arrays.binarySearch(starts, 0, count, offset);
+            if (at < 0) {
+                at = -at - 2;
+            }
+            at = Math.max(0, Math.min(at, count - 1));
+            return new Position(at + 1, (int) (offset - starts[at]) + 1);
+        }
+
+        @Override
+        public synchronized int read() throws java.io.IOException {
             final int b = super.read();
             if (b >= 0) {
                 note((byte) b);
@@ -156,7 +198,7 @@ final class InputLocations implements Instrument {
         }
 
         @Override
-        public int read(final byte[] into, final int offset, final int length) throws java.io.IOException {
+        public synchronized int read(final byte[] into, final int offset, final int length) throws java.io.IOException {
             final int n = super.read(into, offset, length);
             for (int i = 0; i < n; i++) {
                 note(into[offset + i]);

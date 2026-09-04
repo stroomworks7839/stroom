@@ -189,7 +189,25 @@ the image's lines; and in `stroom-app`, `DSParser → ShapeshifterFilter → XML
 *Exit:* a configuration glued after a DS3 parser produces the XML the same configuration
 produces from the file the DS3 parser would have written.
 
-**Phase 2 — the native path for structured configurations, in both elements.** The compiler
+**Phase 2 — the native path for structured configurations, in both elements — Done 2026-09-04.**
+*As built:* `CompiledProject.structured()` says whether any body carries an element,
+attribute or namespace. The parser element's reader runs a structured configuration straight
+into `SaxEventSink` — no serialisation, no re-parse — with each event located *live* from the
+innermost running match (`InputLocations.currentInputOffset()`; under the deferred start tag
+that is the match whose emission forced the tag, phase 4's rule in this currency); its
+messages follow the events, since the run collects them and the events cannot wait. The
+filter, for a structured configuration, streams at both ends: the worker enqueues each event,
+located live, into a bounded queue (1024) and blocks when it is full — back-pressure on the
+output — while the pipeline's thread drains the queue between the input events it pushes and
+*while it waits on a full input pipe* (`tryPut` + `awaitSpace` in place of a blocking write),
+so neither thread can hold the other; the downstream is given to the run at `startDocument`,
+which is where it is known. A text configuration keeps the byte path, forwarded whole at the
+end. *Tests:* the reader's native events equal a parse of the byte sink's output for the
+structured fixture; through the filter, a text configuration and its structured twin produce
+the same events; five thousand records through a 4 KB pipe with more than a thousand events
+delivered before `endDocument`; and the locator, both elements, every existing pin.
+
+**Phase 2 as written:** The compiler
 already knows whether a configuration carries structure; when it does, the filter and the
 parser run `SaxEventSink` straight into the downstream and skip the serialise-and-parse, with
 locations resolved through event-unit spans instead of byte spans (phase 4's sweep, in the
