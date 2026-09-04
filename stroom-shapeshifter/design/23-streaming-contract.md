@@ -142,7 +142,30 @@ thousand records through a 4 KB window produce exactly the whole-buffer events, 
 produces the byte stream's events, a text configuration streams its input, a record larger
 than the window reaches the pipeline as one fatal, and the element passes bytes through
 undecoded. 68 of 68 fixtures unchanged, which is the corpus saying the window loop was always
-DS3's. *Original wording follows.* `ShapeshifterReader.parse` stops reading
+DS3's.
+
+*Audited 2026-09-04 against the contract's first property, memory is the window — three
+defects, all in the trace that rides along with a streamed run, none in the engine.*
+(1) `InputLocations.onOutput` returned early for the event sink without popping the open
+match, so on the native path the open stack grew by one entry per match for the life of the
+stream, and its top was the *last-started* match rather than the innermost running one — a
+parent's events after a child closed were located at the child. Now every close pops,
+whatever the currency; only the byte path keeps a span. (2) `LineIndex` kept a start for
+every line of the input for ever: eight bytes a line, tens of gigabytes on a terabyte. It now
+forgets everything before the outermost open match — or, with nothing open, before the match
+that just closed — and counts what it forgot so line numbers stay right. The first cut of that
+forgot up to the *read* position, which runs ahead of the matches, and located every record at
+the last line read; caught by three existing pins before it was committed. (3) `ReaderBytes`
+encoded each chunk on its own, so a surrogate pair straddling a chunk boundary became two
+replacement characters; the high half is now held for the next chunk. Added, because the byte
+pass-through made it possible for the first time: when a byte stream arrives with a declared
+encoding and the configuration reads bytes by a different one, one warning names both, and the
+configuration is used. Named and left: every full-window root match now probes the stream for
+one more byte, and on a live source that pauses at exactly a window's edge the probe blocks
+until the source speaks — which is the only way to know whether the record ended or the window
+did, and is what DS3's read does. The byte path's held output and post-run resolution are the
+output round's; on that path the line index is still whole, by the same deferral.
+*Original wording follows.* `ShapeshifterReader.parse` stops reading
 the `InputSource` whole and stops calling `runWhole`; it runs `Shapeshifter.run` over the
 source's stream, windowed by `buffer_size`, DS3's contract, whether the pipeline hands it a
 byte stream or a reader. The structured output path is unchanged — it already streams. The

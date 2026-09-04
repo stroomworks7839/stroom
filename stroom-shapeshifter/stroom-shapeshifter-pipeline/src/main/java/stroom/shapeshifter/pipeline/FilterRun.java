@@ -107,6 +107,7 @@ final class FilterRun {
             if (structured) {
                 final InputLocations locations = new InputLocations();
                 final InputLocations.LineIndex lines = new InputLocations.LineIndex(pipe.reader());
+                locations.bound(lines);
                 messages = Shapeshifter.run(reader.compiled(), lines,
                         new SaxEventSink(new Enqueuer(locations, lines)), locations);
             } else {

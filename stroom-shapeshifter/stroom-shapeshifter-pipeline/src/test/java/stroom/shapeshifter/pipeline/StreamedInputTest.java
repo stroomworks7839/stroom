@@ -158,6 +158,26 @@ class StreamedInputTest {
     }
 
     @Test
+    void feedAndConfigurationEncodingsThatDisagreeAreReportedOnce() throws Exception {
+        final String json = migrated001(SMALL_WINDOW)
+                .replaceFirst("\"encoding\" : \"auto\"", "\"encoding\" : \"utf-8\"");
+        assertThat(json).contains("\"encoding\" : \"utf-8\"");
+        final LoggingErrorReceiver receiver = new LoggingErrorReceiver();
+        final InputSource declaredOtherwise = new InputSource(new ByteArrayInputStream(manyRecords(3)));
+        declaredOtherwise.setEncoding("windows-1252");
+        throughReader(json, declaredOtherwise, receiver);
+        assertThat(receiver.getTotal(Severity.WARNING)).isEqualTo(1);
+        assertThat(receiver.getIndicators(new ElementId("ShapeshifterParser")).getErrorList().getFirst().toString())
+                .contains("windows-1252").contains("UTF-8").contains("source.encoding");
+
+        final LoggingErrorReceiver agreeing = new LoggingErrorReceiver();
+        final InputSource declaredTheSame = new InputSource(new ByteArrayInputStream(manyRecords(3)));
+        declaredTheSame.setEncoding("UTF-8");
+        throughReader(json, declaredTheSame, agreeing);
+        assertThat(agreeing.getTotal(Severity.WARNING)).isZero();
+    }
+
+    @Test
     void theElementPassesAByteStreamThroughAndDecodesNothing() {
         final InputStream bytes = new ByteArrayInputStream(new byte[]{1, 2, 3});
         final InputSource raw = new InputSource(bytes);

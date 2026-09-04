@@ -68,6 +68,18 @@ final class InputLocations implements Instrument {
      */
     private final Deque<Open> open = new ArrayDeque<>();
     private final List<Span> spans = new ArrayList<>();
+    /** The live path's line index, told what it may forget; null on the byte path. */
+    private LineIndex lines;
+
+    /** How many matches are open right now: nesting depth, never the stream's length. */
+    int openMatches() {
+        return open.size();
+    }
+
+    /** Bind the live line index so the trace can bound its memory as matches close. */
+    void bound(final LineIndex lines) {
+        this.lines = lines;
+    }
 
     // -----------------------------------------------------------------------------------
     // Recording, during the run
@@ -89,15 +101,26 @@ final class InputLocations implements Instrument {
                          final long outputOffset,
                          final long outputLength,
                          final OutputSink.Unit unit) {
-        if (unit != OutputSink.Unit.BYTES) {
-            return;
-        }
+        // The match closes whatever the sink's currency: the stack must fall back to the
+        // enclosing match, and must not grow with the stream (design 23 phase 1 audit). A byte
+        // span is kept only for the byte path, which resolves after the run.
+        long closed = -1;
         while (!open.isEmpty()) {
             final Open match = open.pop();
             if (match.templateId.equals(templateId) && match.matchIndex == matchIndex) {
-                spans.add(new Span(outputOffset, outputLength, match.inputOffset));
-                return;
+                if (unit == OutputSink.Unit.BYTES) {
+                    spans.add(new Span(outputOffset, outputLength, match.inputOffset));
+                }
+                closed = match.inputOffset;
+                break;
             }
+        }
+        if (lines != null && closed >= 0) {
+            // Nothing still to come can refer to a line before the outermost open match, or, with
+            // nothing open, before the match that just closed — every later match begins at or
+            // after it. Never the read position: the window is read ahead of the matches.
+            final Open outermost = open.peekLast();
+            lines.forget(outermost == null ? closed : outermost.inputOffset);
         }
     }
 
@@ -163,6 +186,8 @@ final class InputLocations implements Instrument {
 
         private long[] starts = new long[16];
         private int count = 1;
+        /** The line number (zero-based) of {@code starts[0]}: what has been forgotten is counted, not kept. */
+        private long base;
         private long position;
 
         LineIndex(final java.io.InputStream in) {
@@ -171,6 +196,28 @@ final class InputLocations implements Instrument {
 
         long[] lineStarts() {
             return Arrays.copyOf(starts, count);
+        }
+
+        /** How many line starts are held right now — the bound the contract is about. */
+        synchronized int held() {
+            return count;
+        }
+
+        /**
+         * Forget every line start before the line containing {@code floor}. The window is the
+         * memory (design 23 §1); an index that remembered every line of a terabyte would not be.
+         * Line numbers stay right because what is dropped is counted in {@link #base}.
+         */
+        synchronized void forget(final long floor) {
+            int keepFrom = 0;
+            while (keepFrom + 1 < count && starts[keepFrom + 1] <= floor) {
+                keepFrom++;
+            }
+            if (keepFrom > 0) {
+                System.arraycopy(starts, keepFrom, starts, 0, count - keepFrom);
+                count -= keepFrom;
+                base += keepFrom;
+            }
         }
 
         /** Locate without copying: the read is always ahead of any match, so the line is known. */
@@ -184,7 +231,7 @@ final class InputLocations implements Instrument {
                 at = -at - 2;
             }
             at = Math.max(0, Math.min(at, count - 1));
-            return new Position(at + 1, (int) (offset - starts[at]) + 1);
+            return new Position((int) (base + at + 1), (int) (offset - starts[at]) + 1);
         }
 
         @Override

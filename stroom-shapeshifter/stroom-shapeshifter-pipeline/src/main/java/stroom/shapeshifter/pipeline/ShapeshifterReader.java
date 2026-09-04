@@ -40,6 +40,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
@@ -95,6 +96,7 @@ public class ShapeshifterReader extends AbstractParser {
         // Design 23: the input is streamed through the engine's window, never read whole — a
         // byte stream as it is, a reader encoded to UTF-8 as it is read.
         final InputStream stream = streamOf(input);
+        checkEncoding(input);
         if (compiled.structured()) {
             parseNative(stream);
         } else {
@@ -115,9 +117,39 @@ public class ShapeshifterReader extends AbstractParser {
         }
         final InputLocations locations = new InputLocations();
         final InputLocations.LineIndex lines = new InputLocations.LineIndex(input);
+        locations.bound(lines);
         final LiveLocatingHandler handler = new LiveLocatingHandler(target, locations, lines);
         final List<Message> messages = Shapeshifter.run(compiled, lines, new SaxEventSink(handler), locations);
         reportAll(messages);
+    }
+
+    /**
+     * A byte stream arrives with the feed's declared encoding, and the configuration declares
+     * the encoding it reads bytes by. When both are known and differ, the bytes will be read
+     * wrongly and nothing downstream will say why — so this does, once, as a warning: the
+     * configuration is the authority, and the operator is told what it disagrees with.
+     */
+    private void checkEncoding(final InputSource input) throws SAXException {
+        if (input.getByteStream() == null || input.getEncoding() == null) {
+            return;
+        }
+        final String declared = compiled.project().source().encoding();
+        if (declared == null || declared.equalsIgnoreCase("auto")) {
+            return;
+        }
+        final Charset feed;
+        final Charset configuration;
+        try {
+            feed = Charset.forName(input.getEncoding());
+            configuration = Charset.forName(declared);
+        } catch (final IllegalArgumentException unknownCharset) {
+            return;
+        }
+        if (!feed.equals(configuration)) {
+            report(new Message(stroom.shapeshifter.engine.Severity.WARNING,
+                    "The feed is declared " + feed.name() + " but the configuration reads its bytes as "
+                    + configuration.name() + " (source.encoding); the configuration is used"));
+        }
     }
 
     void reportAll(final List<Message> messages) throws SAXException {
@@ -565,15 +597,31 @@ public class ShapeshifterReader extends AbstractParser {
             return n;
         }
 
+        private char held;
+        private boolean holding;
+
         private boolean fill() throws IOException {
+            int from = 0;
+            if (holding) {
+                // A high surrogate ended the last chunk; its pair is the first thing in this one.
+                chars[0] = held;
+                from = 1;
+                holding = false;
+            }
             int n;
             do {
-                n = reader.read(chars);
+                n = reader.read(chars, from, chars.length - from);
             } while (n == 0);
-            if (n < 0) {
+            int length = from + Math.max(n, 0);
+            if (n < 0 && length == 0) {
                 return false;
             }
-            bytes = new String(chars, 0, n).getBytes(StandardCharsets.UTF_8);
+            if (n >= 0 && length > 0 && Character.isHighSurrogate(chars[length - 1])) {
+                held = chars[length - 1];
+                holding = true;
+                length--;
+            }
+            bytes = new String(chars, 0, length).getBytes(StandardCharsets.UTF_8);
             at = 0;
             return bytes.length > 0 || fill();
         }
