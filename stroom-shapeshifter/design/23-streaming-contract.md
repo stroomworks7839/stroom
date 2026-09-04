@@ -198,8 +198,11 @@ terabyte the silence costs the same. The text path still holds its output — th
 *Original wording follows.* Confirm the filter streams the engine's input from the pipe under
 the same window rules and the same truncation ruling, and that its structured path holds nothing.
 
-**Phase 3 — the output round.** Separate design: the byte-sink target, the refusal of
-text→SAX, and where the pipe plumbing lives. Opened once phase 1 lands.
+**Phase 3 — the output round — design 24, ruled 2026-09-04 (D42).** Text output is
+`characters` events into a `TextWriter`, structure is element events, parse-and-forward is
+deleted, the refusal is the consumer's, and the filter's input pipe is the plumbing and stays.
+*Original wording:* Separate design: the byte-sink target, the refusal of text→SAX, and where
+the pipe plumbing lives. Opened once phase 1 lands.
 
 ---
 

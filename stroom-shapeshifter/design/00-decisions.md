@@ -1109,7 +1109,7 @@ and is the D37 coin row: a padding field in `PikeVm` did not move it, and Phase 
 static gate moved it a further −4% while lifting the simulation's real-work row +3.7%. Landed
 with the cost recorded, by direction (2026-09-03), rather than parked behind Phases 3 and 4.
 
-## D40 — Output bridges to SAX by parsing; structured emitters come second, and the sink interprets bytes by container
+## D40 — Output bridges to SAX by parsing; structured emitters come second, and the sink interprets bytes by container — the bridge superseded by D42
 
 **Ruled by Jon, 2026-09-03**, eleven rulings in [design 20 §10](20-sax-output.md), on a draft
 written 2026-08-28. The question was how an engine whose native output is bytes-that-happen-to-be-XML
@@ -1171,3 +1171,19 @@ keep the fixtures": the vendored design documents, the port plan and the fixture
 deleted; D33 is rewritten as superseded; every other mention says "the prototype". The regex
 module's design documents, which cite it as a comparison point, are left to that module's own
 session. This entry is where the name survives.
+
+## D42 — Text output is characters, structure is events, and nothing is parsed twice
+
+*2026-09-04.* The pipeline layer no longer bridges a text configuration's output to XML
+events by holding it whole and parsing it (design 21 phase 1). In Stroom's model bytes reach
+an appender only through a writer, and a writer consumes SAX; so a text configuration's
+output leaves the element as `characters` events, one per emitter write, as the write happens,
+and `TextWriter` is the byte sink's mouth — the shape every other text output in Stroom
+already has. A structured configuration's output leaves as element events (D40's second half,
+which stands). Both are located live at the input position of the innermost running match;
+the post-run resolver over output positions is gone with the buffer it resolved. The refusal
+of text in front of an XML consumer is the consumer's own well-formedness error, not a check
+of the element's targets, which are usually a chain. If a text→XML re-parse is ever wanted it
+is a separate pipeline element. The engine's output is UTF-8 by construction, so the decode
+to characters is lossless and a UTF-8 `TextWriter` writes the engine's bytes exactly.
+Design 24; completes design 23 §3b.
