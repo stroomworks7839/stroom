@@ -245,8 +245,43 @@ this phase; the rest are assigned to the phase that touches the class. The packa
 either moved to the right side or the line is redrawn, before anything else moves. *Output:*
 §5 of this document filled in; the benchmark baseline of §3.9 taken.
 
-### Phase 1 — The compiler's passes
+### Phase 1 — The compiler's passes — Done 2026-09-05
 
+*As built:* `7bf64c5d90`. `Compiler` (309 lines) is the pipeline and nothing else: the source
+encoding, then per template the two capture refusals, the E3 encoding rules, the match through
+`MatchCompiler` and the body through `CompiledOp.compile`; then one walk collecting what each
+body calls and applies to, read by name resolution and by the dispatch lint; then the body
+checks, `ReferenceCheck`'s walk and `StructureCheck`'s zipped per template as before, and
+`ReferenceCheck.report()` last. Every pass runs where it ran, so the error a doubly faulty
+configuration reports and the order of its warnings are unchanged; the gate said so. `MatchCompiler`
+(301) owns the interned patterns as state and resolves a progressive template's steps once,
+where they were resolved three times; the E29 block that could not fire is gone and its
+reason is one sentence on `RegexEncodings.forMatch`. `StructureCheck` (186) answers whether a
+template writes structure from the walk it already makes, and the graph is handed the flag
+instead of walking the authored bodies in its constructor. `ReferenceCheck` (602) is
+`BodyScan` at top level, unchanged inside. The walks are four: interning, body compilation,
+the uses walk, and the check walk. A progressive regex step's flags are part of the pattern key
+(ruling 9), and the pin was written first and failed on exactly the flag. The target of "under
+250 lines" for `Compiler` did not close: the E3 encoding rules are forty lines of refusals with
+their messages, and they belong to the pipeline, not to a pass. Engine 556, pipeline 154, app 5.
+
+*The gate.* Five forks at `7bf64c5d90`, then at `b3c403b8cb` after the finding below, against
+the phase 0 column (`design/benchmarks/2026-09-05-19*`). The run rows did not move: every row
+inside both intervals. The compile rows: `csv_header` up 9 to 12%, the walks; every other row
+inside its interval except `progressive`, down 5.5% and then 8.6%. The first reading was taken
+for the new flag set on the pattern key — an enum set built and copied per key, and keys are
+built per progressive regex step at match time as well — and the set became one of four shared
+immutable values, which is right regardless. The second reading said that was not the cause,
+so the row was probed: three forks with the allocation profiler at both commits give 3,000
+bytes per compile at each, identical, and 3.09 against 3.02 million ops/s, inside each other's
+intervals. The phase 0 column's 3.27 million for the same baseline commit is therefore that
+row's run-to-run spread, not a difference between commits: a 300-nanosecond operation whose
+99.9% interval within one run understates its variance across runs by a factor of two or
+three. The phase passes the gate on that evidence, and the bar for that row from here is the
+probe's spread, not the column's interval. The probe outputs are in
+`/home/dev1/engine-bench/probe-*-progressive-compile.json`.
+
+*As written:*
 First, ahead of the executor, because the entry review gave it a number: the compile rows
 drifted 9 to 24% over the history §3.10 measured, and the cause is the eight body walks and
 the dead refusal block the compile ledger names, which merge only when the passes become
