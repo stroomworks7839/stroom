@@ -1,6 +1,6 @@
 # Design 27 — The engine's structure: the executor dissolves, the passes separate, the module reads as one
 
-*Proposed 2026-09-05. Not yet ruled.* The engine is correct, pinned at three levels, and its
+*Proposed and ruled 2026-09-05 (D45), every ruling as recommended.* The engine is correct, pinned at three levels, and its
 biggest class is a 2,166-line interpreter that Checkstyle warns about on every build. This design
 says what the module should look like when every class has one purpose, what moves where to get
 there, and how each move is gated so that nothing about the engine's behaviour changes on the way.
@@ -240,19 +240,14 @@ From the code standard, applied per class in phases 0 and 7:
 
 *Filled in by phase 0; closed by phase 7.*
 
-## 6. Rulings wanted
+## 6. Rulings — all ruled 2026-09-05, each as recommended (D45)
 
 1. **The direction.** The executor dissolves into a run over the graph as §2.1 describes,
-   rather than staying one class with helpers. *Recommended: yes — it is D35's stated
-   consequence.*
+   rather than staying one class with helpers — D35's stated consequence, done.
 2. **The ops.** One interpreter over sealed records, not ops that run themselves (§2.2).
-   *Recommended: the interpreter.*
-3. **Scope.** All three big files — executor, compiler, JSON — or the executor alone.
-   *Recommended: all three; the compiler and JSON phases are small, mechanical, and the module
-   is not "one purpose per class" until they are done.*
-4. **The benchmark gate** as §3.7 states it, including "a regression is not accepted as the
-   price of structure". *Recommended: yes.*
-5. **The name.** `Run` for what remains of the executor. *Recommended: `Run`; the alternative
-   `Engine` says less.*
+3. **Scope.** All three big files: executor, compiler, JSON.
+4. **The benchmark gate** as §3.7 states it: a fresh baseline in phase 0, and a regression
+   beyond its noise blocks the phase rather than being accepted as the price of structure.
+5. **The name.** `Run` for what remains of the executor.
 
 Each phase audited before the next.

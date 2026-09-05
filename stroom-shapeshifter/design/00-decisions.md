@@ -1222,3 +1222,15 @@ fragments in Saxon return serialised text for now; fragments as structure is a l
 The pipeline module binds a variant of every one of Stroom's functions under Stroom's own
 names, fifty-seven of fifty-eight — `split-document` has no counterpart — and both elements
 gain a `pipelineReference` property for the lookups.
+
+## D45 — The engine's structure: the executor dissolves into a run over the graph
+
+*2026-09-05.* Design 27, ruled in full. D35's consequence is carried out: `Executor` becomes
+five one-purpose classes in `exec` — an input window, a function runtime, a level dispatcher, a
+body interpreter and a `Run` that owns them for one input — and the name goes. The ops stay
+sealed, immutable records under one interpreter; run state stays on the run and matchers on
+the match nodes, which is where D35 puts them. The compiler separates into its passes and the
+JSON reader into its model families, readers and writers together. Every phase is a pure move
+gated on the three suites and byte-identical goldens; the two hot-path phases are gated on the
+engine benchmark against a fresh baseline, and a regression blocks the phase. An entry and an
+exit review in the code standard's dimensions bound the work.
