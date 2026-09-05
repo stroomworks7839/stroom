@@ -24,7 +24,6 @@ import stroom.pipeline.refdata.ReferenceDataResult;
 import stroom.pipeline.refdata.ReferenceDataResult.LazyMessage;
 import stroom.pipeline.refdata.store.FastInfosetUtil;
 import stroom.pipeline.refdata.store.FastInfosetValue;
-import stroom.pipeline.refdata.store.RefDataValue;
 import stroom.pipeline.refdata.store.RefDataValueProxy;
 import stroom.pipeline.refdata.store.RefStreamDefinition;
 import stroom.pipeline.refdata.store.StringValue;
@@ -40,10 +39,10 @@ import stroom.shapeshifter.engine.function.Signature;
 import stroom.shapeshifter.pipeline.ElementServices;
 import stroom.util.date.DateUtil;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -87,10 +86,11 @@ abstract class AbstractLookupFunction extends StroomFunction {
             ignoreWarnings = Boolean.TRUE.equals(arguments.bool(3));
             trace = Boolean.TRUE.equals(arguments.bool(4));
             long ms = defaultMs();
-            if (arguments.size() > 2 && arguments.raw(2) != null) {
+            if (arguments.size() > 2) {
+                // Written but absent is Stroom's "empty date": a warning and no value, not the default.
                 final String time = arguments.string(2);
                 try {
-                    ms = DateUtil.parseNormalDateTimeString(time);
+                    ms = DateUtil.parseNormalDateTimeString(Objects.requireNonNull(time));
                 } catch (final RuntimeException e) {
                     if (!ignoreWarnings) {
                         context.warn(time == null
@@ -145,15 +145,28 @@ abstract class AbstractLookupFunction extends StroomFunction {
             return referenceData.ensureReferenceDataAvailability(pipelineReferences(), identifier, result);
         }
 
-        /** A found value as text, or null: the string as it is, XML serialised, a null value absent. */
+        /**
+         * A found value as text, or null: the string as it is, XML serialised, a null value absent.
+         * Read through {@code consumeBytes}, as Stroom's off-heap consumer does: the off-heap store's
+         * value is a view into its LMDB read transaction and dies with it, so the bytes are copied
+         * inside the consumer and decoded after ({@code supplyValue} would hand back the dead view).
+         */
         String render(final RefDataValueProxy proxy) {
-            final Optional<RefDataValue> value = proxy.supplyValue();
-            if (value.isEmpty()) {
+            final byte[] type = new byte[1];
+            final byte[][] copy = new byte[1][];
+            final boolean found = proxy.consumeBytes(typed -> {
+                type[0] = typed.getTypeId();
+                final ByteBuffer view = typed.getByteBuffer().duplicate();
+                copy[0] = new byte[view.remaining()];
+                view.get(copy[0]);
+            });
+            if (!found || copy[0] == null) {
                 return null;
             }
-            return switch (value.get()) {
-                case StringValue string -> string.getValue();
-                case FastInfosetValue xml -> FastInfosetUtil.byteBufferToString(xml.getByteBuffer())
+            return switch (type[0]) {
+                // Stroom's StringSerde is plain UTF-8; decoded here rather than reaching into stroom-lmdb.
+                case StringValue.TYPE_ID -> new String(copy[0], StandardCharsets.UTF_8);
+                case FastInfosetValue.TYPE_ID -> FastInfosetUtil.byteBufferToString(ByteBuffer.wrap(copy[0]))
                         .replaceFirst("^<\\?xml[^>]*\\?>\\s*", "")
                         .stripTrailing();
                 default -> null;
@@ -264,9 +277,5 @@ abstract class AbstractLookupFunction extends StroomFunction {
             case ERROR -> Severity.ERROR;
             case FATAL_ERROR -> Severity.FATAL;
         };
-    }
-
-    static Supplier<String> lazy(final String text) {
-        return () -> text;
     }
 }

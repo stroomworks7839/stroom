@@ -25,6 +25,7 @@ import stroom.pipeline.refdata.store.MapDefinition;
 import stroom.pipeline.refdata.store.RefDataValueProxy;
 import stroom.pipeline.refdata.store.RefStreamDefinition;
 import stroom.pipeline.refdata.store.StringValue;
+import stroom.pipeline.refdata.store.offheapstore.TypedByteBuffer;
 import stroom.pipeline.shared.data.PipelineReference;
 import stroom.pipeline.state.MetaHolder;
 import stroom.shapeshifter.engine.exec.TypedValue;
@@ -36,9 +37,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -95,13 +98,22 @@ class LookupFunctionsTest {
         final MapDefinition definition = Mockito.mock(MapDefinition.class);
         Mockito.when(definition.getRefStreamDefinition()).thenReturn(stream);
         Mockito.when(proxy.getSuccessfulMapDefinition()).thenReturn(Optional.of(definition));
+        // The bytes as the store hands them to a consumer, typed; the function must not read them later.
+        final TypedByteBuffer typed;
         if (value instanceof String string) {
-            Mockito.when(proxy.supplyValue()).thenReturn(Optional.of(StringValue.of(string)));
+            typed = new TypedByteBuffer(StringValue.TYPE_ID, ByteBuffer.wrap(string.getBytes(StandardCharsets.UTF_8)));
         } else if (value instanceof byte[] bytes) {
-            Mockito.when(proxy.supplyValue()).thenReturn(Optional.of(FastInfosetValue.wrap(ByteBuffer.wrap(bytes))));
+            typed = new TypedByteBuffer(FastInfosetValue.TYPE_ID, ByteBuffer.wrap(bytes));
         } else {
-            Mockito.when(proxy.supplyValue()).thenReturn(Optional.empty());
+            typed = null;
         }
+        Mockito.when(proxy.consumeBytes(Mockito.any())).thenAnswer(invocation -> {
+            if (typed == null) {
+                return false;
+            }
+            invocation.<Consumer<TypedByteBuffer>>getArgument(0).accept(typed);
+            return true;
+        });
         Mockito.doReturn(Optional.of(proxy)).when(spy).getRefDataValueProxy();
         return spy;
     }
@@ -125,7 +137,7 @@ class LookupFunctionsTest {
         assertThat(context.warnings).singleElement().asString().containsIgnoringCase("no effective streams")
                 .contains("'MY_FEED'");
         context.warnings.clear();
-        assertThat(call(lookup, "MAP", "key", null, true)).isNull();
+        assertThat(call(lookup, "MAP", "key", "2010-01-01T00:00:00.000Z", true)).isNull();
         assertThat(context.warnings).isEmpty();
     }
 
@@ -152,7 +164,7 @@ class LookupFunctionsTest {
         assertThat(call(lookup, "MAP", "key")).isEqualTo("the value");
         assertThat(context.all).isEmpty();
         // With trace, the success is said, with the stream it came from.
-        assertThat(call(lookup, "MAP", "key", null, false, true)).isEqualTo("the value");
+        assertThat(call(lookup, "MAP", "key", "2010-01-01T00:00:00.000Z", false, true)).isEqualTo("the value");
         assertThat(context.all).singleElement().asString().startsWith("INFO Key found ").contains("found in stream: 5");
     }
 
@@ -178,6 +190,13 @@ class LookupFunctionsTest {
         assertThat(call(lookup, "MAP", "key", "2010-01-01T00:00:00.000Z")).isEqualTo("w");
         assertThat(call(lookup, "MAP", "key", "not a date")).isNull();
         assertThat(context.warnings).singleElement().asString().contains("Lookup failed to parse date: not a date");
+        // Written but absent is Stroom's empty date: no value and a warning, unless warnings are ignored.
+        context.warnings.clear();
+        assertThat(call(lookup, "MAP", "key", null)).isNull();
+        assertThat(context.warnings).singleElement().asString().contains("Lookup failed to parse empty date");
+        context.warnings.clear();
+        assertThat(call(lookup, "MAP", "key", null, true)).isNull();
+        assertThat(context.warnings).isEmpty();
     }
 
     @Test

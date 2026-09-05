@@ -375,9 +375,10 @@ and `trace`; the element's `pipelineReference` properties; `ReferenceData.
 ensureReferenceDataAvailability`; and the messages Stroom's lookups write, "no reference
 loaders", "no effective streams", "map not found in effective streams", "key not found", "key
 found … found in stream: N", at the severities Stroom gives them and under the same
-trace/ignore-warnings gate. A value is read through `RefDataValueProxy.supplyValue()` rather
-than Saxon's consumers: a string value as it is, a FastInfoset value serialised through
-Stroom's own `FastInfosetUtil` with the declaration dropped, a null value absent.
+trace/ignore-warnings gate. A value is read through `RefDataValueProxy.consumeBytes`, as
+Stroom's off-heap consumer reads it, and copied out inside the consumer (the audit below says
+why): a string value as it is, a FastInfoset value serialised through Stroom's own
+`FastInfosetUtil` with the declaration dropped, a null value absent.
 `bitmap-lookup` joins the values it finds with a comma (ruling 4). `http-call` and `fetch-json`
 run Stroom's own `CommonHttpClient` — whose constructor is now public, the one change outside
 the module — over the injected client cache, so a configuration gets exactly the client
@@ -393,6 +394,25 @@ the bitmap's bit-by-bit keys. Not built: a lookup against a reference stream loa
 `ReferenceData` itself — that needs Stroom's stores, and belongs in stroom-app when a
 Shapeshifter reference-data test is written there. 154 pipeline tests green; the drift pin
 covers all fifty-seven.
+
+*Audited 2026-09-05.* **One defect, fixed:** a value was read through `supplyValue()`. Over
+the off-heap store that is a view into a closed transaction: `RefDataOffHeapStore.getValue`
+reads inside `getWithReadTxn`, and the FastInfoset serde wraps the LMDB buffer rather than
+copying it ("let the caller clone if required"), so the buffer handed back is dead by the time
+the function decodes it. Stroom's own off-heap path, `OffHeapRefDataValueProxyConsumer`, reads
+through `consumeBytes`, inside the transaction; only the on-heap consumer uses `supplyValue`.
+The tests did not see it because the proxy is mocked, which is also why the audit reads the
+store rather than trusting them. `render` now reads through `consumeBytes`, copies the bytes
+inside the consumer and decodes the copy afterwards by type id — a string as UTF-8, which is
+all Stroom's `StringSerde` is, a FastInfoset value as before — and the tests stub the consumer
+with the typed buffer the store would hand over. **One fidelity fix, pinned:** a lookup time
+written but absent was taken as "use the default"; Stroom takes it as an empty date, a warning
+unless warnings are ignored, and no value. Two tests had been passing a null time to reach the
+later flags and pass a real one now. **Tidied:** a dead `lazy` helper. **Named and left:**
+`AbstractLookup` checks the task context for termination before each lookup and answers
+nothing if the task is done; the function has no task context to ask, and a terminated task
+ends the run at the element instead — the check belongs with whatever gives an engine run a
+cancellation signal, when it has one. 154 green.
 
 *As written:* Lookups over `ReferenceData` with the pipeline references, and the HTTP
 pair under Stroom's controls. *Tests:* lookups against a reference stream loaded the way
