@@ -363,9 +363,41 @@ From the code standard, applied per class in phases 0 and 8:
 
 ## 5. The ledger
 
-*Filled in by phase 0; closed by phase 8.*
+*Entry review 2026-09-05, three read-only passes, one per package group; closed by phase 8.*
+Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note** is recorded.
 
-## 6. Rulings — all seven ruled 2026-09-05, each as recommended (D45)
+### 5.1 `config.json` and the root package's output side
+
+| Class | Lines | Purpose | Javadoc | Findings |
+|---|---|---|---|---|
+| `ProjectJson` | 1,835 | Reads and writes the whole model as strict, explicitly shaped JSON, one reader and writer per type | good on what and why; class javadoc and four helpers carry port residue; five "phase N audit" tags | 22 |
+| `json/package-info` | 24 | The serialiser seam the model does not depend on | good; stale after phase 7 | 1 |
+| `OutputSink` | 140 | The interface every write goes through; structure calls resolved by the innermost open container | good; two methods undocumented | 4 |
+| `XmlByteSink` | 443 | Serialises the sink's structure into bytes as Saxon would (D41, E35) | good | 5 |
+| `SaxEventSink` | 330 | Forwards the structure as SAX events, counting events as position | good; one orphan javadoc | 4 |
+| `CharacterSink` | 127 | A text configuration's writes as `characters` events, decoded across write boundaries (D42) | good | 2 |
+| `Utf8` | 40 | How many trailing bytes begin an unfinished UTF-8 sequence | good | 2 |
+| `Shapeshifter` | 126 | The facade: compile once, run many | thin on the six-argument `run` | 4 |
+| `Message`, `Severity`, `Instrument`, `PatternInfo`, root `package-info` | 40, 30, 142, 85, 28 | the face | good; `PatternInfo` one tag and three inline FQNs; root `package-info` future tense, names no packages | 1, 0, 0, 3, 2 |
+
+**`ProjectJson`** — *line:* 732 "Store" comment says "serde carries it as an alias and so must we"; keep the corpus fact (3,172 `Store` against 2,413 `capture`), drop the port. 790, 814, 884, 928 "(phase N audit)" provenance tags; the rules stay. 902 javadoc says "an ordering's cast" on `readCast`, which `min` and `max` also call. 962 and 1010 `readOperand`/`writeOperand` re-implement `readCast`/`writeCast` inline. 1087 the `try` around `Severity.valueOf` also encloses `readRef`, the width 884's own comment warns against. 474 `PatternRef` parses its id with raw `UUID.fromString`, escaping as `IllegalArgumentException` where `uuid()` gives a `ConfigException`. 857 `is-first`/`is-last` are the only payload-less variants read without `checkFields`. 1111, 1118 `has(x) && get(x).asBoolean()` where the file's idiom is `path(x).asBoolean(false)`. 1412 writes `"prefix": null` for a default namespace where everything else uses `putIfPresent`. 1642, 1690, 1698, 1811 four javadocs explain the wire shape by "serde" or "Rust's enum names"; the shape is this format's rule, state it so. *P7:* 65 "in one file" and the class javadoc's serde framing become `JsonFields`'s javadoc, correcting its claim that fields "stay snake_case throughout" (`with-param`, `omit-if-empty`, `key-value` are kebab). 867 to 919 `sequenceAndName`, `readSort`, `readCast` sit under the conditions banner and are output or shared. 141, 882, 909, 966, 1089 four hand-rolled lowercase-enum parsers with four message spellings, one `JsonFields` pair. 1032 `is-first` is written as `{}` where every other payload-less variant is written bare; read accepts both; decide under the round-trip gate. 459, 684, 413, 557 `asInt()` on an unchecked body relies on Jackson's coercion; verify before calling it a bug. *note:* 1261 `distinct-values` requires `name` on read and writes it optionally, benign. 1755 `expectObject` has one caller.
+
+**Sinks** — *line:* `XmlByteSink` 248 to 259 `incompleteTail` is a byte-for-byte copy of `Utf8.incompleteTail`; the other two sinks call `Utf8`'s. `SaxEventSink` 298 an orphaned copy of `Utf8`'s javadoc sits on the `Element` class. `XmlByteSink` 84 to 91 and `SaxEventSink` 60 public constructors undocumented. `OutputSink` 120 to 126 `endAttribute` and `endElement` undocumented. *P5:* `XmlByteSink` 193, `SaxEventSink` 159, `CharacterSink` 61 the carry-splice-decode sequence is written three times; `SaxEventSink` 265 and `CharacterSink` 114 `SaxCall`/`sax()` duplicated verbatim; `XmlByteSink.prefixOf` (381) and `SaxEventSink.localOf` (256) are halves of one qname rule. Each is named here so phase 5 leaves them alone inside a move commit and a follow-on owns them. *note:* `XmlByteSink` and `SaxEventSink` duplicate `Element`, `Attribute`, `current`, `checkNoAttributeOpen`, "the same bookkeeping" by their own admission; a follow-on after phase 5. `CharacterSink` 31 names the pipeline's `TextWriter` from inside the engine. `Utf8` shares its simple name with the regex module's.
+
+**The face** — *line:* `Shapeshifter` 59 to 70 the six-argument `run` has no `@return` and no memory-bound statement. `Message` 38 and `PatternInfo` 58, 69, 73 inline FQNs; `PatternInfo` 62 a provenance tag. Root `package-info` 24 says the pipeline adapter "will sit above this", future tense; 19 a lone `<p>`. *P4:* `Shapeshifter` 113 to 125 no `runWhole` takes a mode or services, so a whole-buffer run cannot call functions that need them; 69, 101, 124 a positional boolean routes whole-or-stream into the executor. *P5:* the root `package-info` must name the packages and the direction between them.
+
+**The method map for phase 7.** Cross-family calls form a DAG: project to match, reference, condition and output; condition to reference; output to reference and condition; match and reference to themselves. `ProjectJson` can delegate downward. Four placements in §2.4 are corrected by the evidence: `RegexFlags` (273 to 287) is read and written only by the match family, so `MatchJson`; `readCast`/`writeCast` (903 to 919) are called only from the output family, so `JsonFields`, subsumed by the lowercase-enum pair; `CombinatorPattern` (168 to 182), unplaced, is a named step list, so `MatchJson`; `readDispatch`/`writeDispatch` (134 to 151) serve both the source and the apply directive, so `JsonFields`. `JsonFields` otherwise holds `NODES`, `Tagged` and `tag`, `wrap`, `checkFields`, `required`, `text`, `optionalText`, `uuid`, `putIfPresent`, `list`, `array`, `constant`, `name`. §2.4's word "parameters" names two types, `Template.ParamDecl` in `ProjectJson` and `OutputNode.Param` in `OutputJson`.
+
+**The sinks' dependencies.** `engine.output` would depend on `engine` for `OutputSink`, the JDK and `org.xml.sax`, and on nothing else in the engine or the regex module. But the claim in §1.4 that nothing inside the engine uses the four classes is **false**: `OutputSink.of` (root, 128 to 131) constructs `XmlByteSink`, and `Executor.variable` (1996) runs every `variable` body through `OutputSink.of(buffer)`. With the sinks in `engine.output` implementing `engine.OutputSink`, an `of` that stays in the root is a package cycle. Import churn outside the engine: pipeline `EventImage` and `ShapeshifterReader`; five test classes; about thirty test call sites of `OutputSink.of`.
+
+### 5.2 What the entry review corrects in the plan
+
+1. **`OutputSink.of` and the variable body** (ruling 8 wanted). Three exits: (a) `of` moves to `XmlByteSink` as its factory and the executor and the test sites construct the sink by name; (b) `exec` gets its own buffer sink for variable bodies, which also asks why a variable's text is serialised with Saxon's indenting layout at all; (c) the cycle is accepted. *Recommended: (a) now, as the smallest; (b)'s question filed as a follow-on, since it is a behaviour question and not this design's.*
+2. **§2.5's `engine` row "depends on nothing"** is wrong as written: the facade imports `compile`, `config`, `exec` and `function`, and `PatternInfo` imports the regex module. The row should say that nothing below the root depends on it except through `OutputSink`, `Instrument`, `Message` and `Severity`.
+3. **§2.4's placements** of flags, casts, the combinator pattern and dispatch, as above.
+4. **§2.6 "move and nothing else"** stands for the sinks, with the three duplications above recorded as a follow-on so the move commit stays a move.
+
+## 6. Rulings — 1 to 7 ruled 2026-09-05, each as recommended (D45); 8 wanted
 
 1. **The direction.** The executor dissolves into a run over the graph as §2.1 describes,
    rather than staying one class with helpers — D35's stated consequence, done.
@@ -382,5 +414,11 @@ From the code standard, applied per class in phases 0 and 8:
    `MatchResult` with matching.
 7. **The two resolvers** as §2.7 states: both stay, the seam is documented, the compile of
    conditions and capture selects is filed as the follow-on.
+
+*Wanted, from the entry review (§5.2):*
+
+8. **`OutputSink.of`.** The factory moves to `XmlByteSink`, the executor's variable body and
+   the test sites construct the sink by name, and the question of why a variable's text takes
+   Saxon's layout is filed as a follow-on. *Recommended: yes.*
 
 Each phase audited before the next.
