@@ -166,6 +166,24 @@ class StrictDispatchTest {
         assertThat(result.messages()).noneMatch(m -> m.severity() == Severity.ERROR);
     }
 
+    /**
+     * Design 27 ruling 11: a classify guard is evaluated once on the way in, like every other
+     * mode's, so it cannot see a sibling's capture bound by an earlier match in the same pass.
+     * Before, has_b's guard ran after has_a had matched and bound "seen", and has_b ran.
+     */
+    @Test
+    void classifyGuardsAreEvaluatedOnceOnTheWayIn() {
+        final Run result = run(project(4, "classify",
+                row("02", "has_a", "a", ", \"captures\": [{\"name\": \"seen\", \"select\": {\"group\": 0}}]",
+                        "{\"value-of\": {\"parts\": [{\"text\": \"[A]\"}]}}") + ",\n"
+                + row("03", "has_b", "b",
+                        ", \"guard\": {\"exists\": {\"select\": {\"parts\": [{\"capture\": {\"var_id\": \"seen\","
+                        + " \"group\": 0}}]}}}",
+                        "{\"value-of\": {\"parts\": [{\"text\": \"[B]\"}]}}")),
+                "xaxb");
+        assertThat(result.output()).isEqualTo("[A]");
+    }
+
     @Test
     void lexerTakesTheLongestMatchAndTiesGoToListOrder() {
         // "ab" then "a": under strict's first-match the short template would shadow the long

@@ -1256,4 +1256,5 @@ and the compile of conditions filed as design 10's follow-on rather than done un
 design. *From the entry review, ruled the same day:* the sink factory moves onto `XmlByteSink`
 so the root package has no dependency downward; a progressive step's regex flags become part
 of the pattern key rather than being silently ignored; and the `field` capture source is
-refused at compile time until it is defined.
+refused at compile time until it is defined. *From the phase 3 audit, 2026-09-06:* the
+classify mode evaluates its guards once on the way in, as every other mode does.

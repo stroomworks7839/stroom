@@ -423,12 +423,15 @@ final class Level {
                          final long inputBase,
                          final boolean ignoreErrors,
                          final int depth) {
-        for (final CompiledTemplate candidate : templates) {
-            final Template template = candidate.template();
-            if (template.guard() != null && !Conditions.evaluate(
-                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns())) {
+        // Guards once on the way in, as every mode (design 27 ruling 11): a guard read after an
+        // earlier sibling's match would see that sibling's counters and captures.
+        final boolean[] allowed = guards(templates);
+        for (int i = 0; i < templates.size(); i++) {
+            if (!allowed[i]) {
                 continue;
             }
+            final CompiledTemplate candidate = templates.get(i);
+            final Template template = candidate.template();
             final long timing = instrument.startTiming();
             final MatchResult match = match(candidate, data, from, to, false);
             instrument.stopTiming(template.id(), timing, match != null);

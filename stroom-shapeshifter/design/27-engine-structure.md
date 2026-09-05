@@ -680,7 +680,7 @@ Nothing moved between classes; that is the phases.
 8. **§2.5's dependency cells** gain `engine.text` for `match` and `exec`, and `config` for `value`; the `engine` row says what item 2 says.
 9. **Two correctness defects** are fixed before phase 1 rather than carried: `EmitError`'s encoding and the unlocatable call offset (both one line). `records` under whole-buffer and chunked roots is phase 2's, with the loop. The step-regex flags and the `field` capture source are rulings 9 and 10.
 
-## 6. Rulings — 1 to 10 ruled 2026-09-05, each as recommended (D45); 11 wanted
+## 6. Rulings — all eleven ruled, each as recommended (D45)
 
 1. **The direction.** The executor dissolves into a run over the graph as §2.1 describes,
    rather than staying one class with helpers — D35's stated consequence, done.
@@ -711,14 +711,13 @@ Nothing moved between classes; that is the phases.
     silently. Ruled: a compile-time "not yet" refusal now, the shape D33 gives codecs, unless a
     corpus fixture uses it, which the gate will say.
 
-*Wanted, from the phase 3 audit:*
+*From the phase 3 audit, ruled 2026-09-06:*
 
 11. **The classify mode's guards.** Evaluated per template inline, after earlier templates'
     matches have set `__match_index` and `__match_count` and bound their captures, where the
     ordered modes evaluate every guard once on the way in for the reason the `guards` javadoc
-    gives. *Recommended: the once-on-the-way-in rule for classify too, pinned, in phase 4's
-    audit — DS3's classify has no guards at all, so nothing migrated relies on the re-read,
-    and a native configuration whose classify guard reads a sibling's capture is reading a
-    coincidence of list order.*
+    gives. Ruled: the once-on-the-way-in rule for classify too, pinned — DS3's classify has no
+    guards at all, so nothing migrated relies on the re-read, and a native configuration whose
+    classify guard reads a sibling's capture is reading a coincidence of list order.
 
 Each phase audited before the next.
