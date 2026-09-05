@@ -412,13 +412,14 @@ region — `level`, `processMatch`, `processEater`, the stream loop's level half
 function runtime and a body callback the executor implements; the run's encoding in force is
 handed in on every entry and held by the level for the duration, the same value each time. The executor opens the window and
 applies the mark, then hands the window to the level's `stream`. The return values nobody
-read are gone. Then the fold, inside `Level` (754 lines to 727): the guards evaluated once on
-the way in, three copies to `guards`; the winner loop, two copies to `pick`, with the max-match
-skip and the lexer's maximal munch inside it; the zero-advance error, three copies to
-`noProgress`, which takes whether the offset is within the content or absolute; the
-minimum-match and unmatched-content reports, three copies to `report`; the content-group
-selection, three copies to `content`; and a wanted match's instrumented body run, two copies
-to `runBody`, which the classify mode now shares with the ordered ones. `anyLevel` keeps its
+read are gone. Then the fold, inside `Level`: the guards evaluated once on the way in, three copies to
+`guards`; the zero-advance error, three copies to `noProgress`, which takes whether the offset
+is within the content or absolute; the minimum-match and unmatched-content reports, three
+copies to `report`; the content-group selection, three copies to `content`; and a wanted
+match's instrumented body run, two copies to `runBody`, which the classify mode now shares
+with the ordered ones. The winner loop — the pass over the templates with the max-match skip
+and the lexer's maximal munch — was folded to `pick` and then unfolded again by the gate (see
+below): it is written in both loops, the one duplication the hottest path cannot afford. `anyLevel` keeps its
 own loop because it excises and its zero-advance rule is not the ordered modes' (`end <=
 start`, not `advance == 0`), which the fold preserves. `stream` stays a sibling loop of
 `dispatch` rather than folding into it, as §2.1 first said: its refill decisions are the
@@ -426,6 +427,29 @@ window's and have no counterpart in a region, so what the two share is the six m
 a loop. `Executor` is 1,296 lines: the run, the
 root split, the mark rule, and the body. Every message is byte for byte what it was; the
 gate said so.
+
+*The gate.* Five readings, all in `design/benchmarks/2026-09-0[56]-*`. The fold's first
+reading against phase 2 had `ausearch` −6.2% and `win_sec_strict` −2.4% outside their
+intervals; the winner record `pick` returned across a method the JIT does not inline was the
+first suspect and became a field, which changed nothing: a second reading of the fold had
+`ausearch` back inside and `win_sec_strict` still −3%, and the field version had
+`regex_lines` −3.5% and `win_sec_strict` −3.1%. So the change was attributed: the pure move
+alone (`9fd685800d`) reads `win_sec_strict` −2% and the one-line-record rows flat, and the fold
+on top of it reads `regex_lines` −5% and `ausearch` −4%. A three-fork probe with the
+allocation profiler at phase 2, the move and the fold gives 5,562,251, 5,562,365 and
+5,562,387 bytes per operation on `regex_lines` — identical — and the JIT's inlining log
+shows the folded loop inlined *more* (`pick` and `processMatch` where the old big methods
+were refused): the cost was the compiled shape of the hot loop, not a call or an allocation.
+Two reversals (`6f7603619c`): the winner loop is written inline in both loops again, and the
+run implements the level's body callback itself so no lambda frame sits between a match and
+its body. Reading: against the phase 0 column every run row is inside its interval —
+`regex_lines` +2.4%, `ausearch` −1.1%, `win_sec_strict` −1.0%, `win_sec_xml` +0.6% — and
+against phase 2 `regex_lines` is +3.1%, `ausearch` inside, `win_sec_strict` −1.4%, a whisper
+outside phase 2's interval and the interface dispatch's likely residue, which phase 5's `Body`
+removes when the callback becomes a class. Compile rows unchanged but for the progressive
+row's known spread. Phase 3 passes its gate on the baseline; the lesson is written on the
+loop: a per-pass method on this path costs what the JIT decides, and the gate, not the
+structure, decides whether it stays.
 
 *Audited 2026-09-06.* The move is token-identical apart from the licensed changes — the
 callback, the dropped returns, the encoding parameter, the open and mark moved to the run —
