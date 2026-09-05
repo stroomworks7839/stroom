@@ -34,30 +34,25 @@ import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.Arguments;
-import stroom.shapeshifter.engine.function.FunctionCall;
-import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.FunctionFailure;
 import stroom.shapeshifter.engine.function.Kind;
-import stroom.shapeshifter.engine.function.Purity;
 import stroom.shapeshifter.engine.function.RunMode;
 import stroom.shapeshifter.engine.function.Services;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.engine.text.Transcode;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.PushbackInputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -90,16 +85,8 @@ public final class Executor {
     private final OutputSink output;
     private final Instrument instrument;
     private final List<Message> messages = new ArrayList<>();
-    // Design 26: the run's mode, the services its functions may reach, and the functions bound
-    // to it — one call per definition the configuration uses, bound at construction.
-    private final RunMode mode;
-    private final Services services;
-    private final Map<String, FunctionCall> library = new HashMap<>();
-    private final Map<String, Object> functionState = new HashMap<>();
-    private final Set<String> notRunInPreview = new HashSet<>();
-    private long callOffset = Instrument.UNLOCATABLE;
-    private long callLength = -1;
-    private long records;
+    /** The functions bound to this run, and what they may reach (design 26). */
+    private final FunctionRuntime functions;
     private final VarRegistry vars = new VarRegistry();
 
     /**
@@ -150,13 +137,12 @@ public final class Executor {
                      final Instrument instrument,
                      final RunMode mode,
                      final Services services) {
-        this.mode = mode;
-        this.services = services;
         this.compiled = compiled;
         this.output = sink;
         this.instrument = instrument;
         this.encoding = compiled.encoding();
         this.messages.addAll(compiled.warnings());
+        this.functions = new FunctionRuntime(compiled, mode, services, messages);
     }
 
     /**
@@ -191,93 +177,13 @@ public final class Executor {
         return new Executor(compiled, sink, instrument, mode, services).execute(source, wholeBuffer);
     }
 
-    /**
-     * Bind every function the configuration calls, once, before the run (design 26 §3). A
-     * definition that cannot be bound — a service it needs is missing — is the run's first and
-     * last message, FATAL, rather than an exception through the caller (phase 1 audit).
-     */
-    private void bindFunctions() {
-        for (final FunctionDefinition definition : compiled.functions()) {
-            try {
-                library.put(definition.name(), definition.bind(new Context(definition.name())));
-            } catch (final RuntimeException e) {
-                messages.add(new Message(Severity.FATAL,
-                        definition.name() + ": could not be bound to this run: " + describe(e)));
-                throw new AbortRun();
-            }
-        }
-    }
-
-    /** An exception as a message: its own message, or its class when it has none. */
-    private static String describe(final RuntimeException e) {
-        return e.getMessage() != null ? e.getMessage() : e.getClass().getName();
-    }
-
-    /** What a bound function may reach (design 26 §2), for one function by name. */
-    private final class Context implements FunctionContext {
-
-        private final String function;
-
-        private Context(final String function) {
-            this.function = function;
-        }
-
-        @Override
-        public void warn(final String message) {
-            messages.add(new Message(Severity.WARNING, function + ": " + message));
-        }
-
-        @Override
-        public void error(final String message) {
-            messages.add(new Message(Severity.ERROR, function + ": " + message));
-        }
-
-        @Override
-        public long inputOffset() {
-            return callOffset;
-        }
-
-        @Override
-        public long inputLength() {
-            return callLength;
-        }
-
-        @Override
-        public long recordNumber() {
-            return records;
-        }
-
-        @Override
-        public void message(final Severity severity, final String message) {
-            messages.add(new Message(severity, function + ": " + message));
-        }
-
-        @Override
-        public Map<String, Object> state() {
-            return functionState;
-        }
-
-        @Override
-        public <T> T service(final Class<T> type) {
-            return type.cast(services.lookup(type));
-        }
-    }
-
     // -----------------------------------------------------------------------------------
     // The stream
     // -----------------------------------------------------------------------------------
 
-    /** A fatal emission ends the run; the message is already recorded when this flies. */
-    private static final class AbortRun extends RuntimeException {
-
-        AbortRun() {
-            super(null, null, false, false);
-        }
-    }
-
     private List<Message> execute(final InputStream input, final boolean wholeBuffer) {
         try {
-            bindFunctions();
+            functions.bind();
             run(input, wholeBuffer);
         } catch (final AbortRun ignored) {
             // The fatal message is the last thing the run has to say.
@@ -351,13 +257,15 @@ public final class Executor {
             // dispatches work window-at-a-time; neither slides.
             boolean first = true;
             long read = 0;
-            for (byte[] chunk = read(input, bufferSize); chunk != null; chunk = read(input, bufferSize)) {
+            for (byte[] chunk = InputWindow.read(input, bufferSize);
+                 chunk != null;
+                 chunk = InputWindow.read(input, bufferSize)) {
                 int from = 0;
                 if (first) {
                     first = false;
-                    final Encoding.ByteOrderMark mark = Encoding.detectByteOrderMark(chunk);
+                    final Encoding.ByteOrderMark mark = InputWindow.byteOrderMark(chunk, chunk.length);
                     if (mark != null) {
-                        encoding = mark.encoding();
+                        applyMark(mark);
                         from = mark.length();
                         // The mark is part of the input: absolute offsets count its bytes.
                         read = from;
@@ -382,6 +290,25 @@ public final class Executor {
                 structure(output::endElement, "element '" + element.name() + "'");
             }
         }
+    }
+
+    /**
+     * What a byte-order mark at the front of the input means for the run. A UTF-8 mark is
+     * skipped and confirms the encoding. A UTF-16 mark names an encoding the regex library has
+     * no lowering for: such a source is transcoded whole to UTF-8 before the window ever sees
+     * it (design 19 phase 6), so a mark reaching the window means the source was declared as
+     * something else, and the run is refused by name rather than matching UTF-8 machines
+     * against UTF-16 bytes (design 27 phase 2, closing the gap phase 1's audit found).
+     */
+    private void applyMark(final Encoding.ByteOrderMark mark) {
+        if (RegexEncodings.needsTranscode(mark.encoding())) {
+            messages.add(new Message(Severity.FATAL, "The input begins with a " + mark.encoding().label()
+                    + " byte-order mark, but the source is declared " + encoding.label()
+                    + ": declare " + mark.encoding().label()
+                    + " on the source so the stream is transcoded whole"));
+            throw new AbortRun();
+        }
+        encoding = mark.encoding();
     }
 
     /**
@@ -642,6 +569,9 @@ public final class Executor {
                               final boolean ignoreErrors,
                               final int depth,
                               final boolean reportSkips) {
+        if (depth == 0) {
+            functions.countRecord();
+        }
         final Template template = candidate.template();
         if (matchCount == 1) {
             for (final CaptureBinding capture : template.captures()) {
@@ -698,19 +628,11 @@ public final class Executor {
     }
 
     /**
-     * The root level over a stream: DS3's sliding window (E13).
-     *
-     * <p>The contract is DS3's and is deliberate: memory is bounded by the configured buffer
-     * size, and a single match must fit the window's capacity or it cannot be made. What
-     * slides is the window, not the contract — the unconsumed tail is kept, the window
-     * refills behind it, and a record is never failed for merely straddling where a read
-     * happened to end. Failures depend on record size, never on stream position.
-     *
-     * <p>The refill is lazy where DS3's is eager, because eager compaction would copy the
-     * whole window per match: consumption advances an offset, and the window compacts and
-     * refills only when a match runs into its edge with input still unread, or when a pass
-     * finds nothing and more input might complete a record. A match that reaches the edge of
-     * a <em>full</em> window is the truncation case: FATAL, and the run ends (design 23 §5.1).
+     * The root level over a stream, through the {@link InputWindow} (E13, design 23): the
+     * level asks the window to refill when a match runs into its edge with input still unread,
+     * or when a pass finds nothing and more input might complete a record. A match that
+     * reaches the edge of a <em>full</em> window is the truncation case: FATAL, and the run
+     * ends (design 23 §5.1).
      *
      * <p>Match counts live for the whole stream, as DS3's do — a minimum-match requirement is
      * judged once at the end, not once per read.
@@ -722,22 +644,9 @@ public final class Executor {
                         final boolean ignoreErrors,
                         final Dispatch dispatch) {
         final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
-        // One byte of pushback: "the window is full" and "the stream is exhausted" can
-        // coincide, and a refusal must not fire on the first when only the second is true.
-        final PushbackInputStream source = new PushbackInputStream(input, 1);
-        final byte[] window = new byte[capacity];
-        int start = 0;
-        int filled = fillAndBlankTail(source, window, 0);
-        boolean eof = filled < capacity;
-        long consumedTotal = 0;
-
-        final Encoding.ByteOrderMark mark = Encoding.detectByteOrderMark(
-                Arrays.copyOf(window, Math.min(filled, 4)));
-        if (mark != null) {
-            encoding = mark.encoding();
-            start = Math.min(mark.length(), filled);
-            // The mark is part of the input: absolute offsets count its bytes.
-            consumedTotal = start;
+        final InputWindow window = InputWindow.open(input, capacity);
+        if (window.mark() != null) {
+            applyMark(window.mark());
         }
 
         final int[] counts = new int[templates.size()];
@@ -749,7 +658,9 @@ public final class Executor {
                     template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns());
         }
 
-        while (start < filled) {
+        while (!window.isEmpty()) {
+            final int start = window.start();
+            final int filled = window.filled();
             int winner = -1;
             MatchResult match = null;
             for (int i = 0; i < templates.size(); i++) {
@@ -763,7 +674,7 @@ public final class Executor {
                     continue;
                 }
                 final long timing = instrument.startTiming();
-                final MatchResult attempt = match(candidate, window, start, filled, atCursor);
+                final MatchResult attempt = match(candidate, window.bytes(), start, filled, atCursor);
                 instrument.stopTiming(template.id(), timing, attempt != null);
                 if (attempt == null) {
                     continue;
@@ -783,27 +694,17 @@ public final class Executor {
                 // Nothing matches the window's front. If the window can still grow, the tail
                 // may be a partial record — refill and try again; otherwise the stream is done
                 // saying what it has to say.
-                if (!eof && (start > 0 || filled < capacity)) {
-                    filled = compact(window, start, filled);
-                    start = 0;
-                    final int before = filled;
-                    filled += fillAndBlankTail(source, window, filled);
-                    eof = filled < capacity;
-                    if (filled > before) {
-                        continue;
-                    }
+                if (window.canGrow() && window.refill()) {
+                    continue;
                 }
                 break;
             }
 
             final int end = start + match.advance();
-            if (end == filled && !eof && !(start == 0 && filled == capacity)) {
+            if (window.edgeCanRecede(end)) {
                 // The match ran into the window's edge with input still unread: it may have
                 // matched a truncated view. Refill and let it try again against more.
-                filled = compact(window, start, filled);
-                start = 0;
-                filled += fillAndBlankTail(source, window, filled);
-                eof = filled < capacity;
+                window.refill();
                 continue;
             }
 
@@ -813,12 +714,12 @@ public final class Executor {
             if (match.advance() == 0) {
                 messages.add(new Message(Severity.ERROR,
                         "Template '" + template.name() + "' matched without advancing at"
-                        + " input offset " + (consumedTotal + match.matchStart())
+                        + " input offset " + window.offsetOf(start + match.matchStart())
                         + "; the level cannot make progress."));
                 break;
             }
 
-            if (end == filled && !eof) {
+            if (window.reachesEdge(end)) {
                 // The match reached the end of a full window. If the stream is exhausted the
                 // record simply ended where the input did; the probe byte settles that, since
                 // eof only means the -1 has not been read yet (an input of exactly the window's
@@ -828,9 +729,7 @@ public final class Executor {
                 // begin in its middle — so it is fatal, for every root match and regardless of
                 // ignore_errors, which is for skipping past something, not for having nowhere
                 // to go (design 23 §5.1, ruled 2026-09-04; DS3's grow-and-recover not adopted).
-                if (probeExhausted(source)) {
-                    eof = true;
-                } else {
+                if (!window.probeExhausted()) {
                     messages.add(new Message(Severity.FATAL,
                             "Template '" + template.name() + "' consumed the entire buffer ("
                             + match.advance() + " bytes) with input still unread: the record is "
@@ -841,18 +740,15 @@ public final class Executor {
             }
 
             if (template.consume()) {
-                processEater(candidate, match, sink, consumedTotal, ignoreErrors, 0);
-                consumedTotal += match.advance();
-                start = end;
+                processEater(candidate, match, sink, window.consumed(), ignoreErrors, 0);
+                window.consume(match.advance());
                 continue;
             }
 
             counts[winner]++;
-            records++;
-            processMatch(candidate, match, counts[winner], window, start,
-                    consumedTotal, sink, ignoreErrors, 0, true);
-            consumedTotal += match.advance();
-            start = end;
+            processMatch(candidate, match, counts[winner], window.bytes(), start,
+                    window.consumed(), sink, ignoreErrors, 0, true);
+            window.consume(match.advance());
         }
 
         boolean minMatchFailed = false;
@@ -867,70 +763,10 @@ public final class Executor {
                         + counts[i] + ")"));
             }
         }
-        if (!minMatchFailed && !ignoreErrors && hasContent(window, start, filled)) {
+        if (!minMatchFailed && !ignoreErrors && hasContent(window.bytes(), window.start(), window.filled())) {
             messages.add(new Message(Severity.ERROR,
                     "Expressions failed to match all of the content. Unmatched: ["
-                    + preview(window, start, filled) + "]"));
-        }
-    }
-
-    /** Shift the live region to the window's front, returning the new fill level. */
-    private static int compact(final byte[] window, final int start, final int filled) {
-        System.arraycopy(window, start, window, 0, filled - start);
-        return filled - start;
-    }
-
-    /**
-     * Read into the window and blank whatever the previous buffer left beyond the new fill.
-     * <p>
-     * The matcher's contract is that the array holds the caller's data up to its length: it
-     * probes one byte past the region to decide whether the region ends mid-character, which
-     * is right for a slice of a full array and wrong for a reused window, where those bytes
-     * are the last buffer's. Left stale, a continuation byte sitting at the fill point tells
-     * the matcher a character continues past the region and a legal empty match at the tail
-     * is refused — silently, and depending on what an earlier buffer happened to contain.
-     * Blanking the tail makes the contract true. It costs a memset of whatever the read left
-     * short, which is nothing until the last buffer of a stream, since {@link #fill} loops
-     * until the window is full.
-     */
-    static int fillAndBlankTail(final InputStream input,
-                                final byte[] window,
-                                final int from) {
-        final int got = fill(input, window, from);
-        Arrays.fill(window, from + got, window.length, (byte) 0);
-        return got;
-    }
-
-    /** Read until the window is full or the input ends; returns how many bytes arrived. */
-    private static int fill(final InputStream input, final byte[] window, final int from) {
-        try {
-            int total = from;
-            while (total < window.length) {
-                final int got = input.read(window, total, window.length - total);
-                if (got < 0) {
-                    break;
-                }
-                total += got;
-            }
-            return total - from;
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    /** Whether the stream is exhausted, learned by one probe byte — pushed back if it
-     * exists. May block on a live source, which is why the caller reserves it for the one
-     * decision that needs the certainty. */
-    private static boolean probeExhausted(final PushbackInputStream source) {
-        try {
-            final int probe = source.read();
-            if (probe < 0) {
-                return true;
-            }
-            source.unread(probe);
-            return false;
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
+                    + preview(window.bytes(), window.start(), window.filled()) + "]"));
         }
     }
 
@@ -1071,6 +907,9 @@ public final class Executor {
                     ? match.group(contentGroup)
                     : match.group(0);
             if (content != null && !content.isEmpty()) {
+                if (depth == 0) {
+                    functions.countRecord();
+                }
                 instrument.onMatch(template.id(), template.name(),
                         locate(inputBase, match.matchStart()),
                         match.advance() - match.matchStart(), 1, depth);
@@ -1442,11 +1281,7 @@ public final class Executor {
                       final long inputBase,
                       final Encoding contentEncoding) {
         final FunctionDefinition definition = op.definition();
-        final String function = definition.name();
-        if (mode == RunMode.PREVIEW && definition.purity() == Purity.IMPURE) {
-            if (notRunInPreview.add(function)) {
-                messages.add(new Message(Severity.WARNING, function + ": not run in preview"));
-            }
+        if (functions.skippedInPreview(definition)) {
             emit(null, op.name(), matchCount, sink);
             return;
         }
@@ -1469,21 +1304,8 @@ public final class Executor {
             values.add(resolved == null ? null : castTo(resolved, kinds.get(i)));
             sequences.add(null);
         }
-        final FunctionCall bound = library.get(function);
-        callOffset = locate(inputBase, match.matchStart());
-        callLength = match.advance() - match.matchStart();
-        TypedValue result = null;
-        try {
-            result = bound.call(new Arguments(values, raw, sequences));
-        } catch (final FunctionFailure e) {
-            messages.add(new Message(Severity.FATAL, function + ": " + e.getMessage()));
-            throw new AbortRun();
-        } catch (final RuntimeException e) {
-            messages.add(new Message(Severity.ERROR, function + ": " + describe(e)));
-        } finally {
-            callOffset = Instrument.UNLOCATABLE;
-            callLength = -1;
-        }
+        final TypedValue result = functions.invoke(definition.name(), new Arguments(values, raw, sequences),
+                locate(inputBase, match.matchStart()), match.advance() - match.matchStart());
         emit(result, op.name(), matchCount, sink);
     }
 
@@ -2136,30 +1958,5 @@ public final class Executor {
         return base >= Instrument.UNLOCATABLE ? Instrument.UNLOCATABLE : base + offset;
     }
 
-    // -----------------------------------------------------------------------------------
-    // Input
-    // -----------------------------------------------------------------------------------
-
-    /** Read one buffer, or null at the end of the input. */
-    private static byte[] read(final InputStream input, final int size) {
-        try {
-            if (size == Integer.MAX_VALUE) {
-                final byte[] all = input.readAllBytes();
-                return all.length == 0 ? null : all;
-            }
-            final byte[] buffer = new byte[size];
-            int total = 0;
-            while (total < size) {
-                final int read = input.read(buffer, total, size - total);
-                if (read < 0) {
-                    break;
-                }
-                total += read;
-            }
-            return total == 0 ? null : (total == size ? buffer : Arrays.copyOf(buffer, total));
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
 
 }

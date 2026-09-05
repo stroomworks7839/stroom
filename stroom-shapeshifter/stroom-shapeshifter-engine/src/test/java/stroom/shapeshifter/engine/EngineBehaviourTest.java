@@ -81,6 +81,30 @@ class EngineBehaviourTest {
         assertThat(result.output()).as(result.messages().toString()).isEqualTo("def;ABC;");
     }
 
+    /**
+     * Design 27 phase 2: a UTF-16 byte-order mark reaching the window means the source was
+     * declared as something else — a UTF-16 source is transcoded whole before the window sees
+     * it — so the run is refused by name rather than matching UTF-8 machines against UTF-16
+     * bytes, streamed and whole-buffer alike.
+     */
+    @Test
+    void utf16ByteOrderMarkOnAUtf8SourceIsRefusedByName() {
+        final byte[] input = {(byte) 0xFF, (byte) 0xFE, 'a', 0, '\n', 0};
+        final var compiled = Shapeshifter.compile(ProjectReader.read(lines(2000)));
+        for (final boolean whole : new boolean[]{false, true}) {
+            final ByteArrayOutputStream output = new ByteArrayOutputStream();
+            final List<Message> messages = whole
+                    ? Shapeshifter.runWhole(compiled, input, OutputSink.of(output))
+                    : Shapeshifter.run(compiled, new ByteArrayInputStream(input), OutputSink.of(output));
+            assertThat(messages).as("whole=" + whole).singleElement().satisfies(message -> {
+                assertThat(message.severity()).isEqualTo(Severity.FATAL);
+                assertThat(message.text()).contains("begins with a utf-16le byte-order mark")
+                        .contains("declared utf-8").contains("declare utf-16le on the source");
+            });
+            assertThat(output.size()).as("whole=" + whole).isZero();
+        }
+    }
+
     /** A configuration that writes each line of its input in brackets. */
     private static String lines(final int bufferSize) {
         return """

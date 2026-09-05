@@ -348,8 +348,29 @@ move. Nothing in the executor phases depends on the compiler's shape; the two pl
 touch — the recursive-apply flag phase 4 wants and the call-template op's rename — are one line
 each on either side.
 
-### Phase 2 — `InputWindow` and `FunctionRuntime`
+### Phase 2 — `InputWindow` and `FunctionRuntime` — Done 2026-09-05
 
+*As built:* `InputWindow` (251 lines) owns the byte array, the live region, the fill level,
+the end-of-input flag and the absolute count of bytes consumed; it opens over a stream by
+filling once and reading the byte-order mark, and it answers the level's questions by name —
+`canGrow`, `refill`, `edgeCanRecede`, `reachesEdge`, `probeExhausted`, `consume`,
+`offsetOf` — where the loop had inlined the arithmetic. The whole-buffer and chunk-at-a-time
+read, and the mark's detection on a chunk, are its statics too, so the two byte-order-mark
+sites are one rule, `applyMark`, on the run. `FunctionRuntime` (183) owns the library, the
+binding, the context a function sees, the preview gate, the call's offset and length, the
+shared state map and the record count; the executor's `call` resolves arguments and emits,
+and asks the runtime to `invoke`. `AbortRun` (29) is package-visible, thrown by four owners
+and caught by one. `Executor` is 1,962 lines, under the warning for the first time, and its
+`stream` keeps the level half for phase 3 to fold into `level`. **Two named fixes, pinned:**
+the record count moved to where a top-level record begins, in `processMatch` and `classify`
+at depth zero, so `recordNumber()` counts under a whole-buffer run and a chunked root, where
+it had read zero; and a UTF-16 byte-order mark reaching the window on a source declared
+otherwise is refused by name — declare the encoding on the source so the stream is transcoded
+whole — where it had switched the run to an encoding the regex library cannot lower and let a
+progressive step fail with an internal message. `WindowTailTest` calls the window. Engine 561,
+pipeline 154, app 5.
+
+*As written:*
 The two leaf regions, which reach nothing else. `InputWindow` takes the window array, the cursor
 and the fill-compact-probe trio; `stream` calls it. `FunctionRuntime` takes binding, the context,
 the preview gate and the call bookkeeping; `call` asks it. Around 400 lines leave `Executor`.

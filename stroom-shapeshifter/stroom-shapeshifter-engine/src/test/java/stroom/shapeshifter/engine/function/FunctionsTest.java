@@ -298,6 +298,12 @@ class FunctionsTest {
     @Test
     void contextReportsTheMatchsExtentTheRecordNumberAndMessagesOfAnySeverity() {
         assertThat(run(lines(call("extent", "", null)), "ab\ncd\n").output()).isEqualTo("1@0+3|2@3+3|");
+        // The record number counts under a whole-buffer run too (design 27 phase 2: the count
+        // moved to where a top-level record begins, whichever root loop runs it).
+        final ByteArrayOutputStream whole = new ByteArrayOutputStream();
+        Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read(lines(call("extent", "", null))), REGISTRY),
+                "ab\ncd\n".getBytes(StandardCharsets.UTF_8), OutputSink.of(whole));
+        assertThat(whole.toString(StandardCharsets.UTF_8)).isEqualTo("1@0+3|2@3+3|");
         final Run said = run(lines(call("say", GROUP1, null)), "a\n");
         assertThat(said.output()).isEqualTo("|");
         assertThat(said.messages()).singleElement().satisfies(m -> {
