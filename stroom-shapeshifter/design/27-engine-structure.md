@@ -391,6 +391,12 @@ still written at both read sites, the meaning being the one rule; the refusal pi
 output only because its prologue writes none, which is the same for every FATAL and is said
 here so nobody reads more into it. Engine 561, pipeline 154, app 5.
 
+*The benchmark*, run though the phase has no gate, because the stream loop now crosses a class
+boundary (`design/benchmarks/2026-09-05-2249-d26a98505a-engine.json`): every run row inside
+its interval against phase 1's final commit and against the phase 0 column; the compile rows
+unchanged from phase 1, which touched nothing at compile time, except the progressive row's
+−3.8% inside its own spread. The window's accessors cost the hot loop nothing measurable.
+
 *As written:*
 The two leaf regions, which reach nothing else. `InputWindow` takes the window array, the cursor
 and the fill-compact-probe trio; `stream` calls it. `FunctionRuntime` takes binding, the context,
