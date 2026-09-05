@@ -35,7 +35,6 @@ import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
-import stroom.shapeshifter.engine.function.FunctionFailure;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.RunMode;
 import stroom.shapeshifter.engine.function.Services;
@@ -127,8 +126,8 @@ public final class Executor {
     private boolean chunkedRoot;
 
     /**
-     * The encoding in force. Starts as whatever the configuration declared, and is replaced if
-     * the input opens with a byte-order mark, which is better evidence than a declaration.
+     * The encoding in force: what the configuration declared, or UTF-8 once a UTF-8 byte-order
+     * mark has confirmed it. A mark naming anything else refuses the run ({@link #applyMark}).
      */
     private Encoding encoding;
 
@@ -142,7 +141,7 @@ public final class Executor {
         this.instrument = instrument;
         this.encoding = compiled.encoding();
         this.messages.addAll(compiled.warnings());
-        this.functions = new FunctionRuntime(compiled, mode, services, messages);
+        this.functions = new FunctionRuntime(compiled.functions(), mode, services, messages);
     }
 
     /**
@@ -298,12 +297,13 @@ public final class Executor {
      * no lowering for: such a source is transcoded whole to UTF-8 before the window ever sees
      * it (design 19 phase 6), so a mark reaching the window means the source was declared as
      * something else, and the run is refused by name rather than matching UTF-8 machines
-     * against UTF-16 bytes (design 27 phase 2, closing the gap phase 1's audit found).
+     * against UTF-16 bytes.
      */
     private void applyMark(final Encoding.ByteOrderMark mark) {
         if (RegexEncodings.needsTranscode(mark.encoding())) {
             messages.add(new Message(Severity.FATAL, "The input begins with a " + mark.encoding().label()
-                    + " byte-order mark, but the source is declared " + encoding.label()
+                    + " byte-order mark, but the source "
+                    + (encoding == Encoding.AUTO ? "declares no encoding" : "is declared " + encoding.label())
                     + ": declare " + mark.encoding().label()
                     + " on the source so the stream is transcoded whole"));
             throw new AbortRun();
@@ -720,7 +720,8 @@ public final class Executor {
             }
 
             if (window.reachesEdge(end)) {
-                // The match reached the end of a full window. If the stream is exhausted the
+                // The match reached the end of a full window — edgeCanRecede has already said
+                // there is nothing to compact away. If the stream is exhausted the
                 // record simply ended where the input did; the probe byte settles that, since
                 // eof only means the -1 has not been read yet (an input of exactly the window's
                 // capacity fills it without observing the end). Otherwise the record is larger
@@ -900,6 +901,11 @@ public final class Executor {
             if (match == null) {
                 continue;
             }
+            // A record is a top-level match, here as in processMatch: counted before the
+            // content check, so that what a record's functions see is the same either way.
+            if (depth == 0) {
+                functions.countRecord();
+            }
             vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Int(0));
             vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Int(1));
             final int contentGroup = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
@@ -907,9 +913,6 @@ public final class Executor {
                     ? match.group(contentGroup)
                     : match.group(0);
             if (content != null && !content.isEmpty()) {
-                if (depth == 0) {
-                    functions.countRecord();
-                }
                 instrument.onMatch(template.id(), template.name(),
                         locate(inputBase, match.matchStart()),
                         match.advance() - match.matchStart(), 1, depth);
@@ -1267,12 +1270,9 @@ public final class Executor {
     }
 
     /**
-     * Call a registered function (design 26 §3) and write or bind what it returns. Arguments
-     * are positional and absent is null, so an optional trailing argument keeps its place; each
-     * is cast to the signature's kind through design 17's table, and a {@code SEQUENCE} position
-     * receives every entry of the store it named. In preview an impure function is not called —
-     * absent, and said once. A function that throws is an error and an absent result; one that
-     * throws {@link FunctionFailure} ends the run.
+     * Call a function (design 26): the arguments resolved in the body's scope, positions kept
+     * and absence null, sequences handed over whole; the runtime makes the call and says what
+     * a skipped, failed or erroring call means; the result is written or bound like any value.
      */
     private void call(final CompiledOp.CallFunction op,
                       final MatchResult match,

@@ -80,6 +80,11 @@ final class InputWindow {
         return Encoding.detectByteOrderMark(Arrays.copyOf(data, Math.min(length, 4)));
     }
 
+    /**
+     * The window's array. Valid from {@link #start()} to {@link #filled()}; blanked beyond the
+     * fill, which the matcher's one-byte look-ahead relies on; shifted by {@link #refill}, after
+     * which {@code start()} and {@code filled()} must be read again.
+     */
     byte[] bytes() {
         return window;
     }
@@ -97,15 +102,6 @@ final class InputWindow {
     /** Whether the live region is empty. */
     boolean isEmpty() {
         return start >= filled;
-    }
-
-    /** Whether the input has been seen to end, so no refill can bring more. */
-    boolean atEnd() {
-        return eof;
-    }
-
-    int capacity() {
-        return window.length;
     }
 
     /** How many bytes of the input precede the live region, the mark included. */
@@ -142,7 +138,11 @@ final class InputWindow {
         return end == filled && !eof && !(start == 0 && filled == window.length);
     }
 
-    /** Whether a match ending at {@code end} reached the window's edge with the end of input not yet seen. */
+    /**
+     * Whether a match ending at {@code end} reached the window's edge with the end of input not
+     * yet seen. Asked after {@link #edgeCanRecede} has said no, so a yes is the full-window case:
+     * nothing can be compacted away, and the level decides with a probe.
+     */
     boolean reachesEdge(final int end) {
         return end == filled && !eof;
     }

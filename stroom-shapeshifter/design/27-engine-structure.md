@@ -370,6 +370,27 @@ whole — where it had switched the run to an encoding the regex library cannot 
 progressive step fail with an internal message. `WindowTailTest` calls the window. Engine 561,
 pipeline 154, app 5.
 
+*Audited 2026-09-05.* The stream loop, decision by decision against the old one — the
+no-match refill, the receding edge, the full-window probe, the eater's and the counted match's
+consumption, the offset in the zero-advance message, the tail report, the mark's skip — is
+byte for byte equivalent, and the finals the loop now captures at the top of each iteration
+are safe because every mutation of the window is followed by a `continue`. The streamed
+root's record count is the same count at the same moment; the whole-buffer, classify and any
+roots now count where they counted nothing. The function runtime's invoke, preview gate and
+binding are the old code with the same catch order. No moved field is still referenced; every
+import is used. **Fixed:** the two new count sites disagreed on when a record begins — the
+match-processing one counted before the content check as the old loop had, the classify one
+only when a body ran — and a record is now a top-level match in both; two window members
+nothing called are gone; the array accessor states its contract, valid to the fill and
+re-read after a refill; the encoding field's javadoc no longer says a mark is "better
+evidence than a declaration", since a UTF-16 mark now refuses; the refusal says "declares no
+encoding" for a source that declared none rather than "declared auto"; the call's javadoc
+stopped restating the runtime's contract, which freed an import; the runtime takes the
+definitions it binds rather than the whole graph. **Named:** the mark's skip bookkeeping is
+still written at both read sites, the meaning being the one rule; the refusal pin proves no
+output only because its prologue writes none, which is the same for every FATAL and is said
+here so nobody reads more into it. Engine 561, pipeline 154, app 5.
+
 *As written:*
 The two leaf regions, which reach nothing else. `InputWindow` takes the window array, the cursor
 and the fill-compact-probe trio; `stream` calls it. `FunctionRuntime` takes binding, the context,

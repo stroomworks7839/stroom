@@ -19,7 +19,6 @@ package stroom.shapeshifter.engine.exec;
 import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Severity;
-import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
@@ -43,7 +42,7 @@ import java.util.Set;
  */
 final class FunctionRuntime {
 
-    private final CompiledProject compiled;
+    private final List<FunctionDefinition> definitions;
     private final RunMode mode;
     private final Services services;
     private final List<Message> messages;
@@ -54,11 +53,11 @@ final class FunctionRuntime {
     private long callLength = -1;
     private long records;
 
-    FunctionRuntime(final CompiledProject compiled,
+    FunctionRuntime(final List<FunctionDefinition> definitions,
                     final RunMode mode,
                     final Services services,
                     final List<Message> messages) {
-        this.compiled = compiled;
+        this.definitions = definitions;
         this.mode = mode;
         this.services = services;
         this.messages = messages;
@@ -70,7 +69,7 @@ final class FunctionRuntime {
      * last message, FATAL, rather than an exception through the caller.
      */
     void bind() {
-        for (final FunctionDefinition definition : compiled.functions()) {
+        for (final FunctionDefinition definition : definitions) {
             try {
                 library.put(definition.name(), definition.bind(new Context(definition.name())));
             } catch (final RuntimeException e) {
