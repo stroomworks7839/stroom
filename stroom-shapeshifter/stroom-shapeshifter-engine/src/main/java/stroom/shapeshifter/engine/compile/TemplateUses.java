@@ -53,25 +53,12 @@ record TemplateUses(Template template, List<String> calls, List<OutputNode.Apply
             switch (node) {
                 case OutputNode.CallTemplate value -> uses.calls().add(value.name());
                 case OutputNode.ApplyTemplates apply -> uses.applies().add(apply.directive());
-                case OutputNode.If value -> collectUses(value.then(), uses);
-                case OutputNode.Choose value -> {
-                    value.when().forEach(branch -> collectUses(branch.body(), uses));
-                    collectUses(value.otherwise(), uses);
-                }
-                case OutputNode.Switch value -> {
-                    value.cases().forEach(c -> collectUses(c.body(), uses));
-                    collectUses(value.defaultBody(), uses);
-                }
-                case OutputNode.Variable value -> collectUses(value.body(), uses);
-                case OutputNode.Element value -> collectUses(value.body(), uses);
-                case OutputNode.Attribute value -> collectUses(value.body(), uses);
-                // An iteration's body is a body: a call inside it names a template too (design
-                // 27 phase 1 audit, which found the two walks this replaced stopped here).
-                case OutputNode.ForEach value -> collectUses(value.body(), uses);
-                case OutputNode.ForEachGroup value -> collectUses(value.body(), uses);
                 default -> {
-                    // Leaves as far as references to templates are concerned.
+                    // Refers to no template itself; what it holds is walked below.
                 }
+            }
+            for (final List<OutputNode> nested : Containers.bodies(node)) {
+                collectUses(nested, uses);
             }
         }
     }

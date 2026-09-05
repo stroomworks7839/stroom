@@ -23,8 +23,10 @@
  *
  * <p>{@code Compiler} is the pipeline and the passes are their own classes: {@code MatchCompiler}
  * interns the patterns and compiles each template's match; {@code CompiledOp.compile} compiles
- * its body against them; {@code ReferenceCheck} walks every body once for what reads what;
- * {@code StructureCheck} judges what an element's body may contain. The result is the
+ * its body against them; {@code TemplateUses} collects what each body calls and applies to, for
+ * name resolution and the dispatch lint; {@code ReferenceCheck} walks every body once for what
+ * reads what; {@code StructureCheck} judges what an element's body may contain; and
+ * {@code Containers} says once which instructions hold bodies. The result is the
  * executable graph, {@code CompiledProject} (D35).
  */
 package stroom.shapeshifter.engine.compile;

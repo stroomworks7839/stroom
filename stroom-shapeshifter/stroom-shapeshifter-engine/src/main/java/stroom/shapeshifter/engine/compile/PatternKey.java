@@ -37,8 +37,7 @@ public record PatternKey(String text, Set<Flag> flags, Encoding encoding) {
     /**
      * The flag set is one of four shared immutable values, so a key costs the record and
      * nothing else: keys are built on every progressive regex step at match time as well as at
-     * compile time, and an enum set copied per key measured at −5.5% on the progressive
-     * configuration's compile (design 27 phase 1 audit).
+     * compile time.
      */
     public PatternKey {
         flags = Set.copyOf(flags);

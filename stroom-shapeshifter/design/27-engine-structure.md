@@ -158,9 +158,10 @@ instruction set.
 
 | Class | Purpose |
 |---|---|
-| `Compiler` | The pass pipeline: encoding, per-template compilation, the uses walk, name resolution, the dispatch lint (which reads the compiled templates' anchoring facts and so runs after match compilation), the body checks, zipped per template as today so the error a doubly faulty configuration reports does not change; builds the `CompiledProject`, with `structured` computed by the structure check rather than in the graph's constructor. 203 lines as built. |
+| `Compiler` | The pass pipeline: encoding, per-template refusals and compilation, then the uses walk, name resolution and the dispatch lint through `TemplateUses`, then the body checks, zipped per template as today so the error a doubly faulty configuration reports does not change; builds the `CompiledProject`, with `structured` computed by the structure check rather than in the graph's constructor. 203 lines as built. |
 | `TemplateUses` | What one template's body refers to, the templates it calls and the applies it makes, collected in one walk per body, and the two checks that read it: every name must exist, and the dispatch lint must know which modes are strict. |
-| `MatchCompiler` | Pattern interning (with a step's flags in the key, ruling 9), step resolution, once, and pre-encoding, `compileMatch`, the codec requirement, the not-yet refusals; owns `patterns` as an instance. The E29 block that cannot fire is deleted, its rationale one sentence on `RegexEncodings.forMatch`. |
+| `MatchCompiler` | Pattern interning (with a step's flags in the key, ruling 9), step resolution, once, and pre-encoding, `compileMatch`, the codec requirement; owns `patterns` as an instance. The not-yet refusal is `ConfigException.notYet`, since a capture refusal uses it too. The E29 block that cannot fire is deleted, its rationale one sentence on `RegexEncodings.forMatch`. 278 lines. |
+| `Containers` | Which instructions hold bodies, said once and exhaustively; the two walks that look for something anywhere inside a body — patterns to intern, templates referred to — recurse through it, so neither can stop short of an iteration again. 116 lines. |
 | `StructureCheck` | Today's `Structure`: attributes and namespaces after content, structure inside attribute values, `producesContent`. |
 | `ReferenceCheck` | Today's `BodyScan`: reads and writes, the unknown-reference refusal, sequences and keys, iteration and group hazards, the substring version gate, E37's document-template rules. |
 | `CompiledOp` | The ops, with `compile(body)` staying beside them — it is the body's compilation and already lives here. |
@@ -259,9 +260,10 @@ configuration reports and the order of its warnings are unchanged; the gate said
 where they were resolved three times; the E29 block that could not fire is gone and its
 reason is one sentence on `RegexEncodings.forMatch`. `StructureCheck` (186) answers whether a
 template writes structure from the walk it already makes, and the graph is handed the flag
-instead of walking the authored bodies in its constructor. `ReferenceCheck` (602) is
-`BodyScan` at top level, unchanged inside. The walks are four: interning, body compilation,
-the uses walk, and the check walk. A progressive regex step's flags are part of the pattern key
+instead of walking the authored bodies in its constructor. `ReferenceCheck` (604) is
+`BodyScan` at top level, unchanged inside. Four passes, five walks per body — interning, body
+compilation, the uses walk, the reference walk, the structure walk, the last two zipped at the
+loop, not merged — where there were eight. A progressive regex step's flags are part of the pattern key
 (ruling 9), and the pin was written first and failed on exactly the flag. The target of "under
 250 lines" for `Compiler` did not close: the E3 encoding rules are forty lines of refusals with
 their messages, and they belong to the pipeline, not to a pass. Engine 556, pipeline 154, app 5.
@@ -289,7 +291,7 @@ replaced, `ReferenceCheck` two hunks from `BodyScan`, every pattern key built th
 the compile side and the lookup side. **Fixed:** two javadocs stale on the key's shape; the
 not-yet refusal lived on the match side and served the capture refusal too, so it is a
 `ConfigException` factory now; and the uses walk moved out to `TemplateUses` with its two
-readers, which brings `Compiler` to 203 lines, under the target after all. **Fixed, with a
+readers, which brings `Compiler` under the target after all. **Fixed, with a
 pin:** the two walks the uses walk replaced never descended a `for-each` or `for-each-group`
 body, so a `call-template` to a missing name inside an iteration was never refused at compile
 time; the walk descends them now. **Named and assigned:** a UTF-16 byte-order mark on a source
@@ -299,6 +301,29 @@ match time — the compile-time refusal's proof does not reach the run's byte-or
 that is the window's, and phase 2 owns it. Five FQN `regex.Encoding` remain in `MatchCompiler`
 because `text.Encoding` holds the import; the ledger's note stands. Engine 557, pipeline 154,
 app 5.
+
+*Audited a second time, 2026-09-05, independently, on the final commit.* The first audit's
+own changes held as a pure move plus the two arms and three renames, the not-yet message is
+byte-identical to what the tests pin, and the design's claims held except two, corrected
+above: the walks are five, not four, and the line count was one out. **Found, the same gap a
+third time:** the interning walk had the same container list as the two the uses walk
+replaced, so a regex `replace` or a `matches` condition inside an iteration's body was never
+interned — the replace failed at compile time with an internal exception, the condition at run
+time on the first record. Three walks, three private lists of what holds a body, each with a
+`default` arm that could not tell a leaf from a forgotten container; that is a class of bug,
+and it is fixed as one: `Containers.bodies` is the exhaustive statement, and the two searching
+walks recurse through it. Pinned three ways — the replace and the condition inside an
+iteration are interned, and a strict apply inside one feeds the dispatch lint, the new warning
+the first audit's fix had produced without saying so. **Fixed besides:** `ConfigException`'s
+class javadoc said a configuration exception means the document never became a project,
+false for every compile-time refusal; the key's javadoc carried a number the gate had
+withdrawn; the package javadoc and a parameter's wording caught up; the reference check's entry
+point has its contract as javadoc. **Noted:** `Dispatch.effective` is still computed twice
+per apply (ledger); `TemplateUses` as a record with static readers over a list is defensible
+and stays; the `new boolean[1]` out-cell in `StructureCheck` is the ledger's phase 8 item.
+Engine 560, pipeline 154, app 5. Final sizes: `Compiler` 203, `MatchCompiler`
+278, `TemplateUses` 127, `StructureCheck`
+186, `ReferenceCheck` 604, `Containers` 116.
 
 *As written:*
 First, ahead of the executor, because the entry review gave it a number: the compile rows

@@ -65,8 +65,9 @@ public final class CompiledProject {
      *
      * @param project   the authored configuration
      * @param templates its templates, compiled, in their authored order
-     * @param patterns  every pattern used outside a template's own match, compiled once and
-     *                  keyed by text, flags and encoding
+     * @param patterns  every pattern the templates use except a regex match's own — bodies',
+     *                  conditions' and progressive steps' — compiled once and keyed by text,
+     *                  flags and encoding
      * @param encoding  the encoding its input is matched in: the declared one, or UTF-8 when a
      *                  transcode-family source is decoded first; a byte-order mark on the input
      *                  may still override it
@@ -104,7 +105,7 @@ public final class CompiledProject {
 
     /**
      * Whether the configuration writes structure. A structured configuration can be run straight
-     * into an event sink; a text one must be serialised and parsed (design 20 S7, design 22
+     * into an event sink; a text one must be serialised and parsed (design 20 §7, design 22
      * phase 2).
      */
     public boolean structured() {

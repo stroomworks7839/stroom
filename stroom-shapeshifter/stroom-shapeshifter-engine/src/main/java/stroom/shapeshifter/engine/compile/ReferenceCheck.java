@@ -124,6 +124,11 @@ final class ReferenceCheck {
         writable.addAll(EngineVars.ALL);
     }
 
+    /**
+     * Walk one template, once, in authored order, before {@link #report()}: guard, then
+     * captures, then body, which is the order that decides which of two unknown names a
+     * template reports.
+     */
     void template(final Template template) {
         templateName = template.name();
         inDocumentTemplate = template.match() instanceof MatchExpression.Source;
@@ -134,9 +139,6 @@ final class ReferenceCheck {
         for (final CaptureBinding capture : template.captures()) {
             ownCaptures.add(capture.name());
         }
-        // Guard, then captures, then body — the order the three separate checks read in,
-        // preserved because it decides which error a template with two unknown names
-        // reports, and there is no reason for a merge to change that (E27 audit).
         if (template.guard() != null) {
             condition(template.guard());
         }

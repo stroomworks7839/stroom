@@ -109,27 +109,15 @@ final class MatchCompiler {
                         intern(PatternKey.of(replace.pattern(), encoding), template);
                     }
                 }
-                case OutputNode.If value -> {
-                    collect(value.test(), template, encoding);
-                    collect(value.then(), template, encoding);
-                }
-                case OutputNode.Choose value -> {
-                    value.when().forEach(branch -> {
-                        collect(branch.test(), template, encoding);
-                        collect(branch.body(), template, encoding);
-                    });
-                    collect(value.otherwise(), template, encoding);
-                }
-                case OutputNode.Switch value -> {
-                    value.cases().forEach(switchCase -> collect(switchCase.body(), template, encoding));
-                    collect(value.defaultBody(), template, encoding);
-                }
-                case OutputNode.Variable value -> collect(value.body(), template, encoding);
-                case OutputNode.Element value -> collect(value.body(), template, encoding);
-                case OutputNode.Attribute value -> collect(value.body(), template, encoding);
+                case OutputNode.If value -> collect(value.test(), template, encoding);
+                case OutputNode.Choose value ->
+                        value.when().forEach(branch -> collect(branch.test(), template, encoding));
                 default -> {
-                    // Every other instruction is a leaf as far as patterns are concerned.
+                    // No pattern of its own; what it holds is walked below.
                 }
+            }
+            for (final List<OutputNode> nested : Containers.bodies(node)) {
+                collect(nested, template, encoding);
             }
         }
     }
@@ -278,7 +266,6 @@ final class MatchCompiler {
             case MatchExpression.Protobuf ignored -> throw ConfigException.notYet(template.name(), "Protobuf decoding");
         };
     }
-
 
     /**
      * A delimiter's byte form, through the same {@link Encoding#encode} the step vocabulary
