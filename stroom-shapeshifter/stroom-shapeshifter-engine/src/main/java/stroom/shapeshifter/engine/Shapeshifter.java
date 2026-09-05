@@ -57,8 +57,11 @@ public final class Shapeshifter {
     }
 
     /**
-     * Run a configuration in a mode, with the services its functions may reach (design 26 §3–4).
-     * {@link RunMode#PREVIEW} does not call impure functions.
+     * Run a configuration over a stream in a mode, with the services its functions may reach
+     * (design 26 §3–4). {@link RunMode#PREVIEW} does not call impure functions. Memory stays
+     * bounded by the configuration's buffer size, as for the four-argument form.
+     *
+     * @return everything the engine had to say, in the order it said it
      */
     public static List<Message> run(final CompiledProject compiled,
                                     final InputStream input,

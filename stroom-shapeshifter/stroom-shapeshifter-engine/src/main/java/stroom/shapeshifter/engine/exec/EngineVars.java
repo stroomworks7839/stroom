@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import java.util.Set;
+
 /**
  * The variables the engine sets itself, named once.
  *
@@ -60,7 +62,7 @@ public final class EngineVars {
     public static final String GROUP_SIZE = "__group_size";
 
     /** Every name the engine sets, for the compiler's refusal to treat as writable. */
-    public static final java.util.Set<String> ALL = java.util.Set.of(
+    public static final Set<String> ALL = Set.of(
             MATCH_COUNT, MATCH_INDEX, INDEX, POSITION, LAST, GROUP_KEY, GROUP, GROUP_SIZE);
 
     /**
@@ -69,10 +71,10 @@ public final class EngineVars {
      * to the first entry rather than to nothing — a plausible wrong value. The conditions
      * with the same failure mode already draw a lint (E21's hazard); these draw the same one.
      */
-    public static final java.util.Set<String> ITERATION_ONLY =
-            java.util.Set.of(INDEX, POSITION, LAST);
+    public static final Set<String> ITERATION_ONLY =
+            Set.of(INDEX, POSITION, LAST);
 
     /** The names only a grouping sets, which carry the same hazard outside one. */
-    public static final java.util.Set<String> GROUP_ONLY =
-            java.util.Set.of(GROUP_KEY, GROUP, GROUP_SIZE);
+    public static final Set<String> GROUP_ONLY =
+            Set.of(GROUP_KEY, GROUP, GROUP_SIZE);
 }

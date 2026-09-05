@@ -61,6 +61,9 @@ public final class Steps {
 
     private static final TypedValue NOTHING = TypedValue.of(new byte[0]);
 
+    /** Decode tables for the single-byte encodings, one lazy row per encoding. */
+    private static final ConcurrentHashMap<Encoding, char[]> SINGLE_BYTE = new ConcurrentHashMap<>();
+
     private Steps() {
     }
 
@@ -77,7 +80,7 @@ public final class Steps {
                                     final int from,
                                     final int to,
                                     final Map<PatternKey, BytePattern> patterns,
-                                    final Encoding encoding) {
+                               final Encoding encoding) {
         int pos = 0;
         int highWater = 0;
         final List<TypedValue> outputs = new ArrayList<>(steps.size());
@@ -141,7 +144,7 @@ public final class Steps {
                                final List<TypedValue> local,
                                final int position,
                                final Map<PatternKey, BytePattern> patterns,
-                                    final Encoding encoding) {
+                               final Encoding encoding) {
         final int available = to - from;
         return switch (step) {
             case MatchStep.Tag tag -> {
@@ -322,7 +325,7 @@ public final class Steps {
                                     final List<TypedValue> callerLocal,
                                     final int position,
                                     final Map<PatternKey, BytePattern> patterns,
-                                    final Encoding encoding) {
+                               final Encoding encoding) {
         final List<TypedValue> prior = concat(enclosing, callerLocal);
         int pos = 0;
         final List<TypedValue> local = new ArrayList<>(steps.size());
@@ -422,9 +425,6 @@ public final class Steps {
                                             && inSet(custom.charSet(), (char) codepoint);
         };
     }
-
-    /** Decode tables for the single-byte encodings, one lazy row per encoding. */
-    private static final ConcurrentHashMap<Encoding, char[]> SINGLE_BYTE = new ConcurrentHashMap<>();
 
     /**
      * The character at an offset under an encoding, packed as {@code codepoint << 8 | length},

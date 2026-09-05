@@ -471,7 +471,7 @@ public final class ProjectJson {
                         body.has("max") && !body.get("max").isNull() ? body.get("max").asInt() : null);
             }
             case "Sequence" -> new MatchStep.Sequence(list(body, "Sequence", ProjectJson::readStep));
-            case "PatternRef" -> new MatchStep.PatternRef(UUID.fromString(body.asString()));
+            case "PatternRef" -> new MatchStep.PatternRef(uuid(body, "PatternRef"));
             case "Peek" -> new MatchStep.Peek(list(body, "Peek", ProjectJson::readStep));
             case "Not" -> new MatchStep.Not(list(body, "Not", ProjectJson::readStep));
             default -> throw new ConfigException("Unknown match step: " + tagged.name());
@@ -729,9 +729,8 @@ public final class ProjectJson {
         final Tagged tagged = tag(node, "reference part");
         final JsonNode body = tagged.body();
         return switch (tagged.name()) {
-            // "Store" is the old spelling. serde carries it as an alias and so must we — a
-            // thousand of the corpus's parts still use it, and rewriting them would be a
-            // change to fixtures the port is meant to be measured against.
+            // "Store" is the corpus's older spelling of "capture": read for ever, never written,
+            // because a thousand of the fixtures' parts still use it and they are the measure.
             case "capture", "Store" -> {
                 checkFields(body, "capture", "var_id", "group", "match_index");
                 yield new RefPart.Capture(
@@ -788,11 +787,10 @@ public final class ProjectJson {
         final JsonNode body = tagged.body();
         return switch (tagged.name()) {
             // The six comparisons, and beneath them the five legacy spellings, kept for
-            // ever as aliases (the Store/capture precedent). Each alias carries the cast its
-            // semantics always implied: as-string on both sides for the equality trio — the
-            // engine's counters are already typed Int, and legacy equality compares string
-            // forms — and as-number on the left for the ordered pair (design/17 §8, the
-            // phase 1 audit's correction).
+            // ever as aliases. Each alias carries the cast its semantics always implied:
+            // as-string on both sides for the equality trio — the engine's counters are
+            // already typed Int, and legacy equality compares string forms — and as-number
+            // on the left for the ordered pair (design/17 §8).
             case "eq" -> readCompare(body, Condition.Compare.Op.EQ);
             case "ne" -> readCompare(body, Condition.Compare.Op.NE);
             case "lt" -> readCompare(body, Condition.Compare.Op.LT);
@@ -813,7 +811,7 @@ public final class ProjectJson {
                 checkFields(body, "ref-equals", "left", "right");
                 // Legacy ref-equals read both sides through "absent counts as empty", so two
                 // absent sides were equal. The strict eq says absent never compares — the
-                // both-absent case rides alongside explicitly (the phase 3 audit's finding).
+                // both-absent case rides alongside explicitly.
                 final RefExpression left = readRef(required(body, "left", "ref-equals"));
                 final RefExpression right = readRef(required(body, "right", "ref-equals"));
                 yield new Condition.Or(List.of(
@@ -854,8 +852,14 @@ public final class ProjectJson {
             case "and" -> new Condition.And(list(body, "and", ProjectJson::readCondition));
             case "or" -> new Condition.Or(list(body, "or", ProjectJson::readCondition));
             case "not" -> new Condition.Not(readCondition(body));
-            case "is-first" -> new Condition.IsFirst();
-            case "is-last" -> new Condition.IsLast();
+            case "is-first" -> {
+                checkFields(body, "is-first");
+                yield new Condition.IsFirst();
+            }
+            case "is-last" -> {
+                checkFields(body, "is-last");
+                yield new Condition.IsLast();
+            }
             case "exists" -> {
                 checkFields(body, "exists", "select");
                 yield new Condition.Exists(readRef(required(body, "select", "exists")));
@@ -882,7 +886,7 @@ public final class ProjectJson {
                 order = OutputNode.Order.valueOf(spelling.toUpperCase(Locale.ROOT));
             } catch (final IllegalArgumentException e) {
                 // Only the order's own parse, so the message cannot be blamed on a
-                // neighbouring field that failed for its own reasons (phase 3 audit).
+                // neighbouring field that failed for its own reasons.
                 throw new ConfigException("Unknown sort order: " + spelling);
             }
         }
@@ -899,7 +903,7 @@ public final class ProjectJson {
         return node;
     }
 
-    /** An ordering's cast, spelt lowercase, or null for the uncast string reading. */
+    /** A cast, spelt lowercase, or null for the uncast string reading. */
     private static Cast readCast(final JsonNode body) {
         if (!body.has("as") || body.get("as").isNull()) {
             return null;
@@ -927,7 +931,7 @@ public final class ProjectJson {
 
     /**
      * A legacy equality: string forms compared, whatever the types (design/17 §8) — with the
-     * legacy absent rule preserved exactly (the phase 3 audit's finding). The old evaluator
+     * legacy absent rule preserved exactly. The old evaluator
      * read an absent side as the empty string, so {@code equals($x, "")} was an absence test
      * and {@code not-equals($x, "v")} was true on a missing field. The strict {@code eq}
      * says absent never compares, so the aliases spell those cases out: an empty literal
@@ -959,17 +963,7 @@ public final class ProjectJson {
 
     private static Condition.Operand readOperand(final JsonNode node) {
         checkFields(node, "operand", "ref", "value", "as");
-        final Cast as;
-        if (node.has("as") && !node.get("as").isNull()) {
-            final String label = node.get("as").asString();
-            try {
-                as = Cast.valueOf(label.toUpperCase(Locale.ROOT));
-            } catch (final IllegalArgumentException e) {
-                throw new ConfigException("Unknown cast: " + label);
-            }
-        } else {
-            as = null;
-        }
+        final Cast as = readCast(node);
         final boolean hasRef = node.has("ref") && !node.get("ref").isNull();
         final boolean hasValue = node.has("value") && !node.get("value").isNull();
         if (hasRef == hasValue) {
@@ -1007,9 +1001,7 @@ public final class ProjectJson {
                 case Condition.Literal.Truth value -> node.put("value", value.value());
             }
         }
-        if (operand.as() != null) {
-            node.put("as", operand.as().name().toLowerCase(Locale.ROOT));
-        }
+        writeCast(node, operand.as());
         return node;
     }
 
@@ -1084,13 +1076,13 @@ public final class ProjectJson {
             case "emit-error" -> {
                 checkFields(body, "emit-error", "severity", "message");
                 final String severity = text(body, "severity", "emit-error");
+                final Severity level;
                 try {
-                    yield new OutputNode.EmitError(
-                            Severity.valueOf(severity.toUpperCase(Locale.ROOT)),
-                            readRef(required(body, "message", "emit-error")));
+                    level = Severity.valueOf(severity.toUpperCase(Locale.ROOT));
                 } catch (final IllegalArgumentException e) {
                     throw new ConfigException("Unknown emit-error severity: " + severity);
                 }
+                yield new OutputNode.EmitError(level, readRef(required(body, "message", "emit-error")));
             }
             case "call-template" -> {
                 checkFields(body, "call-template", "name", "with-param");
@@ -1108,14 +1100,14 @@ public final class ProjectJson {
                 yield new OutputNode.Element(
                         text(body, "name", "element"),
                         optionalText(body, "namespace"),
-                        body.has("omit-if-empty") && body.get("omit-if-empty").asBoolean(),
+                        body.path("omit-if-empty").asBoolean(false),
                         list(body.get("body"), "body", ProjectJson::readOutput));
             }
             case "attribute" -> {
                 checkFields(body, "attribute", "name", "omit-if-empty", "body");
                 yield new OutputNode.Attribute(
                         text(body, "name", "attribute"),
-                        body.has("omit-if-empty") && body.get("omit-if-empty").asBoolean(),
+                        body.path("omit-if-empty").asBoolean(false),
                         list(body.get("body"), "body", ProjectJson::readOutput));
             }
             case "namespace" -> {
@@ -1409,7 +1401,7 @@ public final class ProjectJson {
             }
             case OutputNode.Namespace value -> {
                 final ObjectNode body = NODES.objectNode();
-                body.put("prefix", value.prefix());
+                putIfPresent(body, "prefix", value.prefix());
                 body.put("uri", value.uri());
                 yield wrap("namespace", body);
             }
@@ -1639,7 +1631,7 @@ public final class ProjectJson {
         return node;
     }
 
-    /** A parameter is a two-element array, which is how serde carries a tuple. */
+    /** A parameter is a two-element array: the wire format spells a tuple as a {@code [name, value]} pair. */
     private static Param readParam(final JsonNode node) {
         if (!node.isArray() || node.size() != 2) {
             throw new ConfigException("A parameter must be a [name, value] pair");
@@ -1687,7 +1679,7 @@ public final class ProjectJson {
     // Wire-format primitives
     // -----------------------------------------------------------------------------------
 
-    /** A variant and its payload, however serde chose to spell them. */
+    /** A variant and its payload, in the wire format's spelling. */
     private record Tagged(String name, JsonNode body) {
 
     }
@@ -1697,8 +1689,8 @@ public final class ProjectJson {
      *
      * <p>Two spellings, and the difference is not decorative: a variant carrying nothing is a
      * bare string, and a variant carrying something is a single-key object. Anything else — an
-     * object with two keys, say — means the document was produced by something that is not
-     * serde, and saying so here is more useful than guessing.
+     * object with two keys, say — means the document was not written to this format's rules,
+     * and saying so here is more useful than guessing.
      */
     private static Tagged tag(final JsonNode node, final String what) {
         if (node == null || node.isNull()) {
@@ -1775,6 +1767,15 @@ public final class ProjectJson {
         return value == null || value.isNull() ? null : value.asString();
     }
 
+    /** A bare id value. */
+    private static UUID uuid(final JsonNode node, final String what) {
+        try {
+            return UUID.fromString(node.asString());
+        } catch (final IllegalArgumentException e) {
+            throw new ConfigException("Not a valid id for " + what + ": " + node.asString());
+        }
+    }
+
     private static UUID uuid(final JsonNode node, final String field, final String what) {
         try {
             return UUID.fromString(text(node, field, what));
@@ -1809,8 +1810,8 @@ public final class ProjectJson {
     }
 
     /**
-     * Rust's enum names are PascalCase and Java's constants are SCREAMING_SNAKE, so the two
-     * have to be mapped rather than matched. Doing it by shape keeps the enums free of
+     * The wire format's variant names are PascalCase and Java's constants are SCREAMING_SNAKE,
+     * so the two are mapped by shape rather than matched, which keeps the enums free of
      * serialisation detail.
      */
     private static <E extends Enum<E>> E constant(final Class<E> type, final String name) {

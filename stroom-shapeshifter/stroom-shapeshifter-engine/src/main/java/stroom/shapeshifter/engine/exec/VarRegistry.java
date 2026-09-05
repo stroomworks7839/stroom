@@ -69,11 +69,9 @@ public final class VarRegistry {
 
     /** The stores for a name, creating them in the innermost scope if nothing holds it yet. */
     public List<Store> entry(final String name) {
-        for (int i = scopes.size() - 1; i >= 0; i--) {
-            final List<Store> stores = scopes.get(i).get(name);
-            if (stores != null) {
-                return stores;
-            }
+        final List<Store> found = get(name);
+        if (found != null) {
+            return found;
         }
         final List<Store> stores = new ArrayList<>(1);
         scopes.getLast().put(name, stores);

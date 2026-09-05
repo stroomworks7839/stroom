@@ -117,10 +117,12 @@ public interface OutputSink {
         throw new StructureException("This sink does not carry structure: attribute " + name);
     }
 
+    /** Close the innermost open attribute. */
     default void endAttribute() {
         throw new StructureException("This sink does not carry structure: endAttribute");
     }
 
+    /** Close the innermost open element. */
     default void endElement() {
         throw new StructureException("This sink does not carry structure: endElement");
     }

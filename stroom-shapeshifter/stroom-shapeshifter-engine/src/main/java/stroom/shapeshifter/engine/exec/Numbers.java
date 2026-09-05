@@ -31,7 +31,7 @@ package stroom.shapeshifter.engine.exec;
  *
  * <p><b>Nothing here changes what parses.</b> Both methods accept and reject precisely what
  * {@code Long.valueOf} and {@code Double.valueOf} accept and reject, which
- * {@code NumbersEquivalenceTest} asserts by differential comparison rather than by example.
+ * {@code TypedValueParseEquivalenceTest} asserts by differential comparison rather than by example.
  */
 final class Numbers {
 

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
+import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.text.Encoding;
@@ -67,9 +68,13 @@ public final class CompiledProject {
      * @param templates its templates, compiled, in their authored order
      * @param patterns  every pattern used outside a template's own match, compiled once and
      *                  keyed by its text
-     * @param encoding  the encoding its input is declared to be in, which a byte-order mark on
-     *                  the input may still override
+     * @param encoding  the encoding its input is matched in: the declared one, or UTF-8 when a
+     *                  transcode-family source is decoded first; a byte-order mark on the input
+     *                  may still override it
+     * @param transcodeFrom the source encoding a transcode-family input is decoded from, or
+     *                  null when the input is matched as it arrives
      * @param warnings  anything worth saying that did not stop compilation
+     * @param functions the definitions the configuration calls, bound once per run
      */
     public CompiledProject(final Project project,
                            final List<CompiledTemplate> templates,
@@ -105,22 +110,22 @@ public final class CompiledProject {
         return structured;
     }
 
-    private static boolean carriesStructure(final List<stroom.shapeshifter.engine.config.OutputNode> body) {
-        for (final stroom.shapeshifter.engine.config.OutputNode node : body) {
+    private static boolean carriesStructure(final List<OutputNode> body) {
+        for (final OutputNode node : body) {
             final boolean found = switch (node) {
-                case stroom.shapeshifter.engine.config.OutputNode.Element ignored -> true;
-                case stroom.shapeshifter.engine.config.OutputNode.Attribute ignored -> true;
-                case stroom.shapeshifter.engine.config.OutputNode.Namespace ignored -> true;
-                case stroom.shapeshifter.engine.config.OutputNode.If value -> carriesStructure(value.then());
-                case stroom.shapeshifter.engine.config.OutputNode.Choose value ->
+                case OutputNode.Element ignored -> true;
+                case OutputNode.Attribute ignored -> true;
+                case OutputNode.Namespace ignored -> true;
+                case OutputNode.If value -> carriesStructure(value.then());
+                case OutputNode.Choose value ->
                         value.when().stream().anyMatch(w -> carriesStructure(w.body()))
                         || carriesStructure(value.otherwise());
-                case stroom.shapeshifter.engine.config.OutputNode.Switch value ->
+                case OutputNode.Switch value ->
                         value.cases().stream().anyMatch(c -> carriesStructure(c.body()))
                         || carriesStructure(value.defaultBody());
-                case stroom.shapeshifter.engine.config.OutputNode.ForEach value -> carriesStructure(value.body());
-                case stroom.shapeshifter.engine.config.OutputNode.ForEachGroup value -> carriesStructure(value.body());
-                case stroom.shapeshifter.engine.config.OutputNode.Variable value -> carriesStructure(value.body());
+                case OutputNode.ForEach value -> carriesStructure(value.body());
+                case OutputNode.ForEachGroup value -> carriesStructure(value.body());
+                case OutputNode.Variable value -> carriesStructure(value.body());
                 default -> false;
             };
             if (found) {
@@ -165,7 +170,7 @@ public final class CompiledProject {
         return patterns;
     }
 
-    /** The declared input encoding. */
+    /** The encoding the input is matched in: the declared one, or UTF-8 when the source is transcoded first. */
     public Encoding encoding() {
         return encoding;
     }

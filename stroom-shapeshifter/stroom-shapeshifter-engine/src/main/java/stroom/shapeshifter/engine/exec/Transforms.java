@@ -21,8 +21,13 @@ import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.DoubleBinaryOperator;
+import java.util.function.DoubleUnaryOperator;
+import java.util.function.LongBinaryOperator;
 import java.util.regex.Pattern;
 
 /**
@@ -51,7 +56,7 @@ public final class Transforms {
     /** Substitute, one search string at a time, in order. XSLT's {@code translate()}. */
     public static TypedValue translate(final List<TypedValue> inputs, final List<String> from, final List<String> to) {
         if (inputs.isEmpty()) {
-            return TypedValue.of("");
+            return null;
         }
         String result = inputs.getFirst().asString();
         for (int i = 0; i < from.size(); i++) {
@@ -135,7 +140,7 @@ public final class Transforms {
      * because there was nowhere to put a sequence (design/17 §6).
      */
     public static List<TypedValue> split(final TypedValue input, final String delimiter) {
-        return java.util.Arrays.stream(input.asString().split(Pattern.quote(delimiter), -1))
+        return Arrays.stream(input.asString().split(Pattern.quote(delimiter), -1))
                 .map(TypedValue::of)
                 .toList();
     }
@@ -269,7 +274,7 @@ public final class Transforms {
 
     /** A rounding operation: identity on a whole number, the rule on a fractional one. */
     private static TypedValue unary(final List<TypedValue> inputs,
-                                    final java.util.function.DoubleUnaryOperator operation) {
+                                    final DoubleUnaryOperator operation) {
         if (inputs.size() != 1) {
             return null;
         }
@@ -288,8 +293,8 @@ public final class Transforms {
     }
 
     private static TypedValue fold(final List<TypedValue> inputs,
-                                   final java.util.function.LongBinaryOperator exact,
-                                   final java.util.function.DoubleBinaryOperator approximate) {
+                                   final LongBinaryOperator exact,
+                                   final DoubleBinaryOperator approximate) {
         if (inputs.isEmpty()) {
             return null;
         }
@@ -401,7 +406,7 @@ public final class Transforms {
      * instruction and the engine runs one execution at a time (D35), which is what makes the
      * stateful {@code DecimalFormat} safe to reuse.
      */
-    public static TypedValue formatNumber(final List<TypedValue> inputs, final java.text.DecimalFormat format) {
+    public static TypedValue formatNumber(final List<TypedValue> inputs, final DecimalFormat format) {
         if (inputs.isEmpty()) {
             return null;
         }

@@ -428,7 +428,24 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 
 **Packages, confirmed.** Every exec-internal reference was checked; the sixteen assignments in §2.5 hold and nothing in the value or matching group reaches the run. The dependency cells need `engine.text` for `match` (`Steps` imports `text.Encoding` and `text.RegexEncodings`) and `exec` (`Transcode`, `Encoding`), and `config.ConfigException` for `value` (`Dates`, whose `compileParser`/`compileFormatter` are compile-time entry points called from `CompiledOp`). Tests move with their classes: `DatesTest`, `TransformsTest`, `TypedValueTest`, `TypedValueParseEquivalenceTest` to `value`, `StepsTest` to `match`; `CompareSpineTest`, `CompiledOp` and `Compiler` carry a further eleven imports §2.5's cost paragraph did not count.
 
-### 5.4 What the entry review corrects in the plan
+### 5.4 Phase 0 as built, 2026-09-05
+
+Every **line** finding in §5.1 to §5.3 is applied, in one commit, gated on the engine (555, one
+new pin), pipeline and app suites and checkstyle. Of note in the doing: the two correctness
+lines landed — `EmitError` resolves with the template's content encoding, and a function's
+input offset goes through `locate()` so an unlocatable call reads `UNLOCATABLE` as the contract
+says; the `field` capture source is refused by name in the compiler's per-template pass and
+pinned in `StructureTest`, and no fixture used it; the recursive-mode name is minted once, on
+`ApplyDirective`, and read by the compiler and the executor from there; `CompiledOp.compile`
+lost the `regexEncoding` parameter nothing read; `CompiledRefs`' `default` arms became named
+cases — Checkstyle refuses the unnamed pattern variable, which is the standard, so the two
+combined labels became two cases each and the `value()` helper folded into a `lookup` of the
+remote variable; `Compiler.encoding` is private; `Transforms.translate` answers null like its
+siblings; every fully qualified name whose import was already present, or could be, is an
+import; the narration the three reviews named is gone, and the rationale beside it is kept.
+Nothing moved between classes; that is the phases.
+
+### 5.5 What the entry review corrects in the plan
 
 1. **`OutputSink.of` and the variable body** (ruling 8 wanted). Three exits: (a) `of` moves to `XmlByteSink` as its factory and the executor and the test sites construct the sink by name; (b) `exec` gets its own buffer sink for variable bodies, which also asks why a variable's text is serialised with Saxon's indenting layout at all; (c) the cycle is accepted. *Recommended: (a) now, as the smallest; (b)'s question filed as a follow-on, since it is a behaviour question and not this design's.*
 2. **§2.5's `engine` row "depends on nothing"** is wrong as written: the facade imports `compile`, `config`, `exec` and `function`, and `PatternInfo` imports the regex module. The row should say that nothing below the root depends on it except through `OutputSink`, `Instrument`, `Message` and `Severity`.
@@ -458,7 +475,7 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 7. **The two resolvers** as §2.7 states: both stay, the seam is documented, the compile of
    conditions and capture selects is filed as the follow-on.
 
-*From the entry review (§5.4):*
+*From the entry review (§5.5):*
 
 8. **`OutputSink.of`.** The factory moves to `XmlByteSink`, the executor's variable body and
    the test sites construct the sink by name, and the question of why a variable's text takes

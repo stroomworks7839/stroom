@@ -20,9 +20,7 @@ import stroom.shapeshifter.regex.Encoding;
 
 /**
  * The interned-pattern key: the same source text compiled for two encodings is two different
- * byte machines, so text alone stopped being an identity when phase 3 let templates bring
- * their own (design 19 — the deferral phase 1 recorded, landing where a second key value
- * first exists).
+ * byte machines, so the key is the text and the encoding (design 19).
  */
 public record PatternKey(String text, Encoding encoding) {
 

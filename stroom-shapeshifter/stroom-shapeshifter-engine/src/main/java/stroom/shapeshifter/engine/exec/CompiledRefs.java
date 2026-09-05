@@ -65,15 +65,21 @@ final class CompiledRefs {
                 }
                 return wrote;
             }
-            default -> {
-                final TypedValue value = value(ref, match, matchCount, vars);
+            case CompiledRef.LocalGroup group -> {
+                final TypedValue value = match.group(group.group());
                 if (value == null || value.isEmpty()) {
                     return false;
                 }
                 // Only the current match's bytes need converting; stores hold UTF-8 (E3).
-                sink.write(ref instanceof CompiledRef.LocalGroup
-                        ? Refs.bytes(value, encoding)
-                        : value.asBytes());
+                sink.write(Refs.bytes(value, encoding));
+                return true;
+            }
+            case CompiledRef.RemoteVar remote -> {
+                final TypedValue value = lookup(remote, matchCount, vars);
+                if (value == null || value.isEmpty()) {
+                    return false;
+                }
+                sink.write(value.asBytes());
                 return true;
             }
         }
@@ -111,17 +117,19 @@ final class CompiledRefs {
                 }
                 return any ? TypedValue.of(buffer.toByteArray()) : null;
             }
-            default -> {
-                final TypedValue value = value(ref, match, matchCount, vars);
+            case CompiledRef.LocalGroup group -> {
+                final TypedValue value = match.group(group.group());
                 if (value == null || value.isEmpty()) {
                     return null;
                 }
-                if (ref instanceof CompiledRef.LocalGroup
-                    && value instanceof TypedValue.Bytes
-                    && !encoding.isUtf8Compatible()) {
+                if (value instanceof TypedValue.Bytes && !encoding.isUtf8Compatible()) {
                     return TypedValue.of(Refs.bytes(value, encoding));
                 }
                 return value;
+            }
+            case CompiledRef.RemoteVar remote -> {
+                final TypedValue value = lookup(remote, matchCount, vars);
+                return value == null || value.isEmpty() ? null : value;
             }
         }
     }
@@ -146,16 +154,10 @@ final class CompiledRefs {
         return bytes == null ? null : new String(bytes, StandardCharsets.UTF_8);
     }
 
-    /** One capture reference: a group of the current match, or of a named variable. */
-    private static TypedValue value(final CompiledRef ref,
-                                    final MatchResult match,
-                                    final int matchCount,
-                                    final VarRegistry vars) {
-        return switch (ref) {
-            case CompiledRef.LocalGroup group -> match.group(group.group());
-            case CompiledRef.RemoteVar remote ->
-                    Refs.lookup(remote.varId(), remote.group(), remote.matchIndex(), matchCount, vars);
-            default -> null;
-        };
+    /** A variable's value by name, group and match index, or null. */
+    private static TypedValue lookup(final CompiledRef.RemoteVar remote,
+                                     final int matchCount,
+                                     final VarRegistry vars) {
+        return Refs.lookup(remote.varId(), remote.group(), remote.matchIndex(), matchCount, vars);
     }
 }

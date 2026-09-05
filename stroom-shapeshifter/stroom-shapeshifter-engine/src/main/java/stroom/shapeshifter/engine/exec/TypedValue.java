@@ -17,6 +17,9 @@
 package stroom.shapeshifter.engine.exec;
 
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.Arrays;
 
 /**
  * A value captured during matching.
@@ -34,12 +37,12 @@ public sealed interface TypedValue {
 
         @Override
         public boolean equals(final Object other) {
-            return other instanceof Bytes bytes && java.util.Arrays.equals(value, bytes.value);
+            return other instanceof Bytes bytes && Arrays.equals(value, bytes.value);
         }
 
         @Override
         public int hashCode() {
-            return java.util.Arrays.hashCode(value);
+            return Arrays.hashCode(value);
         }
 
         @Override
@@ -195,7 +198,8 @@ public sealed interface TypedValue {
     }
 
     /**
-     * Render a double the way Rust does: whole numbers without a trailing {@code .0} — but only
+     * Render a double as the value language does (design/17 §16.8): whole numbers without a
+     * trailing {@code .0} — but only
      * while they fit a long, beyond which the cast saturates and would render the wrong number.
      */
     private static String format(final double value) {
@@ -221,11 +225,10 @@ public sealed interface TypedValue {
      * {@code :00} seconds entirely.
      */
     private static String iso(final Instant value) {
-        final java.time.ZoneOffset offset = value.offsetSeconds() == null
-                ? java.time.ZoneOffset.UTC
-                : java.time.ZoneOffset.ofTotalSeconds(value.offsetSeconds());
-        final java.time.OffsetDateTime dateTime =
-                java.time.OffsetDateTime.ofInstant(value.toJavaInstant(), offset);
+        final ZoneOffset offset = value.offsetSeconds() == null
+                ? ZoneOffset.UTC
+                : ZoneOffset.ofTotalSeconds(value.offsetSeconds());
+        final OffsetDateTime dateTime = OffsetDateTime.ofInstant(value.toJavaInstant(), offset);
         final StringBuilder out = new StringBuilder(35);
         // The sign is written separately: %04d would spend the field width on it and render
         // year -44 as "-044" (phase 4 audit).

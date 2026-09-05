@@ -57,6 +57,7 @@ public final class SaxEventSink implements OutputSink {
     private boolean documentStarted;
     private boolean documentEnded;
 
+    /** A sink delivering the document's events to a handler. */
     public SaxEventSink(final ContentHandler handler) {
         this.handler = handler;
     }
@@ -295,7 +296,6 @@ public final class SaxEventSink implements OutputSink {
         return flat.length() <= 40 ? flat : flat.substring(0, 40) + "…";
     }
 
-    /** How many trailing bytes begin a UTF-8 sequence the array does not finish. */
     private static final class Element {
 
         private final String qName;

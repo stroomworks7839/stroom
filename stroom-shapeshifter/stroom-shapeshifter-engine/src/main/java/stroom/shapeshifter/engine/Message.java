@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine;
 
+import java.util.Locale;
+
 /**
  * Something the engine has to say about a run.
  *
@@ -35,6 +37,6 @@ public record Message(Severity severity, String text) {
     @Override
     public String toString() {
         final String name = severity.name();
-        return name.charAt(0) + name.substring(1).toLowerCase(java.util.Locale.ROOT) + "\t" + text;
+        return name.charAt(0) + name.substring(1).toLowerCase(Locale.ROOT) + "\t" + text;
     }
 }

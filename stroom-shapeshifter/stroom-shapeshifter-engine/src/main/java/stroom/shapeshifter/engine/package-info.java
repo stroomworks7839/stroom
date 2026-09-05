@@ -16,13 +16,13 @@
 
 /**
  * The Shapeshifter engine: the layers above matching.
- * <p>
- * {@code stroom-shapeshifter-regex} answers one question — does this byte region match, and
+ *
+ * <p>{@code stroom-shapeshifter-regex} answers one question — does this byte region match, and
  * what did its groups capture — and is deliberately a standalone, zero-dependency library.
  * This module is where the rest of the design lands (decision D12): the record/structure
  * layer that walks input with those matchers, the transforms over what they capture, and the
  * output side that replaces what XSLT does for DS3 today. Decision D10's pipeline adapter
- * ({@code stroom-shapeshifter-pipeline}) will sit above this in turn, keeping Stroom's own types
+ * ({@code stroom-shapeshifter-pipeline}) sits above this in turn, keeping Stroom's own types
  * out of both library modules.
  */
 package stroom.shapeshifter.engine;

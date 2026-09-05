@@ -33,6 +33,7 @@ import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
@@ -54,8 +55,12 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -65,8 +70,8 @@ import java.util.function.Function;
 /**
  * The runtime: reads the input, drives the templates, writes the output.
  *
- * <p>Input arrives through a <b>sliding window</b> of the configured buffer size (E13, restoring
- * DS3's own shape): records consume from the window's front and it refills behind them, so a
+ * <p>Input arrives through a <b>sliding window</b> of the configured buffer size (E13, DS3's own
+ * shape): records consume from the window's front and it refills behind them, so a
  * record is never failed for straddling where a read happened to end. The bounds are the
  * contract — memory is capped by the buffer size, and a single match must fit the window's
  * capacity or it cannot be made — which makes failures depend on record size, never on stream
@@ -112,16 +117,15 @@ public final class Executor {
      * sequence here, not of keys — scoping is what usually hides it, and a key steps outside
      * that. No case needs a key to outlive its sequence, so nothing is built to prevent it.
      */
-    private final java.util.Map<String, java.util.Map<String, Filed>> keyIndexes =
-            new java.util.HashMap<>();
+    private final Map<String, Map<String, Filed>> keyIndexes = new HashMap<>();
 
     /**
      * The arithmetic sites that have already drawn a strict_values warning this run — once
      * per instruction site, because once per record on a million-record input is not a
      * diagnostic, it is a flood (design/17 §10).
      */
-    private final java.util.Set<CompiledOp.Transform> warnedNumeric =
-            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    private final Set<CompiledOp.Transform> warnedNumeric =
+            Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
      * Whether the root reads the input in pieces whose counters restart (design/16 §10).
@@ -158,10 +162,9 @@ public final class Executor {
     /**
      * Run a compiled configuration over an input.
      *
-     * @param wholeBuffer read the input as a single buffer rather than in chunks. The progressive
-     *                    matches need it — an absolute seek is meaningless over a window — and it
-     *                    also suppresses the warning about a template consuming a whole buffer,
-     *                    which cannot indicate truncation when there is only one
+     * @param wholeBuffer read the input as a single buffer rather than through the window. The
+     *                    progressive matches need it — an absolute seek is meaningless over a
+     *                    window — and a whole buffer has no edge for a match to run into
      * @return everything the engine had to say, in the order it said it
      */
     public static List<Message> run(final CompiledProject compiled,
@@ -179,7 +182,7 @@ public final class Executor {
                                     final boolean wholeBuffer,
                                     final RunMode mode,
                                     final Services services) {
-        // Phase 6 (design 19): a transcode-family source becomes UTF-8 bytes before the
+        // Design 19 phase 6: a transcode-family source becomes UTF-8 bytes before the
         // window machinery reads it; report by default, replace under ignore_errors.
         final InputStream source = compiled.transcodeFrom() != null
                 ? Transcode.wrap(input, compiled.transcodeFrom().charset(),
@@ -695,7 +698,7 @@ public final class Executor {
     }
 
     /**
-     * The root level over a stream: DS3's sliding window, restored for E13.
+     * The root level over a stream: DS3's sliding window (E13).
      *
      * <p>The contract is DS3's and is deliberate: memory is bounded by the configured buffer
      * size, and a single match must fit the window's capacity or it cannot be made. What
@@ -707,7 +710,7 @@ public final class Executor {
      * whole window per match: consumption advances an offset, and the window compacts and
      * refills only when a match runs into its edge with input still unread, or when a pass
      * finds nothing and more input might complete a record. A match that reaches the edge of
-     * a <em>full</em> window is the truncation case, warned about exactly as before.
+     * a <em>full</em> window is the truncation case: FATAL, and the run ends (design 23 §5.1).
      *
      * <p>Match counts live for the whole stream, as DS3's do — a minimum-match requirement is
      * judged once at the end, not once per read.
@@ -932,7 +935,7 @@ public final class Executor {
     }
 
     /**
-     * An {@code any} level — DS3's {@code matchOrder="any"}, ported for E18: templates search
+     * An {@code any} level — DS3's {@code matchOrder="any"} (E18): templates search
      * a working copy of the content, and a match is <b>excised</b> — the span is removed and
      * the pieces either side close up — rather than the cursor moving past it. The prefix a
      * match skipped over is kept for later passes, which is the mode's whole point: order in
@@ -1361,8 +1364,7 @@ public final class Executor {
                 case CompiledOp.KeyGet value -> {
                     final TypedValue wanted = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars, contentEncoding);
-                    final java.util.Map<String, Filed> index =
-                            keyIndexes.getOrDefault(value.key(), java.util.Map.of());
+                    final Map<String, Filed> index = keyIndexes.getOrDefault(value.key(), Map.of());
                     // A value with no entry binds an empty sequence, which a walk runs over
                     // zero times — the same non-answer XSLT's key() gives, not an error.
                     // An absent lookup value finds the entries that had no key — the same
@@ -1393,7 +1395,7 @@ public final class Executor {
                                 ? null
                                 : Comparisons.cast(CompiledRefs.resolveValue(
                                         value.reference(), match, matchCount, vars, contentEncoding),
-                                        stroom.shapeshifter.engine.config.Cast.DATE);
+                                        Cast.DATE);
                         result = Dates.parse(value.parser(), input.asString(),
                                 (TypedValue.Instant) reference);
                     }
@@ -1401,7 +1403,7 @@ public final class Executor {
                 }
                 case CompiledOp.EmitError value -> {
                     final String text = CompiledRefs.resolveText(
-                            value.message(), match, matchCount, vars, encoding);
+                            value.message(), match, matchCount, vars, contentEncoding);
                     messages.add(new Message(value.severity(), text == null ? "" : text));
                     if (value.severity() == Severity.FATAL) {
                         // The message is recorded; the run ends here (D36).
@@ -1468,11 +1470,11 @@ public final class Executor {
             sequences.add(null);
         }
         final FunctionCall bound = library.get(function);
-        callOffset = inputBase + match.matchStart();
+        callOffset = locate(inputBase, match.matchStart());
         callLength = match.advance() - match.matchStart();
         TypedValue result = null;
         try {
-            result = bound.call(new stroom.shapeshifter.engine.function.Arguments(values, raw, sequences));
+            result = bound.call(new Arguments(values, raw, sequences));
         } catch (final FunctionFailure e) {
             messages.add(new Message(Severity.FATAL, function + ": " + e.getMessage()));
             throw new AbortRun();
@@ -1698,12 +1700,12 @@ public final class Executor {
      * {@code __index} bound, so a key can name a parallel store: "these records, by their
      * category" is said by indexing positions rather than values.
      */
-    private java.util.Map<String, Filed> index(final String select,
-                                               final CompiledRef groupBy,
-                                               final MatchResult match,
-                                               final int matchCount,
-                                               final Encoding contentEncoding) {
-        final java.util.Map<String, Filed> members = new java.util.LinkedHashMap<>();
+    private Map<String, Filed> index(final String select,
+                                     final CompiledRef groupBy,
+                                     final MatchResult match,
+                                     final int matchCount,
+                                     final Encoding contentEncoding) {
+        final Map<String, Filed> members = new LinkedHashMap<>();
         final List<Store> stores = vars.get(select);
         if (stores == null || stores.isEmpty()) {
             return members;
@@ -1762,12 +1764,10 @@ public final class Executor {
         if (stores == null || stores.isEmpty()) {
             return;
         }
-        final Store store = stores.getFirst();
 
         // The same index a key builds (design/16 §8): grouping walks every entry of it,
         // a key reaches one entry by value. One builder, two readings.
-        final java.util.Map<String, Filed> members =
-                index(op.select(), op.groupBy(), match, matchCount, contentEncoding);
+        final Map<String, Filed> members = index(op.select(), op.groupBy(), match, matchCount, contentEncoding);
         if (members.isEmpty()) {
             return;
         }
@@ -1881,7 +1881,7 @@ public final class Executor {
 
     /** The distinct entries, first appearance kept, compared by string form. */
     private void distinct(final CompiledOp.DistinctValues op) {
-        final java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        final Set<String> seen = new LinkedHashSet<>();
         final List<TypedValue> distinct = new ArrayList<>();
         for (final TypedValue value : entries(op.select())) {
             if (seen.add(value.asString())) {
@@ -2106,16 +2106,15 @@ public final class Executor {
             instrument.onMatchContent(null, content);
         }
 
-        final String mode = directive.templateRef() != null
-                ? "__rec_" + directive.templateRef()
-                : directive.mode();
+        final String mode = directive.effectiveMode();
         // A compile-time fact read as a field — nothing filters the template list per call.
         final List<CompiledTemplate> candidates = compiled.templates(mode);
 
         // A recursive apply gets its own scope, so that a nested level's captures cannot leak
         // back into the level that invoked it — and so that they are released on the way out.
         final boolean recursive = directive.templateRef() != null
-                                  || (directive.mode() != null && directive.mode().startsWith("__rec_"));
+                                  || (directive.mode() != null
+                                      && directive.mode().startsWith(ApplyDirective.RECURSIVE_PREFIX));
         if (recursive) {
             vars.push();
             candidates.forEach(candidate -> candidate.template().captures()

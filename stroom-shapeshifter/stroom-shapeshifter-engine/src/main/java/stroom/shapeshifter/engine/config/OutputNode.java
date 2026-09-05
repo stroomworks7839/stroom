@@ -786,6 +786,14 @@ public sealed interface OutputNode {
                           boolean ignoreErrors,
                           Dispatch dispatch) {
 
+        /** The prefix of the mode a recursive apply dispatches to, minted once here. */
+        public static final String RECURSIVE_PREFIX = "__rec_";
+
+        /** The mode this directive dispatches to: its own, or the recursive one for its template. */
+        public String effectiveMode() {
+            return templateRef != null ? RECURSIVE_PREFIX + templateRef : mode;
+        }
+
         /** How deep recursion goes before the engine calls it a runaway. */
         public static final int DEFAULT_MAX_DEPTH = 64;
 

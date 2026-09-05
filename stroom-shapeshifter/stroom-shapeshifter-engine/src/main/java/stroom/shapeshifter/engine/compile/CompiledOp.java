@@ -26,7 +26,7 @@ import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
-import stroom.shapeshifter.engine.config.RefExpression.RefPart;
+import stroom.shapeshifter.engine.exec.Comparisons;
 import stroom.shapeshifter.engine.exec.Dates;
 import stroom.shapeshifter.engine.exec.Transforms;
 import stroom.shapeshifter.engine.exec.TypedValue;
@@ -54,9 +54,8 @@ import java.util.function.Function;
  * is the parent's whole content. The transform instructions collapse to one instruction
  * holding its function, parameters already bound.
  *
- * <p>Conditions stay authored and are evaluated by {@code Conditions} as before — their
- * patterns are already interned, and compiling them further is a later change if the numbers
- * ask for it.
+ * <p>Conditions stay authored and are evaluated by {@code Conditions}: their patterns are
+ * interned here, and compiling them further is design 10 §2's open row (design 27 §2.7).
  */
 public sealed interface CompiledOp {
 
@@ -141,10 +140,12 @@ public sealed interface CompiledOp {
 
     }
 
+    /** An attribute on the enclosing element, its value the body's text; omitted if empty when asked. */
     record Attribute(String name, boolean omitIfEmpty, List<CompiledOp> body) implements CompiledOp {
 
     }
 
+    /** A namespace declaration on the enclosing element; a null prefix declares the default. */
     record Namespace(String prefix, String uri) implements CompiledOp {
 
     }
@@ -264,7 +265,7 @@ public sealed interface CompiledOp {
     /**
      * Split a value. Its own instruction rather than a {@link Transform} because binding a
      * name now means binding <b>N</b> values, which a transform's single result cannot do —
-     * design/17 §16.4's ruling, which has been waiting on sequences existing.
+     * design/17 §16.4's ruling.
      */
     record Tokenize(CompiledRef select, String delimiter, String name) implements CompiledOp {
 
@@ -278,7 +279,6 @@ public sealed interface CompiledOp {
      */
     static List<CompiledOp> compile(final List<OutputNode> body,
                                     final Map<PatternKey, BytePattern> patterns,
-                                    final stroom.shapeshifter.regex.Encoding regexEncoding,
                                     final Project project,
                                     final Functions functions) {
         final List<CompiledOp> ops = new ArrayList<>(body.size());
@@ -289,20 +289,20 @@ public sealed interface CompiledOp {
                 case OutputNode.ValueOf valueOf -> new ValueOf(CompiledRef.of(valueOf.select()));
                 case OutputNode.Call value -> call(value, functions);
                 case OutputNode.If value ->
-                        new If(value.test(), compile(value.then(), patterns, regexEncoding, project, functions));
+                        new If(value.test(), compile(value.then(), patterns, project, functions));
                 case OutputNode.Choose value -> new Choose(
                         value.when().stream()
                                 .map(branch -> new When(branch.test(),
-                                        compile(branch.body(), patterns, regexEncoding, project, functions)))
+                                        compile(branch.body(), patterns, project, functions)))
                                 .toList(),
-                        compile(value.otherwise(), patterns, regexEncoding, project, functions));
+                        compile(value.otherwise(), patterns, project, functions));
                 case OutputNode.Switch value -> new Switch(
                         CompiledRef.of(value.select()),
                         value.cases().stream()
                                 .map(c -> new Case(c.value(),
-                                        compile(c.body(), patterns, regexEncoding, project, functions)))
+                                        compile(c.body(), patterns, project, functions)))
                                 .toList(),
-                        compile(value.defaultBody(), patterns, regexEncoding, project, functions));
+                        compile(value.defaultBody(), patterns, project, functions));
                 case OutputNode.ApplyTemplates apply -> {
                     // Whole-parent-content is the group-0 special case of a local group, so
                     // being a local group is the whole of being locatable.
@@ -322,13 +322,13 @@ public sealed interface CompiledOp {
                                 .map(param -> new Arg(param.name(), CompiledRef.of(param.value())))
                                 .toList());
                 case OutputNode.Variable value ->
-                        new Variable(value.name(), compile(value.body(), patterns, regexEncoding, project, functions));
+                        new Variable(value.name(), compile(value.body(), patterns, project, functions));
                 case OutputNode.Element value -> new Element(
                         value.name(), value.namespace(), value.omitIfEmpty(),
-                        compile(value.body(), patterns, regexEncoding, project, functions));
+                        compile(value.body(), patterns, project, functions));
                 case OutputNode.Attribute value -> new Attribute(
                         value.name(), value.omitIfEmpty(),
-                                compile(value.body(), patterns, regexEncoding, project, functions));
+                                compile(value.body(), patterns, project, functions));
                 case OutputNode.Namespace value -> new Namespace(value.prefix(), value.uri());
                 case OutputNode.ValueMap value -> new ValueMap(
                         CompiledRef.of(value.select()), value.entries(), value.defaultValue(), value.name());
@@ -336,7 +336,7 @@ public sealed interface CompiledOp {
                         value.name(), inputs -> Transforms.translate(inputs, value.from(), value.to()));
                 case OutputNode.StringJoin value -> transform(value.select(), value.name(),
                         inputs -> Transforms.stringJoin(inputs, value.separator()));
-                case OutputNode.Replace value -> replace(value, patterns, regexEncoding);
+                case OutputNode.Replace value -> replace(value, patterns);
                 case OutputNode.LowerCase value ->
                         transform(single("lower-case", value.select()), value.name(), Transforms::lowerCase);
                 case OutputNode.UpperCase value ->
@@ -433,12 +433,12 @@ public sealed interface CompiledOp {
                         CompiledRef.of(value.select()), value.name());
                 case OutputNode.ForEachGroup value -> new ForEachGroup(value.select(),
                         value.groupBy() == null ? null : CompiledRef.of(value.groupBy()),
-                        compile(value.body(), patterns, regexEncoding, project, functions));
+                        compile(value.body(), patterns, project, functions));
                 case OutputNode.ForEach value -> new ForEach(value.select(), value.as(),
                         value.sort().stream()
                                 .map(key -> new SortKey(CompiledRef.of(key.by()), key.order(), key.as()))
                                 .toList(),
-                        compile(value.body(), patterns, regexEncoding, project, functions));
+                        compile(value.body(), patterns, project, functions));
                 case OutputNode.FormatDate value -> {
                     final Dates.Formatter formatter = Dates.compileFormatter(
                             value.pattern(), value.timezone(), "format-date");
@@ -449,8 +449,7 @@ public sealed interface CompiledOp {
                                 }
                                 // The input is an Instant or anything the date cast reads —
                                 // ISO bytes pass straight through (design/17 §9.1).
-                                final TypedValue instant = stroom.shapeshifter.engine.exec.Comparisons
-                                        .cast(inputs.getFirst(), stroom.shapeshifter.engine.config.Cast.DATE);
+                                final TypedValue instant = Comparisons.cast(inputs.getFirst(), Cast.DATE);
                                 return instant == null
                                         ? null
                                         : Dates.format(formatter, (TypedValue.Instant) instant);
@@ -561,13 +560,10 @@ public sealed interface CompiledOp {
      * list; every other transform reads its first input, so a second one is an authoring
      * mistake that would otherwise run and silently drop data.
      *
-     * <p>And so is <b>none</b>, which this used to allow (phase 2 audit). An instruction with
-     * nothing to read produces nothing for ever — the same "reads absent for ever" hazard the
-     * unknown-reference refusal exists to catch — and two instructions had grown past
-     * tolerating it into failing on it: {@code tokenize} and {@code parse-date} take their one
-     * select by {@code getFirst()}, so an empty list reached the author as a
-     * {@code NoSuchElementException} from inside the compiler, which names nothing. Refusing
-     * arity here says which instruction and what is wrong, for all of them at once.
+     * <p>And so is <b>none</b>. An instruction with nothing to read produces nothing for ever —
+     * the same "reads absent for ever" hazard the unknown-reference refusal exists to catch —
+     * and refusing arity here says which instruction and what is wrong, for all of them at once,
+     * where an instruction taking its one select by {@code getFirst()} would fail without a name.
      */
     private static List<RefExpression> single(final String what, final List<RefExpression> select) {
         if (select.size() != 1) {
@@ -582,8 +578,7 @@ public sealed interface CompiledOp {
 
     /** A regex replace closes over its compiled pattern; a literal one over its text. */
     private static Transform replace(final OutputNode.Replace value,
-                                     final Map<PatternKey, BytePattern> patterns,
-                                     final stroom.shapeshifter.regex.Encoding regexEncoding) {
+                                     final Map<PatternKey, BytePattern> patterns) {
         single("replace", value.select());
         if (!value.isRegex()) {
             return transform(value.select(), value.name(),

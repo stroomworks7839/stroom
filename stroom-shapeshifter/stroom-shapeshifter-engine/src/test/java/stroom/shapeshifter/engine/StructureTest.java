@@ -110,6 +110,27 @@ class StructureTest {
         assertThat(Shapeshifter.compile(ProjectReader.read(helper.formatted(APPLY, "")))).isNotNull();
     }
 
+    /** A field capture source is read by the model and bound by nothing, so it is refused by name (design 27). */
+    @Test
+    void fieldCaptureSourceIsRefusedAtCompileTime() {
+        final String json = """
+                {"name": "field", "version": 5,
+                 "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                   "body": [%s]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "lines",
+                   "match": {"regex": {"pattern": "([a-z]+)\\n"}},
+                   "captures": [{"name": "f", "select": {"field": "x"}}],
+                   "body": []}
+                 ]}
+                """.formatted(APPLY);
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(json)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining(
+                        "Template 'line' needs a field capture source, which this build does not support");
+    }
+
     @Test
     void anAttributeAfterContentInTheSameBodyIsACompileError() {
         final String json = project("""

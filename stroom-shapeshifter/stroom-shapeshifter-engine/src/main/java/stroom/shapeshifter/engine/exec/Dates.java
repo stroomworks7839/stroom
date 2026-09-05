@@ -134,7 +134,7 @@ public final class Dates {
     }
 
     /** Whether a pattern's unquoted letters include a year field ({@code u}, {@code y}, {@code Y}). */
-    static boolean patternHasYear(final String pattern) {
+    private static boolean patternHasYear(final String pattern) {
         boolean quoted = false;
         for (int i = 0; i < pattern.length(); i++) {
             final char c = pattern.charAt(i);
@@ -178,7 +178,7 @@ public final class Dates {
                 }
                 case PATTERN -> parsePattern(parser, trimmed, reference);
             };
-        } catch (final NumberFormatException | DateTimeException e) {
+        } catch (final DateTimeException e) {
             return null;
         }
     }

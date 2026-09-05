@@ -90,7 +90,7 @@ public sealed interface CompiledMatch {
         }
     }
 
-    /** A delimiter and its friends, encoded to bytes once. */
+    /** A delimiter and its friends, encoded to bytes once; escape and the container pair are null when undeclared. */
     record Delimiter(byte[] delimiter,
                      byte[] escape,
                      byte[] containerStart,
@@ -108,6 +108,9 @@ public sealed interface CompiledMatch {
      */
     record Progressive(List<MatchStep> steps) implements CompiledMatch {
 
+        public Progressive {
+            steps = List.copyOf(steps);
+        }
     }
 
     /** Consume everything given. */

@@ -18,10 +18,12 @@ package stroom.shapeshifter.engine.exec;
 
 import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -112,7 +114,7 @@ public final class Conditions {
 
     /** An engine variable's current whole-number value, or null when nothing has set it. */
     private static Long engineNumber(final VarRegistry vars, final String name) {
-        final java.util.List<Store> stores = vars.get(name);
+        final List<Store> stores = vars.get(name);
         if (stores == null || stores.isEmpty()) {
             return null;
         }
@@ -120,7 +122,7 @@ public final class Conditions {
         return value == null ? null : value.asInteger();
     }
 
-    private static String text(final stroom.shapeshifter.engine.config.RefExpression expression,
+    private static String text(final RefExpression expression,
                                final MatchResult match,
                                final int matchCount,
                                final VarRegistry vars,

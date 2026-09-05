@@ -103,6 +103,13 @@ public final class Compiler {
                                           + "' is marked consume but declares captures: an eater's"
                                           + " matches do not count, so there is no index to bind them at");
             }
+            // A field capture source is read by the model and bound by nothing; until it is
+            // defined it is refused by name rather than binding an absence (design 27, ruling 10).
+            for (final CaptureBinding capture : template.captures()) {
+                if (capture.select() instanceof CaptureBinding.CaptureSource.Field) {
+                    throw notYet(template, "a field capture source");
+                }
+            }
             // E3: a template's declared encoding overrides the source's — for the byte form
             // of its delimiters here at compile time, and for reading its captures at run time.
             Encoding declared = null;
@@ -179,17 +186,14 @@ public final class Compiler {
             collect(template.body(), template, patterns,
                     stroom.shapeshifter.regex.Encoding.UTF_8);
             if (template.match() instanceof MatchExpression.Progressive progressive) {
-                // Resolved, not raw. Found by the phase-0 audit: a regex inside a referenced
-                // library pattern was never interned, so Steps.java's lookup threw
-                // IllegalStateException at match time — the walkers saw PatternRef where the
-                // executor would see the inlined Sequence. Same fix as the refusal probe above.
+                // Resolved, not raw: the executor matches the inlined sequence, so a regex
+                // reached through a library reference is interned like one written in place.
                 steps(resolve(progressive.steps(), project, new HashSet<>()),
                         template, patterns, regexEncoding);
             }
             templates.add(new CompiledTemplate(template,
                     compileMatch(template, matchEncoding, project),
-                    CompiledOp.compile(template.body(), patterns,
-                            stroom.shapeshifter.regex.Encoding.UTF_8, project, functions),
+                    CompiledOp.compile(template.body(), patterns, project, functions),
                     declared));
         }
         resolveTemplateNames(project);
@@ -202,11 +206,11 @@ public final class Compiler {
     /**
      * Every check that reads a template body, in <b>one walk</b> (E27).
      *
-     * <p>Three phases each added a check and each walked every body to run it — design/17
-     * §8's comparison lint, §10's unknown-reference refusal, §7's substring bump warning —
-     * which measured at −38% compile on the configurations whose compile is otherwise
-     * trivial. Irrelevant in absolute terms (0.6 µs on a once-per-load cost) and filed for
-     * its shape: three walks is where a fourth check becomes four.
+     * <p>Three checks — design/17 §8's comparison lint, §10's unknown-reference refusal, §7's
+     * substring bump warning — once walked every body each, which measured at −38% compile on
+     * the configurations whose compile is otherwise trivial. Irrelevant in absolute terms
+     * (0.6 µs on a once-per-load cost) and filed for its shape: three walks is where a fourth
+     * check becomes four.
      *
      * <p>The order the checks report in is preserved exactly, because it is observable: every
      * lint is emitted before any reference error is thrown, and the substring warning comes
@@ -371,18 +375,18 @@ public final class Compiler {
     }
 
     /**
-     * One pass over a configuration's bodies, collecting what the three checks need.
+     * One walk over a configuration's bodies for every check that reads them.
      *
-     * <p>Two of the three can decide as they go — a comparison lint and a substring count
-     * need nothing but the node in front of them. The reference refusal cannot: a read in
-     * the first template may name something the last one writes, so reads are collected and
-     * judged against the finished write set in {@link #report()}. That deferral is what lets
-     * one walk do the work of the two the refusal used to need on its own.
+     * <p>Some decide as they go — the comparison lint and the substring count need nothing but
+     * the node in front of them. The rest cannot: a read in the first template may name
+     * something the last one writes, a call chain may reach a template not yet seen, so reads,
+     * names, sequences, keys and calls are collected and judged against the finished
+     * configuration in {@link #report()}.
      *
      * <p>{@link #visit} is deliberately <b>exhaustive</b> — no {@code default} arm. An
-     * instruction added to the vocabulary without being considered here is a compile error,
-     * where before it was three separate switches that would each silently ignore it. That
-     * is the real repair; the microseconds are incidental.
+     * instruction added to the vocabulary without being considered here is a compile error
+     * rather than a check that silently ignores it; that is the point, and the microseconds
+     * one walk saves are incidental.
      */
     private static final class BodyScan {
 
@@ -394,8 +398,7 @@ public final class Compiler {
          * A use of a name rather than of a reference — a sequence walked or appended to.
          * Its own record rather than a {@link Read} wrapping a synthetic reference: the
          * accessor that unwrapped one would have been a cast that only held for the entries
-         * built that way, which is a trap left in shared code for whoever adds the next
-         * caller (phase 1 audit).
+         * built that way.
          */
         private record NamedUse(String templateName, String name) {
 
@@ -485,7 +488,11 @@ public final class Compiler {
                         read(keyValue.keyRef());
                         read(keyValue.valueRef());
                     }
-                    default -> {
+                    case CaptureBinding.CaptureSource.Group ignored -> {
+                    }
+                    case CaptureBinding.CaptureSource.Step ignored -> {
+                    }
+                    case CaptureBinding.CaptureSource.Field ignored -> {
                     }
                 }
             }
@@ -622,8 +629,6 @@ public final class Compiler {
                 }
                 case OutputNode.ForEachGroup value -> {
                     sequenceUses.add(new NamedUse(templateName, value.select()));
-                    // A group's key is resolved with __index bound, like a sort key, so it
-                    // counts as inside the iteration rather than outside every one.
                     // __index is bound while the key is resolved, so the key counts as
                     // inside the iteration — but *not* yet inside the group: the key is what
                     // forms it, so reading this grouping's own names there is the same
@@ -824,8 +829,8 @@ public final class Compiler {
 
         /**
          * What could only be decided once the whole configuration had been seen. The order is
-         * the one the three separate checks had: the reference refusal can throw, and the
-         * substring warning is after it because it was after it before.
+         * a contract, because it decides which error a doubly faulty configuration reports:
+         * the refusals first, the substring warning last.
          */
         void report() {
             for (final String document : documentTemplates) {
@@ -950,9 +955,7 @@ public final class Compiler {
         for (final OutputNode.ApplyDirective directive : applies) {
             final Dispatch effective = Dispatch.effective(directive.dispatch(), project);
             if (effective == Dispatch.STRICT || effective == Dispatch.LEXER) {
-                strictModes.add(directive.templateRef() != null
-                        ? "__rec_" + directive.templateRef()
-                        : directive.mode());
+                strictModes.add(directive.effectiveMode());
             }
         }
         for (final CompiledTemplate compiledTemplate : templates) {
@@ -1119,8 +1122,7 @@ public final class Compiler {
                                final stroom.shapeshifter.regex.Encoding encoding) {
         patterns.computeIfAbsent(new PatternKey(pattern, encoding), key -> {
             try {
-                return BytePattern.compile(key.text(), java.util.EnumSet.noneOf(
-                        stroom.shapeshifter.regex.Flag.class), key.encoding());
+                return BytePattern.compile(key.text(), EnumSet.noneOf(Flag.class), key.encoding());
             } catch (final PatternCompileException e) {
                 throw new ConfigException("Template '" + template.name() + "' has an invalid pattern '"
                                           + key.text() + "': " + e.getMessage(), e);
@@ -1271,10 +1273,8 @@ public final class Compiler {
 
     /**
      * A delimiter's byte form, through the same {@link Encoding#encode} the step vocabulary
-     * uses at run time. It was a {@link java.nio.charset.Charset} until 2026-08-28, with RAW
-     * shortcut to UTF-8 — so a RAW template's delimiter "é" compiled to {@code C3 A9} while
-     * its step tag "é" looked for {@code E9}: two byte forms for one text in one template.
-     * One encode path, one truth (design 19 phase 0's audit).
+     * uses at run time: one encode path, one truth, so a RAW template's delimiter and its step
+     * tag cannot disagree about the bytes of one text (design 19 phase 0).
      */
     private static byte[] encode(final String text, final Encoding encoding) {
         return text == null ? null : encoding.encode(text);
@@ -1286,7 +1286,7 @@ public final class Compiler {
      * <p>An unknown name is a configuration error, and so is a known name this build has no
      * charset for — better to say so now than to read a stream as something it is not.
      */
-    public static Encoding encoding(final String label) {
+    private static Encoding encoding(final String label) {
         if (label == null || label.isBlank()) {
             return Encoding.AUTO;
         }

@@ -81,10 +81,12 @@ public final class XmlByteSink implements OutputSink {
     /** The tail of the last content write that did not finish a UTF-8 sequence; see {@link #write}. */
     private byte[] carry = new byte[0];
 
+    /** A sink writing Saxon's indented layout. */
     public XmlByteSink(final OutputStream out) {
         this(out, Layout.INDENTED);
     }
 
+    /** A sink writing the given layout. */
     public XmlByteSink(final OutputStream out, final Layout layout) {
         this.out = out;
         this.layout = layout;
@@ -196,7 +198,7 @@ public final class XmlByteSink implements OutputSink {
         final byte[] bytes = new byte[carry.length + length];
         System.arraycopy(carry, 0, bytes, 0, carry.length);
         System.arraycopy(data, offset, bytes, carry.length, length);
-        final int complete = bytes.length - incompleteTail(bytes);
+        final int complete = bytes.length - Utf8.incompleteTail(bytes);
         carry = Arrays.copyOfRange(bytes, complete, bytes.length);
         content(element, new String(bytes, 0, complete, StandardCharsets.UTF_8));
     }
@@ -243,19 +245,6 @@ public final class XmlByteSink implements OutputSink {
                 content(element, new String(bytes, StandardCharsets.UTF_8));
             }
         }
-    }
-
-    /** How many trailing bytes begin a UTF-8 sequence the array does not finish. */
-    private static int incompleteTail(final byte[] bytes) {
-        for (int back = 1; back <= 3 && back <= bytes.length; back++) {
-            final int b = bytes[bytes.length - back] & 0xFF;
-            if ((b & 0xC0) != 0x80) {
-                // A lead byte (or ASCII): the sequence it starts needs this many bytes in total.
-                final int needed = b < 0x80 ? 1 : b < 0xE0 ? 2 : b < 0xF0 ? 3 : 4;
-                return needed > back ? back : 0;
-            }
-        }
-        return 0;
     }
 
     @Override
