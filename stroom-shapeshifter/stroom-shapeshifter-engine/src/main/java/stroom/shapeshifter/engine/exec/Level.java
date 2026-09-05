@@ -140,12 +140,11 @@ final class Level {
 
         while (cursor < to && matched) {
             matched = false;
-            final Winner won = pick(templates, data, cursor, to, atCursor, dispatch, counts, allowed);
-            if (won == null) {
+            final int winner = pick(templates, data, cursor, to, atCursor, dispatch, counts, allowed);
+            if (winner < 0) {
                 break;
             }
-            final int winner = won.index();
-            final MatchResult match = won.match();
+            final MatchResult match = picked;
             final CompiledTemplate candidate = templates.get(winner);
             final Template template = candidate.template();
 
@@ -266,8 +265,8 @@ final class Level {
         while (!window.isEmpty()) {
             final int start = window.start();
             final int filled = window.filled();
-            final Winner won = pick(templates, window.bytes(), start, filled, atCursor, dispatch, counts, allowed);
-            final MatchResult match = won == null ? null : won.match();
+            final int winner = pick(templates, window.bytes(), start, filled, atCursor, dispatch, counts, allowed);
+            final MatchResult match = winner < 0 ? null : picked;
 
             if (match == null) {
                 // Nothing matches the window's front. If the window can still grow, the tail
@@ -287,7 +286,6 @@ final class Level {
                 continue;
             }
 
-            final int winner = won.index();
             final CompiledTemplate candidate = templates.get(winner);
             final Template template = candidate.template();
 
@@ -449,10 +447,15 @@ final class Level {
         }
     }
 
-    /** A pass's winner: which template, and what it matched. */
-    private record Winner(int index, MatchResult match) {
-
-    }
+    /**
+     * What the last {@link #pick} matched, read by its caller straight after the call. A field
+     * rather than a returned pair because a pass runs once per record on the hottest path the
+     * engine has, and a record returned across a method the JIT does not inline is an
+     * allocation per record — measured at −6% on {@code ausearch} when the fold first returned
+     * one (design 27 phase 3 gate). A nested level's pick overwrites it only after the outer
+     * caller has taken its copy.
+     */
+    private MatchResult picked;
 
     /**
      * Guards, evaluated once on the way in — not per pass. The distinction is load-bearing: a
@@ -477,9 +480,11 @@ final class Level {
     /**
      * One pass of ordered choice over a region's front: the first allowed template under its
      * maxMatch that matches wins, or under lexer dispatch the longest match, ties to list
-     * order (maximal munch). Null when nothing matches.
+     * order (maximal munch).
+     *
+     * @return the winner's index, its match in {@link #picked}; or −1 when nothing matches
      */
-    private Winner pick(final List<CompiledTemplate> templates,
+    private int pick(final List<CompiledTemplate> templates,
                         final byte[] data,
                         final int cursor,
                         final int to,
@@ -506,14 +511,16 @@ final class Level {
                 continue;
             }
             if (dispatch != Dispatch.LEXER) {
-                return new Winner(i, attempt);
+                picked = attempt;
+                return i;
             }
             if (match == null || attempt.advance() > match.advance()) {
                 winner = i;
                 match = attempt;
             }
         }
-        return match == null ? null : new Winner(winner, match);
+        picked = match;
+        return winner;
     }
 
     /**
