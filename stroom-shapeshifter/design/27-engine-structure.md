@@ -225,7 +225,13 @@ byte-identical; checkstyle clean with no `FileLength` warning at the end. Phases
 hot path and add a benchmark gate (§3.9). Each phase is audited before the next, as designs 23
 to 26 were.
 
-### Phase 0 — The entry review
+### Phase 0 — The entry review — Done 2026-09-05
+
+*As built:* §5's ledger from three read-only passes, §5.5's corrections applied to the tables
+above, §5.4's one-line fixes landed and gated, rulings 8 to 10 taken, and §3.10's baseline
+taken at seven points. Audited in the doing by the gate: engine 555, pipeline 154, app 5.
+
+*As written:*
 
 Before anything moves: a ledger, one row per class in `exec`, `compile` and `config.json`, with
 its purpose in one sentence, its size, its documentation state (class javadoc says what and why;
@@ -344,9 +350,38 @@ start from. The two legacy-derived rows (`regex_lines`, `csv_header`) benchmark 
 each commit had, and design 21 rewrote those fixtures, so they are honest per point and not
 like for like across that boundary.
 
-*The evening run* — the harness's own five forks at all five points, queued for 20:00 under
-the shared-box policy, about seventy-five minutes — is the phase 0 baseline. Its HEAD row set
-is what phases 2 and 3 are measured against.
+*The full run* — the harness's own five forks, started at 16:59 on the user's word rather
+than waiting for the evening, twelve minutes a point — at the five points and two more: the
+merge of the regex session's branch (`23fecf3b05`, the library's RunLoop and the bound as a
+`ByteMatcher` field again) and the phase 0 commit (`44bc1e5ac6`). The results are in
+`design/benchmarks/2026-09-05-*-engine.json`. The run rows, ops/s, ± JMH's 99.9% interval:
+
+| workload | Aug 27 | enc. plan | design 21 | design 23 | pre-merge | merge | phase 0 |
+|---|---|---|---|---|---|---|---|
+| regex_lines | 662.7 ± 117.8 | 719.8 ± 20.2 | 715.7 ± 12.7 | 727.8 ± 13.2 | 727.7 ± 18.0 | 719.2 ± 20.0 | 722.0 ± 13.3 |
+| csv_header | 205.1 ± 3.4 | 208.0 ± 3.8 | 204.8 ± 3.7 | 196.4 ± 12.7 | 201.8 ± 3.8 | 207.8 ± 3.3 | 203.4 ± 3.4 |
+| ausearch | 275.4 ± 5.1 | 265.5 ± 4.4 | 269.0 ± 6.3 | 266.2 ± 4.0 | 274.7 ± 2.4 | 263.0 ± 12.5 | 268.5 ± 3.0 |
+| apache_httpd | 186.2 ± 5.9 | 186.8 ± 1.5 | 184.2 ± 2.2 | 182.4 ± 1.9 | 183.4 ± 2.6 | 181.1 ± 1.9 | 184.4 ± 3.3 |
+| win_sec | 34.4 ± 1.6 | 33.0 ± 0.2 | 36.7 ± 1.3 | 34.3 ± 1.0 | 34.2 ± 1.0 | **41.0 ± 0.1** | 40.8 ± 0.4 |
+| win_sec_strict | 49.1 ± 0.4 | 47.0 ± 0.4 | 48.7 ± 0.2 | 48.8 ± 0.3 | 47.6 ± 1.4 | 48.8 ± 0.2 | 48.3 ± 0.3 |
+| win_sec_xml | 88.6 ± 2.8 | **101.7 ± 1.3** | 102.6 ± 0.8 | 102.6 ± 0.9 | 103.2 ± 1.2 | 102.4 ± 1.0 | 102.7 ± 1.3 |
+| progressive | 331.3 ± 11.7 | 339.8 ± 4.1 | 343.8 ± 2.1 | 342.0 ± 5.7 | 342.3 ± 2.3 | 345.8 ± 1.6 | 350.8 ± 1.9 |
+
+What it says. The engine's run path is flat across the 113 commits from August to the
+pre-merge HEAD: every row inside its interval except `win_sec_xml`, up 16% at the encoding
+plan and kept. The quick pass's `win_sec` scare was noise. The merge moved `win_sec` by 20%
+(34.2 to 41.0), the library's RunLoop landing on the workload that scans a level of multiline
+templates; nothing else in the merge moved a row. Phase 0's one-line fixes are flat against
+the merge, every row inside both intervals except `progressive` by a whisker in the right
+direction. The compile rows drifted down over the same history — `csv_header` −23%, the
+progressive configuration −24%, `win_sec` −9% — in three steps, the encoding plan, design 21,
+and designs 23 to 26 with E37: a microsecond on a once-per-load cost, which design 10 prices
+as irrelevant, but the shape is the eight body walks and the dead refusal block the compile
+ledger names, and phase 6 has the number to move.
+
+**The baseline for phases 2 and 3 is the phase 0 column**, `2026-09-05-1815-44bc1e5ac6-engine.json`,
+five forks on this box with the long-running processes pinned off its cores. The bar is the
+interval in that column, row by row.
 
 ## 4. The review's dimensions
 
