@@ -20,7 +20,6 @@ import stroom.shapeshifter.engine.config.Template.RegexFlags;
 import stroom.shapeshifter.regex.Encoding;
 import stroom.shapeshifter.regex.Flag;
 
-import java.util.EnumSet;
 import java.util.Set;
 
 /**
@@ -30,13 +29,24 @@ import java.util.Set;
  */
 public record PatternKey(String text, Set<Flag> flags, Encoding encoding) {
 
+    private static final Set<Flag> NONE = Set.of();
+    private static final Set<Flag> CASE_INSENSITIVE = Set.of(Flag.CASE_INSENSITIVE);
+    private static final Set<Flag> DOT_ALL = Set.of(Flag.DOT_ALL);
+    private static final Set<Flag> BOTH = Set.of(Flag.CASE_INSENSITIVE, Flag.DOT_ALL);
+
+    /**
+     * The flag set is one of four shared immutable values, so a key costs the record and
+     * nothing else: keys are built on every progressive regex step at match time as well as at
+     * compile time, and an enum set copied per key measured at −5.5% on the progressive
+     * configuration's compile (design 27 phase 1 audit).
+     */
     public PatternKey {
-        flags = flags.isEmpty() ? Set.of() : Set.copyOf(flags);
+        flags = Set.copyOf(flags);
     }
 
     /** A key with no flags: a body's or a condition's pattern, which the model gives none. */
     public static PatternKey of(final String text, final Encoding encoding) {
-        return new PatternKey(text, Set.of(), encoding);
+        return new PatternKey(text, NONE, encoding);
     }
 
     /** A key for a pattern the model flags — a template's match, or a progressive regex step. */
@@ -44,15 +54,11 @@ public record PatternKey(String text, Set<Flag> flags, Encoding encoding) {
         return new PatternKey(text, flags(flags), encoding);
     }
 
-    /** The library's flag set for the model's two booleans. */
+    /** The library's flag set for the model's two booleans: one of four shared values. */
     public static Set<Flag> flags(final RegexFlags flags) {
-        final Set<Flag> set = EnumSet.noneOf(Flag.class);
         if (flags.caseInsensitive()) {
-            set.add(Flag.CASE_INSENSITIVE);
+            return flags.dotAll() ? BOTH : CASE_INSENSITIVE;
         }
-        if (flags.dotAll()) {
-            set.add(Flag.DOT_ALL);
-        }
-        return set;
+        return flags.dotAll() ? DOT_ALL : NONE;
     }
 }
