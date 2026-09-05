@@ -299,6 +299,53 @@ phase 0 takes a fresh baseline at the commit before phase 1, and that is what ph
 measured against. The bar is no regression beyond the run-to-run noise of that baseline. A regression is investigated before the phase is called done;
 it is not accepted as the price of structure.
 
+### 3.10 Phase 0 preparation — the benchmark points, 2026-09-05
+
+The last engine benchmark, 2026-08-27 at `45823464dc`, predates the CPU replacement, so the
+phase 0 baseline needs company: the same harness at the commits that moved the paths it
+measures, all on this box. The points, and why:
+
+| Point | Commit | What moved |
+|---|---|---|
+| August anchor | `45823464dc` | the last recorded run; re-run here so the August history translates |
+| Encoding plan complete | `75f6bbaa1c` | the decode path and the raw identity table (28 August) |
+| Design 21 complete | `7ec991c2de` | the byte sink writes Saxon's bytes; structure in the model; the legacy fixtures rewritten |
+| Design 23 complete | `52ce2309c5` | the window loop the streamed workloads run through |
+| HEAD | `bf566871c0` | design 26's per-run function binding and record counter; E37's compile check |
+
+*The box.* The user chose to leave the box's long-running processes up — two Stroom nodes,
+their daemons, a hung test worker, a database container — so they are pinned to four cpus and
+the benchmark runs on the other twelve. Nothing was stopped. The harness runs in a detached
+worktree per point (`/home/dev1/bin/engine-bench-points.sh`), which must build the regex jar as
+well as the engine's test classes or JMH dies at setup.
+
+*The daytime look* — the `run` rows, one fork, two warmup and three measurement seconds, so the
+99.9% intervals are wide (5 to 20%) and this is a glance, not a gate:
+
+| workload | Aug 27 | enc. plan | design 21 | design 23 | HEAD | HEAD vs Aug 27 |
+|---|---|---|---|---|---|---|
+| regex_lines | 742.7 | 738.1 | 700.9 | 717.9 | 736.9 | −0.8% |
+| csv_header | 207.0 | 210.9 | 211.4 | 200.7 | 208.2 | +0.6% |
+| ausearch | 276.8 | 270.9 | 267.3 | 274.5 | 278.6 | +0.6% |
+| apache_httpd | 187.1 | 190.1 | 180.9 | 182.4 | 186.8 | −0.2% |
+| win_sec | 37.0 | 32.5 | 30.3 | 33.4 | 33.8 | −8.5% |
+| win_sec_strict | 48.2 | 47.6 | 48.5 | 48.4 | 49.1 | +1.8% |
+| win_sec_xml | 90.8 | 102.5 | 102.0 | 104.0 | 105.1 | +15.7% |
+| progressive | 341.8 | 347.4 | 340.5 | 339.8 | 350.4 | +2.5% |
+
+Two rows move outside their intervals. `win_sec_xml` gained 13% at the encoding plan and kept
+it. `win_sec` may have lost 8% at the same point — it is inside the quick mode's interval, and
+the encoding plan's gate is the regex module's `splitsCharacter` check, which the regex
+session's probes were pricing on exactly this commit; the full run will say whether it is
+real. Everything else is flat across 113 commits, which is what a structure design wants to
+start from. The two legacy-derived rows (`regex_lines`, `csv_header`) benchmark the fixture
+each commit had, and design 21 rewrote those fixtures, so they are honest per point and not
+like for like across that boundary.
+
+*The evening run* — the harness's own five forks at all five points, queued for 20:00 under
+the shared-box policy, about seventy-five minutes — is the phase 0 baseline. Its HEAD row set
+is what phases 2 and 3 are measured against.
+
 ## 4. The review's dimensions
 
 From the code standard, applied per class in phases 0 and 8:
