@@ -2,7 +2,8 @@
 
 *Proposed and ruled 2026-09-05 (D45), every ruling as recommended. Amended the same day, on the
 user's question whether the plan locates code into packages as well as classes: §1.5, §2.5 to
-§2.7 and phase 5 are the amendment, and rulings 6 and 7 are wanted.* The engine is correct, pinned at three levels, and its
+§2.7 and phase 5 are the amendment; rulings 6 and 7 were made the same day, as recommended.* The
+engine is correct, pinned at three levels, and its
 biggest class is a 2,166-line interpreter that Checkstyle warns about on every build. This design
 says what the module should look like when every class has one purpose, what moves where to get
 there, and how each move is gated so that nothing about the engine's behaviour changes on the way.
@@ -317,7 +318,7 @@ From the code standard, applied per class in phases 0 and 8:
 
 *Filled in by phase 0; closed by phase 8.*
 
-## 6. Rulings — 1 to 5 ruled 2026-09-05, each as recommended (D45); 6 and 7 wanted
+## 6. Rulings — all seven ruled 2026-09-05, each as recommended (D45)
 
 1. **The direction.** The executor dissolves into a run over the graph as §2.1 describes,
    rather than staying one class with helpers — D35's stated consequence, done.
@@ -327,14 +328,12 @@ From the code standard, applied per class in phases 0 and 8:
    beyond its noise blocks the phase rather than being accepted as the price of structure.
 5. **The name.** `Run` for what remains of the executor.
 
-*Wanted, from the amendment:*
+*From the amendment:*
 
 6. **The packages** of §2.5: `value`, `match` and `output` created, the dependency direction
    value ← match ← exec enforced by the package line, `Conditions` with the run,
-   `MatchResult` with matching. *Recommended: yes, as tabled; the layering is measured, not
-   designed, and the pipeline's import churn is one mechanical phase.*
+   `MatchResult` with matching.
 7. **The two resolvers** as §2.7 states: both stay, the seam is documented, the compile of
-   conditions is filed as the follow-on. *Recommended: yes; the alternative is doing design
-   10's performance row inside a structure design, which the plan's own rule forbids.*
+   conditions and capture selects is filed as the follow-on.
 
 Each phase audited before the next.

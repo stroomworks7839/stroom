@@ -1233,4 +1233,9 @@ the match nodes, which is where D35 puts them. The compiler separates into its p
 JSON reader into its model families, readers and writers together. Every phase is a pure move
 gated on the three suites and byte-identical goldens; the two hot-path phases are gated on the
 engine benchmark against a fresh baseline, and a regression blocks the phase. An entry and an
-exit review in the code standard's dimensions bound the work.
+exit review in the code standard's dimensions bound the work. *Amended the same day, ruled the
+same day:* the packages follow the dependencies already measured — `engine.value`,
+`engine.match` and `engine.output` are created, `exec` keeps only the run, and the package line
+enforces value ← match ← exec; the two reference resolvers both stay, with the seam documented
+and the compile of conditions filed as design 10's follow-on rather than done under a structure
+design.
