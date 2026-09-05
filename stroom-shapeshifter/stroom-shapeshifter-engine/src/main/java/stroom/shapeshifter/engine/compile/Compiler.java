@@ -414,6 +414,17 @@ public final class Compiler {
         private int explicitSubstringStarts;
         private String templateName;
 
+        /**
+         * E37: the document template's body runs against no match — under design 23 the input
+         * is the windows, and the body is split around its apply-templates — so a capture read
+         * there is empty for ever. The compiler can see it, so it refuses it by name, as it
+         * refuses captures on an eater; the apply-templates select is the one place a group
+         * may be named, because it is the idiom that hands the input to a mode and is not read.
+         */
+        private boolean inDocumentTemplate;
+        private boolean inApplySelect;
+        private final Set<String> documentCaptures = new HashSet<>();
+
         /** Sequence bookkeeping (design/16 §9): what is declared, what is captured, what is used. */
         private final Set<String> declaredSequences = new HashSet<>();
         private final Set<String> captureNames = new HashSet<>();
@@ -443,6 +454,12 @@ public final class Compiler {
 
         void template(final Template template) {
             templateName = template.name();
+            inDocumentTemplate = template.match() instanceof MatchExpression.Source;
+            if (inDocumentTemplate) {
+                for (final CaptureBinding capture : template.captures()) {
+                    documentCaptures.add(capture.name());
+                }
+            }
             // Guard, then captures, then body — the order the three separate checks read in,
             // preserved because it decides which error a template with two unknown names
             // reports, and there is no reason for a merge to change that (E27 audit).
@@ -500,7 +517,9 @@ public final class Compiler {
                     body(value.defaultBody());
                 }
                 case OutputNode.ApplyTemplates value -> {
+                    inApplySelect = true;
                     read(value.directive().select());
+                    inApplySelect = false;
                     for (final OutputNode.Param param : value.directive().withParam()) {
                         writable.add(param.name());
                         read(param.value());
@@ -711,6 +730,21 @@ public final class Compiler {
                 return;
             }
             reads.add(new Read(templateName, ref));
+            if (inDocumentTemplate && !inApplySelect) {
+                for (final RefExpression.RefPart part : ref.parts()) {
+                    if (part instanceof RefExpression.RefPart.Capture capture
+                        && (capture.varId() == null || documentCaptures.contains(capture.varId()))) {
+                        throw new ConfigException("Template '" + templateName + "' reads "
+                                + (capture.varId() == null
+                                        ? "capture group " + capture.group()
+                                        : "capture '" + capture.varId() + "'")
+                                + " in its body, but the document template has no match: its body"
+                                + " runs once around the apply-templates, over no match, so the"
+                                + " reference would be empty for ever. Only the apply-templates"
+                                + " select may name a group there.");
+                    }
+                }
+            }
             if (inSortKey) {
                 for (final RefExpression.RefPart part : ref.parts()) {
                     if (part instanceof RefExpression.RefPart.Capture capture) {

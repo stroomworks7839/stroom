@@ -55,6 +55,33 @@ class StructureTest {
     private static final String APPLY = """
             {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "lines"}}""";
 
+    /**
+     * E37: the document template's body runs over no match, so a capture read there was silently
+     * empty; the compiler refuses it by name. The apply-templates select is the idiom and stays,
+     * and a variable the body binds itself is readable there as anywhere.
+     */
+    @Test
+    void captureReadInTheDocumentTemplatesBodyIsACompileError() {
+        final String positional = project(APPLY + ", {\"value-of\": {\"parts\": [{\"capture\": {\"group\": 0}}]}}");
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(positional)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Template 'root' reads capture group 0 in its body")
+                .hasMessageContaining("empty for ever");
+        // The select is the idiom and exempt; a parameter's value beside it is a read like any other.
+        final String named = project("{\"apply-templates\": {\"select\": {\"parts\": [{\"capture\": {\"group\": 0}}]},"
+                                     + " \"mode\": \"lines\", \"with-param\": [[\"p\","
+                                     + " {\"parts\": [{\"capture\": {\"group\": 1}}]}]]}}");
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(named)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("reads capture group 1 in its body");
+        assertThat(Shapeshifter.compile(ProjectReader.read(project(APPLY)))).isNotNull();
+        final String variable = project(
+                "{\"variable\": {\"name\": \"v\", \"body\": [{\"text\": \"x\"}]}}, "
+                + "{\"value-of\": {\"parts\": [{\"capture\": {\"var_id\": \"v\", \"group\": 0}}]}}, "
+                + APPLY);
+        assertThat(Shapeshifter.compile(ProjectReader.read(variable))).isNotNull();
+    }
+
     @Test
     void anAttributeAfterContentInTheSameBodyIsACompileError() {
         final String json = project("""
@@ -74,8 +101,9 @@ class StructureTest {
                 .hasMessageContaining("namespace 'p' follows content");
 
         final String conditional = project("""
+                {"variable": {"name": "flag", "body": [{"text": "yes"}]}},
                 {"element": {"name": "e", "body": [
-                   {"if": {"test": {"exists": {"select": {"parts": [{"capture": {"group": 0}}]}}},
+                   {"if": {"test": {"exists": {"select": {"parts": [{"capture": {"var_id": "flag", "group": 0}}]}}},
                            "then": [{"attribute": {"name": "when", "body": [{"text": "yes"}]}}]}},
                    {"text": "content"}]}}""");
         assertThat(Shapeshifter.compile(ProjectReader.read(conditional))).isNotNull();

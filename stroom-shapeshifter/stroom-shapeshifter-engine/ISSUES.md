@@ -1116,7 +1116,15 @@ operations expressible through character ones until real byte functions exist be
 Not started; design after the streaming contract (23, 24) and the carrier (25) have landed.
 
 ### E37 — A capture referenced from the root template's body is silently empty
-**`open` 2026-09-04.** Seen during design 24 phase 1's audit, in a probe configuration whose
+**`resolved` 2026-09-05, in the compiler.** The reference checker knows the document template
+(its match is `source`) and refuses a capture read in its body by name and group — a positional
+group, or one of the document template's own declared captures — in a value-of, a condition, a
+parameter value, anywhere a reference is read. The one exemption is the apply-templates select,
+which is the idiom that hands the input to a mode and is never read. A variable the body binds
+itself is readable there as anywhere. Pinned in `StructureTest`; every fixture in the corpus
+still compiles, which says no migrated DS3 configuration relied on the silence.
+
+*As opened.* Seen during design 24 phase 1's audit, in a probe configuration whose
 root `source` template wrote `{"value-of": {"parts": [{"capture": {"group": 0}}]}}` and got
 nothing. The root body runs against an empty match — `Executor.run` splits it into prologues
 and tails around its `apply-templates` and runs each with `MatchResult.empty()` — so a
