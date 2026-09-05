@@ -135,14 +135,17 @@ configuration would have, plus the whole corpus in one JVM.
 ### Where it stands
 
 Against `java.util.regex` reading the same bytes, same run, best engine chosen automatically —
-**ahead on 28 of 30 measured variants**, every per-match category included, and at parity on
-the other two: buffer `KEYVALUE` inside its error bars, and buffer `NETWORK`, which measures at
-parity in controlled fork-per-side comparison and is a documented harness artifact
-([06-performance-plan.md](stroom-shapeshifter-regex/design/06-performance-plan.md)). The one
-shape it is behind on — a lazy run spelt as a nested line loop over 64 KiB regions — and the
-bounds on the claim are stated in the module's own
-[README](stroom-shapeshifter-regex/README.md). Charts below are from
-`2026-09-02-2146-75f6bbaa1c-chain-after-plan.json`, the first run on the current machine.
+**ahead on 28 of 30 measured variants**, every per-match category included, and not ahead on
+two: buffer `UNICODE` at parity (1.05×, a 6.5% cost attributed to the encoding plan's phase 3
+and cleared of every probe-reachable mechanism), and buffer `NETWORK`, which measures at
+parity fork-per-side and is a documented harness artifact
+([06-performance-plan.md](stroom-shapeshifter-regex/design/06-performance-plan.md)). On the
+pollution harness — the same workloads in a JVM that has run the whole corpus, a pipeline's
+JVM — it is ahead on all sixteen buffer workloads. The one shape it was behind on — a lazy run
+spelt as a nested line loop over 64 KiB regions — closed on 2026-09-03; the bounds on the
+claim are stated in the module's own [README](stroom-shapeshifter-regex/README.md). Charts
+below are from `2026-09-04-0123-b81229148b-chain-phase1-polluted.json`, the last point of the
+2026-09-03 overnight chain.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="stroom-shapeshifter-regex/design/benchmarks/charts/buffer-dark.svg">

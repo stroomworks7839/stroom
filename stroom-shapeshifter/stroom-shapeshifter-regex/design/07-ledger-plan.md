@@ -15,6 +15,22 @@ the buffer-CSV and per-match-datetime canaries, paired against the previous comm
 apart — same boot is not the same hour. Claims wait for numbers. Statuses move here, and the
 rows in 06 and ISSUES.md move with them.
 
+A fourth lesson, from the first overnight chain over this plan's work (2026-09-04): **a probe
+set must carry every row the change's mechanism can reach, not only the rows that motivated
+it.** The search split was probed on `anchored_miss` and weblog and won there; it touched every
+tree search, and the tree's end-anchored `BOUNDED_MISS` lost 21.6% unmeasured. D39 was probed
+on seven rows and cleared; it touched every scan-plan candidate position, and `line_miss` —
+the seeding-gate fix's own row — fell from 22,909 to 3,074 unmeasured. Both were found by the
+full set, bisected in the morning, and are remedied below; neither would have shipped past a
+probe set drawn from the mechanism rather than the motivation. Before any commit under this
+plan: name the paths the edit touches, and take one row from each.
+
+A stopping rule, **proposed 2026-09-04** after a morning spent attributing three sub-8% rows to
+code generation: a cost below ~5% on a synthetic row is attributed to a commit and recorded,
+and not probed further unless a real workload, the pollution harness, or a full-set step shows
+it moving. The rows that repaid chasing this week were the 5.5×, the 51×, the 8–12% and the
+26–39%; the ones that did not were SPARSE, UNICODE and the coins. Ruling awaited.
+
 Three lessons from the last two days set the order. **Probe, don't reason**: all three of the
 encoding plan's costs were invisible to reading, to the stack profiler and to bytecode sizes,
 and each fell to a bisect plus a single-edit variant. **Instruments first**: a row that reads
@@ -23,7 +39,7 @@ geometry — an inlining threshold and a lost value range — not algorithms.
 
 ---
 
-## Phase 0 — The row of record *(tonight's slot; no code)*
+## Phase 0 — The row of record *(tonight's slot; no code)* — **Run 2026-09-03/04; read 2026-09-04**
 
 The paired full set `4aa6181941 → 98a0132736` on one boot: the pre-plan tree against the
 encoding plan with its three fixes and D39. It does two jobs. It **acquits** the fixes across all 223
@@ -32,11 +48,27 @@ cure — and it becomes the **row of record on this machine**, the baseline ever
 paired against. Read it the way the last one was read: row-set diff first, JDK controls next,
 per-fork spread before any single number.
 
-**Exit:** a checked-in pair, the README's charts re-rendered from its after-file, and one of two
-sentences in 06 §1 — the fixes hold across the set, or a named row does not and it is the first
-item of Phase 2.
+**Read.** Four points on one boot, 18:28 to 04:26: `4aa6181941` → `98a0132736` → `7a4149d8b5`
+→ `b81229148b`; row sets identical (223) at the first three and 287 at the last, the 64 polluted
+rows one-sided by design; JDK controls at median +0.08%, +0.09%, −0.23% per step. Steps 2 and 3
+acquit `RunLoop` and the harness across the full set. Step 1 did **not** acquit the fix batch:
+scan-plan `line_miss` read 3,074 — the seeding-gate fix's own row, undone — and with it SPARSE
+−8.1%, UNICODE −7.7%, the tree's `BOUNDED_MISS` −18.1%. A bisect of the four fix commits on
+those rows gave three different answers: `line_miss` was D39 (remedied the same morning by
+`ByteMatcher` keeping the bound as a field, `5bd6636429`, which also took buffer CSV's scan plan
++13.7%); `BOUNDED_MISS` was the search split's inlining topology (ruled kept by Jon, 2026-09-04 — an accepted cost in ISSUES.md);
+SPARSE and UNICODE were inside the plan all along — phase 4 and phase 3 respectively — cleared
+of every probe-reachable mechanism and deprioritised at 5.2× and parity. The chain's files are
+the run of record; the README's charts render from its last point.
 
-## Phase 1 — Make the two rows read true *(the pollution workload; harness, then engine)*
+Also settled by the set: the tree's per-match datetime, which the 09-03 canary had read at −1.8%
+against the edge of its own spread, moved +0.9% pre-plan → after-fixes with the JDK rows flat —
+noise, as recorded, not a cost.
+
+**Exit (reached):** a checked-in chain, the charts re-rendered, and the named rows that did not
+hold are each attributed, remedied, ruled on or recorded — none left as a number without a cause.
+
+## Phase 1 — Make the two rows read true *(the pollution workload; harness, then engine)* — **harness landed 2026-09-03; the rows read 2.1× and 2.1× polluted**
 
 Buffer `NETWORK` reads 0.77× and `KEYVALUE` 0.99×. Both diagnoses are on record and they are
 different: NETWORK **measures at parity fork-per-side** (156 vs 160 ns/record) and its 0.77×
@@ -66,11 +98,24 @@ pollution workload" and the NETWORK artifact are one item.
    attempt never captured. Gate: KEYVALUE and NETWORK against the row of record, canaries
    paired.
 
-**Exit:** the two rows read what the fork-per-side truth says, on a harness whose flattery of
-either side is a footnote rather than a number; or the engine's weak case is priced and either
-fixed or accepted with its cost in ISSUES.md.
+**Landed (step 2), 2026-09-03.** `PollutedCorpusBenchmark`: `CorpusBenchmark`'s workloads and
+methods after a `@Setup` that compiles and runs all 114 corpus patterns through both libraries
+for 200 passes. Polluted against clean, same hour, same boot — the JDK rows fall **−53 to −62%**
+(NETWORK 6,927 → 3,203; KEYVALUE 6,867 → 3,203; CSV 2,359 → 902), so the clean harness's
+monomorphic flattery is real and large. The two rows read true: **NETWORK 0.78× → 2.13×,
+KEYVALUE 1.01× → 2.06×**, CSV 2.94× → 5.78×. Neither row was ever the engine's weak case on a
+pipeline's JVM. What the run also found, and 06 did not predict: our engines are **not**
+pollution-immune — the scan plan lost 18% on CSV and the tree 26–39% across the three,
+where "interpreter-shaped and pollution-immune" was the recorded belief. Less polluted than
+the JDK by a wide margin, but polluted. Recorded as a new row in 06 §1 rather than chased:
+the tree's `Node.match` dispatch is the obvious suspect and it is a probe, not a reading.
+Step 1's fork-per-side re-diagnosis and step 3's slot-write pricing are moot for the rows
+they were for — KEYVALUE is 2× ahead where it matters — and stay recorded for the clean row.
 
-## Phase 2 — The cliff: the lazy-run skip for the stateful `Loop` *(known shape; the one behind-row)*
+**Exit (reached for the rows):** the two rows read what a pipeline sees, beside the clean
+reading. The pollution cost on our own tree is Phase 8.
+
+## Phase 2 — The cliff *(was: the lazy-run skip for the stateful `Loop`)* — **Done 2026-09-03: `RunLoop`, FAR_LINE 51×, MISS_LINE 54×, ahead of the JDK on all four line rows**
 
 `LazyRunBenchmark` FAR_LINE / MISS_LINE at 64 KiB: the JDK is 8–42× ahead, because the line
 idiom `((?:[^\n]*\n)*?)lit` is a lazy run the tree cannot walk at that distance within its step
@@ -81,13 +126,38 @@ author *did* reach for before the dot-all spelling was fast — so a ported conf
 likeliest thing to carry it, and it is the one row on the scoreboard's terms where the library
 loses outright.
 
-The mechanism is the seam that already exists: the general lazy `Loop` answers `leadingByte()`
-for its continuation exactly as `StarClass` does — resolved through group heads and tails,
-compile-time — and its lazy branch skips positions that byte is not at, walking with the
-loop's own stepping so every stop is one the unfiltered loop would have visited. The hairier
-part is that the offer sites live in the JDK-style loop-back machinery rather than a single
-`scan`/`skipTo` pair; the correctness argument is unchanged. The step budget still charges
-the bytes passed over.
+The mechanism turned out not to be the offer count. Reading `Loop` (2026-09-03): the general
+lazy loop **recurses once per iteration** — `next.match || body.match`, the body's tail
+calling back into the loop — under `LOOP_DEPTH_LIMIT` = 1,024. A 64 KiB region of forty-byte
+lines is ~1,600 iterations; the guard bails, and the simulation finishes 8–42× slower than
+the JDK. A `leadingByte()` filter on the offers would trim doomed calls and leave the depth
+untouched. So the fix is a node, not a filter: `RunLoop`, the lazy repetition of "a class
+run then one terminator byte the class rejects" walked **iteratively** — one frame for the
+whole loop, the way `StarClass` is one frame for a run. Compiled in `compileRepeat` when
+the body has exactly that shape (`[^\n]*\n` qualifies; `.*\n` does not, because its run
+would swallow the terminator and the unit boundary would be ambiguous). The offer is still
+filtered by the continuation's `leadingByte()`, as `StarClass` does; the unit's scan is
+`StarClass.scan`'s walk; semantics are the lazy loop's exactly, pinned against the JDK and
+the simulation by `RunLoopTest`, including the 1,700-line region. Greedy unit loops stay on
+the general `Loop` — they need the unit boundaries kept for back-off — and no row loses on
+them.
+
+**Audited 2026-09-03**, adversarially, with mutation checks. Findings: the auto path still
+completes on a never-matching region — `RunLoop` never trips the depth guard, so it walks to
+the region's end from every candidate start until the step budget stops it, and `runLinear`
+catches that `MatchLimitException` and hands over to the simulation (pinned, the tree refuses
+with the same exception it used to raise for depth; both pinned by test). Captures inside the
+unit, a unit with a minimum, nested non-capturing groups, a preceding lazy run, and the
+zero-iteration offer all agree with the JDK. Two audit corrections to the tests themselves:
+the terminator-rejection guard's test used `.` under default flags, where `.` excludes `\n`
+and the guard is never asked — its mutant lived until the test said `(?s)`; and the
+`min() != 0` guard is reachable only through `{n,}`, because the parser spells `+` as
+`X X*` — its mutant lived until a `{2,}` case existed. A third mutant survived twice for a
+worse reason: it did not compile, and the stale report read green — mutation runs now check
+the class file's timestamp moved. The `leadingByte()` filter's mutant is equivalent by
+design and recorded as such. Verified clean: `data[end]` reads are bounded by the scan loop
+and the short-circuit; lookbehind bodies are bounded-length by the dialect, so a `RunLoop`
+never sits inside one; the reverse program compiles from the Hir and is untouched.
 
 **Gate:** FAR_LINE / MISS_LINE for the win; ENTRY_LINE / BATCH_LINE as the small-region
 controls (they must not lose their 1.0×); all four dot-all rows flat; canaries paired. **Exit:**
@@ -95,7 +165,7 @@ the line idiom over 64 KiB is within 2× of the JDK or better, and 06 §1's row 
 with the numbers. If the budget bails before the skip earns its keep, the row records why and
 what a `Loop`-aware budget would cost.
 
-## Phase 3 — The other engines' gates *(same finding, four more sites)*
+## Phase 3 — The other engines' gates *(same finding, four more sites)* — **Measured 2026-09-03, no effect; reverted**
 
 The encoding plan put `nfa.form.splitsCharacter(...)` into `PikeVm.search`,
 `Backtracker.attempt`, `FancyBacktracker.attempt` and `ReverseScanner.findStart`, and
@@ -112,15 +182,16 @@ reverse scanner. Where a gate costs, the fix is the one already shipped and pinn
 call guarded by the form's own `singleByte()` fact, equivalent by `ByteFormInvariantTest`'s
 sealed-set argument — spelled once per engine.
 
-First datapoint (2026-09-03, probed on top of D39): the Pike VM's guarded static lifts
-`LazyRunBenchmark` simulate ENTRY_DOTALL from 193,335 to 200,471 (+3.7%, nearly its pre-plan
-203,505) and moves the `line_miss` coin row −4% — real work up, the coin down, the shape this
-phase should expect.
+The probe's +3.7% on simulate ENTRY_DOTALL was measured against a ten-hour-old full-set value
+and was drift; paired minutes apart, the full phase — all five gates and the fancy tier's four
+`continuation` loops — reads flat on every engine row (−0.5% to +2.1%, inside spread) and
+−5.5% bimodal on tree `anchored_miss`. The interface calls inline well enough everywhere but
+`ByteMatcher`. Reverted; recorded in 06 §1 as measured, no effect.
 
 **Exit:** each engine's gate is measured, and either flat or fixed; the paired run's simulate
 losses are attributed or dissolved.
 
-## Phase 4 — The class-shape cost on `ByteMatcher` *(the open ISSUES entry; a design question)*
+## Phase 4 — The class-shape cost on `ByteMatcher` *(the open ISSUES entry; a design question)* — **Closed 2026-09-04: re-measured on this machine, the machinery is on the fast side**
 
 Open since 2026-08-25: the end-anchor programme's tail-window machinery cost buffer CSV
 −12–14% through nothing but three instance fields on `ByteMatcher` — identical hot-path
@@ -136,20 +207,75 @@ or a side object chosen at compile time, and `ByteMatcher`'s shape returns to th
 flat path had. If the new CPU has dissolved it, the entry closes as machine-specific with the
 numbers.
 
-**Exit:** the ISSUES entry moves to `resolved` or `accepted` with a paired measurement from
-this machine; the end-anchored rows keep their three orders of magnitude either way.
+**Re-measured 2026-09-04, quiet box, the strip variant against the tip.** With the tail-window
+machinery removed from `ByteMatcher` — fields, constructor computation, `endgameSearch`, the
+entry ternary — buffer CSV's scan plan reads **6,011 against 7,228 (−16.8%)**, both at fork
+spread ≤ 1.01; the tree −2.4%; per-match weblog flat (+0.6% / +3.3%). The August finding does not
+reproduce: on this CPU, with D39's `contextEnd` field restored, the current field set is the
+fast cluster of the two this row has always shown, and removing three fields lands in the slow
+one — the same coin the D39 remedy just flipped the other way. A design that moves the
+end-anchored state off the class would cost 17% today. So: **no design.** What is recorded
+instead is the rule the two measurements agree on: buffer CSV's scan plan is a two-cluster JIT
+mode keyed to `ByteMatcher`'s field set, ~7.2k against ~6.0–6.4k, and any change to that class's
+fields is gated on this row, paired, before it lands. The ISSUES entry is superseded with this
+datapoint; the end-anchored rows keep their three orders of magnitude.
+
+**Exit (reached):** the ISSUES entry moves to `superseded` with a paired measurement from this
+machine; the end-anchored rows keep their three orders of magnitude.
 
 ## Phase 5 — The cheap unlocks *(each an afternoon; each opens a recorded row)*
 
-- **A key=value benchmark row for `ReverseSuffix`** (06 §6 phase 5). Its prerequisite landed
-  the same day it was deferred; the only unmet trigger is the row existing. Write the row —
-  DS's `reverse` feature's actual shape, keys verified backwards from `=` — and let it say
-  whether the phase is worth its change.
-- **First-byte refutation, in the ruled order** (06 §1). Try the library-internal shape first:
-  the `ANCHORED` entry refutes on the first byte before any setup, nothing published. Only if
-  the per-refuted-call scaffolding is what remains does `firstBytes()` cross the seam with the
-  parser's signature. Byte-compiled classes make either shape a read of the compiled form.
-  The engine's E12 is waiting on this.
+- **`ReverseSuffix`'s trigger, read correctly** (06 §6 phase 5). Its prerequisite, the reverse
+  program, landed the same day it was deferred, and the key=value row already exists
+  (`EndAnchoredSearchBenchmark` KV_HIT / KV_MISS — corrected 2026-09-03; this plan first said
+  the row was missing). What 06 actually gates on is *a workload asking*: the corpus holds no
+  pattern the suffix strategy would move. So the unlock is not a row but evidence — a real
+  configuration using DS's `reverse` feature over a key=value shape — and the row stays parked
+  with the standing rows below until one arrives.
+- **First-byte refutation — a library-internal fix, not a published fact** (06 §1; corrected
+  2026-09-04 against engine design 10 §9–11). The anchoring arc already ruled the shape of this:
+  the engine's caller-side sniff was the thing that was wrong, the library exiting early on its
+  own parsed knowledge was the fix, and a fact crosses the seam only with the parser's
+  signature and only when measurement shows the library cannot act on it alone. Here it can.
+  The scan plan's `ANCHORED` entry — `run(from, ANCHORED)` → `attempt(from)` — fills the slot
+  array and enters `PlanRunner` before its first op refutes, while `plan.firstBytes()` sits
+  unread on that path (the search loop reads it; the anchored entry does not; the tree's
+  `cannotStartAt` does). One table lookup before the fill turns strict dispatch's ~57 refuted
+  attempts per line (`win_sec_strict`, design 10 §11) from a prologue each into a byte read
+  each — nothing published, nothing engine-side.
+
+  **The change, specifically.** `ByteMatcher.run(from, anchoring)`, the last branch —
+  `return !splitsCharacter(from) && attempt(from) >= 0;` — is the only anchored entry in the
+  library that does not consult the pattern's first-byte table: `PikeVm`, `Backtracker`,
+  `FancyBacktracker` and `NodeTree.Machine` each read theirs before any setup. It becomes
+
+  ```java
+  final byte[] firstBytes = plan.firstBytes();
+  if (firstBytes != null && (from >= regionTo || firstBytes[data[from] & 0xFF] == 0)) {
+      return false;   // a non-nullable pattern cannot begin here
+  }
+  return !splitsCharacter(from) && attempt(from) >= 0;
+  ```
+
+  The bounds argument is the search loop's: a first-byte table exists only for a non-nullable
+  pattern, so `minLength >= 1`, a match needs at least one byte, and `from >= regionTo` is a
+  refusal without a read (the D37 audit's proof, reused). Cheapest test first — the table
+  lookup before `splitsCharacter` — since both are pure. `attempt()` itself stays as it is;
+  `Arrays.fill(slots, -1)` is what the refuted attempts were paying for. Tests: the anchored
+  differential suites already pin the answers; add one pin that an anchored match against an
+  empty region of a non-nullable pattern is `false` (the `from == regionTo` edge), and one that
+  a nullable pattern (no table) is unaffected. **Gate**, paired against the previous commit: the
+  library's own row for this — `AnchoredSearchBenchmark` scan_plan `anchored_miss` (a failed
+  anchored attempt is exactly what changes) with `anchored_hit` as the must-not-lose control;
+  both canaries (the entry is a search path); and the engine benchmark's `win_sec_strict` and
+  `win_sec_xml`, where design 10 §11 priced the ~57 attempts per line. It is a `ByteMatcher`
+  method-shape change, so the 325-byte threshold on `run()` and the CSV coin rule both apply:
+  `run()` is the tiny dispatcher the tier-0 audit says must stay tiny — if the branch grows it
+  past a cliff, the check moves into a private method, and the CSV row is read before landing.
+
+  `firstBytes()` crossing the seam for an engine-side candidate table stays where the arc left
+  it: only if, after this, the per-call scaffolding is what remains — and the engine's record
+  now says so (design 10 §11, corrected 2026-09-04).
 - **The weblog guard residual**, 2.2% on a row with a bimodal JIT state: one more shape probe
   (a `singleByteForm`-specialised search loop chosen once at construction) and then either
   shipped or written off as noise-floor. It does not block anything.
@@ -188,6 +314,105 @@ input designed to defeat backtracking — measures what the linear-time guarante
 is the thing actually running, and gives the step budget a number instead of a promise.
 
 **Exit:** the row exists, is on the scoreboard, and 06 §5's list of blind spots is empty.
+
+## Phase 8 — The tree under pollution *(found by Phase 1; the pipeline-shaped row)* — **diagnosed 2026-09-04: it is our dispatch**
+
+Phase 1's harness found what 06 §2 had wrong: these engines are not pollution-immune. In a
+JVM that has run the whole corpus, the scan plan loses 18% on CSV and the tree 26–39%
+(NETWORK 6,608 → 4,906, KEYVALUE 8,860 → 5,768, CSV 4,147 → 2,530), against the JDK's
+53–62%. Still 2× ahead where it matters — but this is the row a deployment actually runs
+on, and the tree is the default engine for every ambiguous pattern.
+
+Diagnosis before design, in this order:
+
+1. **Whose pollution is it?** Three variants of the harness's `@Setup`: pollute with our
+   patterns only, with the JDK's only, with both. If the tree's loss needs the JDK's patterns
+   present, it is shared JIT infrastructure (the code cache, inlining budget spent elsewhere);
+   if our own patterns suffice, it is our dispatch.
+2. **Which sites?** `PrintInlining` on a polluted fork against a clean one, filtered to
+   `NodeTree$*::match` and `PlanRunner::run`: the expected signature is `Node.match` call
+   sites going from bimorphic (one pattern's two or three node kinds per site) to megamorphic
+   (the corpus's dozen), and losing their inline caches — the same class of mechanism as
+   `ByteMatcher`'s gate, spread over every node boundary.
+3. **The design, only if 2 says so.** The scan plan's smaller loss points at the answer's
+   shape: `PlanRunner` dispatches through one `switch` on an opcode, which no profile can
+   pollute, where the tree dispatches through virtual `match` calls, which every pattern
+   pollutes for every other. A tree walker whose hot boundaries — `StarClass` → `next`,
+   `GroupHead`/`GroupTail`, `ByteSeq` — go through a kind switch rather than a virtual call
+   is a measured-method change to the primary engine's hottest paths, gated on the full
+   pair. Not attempted until 1 and 2 have made the case.
+
+**Steps 1 and 2, run 2026-09-04 (07:46–08:13, quiet box).** Whose pollution: with the JDK's
+patterns only, the tree is flat (NETWORK +0.2%, KEYVALUE −1.2%) and the JDK loses its 54%;
+with ours only, the tree loses **−27.1% / −35.3%** and the JDK is flat; with both, −30.6% /
+−34.3%. The scan plan reads −5.4% / −7.3% under our own patterns — hardier, not immune. So the
+tree's loss needs nothing but the library's own patterns having run: it is our dispatch, not
+shared JIT infrastructure. Which sites: `PrintInlining` polluted against clean on the tree's
+NETWORK — the node chain that compiled as one unit in a clean fork (the stack profile sits in
+`ByteSeq.match` and `GroupTail.match`, everything under them inlined) breaks apart polluted:
+`CharClass.matchAt`, `runLinear` and `attempt` flip to "already compiled into a medium method"
+and "callee is too large", "no static binding / virtual" mentions go 18 → 67, and the profile
+spreads over `StarClass.scan`, `Machine.search` and `Assert.match` as separate frames. The
+`Node.match` sites that were bimorphic for one pattern are megamorphic for the corpus, and the
+inline caches they lose are the tree's whole speed. Step 3's case is made.
+
+**Step 3 — the design, on paper (2026-09-04), unscheduled.** Three shapes, and the order to try
+them is fixed by what the clean harness would lose:
+
+1. **A kind switch at the hot boundaries.** Every `Node` carries an `int kind` set once when the
+   compiler links it; the 22 `next.match(ctx, at)` sites in the fifteen node classes become
+   `Node.run(next, ctx, at)`, a static method that switches on `kind` and calls the concrete
+   class's `match` directly — a monomorphic call per case, which C2 can inline whatever the
+   receiver profile says, the way `PlanRunner`'s opcode switch is immune. **The risk is the
+   clean row, not the polluted one:** today's clean speed is inline caches folding a pattern's
+   whole chain — `ByteSeq.match` → `GroupTail.match` → … — into one compilation unit, and
+   `Node.run` is recursive (`run` → `ByteSeq.match` → `run` → …), which C2 inlines only one
+   level deep (`MaxRecursiveInlineLevel`). A switch that stops the chain folding could cost the
+   clean harness what it buys the polluted one. So the first act is a probe, not a design:
+   `Node.run` at the eight hottest boundaries (`ByteSeq`, `OneChar`, `GroupHead`, `GroupTail`,
+   `StarClass`, `RunLoop`, `CountedClass`, `Assert`), measured clean and polluted on the tree's
+   NETWORK and KEYVALUE. If clean holds and polluted recovers, the design is this; if clean
+   pays, it is not.
+2. **Flatten the tree to a program.** Compile the node tree to an opcode array with an explicit
+   continuation stack — the fancy backtracker's family — and give up the per-pattern JIT
+   specialisation D30 chose the tree for. Polluted and clean would converge, from both sides.
+   A rewrite of the primary engine; only if 1 fails and the pipeline number matters more than
+   the microbenchmark one.
+3. **Accept, and let the harness tell the truth.** Polluted, the tree still beats the JDK by
+   1.5× on these rows, and the *scan plan* now beats the tree there (NETWORK 5,123 against
+   4,906; KEYVALUE 6,369 against 5,792) — the flat engines are the pollution-hardy ones. The
+   honest scoreboard is the polluted one; 06 §2's "immune" becomes "hardier than the JDK by
+   a wide margin, and the tree by less than the scan plan". No code.
+
+**The probe in 1, run 2026-09-04 (09:06–09:12).** `Node.run` at the eight hot boundaries
+(ten call sites rewritten), tree tests green, then the tree's rows: clean NETWORK −9.4%,
+KEYVALUE −17.0%; polluted NETWORK −8.0%, KEYVALUE −14.4%; per-match datetime −2.3%, weblog
+−8.8%. It loses on both sides — the recursive switch stops the chain folding exactly as feared,
+and it does not buy the polluted row back either, because what pollution takes is the inline
+caches *inside* the chain, which a switch at the boundary cannot restore. **Shape 1 is
+rejected.** What remains is 2 (flatten the tree to a program — a rewrite of the primary engine,
+converging the two harnesses from both sides) and 3 (accept, and let the polluted scoreboard be
+the honest one). Recommendation: 3, with 2 recorded as the one lever left if the pipeline
+number ever needs the tree's clean speed. Ruling awaited.
+
+**Gate:** `PollutedCorpusBenchmark`'s tree rows against `CorpusBenchmark`'s, paired, plus the
+clean canaries — a fix that buys the polluted row by costing the clean one has to say so.
+**Exit:** the tree's polluted loss is attributed, and either closed or accepted with its
+number; 06 §2's "pollution-immune" is rewritten to what the harness measures.
+
+## Audit record — 2026-09-03
+
+Everything landed today was audited the same day, in the 08-28 manner. `RunLoop`'s audit is
+under Phase 2. The rest, by reading, each closed: the `cannotStartAt` split (`7b6301a1a7`) is
+the same three tests in the same order, each mapped to `return true`, behind one `anchored`
+break — identical to the loop it left; D39's deletion leaves every engine read past the
+region bounded by `to` or by `data.length` under `ByteMatcher`'s contract (backrefs and word
+boundaries decode to `to`; the reverse scanner's probe at `to` reads `at < data.length`); the
+Phase 3 revert is total (no engine carries a `singleByte` field; `ByteFormInvariantTest`
+remains, guarding `ByteMatcher`'s spelling); and the pollution harness pollutes — 114
+patterns × their inputs × 200 passes through both libraries, past C2's thresholds by two
+orders, with the measured pattern compiled after. Two tests (`RunLoopTest`,
+`PollutedCorpusBenchmark`) were corrected for checkstyle; nothing in production code moved.
 
 ## Standing rows — gated, and staying gated
 

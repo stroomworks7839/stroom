@@ -117,6 +117,21 @@ public final class Utf8 {
         return at < data.length && isContinuation(data[at]);
     }
 
+    /**
+     * The same question with the array's end supplied by the caller, for {@code ByteMatcher}'s
+     * search loops only. D39 deleted this form along with the {@code contextEnd} seam, and the
+     * overnight chain convicted the deletion on the one row the D39 probe set did not carry:
+     * scan-plan {@code line_miss} fell 22,909 → 3,074 ops/s. Restoring the bound as a field on
+     * {@code ByteMatcher}, bound once per {@code match()} and passed here, reads 22,948; a local
+     * hoisted above the loop reads 19,739; {@code data.length} inside the callee reads 3,074.
+     * The JIT wants the bound as an instance field it can prove constant across the attempt
+     * call — the argument-versus-state finding of R1, one more time. The engines keep the
+     * two-argument form: their gates measured flat either way.
+     */
+    public static boolean splitsCharacter(final byte[] data, final int at, final int end) {
+        return at < end && isContinuation(data[at]);
+    }
+
     /** The length in bytes of the UTF-8 sequence a lead byte starts, or 0 if it cannot start one. */
     public static int sequenceLength(final int leadByte) {
         if (leadByte < 0x80) {

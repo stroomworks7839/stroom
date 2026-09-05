@@ -55,6 +55,11 @@ public final class ByteMatcher {
     /** {@code pattern.form().singleByte()}, hoisted out of the search loop — see
      * {@link #splitsCharacter}. */
     private final boolean singleByteForm;
+    /** The array's end, bound once per {@link #match} for the search loops' gate. D39 deleted the
+     * engines' copies of this bound and this one with them; the overnight chain showed this one
+     * is load-bearing for the JIT (see {@code Utf8#splitsCharacter(byte[], int, int)}), so it
+     * stays — a field, not a local, because a local measured a third of the way short. */
+    private int contextEnd;
     private final Plan plan;
     private final PikeVm vm;
     private final Backtracker backtracker;
@@ -187,6 +192,7 @@ public final class ByteMatcher {
         this.data = data;
         this.regionFrom = regionFrom;
         this.regionTo = to;
+        this.contextEnd = data.length;
         this.matched = false;
         return endgame && anchoring != Anchoring.ANCHORED
                 ? endgameSearch(from, anchoring)
@@ -223,6 +229,7 @@ public final class ByteMatcher {
         this.data = data;
         this.regionFrom = from;
         this.regionTo = to;
+        this.contextEnd = data.length;
         this.matched = false;
         return endgame && anchoring != Anchoring.ANCHORED
                 ? endgameSearch(from, anchoring)
@@ -429,7 +436,7 @@ public final class ByteMatcher {
      * call recovers all three (design 06 §1).
      */
     private boolean splitsCharacter(final int at) {
-        return !singleByteForm && Utf8.splitsCharacter(data, at);
+        return !singleByteForm && Utf8.splitsCharacter(data, at, contextEnd);
     }
 
     private int attempt(final int start) {

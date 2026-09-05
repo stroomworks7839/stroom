@@ -31,8 +31,22 @@ deleted. What remains in this file is the accepted-cost record and the one open 
 
 ## Accepted costs — measured, kept, and why
 
-**D39's seam deletion leaves buffer CSV's scan plan at −3.2% (`open`, 2026-09-03 — a
-datapoint for the class-shape entry below).** Deleting `contextEnd` — field, setter, six
+**The search split costs the tree's bounded-tail rows ~20% (`accepted`, ruled by Jon
+2026-09-04).** `NodeTree.Machine.search` at 330 bytecodes did not inline; split to 255 it does,
+into `runPinnedTree`/`run`/`match`, and the phase-3 cliff cost went with that — tree
+`anchored_miss` +11%, weblog's tree-routed patterns +5–7%. The end-anchored `BOUNDED_MISS` /
+`BOUNDED_HIT` rows — one short search near the region's end per record, all prologue — read
+−21.6% / −6.5% from inside the larger unit (7,266,258 → 5,700,239). A second cut with the same
+byte count reads the same; `PrintInlining` either side shows the topology flip and nothing
+else; no cut keeps `search` inlined for one class of tiny operation and not the other. Kept on
+the hit-trade precedent: the winners are the rows where both engines do real work, the losers
+are early-exit rows still 7,000× ahead of the JDK. Evidence: `2026-09-04-*-fixbisect-*-tree_bmiss`,
+`*-splitrecut-v3-*`, `*-split-bmiss-*`.
+
+
+**D39's seam deletion leaves buffer CSV's scan plan at −3.2% (`resolved` 2026-09-04 — the bound
+restored as a `ByteMatcher` field: CSV 6,357 → 7,228 paired, the bimodality gone with it; kept as
+the record of a probe set that missed the row that mattered).** Deleting `contextEnd` — field, setter, six
 binding stores, the parameter from `Utf8.splitsCharacter` and `ByteForm.splitsCharacter` —
 retired R1's accepted store (tree `anchored_hit` +0.9%, `anchored_miss` +1.8%) and the
 `match()` setup store (scan-plan `anchored_miss` +3.0%, weblog +1.6%), left per-match datetime
@@ -47,10 +61,16 @@ padding field does not move it, and Phase 3's guarded static gate moves it a fur
 while lifting `LazyRunBenchmark` simulate ENTRY_DOTALL +3.7% — the D37 coin row moving
 opposite to real work, recorded not chased. Landed by direction with this entry open; the
 class-shape fix (07 Phase 4) is where both close. Evidence: `2026-09-03-*-d39-*.json`.
+*2026-09-04:* the overnight chain found a second cost the probe set had missed — scan-plan
+`line_miss` back at 3,074 from 22,909 — and its remedy, `ByteMatcher` keeping the bound as a
+field, is in D39's postscript. The −3.2% on buffer CSV above went with it: +13.7% paired, spread 1.01.
 
 
 **The tail-window machinery costs −12–14% on buffer workloads that never jump
-(`open`, measured 2026-08-25 — supersedes the accepted entry below).** The nightly
+(`superseded` 2026-09-04: on the 9950X3D, with D39's field restored, stripping the machinery reads
+−16.8% on the same row — the class's field set is a two-cluster JIT mode and the current set is the
+fast cluster; any field change is gated on buffer CSV, paired. Was `open`, measured 2026-08-25 —
+supersedes the accepted entry below).** The nightly
 gate's first full-suite run since Phase 2 found buffer CSV at −11.3%, per-match `quoted`
 −8.0%, `datetime` −5.0%, with `shapeshifterTree` and every JDK row flat on the same
 workloads; an independent re-check pair reproduced it (−12.7%, −4.4%, −3.8%). A

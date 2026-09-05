@@ -324,7 +324,7 @@ That is a new §2-style row, recorded now so it is not rediscovered:
 
 | Interpreted per use | The cost, concretely | The compiled answer |
 |---|---|---|
-| Strict/lexer dispatch tries **every template at every position** | ~57 anchored attempts per line in `win_sec_strict`, most refuted by the first byte | A first-byte candidate table on the compiled level — the engine-side analogue of the library's `firstBytes` — dispatching each position to the few templates that could match. Needs the library to publish a pattern's first-byte set (single-source principle, as `leadingAnchor()`) |
+| Strict/lexer dispatch tries **every template at every position** | ~57 anchored attempts per line in `win_sec_strict`, most refuted by the first byte | *Was:* a first-byte candidate table on the compiled level, needing the library to publish a pattern's first-byte set. *Corrected 2026-09-04:* the library can refute these itself — its scan plan's `ANCHORED` entry fills the slot array and enters the runner before its first op says no, with its own `firstBytes` table unread on that path (regex 07 Phase 5). One lookup there makes a refuted attempt a byte read, with nothing published and nothing engine-side; the candidate table returns to the list only if the per-call scaffolding is what remains after that |
 
 **The clean rerun spoke (`2026-08-21-1323`, load 1.43, drift controls 0.96–0.97): strict is
 1.36× over lax — 7.8 vs 5.7 MiB/s.** The first possibility was the truth: the library already
@@ -332,9 +332,11 @@ ate the feast. Lax's failed searches, priced at milliseconds when the design was
 cost first-byte-table-accelerated scans; strict's at-cursor attempts cost ~57 per line. The
 order-of-magnitude claim in 11-strict-dispatch.md §1 is amended to the measured truth: strict
 buys a solid third on this workload *today*, its real payload is semantic (no silent
-skipping), and the next performance meal is the first-byte candidate table above — which
-would cut strict's per-line attempts from ~57 to a handful and is now the only row on the
-list with a measured workload waiting for it.
+skipping), and the next performance meal is the library's own anchored entry refuting on its
+first byte before any setup (regex 07 Phase 5, corrected 2026-09-04 from the candidate table
+first written here) — which makes strict's ~57 per-line attempts nearly free without the
+engine learning anything about pattern shape, and is the only row on the list with a measured
+workload waiting for it.
 
 ## 12. E13's price: 8% on one workload, convicted properly, mechanism still at large
 

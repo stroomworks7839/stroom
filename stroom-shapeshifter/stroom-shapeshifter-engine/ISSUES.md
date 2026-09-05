@@ -753,7 +753,9 @@ with two dispatch attributes and two line eaters, **byte-identical output**), `s
 A/B. The measurement landed clean
 (2026-08-21-1323): strict 1.36× over lax on win_sec, byte-identical output — the
 order-of-magnitude expectation amended honestly in both design docs, the headroom now named
-(the compiled level's first-byte candidate table). Remaining: the E18 original-order fixture
+(the library's anchored entry refuting on its first byte before setup — regex 07 Phase 5,
+nothing published; the compiled-level candidate table first named here is withdrawn unless
+the per-call scaffolding is what remains after that). Remaining: the E18 original-order fixture
 question only**
 ([design/11-strict-dispatch.md](../design/11-strict-dispatch.md)). Implicit cursor movement —
 skip consumption, recovery advance, the zero-advance quirk — replaced by authored eaters

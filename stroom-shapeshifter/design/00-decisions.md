@@ -1109,6 +1109,21 @@ and is the D37 coin row: a padding field in `PikeVm` did not move it, and Phase 
 static gate moved it a further −4% while lifting the simulation's real-work row +3.7%. Landed
 with the cost recorded, by direction (2026-09-03), rather than parked behind Phases 3 and 4.
 
+**Postscript, 2026-09-04.** The overnight chain convicted the deletion on a row the D39 probe
+set did not carry: scan-plan `line_miss`, the row the seeding-gate fix had taken from 3,076 to
+22,919, fell back to 3,074 — the gate's callee now read `data.length` for itself, and the
+JIT no longer treated the bound as the per-match constant it had been. Two remedies, probed:
+the bound as a `ByteMatcher` field again, set once per `match()` and passed to a three-argument
+`Utf8.splitsCharacter`, reads 22,948; a local hoisted above the loop reads 19,739. The field
+form landed. So D39 stands for the engines — their fields, setters, asserts and the fifth
+argument stay deleted, measured flat — and `ByteMatcher` keeps `contextEnd` as a field for a
+reason the ruling did not have: not as a seam for a tighter bound, but because the JIT needs
+the bound as instance state. R1's argument-versus-state finding, a third time. Verified paired
+against the D39 tree with checks green: `line_miss` 3,074 → 22,955, and buffer CSV's scan plan
+6,357 → 7,228 (+13.7%, fork spread 1.01) — the −3.2% and the bimodal cluster recorded against
+D39 were this field's absence as well, and that ISSUES entry closes with it. Datetime and the
+tree's rows flat.
+
 ## D40 — Output bridges to SAX by parsing; structured emitters come second, and the sink interprets bytes by container — the bridge superseded by D42
 
 **Ruled by Jon, 2026-09-03**, eleven rulings in [design 20 §10](20-sax-output.md), on a draft

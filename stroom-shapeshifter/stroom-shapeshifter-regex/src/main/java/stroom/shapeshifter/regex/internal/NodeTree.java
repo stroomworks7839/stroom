@@ -384,6 +384,12 @@ public final class NodeTree {
                     // After chain, because that is what links next — and the continuation
                     // itself is already complete, being compiled before its predecessor.
                     star.resolveSkip();
+                } else if (!repeat.greedy() && RunLoop.unitOf(repeat.body()) != null) {
+                    // The line idiom, lazily: one frame for the whole loop, so a 64 KiB
+                    // region never reaches LOOP_DEPTH_LIMIT (design 07 Phase 2).
+                    final RunLoop loop = new RunLoop(RunLoop.unitOf(repeat.body()), form);
+                    tail = chain(loop, next);
+                    loop.resolveSkip();
                 } else {
                     // The general loop, JDK-style: the body's tail points back at the loop
                     // node, which counts nothing but guards against empty iterations by
@@ -723,6 +729,137 @@ public final class NodeTree {
             final boolean matched = body.match(ctx, pos);
             ctx.locals[local] = saved;
             return matched;
+        }
+    }
+
+    /**
+     * A lazy unbounded repetition of the line idiom's unit — a greedy class run followed by one
+     * byte the class rejects, {@code (?:[^\n]*\n)*?} being the case that named it — walked
+     * iteratively, one stack frame for the whole loop.
+     *
+     * <p>The general {@link Loop} recurses once per iteration and is guarded by
+     * {@link #LOOP_DEPTH_LIMIT}: a 64 KiB region of forty-byte lines is some 1,600 iterations,
+     * the guard bails, and the simulation finishes the job 8–42× slower than the JDK
+     * ({@code LazyRunBenchmark} FAR_LINE / MISS_LINE — the cliff in design 06 §1 and 07
+     * Phase 2). This node exists so that shape never reaches the guard. It is the hand-written
+     * idiom an author reached for before the dot-all spelling was fast, so a ported
+     * configuration is the likeliest thing to carry it.
+     *
+     * <p>Semantics are exactly the lazy loop's. At each iteration boundary the continuation is
+     * offered first; if it declines, one unit is consumed — the class run to its end, which must
+     * be the terminator byte, else the loop fails — and the offer repeats. A unit always
+     * consumes at least the terminator, so the loop always advances. The offer is filtered the
+     * way {@link StarClass} filters its lazy run: when the continuation must consume one known
+     * byte first ({@link Node#leadingByte()}), a boundary not carrying it is skipped without
+     * the call — every skipped offer is one that would have returned false without consuming
+     * anything. The unit's own scan is the same walk {@link StarClass#scan} does, so it stops
+     * where {@code accept} stops, whatever the bytes are.
+     *
+     * <p>Only the lazy form is compiled this way: a greedy unit loop backs off unit by unit and
+     * needs the unit boundaries kept, which the general {@link Loop} already does with its
+     * frames — and no measured row loses on it.
+     */
+    private static final class RunLoop extends Node {
+
+        /** The unit: a class run, then exactly this byte, which the class must reject. */
+        record Unit(Hir.CharClass run, int terminator) {
+        }
+
+        private final OneChar item;
+        private final byte[] ascii;
+        private final int terminator;
+        private int skipByte = -1;
+
+        RunLoop(final Unit unit, final ByteForm form) {
+            this.item = new OneChar(unit.run().set(), unit.run().label(), form);
+            this.ascii = item.ascii;
+            this.terminator = unit.terminator();
+        }
+
+        /**
+         * The unit if {@code body} has the shape, else null: a two-item concatenation of an
+         * unbounded greedy class repeat and a single ASCII byte the class does not accept. The
+         * rejection is what makes the unit boundary unambiguous — the run stops exactly at
+         * the terminator, never over it — and is why {@code [^\n]*\n} qualifies and
+         * {@code .*\n} does not.
+         */
+        static Unit unitOf(Hir body) {
+            // (?:...) parses as a non-capturing Group; a capturing one is a different shape.
+            while (body instanceof Hir.Group group && group.index() < 0) {
+                body = group.body();
+            }
+            if (!(body instanceof Hir.Concat concat) || concat.items().size() != 2) {
+                return null;
+            }
+            if (!(concat.items().get(0) instanceof Hir.Repeat run) || !run.isUnbounded()
+                || !run.greedy() || run.min() != 0
+                || !(run.body() instanceof Hir.CharClass charClass)) {
+                return null;
+            }
+            final int terminator = singleAsciiByte(concat.items().get(1));
+            if (terminator < 0 || charClass.set().contains(terminator)) {
+                return null;
+            }
+            return new Unit(charClass, terminator);
+        }
+
+        /** The one ASCII byte {@code node} matches, or -1: a one-byte literal, or — as the
+         * parser spells a literal inside a group — a class of exactly one code point. */
+        private static int singleAsciiByte(final Hir node) {
+            if (node instanceof Hir.Bytes bytes && bytes.value().length == 1
+                && (bytes.value()[0] & 0xFF) < 0x80) {
+                return bytes.value()[0] & 0xFF;
+            }
+            if (node instanceof Hir.CharClass cls) {
+                final int only = cls.set().singleCodePoint();
+                return only >= 0 && only < 0x80 ? only : -1;
+            }
+            return -1;
+        }
+
+        void resolveSkip() {
+            this.skipByte = next == null ? -1 : next.leadingByte();
+        }
+
+        @Override
+        int leadingByte() {
+            return -1; // an offer or a unit may begin here; nothing single is required first
+        }
+
+        @Override
+        boolean match(final Ctx ctx, final int pos) {
+            final byte[] data = ctx.data;
+            final int to = ctx.to;
+            int at = pos;
+            for (;;) {
+                ctx.budget();
+                if ((skipByte < 0 || (at < to && (data[at] & 0xFF) == skipByte))
+                    && next.match(ctx, at)) {
+                    return true;
+                }
+                // One unit: the run, then the terminator.
+                int end = at;
+                while (end < to) {
+                    final int b = data[end] & 0xFF;
+                    if (b < 0x80) {
+                        if (ascii[b] == 0) {
+                            break;
+                        }
+                        end++;
+                    } else {
+                        final int advanced = item.accept(ctx, end);
+                        if (advanced == 0) {
+                            break;
+                        }
+                        end += advanced;
+                    }
+                }
+                if (end >= to || (data[end] & 0xFF) != terminator) {
+                    return false;
+                }
+                ctx.steps -= end + 1 - at;
+                at = end + 1;
+            }
         }
     }
 
