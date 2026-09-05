@@ -390,10 +390,15 @@ swallows them. *What Stroom's tests do not give:* `TestHttpCall` is a manual tes
 developer's own TLS server, so the HTTP pair is pinned against a JDK `HttpServer` on this
 machine through a client the cache would hand out; the lookups are pinned the way
 `TestLookup` pins them, reference data stubbed to fill in each outcome, plus an XML value and
-the bitmap's bit-by-bit keys. Not built: a lookup against a reference stream loaded through
-`ReferenceData` itself — that needs Stroom's stores, and belongs in stroom-app when a
-Shapeshifter reference-data test is written there. 154 pipeline tests green; the drift pin
-covers all fifty-seven.
+the bitmap's bit-by-bit keys. The lookup against a reference stream loaded through
+`ReferenceData` itself needs Stroom's stores, so it is in stroom-app: `TestShapeshifterLookup`
+(2026-09-05) loads the translation tests' own HOSTNAME_TO_LOCATION reference feed the way they
+load it, processes it into a reference stream, and runs a Shapeshifter pipeline under Stroom's
+processor with that feed named on the element; `format-date` binds the event's time by name,
+`lookup` takes it, and every one of the twenty-six events comes back with the location the
+reference pipeline wrote — through the effective-stream lookup, the Reference Loader pipeline,
+the off-heap store and the byte consumer the audit moved the read to. 154 pipeline tests green;
+the drift pin covers all fifty-seven.
 
 *Audited 2026-09-05.* **One defect, fixed:** a value was read through `supplyValue()`. Over
 the off-heap store that is a view into a closed transaction: `RefDataOffHeapStore.getValue`
