@@ -116,7 +116,7 @@ public final class Executor {
      * Whether the root reads the input in pieces whose counters restart (design/16 §10).
      *
      * <p>A {@code classify} or {@code any} root is dispatched chunk-at-a-time by repeated
-     * {@code level()} calls, so template counters reset and capture stores clear <b>per
+     * {@code Level.dispatch} calls, so template counters reset and capture stores clear <b>per
      * chunk</b>. An accumulation there would summarise the last chunk while presenting itself
      * as a summary of the input — a wrong answer wearing the shape of a right one, which is
      * the failure mode this whole section exists to refuse. A whole-buffer run takes the same

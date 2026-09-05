@@ -44,8 +44,10 @@ import java.util.List;
  * and lexer modes ask the anchored question (D36); the lexer takes the longest. A classify
  * level runs every matching template once and consumes nothing; an {@code any} level searches
  * a working copy and excises what it matches. Skipping is reported, never silent. What a
- * winning match does — clears first-match stores (E19), binds captures, runs its body through
- * the run's body callback — is one method every mode shares.
+ * counted match does — clears first-match stores (E19), reports a skipped prefix, sets the
+ * engine's counters — is one method the consuming modes share, and what a wanted match with
+ * content does — binds captures, runs its body through the run's body callback, measures the
+ * output — is one method every mode shares, the classify mode included.
  */
 final class Level {
 
@@ -243,6 +245,10 @@ final class Level {
      *
      * <p>Match counts live for the whole stream, as DS3's do — a minimum-match requirement is
      * judged once at the end, not once per read.
+     *
+     * @param window   the input window, opened and its byte-order mark already applied by the run
+     * @param capacity the window's capacity, for the message that names it
+     * @param encoding the run's encoding in force, as for {@link #dispatch}
      */
     void stream(final List<CompiledTemplate> templates,
                 final InputWindow window,

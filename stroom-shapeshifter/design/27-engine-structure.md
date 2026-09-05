@@ -123,7 +123,7 @@ which way it goes rather than carry both into `Body` and call it structure.
 |---|---|---|
 | `InputWindow` | The sliding window over the stream: fill, compact, blank the tail, probe exhaustion with one byte of pushback, the byte-order mark read once. Owns the byte array and the cursor; knows nothing about templates. | `stream`'s window half, `fill`, `fillAndBlankTail`, `compact`, `probeExhausted`, `read`, the two byte-order-mark sites |
 | `FunctionRuntime` | The bound function library for one run: binding at start, the `FunctionContext` each function sees, the preview gate, per-call offset and length, the shared state map, the service lookup. | header region, `Context`, `bindFunctions`, `describe`, the preview branch of `call` |
-| `Level` | Dispatching one level's templates against one region: iterated ordered choice, strict and lexer and classify and any dispatch, skipping reported, eaters, match limits, instrument hooks, capture binding, `locate`. `stream`'s level half folds into `level` here, with the seven rules it duplicated. | the "one level against one region" region, `bindCaptures`, `locate` |
+| `Level` | Dispatching one level's templates against one region, and the root level against the window: iterated ordered choice, strict and lexer and classify and any dispatch, skipping reported, eaters, match limits, instrument hooks, capture binding, `locate`. `stream` stays a sibling loop of `dispatch` — its refill decisions are the window's — and the seven rules the two duplicated are one method each. | the "one level against one region" region, `stream`'s level half, `bindCaptures`, `locate` |
 | `Body` | Running a template's body: the `CompiledOp` switch and every handler, the variable registry, key indexes, the once-per-site warnings, casting, emit-or-bind. | the "captures and body" region |
 | `Run` | One run of a compiled configuration over one input: owns the collaborators above and the message list, applies the root split, opens and closes the sink, wires `Level` and `Body` to each other, turns `AbortRun` into the last message (`structure` is its rule, `AbortRun` package-visible). One entry point; the facade passes the defaults. What `Executor` was, at a size that says what it does. | `run`, `execute`, `RootSplit`, `applyDirective`, `structure`, `AbortRun` |
 
@@ -410,7 +410,7 @@ region — `level`, `processMatch`, `processEater`, the stream loop's level half
 `classify`, `match`, `regexMatch`, `bindCaptures`, `effective`, `normalise`, `locate` — into
 `Level`, constructed per run with the graph, the instrument, the messages, the registry, the
 function runtime and a body callback the executor implements; the run's encoding in force is
-handed in on every entry rather than shared as a field. The executor opens the window and
+handed in on every entry and held by the level for the duration, the same value each time. The executor opens the window and
 applies the mark, then hands the window to the level's `stream`. The return values nobody
 read are gone. Then the fold, inside `Level` (754 lines to 727): the guards evaluated once on
 the way in, three copies to `guards`; the winner loop, two copies to `pick`, with the max-match
@@ -420,9 +420,27 @@ minimum-match and unmatched-content reports, three copies to `report`; the conte
 selection, three copies to `content`; and a wanted match's instrumented body run, two copies
 to `runBody`, which the classify mode now shares with the ordered ones. `anyLevel` keeps its
 own loop because it excises and its zero-advance rule is not the ordered modes' (`end <=
-start`, not `advance == 0`), which the fold preserves. `Executor` is 1,296 lines: the run, the
+start`, not `advance == 0`), which the fold preserves. `stream` stays a sibling loop of
+`dispatch` rather than folding into it, as §2.1 first said: its refill decisions are the
+window's and have no counterpart in a region, so what the two share is the six methods, not
+a loop. `Executor` is 1,296 lines: the run, the
 root split, the mark rule, and the body. Every message is byte for byte what it was; the
 gate said so.
+
+*Audited 2026-09-06.* The move is token-identical apart from the licensed changes — the
+callback, the dropped returns, the encoding parameter, the open and mark moved to the run —
+so every message and every instrument call is what it was; the fold reproduces each of its
+copies byte for byte, the lexer's last-candidate case included, and the stream loop never
+dereferences a null winner. **Fixed:** the level's class javadoc claimed one method every
+mode shares for what only the consuming modes share; `stream`'s javadoc lacked its
+parameters; the executor's still named a method that had gone; this design said `stream`
+folds into `dispatch`, which it does not, and that the encoding is not held as a field, which
+it is. **Named, pre-existing, for a ruling (11):** the classify mode evaluates each template's
+guard inline, after earlier templates' matches have set the engine's counters and bound
+their captures — the mid-level re-read the `guards` rationale calls a mistake in the ordered
+modes, and the fourth copy of the guard the ledger counted. Making it the once-on-the-way-in
+rule is a behaviour change for a classify guard that reads an earlier template's capture,
+so it is not this phase's to make. Engine 561, pipeline 154, app 5.
 
 *As written:*
 The dispatch region becomes its own class, constructed per run with the instrument, the
@@ -662,7 +680,7 @@ Nothing moved between classes; that is the phases.
 8. **§2.5's dependency cells** gain `engine.text` for `match` and `exec`, and `config` for `value`; the `engine` row says what item 2 says.
 9. **Two correctness defects** are fixed before phase 1 rather than carried: `EmitError`'s encoding and the unlocatable call offset (both one line). `records` under whole-buffer and chunked roots is phase 2's, with the loop. The step-regex flags and the `field` capture source are rulings 9 and 10.
 
-## 6. Rulings — all ten ruled 2026-09-05, each as recommended (D45)
+## 6. Rulings — 1 to 10 ruled 2026-09-05, each as recommended (D45); 11 wanted
 
 1. **The direction.** The executor dissolves into a run over the graph as §2.1 describes,
    rather than staying one class with helpers — D35's stated consequence, done.
@@ -692,5 +710,15 @@ Nothing moved between classes; that is the phases.
 10. **The `field` capture source.** Read by the JSON, compiled by nothing, bound to nothing,
     silently. Ruled: a compile-time "not yet" refusal now, the shape D33 gives codecs, unless a
     corpus fixture uses it, which the gate will say.
+
+*Wanted, from the phase 3 audit:*
+
+11. **The classify mode's guards.** Evaluated per template inline, after earlier templates'
+    matches have set `__match_index` and `__match_count` and bound their captures, where the
+    ordered modes evaluate every guard once on the way in for the reason the `guards` javadoc
+    gives. *Recommended: the once-on-the-way-in rule for classify too, pinned, in phase 4's
+    audit — DS3's classify has no guards at all, so nothing migrated relies on the re-read,
+    and a native configuration whose classify guard reads a sibling's capture is reading a
+    coincidence of list order.*
 
 Each phase audited before the next.
