@@ -131,70 +131,24 @@ final class Level {
         final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
         final int[] counts = new int[templates.size()];
 
-        // Guards are evaluated once, on the way in — not per pass. The distinction is
-        // load-bearing: a guard reads scope, and scope includes the parent's match counter,
-        // which DS3-style onlyMatch guards compare against. Once matching starts, each winner
-        // overwrites that counter with its own count, so a guard re-read mid-level would compare
-        // a template against itself. DS3 gets this for free by passing the parent's count down
-        // as a parameter; evaluating here, while the scope still describes the parent, is the
-        // same thing said with variables.
-        final boolean[] allowed = new boolean[templates.size()];
-        for (int i = 0; i < templates.size(); i++) {
-            final Template template = templates.get(i).template();
-            allowed[i] = template.guard() == null
-                         || Conditions.evaluate(
-                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns());
-        }
+        final boolean[] allowed = guards(templates);
 
         int cursor = from;
         boolean matched = true;
 
         while (cursor < to && matched) {
             matched = false;
-            int winner = -1;
-            MatchResult match = null;
-            for (int i = 0; i < templates.size(); i++) {
-                if (!allowed[i]) {
-                    continue;
-                }
-                final CompiledTemplate candidate = templates.get(i);
-                final Template template = candidate.template();
-                final int maxMatch = template.matchLimits().maxMatch();
-                if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
-                    continue;
-                }
-                final long timing = instrument.startTiming();
-                final MatchResult attempt = match(candidate, data, cursor, to, atCursor);
-                instrument.stopTiming(template.id(), timing, attempt != null);
-                if (attempt == null) {
-                    continue;
-                }
-                if (dispatch != Dispatch.LEXER) {
-                    winner = i;
-                    match = attempt;
-                    break;
-                }
-                // Maximal munch: the longest match wins, ties to list order.
-                if (match == null || attempt.advance() > match.advance()) {
-                    winner = i;
-                    match = attempt;
-                }
-            }
-            if (match == null) {
+            final Winner won = pick(templates, data, cursor, to, atCursor, dispatch, counts, allowed);
+            if (won == null) {
                 break;
             }
+            final int winner = won.index();
+            final MatchResult match = won.match();
             final CompiledTemplate candidate = templates.get(winner);
             final Template template = candidate.template();
 
-            // A zero-advance match in a consuming mode is a grammar bug, not a result:
-            // with classify, the Peek step, and composition available, it has no innocent
-            // reading left (D36). The body does not run — output from a match that cannot
-            // move the level would be output from a mistake.
             if (match.advance() == 0) {
-                messages.add(new Message(Severity.ERROR,
-                        "Template '" + template.name() + "' matched without advancing at"
-                        + " content offset " + (cursor - from + match.matchStart())
-                        + "; the level cannot make progress."));
+                noProgress(template, "content", cursor - from + match.matchStart());
                 break;
             }
 
@@ -215,28 +169,7 @@ final class Level {
             // The choice re-opens from the first template.
         }
 
-        boolean minMatchFailed = false;
-        for (int i = 0; i < templates.size(); i++) {
-            final Template template = templates.get(i).template();
-            final int minMatch = template.matchLimits().minMatch();
-            if (minMatch > 0 && counts[i] < minMatch) {
-                minMatchFailed = true;
-                messages.add(new Message(Severity.ERROR,
-                        "Expression '" + template.name()
-                        + "' did not match the required number of times (match count: "
-                        + counts[i] + ")"));
-            }
-        }
-
-        // Content no pass could match, reported once for the level — unless a minimum-match
-        // error already explained the same failure. Stroom's own record fixes both halves of
-        // this rule: 005's fully-unmatched line is reported even though nothing matched, and
-        // 014's is not, because its three minMatch errors already said what was wrong.
-        if (!minMatchFailed && !ignoreErrors && hasContent(data, cursor, to)) {
-            messages.add(new Message(Severity.ERROR,
-                    "Expressions failed to match all of the content. Unmatched: ["
-                    + preview(data, cursor, to) + "]"));
-        }
+        report(templates, counts, ignoreErrors, data, cursor, to);
     }
 
 
@@ -283,22 +216,7 @@ final class Level {
         final boolean wanted = template.matchLimits().onlyMatch() == null
                                || template.matchLimits().onlyMatch().contains(matchCount);
         if (wanted) {
-            final int contentGroup =
-                    template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
-            final TypedValue content = match.group(contentGroup) != null
-                    ? match.group(contentGroup)
-                    : match.group(0);
-            if (content != null && !content.isEmpty()) {
-                instrument.onMatch(template.id(), template.name(),
-                        locate(locateBase, match.matchStart()),
-                        match.advance() - match.matchStart(), matchCount, depth);
-                bindCaptures(candidate, match, matchCount);
-                final long before = sink.position();
-                body.run(candidate.body(), match, matchCount, content.asBytes(), sink,
-                        locateBase, ignoreErrors, depth, effective(candidate));
-                instrument.onOutput(template.id(), matchCount, before,
-                        sink.position() - before, sink.unit());
-            }
+            runBody(candidate, match, matchCount, sink, locateBase, ignoreErrors, depth);
         }
     }
 
@@ -309,10 +227,7 @@ final class Level {
                               final long locateBase,
                               final boolean ignoreErrors,
                               final int depth) {
-        final int eaten = candidate.template().match() instanceof MatchExpression.Delimiter ? 1 : 0;
-        final TypedValue swallowed = match.group(eaten) != null
-                ? match.group(eaten)
-                : match.group(0);
+        final TypedValue swallowed = content(candidate.template(), match);
         if (swallowed != null && !swallowed.isEmpty()) {
             body.run(candidate.body(), match, 1, swallowed.asBytes(), sink,
                     locateBase, ignoreErrors, depth, effective(candidate));
@@ -340,45 +255,13 @@ final class Level {
         final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
 
         final int[] counts = new int[templates.size()];
-        final boolean[] allowed = new boolean[templates.size()];
-        for (int i = 0; i < templates.size(); i++) {
-            final Template template = templates.get(i).template();
-            allowed[i] = template.guard() == null
-                         || Conditions.evaluate(
-                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns());
-        }
+        final boolean[] allowed = guards(templates);
 
         while (!window.isEmpty()) {
             final int start = window.start();
             final int filled = window.filled();
-            int winner = -1;
-            MatchResult match = null;
-            for (int i = 0; i < templates.size(); i++) {
-                if (!allowed[i]) {
-                    continue;
-                }
-                final CompiledTemplate candidate = templates.get(i);
-                final Template template = candidate.template();
-                final int maxMatch = template.matchLimits().maxMatch();
-                if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
-                    continue;
-                }
-                final long timing = instrument.startTiming();
-                final MatchResult attempt = match(candidate, window.bytes(), start, filled, atCursor);
-                instrument.stopTiming(template.id(), timing, attempt != null);
-                if (attempt == null) {
-                    continue;
-                }
-                if (dispatch != Dispatch.LEXER) {
-                    winner = i;
-                    match = attempt;
-                    break;
-                }
-                if (match == null || attempt.advance() > match.advance()) {
-                    winner = i;
-                    match = attempt;
-                }
-            }
+            final Winner won = pick(templates, window.bytes(), start, filled, atCursor, dispatch, counts, allowed);
+            final MatchResult match = won == null ? null : won.match();
 
             if (match == null) {
                 // Nothing matches the window's front. If the window can still grow, the tail
@@ -398,14 +281,12 @@ final class Level {
                 continue;
             }
 
+            final int winner = won.index();
             final CompiledTemplate candidate = templates.get(winner);
             final Template template = candidate.template();
 
             if (match.advance() == 0) {
-                messages.add(new Message(Severity.ERROR,
-                        "Template '" + template.name() + "' matched without advancing at"
-                        + " input offset " + window.offsetOf(start + match.matchStart())
-                        + "; the level cannot make progress."));
+                noProgress(template, "input", window.offsetOf(start + match.matchStart()));
                 break;
             }
 
@@ -442,23 +323,7 @@ final class Level {
             window.consume(match.advance());
         }
 
-        boolean minMatchFailed = false;
-        for (int i = 0; i < templates.size(); i++) {
-            final Template template = templates.get(i).template();
-            final int minMatch = template.matchLimits().minMatch();
-            if (minMatch > 0 && counts[i] < minMatch) {
-                minMatchFailed = true;
-                messages.add(new Message(Severity.ERROR,
-                        "Expression '" + template.name()
-                        + "' did not match the required number of times (match count: "
-                        + counts[i] + ")"));
-            }
-        }
-        if (!minMatchFailed && !ignoreErrors && hasContent(window.bytes(), window.start(), window.filled())) {
-            messages.add(new Message(Severity.ERROR,
-                    "Expressions failed to match all of the content. Unmatched: ["
-                    + preview(window.bytes(), window.start(), window.filled()) + "]"));
-        }
+        report(templates, counts, ignoreErrors, window.bytes(), window.start(), window.filled());
     }
 
     /**
@@ -485,13 +350,7 @@ final class Level {
         long base = inputBase;
 
         final int[] counts = new int[templates.size()];
-        final boolean[] allowed = new boolean[templates.size()];
-        for (int i = 0; i < templates.size(); i++) {
-            final Template template = templates.get(i).template();
-            allowed[i] = template.guard() == null
-                         || Conditions.evaluate(
-                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns());
-        }
+        final boolean[] allowed = guards(templates);
 
         boolean matched = true;
         while (length > 0 && matched) {
@@ -519,9 +378,7 @@ final class Level {
                     // Break, not return: the level can say nothing more, but the minimum-match
                     // and unmatched-content reporting below still has its say — exactly as the
                     // equivalent break in the ordered modes reaches it.
-                    messages.add(new Message(Severity.ERROR,
-                            "Template '" + template.name() + "' matched without advancing at"
-                            + " content offset " + start + "; the level cannot make progress."));
+                    noProgress(template, "content", start);
                     break;
                 }
 
@@ -541,23 +398,7 @@ final class Level {
             }
         }
 
-        boolean minMatchFailed = false;
-        for (int i = 0; i < templates.size(); i++) {
-            final Template template = templates.get(i).template();
-            final int minMatch = template.matchLimits().minMatch();
-            if (minMatch > 0 && counts[i] < minMatch) {
-                minMatchFailed = true;
-                messages.add(new Message(Severity.ERROR,
-                        "Expression '" + template.name()
-                        + "' did not match the required number of times (match count: "
-                        + counts[i] + ")"));
-            }
-        }
-        if (!minMatchFailed && !ignoreErrors && hasContent(work, 0, length)) {
-            messages.add(new Message(Severity.ERROR,
-                    "Expressions failed to match all of the content. Unmatched: ["
-                    + preview(work, 0, length) + "]"));
-        }
+        report(templates, counts, ignoreErrors, work, 0, length);
     }
 
     /**
@@ -595,21 +436,153 @@ final class Level {
             }
             vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Int(0));
             vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Int(1));
-            final int contentGroup = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
-            final TypedValue content = match.group(contentGroup) != null
-                    ? match.group(contentGroup)
-                    : match.group(0);
-            if (content != null && !content.isEmpty()) {
-                instrument.onMatch(template.id(), template.name(),
-                        locate(inputBase, match.matchStart()),
-                        match.advance() - match.matchStart(), 1, depth);
-                bindCaptures(candidate, match, 1);
-                final long before = sink.position();
-                body.run(candidate.body(), match, 1, content.asBytes(), sink,
-                        inputBase, ignoreErrors, depth, effective(candidate));
-                instrument.onOutput(template.id(), 1, before, sink.position() - before, sink.unit());
+            runBody(candidate, match, 1, sink, inputBase, ignoreErrors, depth);
+        }
+    }
+
+    /** A pass's winner: which template, and what it matched. */
+    private record Winner(int index, MatchResult match) {
+
+    }
+
+    /**
+     * Guards, evaluated once on the way in — not per pass. The distinction is load-bearing: a
+     * guard reads scope, and scope includes the parent's match counter, which DS3-style
+     * onlyMatch guards compare against. Once matching starts, each winner overwrites that
+     * counter with its own count, so a guard re-read mid-level would compare a template
+     * against itself. DS3 gets this for free by passing the parent's count down as a
+     * parameter; evaluating here, while the scope still describes the parent, is the same
+     * thing said with variables.
+     */
+    private boolean[] guards(final List<CompiledTemplate> templates) {
+        final boolean[] allowed = new boolean[templates.size()];
+        for (int i = 0; i < templates.size(); i++) {
+            final Template template = templates.get(i).template();
+            allowed[i] = template.guard() == null
+                         || Conditions.evaluate(
+                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns());
+        }
+        return allowed;
+    }
+
+    /**
+     * One pass of ordered choice over a region's front: the first allowed template under its
+     * maxMatch that matches wins, or under lexer dispatch the longest match, ties to list
+     * order (maximal munch). Null when nothing matches.
+     */
+    private Winner pick(final List<CompiledTemplate> templates,
+                        final byte[] data,
+                        final int cursor,
+                        final int to,
+                        final boolean atCursor,
+                        final Dispatch dispatch,
+                        final int[] counts,
+                        final boolean[] allowed) {
+        int winner = -1;
+        MatchResult match = null;
+        for (int i = 0; i < templates.size(); i++) {
+            if (!allowed[i]) {
+                continue;
+            }
+            final CompiledTemplate candidate = templates.get(i);
+            final Template template = candidate.template();
+            final int maxMatch = template.matchLimits().maxMatch();
+            if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
+                continue;
+            }
+            final long timing = instrument.startTiming();
+            final MatchResult attempt = match(candidate, data, cursor, to, atCursor);
+            instrument.stopTiming(template.id(), timing, attempt != null);
+            if (attempt == null) {
+                continue;
+            }
+            if (dispatch != Dispatch.LEXER) {
+                return new Winner(i, attempt);
+            }
+            if (match == null || attempt.advance() > match.advance()) {
+                winner = i;
+                match = attempt;
             }
         }
+        return match == null ? null : new Winner(winner, match);
+    }
+
+    /**
+     * A zero-advance match in a consuming mode is a grammar bug, not a result: with classify,
+     * the Peek step, and composition available, it has no innocent reading left (D36). The
+     * body does not run — output from a match that cannot move the level would be output
+     * from a mistake.
+     *
+     * @param where "content" for an offset within the region, "input" for an absolute one
+     */
+    private void noProgress(final Template template, final String where, final long offset) {
+        messages.add(new Message(Severity.ERROR,
+                "Template '" + template.name() + "' matched without advancing at "
+                + where + " offset " + offset + "; the level cannot make progress."));
+    }
+
+    /**
+     * What a level says at its end: every template short of its minimum match count, and then
+     * content no pass could match, reported once for the level — unless a minimum-match error
+     * already explained the same failure. Stroom's own record fixes both halves of this rule:
+     * 005's fully-unmatched line is reported even though nothing matched, and 014's is not,
+     * because its three minMatch errors already said what was wrong.
+     */
+    private void report(final List<CompiledTemplate> templates,
+                        final int[] counts,
+                        final boolean ignoreErrors,
+                        final byte[] data,
+                        final int from,
+                        final int to) {
+        boolean minMatchFailed = false;
+        for (int i = 0; i < templates.size(); i++) {
+            final Template template = templates.get(i).template();
+            final int minMatch = template.matchLimits().minMatch();
+            if (minMatch > 0 && counts[i] < minMatch) {
+                minMatchFailed = true;
+                messages.add(new Message(Severity.ERROR,
+                        "Expression '" + template.name()
+                        + "' did not match the required number of times (match count: "
+                        + counts[i] + ")"));
+            }
+        }
+        if (!minMatchFailed && !ignoreErrors && hasContent(data, from, to)) {
+            messages.add(new Message(Severity.ERROR,
+                    "Expressions failed to match all of the content. Unmatched: ["
+                    + preview(data, from, to) + "]"));
+        }
+    }
+
+    /**
+     * The content a match hands its body: a delimiter template's is the field, group 1, and
+     * every other template's is the whole match, group 0 — the group that carries the
+     * delimiter too, which is why a delimiter's group 0 is not it.
+     */
+    private static TypedValue content(final Template template, final MatchResult match) {
+        final int contentGroup = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
+        return match.group(contentGroup) != null ? match.group(contentGroup) : match.group(0);
+    }
+
+    /** A wanted match with content: instrumented, its captures bound, its body run, its output measured. */
+    private void runBody(final CompiledTemplate candidate,
+                         final MatchResult match,
+                         final int matchCount,
+                         final OutputSink sink,
+                         final long locateBase,
+                         final boolean ignoreErrors,
+                         final int depth) {
+        final Template template = candidate.template();
+        final TypedValue content = content(template, match);
+        if (content == null || content.isEmpty()) {
+            return;
+        }
+        instrument.onMatch(template.id(), template.name(), locate(locateBase, match.matchStart()),
+                match.advance() - match.matchStart(), matchCount, depth);
+        bindCaptures(candidate, match, matchCount);
+        final long before = sink.position();
+        body.run(candidate.body(), match, matchCount, content.asBytes(), sink,
+                locateBase, ignoreErrors, depth, effective(candidate));
+        instrument.onOutput(template.id(), matchCount, before, sink.position() - before, sink.unit());
     }
 
     /** True if a region holds anything but whitespace. Blank remainders are not worth a message. */

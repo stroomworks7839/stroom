@@ -403,8 +403,28 @@ and the fill-compact-probe trio; `stream` calls it. `FunctionRuntime` takes bind
 the preview gate and the call bookkeeping; `call` asks it. Around 400 lines leave `Executor`.
 *Test:* `WindowTailTest` moves to `InputWindow`; `FunctionsTest` unchanged.
 
-### Phase 3 — `Level`
+### Phase 3 — `Level` — Done 2026-09-06
 
+*As built, in two commits so each is checkable.* First the pure move: the whole dispatch
+region — `level`, `processMatch`, `processEater`, the stream loop's level half, `anyLevel`,
+`classify`, `match`, `regexMatch`, `bindCaptures`, `effective`, `normalise`, `locate` — into
+`Level`, constructed per run with the graph, the instrument, the messages, the registry, the
+function runtime and a body callback the executor implements; the run's encoding in force is
+handed in on every entry rather than shared as a field. The executor opens the window and
+applies the mark, then hands the window to the level's `stream`. The return values nobody
+read are gone. Then the fold, inside `Level` (754 lines to 727): the guards evaluated once on
+the way in, three copies to `guards`; the winner loop, two copies to `pick`, with the max-match
+skip and the lexer's maximal munch inside it; the zero-advance error, three copies to
+`noProgress`, which takes whether the offset is within the content or absolute; the
+minimum-match and unmatched-content reports, three copies to `report`; the content-group
+selection, three copies to `content`; and a wanted match's instrumented body run, two copies
+to `runBody`, which the classify mode now shares with the ordered ones. `anyLevel` keeps its
+own loop because it excises and its zero-advance rule is not the ordered modes' (`end <=
+start`, not `advance == 0`), which the fold preserves. `Executor` is 1,296 lines: the run, the
+root split, the mark rule, and the body. Every message is byte for byte what it was; the
+gate said so.
+
+*As written:*
 The dispatch region becomes its own class, constructed per run with the instrument, the
 messages and the registry it binds captures into. The recursion — a body's `apply` hands a region
 to a nested level — goes through `Body`, so `Level` and `Body` reference each other through the
