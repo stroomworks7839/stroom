@@ -321,9 +321,16 @@ withdrawn; the package javadoc and a parameter's wording caught up; the referenc
 point has its contract as javadoc. **Noted:** `Dispatch.effective` is still computed twice
 per apply (ledger); `TemplateUses` as a record with static readers over a list is defensible
 and stays; the `new boolean[1]` out-cell in `StructureCheck` is the ledger's phase 8 item.
-Engine 560, pipeline 154, app 5. Final sizes: `Compiler` 203, `MatchCompiler`
-278, `TemplateUses` 127, `StructureCheck`
-186, `ReferenceCheck` 604, `Containers` 116.
+Engine 560, pipeline 154, app 5. Final sizes: `Compiler` 203, `MatchCompiler` 278,
+`TemplateUses` 127, `StructureCheck` 186, `ReferenceCheck` 604, `Containers` 116.
+
+*The gate, on the final commit* (`design/benchmarks/2026-09-05-2048-03f6cac444-engine.json`,
+against the phase 0 column). Run rows: every row inside both intervals; the XML workload's
+−2.4% on the commit before was spread, at −0.8% here. Compile rows: `csv_header` +6.0%, the
+walks' gain less the exhaustive helper's price, a one-element list per container node, which
+is accepted because the exhaustiveness is what the audits were for; `progressive` −9.2%
+against the column and −4% against the probe's reading of the same baseline, inside the
+probe's spread; every other row inside its interval. Phase 1 passes its gate.
 
 *As written:*
 First, ahead of the executor, because the entry review gave it a number: the compile rows
