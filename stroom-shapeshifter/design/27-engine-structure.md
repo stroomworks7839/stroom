@@ -38,8 +38,8 @@ they are:
 | Region | Lines | What it is | Fields it reaches |
 |---|---|---|---|
 | Header and functions | 1–264 | construction, `bindFunctions`, the `FunctionContext` the run hands to functions, `AbortRun` | `services`, `library`, `functionState`, `notRunInPreview`, `callOffset`, `callLength`, `records`, `messages` |
-| The stream | 264–469 | the design 23 window loop: fill, compact, blank tail, exhaustion probe, root split around the apply-templates | `compiled`, `output`, `messages`, `encoding`, `chunkedRoot` |
-| One level against one region | 469–1157 | `level`, `anyLevel`, `classify`, `processMatch`, `processEater`, `match`, `regexMatch`, `bindCaptures` | `instrument` (12 uses), `messages` (11), `vars` (9), `encoding` |
+| The run | 264–469 | `execute`, `run`, the root split around the apply-templates, `AbortRun` (the banner says "the stream"; the entry review corrected the row) | `compiled`, `output`, `messages`, `encoding`, `chunkedRoot` |
+| One level against one region, and the window | 469–1157 | `level`, `anyLevel`, `classify`, `processMatch`, `processEater`, `match`, `regexMatch`, `bindCaptures`; and `stream`, the design 23 window loop, one method with a window half and a level half, with `fill`, `compact`, `fillAndBlankTail`, `probeExhausted` beside it | `instrument` (12 uses), `messages` (11), `vars` (9), `encoding`, `records` |
 | Captures and body | 1157–2141 | `body` — the switch over every `CompiledOp` — and its handlers: emit, transform, call, fold, for-each, grouping, distinct, sort, key index, variable, call-template, apply | `vars` (74 uses), `keyIndexes`, `warnedNumeric`, `library`, `mode` |
 | Input | 2141–2166 | `locate`, `read` | none |
 
@@ -121,11 +121,11 @@ which way it goes rather than carry both into `Body` and call it structure.
 
 | Class | Purpose | Comes from |
 |---|---|---|
-| `InputWindow` | The sliding window over the stream: fill, compact, blank the tail, probe exhaustion with one byte of pushback, `locate`. Owns the byte array and the cursor; knows nothing about templates. | `stream`'s window handling, `fill`, `fillAndBlankTail`, `compact`, `probeExhausted`, `read`, `locate` |
+| `InputWindow` | The sliding window over the stream: fill, compact, blank the tail, probe exhaustion with one byte of pushback, the byte-order mark read once. Owns the byte array and the cursor; knows nothing about templates. | `stream`'s window half, `fill`, `fillAndBlankTail`, `compact`, `probeExhausted`, `read`, the two byte-order-mark sites |
 | `FunctionRuntime` | The bound function library for one run: binding at start, the `FunctionContext` each function sees, the preview gate, per-call offset and length, the shared state map, the service lookup. | header region, `Context`, `bindFunctions`, `describe`, the preview branch of `call` |
-| `Level` | Dispatching one level's templates against one region: iterated ordered choice, strict and lexer and classify and any dispatch, skipping reported, eaters, match limits, instrument hooks, capture binding. | the "one level against one region" region |
+| `Level` | Dispatching one level's templates against one region: iterated ordered choice, strict and lexer and classify and any dispatch, skipping reported, eaters, match limits, instrument hooks, capture binding, `locate`. `stream`'s level half folds into `level` here, with the seven rules it duplicated. | the "one level against one region" region, `bindCaptures`, `locate` |
 | `Body` | Running a template's body: the `CompiledOp` switch and every handler, the variable registry, key indexes, the once-per-site warnings, casting, emit-or-bind. | the "captures and body" region |
-| `Run` | One run of a compiled configuration over one input: owns the collaborators above and the message list, applies the root split, opens and closes the sink, turns `AbortRun` into the last message. What `Executor` was, at a size that says what it does. | `run`, `execute`, `RootSplit`, `applyDirective` |
+| `Run` | One run of a compiled configuration over one input: owns the collaborators above and the message list, applies the root split, opens and closes the sink, wires `Level` and `Body` to each other, turns `AbortRun` into the last message (`structure` is its rule, `AbortRun` package-visible). One entry point; the facade passes the defaults. What `Executor` was, at a size that says what it does. | `run`, `execute`, `RootSplit`, `applyDirective`, `structure`, `AbortRun` |
 
 `Executor` as a name goes. The facade `Shapeshifter.run(...)` is unchanged, so the pipeline
 module and the app do not move.
@@ -158,8 +158,8 @@ instruction set.
 
 | Class | Purpose |
 |---|---|
-| `Compiler` | The pass pipeline: encoding, per-template compilation, name resolution, checks; builds the `CompiledProject`. Under 250 lines. |
-| `MatchCompiler` | Pattern interning, step resolution and pre-encoding, `compileMatch`, the codec requirement, the not-yet refusals. |
+| `Compiler` | The pass pipeline: encoding, per-template compilation, name resolution, the dispatch lint (which reads the compiled templates' anchoring facts and so runs after match compilation), the body checks, zipped per template as today so the error a doubly faulty configuration reports does not change; builds the `CompiledProject`, with `carriesStructure` computed by the structure check rather than in the graph's constructor. Under 250 lines once the two body walkers are one. |
+| `MatchCompiler` | Pattern interning (with a step's flags in the key, ruling 9), step resolution, once, and pre-encoding, `compileMatch`, the codec requirement, the not-yet refusals; owns `patterns` as an instance. The E29 block that cannot fire is deleted, its rationale one sentence on `RegexEncodings.forMatch`. |
 | `StructureCheck` | Today's `Structure`: attributes and namespaces after content, structure inside attribute values, `producesContent`. |
 | `ReferenceCheck` | Today's `BodyScan`: reads and writes, the unknown-reference refusal, sequences and keys, iteration and group hazards, the substring version gate, E37's document-template rules. |
 | `CompiledOp` | The ops, with `compile(body)` staying beside them — it is the body's compilation and already lives here. |
@@ -168,12 +168,12 @@ instruction set.
 
 | Class | Purpose |
 |---|---|
-| `ProjectJson` | Project, source, dispatch, templates, parameters, limits, flags; the public `readProject`/`writeProject`; delegates the families below. |
-| `MatchJson` | Match expressions, steps, step references, predicates, character sets. |
+| `ProjectJson` | Project, source, templates, template parameter declarations, match limits; the public `readProject`/`writeProject`; delegates the families below. |
+| `MatchJson` | Match expressions, regex flags, the combinator pattern library, steps, step references, predicates, character sets. |
 | `ReferenceJson` | Captures, capture sources, references, parts, match indexes. |
-| `ConditionJson` | Conditions, comparisons, operands, casts. |
-| `OutputJson` | Output nodes, sorts, branches, cases, entries, parameters, apply directives. |
-| `JsonFields` | The shared helpers: tag and wrap, `checkFields`, required and optional fields, lists and arrays, enum constants. |
+| `ConditionJson` | Conditions, comparisons, operands. |
+| `OutputJson` | Output nodes, sorts, branches, cases, entries, `with-param` parameters, apply directives. |
+| `JsonFields` | The shared helpers: tag and wrap, `checkFields`, required and optional fields, ids, lists and arrays, PascalCase constants, and one lowercase-enum pair that dispatch, casts, orders and severities all use. |
 
 Reader and writer for one family stay together, because the round-trip pin (`EveryVariantTest`)
 is the property that matters and it is easiest to keep when the two halves are in one place.
@@ -182,11 +182,11 @@ is the property that matters and it is easiest to keep when the two halves are i
 
 | Package | Holds | Depends on |
 |---|---|---|
-| `engine` | The face: `Shapeshifter`, `Message`, `Severity`, `Instrument`, `OutputSink`, `PatternInfo` | — |
-| `engine.output` | The sinks: `XmlByteSink`, `SaxEventSink`, `CharacterSink`, `Utf8` | `engine` |
-| `engine.value` | `TypedValue`, `Numbers`, `Transforms`, `Dates`, `Comparisons` | `config.Cast`, regex |
-| `engine.match` | `MatchResult`, `Steps`, `Splitter`, `Codecs` | `value`, `config`, `compile.PatternKey`, regex |
-| `engine.exec` | The run: `Run`, `Level`, `Body`, `InputWindow`, `FunctionRuntime`, `Conditions`, `Refs`, `CompiledRefs`, `Store`, `VarRegistry`, `EngineVars` | `match`, `value`, `compile`, `function` |
+| `engine` | The face: `Shapeshifter`, `Message`, `Severity`, `Instrument`, `OutputSink`, `PatternInfo` | the facade fronts `compile`, `config`, `exec` and `function`, and `PatternInfo` the regex module; nothing below depends on the root except through `OutputSink`, `Instrument`, `Message` and `Severity`, and the sink factory moves to `XmlByteSink` (ruling 8) so that stays true |
+| `engine.output` | The sinks: `XmlByteSink`, `SaxEventSink`, `CharacterSink`, `Utf8` | `engine` (for `OutputSink`), the JDK's `org.xml.sax` |
+| `engine.value` | `TypedValue`, `Numbers`, `Transforms`, `Dates`, `Comparisons` | `config` (`Cast`, `ConfigException`), regex |
+| `engine.match` | `MatchResult`, `Steps`, `Splitter`, `Codecs` | `value`, `config`, `compile.PatternKey`, `text`, regex |
+| `engine.exec` | The run: `Run`, `Level`, `Body`, `InputWindow`, `FunctionRuntime`, `Conditions`, `Refs`, `CompiledRefs`, `Store`, `VarRegistry`, `EngineVars` | `match`, `value`, `compile`, `function`, `text`, `output` (the variable body's buffer sink, until its follow-on) |
 | `engine.compile`, `engine.config`, `engine.config.json`, `engine.ds3`, `engine.text`, `engine.function` | as today, with the class splits of §2.3 and §2.4 | as today |
 
 The dependency column is the layering §1.4 measured, now enforced by the package line: a value
@@ -195,8 +195,10 @@ because it resolves references against the registry. `MatchResult` goes with mat
 it is what a match produces and `Steps` and `Splitter` fill it; the run reads it.
 
 **What it costs outside the engine.** The pipeline module imports `TypedValue` in thirty-four
-places and each sink once; the app tests import the sinks. All of it is import churn, which is
-why the moves are one phase of their own (phase 5) and not mixed into a hot-path commit.
+places and each sink once; the app tests import the sinks; inside the engine, seven test
+classes move with their classes and `CompareSpineTest`, `CompiledOp` and `Compiler` carry
+eleven more imports. All of it is import churn, which is why the moves are one phase of their
+own (phase 5) and not mixed into a hot-path commit.
 
 ### 2.6 What does not move
 
