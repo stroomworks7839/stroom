@@ -82,6 +82,34 @@ class StructureTest {
         assertThat(Shapeshifter.compile(ProjectReader.read(variable))).isNotNull();
     }
 
+    /** A named template reached from the document template's body runs over the same no-match. */
+    @Test
+    void captureReadInATemplateTheDocumentTemplateCallsIsACompileError() {
+        final String helper = """
+                {"name": "e37", "version": 5,
+                 "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                   "body": [%s %s]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "lines",
+                   "match": {"regex": {"pattern": "([a-z]+)=([^\\n]*)\\n"}},
+                   "body": [{"call-template": {"name": "outer", "with-param": []}}]},
+                  {"id": "00000000-0000-0000-0000-000000000003", "name": "outer", "match": "named",
+                   "body": [{"call-template": {"name": "inner", "with-param": []}}]},
+                  {"id": "00000000-0000-0000-0000-000000000004", "name": "inner", "match": "named",
+                   "body": [{"value-of": {"parts": [{"capture": {"group": 2}}]}}]}
+                 ]}
+                """;
+        final String fromRoot = helper.formatted(APPLY + ",",
+                "{\"call-template\": {\"name\": \"outer\", \"with-param\": []}}");
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(fromRoot)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining(
+                        "Template 'root' calls 'outer', which calls 'inner', which reads capture group 2");
+        // The same helpers called from the matching template alone are fine.
+        assertThat(Shapeshifter.compile(ProjectReader.read(helper.formatted(APPLY, "")))).isNotNull();
+    }
+
     @Test
     void anAttributeAfterContentInTheSameBodyIsACompileError() {
         final String json = project("""

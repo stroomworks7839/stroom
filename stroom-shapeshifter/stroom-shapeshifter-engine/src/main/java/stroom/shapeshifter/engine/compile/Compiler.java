@@ -45,6 +45,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -420,10 +421,16 @@ public final class Compiler {
          * there is empty for ever. The compiler can see it, so it refuses it by name, as it
          * refuses captures on an eater; the apply-templates select is the one place a group
          * may be named, because it is the idiom that hands the input to a mode and is not read.
+         * A named template the document template calls runs over the same no-match, so the
+         * refusal follows call-template edges from the document template (E37 audit).
          */
         private boolean inDocumentTemplate;
         private boolean inApplySelect;
-        private final Set<String> documentCaptures = new HashSet<>();
+        private final Set<String> ownCaptures = new HashSet<>();
+        private final List<String> documentTemplates = new ArrayList<>();
+        private final Map<String, Set<String>> callsByTemplate = new HashMap<>();
+        /** The first match read in each template, for the message that names it. */
+        private final Map<String, String> matchReadByTemplate = new HashMap<>();
 
         /** Sequence bookkeeping (design/16 §9): what is declared, what is captured, what is used. */
         private final Set<String> declaredSequences = new HashSet<>();
@@ -456,9 +463,11 @@ public final class Compiler {
             templateName = template.name();
             inDocumentTemplate = template.match() instanceof MatchExpression.Source;
             if (inDocumentTemplate) {
-                for (final CaptureBinding capture : template.captures()) {
-                    documentCaptures.add(capture.name());
-                }
+                documentTemplates.add(template.name());
+            }
+            ownCaptures.clear();
+            for (final CaptureBinding capture : template.captures()) {
+                ownCaptures.add(capture.name());
             }
             // Guard, then captures, then body — the order the three separate checks read in,
             // preserved because it decides which error a template with two unknown names
@@ -526,6 +535,7 @@ public final class Compiler {
                     }
                 }
                 case OutputNode.CallTemplate value -> {
+                    callsByTemplate.computeIfAbsent(templateName, name -> new LinkedHashSet<>()).add(value.name());
                     for (final OutputNode.Param param : value.withParam()) {
                         writable.add(param.name());
                         read(param.value());
@@ -730,18 +740,21 @@ public final class Compiler {
                 return;
             }
             reads.add(new Read(templateName, ref));
-            if (inDocumentTemplate && !inApplySelect) {
-                for (final RefExpression.RefPart part : ref.parts()) {
-                    if (part instanceof RefExpression.RefPart.Capture capture
-                        && (capture.varId() == null || documentCaptures.contains(capture.varId()))) {
-                        throw new ConfigException("Template '" + templateName + "' reads "
-                                + (capture.varId() == null
-                                        ? "capture group " + capture.group()
-                                        : "capture '" + capture.varId() + "'")
+            for (final RefExpression.RefPart part : ref.parts()) {
+                if (part instanceof RefExpression.RefPart.Capture capture
+                    && (capture.varId() == null || ownCaptures.contains(capture.varId()))) {
+                    final String read = capture.varId() == null
+                            ? "capture group " + capture.group()
+                            : "capture '" + capture.varId() + "'";
+                    if (inDocumentTemplate && !inApplySelect) {
+                        throw new ConfigException("Template '" + templateName + "' reads " + read
                                 + " in its body, but the document template has no match: its body"
                                 + " runs once around the apply-templates, over no match, so the"
                                 + " reference would be empty for ever. Only the apply-templates"
                                 + " select may name a group there.");
+                    }
+                    if (!inDocumentTemplate) {
+                        matchReadByTemplate.putIfAbsent(templateName, read);
                     }
                 }
             }
@@ -815,6 +828,9 @@ public final class Compiler {
          * substring warning is after it because it was after it before.
          */
         void report() {
+            for (final String document : documentTemplates) {
+                refuseMatchReadsCalledFrom(document, document, new HashSet<>(), new StringBuilder());
+            }
             if (referencesKnowable) {
                 for (final Read read : reads) {
                     checkRead(read);
@@ -861,6 +877,32 @@ public final class Compiler {
                         + (explicitSubstringStarts == 1 ? " reads" : "s read")
                         + " start as 0-based; version 5 reads it as 1-based. Add 1 to each start"
                         + " when bumping the version."));
+            }
+        }
+
+        /**
+         * E37 through call-template: a named template the document template calls, directly or
+         * through other calls, runs its body over the caller's no-match, so a match read in it is
+         * as empty as one in the document template's own body, and is refused with the chain of
+         * calls that reaches it. A template a matching template also calls is still refused —
+         * the call from the document template is empty whoever else makes it.
+         */
+        private void refuseMatchReadsCalledFrom(final String document, final String caller,
+                                                final Set<String> visited, final StringBuilder chain) {
+            for (final String called : callsByTemplate.getOrDefault(caller, Set.of())) {
+                if (!visited.add(called)) {
+                    continue;
+                }
+                final int mark = chain.length();
+                chain.append(chain.isEmpty() ? " calls '" : ", which calls '").append(called).append('\'');
+                final String read = matchReadByTemplate.get(called);
+                if (read != null) {
+                    throw new ConfigException("Template '" + document + "'" + chain + ", which reads " + read
+                            + ": a call from the document template's body runs over no match, so"
+                            + " the reference would be empty for ever.");
+                }
+                refuseMatchReadsCalledFrom(document, called, visited, chain);
+                chain.setLength(mark);
             }
         }
 

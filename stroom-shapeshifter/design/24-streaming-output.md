@@ -156,7 +156,7 @@ event sink does — an extra copy per write that a carry-empty fast path would r
 until a workload asks. **Seen in passing, not this design's:** a `value-of` of a capture in
 the root `source` template's body is silently empty, in the streamed and the whole run alike,
 because the root body runs against an empty match (`Executor.run`, `MatchResult.empty()`);
-the compiler could refuse it. Filed as E37. The parser element's description now says what a
+the compiler could refuse it. Filed as E37, resolved 2026-09-05. The parser element's description now says what a
 text configuration produces.
 
 *As written:* `CharacterSink` with its carry-over,
