@@ -82,6 +82,8 @@ final class MatchCompiler {
             // Resolved, not raw: the executor matches the inlined sequence, so a regex
             // reached through a library reference is interned like one written in place.
             resolvedSteps = resolve(progressive.steps(), new HashSet<>());
+            // Never null here: a transcode-family source is decoded first and a template may
+            // not declare one, so the lowering exists (RegexEncodings.forMatch says why).
             steps(resolvedSteps, template, RegexEncodings.forMatch(matchEncoding));
         } else {
             resolvedSteps = null;
@@ -191,7 +193,7 @@ final class MatchCompiler {
 
     private static void requireCodec(final Codec codec, final Template template) {
         if (!Codecs.isSupported(codec)) {
-            throw notYet(template, codec.name().toLowerCase(Locale.ROOT) + " coding");
+            throw ConfigException.notYet(template.name(), codec.name().toLowerCase(Locale.ROOT) + " coding");
         }
     }
 
@@ -271,24 +273,12 @@ final class MatchCompiler {
             case MatchExpression.Source ignored -> new CompiledMatch.Source();
             case MatchExpression.Named ignored -> new CompiledMatch.Named();
             case MatchExpression.Progressive ignored -> new CompiledMatch.Progressive(resolvedSteps);
-            case MatchExpression.Avro ignored -> throw notYet(template, "Avro decoding");
-            case MatchExpression.Parquet ignored -> throw notYet(template, "Parquet decoding");
-            case MatchExpression.Protobuf ignored -> throw notYet(template, "Protobuf decoding");
+            case MatchExpression.Avro ignored -> throw ConfigException.notYet(template.name(), "Avro decoding");
+            case MatchExpression.Parquet ignored -> throw ConfigException.notYet(template.name(), "Parquet decoding");
+            case MatchExpression.Protobuf ignored -> throw ConfigException.notYet(template.name(), "Protobuf decoding");
         };
     }
 
-    /**
-     * Refuse clearly rather than fail obscurely.
-     *
-     * <p>The callers are the binary format matches — Avro, Parquet, Protobuf — deferred by
-     * decision (D33), and the compression codecs the JDK does not carry. In both cases a
-     * configuration that names them should be told so at compile time — not run and produce
-     * nothing.
-     */
-    static ConfigException notYet(final Template template, final String what) {
-        return new ConfigException(
-                "Template '" + template.name() + "' needs " + what + ", which this build does not support");
-    }
 
     /**
      * A delimiter's byte form, through the same {@link Encoding#encode} the step vocabulary

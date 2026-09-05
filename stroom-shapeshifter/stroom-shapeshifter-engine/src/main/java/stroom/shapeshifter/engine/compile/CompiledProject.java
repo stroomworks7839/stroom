@@ -66,7 +66,7 @@ public final class CompiledProject {
      * @param project   the authored configuration
      * @param templates its templates, compiled, in their authored order
      * @param patterns  every pattern used outside a template's own match, compiled once and
-     *                  keyed by its text
+     *                  keyed by text, flags and encoding
      * @param encoding  the encoding its input is matched in: the declared one, or UTF-8 when a
      *                  transcode-family source is decoded first; a byte-order mark on the input
      *                  may still override it
@@ -141,7 +141,7 @@ public final class CompiledProject {
         return transcodeFrom;
     }
 
-    /** The interned patterns, keyed by text and encoding. */
+    /** The interned patterns, keyed by text, flags and encoding. */
     public Map<PatternKey, BytePattern> patterns() {
         return patterns;
     }

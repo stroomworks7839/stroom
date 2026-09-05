@@ -17,23 +17,18 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
-import stroom.shapeshifter.regex.LeadingAnchor;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Turns an authored configuration into one that can run.
@@ -46,11 +41,12 @@ import java.util.Set;
  * <p>This class is the pipeline; the passes are their own classes. In order: the source
  * encoding is settled; each template is refused for what a template alone can be wrong about,
  * its match compiled by {@link MatchCompiler} and its body by {@link CompiledOp#compile}; the
- * names templates call and apply to are resolved; D36's dispatch lint reads the compiled
- * matches; and the body checks — {@link ReferenceCheck} and {@link StructureCheck}, zipped per
- * template — run last, the reference refusals judged once every template has been seen. The
- * order is observable, in which error a doubly faulty configuration reports and in which
- * warning comes first, and it is kept exactly.
+ * names templates call and apply to are collected once by {@link TemplateUses}, resolved, and
+ * read by D36's dispatch lint against the compiled matches; and the body checks —
+ * {@link ReferenceCheck} and {@link StructureCheck}, zipped per template — run last, the
+ * reference refusals judged once every template has been seen. The order is observable, in
+ * which error a doubly faulty configuration reports and in which warning comes first, and it
+ * is kept exactly.
  */
 public final class Compiler {
 
@@ -97,9 +93,9 @@ public final class Compiler {
                     CompiledOp.compile(template.body(), matches.patterns(), project, functions),
                     declared));
         }
-        final List<Uses> uses = uses(project);
-        resolveTemplateNames(project, uses);
-        dispatchChecks(project, templates, uses, warnings);
+        final List<TemplateUses> uses = TemplateUses.of(project);
+        TemplateUses.resolveNames(project, uses);
+        TemplateUses.lintDispatch(project, templates, uses, warnings);
         final boolean structured = bodyChecks(project, warnings);
         return new CompiledProject(project, templates, matches.patterns(), encoding, transcodeFrom,
                 warnings, List.copyOf(functions.used().values()), structured);
@@ -118,7 +114,7 @@ public final class Compiler {
         // defined it is refused by name rather than binding an absence (design 27, ruling 10).
         for (final CaptureBinding capture : template.captures()) {
             if (capture.select() instanceof CaptureBinding.CaptureSource.Field) {
-                throw MatchCompiler.notYet(template, "a field capture source");
+                throw ConfigException.notYet(template.name(), "a field capture source");
             }
         }
     }
@@ -164,107 +160,6 @@ public final class Compiler {
                     + declared.label() + " bytes; remove the template encoding");
         }
         return declared;
-    }
-
-    /** What one template's body refers to: the templates it calls and the applies it makes. */
-    private record Uses(Template template, List<String> calls, List<OutputNode.ApplyDirective> applies) {
-
-    }
-
-    /** One walk per body for both kinds of reference — name resolution and the dispatch lint read it. */
-    private static List<Uses> uses(final Project project) {
-        final List<Uses> uses = new ArrayList<>(project.templates().size());
-        for (final Template template : project.templates()) {
-            final Uses use = new Uses(template, new ArrayList<>(), new ArrayList<>());
-            collectUses(template.body(), use);
-            uses.add(use);
-        }
-        return uses;
-    }
-
-    private static void collectUses(final List<OutputNode> body, final Uses uses) {
-        for (final OutputNode node : body) {
-            switch (node) {
-                case OutputNode.CallTemplate value -> uses.calls().add(value.name());
-                case OutputNode.ApplyTemplates apply -> uses.applies().add(apply.directive());
-                case OutputNode.If value -> collectUses(value.then(), uses);
-                case OutputNode.Choose value -> {
-                    value.when().forEach(branch -> collectUses(branch.body(), uses));
-                    collectUses(value.otherwise(), uses);
-                }
-                case OutputNode.Switch value -> {
-                    value.cases().forEach(c -> collectUses(c.body(), uses));
-                    collectUses(value.defaultBody(), uses);
-                }
-                case OutputNode.Variable value -> collectUses(value.body(), uses);
-                case OutputNode.Element value -> collectUses(value.body(), uses);
-                case OutputNode.Attribute value -> collectUses(value.body(), uses);
-                default -> {
-                    // Leaves as far as references to templates are concerned.
-                }
-            }
-        }
-    }
-
-    /**
-     * Resolve every name that points at a template — a {@code call-template}'s target and an
-     * {@code apply-templates}' template reference — against the templates that exist.
-     *
-     * <p>Compilation is where a configuration's mistakes are found. Left to run time, a name
-     * with a typo in it finds nothing, and finding nothing is spelt the same as a template that
-     * legitimately wrote nothing: the run completes, the output is short, and the configuration
-     * looks correct.
-     */
-    private static void resolveTemplateNames(final Project project, final List<Uses> uses) {
-        final Set<String> names = new HashSet<>();
-        for (final Template template : project.templates()) {
-            names.add(template.name());
-        }
-        for (final Uses use : uses) {
-            final List<String> referenced = new ArrayList<>(use.calls());
-            for (final OutputNode.ApplyDirective directive : use.applies()) {
-                if (directive.templateRef() != null) {
-                    referenced.add(directive.templateRef());
-                }
-            }
-            for (final String name : referenced) {
-                if (!names.contains(name)) {
-                    throw new ConfigException("Template '" + use.template().name() + "' refers to a"
-                                              + " template named '" + name + "', which does not exist");
-                }
-            }
-        }
-    }
-
-    /**
-     * D36's dispatch lint: a line-anchored pattern in a strict or lexer level draws a warning —
-     * the anchored question means it matches at the cursor only, and a line anchor does not
-     * make it search line starts. It reads the compiled matches, so it runs after them.
-     */
-    private static void dispatchChecks(final Project project,
-                                       final List<CompiledTemplate> templates,
-                                       final List<Uses> uses,
-                                       final List<Message> warnings) {
-        final Set<String> strictModes = new HashSet<>();
-        for (final Uses use : uses) {
-            for (final OutputNode.ApplyDirective directive : use.applies()) {
-                final Dispatch effective = Dispatch.effective(directive.dispatch(), project);
-                if (effective == Dispatch.STRICT || effective == Dispatch.LEXER) {
-                    strictModes.add(directive.effectiveMode());
-                }
-            }
-        }
-        for (final CompiledTemplate compiledTemplate : templates) {
-            if (strictModes.contains(compiledTemplate.template().mode())
-                && compiledTemplate.match() instanceof CompiledMatch.Regex regex
-                && regex.pattern().leadingAnchor() == LeadingAnchor.LINE) {
-                warnings.add(new Message(Severity.WARNING, "Template '"
-                        + compiledTemplate.template().name()
-                        + "' uses a line-anchored pattern in a strict level: it matches at the"
-                        + " cursor only, and the line anchor does not make it search line"
-                        + " starts. If line iteration is intended, add a line eater."));
-            }
-        }
     }
 
     /**

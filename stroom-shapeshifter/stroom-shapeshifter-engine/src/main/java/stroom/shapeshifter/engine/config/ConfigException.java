@@ -31,4 +31,15 @@ public class ConfigException extends RuntimeException {
     public ConfigException(final String message, final Throwable cause) {
         super(message, cause);
     }
+
+    /**
+     * Refuse clearly rather than fail obscurely: a template names something this build does
+     * not carry — a binary format match deferred by decision (D33), a compression codec the
+     * JDK lacks, a capture source not yet defined — and is told so at compile time rather than
+     * run to produce nothing.
+     */
+    public static ConfigException notYet(final String templateName, final String what) {
+        return new ConfigException(
+                "Template '" + templateName + "' needs " + what + ", which this build does not support");
+    }
 }

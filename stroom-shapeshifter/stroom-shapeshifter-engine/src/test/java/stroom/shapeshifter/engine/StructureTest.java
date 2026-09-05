@@ -131,6 +131,16 @@ class StructureTest {
                         "Template 'line' needs a field capture source, which this build does not support");
     }
 
+    /** A call inside an iteration names a template like any other; a missing one is refused (design 27). */
+    @Test
+    void callToAMissingTemplateInsideAForEachIsACompileError() {
+        final String json = project(APPLY + ", {\"sequence\": {\"name\": \"s\"}}, {\"for-each\": {\"select\": \"s\","
+                                    + " \"body\": [{\"call-template\": {\"name\": \"ghost\", \"with-param\": []}}]}}");
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(json)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("refers to a template named 'ghost', which does not exist");
+    }
+
     @Test
     void anAttributeAfterContentInTheSameBodyIsACompileError() {
         final String json = project("""

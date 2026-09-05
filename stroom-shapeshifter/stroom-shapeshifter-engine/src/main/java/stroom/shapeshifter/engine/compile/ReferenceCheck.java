@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * One walk over a configuration's bodies for every check that reads them.
+ * One walk over a configuration's bodies for every check that reads what they reference.
  *
  * <p>Some decide as they go — the comparison lint and the substring count need nothing but
  * the node in front of them. The rest cannot: a read in the first template may name

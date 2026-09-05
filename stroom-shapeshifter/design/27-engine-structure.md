@@ -158,7 +158,8 @@ instruction set.
 
 | Class | Purpose |
 |---|---|
-| `Compiler` | The pass pipeline: encoding, per-template compilation, name resolution, the dispatch lint (which reads the compiled templates' anchoring facts and so runs after match compilation), the body checks, zipped per template as today so the error a doubly faulty configuration reports does not change; builds the `CompiledProject`, with `carriesStructure` computed by the structure check rather than in the graph's constructor. Under 250 lines once the two body walkers are one. |
+| `Compiler` | The pass pipeline: encoding, per-template compilation, the uses walk, name resolution, the dispatch lint (which reads the compiled templates' anchoring facts and so runs after match compilation), the body checks, zipped per template as today so the error a doubly faulty configuration reports does not change; builds the `CompiledProject`, with `structured` computed by the structure check rather than in the graph's constructor. 203 lines as built. |
+| `TemplateUses` | What one template's body refers to, the templates it calls and the applies it makes, collected in one walk per body, and the two checks that read it: every name must exist, and the dispatch lint must know which modes are strict. |
 | `MatchCompiler` | Pattern interning (with a step's flags in the key, ruling 9), step resolution, once, and pre-encoding, `compileMatch`, the codec requirement, the not-yet refusals; owns `patterns` as an instance. The E29 block that cannot fire is deleted, its rationale one sentence on `RegexEncodings.forMatch`. |
 | `StructureCheck` | Today's `Structure`: attributes and namespaces after content, structure inside attribute values, `producesContent`. |
 | `ReferenceCheck` | Today's `BodyScan`: reads and writes, the unknown-reference refusal, sequences and keys, iteration and group hazards, the substring version gate, E37's document-template rules. |
@@ -280,6 +281,24 @@ row's run-to-run spread, not a difference between commits: a 300-nanosecond oper
 three. The phase passes the gate on that evidence, and the bar for that row from here is the
 probe's spread, not the column's interval. The probe outputs are in
 `/home/dev1/engine-bench/probe-*-progressive-compile.json`.
+
+*Audited 2026-09-05.* Eight claims tested against the old compiler side by side, all held:
+the pass order, the per-template order and which error wins, the deleted block provably dead,
+the structure flag equivalent to the walk it replaced, the uses walk equal to the two it
+replaced, `ReferenceCheck` two hunks from `BodyScan`, every pattern key built the same way on
+the compile side and the lookup side. **Fixed:** two javadocs stale on the key's shape; the
+not-yet refusal lived on the match side and served the capture refusal too, so it is a
+`ConfigException` factory now; and the uses walk moved out to `TemplateUses` with its two
+readers, which brings `Compiler` to 203 lines, under the target after all. **Fixed, with a
+pin:** the two walks the uses walk replaced never descended a `for-each` or `for-each-group`
+body, so a `call-template` to a missing name inside an iteration was never refused at compile
+time; the walk descends them now. **Named and assigned:** a UTF-16 byte-order mark on a source
+declared UTF-8 moves the run's encoding to UTF-16 (`Executor` 360, 737), for which the regex
+library has no lowering, so a progressive regex step then throws "Pattern was not compiled" at
+match time — the compile-time refusal's proof does not reach the run's byte-order-mark rule;
+that is the window's, and phase 2 owns it. Five FQN `regex.Encoding` remain in `MatchCompiler`
+because `text.Encoding` holds the import; the ledger's note stands. Engine 557, pipeline 154,
+app 5.
 
 *As written:*
 First, ahead of the executor, because the entry review gave it a number: the compile rows
