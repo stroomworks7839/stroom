@@ -1253,4 +1253,7 @@ same day:* the packages follow the dependencies already measured — `engine.val
 `engine.match` and `engine.output` are created, `exec` keeps only the run, and the package line
 enforces value ← match ← exec; the two reference resolvers both stay, with the seam documented
 and the compile of conditions filed as design 10's follow-on rather than done under a structure
-design.
+design. *From the entry review, ruled the same day:* the sink factory moves onto `XmlByteSink`
+so the root package has no dependency downward; a progressive step's regex flags become part
+of the pattern key rather than being silently ignored; and the `field` capture source is
+refused at compile time until it is defined.

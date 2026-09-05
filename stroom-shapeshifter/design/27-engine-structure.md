@@ -440,7 +440,7 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 8. **§2.5's dependency cells** gain `engine.text` for `match` and `exec`, and `config` for `value`; the `engine` row says what item 2 says.
 9. **Two correctness defects** are fixed before phase 1 rather than carried: `EmitError`'s encoding and the unlocatable call offset (both one line). `records` under whole-buffer and chunked roots is phase 1's, with the loop. The step-regex flags and the `field` capture source are rulings 9 and 10.
 
-## 6. Rulings — 1 to 7 ruled 2026-09-05, each as recommended (D45); 8 to 10 wanted
+## 6. Rulings — all ten ruled 2026-09-05, each as recommended (D45)
 
 1. **The direction.** The executor dissolves into a run over the graph as §2.1 describes,
    rather than staying one class with helpers — D35's stated consequence, done.
@@ -458,18 +458,17 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 7. **The two resolvers** as §2.7 states: both stay, the seam is documented, the compile of
    conditions and capture selects is filed as the follow-on.
 
-*Wanted, from the entry review (§5.4):*
+*From the entry review (§5.4):*
 
 8. **`OutputSink.of`.** The factory moves to `XmlByteSink`, the executor's variable body and
    the test sites construct the sink by name, and the question of why a variable's text takes
-   Saxon's layout is filed as a follow-on. *Recommended: yes.*
+   Saxon's layout is filed as a follow-on.
 9. **Regex flags on a progressive step.** They are read, written back and silently ignored at
    match time because the pattern key is text and encoding only. Either `PatternKey` gains the
-   flags and `intern` compiles with them, or the reader refuses flags on a step. *Recommended:
-   the key gains the flags — it is what the configuration says, and a refusal would invent a
-   limitation the model does not have. Done in phase 6 with `MatchCompiler`, pinned first.*
+   flags and `intern` compiles with them, or the reader refuses flags on a step. Ruled: the key
+   gains the flags, in phase 6 with `MatchCompiler`, pinned first.
 10. **The `field` capture source.** Read by the JSON, compiled by nothing, bound to nothing,
-    silently. *Recommended: a compile-time "not yet" refusal now, the shape D33 gives codecs,
-    unless a corpus fixture uses it, which the gate will say.*
+    silently. Ruled: a compile-time "not yet" refusal now, the shape D33 gives codecs, unless a
+    corpus fixture uses it, which the gate will say.
 
 Each phase audited before the next.
