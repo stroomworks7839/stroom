@@ -390,7 +390,7 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 
 **The sinks' dependencies.** `engine.output` would depend on `engine` for `OutputSink`, the JDK and `org.xml.sax`, and on nothing else in the engine or the regex module. But the claim in §1.4 that nothing inside the engine uses the four classes is **false**: `OutputSink.of` (root, 128 to 131) constructs `XmlByteSink`, and `Executor.variable` (1996) runs every `variable` body through `OutputSink.of(buffer)`. With the sinks in `engine.output` implementing `engine.OutputSink`, an `of` that stays in the root is a package cycle. Import churn outside the engine: pipeline `EventImage` and `ShapeshifterReader`; five test classes; about thirty test call sites of `OutputSink.of`.
 
-### 5.3 `compile`
+### 5.2 `compile`
 
 | Class | Lines | Purpose | Javadoc | Findings |
 |---|---|---|---|---|
@@ -407,7 +407,7 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 
 **The pass map for phase 6.** Encoding resolution needs the project. Per-template compilation needs `encoding`, `transcodeFrom`, the project and two mutable accumulators, `patterns` (written by interning, read by the same template's body compilation, ordered only by a comment at 171 and the throw at `CompiledOp` 596) and `functions.used()` (written by every body compilation, read at 199). Name resolution (980) needs the project and throws before any warning. **A pass the design did not list:** `dispatchChecks` (942 to 969) reads the *compiled* templates' leading-anchor facts and appends warnings, so "the passes share nothing but the project and the warnings list" is false; it needs a home. **The two checks are not sequential passes:** `bodyChecks` (215 to 222) zips `BodyScan.template` and `Structure.check` per template, and the zip decides which error a doubly faulty configuration reports; extracting them as two passes changes that unless `Compiler.bodyChecks` keeps the zip. **"Under 250 lines" does not close** with the E3 block, `bodyChecks`, `dispatchChecks`, name resolution and both walkers all in `Compiler`; it closes if the walkers merge. `CompiledOp.compile` calls no `Compiler` helper; its seam is the two accumulators.
 
-### 5.4 `exec`
+### 5.3 `exec`
 
 | Class | Lines | Purpose | Javadoc | Findings |
 |---|---|---|---|---|
@@ -428,16 +428,16 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 
 **Packages, confirmed.** Every exec-internal reference was checked; the sixteen assignments in §2.5 hold and nothing in the value or matching group reaches the run. The dependency cells need `engine.text` for `match` (`Steps` imports `text.Encoding` and `text.RegexEncodings`) and `exec` (`Transcode`, `Encoding`), and `config.ConfigException` for `value` (`Dates`, whose `compileParser`/`compileFormatter` are compile-time entry points called from `CompiledOp`). Tests move with their classes: `DatesTest`, `TransformsTest`, `TypedValueTest`, `TypedValueParseEquivalenceTest` to `value`, `StepsTest` to `match`; `CompareSpineTest`, `CompiledOp` and `Compiler` carry a further eleven imports §2.5's cost paragraph did not count.
 
-### 5.5 What the entry review corrects in the plan
+### 5.4 What the entry review corrects in the plan
 
 1. **`OutputSink.of` and the variable body** (ruling 8 wanted). Three exits: (a) `of` moves to `XmlByteSink` as its factory and the executor and the test sites construct the sink by name; (b) `exec` gets its own buffer sink for variable bodies, which also asks why a variable's text is serialised with Saxon's indenting layout at all; (c) the cycle is accepted. *Recommended: (a) now, as the smallest; (b)'s question filed as a follow-on, since it is a behaviour question and not this design's.*
 2. **§2.5's `engine` row "depends on nothing"** is wrong as written: the facade imports `compile`, `config`, `exec` and `function`, and `PatternInfo` imports the regex module. The row should say that nothing below the root depends on it except through `OutputSink`, `Instrument`, `Message` and `Severity`.
 3. **§2.4's placements** of flags, casts, the combinator pattern and dispatch, as above.
 4. **§2.6 "move and nothing else"** stands for the sinks, with the three duplications above recorded as a follow-on so the move commit stays a move.
-5. **§1.1's rows** are corrected as §5.4 says: the "stream" row was `Run`'s material, the window loop lives under the level banner, and `stream` is one method with two halves. Phase 1 lifts the window half; phase 2 folds the level half into `level` with the duplicated rules.
+5. **§1.1's rows** are corrected as §5.3 says: the "stream" row was `Run`'s material, the window loop lives under the level banner, and `stream` is one method with two halves. Phase 1 lifts the window half; phase 2 folds the level half into `level` with the duplicated rules.
 6. **§2.1's table** gains `locate` under `Level`, and `structure` and `AbortRun` under `Run` as package-visible; `Level` and `Body` are wired by the run, `Body` taking `Level` and `Level` taking the run's body callback.
 7. **§1.2 and §2.3** gain the dispatch lint as a pass that runs after match compilation and before the body checks, in `Compiler`; `bodyChecks` keeps its per-template zip of the two checks so the error a doubly faulty configuration reports does not change; the E29 dead block is deleted in phase 6 with its rationale kept as one sentence; `carriesStructure` moves out of the graph's constructor into `StructureCheck`'s walk; the two walkers merge, which is what brings `Compiler` under its line target.
-8. **§2.5's dependency cells** gain `engine.text` for `match` and `exec`, and `config` for `value`; the `engine` row says what §5.5 item 2 says.
+8. **§2.5's dependency cells** gain `engine.text` for `match` and `exec`, and `config` for `value`; the `engine` row says what item 2 says.
 9. **Two correctness defects** are fixed before phase 1 rather than carried: `EmitError`'s encoding and the unlocatable call offset (both one line). `records` under whole-buffer and chunked roots is phase 1's, with the loop. The step-regex flags and the `field` capture source are rulings 9 and 10.
 
 ## 6. Rulings — 1 to 7 ruled 2026-09-05, each as recommended (D45); 8 to 10 wanted
@@ -458,7 +458,7 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 7. **The two resolvers** as §2.7 states: both stay, the seam is documented, the compile of
    conditions and capture selects is filed as the follow-on.
 
-*Wanted, from the entry review (§5.5):*
+*Wanted, from the entry review (§5.4):*
 
 8. **`OutputSink.of`.** The factory moves to `XmlByteSink`, the executor's variable body and
    the test sites construct the sink by name, and the question of why a variable's text takes
