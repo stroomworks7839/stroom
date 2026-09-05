@@ -2,7 +2,7 @@
 
 *Proposed and ruled 2026-09-05 (D45), every ruling as recommended. Amended the same day, on the
 user's question whether the plan locates code into packages as well as classes: §1.5, §2.5 to
-§2.7 and phase 5 are the amendment; rulings 6 and 7 were made the same day, as recommended.* The
+§2.7 and phase 6 are the amendment; rulings 6 and 7 were made the same day, as recommended.* The
 engine is correct, pinned at three levels, and its
 biggest class is a 2,166-line interpreter that Checkstyle warns about on every build. This design
 says what the module should look like when every class has one purpose, what moves where to get
@@ -198,7 +198,7 @@ it is what a match produces and `Steps` and `Splitter` fill it; the run reads it
 places and each sink once; the app tests import the sinks; inside the engine, seven test
 classes move with their classes and `CompareSpineTest`, `CompiledOp` and `Compiler` carry
 eleven more imports. All of it is import churn, which is why the moves are one phase of their
-own (phase 5) and not mixed into a hot-path commit.
+own (phase 6) and not mixed into a hot-path commit.
 
 ### 2.6 What does not move
 
@@ -214,14 +214,16 @@ capture selects is design 10's open performance row and shape follows measuremen
 changes is that the seam is stated: `Conditions` and `Level`'s capture binding resolve authored
 expressions because their compilation is not yet measured to matter, and `CompiledRefs` says
 so in its class javadoc, naming design 10 §2. The compile of conditions is filed as the
-follow-on when phase 4 closes, so the duplication has an owner and an exit rather than a
+follow-on when phase 5 closes, so the duplication has an owner and an exit rather than a
 shrug.
 
 ## 3. Phasing
 
-Every phase is a pure move — no behaviour change — and every phase is gated the same way:
+The compiler goes first because phase 0 gave it a number and nothing else depends on its
+shape; then the executor dissolves, then the packages move, then the JSON. Every phase is a
+pure move — no behaviour change — and every phase is gated the same way:
 engine, pipeline and app-level Shapeshifter suites green; the fixture ledger unchanged; goldens
-byte-identical; checkstyle clean with no `FileLength` warning at the end. Phases 2 and 3 touch the
+byte-identical; checkstyle clean with no `FileLength` warning at the end. Phases 3 and 4 touch the
 hot path and add a benchmark gate (§3.9). Each phase is audited before the next, as designs 23
 to 26 were.
 
@@ -243,34 +245,51 @@ this phase; the rest are assigned to the phase that touches the class. The packa
 either moved to the right side or the line is redrawn, before anything else moves. *Output:*
 §5 of this document filled in; the benchmark baseline of §3.9 taken.
 
-### Phase 1 — `InputWindow` and `FunctionRuntime`
+### Phase 1 — The compiler's passes
+
+First, ahead of the executor, because the entry review gave it a number: the compile rows
+drifted 9 to 24% over the history §3.10 measured, and the cause is the eight body walks and
+the dead refusal block the compile ledger names, which merge only when the passes become
+classes. `MatchCompiler`, `StructureCheck`, `ReferenceCheck` out of `Compiler`: interning,
+body compilation and one check walk, the structure check zipped into it per template as today,
+the dispatch lint reading the applies that walk collected rather than walking again, the E29
+block deleted with its rationale kept as one sentence, a progressive template's steps resolved
+once, `carriesStructure` computed by the structure check and handed to the graph, a step's
+regex flags in the pattern key (ruling 9), pinned first. No test moves; the compile-refusal
+tests already name messages, not classes. *Gate:* the three suites, and the benchmark's compile
+rows before and after against the phase 0 column, with the run rows once to show they did not
+move. Nothing in the executor phases depends on the compiler's shape; the two places they
+touch — the recursive-apply flag phase 4 wants and the call-template op's rename — are one line
+each on either side.
+
+### Phase 2 — `InputWindow` and `FunctionRuntime`
 
 The two leaf regions, which reach nothing else. `InputWindow` takes the window array, the cursor
 and the fill-compact-probe trio; `stream` calls it. `FunctionRuntime` takes binding, the context,
 the preview gate and the call bookkeeping; `call` asks it. Around 400 lines leave `Executor`.
 *Test:* `WindowTailTest` moves to `InputWindow`; `FunctionsTest` unchanged.
 
-### Phase 2 — `Level`
+### Phase 3 — `Level`
 
 The dispatch region becomes its own class, constructed per run with the instrument, the
 messages and the registry it binds captures into. The recursion — a body's `apply` hands a region
 to a nested level — goes through `Body`, so `Level` and `Body` reference each other through the
 run that owns them. *Benchmark gate.*
 
-### Phase 3 — `Body`
+### Phase 4 — `Body`
 
 The interpreter region, with the registry, the key indexes and the warned sites as its fields.
 `vars` stops being reachable from anything but `Body` and the capture binding in `Level`, which is
 what the 74-to-9 count says it already is. *Benchmark gate.*
 
-### Phase 4 — `Run`, and the name goes
+### Phase 5 — `Run`, and the name goes
 
 What remains of `Executor` is construction, the root split, the transcode wrap, abort handling and
 the message list: `Run`. `Executor.java` is deleted. Design 10's "transitional" sentence and D35's
 consequence are updated to say it happened. The `exec` package javadoc is rewritten to name the
 five classes and how a run flows through them.
 
-### Phase 5 — The packages
+### Phase 6 — The packages
 
 The moves of §2.5: `value`, `match` and `output` created, their classes moved, the pipeline
 module's and the app tests' imports updated, a `package-info` written for each new package that
@@ -278,11 +297,6 @@ says what it holds and what it may depend on. Pure import churn, in its own comm
 so that a bisect lands on a package and not on a class. The `exec` package javadoc is written
 last, when the package holds only the run. *Gate:* the three suites; no benchmark, because no
 code moves within a class.
-
-### Phase 6 — The compiler's passes
-
-`MatchCompiler`, `StructureCheck`, `ReferenceCheck` out of `Compiler`. No test moves; the
-compile-refusal tests already name messages, not classes.
 
 ### Phase 7 — The JSON families
 
@@ -298,12 +312,12 @@ architecture section updated; a D-number recorded. *Output:* §5 closed with the
 
 ### 3.9 The benchmark gate
 
-Phases 2 and 3 move the hot path across class boundaries, which can change what the JIT inlines.
+Phases 3 and 4 move the hot path across class boundaries, which can change what the JIT inlines.
 The gate is `EngineBenchmark` (the engine's `jmh` task, results under `design/benchmarks`), run
 before and after on the same box with no other JMH session running (the shared-box rule),
 targeted one-minute combinations by day and the full suite in the evening. The last engine
 baseline on record is 2026-08-27, before the 2026-09-02 CPU replacement, so it is not comparable:
-phase 0 takes a fresh baseline at the commit before phase 1, and that is what phases 2 and 3 are
+phase 0 takes a fresh baseline at the commit before phase 1, and that is what phases 3 and 4 are
 measured against. The bar is no regression beyond the run-to-run noise of that baseline. A regression is investigated before the phase is called done;
 it is not accepted as the price of structure.
 
@@ -377,9 +391,9 @@ direction. The compile rows drifted down over the same history — `csv_header` 
 progressive configuration −24%, `win_sec` −9% — in three steps, the encoding plan, design 21,
 and designs 23 to 26 with E37: a microsecond on a once-per-load cost, which design 10 prices
 as irrelevant, but the shape is the eight body walks and the dead refusal block the compile
-ledger names, and phase 6 has the number to move.
+ledger names, and phase 1 has the number to move.
 
-**The baseline for phases 2 and 3 is the phase 0 column**, `2026-09-05-1815-44bc1e5ac6-engine.json`,
+**The baseline for phases 3 and 4 is the phase 0 column**, `2026-09-05-1815-44bc1e5ac6-engine.json`,
 five forks on this box with the long-running processes pinned off its cores. The bar is the
 interval in that column, row by row.
 
@@ -419,9 +433,9 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 
 **`ProjectJson`** — *line:* 732 "Store" comment says "serde carries it as an alias and so must we"; keep the corpus fact (3,172 `Store` against 2,413 `capture`), drop the port. 790, 814, 884, 928 "(phase N audit)" provenance tags; the rules stay. 902 javadoc says "an ordering's cast" on `readCast`, which `min` and `max` also call. 962 and 1010 `readOperand`/`writeOperand` re-implement `readCast`/`writeCast` inline. 1087 the `try` around `Severity.valueOf` also encloses `readRef`, the width 884's own comment warns against. 474 `PatternRef` parses its id with raw `UUID.fromString`, escaping as `IllegalArgumentException` where `uuid()` gives a `ConfigException`. 857 `is-first`/`is-last` are the only payload-less variants read without `checkFields`. 1111, 1118 `has(x) && get(x).asBoolean()` where the file's idiom is `path(x).asBoolean(false)`. 1412 writes `"prefix": null` for a default namespace where everything else uses `putIfPresent`. 1642, 1690, 1698, 1811 four javadocs explain the wire shape by "serde" or "Rust's enum names"; the shape is this format's rule, state it so. *P7:* 65 "in one file" and the class javadoc's serde framing become `JsonFields`'s javadoc, correcting its claim that fields "stay snake_case throughout" (`with-param`, `omit-if-empty`, `key-value` are kebab). 867 to 919 `sequenceAndName`, `readSort`, `readCast` sit under the conditions banner and are output or shared. 141, 882, 909, 966, 1089 four hand-rolled lowercase-enum parsers with four message spellings, one `JsonFields` pair. 1032 `is-first` is written as `{}` where every other payload-less variant is written bare; read accepts both; decide under the round-trip gate. 459, 684, 413, 557 `asInt()` on an unchecked body relies on Jackson's coercion; verify before calling it a bug. *note:* 1261 `distinct-values` requires `name` on read and writes it optionally, benign. 1755 `expectObject` has one caller.
 
-**Sinks** — *line:* `XmlByteSink` 248 to 259 `incompleteTail` is a byte-for-byte copy of `Utf8.incompleteTail`; the other two sinks call `Utf8`'s. `SaxEventSink` 298 an orphaned copy of `Utf8`'s javadoc sits on the `Element` class. `XmlByteSink` 84 to 91 and `SaxEventSink` 60 public constructors undocumented. `OutputSink` 120 to 126 `endAttribute` and `endElement` undocumented. *P5:* `XmlByteSink` 193, `SaxEventSink` 159, `CharacterSink` 61 the carry-splice-decode sequence is written three times; `SaxEventSink` 265 and `CharacterSink` 114 `SaxCall`/`sax()` duplicated verbatim; `XmlByteSink.prefixOf` (381) and `SaxEventSink.localOf` (256) are halves of one qname rule. Each is named here so phase 5 leaves them alone inside a move commit and a follow-on owns them. *note:* `XmlByteSink` and `SaxEventSink` duplicate `Element`, `Attribute`, `current`, `checkNoAttributeOpen`, "the same bookkeeping" by their own admission; a follow-on after phase 5. `CharacterSink` 31 names the pipeline's `TextWriter` from inside the engine. `Utf8` shares its simple name with the regex module's.
+**Sinks** — *line:* `XmlByteSink` 248 to 259 `incompleteTail` is a byte-for-byte copy of `Utf8.incompleteTail`; the other two sinks call `Utf8`'s. `SaxEventSink` 298 an orphaned copy of `Utf8`'s javadoc sits on the `Element` class. `XmlByteSink` 84 to 91 and `SaxEventSink` 60 public constructors undocumented. `OutputSink` 120 to 126 `endAttribute` and `endElement` undocumented. *P6:* `XmlByteSink` 193, `SaxEventSink` 159, `CharacterSink` 61 the carry-splice-decode sequence is written three times; `SaxEventSink` 265 and `CharacterSink` 114 `SaxCall`/`sax()` duplicated verbatim; `XmlByteSink.prefixOf` (381) and `SaxEventSink.localOf` (256) are halves of one qname rule. Each is named here so phase 6 leaves them alone inside a move commit and a follow-on owns them. *note:* `XmlByteSink` and `SaxEventSink` duplicate `Element`, `Attribute`, `current`, `checkNoAttributeOpen`, "the same bookkeeping" by their own admission; a follow-on after phase 6. `CharacterSink` 31 names the pipeline's `TextWriter` from inside the engine. `Utf8` shares its simple name with the regex module's.
 
-**The face** — *line:* `Shapeshifter` 59 to 70 the six-argument `run` has no `@return` and no memory-bound statement. `Message` 38 and `PatternInfo` 58, 69, 73 inline FQNs; `PatternInfo` 62 a provenance tag. Root `package-info` 24 says the pipeline adapter "will sit above this", future tense; 19 a lone `<p>`. *P4:* `Shapeshifter` 113 to 125 no `runWhole` takes a mode or services, so a whole-buffer run cannot call functions that need them; 69, 101, 124 a positional boolean routes whole-or-stream into the executor. *P5:* the root `package-info` must name the packages and the direction between them.
+**The face** — *line:* `Shapeshifter` 59 to 70 the six-argument `run` has no `@return` and no memory-bound statement. `Message` 38 and `PatternInfo` 58, 69, 73 inline FQNs; `PatternInfo` 62 a provenance tag. Root `package-info` 24 says the pipeline adapter "will sit above this", future tense; 19 a lone `<p>`. *P5:* `Shapeshifter` 113 to 125 no `runWhole` takes a mode or services, so a whole-buffer run cannot call functions that need them; 69, 101, 124 a positional boolean routes whole-or-stream into the executor. *P6:* the root `package-info` must name the packages and the direction between them.
 
 **The method map for phase 7.** Cross-family calls form a DAG: project to match, reference, condition and output; condition to reference; output to reference and condition; match and reference to themselves. `ProjectJson` can delegate downward. Four placements in §2.4 are corrected by the evidence: `RegexFlags` (273 to 287) is read and written only by the match family, so `MatchJson`; `readCast`/`writeCast` (903 to 919) are called only from the output family, so `JsonFields`, subsumed by the lowercase-enum pair; `CombinatorPattern` (168 to 182), unplaced, is a named step list, so `MatchJson`; `readDispatch`/`writeDispatch` (134 to 151) serve both the source and the apply directive, so `JsonFields`. `JsonFields` otherwise holds `NODES`, `Tagged` and `tag`, `wrap`, `checkFields`, `required`, `text`, `optionalText`, `uuid`, `putIfPresent`, `list`, `array`, `constant`, `name`. §2.4's word "parameters" names two types, `Template.ParamDecl` in `ProjectJson` and `OutputNode.Param` in `OutputJson`.
 
@@ -436,13 +450,13 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 | `CompiledProject` | 177 | The executable graph with its dispatch indexes | good; constructor contract incomplete; one accessor doc wrong | 5 |
 | `CompiledMatch`, `CompiledRef`, `CompiledTemplate`, `Functions`, `PatternKey`, `package-info` | 127, 85, 44, 30, 29, 24 | as named | good, good, good, good, narrates, good | 3, 1, 0, 1, 2, 0 |
 
-**`Compiler`** — *correctness:* 148 to 170 the E29 refusal is unreachable by construction (the source is forced to UTF-8 when it transcodes, unavailable labels are refused at 1297, every remaining encoding either lowers or is refused at 124), so twenty dead lines run a throw-away `resolve` and `steps` walk per progressive template; 158 picks its "offending" pattern from `HashMap` order. 1144 `intern` drops `regex.flags()` on a progressive regex step and `PatternKey` ignores flags, so `case_insensitive` or `dot_all` on a step is read, written back and silently ignored at match time (ruling 9). *line:* 1122 FQN `EnumSet`/`Flag` though imported; 1289 `encoding(String)` is public with no outside caller; 953 `"__rec_"` duplicated as a literal here and at `Executor` 2110 and 2118; 481 to 490 a `switch` over sealed `CaptureSource` ends in `default`; 626 to 630 two consecutive comments say the same thing; 181 to 185, 1272 to 1277, 205 to 209, 393 to 399, 825 to 829 narrate bug history and dates (the rationale in each is one clause and stays); 374 to 386 `BodyScan`'s javadoc says "the three checks" for a class carrying a dozen rules. *P6:* 155, 186, 1252 `resolve` runs three times per progressive template; 947, 989 `collectApplies` walks every body twice and 1004 to 1049 `collectCalls`/`collectApplies` are one walker with two leaves, repeating what `BodyScan` records at 538; 203 "in one walk (E27)" is false in aggregate, eight walks now; 951 `Dispatch.effective` applied twice per apply; 148 to 1141 nine FQN `regex.Encoding` because `text.Encoding` holds the import; 247 to 282 `new boolean[1]` as an out-cell is a borrowed `&mut`; 65, 82, 96 a static pipeline threading `patterns` and a mutable `Functions` through every signature. *note:* 1185 "refers to itself" names a UUID where the pattern has a name (message text is a golden); 312 to 370 `producesContent`'s forty `name() == null` arms recur in `BodyScan.visit` and `CompiledOp.compile`, three places per new instruction, because the model has no "binds a name" sub-interface (a sealed sub-interface is not a third layer).
+**`Compiler`** — *correctness:* 148 to 170 the E29 refusal is unreachable by construction (the source is forced to UTF-8 when it transcodes, unavailable labels are refused at 1297, every remaining encoding either lowers or is refused at 124), so twenty dead lines run a throw-away `resolve` and `steps` walk per progressive template; 158 picks its "offending" pattern from `HashMap` order. 1144 `intern` drops `regex.flags()` on a progressive regex step and `PatternKey` ignores flags, so `case_insensitive` or `dot_all` on a step is read, written back and silently ignored at match time (ruling 9). *line:* 1122 FQN `EnumSet`/`Flag` though imported; 1289 `encoding(String)` is public with no outside caller; 953 `"__rec_"` duplicated as a literal here and at `Executor` 2110 and 2118; 481 to 490 a `switch` over sealed `CaptureSource` ends in `default`; 626 to 630 two consecutive comments say the same thing; 181 to 185, 1272 to 1277, 205 to 209, 393 to 399, 825 to 829 narrate bug history and dates (the rationale in each is one clause and stays); 374 to 386 `BodyScan`'s javadoc says "the three checks" for a class carrying a dozen rules. *P1:* 155, 186, 1252 `resolve` runs three times per progressive template; 947, 989 `collectApplies` walks every body twice and 1004 to 1049 `collectCalls`/`collectApplies` are one walker with two leaves, repeating what `BodyScan` records at 538; 203 "in one walk (E27)" is false in aggregate, eight walks now; 951 `Dispatch.effective` applied twice per apply; 148 to 1141 nine FQN `regex.Encoding` because `text.Encoding` holds the import; 247 to 282 `new boolean[1]` as an out-cell is a borrowed `&mut`; 65, 82, 96 a static pipeline threading `patterns` and a mutable `Functions` through every signature. *note:* 1185 "refers to itself" names a UUID where the pattern has a name (message text is a golden); 312 to 370 `producesContent`'s forty `name() == null` arms recur in `BodyScan.visit` and `CompiledOp.compile`, three places per new instruction, because the model has no "binds a name" sub-interface (a sealed sub-interface is not a third layer).
 
-**`CompiledOp`** — *line:* 28 to 29 `RefPart` imported twice; 281 `regexEncoding` is never read (`replace` hardcodes UTF-8 at 593); 452 FQN `Comparisons` and `Cast.DATE` with `Cast` imported; 144, 148 `Attribute` and `Namespace` undocumented; 57, 266, 564 to 570 narration ("as before", "has been waiting on", "which this used to allow"). *P6:* 124 and 165 `OutputNode.CallTemplate` compiles to `CompiledOp.Call` while `OutputNode.Call` compiles to `CallFunction`, the one name that flips meaning across the seam. *note:* 534 a string decides the arity rule inside a helper doing two things; 279 a static method on a public interface with a package-private type in its signature; 593 to 597 the "Pattern was not compiled" throw is the contract with the interning pass.
+**`CompiledOp`** — *line:* 28 to 29 `RefPart` imported twice; 281 `regexEncoding` is never read (`replace` hardcodes UTF-8 at 593); 452 FQN `Comparisons` and `Cast.DATE` with `Cast` imported; 144, 148 `Attribute` and `Namespace` undocumented; 57, 266, 564 to 570 narration ("as before", "has been waiting on", "which this used to allow"). *P1:* 124 and 165 `OutputNode.CallTemplate` compiles to `CompiledOp.Call` while `OutputNode.Call` compiles to `CallFunction`, the one name that flips meaning across the seam. *note:* 534 a string decides the arity rule inside a helper doing two things; 279 a static method on a public interface with a package-private type in its signature; 593 to 597 the "Pattern was not compiled" throw is the contract with the interning pass.
 
-**`CompiledProject`** — *line:* 108 to 123 FQN `OutputNode` twelve times; 63 to 73 constructor javadoc omits two parameters; 168 `encoding()` says "declared" where it is the encoding the feed is matched in. *P6:* 88, 108 to 131 `carriesStructure` is a body walk over the authored templates in the graph's constructor, a second copy of `StructureCheck.producesContent`'s knowledge. **`CompiledMatch`** — *line:* 109 `Progressive` has no `List.copyOf` and receives a mutable list; 94 to 97 `Delimiter`'s nullable components undocumented. **`Functions`** — *P6:* 28 a record whose `used` map is a mutable accumulator written across every template. **`PatternKey`** — *line:* 21 to 26 narrates the deferral history; one sentence does it.
+**`CompiledProject`** — *line:* 108 to 123 FQN `OutputNode` twelve times; 63 to 73 constructor javadoc omits two parameters; 168 `encoding()` says "declared" where it is the encoding the feed is matched in. *P1:* 88, 108 to 131 `carriesStructure` is a body walk over the authored templates in the graph's constructor, a second copy of `StructureCheck.producesContent`'s knowledge. **`CompiledMatch`** — *line:* 109 `Progressive` has no `List.copyOf` and receives a mutable list; 94 to 97 `Delimiter`'s nullable components undocumented. **`Functions`** — *P1:* 28 a record whose `used` map is a mutable accumulator written across every template. **`PatternKey`** — *line:* 21 to 26 narrates the deferral history; one sentence does it.
 
-**The pass map for phase 6.** Encoding resolution needs the project. Per-template compilation needs `encoding`, `transcodeFrom`, the project and two mutable accumulators, `patterns` (written by interning, read by the same template's body compilation, ordered only by a comment at 171 and the throw at `CompiledOp` 596) and `functions.used()` (written by every body compilation, read at 199). Name resolution (980) needs the project and throws before any warning. **A pass the design did not list:** `dispatchChecks` (942 to 969) reads the *compiled* templates' leading-anchor facts and appends warnings, so "the passes share nothing but the project and the warnings list" is false; it needs a home. **The two checks are not sequential passes:** `bodyChecks` (215 to 222) zips `BodyScan.template` and `Structure.check` per template, and the zip decides which error a doubly faulty configuration reports; extracting them as two passes changes that unless `Compiler.bodyChecks` keeps the zip. **"Under 250 lines" does not close** with the E3 block, `bodyChecks`, `dispatchChecks`, name resolution and both walkers all in `Compiler`; it closes if the walkers merge. `CompiledOp.compile` calls no `Compiler` helper; its seam is the two accumulators.
+**The pass map for phase 1.** Encoding resolution needs the project. Per-template compilation needs `encoding`, `transcodeFrom`, the project and two mutable accumulators, `patterns` (written by interning, read by the same template's body compilation, ordered only by a comment at 171 and the throw at `CompiledOp` 596) and `functions.used()` (written by every body compilation, read at 199). Name resolution (980) needs the project and throws before any warning. **A pass the design did not list:** `dispatchChecks` (942 to 969) reads the *compiled* templates' leading-anchor facts and appends warnings, so "the passes share nothing but the project and the warnings list" is false; it needs a home. **The two checks are not sequential passes:** `bodyChecks` (215 to 222) zips `BodyScan.template` and `Structure.check` per template, and the zip decides which error a doubly faulty configuration reports; extracting them as two passes changes that unless `Compiler.bodyChecks` keeps the zip. **"Under 250 lines" does not close** with the E3 block, `bodyChecks`, `dispatchChecks`, name resolution and both walkers all in `Compiler`; it closes if the walkers merge. `CompiledOp.compile` calls no `Compiler` helper; its seam is the two accumulators.
 
 ### 5.3 `exec`
 
@@ -455,13 +469,13 @@ Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note
 | `Refs`, `CompiledRefs` | 254, 161 | Authored and compiled reference resolution | good; `CompiledRefs` thin, the §2.7 seam not yet stated | 1, 2 |
 | `TypedValue`, `Splitter`, `Codecs`, `Conditions`, `Comparisons`, `Numbers`, `VarRegistry`, `Store`, `EngineVars`, `MatchResult`, `package-info` | 249, 216, 209, 151, 123, 109, 108, 93, 78, 51, 24 | as named | good but `Numbers` names a test that does not exist and `EngineVars` narrates; `package-info` names the class that goes | 3, 1, 1, 4, 0, 2, 1, 0, 2, 1, 1 |
 
-**`Executor`, correctness** — 848 `records++` happens only in `stream()`; the whole-buffer path (351 to 369, `Shapeshifter.runWhole`) and the chunked classify/any root never increment it, so `recordNumber()` reads 0 there (P1, the loop's owner). 1404 `EmitError` resolves its message with the run's `encoding` where every sibling passes `contentEncoding`, wrong under a template override (line). 1175 `CaptureSource.Field` binds nothing, silently: read by `ProjectJson` 686, refused nowhere, the silent no-op D33 refuses for codecs (ruling 10). 1471 `callOffset = inputBase + match.matchStart()` bypasses `locate()`, so a function sees `UNLOCATABLE + n` where the contract promises `UNLOCATABLE` (line). 706 and 163 two stale contracts: the full-window case is FATAL, not a warning, and whole-buffer never reaches `stream()` (line). 1084 `hasContent` classifies whitespace by ASCII byte under any encoding (note).
+**`Executor`, correctness** — 848 `records++` happens only in `stream()`; the whole-buffer path (351 to 369, `Shapeshifter.runWhole`) and the chunked classify/any root never increment it, so `recordNumber()` reads 0 there (P2, the loop's owner). 1404 `EmitError` resolves its message with the run's `encoding` where every sibling passes `contentEncoding`, wrong under a template override (line). 1175 `CaptureSource.Field` binds nothing, silently: read by `ProjectJson` 686, refused nowhere, the silent no-op D33 refuses for codecs (ruling 10). 1471 `callOffset = inputBase + match.matchStart()` bypasses `locate()`, so a function sees `UNLOCATABLE + n` where the contract promises `UNLOCATABLE` (line). 706 and 163 two stale contracts: the full-window case is FATAL, not a warning, and whole-buffer never reaches `stream()` (line). 1084 `hasContent` classifies whitespace by ASCII byte under any encoding (note).
 
-**`Executor`, hygiene and shape** — *line:* 1765 an unused `store` and a repeated emptiness check; 1396, 1475, 115 to 124, 1364, 1701, 1706, 1769, 1884 FQNs with the imports present; 68, 698, 935, 182 "restoring", "restored", "ported for", "Phase 6" residue. *P1:* 355 to 361 and 731 to 738 byte-order-mark detection written twice; 1436 to 1486 `call(CallFunction)` is Body at 1442 to 1469 and 1485 and FunctionRuntime at 1444 to 1450 and 1470 to 1484, the seam `FunctionRuntime.invoke(name, arguments, offset, length)`. *P2:* 489, 617, 1033, 1081 `level` returns a count nobody reads; the guard loop is written four times (518, 741, 958, 1054), the winner loop twice, the max-match skip, the zero-advance error, the min-match report and the unmatched-content report three times each, the content-group selection three times; 1064 to 1079 `classify` re-implements `processMatch`'s branch; 1165 to 1190 the capture-source switch mixes value arms with a side-effecting `KeyValue` arm then special-cases it again. *P3:* 2109 to 2118 a dead branch and a runtime sniff of `"__rec_"`, a name the compiler minted at `Compiler` 954, where `CompiledOp.Apply` should carry `recursive`; two methods named `call`, two named `preview`, and `index()` beside `Refs.index` and `Numbers.index`. *P8:* 109, 194, 1370, 1556, 1576 to 1585, 1749, 1825 to 1831, 1940 audit-history narration whose rules stay. *note:* 523, 746, 964, 1055 `MatchResult.empty()` allocates per template per level with `nothing` already in hand.
+**`Executor`, hygiene and shape** — *line:* 1765 an unused `store` and a repeated emptiness check; 1396, 1475, 115 to 124, 1364, 1701, 1706, 1769, 1884 FQNs with the imports present; 68, 698, 935, 182 "restoring", "restored", "ported for", "Phase 6" residue. *P2:* 355 to 361 and 731 to 738 byte-order-mark detection written twice; 1436 to 1486 `call(CallFunction)` is Body at 1442 to 1469 and 1485 and FunctionRuntime at 1444 to 1450 and 1470 to 1484, the seam `FunctionRuntime.invoke(name, arguments, offset, length)`. *P3:* 489, 617, 1033, 1081 `level` returns a count nobody reads; the guard loop is written four times (518, 741, 958, 1054), the winner loop twice, the max-match skip, the zero-advance error, the min-match report and the unmatched-content report three times each, the content-group selection three times; 1064 to 1079 `classify` re-implements `processMatch`'s branch; 1165 to 1190 the capture-source switch mixes value arms with a side-effecting `KeyValue` arm then special-cases it again. *P4:* 2109 to 2118 a dead branch and a runtime sniff of `"__rec_"`, a name the compiler minted at `Compiler` 954, where `CompiledOp.Apply` should carry `recursive`; two methods named `call`, two named `preview`, and `index()` beside `Refs.index` and `Numbers.index`. *P8:* 109, 194, 1370, 1556, 1576 to 1585, 1749, 1825 to 1831, 1940 audit-history narration whose rules stay. *note:* 523, 746, 964, 1055 `MatchResult.empty()` allocates per template per level with `nothing` already in hand.
 
-**The collaborators** — *line:* `Steps` 144 a mis-indented parameter, 427 a static field between methods; `Transforms` 52 to 61 `translate` returns empty where every sibling returns null against the class's own rule, 138, 272, 291, 404 FQNs; `Dates` 181 a dead `NumberFormatException` arm, 137 `patternHasYear` package-private with no outside caller; `TypedValue` 198 "the way Rust does" for a rule §16.8 owns, 37, 42, 84, 225 FQNs; `CompiledRefs` 68, 114, 157 `default` arms over the sealed `CompiledRef`, the exhaustiveness §2.2 chose; `Conditions` 115, 123 FQNs; `Numbers` 34 names `NumbersEquivalenceTest`, which is `TypedValueParseEquivalenceTest`; `VarRegistry` 71 `entry` re-implements `get`; `EngineVars` 63, 72, 76 FQNs. *P8:* `Steps` 47 to 54 "the Rust engine's behaviour, ported as-is" for the no-backtracking rule; `Transforms` 132, 163 to 169, 423 and `Conditions` 94, `Numbers` 27, `EngineVars` 24, `TypedValue` 143, 232 narration and origin. *P4:* `Transforms` 31 and `package-info` 20 name the executor. *note:* `Steps` 136 and `Splitter` 139 thread nine and eleven parameters, a per-match context is a later change; `Steps` 252 and `Conditions` 80 throw the same invariant twice; `Conditions` 83 allocates a matcher per evaluation, design 10's open row; `Refs` 64 and 146 the same per-part rule in two loops.
+**The collaborators** — *line:* `Steps` 144 a mis-indented parameter, 427 a static field between methods; `Transforms` 52 to 61 `translate` returns empty where every sibling returns null against the class's own rule, 138, 272, 291, 404 FQNs; `Dates` 181 a dead `NumberFormatException` arm, 137 `patternHasYear` package-private with no outside caller; `TypedValue` 198 "the way Rust does" for a rule §16.8 owns, 37, 42, 84, 225 FQNs; `CompiledRefs` 68, 114, 157 `default` arms over the sealed `CompiledRef`, the exhaustiveness §2.2 chose; `Conditions` 115, 123 FQNs; `Numbers` 34 names `NumbersEquivalenceTest`, which is `TypedValueParseEquivalenceTest`; `VarRegistry` 71 `entry` re-implements `get`; `EngineVars` 63, 72, 76 FQNs. *P8:* `Steps` 47 to 54 "the Rust engine's behaviour, ported as-is" for the no-backtracking rule; `Transforms` 132, 163 to 169, 423 and `Conditions` 94, `Numbers` 27, `EngineVars` 24, `TypedValue` 143, 232 narration and origin. *P5:* `Transforms` 31 and `package-info` 20 name the executor. *note:* `Steps` 136 and `Splitter` 139 thread nine and eleven parameters, a per-match context is a later change; `Steps` 252 and `Conditions` 80 throw the same invariant twice; `Conditions` 83 allocates a matcher per evaluation, design 10's open row; `Refs` 64 and 146 the same per-part rule in two loops.
 
-**The method map for phases 1 to 4.** Every method of `Executor` was placed. The placements that differ from §2.1: `stream` (697 to 872) is **one method with two halves**, InputWindow at 724 to 738, 783 to 803 and 818 to 838, Level at 741 to 777, 805 to 816 and 840 to 871; `locate` has no window state and every caller is Level; `structure` (1958) and `AbortRun` (267) are shared by Run, Body and FunctionRuntime and had no row; `bindCaptures` (1160) sits under the body banner and is Level's. Cross-boundary reaches §1.1 did not count: Body writes `messages` at eight sites and reads `compiled` at five, `chunkedRoot` at 1595 and `encoding` at 1404; the stream increments `records` at 848; Level and Body are mutually recursive (669, 692, 1076 down; 2127 up), so the run must wire the cycle. §1.1's "The stream, 264 to 469" row is mislabelled: those lines are `AbortRun`, `execute`, `run`, `applyDirective`, `RootSplit`, which is `Run`'s material; the window loop is 697 to 932 under the level banner. Phase 1 therefore cuts the level region, and phase 2 folds `stream`'s Level half into `level`, which is also where the seven duplicated rules go. Two `Executor.run` overloads are live and both are called by the facade; `Run` keeps one and the facade passes the defaults.
+**The method map for phases 2 to 5.** Every method of `Executor` was placed. The placements that differ from §2.1: `stream` (697 to 872) is **one method with two halves**, InputWindow at 724 to 738, 783 to 803 and 818 to 838, Level at 741 to 777, 805 to 816 and 840 to 871; `locate` has no window state and every caller is Level; `structure` (1958) and `AbortRun` (267) are shared by Run, Body and FunctionRuntime and had no row; `bindCaptures` (1160) sits under the body banner and is Level's. Cross-boundary reaches §1.1 did not count: Body writes `messages` at eight sites and reads `compiled` at five, `chunkedRoot` at 1595 and `encoding` at 1404; the stream increments `records` at 848; Level and Body are mutually recursive (669, 692, 1076 down; 2127 up), so the run must wire the cycle. §1.1's "The stream, 264 to 469" row is mislabelled: those lines are `AbortRun`, `execute`, `run`, `applyDirective`, `RootSplit`, which is `Run`'s material; the window loop is 697 to 932 under the level banner. Phase 2 therefore cuts the level region, and phase 3 folds `stream`'s Level half into `level`, which is also where the seven duplicated rules go. Two `Executor.run` overloads are live and both are called by the facade; `Run` keeps one and the facade passes the defaults.
 
 **Packages, confirmed.** Every exec-internal reference was checked; the sixteen assignments in §2.5 hold and nothing in the value or matching group reaches the run. The dependency cells need `engine.text` for `match` (`Steps` imports `text.Encoding` and `text.RegexEncodings`) and `exec` (`Transcode`, `Encoding`), and `config.ConfigException` for `value` (`Dates`, whose `compileParser`/`compileFormatter` are compile-time entry points called from `CompiledOp`). Tests move with their classes: `DatesTest`, `TransformsTest`, `TypedValueTest`, `TypedValueParseEquivalenceTest` to `value`, `StepsTest` to `match`; `CompareSpineTest`, `CompiledOp` and `Compiler` carry a further eleven imports §2.5's cost paragraph did not count.
 
@@ -488,11 +502,11 @@ Nothing moved between classes; that is the phases.
 2. **§2.5's `engine` row "depends on nothing"** is wrong as written: the facade imports `compile`, `config`, `exec` and `function`, and `PatternInfo` imports the regex module. The row should say that nothing below the root depends on it except through `OutputSink`, `Instrument`, `Message` and `Severity`.
 3. **§2.4's placements** of flags, casts, the combinator pattern and dispatch, as above.
 4. **§2.6 "move and nothing else"** stands for the sinks, with the three duplications above recorded as a follow-on so the move commit stays a move.
-5. **§1.1's rows** are corrected as §5.3 says: the "stream" row was `Run`'s material, the window loop lives under the level banner, and `stream` is one method with two halves. Phase 1 lifts the window half; phase 2 folds the level half into `level` with the duplicated rules.
+5. **§1.1's rows** are corrected as §5.3 says: the "stream" row was `Run`'s material, the window loop lives under the level banner, and `stream` is one method with two halves. Phase 2 lifts the window half; phase 3 folds the level half into `level` with the duplicated rules.
 6. **§2.1's table** gains `locate` under `Level`, and `structure` and `AbortRun` under `Run` as package-visible; `Level` and `Body` are wired by the run, `Body` taking `Level` and `Level` taking the run's body callback.
-7. **§1.2 and §2.3** gain the dispatch lint as a pass that runs after match compilation and before the body checks, in `Compiler`; `bodyChecks` keeps its per-template zip of the two checks so the error a doubly faulty configuration reports does not change; the E29 dead block is deleted in phase 6 with its rationale kept as one sentence; `carriesStructure` moves out of the graph's constructor into `StructureCheck`'s walk; the two walkers merge, which is what brings `Compiler` under its line target.
+7. **§1.2 and §2.3** gain the dispatch lint as a pass that runs after match compilation and before the body checks, in `Compiler`; `bodyChecks` keeps its per-template zip of the two checks so the error a doubly faulty configuration reports does not change; the E29 dead block is deleted in phase 1 with its rationale kept as one sentence; `carriesStructure` moves out of the graph's constructor into `StructureCheck`'s walk; the two walkers merge, which is what brings `Compiler` under its line target.
 8. **§2.5's dependency cells** gain `engine.text` for `match` and `exec`, and `config` for `value`; the `engine` row says what item 2 says.
-9. **Two correctness defects** are fixed before phase 1 rather than carried: `EmitError`'s encoding and the unlocatable call offset (both one line). `records` under whole-buffer and chunked roots is phase 1's, with the loop. The step-regex flags and the `field` capture source are rulings 9 and 10.
+9. **Two correctness defects** are fixed before phase 1 rather than carried: `EmitError`'s encoding and the unlocatable call offset (both one line). `records` under whole-buffer and chunked roots is phase 2's, with the loop. The step-regex flags and the `field` capture source are rulings 9 and 10.
 
 ## 6. Rulings — all ten ruled 2026-09-05, each as recommended (D45)
 
@@ -520,7 +534,7 @@ Nothing moved between classes; that is the phases.
 9. **Regex flags on a progressive step.** They are read, written back and silently ignored at
    match time because the pattern key is text and encoding only. Either `PatternKey` gains the
    flags and `intern` compiles with them, or the reader refuses flags on a step. Ruled: the key
-   gains the flags, in phase 6 with `MatchCompiler`, pinned first.
+   gains the flags, in phase 1 with `MatchCompiler`, pinned first.
 10. **The `field` capture source.** Read by the JSON, compiled by nothing, bound to nothing,
     silently. Ruled: a compile-time "not yet" refusal now, the shape D33 gives codecs, unless a
     corpus fixture uses it, which the gate will say.
