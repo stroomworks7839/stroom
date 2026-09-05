@@ -17,7 +17,6 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.text.Encoding;
@@ -75,6 +74,7 @@ public final class CompiledProject {
      *                  null when the input is matched as it arrives
      * @param warnings  anything worth saying that did not stop compilation
      * @param functions the definitions the configuration calls, bound once per run
+     * @param structured whether any template writes structure, decided by the structure check
      */
     public CompiledProject(final Project project,
                            final List<CompiledTemplate> templates,
@@ -82,7 +82,8 @@ public final class CompiledProject {
                            final Encoding encoding,
                            final Encoding transcodeFrom,
                            final List<Message> warnings,
-                           final List<FunctionDefinition> functions) {
+                           final List<FunctionDefinition> functions,
+                           final boolean structured) {
         this.transcodeFrom = transcodeFrom;
         this.functions = List.copyOf(functions);
         this.project = project;
@@ -90,7 +91,7 @@ public final class CompiledProject {
         this.patterns = Map.copyOf(patterns);
         this.encoding = encoding;
         this.warnings = List.copyOf(warnings);
-        this.structured = project.templates().stream().anyMatch(t -> carriesStructure(t.body()));
+        this.structured = structured;
 
         for (final CompiledTemplate template : this.templates) {
             templatesByMode
@@ -108,31 +109,6 @@ public final class CompiledProject {
      */
     public boolean structured() {
         return structured;
-    }
-
-    private static boolean carriesStructure(final List<OutputNode> body) {
-        for (final OutputNode node : body) {
-            final boolean found = switch (node) {
-                case OutputNode.Element ignored -> true;
-                case OutputNode.Attribute ignored -> true;
-                case OutputNode.Namespace ignored -> true;
-                case OutputNode.If value -> carriesStructure(value.then());
-                case OutputNode.Choose value ->
-                        value.when().stream().anyMatch(w -> carriesStructure(w.body()))
-                        || carriesStructure(value.otherwise());
-                case OutputNode.Switch value ->
-                        value.cases().stream().anyMatch(c -> carriesStructure(c.body()))
-                        || carriesStructure(value.defaultBody());
-                case OutputNode.ForEach value -> carriesStructure(value.body());
-                case OutputNode.ForEachGroup value -> carriesStructure(value.body());
-                case OutputNode.Variable value -> carriesStructure(value.body());
-                default -> false;
-            };
-            if (found) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /** The authored configuration. */

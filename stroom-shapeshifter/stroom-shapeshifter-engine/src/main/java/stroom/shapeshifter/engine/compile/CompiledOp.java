@@ -585,8 +585,8 @@ public sealed interface CompiledOp {
                     inputs -> Transforms.replaceLiteral(inputs, value.pattern(), value.replacement()));
         }
         // A replace runs over resolved values — internal form, UTF-8 — never feed bytes.
-        final BytePattern pattern = patterns.get(new PatternKey(value.pattern(),
-                stroom.shapeshifter.regex.Encoding.UTF_8));
+        final BytePattern pattern = patterns.get(
+                PatternKey.of(value.pattern(), stroom.shapeshifter.regex.Encoding.UTF_8));
         if (pattern == null) {
             throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
         }

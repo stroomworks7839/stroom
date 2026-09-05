@@ -19,38 +19,21 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.CaptureBinding;
-import stroom.shapeshifter.engine.config.Codec;
-import stroom.shapeshifter.engine.config.CombinatorPattern;
-import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Dispatch;
-import stroom.shapeshifter.engine.config.MatchExpression;
-import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.Template;
-import stroom.shapeshifter.engine.exec.Codecs;
-import stroom.shapeshifter.engine.exec.EngineVars;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
-import stroom.shapeshifter.regex.BytePattern;
-import stroom.shapeshifter.regex.Flag;
 import stroom.shapeshifter.regex.LeadingAnchor;
-import stroom.shapeshifter.regex.PatternCompileException;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Turns an authored configuration into one that can run.
@@ -59,6 +42,15 @@ import java.util.UUID;
  * is an error now, with the template's name attached, rather than a surprise on the ten
  * thousandth record — which is the whole reason this is a separate pass rather than something
  * the match loop does lazily.
+ *
+ * <p>This class is the pipeline; the passes are their own classes. In order: the source
+ * encoding is settled; each template is refused for what a template alone can be wrong about,
+ * its match compiled by {@link MatchCompiler} and its body by {@link CompiledOp#compile}; the
+ * names templates call and apply to are resolved; D36's dispatch lint reads the compiled
+ * matches; and the body checks — {@link ReferenceCheck} and {@link StructureCheck}, zipped per
+ * template — run last, the reference refusals judged once every template has been seen. The
+ * order is observable, in which error a doubly faulty configuration reports and in which
+ * warning comes first, and it is kept exactly.
  */
 public final class Compiler {
 
@@ -91,849 +83,154 @@ public final class Compiler {
         final Encoding encoding = transcodeFrom != null
                 ? Encoding.UTF_8
                 : sourceEncoding;
+        final MatchCompiler matches = new MatchCompiler(project);
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
-        final Map<PatternKey, BytePattern> patterns = new HashMap<>();
 
         for (final Template template : project.templates()) {
-            // An eater's matches do not count, so its captures would have no index to bind
-            // at — and a binding would trip the first-match store clearing (D36, §8b).
-            if (template.consume() && !template.captures().isEmpty()) {
-                throw new ConfigException("Template '" + template.name()
-                                          + "' is marked consume but declares captures: an eater's"
-                                          + " matches do not count, so there is no index to bind them at");
-            }
-            // A field capture source is read by the model and bound by nothing; until it is
-            // defined it is refused by name rather than binding an absence (design 27, ruling 10).
-            for (final CaptureBinding capture : template.captures()) {
-                if (capture.select() instanceof CaptureBinding.CaptureSource.Field) {
-                    throw notYet(template, "a field capture source");
-                }
-            }
-            // E3: a template's declared encoding overrides the source's — for the byte form
-            // of its delimiters here at compile time, and for reading its captures at run time.
-            Encoding declared = null;
-            if (template.encoding() != null) {
-                declared = Encoding.fromLabel(template.encoding());
-                if (declared == null) {
-                    throw new ConfigException("Template '" + template.name()
-                                              + "' declares an unknown encoding: " + template.encoding());
-                }
-                if (!declared.isAvailable()) {
-                    // The same refusal the source encoding gets: a charset this runtime lacks is
-                    // refused by name, never quietly approximated by a neighbour (E22).
-                    throw new ConfigException("Template '" + template.name() + "' declares "
-                                              + declared.label() + ", and this build has no charset for it");
-                }
-                if (declared == Encoding.AUTO) {
-                    declared = null;
-                }
-                if (declared != null && RegexEncodings.needsTranscode(declared)) {
-                    // A template shares the source's byte stream, so there is nothing it
-                    // could transcode alone; the stage is whole-source (design 19 phase 6).
-                    throw new ConfigException("Template '" + template.name() + "' declares "
-                            + declared.label() + ", which is served by transcoding — declare"
-                            + " it on the source, where the stream can be transcoded whole");
-                }
-                if (declared != null && transcodeFrom != null) {
-                    // The phase-6 audit's rule: E3's per-template encodings describe rows of
-                    // a mixed byte stream, and a transcoded source has no mixed stream left —
-                    // every template sees the decoder's UTF-8, so an override would compile a
-                    // machine for bytes the template can never see.
-                    throw new ConfigException("Template '" + template.name() + "' declares "
-                            + declared.label() + ", but the " + transcodeFrom.label()
-                            + " source is transcoded whole to UTF-8, so no template sees "
-                            + declared.label() + " bytes; remove the template encoding");
-                }
-            }
+            refuseCaptures(template);
+            final Encoding declared = declaredEncoding(template, transcodeFrom);
             final Encoding matchEncoding = declared == null ? encoding : declared;
-            // E29's refusal, narrowed to its floor: since phase 4 the regex library lowers
-            // UTF-8, every single-byte encoding and RAW, so the only refusable shapes left
-            // are the transcode family's — and only for the match vocabulary, which is what
-            // sees feed bytes. Guards and bodies match resolved values in the internal form
-            // and compile under UTF-8 regardless (design 19).
-            final stroom.shapeshifter.regex.Encoding regexEncoding =
-                    RegexEncodings.forMatch(matchEncoding);
-            if (regexEncoding == null) {
-                final Map<PatternKey, BytePattern> regexes = new HashMap<>();
-                if (template.match() instanceof MatchExpression.Progressive progressive) {
-                    // Resolved, not raw: a PatternRef inlines a library pattern's steps, and a
-                    // regex reached through one is as refused as a regex written in place.
-                    steps(resolve(progressive.steps(), project, new HashSet<>()),
-                            template, regexes, stroom.shapeshifter.regex.Encoding.UTF_8);
-                }
-                final String offending = template.match() instanceof MatchExpression.Regex regex
-                        ? regex.pattern()
-                        : regexes.isEmpty() ? null : regexes.keySet().iterator().next().text();
-                if (offending != null) {
-                    throw new ConfigException("Template '" + template.name() + "' declares "
-                                              + matchEncoding.label() + " and matches with a regex ('"
-                                              + offending
-                                              + "'): regex matching compiles for UTF-8 and the single-byte"
-                                              + " encodings, and has no lowering for "
-                                              + matchEncoding.label() + " (E29, design 19). Delimiters and"
-                                              + " progressive steps honour the declared encoding");
-                }
-            }
-            // Patterns first: a body's compiled form resolves its regex replaces against them.
-            // Guards and bodies match resolved values — internal form, UTF-8 whatever the
-            // feed's encoding — so their patterns intern under UTF-8; only the match
-            // vocabulary below sees feed bytes and compiles for the template's encoding.
-            if (template.guard() != null) {
-                collect(template.guard(), template, patterns,
-                        stroom.shapeshifter.regex.Encoding.UTF_8);
-            }
-            collect(template.body(), template, patterns,
-                    stroom.shapeshifter.regex.Encoding.UTF_8);
-            if (template.match() instanceof MatchExpression.Progressive progressive) {
-                // Resolved, not raw: the executor matches the inlined sequence, so a regex
-                // reached through a library reference is interned like one written in place.
-                steps(resolve(progressive.steps(), project, new HashSet<>()),
-                        template, patterns, regexEncoding);
-            }
-            templates.add(new CompiledTemplate(template,
-                    compileMatch(template, matchEncoding, project),
-                    CompiledOp.compile(template.body(), patterns, project, functions),
+            // The match first: it interns the patterns the body's compiled form resolves against.
+            final CompiledMatch match = matches.compile(template, matchEncoding);
+            templates.add(new CompiledTemplate(template, match,
+                    CompiledOp.compile(template.body(), matches.patterns(), project, functions),
                     declared));
         }
-        resolveTemplateNames(project);
-        dispatchChecks(project, templates, warnings);
-        bodyChecks(project, warnings);
-        return new CompiledProject(project, templates, patterns, encoding, transcodeFrom,
-                warnings, List.copyOf(functions.used().values()));
+        final List<Uses> uses = uses(project);
+        resolveTemplateNames(project, uses);
+        dispatchChecks(project, templates, uses, warnings);
+        final boolean structured = bodyChecks(project, warnings);
+        return new CompiledProject(project, templates, matches.patterns(), encoding, transcodeFrom,
+                warnings, List.copyOf(functions.used().values()), structured);
+    }
+
+    /** What a template's captures alone can be wrong about. */
+    private static void refuseCaptures(final Template template) {
+        // An eater's matches do not count, so its captures would have no index to bind
+        // at — and a binding would trip the first-match store clearing (D36, §8b).
+        if (template.consume() && !template.captures().isEmpty()) {
+            throw new ConfigException("Template '" + template.name()
+                                      + "' is marked consume but declares captures: an eater's"
+                                      + " matches do not count, so there is no index to bind them at");
+        }
+        // A field capture source is read by the model and bound by nothing; until it is
+        // defined it is refused by name rather than binding an absence (design 27, ruling 10).
+        for (final CaptureBinding capture : template.captures()) {
+            if (capture.select() instanceof CaptureBinding.CaptureSource.Field) {
+                throw MatchCompiler.notYet(template, "a field capture source");
+            }
+        }
     }
 
     /**
-     * Every check that reads a template body, in <b>one walk</b> (E27).
+     * E3: a template's declared encoding overrides the source's — for the byte form of its
+     * delimiters at compile time, and for reading its captures at run time.
      *
-     * <p>Three checks — design/17 §8's comparison lint, §10's unknown-reference refusal, §7's
-     * substring bump warning — once walked every body each, which measured at −38% compile on
-     * the configurations whose compile is otherwise trivial. Irrelevant in absolute terms
-     * (0.6 µs on a once-per-load cost) and filed for its shape: three walks is where a fourth
-     * check becomes four.
-     *
-     * <p>The order the checks report in is preserved exactly, because it is observable: every
-     * lint is emitted before any reference error is thrown, and the substring warning comes
-     * last, after the refusal that can prevent it.
+     * @return the override, or null when the template reads the source's encoding
      */
-    private static void bodyChecks(final Project project, final List<Message> warnings) {
-        final BodyScan scan = new BodyScan(project, warnings);
+    private static Encoding declaredEncoding(final Template template, final Encoding transcodeFrom) {
+        if (template.encoding() == null) {
+            return null;
+        }
+        Encoding declared = Encoding.fromLabel(template.encoding());
+        if (declared == null) {
+            throw new ConfigException("Template '" + template.name()
+                                      + "' declares an unknown encoding: " + template.encoding());
+        }
+        if (!declared.isAvailable()) {
+            // The same refusal the source encoding gets: a charset this runtime lacks is
+            // refused by name, never quietly approximated by a neighbour (E22).
+            throw new ConfigException("Template '" + template.name() + "' declares "
+                                      + declared.label() + ", and this build has no charset for it");
+        }
+        if (declared == Encoding.AUTO) {
+            declared = null;
+        }
+        if (declared != null && RegexEncodings.needsTranscode(declared)) {
+            // A template shares the source's byte stream, so there is nothing it
+            // could transcode alone; the stage is whole-source (design 19 phase 6).
+            throw new ConfigException("Template '" + template.name() + "' declares "
+                    + declared.label() + ", which is served by transcoding — declare"
+                    + " it on the source, where the stream can be transcoded whole");
+        }
+        if (declared != null && transcodeFrom != null) {
+            // E3's per-template encodings describe rows of a mixed byte stream, and a
+            // transcoded source has no mixed stream left — every template sees the decoder's
+            // UTF-8, so an override would compile a machine for bytes the template can never see.
+            throw new ConfigException("Template '" + template.name() + "' declares "
+                    + declared.label() + ", but the " + transcodeFrom.label()
+                    + " source is transcoded whole to UTF-8, so no template sees "
+                    + declared.label() + " bytes; remove the template encoding");
+        }
+        return declared;
+    }
+
+    /** What one template's body refers to: the templates it calls and the applies it makes. */
+    private record Uses(Template template, List<String> calls, List<OutputNode.ApplyDirective> applies) {
+
+    }
+
+    /** One walk per body for both kinds of reference — name resolution and the dispatch lint read it. */
+    private static List<Uses> uses(final Project project) {
+        final List<Uses> uses = new ArrayList<>(project.templates().size());
         for (final Template template : project.templates()) {
-            scan.template(template);
-            Structure.check(template);
+            final Uses use = new Uses(template, new ArrayList<>(), new ArrayList<>());
+            collectUses(template.body(), use);
+            uses.add(use);
         }
-        scan.report();
+        return uses;
     }
 
-    // -----------------------------------------------------------------------------------
-    // Structure: what an element's body may contain, and in what order
-    // -----------------------------------------------------------------------------------
-
-    /**
-     * The compile-time half of design 20 §4B's ordering rule. Within an element's body, as
-     * written, an attribute or namespace may not follow anything that produces content; within
-     * an attribute's body nothing structural may appear at all. What the compiler cannot see —
-     * content arriving through {@code apply-templates} from another template before an
-     * attribute — the sink refuses at run time. An attribute or namespace at a template's top
-     * level is therefore allowed here: it may be running inside a caller's element.
-     */
-    private static final class Structure {
-
-        private enum Container { NONE, ELEMENT, ATTRIBUTE }
-
-        private final String templateName;
-
-        private Structure(final String templateName) {
-            this.templateName = templateName;
-        }
-
-        static void check(final Template template) {
-            new Structure(template.name()).body(template.body(), Container.NONE, null, new boolean[1]);
-        }
-
-        private void body(final List<OutputNode> nodes,
-                          final Container container,
-                          final String containerName,
-                          final boolean[] contentSeen) {
-            for (final OutputNode node : nodes) {
-                switch (node) {
-                    case OutputNode.Element value -> {
-                        refuseInAttribute(container, containerName, "element '" + value.name() + "'");
-                        contentSeen[0] = true;
-                        body(value.body(), Container.ELEMENT, value.name(), new boolean[1]);
-                    }
-                    case OutputNode.Attribute value -> {
-                        refuseInAttribute(container, containerName, "attribute '" + value.name() + "'");
-                        refuseAfterContent(container, containerName, contentSeen, "attribute '" + value.name() + "'");
-                        body(value.body(), Container.ATTRIBUTE, value.name(), new boolean[1]);
-                    }
-                    case OutputNode.Namespace value -> {
-                        refuseInAttribute(container, containerName, "namespace '" + value.prefix() + "'");
-                        refuseAfterContent(container, containerName, contentSeen, "namespace '" + value.prefix() + "'");
-                    }
-                    case OutputNode.If value -> body(value.then(), container, containerName, contentSeen);
-                    case OutputNode.Choose value -> {
-                        value.when().forEach(branch -> body(branch.body(), container, containerName, contentSeen));
-                        body(value.otherwise(), container, containerName, contentSeen);
-                    }
-                    case OutputNode.Switch value -> {
-                        value.cases().forEach(c -> body(c.body(), container, containerName, contentSeen));
-                        body(value.defaultBody(), container, containerName, contentSeen);
-                    }
-                    case OutputNode.ForEach value -> body(value.body(), container, containerName, contentSeen);
-                    case OutputNode.ForEachGroup value -> body(value.body(), container, containerName, contentSeen);
-                    // A variable's body writes to its own buffer: a document of its own.
-                    case OutputNode.Variable value -> body(value.body(), Container.NONE, null, new boolean[1]);
-                    default -> {
-                        if (producesContent(node)) {
-                            contentSeen[0] = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        private void refuseInAttribute(final Container container, final String containerName, final String what) {
-            if (container == Container.ATTRIBUTE) {
-                throw new ConfigException("Template '" + templateName + "': " + what
-                                          + " inside the value of attribute '" + containerName
-                                          + "' — an attribute's body may write text and values only");
-            }
-        }
-
-        private void refuseAfterContent(final Container container,
-                                        final String containerName,
-                                        final boolean[] contentSeen,
-                                        final String what) {
-            if (container == Container.ELEMENT && contentSeen[0]) {
-                throw new ConfigException("Template '" + templateName + "': " + what + " follows content in element '"
-                                          + containerName + "' — attributes and namespaces must come before text, "
-                                          + "values, child elements and apply-templates");
-            }
-        }
-
-        /** Whether an instruction writes to the output, as opposed to binding, declaring or reporting. */
-        private static boolean producesContent(final OutputNode node) {
-            return switch (node) {
-                case OutputNode.Text ignored -> true;
-                case OutputNode.ValueOf ignored -> true;
-                case OutputNode.ApplyTemplates ignored -> true;
-                case OutputNode.CallTemplate ignored -> true;
-                case OutputNode.EmitError ignored -> false;
-                case OutputNode.Sequence ignored -> false;
-                case OutputNode.Append ignored -> false;
-                case OutputNode.Key ignored -> false;
-                case OutputNode.Call value -> value.name() == null;
-                case OutputNode.ValueMap value -> value.name() == null;
-                case OutputNode.Translate value -> value.name() == null;
-                case OutputNode.StringJoin value -> value.name() == null;
-                case OutputNode.Replace value -> value.name() == null;
-                case OutputNode.LowerCase value -> value.name() == null;
-                case OutputNode.UpperCase value -> value.name() == null;
-                case OutputNode.NormalizeSpace value -> value.name() == null;
-                case OutputNode.Trim value -> value.name() == null;
-                case OutputNode.Substring value -> value.name() == null;
-                case OutputNode.Tokenize value -> value.name() == null;
-                case OutputNode.Number value -> value.name() == null;
-                case OutputNode.Add value -> value.name() == null;
-                case OutputNode.Subtract value -> value.name() == null;
-                case OutputNode.Multiply value -> value.name() == null;
-                case OutputNode.Divide value -> value.name() == null;
-                case OutputNode.Mod value -> value.name() == null;
-                case OutputNode.Round value -> value.name() == null;
-                case OutputNode.Floor value -> value.name() == null;
-                case OutputNode.Ceiling value -> value.name() == null;
-                case OutputNode.Abs value -> value.name() == null;
-                case OutputNode.StringLength value -> value.name() == null;
-                case OutputNode.SubstringBefore value -> value.name() == null;
-                case OutputNode.SubstringAfter value -> value.name() == null;
-                case OutputNode.StartsWith value -> value.name() == null;
-                case OutputNode.EndsWith value -> value.name() == null;
-                case OutputNode.Contains value -> value.name() == null;
-                case OutputNode.FormatNumber value -> value.name() == null;
-                case OutputNode.KeyGet value -> value.name() == null;
-                case OutputNode.Count value -> value.name() == null;
-                case OutputNode.Sum value -> value.name() == null;
-                case OutputNode.Avg value -> value.name() == null;
-                case OutputNode.Min value -> value.name() == null;
-                case OutputNode.Max value -> value.name() == null;
-                case OutputNode.DistinctValues value -> value.name() == null;
-                case OutputNode.ParseDate value -> value.name() == null;
-                case OutputNode.FormatDate value -> value.name() == null;
-                // The containers are walked, not judged; the structural three are judged above.
-                case OutputNode.If ignored -> false;
-                case OutputNode.Choose ignored -> false;
-                case OutputNode.Switch ignored -> false;
-                case OutputNode.ForEach ignored -> false;
-                case OutputNode.ForEachGroup ignored -> false;
-                case OutputNode.Variable ignored -> false;
-                case OutputNode.Element ignored -> true;
-                case OutputNode.Attribute ignored -> false;
-                case OutputNode.Namespace ignored -> false;
-            };
-        }
-    }
-
-    /**
-     * One walk over a configuration's bodies for every check that reads them.
-     *
-     * <p>Some decide as they go — the comparison lint and the substring count need nothing but
-     * the node in front of them. The rest cannot: a read in the first template may name
-     * something the last one writes, a call chain may reach a template not yet seen, so reads,
-     * names, sequences, keys and calls are collected and judged against the finished
-     * configuration in {@link #report()}.
-     *
-     * <p>{@link #visit} is deliberately <b>exhaustive</b> — no {@code default} arm. An
-     * instruction added to the vocabulary without being considered here is a compile error
-     * rather than a check that silently ignores it; that is the point, and the microseconds
-     * one walk saves are incidental.
-     */
-    private static final class BodyScan {
-
-        private record Read(String templateName, RefExpression ref) {
-
-        }
-
-        /**
-         * A use of a name rather than of a reference — a sequence walked or appended to.
-         * Its own record rather than a {@link Read} wrapping a synthetic reference: the
-         * accessor that unwrapped one would have been a cast that only held for the entries
-         * built that way.
-         */
-        private record NamedUse(String templateName, String name) {
-
-        }
-
-        private final Project project;
-        private final List<Message> warnings;
-        private final Set<String> writable = new HashSet<>();
-        private final List<Read> reads = new ArrayList<>();
-
-        /**
-         * A key-value capture binds names read out of the data itself, so the writable set is
-         * not statically knowable and the refusal stands down for the whole configuration
-         * rather than accusing every data-driven read.
-         */
-        private boolean referencesKnowable = true;
-        private int explicitSubstringStarts;
-        private String templateName;
-
-        /**
-         * E37: the document template's body runs against no match — under design 23 the input
-         * is the windows, and the body is split around its apply-templates — so a capture read
-         * there is empty for ever. The compiler can see it, so it refuses it by name, as it
-         * refuses captures on an eater; the apply-templates select is the one place a group
-         * may be named, because it is the idiom that hands the input to a mode and is not read.
-         * A named template the document template calls runs over the same no-match, so the
-         * refusal follows call-template edges from the document template (E37 audit).
-         */
-        private boolean inDocumentTemplate;
-        private boolean inApplySelect;
-        private final Set<String> ownCaptures = new HashSet<>();
-        private final List<String> documentTemplates = new ArrayList<>();
-        private final Map<String, Set<String>> callsByTemplate = new HashMap<>();
-        /** The first match read in each template, for the message that names it. */
-        private final Map<String, String> matchReadByTemplate = new HashMap<>();
-
-        /** Sequence bookkeeping (design/16 §9): what is declared, what is captured, what is used. */
-        private final Set<String> declaredSequences = new HashSet<>();
-        private final Set<String> captureNames = new HashSet<>();
-        private final List<NamedUse> sequenceUses = new ArrayList<>();
-        private final List<NamedUse> appendTargets = new ArrayList<>();
-
-        /** Keys are their own namespace, so they get their own declared set and use list. */
-        private final Set<String> declaredKeys = new HashSet<>();
-        private final List<NamedUse> keyUses = new ArrayList<>();
-
-        /** How many {@code for-each} bodies enclose the node being visited. */
-        private int iterationDepth;
-
-        /** Whether the reference being read belongs to a sort key rather than to a body. */
-        private boolean inSortKey;
-
-        /** How many {@code for-each-group} bodies enclose the node being visited. */
-        private int groupDepth;
-
-        BodyScan(final Project project, final List<Message> warnings) {
-            this.project = project;
-            this.warnings = warnings;
-            // Every name the engine sets is writable by definition, named once in EngineVars
-            // so that setting, reading and refusing cannot drift apart.
-            writable.addAll(EngineVars.ALL);
-        }
-
-        void template(final Template template) {
-            templateName = template.name();
-            inDocumentTemplate = template.match() instanceof MatchExpression.Source;
-            if (inDocumentTemplate) {
-                documentTemplates.add(template.name());
-            }
-            ownCaptures.clear();
-            for (final CaptureBinding capture : template.captures()) {
-                ownCaptures.add(capture.name());
-            }
-            // Guard, then captures, then body — the order the three separate checks read in,
-            // preserved because it decides which error a template with two unknown names
-            // reports, and there is no reason for a merge to change that (E27 audit).
-            if (template.guard() != null) {
-                condition(template.guard());
-            }
-            for (final CaptureBinding capture : template.captures()) {
-                writable.add(capture.name());
-                captureNames.add(capture.name());
-                switch (capture.select()) {
-                    case CaptureBinding.CaptureSource.Select select -> read(select.select());
-                    case CaptureBinding.CaptureSource.KeyValue keyValue -> {
-                        referencesKnowable = false;
-                        read(keyValue.keyRef());
-                        read(keyValue.valueRef());
-                    }
-                    case CaptureBinding.CaptureSource.Group ignored -> {
-                    }
-                    case CaptureBinding.CaptureSource.Step ignored -> {
-                    }
-                    case CaptureBinding.CaptureSource.Field ignored -> {
-                    }
-                }
-            }
-            for (final Template.ParamDecl declared : template.param()) {
-                writable.add(declared.name());
-            }
-            body(template.body());
-        }
-
-        private void body(final List<OutputNode> body) {
-            for (final OutputNode node : body) {
-                visit(node);
-            }
-        }
-
-        private void visit(final OutputNode node) {
+    private static void collectUses(final List<OutputNode> body, final Uses uses) {
+        for (final OutputNode node : body) {
             switch (node) {
-                case OutputNode.Text ignored -> {
-                }
-                case OutputNode.ValueOf value -> read(value.select());
-                case OutputNode.EmitError value -> read(value.message());
-                case OutputNode.If value -> {
-                    condition(value.test());
-                    body(value.then());
-                }
+                case OutputNode.CallTemplate value -> uses.calls().add(value.name());
+                case OutputNode.ApplyTemplates apply -> uses.applies().add(apply.directive());
+                case OutputNode.If value -> collectUses(value.then(), uses);
                 case OutputNode.Choose value -> {
-                    for (final OutputNode.WhenBranch branch : value.when()) {
-                        condition(branch.test());
-                        body(branch.body());
-                    }
-                    body(value.otherwise());
+                    value.when().forEach(branch -> collectUses(branch.body(), uses));
+                    collectUses(value.otherwise(), uses);
                 }
                 case OutputNode.Switch value -> {
-                    read(value.select());
-                    for (final OutputNode.SwitchCase switchCase : value.cases()) {
-                        body(switchCase.body());
-                    }
-                    body(value.defaultBody());
+                    value.cases().forEach(c -> collectUses(c.body(), uses));
+                    collectUses(value.defaultBody(), uses);
                 }
-                case OutputNode.ApplyTemplates value -> {
-                    inApplySelect = true;
-                    read(value.directive().select());
-                    inApplySelect = false;
-                    for (final OutputNode.Param param : value.directive().withParam()) {
-                        writable.add(param.name());
-                        read(param.value());
-                    }
-                }
-                case OutputNode.CallTemplate value -> {
-                    callsByTemplate.computeIfAbsent(templateName, name -> new LinkedHashSet<>()).add(value.name());
-                    for (final OutputNode.Param param : value.withParam()) {
-                        writable.add(param.name());
-                        read(param.value());
-                    }
-                }
-                case OutputNode.Variable value -> {
-                    writable.add(value.name());
-                    body(value.body());
-                }
-                case OutputNode.Element value -> body(value.body());
-                case OutputNode.Attribute value -> body(value.body());
-                case OutputNode.Namespace ignored -> {
-                }
-                case OutputNode.ValueMap value -> transform(List.of(value.select()), value.name());
-                case OutputNode.Translate value -> transform(value.select(), value.name());
-                case OutputNode.StringJoin value -> transform(value.select(), value.name());
-                case OutputNode.Call value -> transform(value.select(), value.name());
-                case OutputNode.Replace value -> transform(value.select(), value.name());
-                case OutputNode.LowerCase value -> transform(value.select(), value.name());
-                case OutputNode.UpperCase value -> transform(value.select(), value.name());
-                case OutputNode.NormalizeSpace value -> transform(value.select(), value.name());
-                case OutputNode.Trim value -> transform(value.select(), value.name());
-                case OutputNode.Substring value -> {
-                    // Only an explicit start moves at the version gate; an omitted one means
-                    // "from the beginning" under either base (design/17 §7, phase 6 audit).
-                    if (value.start() != null) {
-                        explicitSubstringStarts++;
-                    }
-                    transform(value.select(), value.name());
-                }
-                case OutputNode.Tokenize value -> transform(value.select(), value.name());
-                case OutputNode.Number value -> transform(value.select(), value.name());
-                case OutputNode.Add value -> transform(value.select(), value.name());
-                case OutputNode.Subtract value -> transform(value.select(), value.name());
-                case OutputNode.Multiply value -> transform(value.select(), value.name());
-                case OutputNode.Divide value -> transform(value.select(), value.name());
-                case OutputNode.Mod value -> transform(value.select(), value.name());
-                case OutputNode.Round value -> transform(value.select(), value.name());
-                case OutputNode.Floor value -> transform(value.select(), value.name());
-                case OutputNode.Ceiling value -> transform(value.select(), value.name());
-                case OutputNode.Abs value -> transform(value.select(), value.name());
-                case OutputNode.StringLength value -> transform(value.select(), value.name());
-                case OutputNode.SubstringBefore value -> transform(value.select(), value.name());
-                case OutputNode.SubstringAfter value -> transform(value.select(), value.name());
-                case OutputNode.StartsWith value -> transform(value.select(), value.name());
-                case OutputNode.EndsWith value -> transform(value.select(), value.name());
-                case OutputNode.Contains value -> transform(value.select(), value.name());
-                case OutputNode.FormatNumber value -> transform(value.select(), value.name());
-                case OutputNode.ParseDate value -> {
-                    transform(value.select(), value.name());
-                    read(value.reference());
-                }
-                case OutputNode.FormatDate value -> transform(value.select(), value.name());
-                case OutputNode.Sequence value -> {
-                    declaredSequences.add(value.name());
-                    writable.add(value.name());
-                }
-                case OutputNode.Append value -> {
-                    appendTargets.add(new NamedUse(templateName, value.name()));
-                    writable.add(value.name());
-                    read(value.select());
-                }
-                // The folds name a sequence rather than referencing one, so they join the
-                // same use list a for-each does — checked against what anything writes, not
-                // against the reference rules.
-                case OutputNode.Count value -> fold(value.select(), value.name());
-                case OutputNode.Sum value -> fold(value.select(), value.name());
-                case OutputNode.Avg value -> fold(value.select(), value.name());
-                case OutputNode.Min value -> fold(value.select(), value.name());
-                case OutputNode.Max value -> fold(value.select(), value.name());
-                case OutputNode.DistinctValues value -> fold(value.select(), value.name());
-                case OutputNode.Key value -> {
-                    declaredKeys.add(value.name());
-                    sequenceUses.add(new NamedUse(templateName, value.select()));
-                    // Like a grouping's key, resolved with __index bound.
-                    iterationDepth++;
-                    read(value.groupBy());
-                    iterationDepth--;
-                }
-                case OutputNode.KeyGet value -> {
-                    keyUses.add(new NamedUse(templateName, value.key()));
-                    read(value.select());
-                    writable.add(value.name());
-                }
-                case OutputNode.ForEachGroup value -> {
-                    sequenceUses.add(new NamedUse(templateName, value.select()));
-                    // __index is bound while the key is resolved, so the key counts as
-                    // inside the iteration — but *not* yet inside the group: the key is what
-                    // forms it, so reading this grouping's own names there is the same
-                    // mistake as reading a position in a sort key (phase 4 audit).
-                    iterationDepth++;
-                    read(value.groupBy());
-                    groupDepth++;
-                    body(value.body());
-                    groupDepth--;
-                    iterationDepth--;
-                }
-                case OutputNode.ForEach value -> {
-                    // Walking __group is only meaningful inside a grouping, and the sequence
-                    // check cannot see that: __group is writable everywhere, being a name the
-                    // engine sets.
-                    if (EngineVars.GROUP.equals(value.select()) && groupDepth == 0) {
-                        warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                                + "' walks " + EngineVars.GROUP + " outside any"
-                                + " for-each-group, where nothing sets it."));
-                    }
-                    sequenceUses.add(new NamedUse(templateName, value.select()));
-                    if (value.as() != null) {
-                        writable.add(value.as());
-                    }
-                    // The sort keys are evaluated with __index bound, so they count as inside
-                    // the iteration: a key reading it is correct, not the lint's hazard.
-                    iterationDepth++;
-                    inSortKey = true;
-                    value.sort().forEach(key -> read(key.by()));
-                    inSortKey = false;
-                    body(value.body());
-                    iterationDepth--;
+                case OutputNode.Variable value -> collectUses(value.body(), uses);
+                case OutputNode.Element value -> collectUses(value.body(), uses);
+                case OutputNode.Attribute value -> collectUses(value.body(), uses);
+                default -> {
+                    // Leaves as far as references to templates are concerned.
                 }
             }
         }
+    }
 
-        /** A fold: the named sequence is used, and the result may bind a name of its own. */
-        private void fold(final String select, final String name) {
-            sequenceUses.add(new NamedUse(templateName, select));
-            if (name != null) {
-                writable.add(name);
-            }
+    /**
+     * Resolve every name that points at a template — a {@code call-template}'s target and an
+     * {@code apply-templates}' template reference — against the templates that exist.
+     *
+     * <p>Compilation is where a configuration's mistakes are found. Left to run time, a name
+     * with a typo in it finds nothing, and finding nothing is spelt the same as a template that
+     * legitimately wrote nothing: the run completes, the output is short, and the configuration
+     * looks correct.
+     */
+    private static void resolveTemplateNames(final Project project, final List<Uses> uses) {
+        final Set<String> names = new HashSet<>();
+        for (final Template template : project.templates()) {
+            names.add(template.name());
         }
-
-        /** The shape almost every instruction has: some selects read, an optional name bound. */
-        private void transform(final List<RefExpression> select, final String name) {
-            select.forEach(this::read);
-            if (name != null) {
-                writable.add(name);
-            }
-        }
-
-        /**
-         * Design/17 §8's lint, decided in place: a typed literal compared against an uncast
-         * reference is the strict rule's one foot-gun — captures are text, so the comparison
-         * is false on every record, silently — and it is statically visible, so it draws a
-         * warning (D36's tier: warnings until a lint can prove confusion rather than suspect
-         * it). Conditions also carry reads, which are collected on the same visit.
-         */
-        private void condition(final Condition condition) {
-            switch (condition) {
-                case Condition.Compare value -> {
-                    if (value.left().ref() != null) {
-                        read(value.left().ref());
-                    }
-                    if (value.right().ref() != null) {
-                        read(value.right().ref());
-                    }
-                    if (mismatch(value.left(), value.right()) || mismatch(value.right(), value.left())) {
-                        warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                                + "' compares a typed literal against an uncast reference:"
-                                + " captures are text, so this is false on every record."
-                                + " Add as: \"number\" (or the intended cast) to the reference"
-                                + " if a typed comparison is meant."));
-                    }
-                }
-                case Condition.Matches value -> read(value.select());
-                case Condition.Contains value -> read(value.select());
-                case Condition.StartsWith value -> read(value.select());
-                case Condition.Exists value -> read(value.select());
-                case Condition.And value -> value.conditions().forEach(this::condition);
-                case Condition.Or value -> value.conditions().forEach(this::condition);
-                case Condition.Not value -> condition(value.condition());
-                case Condition.IsFirst ignored -> positional("is-first");
-                case Condition.IsLast ignored -> positional("is-last");
-            }
-        }
-
-        /**
-         * E21's hazard, caught rather than rediscovered: outside an iteration nothing sets
-         * {@code __position}, so these read false on every record — which is what got them
-         * deleted the first time. Inside one they are exact.
-         */
-        private void positional(final String spelling) {
-            if (iterationDepth == 0) {
-                warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                        + "' tests " + spelling + " outside any for-each: nothing sets a"
-                        + " position there, so it is false on every record."));
-            }
-        }
-
-        /** A typed literal on one side, an uncast reference on the other. */
-        private static boolean mismatch(final Condition.Operand literalSide,
-                                        final Condition.Operand refSide) {
-            return literalSide.literal() != null
-                   && !(literalSide.literal() instanceof Condition.Literal.Text)
-                   && literalSide.as() == null
-                   && refSide.ref() != null
-                   && refSide.as() == null;
-        }
-
-        private void read(final RefExpression ref) {
-            if (ref == null) {
-                return;
-            }
-            reads.add(new Read(templateName, ref));
-            for (final RefExpression.RefPart part : ref.parts()) {
-                if (part instanceof RefExpression.RefPart.Capture capture
-                    && (capture.varId() == null || ownCaptures.contains(capture.varId()))) {
-                    final String read = capture.varId() == null
-                            ? "capture group " + capture.group()
-                            : "capture '" + capture.varId() + "'";
-                    if (inDocumentTemplate && !inApplySelect) {
-                        throw new ConfigException("Template '" + templateName + "' reads " + read
-                                + " in its body, but the document template has no match: its body"
-                                + " runs once around the apply-templates, over no match, so the"
-                                + " reference would be empty for ever. Only the apply-templates"
-                                + " select may name a group there.");
-                    }
-                    if (!inDocumentTemplate) {
-                        matchReadByTemplate.putIfAbsent(templateName, read);
-                    }
+        for (final Uses use : uses) {
+            final List<String> referenced = new ArrayList<>(use.calls());
+            for (final OutputNode.ApplyDirective directive : use.applies()) {
+                if (directive.templateRef() != null) {
+                    referenced.add(directive.templateRef());
                 }
             }
-            if (inSortKey) {
-                for (final RefExpression.RefPart part : ref.parts()) {
-                    if (part instanceof RefExpression.RefPart.Capture capture) {
-                        sortKeyPositional(capture.varId());
-                        if (capture.matchIndex() != null) {
-                            sortKeyPositional(capture.matchIndex().varRef());
-                        }
-                    }
-                }
-            }
-            for (final RefExpression.RefPart part : ref.parts()) {
-                if (part instanceof RefExpression.RefPart.Capture capture) {
-                    if (iterationDepth == 0) {
-                        iterationOnly(capture.varId());
-                        if (capture.matchIndex() != null) {
-                            iterationOnly(capture.matchIndex().varRef());
-                        }
-                    }
-                    if (groupDepth == 0) {
-                        groupOnly(capture.varId());
-                        if (capture.matchIndex() != null) {
-                            groupOnly(capture.matchIndex().varRef());
-                        }
-                    }
-                }
-            }
-        }
-
-        /**
-         * A sort key decides the order, so it cannot ask where an entry will land: nothing
-         * has a position until the keys have been compared. {@code __index} is fine there —
-         * it names the record, which is known — and is how a key reaches a parallel store.
-         */
-        private void sortKeyPositional(final String name) {
-            if (EngineVars.POSITION.equals(name) || EngineVars.LAST.equals(name)) {
-                warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                        + "' reads " + name + " in a sort key, which decides the order: this"
-                        + " entry has no position until the keys have been compared, so this"
-                        + " reads the enclosing iteration's, if there is one."));
-            }
-        }
-
-        // The grouping names carry the iteration names' hazard, outside a grouping.
-        private void groupOnly(final String name) {
-            if (name != null && EngineVars.GROUP_ONLY.contains(name)) {
-                warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                        + "' reads " + name + " outside any for-each-group, where nothing"
-                        + " sets it."));
-            }
-        }
-
-        /**
-         * The same hazard the positional conditions carry, on the variables that carry it
-         * too (phase 1 audit): outside an iteration nothing sets these, and absence here is
-         * quiet — {@code $__position} writes nothing, and an index reference falls back to
-         * the first entry, which is a wrong value rather than no value.
-         */
-        private void iterationOnly(final String name) {
-            if (name != null && EngineVars.ITERATION_ONLY.contains(name)) {
-                warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                        + "' reads " + name + " outside any for-each, where nothing sets it."));
-            }
-        }
-
-        /**
-         * What could only be decided once the whole configuration had been seen. The order is
-         * a contract, because it decides which error a doubly faulty configuration reports:
-         * the refusals first, the substring warning last.
-         */
-        void report() {
-            for (final String document : documentTemplates) {
-                refuseMatchReadsCalledFrom(document, document, new HashSet<>(), new StringBuilder());
-            }
-            if (referencesKnowable) {
-                for (final Read read : reads) {
-                    checkRead(read);
-                }
-            }
-            // Design/16 §9's two checks. An append to a name no sequence declares would
-            // create the store in the innermost scope and lose it on the way out — a
-            // configuration that appears to work and accumulates nothing.
-            for (final NamedUse append : appendTargets) {
-                if (!declaredSequences.contains(append.name())) {
-                    throw new ConfigException("Template '" + append.templateName()
-                            + "' appends to '" + append.name() + "', which no sequence"
-                            + " declares. Declare it where the accumulation should live.");
-                }
-            }
-            // A sequence sharing a capture's name would be emptied mid-run by that
-            // template's first-match clearing (E19), which is not a thing an author can see.
-            for (final String declared : declaredSequences) {
-                if (captureNames.contains(declared)) {
-                    throw new ConfigException("Sequence '" + declared + "' has the same name"
-                            + " as a capture. A template's first match clears its captures,"
-                            + " which would empty the sequence underneath it mid-run.");
-                }
-            }
-            // The same refusal an append gets, for the same reason: a lookup in a key that
-            // nothing builds answers nothing, for ever, and looks like a configuration that
-            // works.
-            for (final NamedUse use : keyUses) {
-                if (!declaredKeys.contains(use.name())) {
-                    throw new ConfigException("Template '" + use.templateName()
-                            + "' looks up in key '" + use.name() + "', which no key builds.");
-                }
-            }
-            for (final NamedUse use : sequenceUses) {
-                if (!writable.contains(use.name())) {
-                    throw new ConfigException("Template '" + use.templateName()
-                            + "' walks '" + use.name() + "', which nothing writes — no"
-                            + " sequence declares it and no capture binds it.");
-                }
-            }
-            if (project.version() < 5 && explicitSubstringStarts > 0) {
-                warnings.add(new Message(Severity.WARNING, "This configuration's "
-                        + explicitSubstringStarts + " substring instruction"
-                        + (explicitSubstringStarts == 1 ? " reads" : "s read")
-                        + " start as 0-based; version 5 reads it as 1-based. Add 1 to each start"
-                        + " when bumping the version."));
-            }
-        }
-
-        /**
-         * E37 through call-template: a named template the document template calls, directly or
-         * through other calls, runs its body over the caller's no-match, so a match read in it is
-         * as empty as one in the document template's own body, and is refused with the chain of
-         * calls that reaches it. A template a matching template also calls is still refused —
-         * the call from the document template is empty whoever else makes it.
-         */
-        private void refuseMatchReadsCalledFrom(final String document, final String caller,
-                                                final Set<String> visited, final StringBuilder chain) {
-            for (final String called : callsByTemplate.getOrDefault(caller, Set.of())) {
-                if (!visited.add(called)) {
-                    continue;
-                }
-                final int mark = chain.length();
-                chain.append(chain.isEmpty() ? " calls '" : ", which calls '").append(called).append('\'');
-                final String read = matchReadByTemplate.get(called);
-                if (read != null) {
-                    throw new ConfigException("Template '" + document + "'" + chain + ", which reads " + read
-                            + ": a call from the document template's body runs over no match, so"
-                            + " the reference would be empty for ever.");
-                }
-                refuseMatchReadsCalledFrom(document, called, visited, chain);
-                chain.setLength(mark);
-            }
-        }
-
-        /**
-         * Design/17 §10's unknown-reference refusal: a read of a name that nothing writes — no
-         * capture, no {@code variable}, no transform bind, no parameter — is a compile-time
-         * error naming the reference and its template. This is where typos actually are, and
-         * it costs nothing at run time; the alternative is a configuration that appears to
-         * work and quietly reads absence for ever.
-         */
-        private void checkRead(final Read read) {
-            for (final RefExpression.RefPart part : read.ref().parts()) {
-                if (part instanceof RefExpression.RefPart.Capture capture) {
-                    if (capture.varId() != null && !writable.contains(capture.varId())) {
-                        throw new ConfigException("Template '" + read.templateName()
-                                + "' reads '" + capture.varId() + "', which nothing writes —"
-                                + " no capture, variable, transform bind or parameter has that"
-                                + " name. A misspelt name would otherwise read as absent for"
-                                + " ever.");
-                    }
-                    if (capture.matchIndex() != null && capture.matchIndex().varRef() != null
-                        && !writable.contains(capture.matchIndex().varRef())) {
-                        throw new ConfigException("Template '" + read.templateName()
-                                + "' indexes by '" + capture.matchIndex().varRef()
-                                + "', which nothing writes.");
-                    }
+            for (final String name : referenced) {
+                if (!names.contains(name)) {
+                    throw new ConfigException("Template '" + use.template().name() + "' refers to a"
+                                              + " template named '" + name + "', which does not exist");
                 }
             }
         }
@@ -942,20 +239,19 @@ public final class Compiler {
     /**
      * D36's dispatch lint: a line-anchored pattern in a strict or lexer level draws a warning —
      * the anchored question means it matches at the cursor only, and a line anchor does not
-     * make it search line starts.
+     * make it search line starts. It reads the compiled matches, so it runs after them.
      */
     private static void dispatchChecks(final Project project,
                                        final List<CompiledTemplate> templates,
+                                       final List<Uses> uses,
                                        final List<Message> warnings) {
-        final List<OutputNode.ApplyDirective> applies = new ArrayList<>();
-        for (final Template template : project.templates()) {
-            collectApplies(template.body(), applies);
-        }
         final Set<String> strictModes = new HashSet<>();
-        for (final OutputNode.ApplyDirective directive : applies) {
-            final Dispatch effective = Dispatch.effective(directive.dispatch(), project);
-            if (effective == Dispatch.STRICT || effective == Dispatch.LEXER) {
-                strictModes.add(directive.effectiveMode());
+        for (final Uses use : uses) {
+            for (final OutputNode.ApplyDirective directive : use.applies()) {
+                final Dispatch effective = Dispatch.effective(directive.dispatch(), project);
+                if (effective == Dispatch.STRICT || effective == Dispatch.LEXER) {
+                    strictModes.add(directive.effectiveMode());
+                }
             }
         }
         for (final CompiledTemplate compiledTemplate : templates) {
@@ -972,312 +268,23 @@ public final class Compiler {
     }
 
     /**
-     * Resolve every name that points at a template — a {@code call-template}'s target and an
-     * {@code apply-templates}' template reference — against the templates that exist.
+     * Every check that reads a template body, in one walk each (E27): the reference check's
+     * walk collects and lints as it goes, the structure check's judges as it goes, zipped per
+     * template so that which error a doubly faulty template reports is decided by their order
+     * within the template, as it always was; the reference refusals are judged last, once every
+     * template has been seen.
      *
-     * <p>Compilation is where a configuration's mistakes are found. Left to run time, a name
-     * with a typo in it finds nothing, and finding nothing is spelt the same as a template that
-     * legitimately wrote nothing: the run completes, the output is short, and the configuration
-     * looks correct.
+     * @return whether any template writes structure (design 20 §7)
      */
-    private static void resolveTemplateNames(final Project project) {
-        final Set<String> names = new HashSet<>();
+    private static boolean bodyChecks(final Project project, final List<Message> warnings) {
+        final ReferenceCheck references = new ReferenceCheck(project, warnings);
+        boolean structured = false;
         for (final Template template : project.templates()) {
-            names.add(template.name());
+            references.template(template);
+            structured |= StructureCheck.check(template);
         }
-        for (final Template template : project.templates()) {
-            final List<String> referenced = new ArrayList<>();
-            collectCalls(template.body(), referenced);
-            final List<OutputNode.ApplyDirective> applies = new ArrayList<>();
-            collectApplies(template.body(), applies);
-            for (final OutputNode.ApplyDirective directive : applies) {
-                if (directive.templateRef() != null) {
-                    referenced.add(directive.templateRef());
-                }
-            }
-            for (final String name : referenced) {
-                if (!names.contains(name)) {
-                    throw new ConfigException("Template '" + template.name() + "' refers to a"
-                                              + " template named '" + name + "', which does not exist");
-                }
-            }
-        }
-    }
-
-    private static void collectCalls(final List<OutputNode> body, final List<String> names) {
-        for (final OutputNode node : body) {
-            switch (node) {
-                case OutputNode.CallTemplate value -> names.add(value.name());
-                case OutputNode.If value -> collectCalls(value.then(), names);
-                case OutputNode.Choose value -> {
-                    value.when().forEach(branch -> collectCalls(branch.body(), names));
-                    collectCalls(value.otherwise(), names);
-                }
-                case OutputNode.Switch value -> {
-                    value.cases().forEach(c -> collectCalls(c.body(), names));
-                    collectCalls(value.defaultBody(), names);
-                }
-                case OutputNode.Variable value -> collectCalls(value.body(), names);
-                case OutputNode.Element value -> collectCalls(value.body(), names);
-                case OutputNode.Attribute value -> collectCalls(value.body(), names);
-                default -> {
-                    // Leaves as far as calls are concerned.
-                }
-            }
-        }
-    }
-
-    private static void collectApplies(final List<OutputNode> body,
-                                       final List<OutputNode.ApplyDirective> applies) {
-        for (final OutputNode node : body) {
-            switch (node) {
-                case OutputNode.ApplyTemplates apply -> applies.add(apply.directive());
-                case OutputNode.If value -> collectApplies(value.then(), applies);
-                case OutputNode.Choose value -> {
-                    value.when().forEach(branch -> collectApplies(branch.body(), applies));
-                    collectApplies(value.otherwise(), applies);
-                }
-                case OutputNode.Switch value -> {
-                    value.cases().forEach(c -> collectApplies(c.body(), applies));
-                    collectApplies(value.defaultBody(), applies);
-                }
-                case OutputNode.Variable value -> collectApplies(value.body(), applies);
-                case OutputNode.Element value -> collectApplies(value.body(), applies);
-                case OutputNode.Attribute value -> collectApplies(value.body(), applies);
-                default -> {
-                    // Leaves as far as dispatch is concerned.
-                }
-            }
-        }
-    }
-
-    // -----------------------------------------------------------------------------------
-    // Patterns used outside a template's own match
-    // -----------------------------------------------------------------------------------
-
-    /**
-     * Compile the patterns hiding inside bodies and conditions.
-     *
-     * <p>A template's own pattern is obvious; these are the ones in a {@code matches} test or a
-     * regex {@code replace}, nested arbitrarily deep in a {@code choose} inside a
-     * {@code variable}. They are just as capable of being wrong, and finding out at compile time
-     * is the difference between a configuration that is rejected and one that fails on a record.
-     */
-    private static void collect(final List<OutputNode> body,
-                                final Template template,
-                                final Map<PatternKey, BytePattern> patterns,
-                                final stroom.shapeshifter.regex.Encoding encoding) {
-        for (final OutputNode node : body) {
-            switch (node) {
-                case OutputNode.Replace replace -> {
-                    if (replace.isRegex()) {
-                        intern(replace.pattern(), template, patterns, encoding);
-                    }
-                }
-                case OutputNode.If value -> {
-                    collect(value.test(), template, patterns, encoding);
-                    collect(value.then(), template, patterns, encoding);
-                }
-                case OutputNode.Choose value -> {
-                    value.when().forEach(branch -> {
-                        collect(branch.test(), template, patterns, encoding);
-                        collect(branch.body(), template, patterns, encoding);
-                    });
-                    collect(value.otherwise(), template, patterns, encoding);
-                }
-                case OutputNode.Switch value -> {
-                    value.cases().forEach(switchCase -> collect(switchCase.body(), template, patterns, encoding));
-                    collect(value.defaultBody(), template, patterns, encoding);
-                }
-                case OutputNode.Variable value -> collect(value.body(), template, patterns, encoding);
-                case OutputNode.Element value -> collect(value.body(), template, patterns, encoding);
-                case OutputNode.Attribute value -> collect(value.body(), template, patterns, encoding);
-                default -> {
-                    // Every other instruction is a leaf as far as patterns are concerned.
-                }
-            }
-        }
-    }
-
-    private static void collect(final Condition condition,
-                                final Template template,
-                                final Map<PatternKey, BytePattern> patterns,
-                                final stroom.shapeshifter.regex.Encoding encoding) {
-        switch (condition) {
-            case Condition.Matches matches -> intern(matches.pattern(), template, patterns, encoding);
-            case Condition.And value -> value.conditions()
-                    .forEach(child -> collect(child, template, patterns, encoding));
-            case Condition.Or value -> value.conditions()
-                    .forEach(child -> collect(child, template, patterns, encoding));
-            case Condition.Not value -> collect(value.condition(), template, patterns, encoding);
-            default -> {
-                // Everything else compares values rather than matching patterns.
-            }
-        }
-    }
-
-    private static void intern(final String pattern,
-                               final Template template,
-                               final Map<PatternKey, BytePattern> patterns,
-                               final stroom.shapeshifter.regex.Encoding encoding) {
-        patterns.computeIfAbsent(new PatternKey(pattern, encoding), key -> {
-            try {
-                return BytePattern.compile(key.text(), EnumSet.noneOf(Flag.class), key.encoding());
-            } catch (final PatternCompileException e) {
-                throw new ConfigException("Template '" + template.name() + "' has an invalid pattern '"
-                                          + key.text() + "': " + e.getMessage(), e);
-            }
-        });
-    }
-
-    /**
-     * Walk a step sequence for the patterns it uses and the codecs it needs.
-     *
-     * <p>A codec this build cannot apply is refused here rather than returning nothing at match
-     * time, because "no match" and "cannot do that" are different answers and only one of them
-     * is the configuration's fault.
-     */
-    private static void steps(final List<MatchStep> steps,
-                              final Template template,
-                              final Map<PatternKey, BytePattern> patterns,
-                              final stroom.shapeshifter.regex.Encoding encoding) {
-        for (final MatchStep step : steps) {
-            switch (step) {
-                case MatchStep.Regex regex -> intern(regex.pattern(), template, patterns, encoding);
-                case MatchStep.Decode decode -> requireCodec(decode.codec(), template);
-                case MatchStep.Encode encode -> requireCodec(encode.codec(), template);
-                case MatchStep.Choice choice ->
-                        choice.alternatives().forEach(alternative -> steps(alternative, template, patterns, encoding));
-                case MatchStep.Optional optional -> steps(optional.steps(), template, patterns, encoding);
-                case MatchStep.Repeat repeat -> steps(repeat.steps(), template, patterns, encoding);
-                case MatchStep.Sequence sequence -> steps(sequence.steps(), template, patterns, encoding);
-                case MatchStep.Peek peek -> steps(peek.steps(), template, patterns, encoding);
-                case MatchStep.Not not -> steps(not.steps(), template, patterns, encoding);
-                default -> {
-                    // The remaining atoms need nothing compiled.
-                }
-            }
-        }
-    }
-
-    private static void requireCodec(final Codec codec, final Template template) {
-        if (!Codecs.isSupported(codec)) {
-            throw notYet(template, codec.name().toLowerCase(Locale.ROOT) + " coding");
-        }
-    }
-
-    /**
-     * Inline the named patterns a sequence refers to.
-     *
-     * <p>Composition is an authoring convenience; by the time anything runs there are no
-     * references left, only the steps they stood for (D8).
-     *
-     * <p>{@code inProgress} is what stops a pattern that refers to itself, directly or round a
-     * longer loop, from inlining for ever. It is unwound on the way out rather than accumulated,
-     * so a pattern used twice in different branches is fine — only a pattern reached from inside
-     * itself is a cycle.
-     */
-    private static List<MatchStep> resolve(final List<MatchStep> steps,
-                                           final Project project,
-                                           final Set<UUID> inProgress) {
-        final List<MatchStep> resolved = new ArrayList<>(steps.size());
-        for (final MatchStep step : steps) {
-            final MatchStep inlined = switch (step) {
-                case MatchStep.PatternRef reference -> {
-                    if (!inProgress.add(reference.pattern())) {
-                        throw new ConfigException(
-                                "Pattern " + reference.pattern() + " refers to itself");
-                    }
-                    final CombinatorPattern named = project.patterns().stream()
-                            .filter(candidate -> candidate.id().equals(reference.pattern()))
-                            .findFirst()
-                            .orElseThrow(() -> new ConfigException(
-                                    "No pattern with id " + reference.pattern()));
-                    final List<MatchStep> inner = resolve(named.steps(), project, inProgress);
-                    inProgress.remove(reference.pattern());
-                    yield new MatchStep.Sequence(inner);
-                }
-                case MatchStep.Choice choice -> new MatchStep.Choice(
-                        choice.alternatives().stream().map(a -> resolve(a, project, inProgress)).toList());
-                case MatchStep.Optional optional ->
-                        new MatchStep.Optional(resolve(optional.steps(), project, inProgress));
-                case MatchStep.Repeat repeat -> new MatchStep.Repeat(
-                        resolve(repeat.steps(), project, inProgress), repeat.min(), repeat.max());
-                case MatchStep.Sequence sequence ->
-                        new MatchStep.Sequence(resolve(sequence.steps(), project, inProgress));
-                case MatchStep.Peek peek -> new MatchStep.Peek(resolve(peek.steps(), project, inProgress));
-                case MatchStep.Not not -> new MatchStep.Not(resolve(not.steps(), project, inProgress));
-                default -> step;
-            };
-            resolved.add(inlined);
-        }
-        return resolved;
-    }
-
-    private static CompiledMatch compileMatch(final Template template,
-                                              final Encoding matchEncoding,
-                                              final Project project) {
-        return switch (template.match()) {
-            case MatchExpression.Regex regex -> {
-                final Set<Flag> flags = EnumSet.noneOf(Flag.class);
-                if (regex.flags().caseInsensitive()) {
-                    flags.add(Flag.CASE_INSENSITIVE);
-                }
-                if (regex.flags().dotAll()) {
-                    flags.add(Flag.DOT_ALL);
-                }
-                final BytePattern pattern;
-                try {
-                    pattern = BytePattern.compile(regex.pattern(), flags,
-                            RegexEncodings.forMatch(matchEncoding));
-                } catch (final PatternCompileException e) {
-                    throw new ConfigException(
-                            "Template '" + template.name() + "' has an invalid pattern '"
-                            + regex.pattern() + "': " + e.getMessage(), e);
-                }
-                if (regex.advance() > pattern.groupCount()) {
-                    throw new ConfigException(
-                            "Template '" + template.name() + "' advances to group " + regex.advance()
-                            + ", but its pattern has only " + pattern.groupCount() + " groups");
-                }
-                yield new CompiledMatch.Regex(pattern, regex.advance());
-            }
-            case MatchExpression.Delimiter delimiter -> new CompiledMatch.Delimiter(
-                    encode(delimiter.delimiter(), matchEncoding),
-                    encode(delimiter.escape(), matchEncoding),
-                    encode(delimiter.containerStart(), matchEncoding),
-                    encode(delimiter.containerEnd(), matchEncoding));
-            case MatchExpression.All ignored -> new CompiledMatch.All();
-            case MatchExpression.Source ignored -> new CompiledMatch.Source();
-            case MatchExpression.Named ignored -> new CompiledMatch.Named();
-            case MatchExpression.Progressive progressive -> new CompiledMatch.Progressive(
-                    resolve(progressive.steps(), project, new HashSet<>()));
-            case MatchExpression.Avro ignored -> throw notYet(template, "Avro decoding");
-            case MatchExpression.Parquet ignored -> throw notYet(template, "Parquet decoding");
-            case MatchExpression.Protobuf ignored -> throw notYet(template, "Protobuf decoding");
-        };
-    }
-
-    /**
-     * Refuse clearly rather than fail obscurely.
-     *
-     * <p>The callers are the binary format matches — Avro, Parquet, Protobuf — deferred by
-     * decision (D33), and the compression codecs the JDK does not carry. In both cases a
-     * configuration that names them should be told so at compile time — not run and produce
-     * nothing.
-     */
-    private static ConfigException notYet(final Template template, final String what) {
-        return new ConfigException(
-                "Template '" + template.name() + "' needs " + what + ", which this build does not support");
-    }
-
-    /**
-     * A delimiter's byte form, through the same {@link Encoding#encode} the step vocabulary
-     * uses at run time: one encode path, one truth, so a RAW template's delimiter and its step
-     * tag cannot disagree about the bytes of one text (design 19 phase 0).
-     */
-    private static byte[] encode(final String text, final Encoding encoding) {
-        return text == null ? null : encoding.encode(text);
+        references.report();
+        return structured;
     }
 
     /**

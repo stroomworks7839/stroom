@@ -231,7 +231,7 @@ class StepsTest {
         // matches from the cursor and never skips (E4, ruled 2026-08-21). The pattern here
         // would be found four bytes in by a search; an atom must refuse instead.
         final Map<PatternKey, BytePattern> patterns = Map.of(
-                new PatternKey("[0-9]+", stroom.shapeshifter.regex.Encoding.UTF_8),
+                PatternKey.of("[0-9]+", stroom.shapeshifter.regex.Encoding.UTF_8),
                 BytePattern.compile("[0-9]+"));
         final byte[] data = "abcd42;".getBytes(StandardCharsets.UTF_8);
         assertThat(Steps.match(List.of(new MatchStep.Regex("[0-9]+", null)),

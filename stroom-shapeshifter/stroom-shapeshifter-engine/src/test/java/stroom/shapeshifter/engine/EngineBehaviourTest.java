@@ -52,6 +52,35 @@ class EngineBehaviourTest {
         return new Run(output.toString(StandardCharsets.UTF_8), messages);
     }
 
+    /**
+     * Design 27 ruling 9: a progressive regex step's flags are part of the pattern it compiles
+     * to, so a case-insensitive step matches upper case — they were read, written back and
+     * silently ignored because the interned key was text and encoding alone.
+     */
+    @Test
+    void progressiveRegexStepHonoursItsFlags() {
+        final Run result = run("""
+                {
+                  "name": "flags", "version": 5,
+                  "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "match": {"progressive": [
+                       {"Tag": "L:"},
+                       {"Regex": {"pattern": "[a-z]+", "flags": {"case_insensitive": true}}},
+                       {"Tag": "\\n"}]},
+                     "captures": [{"name": "word", "select": {"step": 1}}],
+                     "body": [{"value-of": {"parts": [{"capture": {"var_id": "word", "group": 0}}]}},
+                              {"text": ";"}]}
+                  ]
+                }
+                """, "L:def\nL:ABC\n");
+        assertThat(result.output()).as(result.messages().toString()).isEqualTo("def;ABC;");
+    }
+
     /** A configuration that writes each line of its input in brackets. */
     private static String lines(final int bufferSize) {
         return """

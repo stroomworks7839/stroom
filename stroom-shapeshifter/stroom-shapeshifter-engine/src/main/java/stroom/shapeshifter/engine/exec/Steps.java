@@ -249,8 +249,8 @@ public final class Steps {
                 yield encoded == null ? null : new Result(TypedValue.of(encoded), 0);
             }
             case MatchStep.Regex regex -> {
-                final BytePattern pattern = patterns.get(new PatternKey(regex.pattern(),
-                        RegexEncodings.forMatch(encoding)));
+                final BytePattern pattern = patterns.get(
+                        PatternKey.of(regex.pattern(), regex.flags(), RegexEncodings.forMatch(encoding)));
                 if (pattern == null) {
                     throw new IllegalStateException("Pattern was not compiled: " + regex.pattern());
                 }
