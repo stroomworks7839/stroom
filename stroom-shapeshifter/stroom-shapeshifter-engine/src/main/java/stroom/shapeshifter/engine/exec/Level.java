@@ -54,7 +54,7 @@ final class Level {
     /** The run's body interpreter, which a level hands a winning match's body to. */
     interface BodyRunner {
 
-        void run(List<CompiledOp> ops,
+        void body(List<CompiledOp> ops,
                  MatchResult match,
                  int matchCount,
                  byte[] content,
@@ -140,11 +140,38 @@ final class Level {
 
         while (cursor < to && matched) {
             matched = false;
-            final int winner = pick(templates, data, cursor, to, atCursor, dispatch, counts, allowed);
-            if (winner < 0) {
+            int winner = -1;
+            MatchResult match = null;
+            for (int i = 0; i < templates.size(); i++) {
+                if (!allowed[i]) {
+                    continue;
+                }
+                final CompiledTemplate candidate = templates.get(i);
+                final Template template = candidate.template();
+                final int maxMatch = template.matchLimits().maxMatch();
+                if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
+                    continue;
+                }
+                final long timing = instrument.startTiming();
+                final MatchResult attempt = match(candidate, data, cursor, to, atCursor);
+                instrument.stopTiming(template.id(), timing, attempt != null);
+                if (attempt == null) {
+                    continue;
+                }
+                if (dispatch != Dispatch.LEXER) {
+                    winner = i;
+                    match = attempt;
+                    break;
+                }
+                // Maximal munch: the longest match wins, ties to list order.
+                if (match == null || attempt.advance() > match.advance()) {
+                    winner = i;
+                    match = attempt;
+                }
+            }
+            if (match == null) {
                 break;
             }
-            final MatchResult match = picked;
             final CompiledTemplate candidate = templates.get(winner);
             final Template template = candidate.template();
 
@@ -230,7 +257,7 @@ final class Level {
                               final int depth) {
         final TypedValue swallowed = content(candidate.template(), match);
         if (swallowed != null && !swallowed.isEmpty()) {
-            body.run(candidate.body(), match, 1, swallowed.asBytes(), sink,
+            body.body(candidate.body(), match, 1, swallowed.asBytes(), sink,
                     locateBase, ignoreErrors, depth, effective(candidate));
         }
     }
@@ -265,8 +292,35 @@ final class Level {
         while (!window.isEmpty()) {
             final int start = window.start();
             final int filled = window.filled();
-            final int winner = pick(templates, window.bytes(), start, filled, atCursor, dispatch, counts, allowed);
-            final MatchResult match = winner < 0 ? null : picked;
+            int winner = -1;
+            MatchResult match = null;
+            for (int i = 0; i < templates.size(); i++) {
+                if (!allowed[i]) {
+                    continue;
+                }
+                final CompiledTemplate candidate = templates.get(i);
+                final Template template = candidate.template();
+                final int maxMatch = template.matchLimits().maxMatch();
+                if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
+                    continue;
+                }
+                final long timing = instrument.startTiming();
+                final MatchResult attempt = match(candidate, window.bytes(), start, filled, atCursor);
+                instrument.stopTiming(template.id(), timing, attempt != null);
+                if (attempt == null) {
+                    continue;
+                }
+                if (dispatch != Dispatch.LEXER) {
+                    winner = i;
+                    match = attempt;
+                    break;
+                }
+                // Maximal munch: the longest match wins, ties to list order.
+                if (match == null || attempt.advance() > match.advance()) {
+                    winner = i;
+                    match = attempt;
+                }
+            }
 
             if (match == null) {
                 // Nothing matches the window's front. If the window can still grow, the tail
@@ -448,16 +502,6 @@ final class Level {
     }
 
     /**
-     * What the last {@link #pick} matched, read by its caller straight after the call. A field
-     * rather than a returned pair because a pass runs once per record on the hottest path the
-     * engine has, and a record returned across a method the JIT does not inline is an
-     * allocation per record — measured at −6% on {@code ausearch} when the fold first returned
-     * one (design 27 phase 3 gate). A nested level's pick overwrites it only after the outer
-     * caller has taken its copy.
-     */
-    private MatchResult picked;
-
-    /**
      * Guards, evaluated once on the way in — not per pass. The distinction is load-bearing: a
      * guard reads scope, and scope includes the parent's match counter, which DS3-style
      * onlyMatch guards compare against. Once matching starts, each winner overwrites that
@@ -475,52 +519,6 @@ final class Level {
                     template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns());
         }
         return allowed;
-    }
-
-    /**
-     * One pass of ordered choice over a region's front: the first allowed template under its
-     * maxMatch that matches wins, or under lexer dispatch the longest match, ties to list
-     * order (maximal munch).
-     *
-     * @return the winner's index, its match in {@link #picked}; or −1 when nothing matches
-     */
-    private int pick(final List<CompiledTemplate> templates,
-                        final byte[] data,
-                        final int cursor,
-                        final int to,
-                        final boolean atCursor,
-                        final Dispatch dispatch,
-                        final int[] counts,
-                        final boolean[] allowed) {
-        int winner = -1;
-        MatchResult match = null;
-        for (int i = 0; i < templates.size(); i++) {
-            if (!allowed[i]) {
-                continue;
-            }
-            final CompiledTemplate candidate = templates.get(i);
-            final Template template = candidate.template();
-            final int maxMatch = template.matchLimits().maxMatch();
-            if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
-                continue;
-            }
-            final long timing = instrument.startTiming();
-            final MatchResult attempt = match(candidate, data, cursor, to, atCursor);
-            instrument.stopTiming(template.id(), timing, attempt != null);
-            if (attempt == null) {
-                continue;
-            }
-            if (dispatch != Dispatch.LEXER) {
-                picked = attempt;
-                return i;
-            }
-            if (match == null || attempt.advance() > match.advance()) {
-                winner = i;
-                match = attempt;
-            }
-        }
-        picked = match;
-        return winner;
     }
 
     /**
@@ -596,7 +594,7 @@ final class Level {
                 match.advance() - match.matchStart(), matchCount, depth);
         bindCaptures(candidate, match, matchCount);
         final long before = sink.position();
-        body.run(candidate.body(), match, matchCount, content.asBytes(), sink,
+        body.body(candidate.body(), match, matchCount, content.asBytes(), sink,
                 locateBase, ignoreErrors, depth, effective(candidate));
         instrument.onOutput(template.id(), matchCount, before, sink.position() - before, sink.unit());
     }

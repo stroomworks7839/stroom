@@ -74,7 +74,7 @@ import java.util.function.Function;
  * re-opens from the first template. A match's body can hand a captured group down to another
  * level, which is how a record becomes fields and a field becomes parts.
  */
-public final class Executor {
+public final class Executor implements Level.BodyRunner {
 
     private final CompiledProject compiled;
     private final OutputSink output;
@@ -141,7 +141,7 @@ public final class Executor {
         this.encoding = compiled.encoding();
         this.messages.addAll(compiled.warnings());
         this.functions = new FunctionRuntime(compiled.functions(), mode, services, messages);
-        this.level = new Level(compiled, instrument, messages, vars, functions, this::body);
+        this.level = new Level(compiled, instrument, messages, vars, functions, this);
     }
 
     /**
@@ -403,7 +403,9 @@ public final class Executor {
     // The body
     // -----------------------------------------------------------------------------------
 
-    private void body(final List<CompiledOp> ops,
+    /** The body interpreter, which a level hands a winning match's body to (the callback of {@link Level}). */
+    @Override
+    public void body(final List<CompiledOp> ops,
                       final MatchResult match,
                       final int matchCount,
                       final byte[] content,
