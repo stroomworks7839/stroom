@@ -1,6 +1,8 @@
 # Design 27 — The engine's structure: the executor dissolves, the passes separate, the module reads as one
 
-*Proposed and ruled 2026-09-05 (D45), every ruling as recommended.* The engine is correct, pinned at three levels, and its
+*Proposed and ruled 2026-09-05 (D45), every ruling as recommended. Amended the same day, on the
+user's question whether the plan locates code into packages as well as classes: §1.5, §2.5 to
+§2.7 and phase 5 are the amendment, and rulings 6 and 7 are wanted.* The engine is correct, pinned at three levels, and its
 biggest class is a 2,166-line interpreter that Checkstyle warns about on every build. This design
 says what the module should look like when every class has one purpose, what moves where to get
 there, and how each move is gated so that nothing about the engine's behaviour changes on the way.
@@ -62,7 +64,40 @@ conditions and operands (260), output nodes (550, the largest pair), directives 
 (120), and the shared field helpers (130). Each family is closed over its own types; the file is
 one because it started as one.
 
-### 1.4 What the designs already decided
+### 1.4 The packages, measured
+
+The first draft of this design left the packages alone. Measured, three things are wrong with
+that.
+
+**`exec` holds two kinds of thing.** After the class split it would hold the run machinery —
+`Run`, `Level`, `Body`, the window, the function runtime, the registry, the stores — and the
+libraries a body calls: transforms, dates, numbers, comparisons, codecs, the splitter, the step
+interpreter. Twenty-one files with no line between the machinery and the vocabulary. The
+dependencies among them, counted 2026-09-05, already draw the line:
+
+| Group | Classes | Depends on |
+|---|---|---|
+| Values | `TypedValue`, `Numbers`, `Transforms`, `Dates`, `Comparisons` | each other only (`TypedValue` and `Numbers` are mutual), `config.Cast`, the regex library |
+| Matching | `MatchResult`, `Steps`, `Splitter`, `Codecs` | values; `config` step types; `compile.PatternKey`; the regex library |
+| The run | `Executor`, `Conditions`, `Refs`, `CompiledRefs`, `Store`, `VarRegistry`, `EngineVars` | matching and values |
+
+Nothing in the values group reaches the run; nothing in matching reaches the run. The groups
+are layers already, unnamed.
+
+**The root package mixes the facade with the sinks.** `Shapeshifter`, `Message`, `Severity`,
+`Instrument`, `OutputSink` and `PatternInfo` are the module's face and everything imports them.
+`XmlByteSink`, `SaxEventSink`, `CharacterSink` and `Utf8` are the output side's
+implementations; nothing inside the engine uses them — their users are the pipeline module,
+once each, and the tests.
+
+**Two reference resolvers are live.** `CompiledRefs` resolves compiled references for bodies,
+design 10's third change. `Refs` still resolves the *authored* `RefExpression` at run time for
+conditions and for capture binding — the row design 10 §2 left half open ("a `matches`
+condition still looks its pattern up by text"). Both have the same two ways in, write and
+resolve, with the same rules. That is a duplication with a reason, and the plan has to say
+which way it goes rather than carry both into `Body` and call it structure.
+
+### 1.5 What the designs already decided
 
 - **D35, two layers, never three.** The `Project` and the `CompiledProject` are the only
   artefacts. Its stated consequence: "`Executor` is transitional and dissolves into the graph as
@@ -142,19 +177,49 @@ instruction set.
 Reader and writer for one family stay together, because the round-trip pin (`EveryVariantTest`)
 is the property that matters and it is easiest to keep when the two halves are in one place.
 
-### 2.5 What does not move
+### 2.5 The packages after the split
 
-`config` (the model), `ds3` (the migration), `text`, `function`, the sinks in the root package.
-They are the right size with the right purpose. The regex module is another session's checkout
-and is not touched. `Steps`, `Transforms` and the other exec collaborators stay as they are; the
-review in §4 covers their documentation, not their shape.
+| Package | Holds | Depends on |
+|---|---|---|
+| `engine` | The face: `Shapeshifter`, `Message`, `Severity`, `Instrument`, `OutputSink`, `PatternInfo` | — |
+| `engine.output` | The sinks: `XmlByteSink`, `SaxEventSink`, `CharacterSink`, `Utf8` | `engine` |
+| `engine.value` | `TypedValue`, `Numbers`, `Transforms`, `Dates`, `Comparisons` | `config.Cast`, regex |
+| `engine.match` | `MatchResult`, `Steps`, `Splitter`, `Codecs` | `value`, `config`, `compile.PatternKey`, regex |
+| `engine.exec` | The run: `Run`, `Level`, `Body`, `InputWindow`, `FunctionRuntime`, `Conditions`, `Refs`, `CompiledRefs`, `Store`, `VarRegistry`, `EngineVars` | `match`, `value`, `compile`, `function` |
+| `engine.compile`, `engine.config`, `engine.config.json`, `engine.ds3`, `engine.text`, `engine.function` | as today, with the class splits of §2.3 and §2.4 | as today |
+
+The dependency column is the layering §1.4 measured, now enforced by the package line: a value
+knows nothing of a match, a match knows nothing of a run. `Conditions` stays with the run
+because it resolves references against the registry. `MatchResult` goes with matching because
+it is what a match produces and `Steps` and `Splitter` fill it; the run reads it.
+
+**What it costs outside the engine.** The pipeline module imports `TypedValue` in thirty-four
+places and each sink once; the app tests import the sinks. All of it is import churn, which is
+why the moves are one phase of their own (phase 5) and not mixed into a hot-path commit.
+
+### 2.6 What does not move
+
+`config` (the model), `ds3` (the migration), `text` and `function` are the right size with the
+right purpose, and stay. The regex module is another session's checkout and is not touched.
+The classes in the value and matching groups move package and nothing else; the review in §4
+covers their documentation, not their shape.
+
+### 2.7 The two resolvers
+
+`Refs` and `CompiledRefs` both stay through this design, because compiling conditions and
+capture selects is design 10's open performance row and shape follows measurement there. What
+changes is that the seam is stated: `Conditions` and `Level`'s capture binding resolve authored
+expressions because their compilation is not yet measured to matter, and `CompiledRefs` says
+so in its class javadoc, naming design 10 §2. The compile of conditions is filed as the
+follow-on when phase 4 closes, so the duplication has an owner and an exit rather than a
+shrug.
 
 ## 3. Phasing
 
 Every phase is a pure move — no behaviour change — and every phase is gated the same way:
 engine, pipeline and app-level Shapeshifter suites green; the fixture ledger unchanged; goldens
 byte-identical; checkstyle clean with no `FileLength` warning at the end. Phases 2 and 3 touch the
-hot path and add a benchmark gate (§3.7). Each phase is audited before the next, as designs 23
+hot path and add a benchmark gate (§3.9). Each phase is audited before the next, as designs 23
 to 26 were.
 
 ### Phase 0 — The entry review
@@ -164,8 +229,10 @@ its purpose in one sentence, its size, its documentation state (class javadoc sa
 each public method documented; no narration; no port residue), and any finding — a name that
 means something only against the prototype, a comment that narrates, a helper nothing calls, a
 duplicated rule. The ledger is design 15's shape. Findings that are fixable in a line are fixed in
-this phase; the rest are assigned to the phase that touches the class. *Output:* §5 of this
-document filled in.
+this phase; the rest are assigned to the phase that touches the class. The package layout of
+§2.5 is confirmed against the ledger — a class the ledger shows reaching across the line is
+either moved to the right side or the line is redrawn, before anything else moves. *Output:*
+§5 of this document filled in; the benchmark baseline of §3.9 taken.
 
 ### Phase 1 — `InputWindow` and `FunctionRuntime`
 
@@ -194,24 +261,33 @@ the message list: `Run`. `Executor.java` is deleted. Design 10's "transitional" 
 consequence are updated to say it happened. The `exec` package javadoc is rewritten to name the
 five classes and how a run flows through them.
 
-### Phase 5 — The compiler's passes
+### Phase 5 — The packages
+
+The moves of §2.5: `value`, `match` and `output` created, their classes moved, the pipeline
+module's and the app tests' imports updated, a `package-info` written for each new package that
+says what it holds and what it may depend on. Pure import churn, in its own commit per package
+so that a bisect lands on a package and not on a class. The `exec` package javadoc is written
+last, when the package holds only the run. *Gate:* the three suites; no benchmark, because no
+code moves within a class.
+
+### Phase 6 — The compiler's passes
 
 `MatchCompiler`, `StructureCheck`, `ReferenceCheck` out of `Compiler`. No test moves; the
 compile-refusal tests already name messages, not classes.
 
-### Phase 6 — The JSON families
+### Phase 7 — The JSON families
 
 `MatchJson`, `ReferenceJson`, `ConditionJson`, `OutputJson`, `JsonFields` out of `ProjectJson`.
 `EveryVariantTest` is the gate, plus the corpus of fixtures read and written back.
 
-### Phase 7 — The exit review and the documentation pass
+### Phase 8 — The exit review and the documentation pass
 
 The phase 0 ledger re-run against the result, adversarially: every class one purpose, every
 class javadoc saying what and why, no method over a screen without a reason in its comment, no
 narration, no residue. Package javadocs rewritten where the shape changed; the engine README's
 architecture section updated; a D-number recorded. *Output:* §5 closed with the exit state.
 
-### 3.7 The benchmark gate
+### 3.9 The benchmark gate
 
 Phases 2 and 3 move the hot path across class boundaries, which can change what the JIT inlines.
 The gate is `EngineBenchmark` (the engine's `jmh` task, results under `design/benchmarks`), run
@@ -224,9 +300,10 @@ it is not accepted as the price of structure.
 
 ## 4. The review's dimensions
 
-From the code standard, applied per class in phases 0 and 7:
+From the code standard, applied per class in phases 0 and 8:
 
-- **Purpose.** One sentence, and the class does that and nothing else.
+- **Purpose.** One sentence, and the class does that and nothing else — and the package it is
+  in says which side of §2.5's lines it belongs to.
 - **Correctness.** Nothing moved changes a golden, a message, a count.
 - **Hygiene.** No dead vocabulary, no unused helpers, no duplicated rules, imports in order.
 - **Javadoc.** Class: what it is and why it is shaped so. Public method: contract, not
@@ -238,16 +315,26 @@ From the code standard, applied per class in phases 0 and 7:
 
 ## 5. The ledger
 
-*Filled in by phase 0; closed by phase 7.*
+*Filled in by phase 0; closed by phase 8.*
 
-## 6. Rulings — all ruled 2026-09-05, each as recommended (D45)
+## 6. Rulings — 1 to 5 ruled 2026-09-05, each as recommended (D45); 6 and 7 wanted
 
 1. **The direction.** The executor dissolves into a run over the graph as §2.1 describes,
    rather than staying one class with helpers — D35's stated consequence, done.
 2. **The ops.** One interpreter over sealed records, not ops that run themselves (§2.2).
 3. **Scope.** All three big files: executor, compiler, JSON.
-4. **The benchmark gate** as §3.7 states it: a fresh baseline in phase 0, and a regression
+4. **The benchmark gate** as §3.9 states it: a fresh baseline in phase 0, and a regression
    beyond its noise blocks the phase rather than being accepted as the price of structure.
 5. **The name.** `Run` for what remains of the executor.
+
+*Wanted, from the amendment:*
+
+6. **The packages** of §2.5: `value`, `match` and `output` created, the dependency direction
+   value ← match ← exec enforced by the package line, `Conditions` with the run,
+   `MatchResult` with matching. *Recommended: yes, as tabled; the layering is measured, not
+   designed, and the pipeline's import churn is one mechanical phase.*
+7. **The two resolvers** as §2.7 states: both stay, the seam is documented, the compile of
+   conditions is filed as the follow-on. *Recommended: yes; the alternative is doing design
+   10's performance row inside a structure design, which the plan's own rule forbids.*
 
 Each phase audited before the next.
