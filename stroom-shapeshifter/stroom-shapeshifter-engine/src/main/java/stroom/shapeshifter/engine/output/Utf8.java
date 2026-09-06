@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine;
+package stroom.shapeshifter.engine.output;
 
 /** What the sinks need to know about UTF-8 that {@link java.nio.charset} does not say cheaply. */
 final class Utf8 {

@@ -21,6 +21,7 @@ import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -70,7 +71,7 @@ class CaseAmplifierTest {
                 CaseCorpus.read(name, "challenger.project.json"), StandardCharsets.UTF_8)));
         final ByteArrayOutputStream challenger = new ByteArrayOutputStream();
         final List<Message> messages = Shapeshifter.run(
-                compiled, new ByteArrayInputStream(input), OutputSink.of(challenger));
+                compiled, new ByteArrayInputStream(input), new XmlByteSink(challenger));
 
         assertThat(messages)
                 .as("%s amplified: the challenger must run clean", name)

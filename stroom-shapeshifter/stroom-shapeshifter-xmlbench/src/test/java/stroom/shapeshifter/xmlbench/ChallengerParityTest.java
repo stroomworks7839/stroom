@@ -22,6 +22,7 @@ import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,7 +52,7 @@ class ChallengerParityTest {
     static byte[] transform(final CompiledProject compiled, final byte[] input) {
         final ByteArrayOutputStream out = new ByteArrayOutputStream(input.length * 2);
         final List<Message> messages = Shapeshifter.run(
-                compiled, new ByteArrayInputStream(input), OutputSink.of(out));
+                compiled, new ByteArrayInputStream(input), new XmlByteSink(out));
         assertThat(messages)
                 .as("the challenger must run clean — every byte explicitly consumed")
                 .noneMatch(m -> m.severity() == Severity.ERROR || m.severity() == Severity.FATAL);

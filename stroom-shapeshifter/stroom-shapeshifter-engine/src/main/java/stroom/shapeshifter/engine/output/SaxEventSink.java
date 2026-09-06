@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine;
+package stroom.shapeshifter.engine.output;
+
+import stroom.shapeshifter.engine.OutputSink;
 
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;

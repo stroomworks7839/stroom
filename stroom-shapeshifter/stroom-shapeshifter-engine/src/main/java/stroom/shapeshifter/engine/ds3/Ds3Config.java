@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.ds3;
 
-
 import java.util.List;
 import java.util.Set;
 

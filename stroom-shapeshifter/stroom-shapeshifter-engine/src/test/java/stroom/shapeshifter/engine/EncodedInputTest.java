@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
 
@@ -72,7 +73,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config(encoding))),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         return output.toString(StandardCharsets.UTF_8);
     }
 
@@ -108,7 +109,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é][é]");
     }
 
@@ -161,7 +162,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(withPilcrow)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[a][b]");
     }
 
@@ -209,7 +210,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é“]"); // U+201C, left double quotation mark
     }
 
@@ -239,7 +240,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é中]");
     }
 
@@ -264,14 +265,14 @@ class EncodedInputTest {
         final List<Message> reported = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config.replace("IGNORE", "false"))),
                 new ByteArrayInputStream(input),
-                OutputSink.of(new ByteArrayOutputStream()));
+                new XmlByteSink(new ByteArrayOutputStream()));
         assertThat(reported).anyMatch(m -> m.severity() == Severity.FATAL
                 && m.text().contains("UTF-16LE"));
         final ByteArrayOutputStream replaced = new ByteArrayOutputStream();
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config.replace("IGNORE", "true"))),
                 new ByteArrayInputStream(input),
-                OutputSink.of(replaced));
+                new XmlByteSink(replaced));
         // How many code units the decoder folds into one replacement is its own business;
         // what matters is that data flowed and the malformed span became U+FFFD, not a loss.
         assertThat(replaced.toString(StandardCharsets.UTF_8)).contains("a�"); // U+FFFD, the replacement character
@@ -364,7 +365,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         // RAW reads each byte as its own code point: 0x93 is U+0093, 0xE9 is é.
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[\u0093é]");
     }
@@ -402,7 +403,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream("abc\n".getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[abc]");
     }
 
@@ -458,7 +459,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é]");
     }
 
@@ -514,7 +515,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         final String out = output.toString(StandardCharsets.UTF_8);
         assertThat(out).contains("𐍈y");
         assertThat(out).contains("tail𐍈");

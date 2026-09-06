@@ -16,7 +16,9 @@
 
 package stroom.shapeshifter.engine;
 
-import java.io.OutputStream;
+import stroom.shapeshifter.engine.output.SaxEventSink;
+import stroom.shapeshifter.engine.output.XmlByteSink;
+
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -31,8 +33,8 @@ import java.nio.charset.StandardCharsets;
  * transforms — do not know which; the sink does. A configuration that never opens a container
  * therefore gets the byte-transparent stream it always had.
  *
- * <p>Two implementations, one per target: {@link XmlByteSink} serialises the structure as Stroom's
- * own serialiser would (D41), and {@link SaxEventSink} forwards it as SAX events. A sink that
+ * <p>Two implementations, one per target: {@code XmlByteSink} serialises the structure as Stroom's
+ * own serialiser would (D41), and {@code SaxEventSink} forwards it as SAX events. A sink that
  * cannot do structure — a byte counter, a benchmark — keeps the defaults, which refuse it by name.
  *
  * <p>Ordering is the one rule enforced here rather than by the compiler: a namespace or attribute
@@ -127,10 +129,6 @@ public interface OutputSink {
         throw new StructureException("This sink does not carry structure: endElement");
     }
 
-    /** A byte sink over a stream: raw bytes at document level, Stroom's serialisation inside structure. */
-    static OutputSink of(final OutputStream stream) {
-        return new XmlByteSink(stream);
-    }
 
     /** The output's structure was misused — an attribute after content, a close with nothing open. */
     final class StructureException extends IllegalStateException {

@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +49,7 @@ class EngineBehaviourTest {
         final List<Message> messages = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(json)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         return new Run(output.toString(StandardCharsets.UTF_8), messages);
     }
 
@@ -94,8 +95,8 @@ class EngineBehaviourTest {
         for (final boolean whole : new boolean[]{false, true}) {
             final ByteArrayOutputStream output = new ByteArrayOutputStream();
             final List<Message> messages = whole
-                    ? Shapeshifter.runWhole(compiled, input, OutputSink.of(output))
-                    : Shapeshifter.run(compiled, new ByteArrayInputStream(input), OutputSink.of(output));
+                    ? Shapeshifter.runWhole(compiled, input, new XmlByteSink(output))
+                    : Shapeshifter.run(compiled, new ByteArrayInputStream(input), new XmlByteSink(output));
             assertThat(messages).as("whole=" + whole).singleElement().satisfies(message -> {
                 assertThat(message.severity()).isEqualTo(Severity.FATAL);
                 assertThat(message.text()).contains("begins with a utf-16le byte-order mark")

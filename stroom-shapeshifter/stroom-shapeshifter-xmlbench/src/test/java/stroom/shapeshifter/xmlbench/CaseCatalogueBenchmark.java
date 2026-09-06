@@ -20,6 +20,7 @@ import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -104,7 +105,7 @@ public class CaseCatalogueBenchmark {
     @Benchmark
     public int shapeshifterTransform() {
         final ByteArrayOutputStream out = new ByteArrayOutputStream(input.length * 2);
-        Shapeshifter.run(challenger, new ByteArrayInputStream(input), OutputSink.of(out));
+        Shapeshifter.run(challenger, new ByteArrayInputStream(input), new XmlByteSink(out));
         return out.size();
     }
 

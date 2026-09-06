@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine;
+package stroom.shapeshifter.engine.output;
 
 import org.junit.jupiter.api.Test;
 

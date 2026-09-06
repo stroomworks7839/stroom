@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,7 +46,7 @@ class StrictDispatchTest {
         final List<Message> messages = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(json)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         return new Run(output.toString(StandardCharsets.UTF_8), messages);
     }
 

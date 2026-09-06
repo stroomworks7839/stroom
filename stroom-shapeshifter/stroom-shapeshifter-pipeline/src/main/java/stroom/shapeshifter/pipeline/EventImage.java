@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.pipeline;
 
-import stroom.shapeshifter.engine.XmlByteSink;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;

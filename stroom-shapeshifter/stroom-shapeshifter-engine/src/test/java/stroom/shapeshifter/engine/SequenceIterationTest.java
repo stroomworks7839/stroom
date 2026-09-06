@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
 
@@ -68,7 +69,7 @@ class SequenceIterationTest {
         final List<Message> messages = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(json)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(out));
+                new XmlByteSink(out));
         assertThat(messages).noneMatch(m -> m.severity() == Severity.ERROR
                                             || m.severity() == Severity.FATAL);
         return out.toString(StandardCharsets.UTF_8);
@@ -188,7 +189,7 @@ class SequenceIterationTest {
         return Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(json)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(new ByteArrayOutputStream()));
+                new XmlByteSink(new ByteArrayOutputStream()));
     }
 
     private static String withSource(final String extra, final String epilogue) {

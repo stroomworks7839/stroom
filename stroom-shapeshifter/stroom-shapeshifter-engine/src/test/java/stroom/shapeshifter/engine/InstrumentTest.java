@@ -17,6 +17,8 @@
 package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.SaxEventSink;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
 
@@ -123,7 +125,7 @@ class InstrumentTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(CONFIG)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(new ByteArrayOutputStream()),
+                new XmlByteSink(new ByteArrayOutputStream()),
                 recorder);
         return recorder;
     }
@@ -201,7 +203,7 @@ class InstrumentTest {
     @Test
     void theByteSinkReportsBytesAndTheFirstChildsSpanBeginsWithTheParentsDeferredStartTag() {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        final Recorder recorder = watchStructured(OutputSink.of(out));
+        final Recorder recorder = watchStructured(new XmlByteSink(out));
         final String text = out.toString(StandardCharsets.UTF_8);
         assertThat(text).isEqualTo("<r>\n   <x>a</x>\n   <x>b</x>\n</r>\n");
         assertThat(recorder.unitOutputs).extracting(UnitOutput::unit).containsOnly(OutputSink.Unit.BYTES);
@@ -281,7 +283,7 @@ class InstrumentTest {
                         }
                         """)),
                 new ByteArrayInputStream("abc".getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(new ByteArrayOutputStream()),
+                new XmlByteSink(new ByteArrayOutputStream()),
                 recorder);
 
         assertThat(recorder.matches).isEmpty();
@@ -314,7 +316,7 @@ class InstrumentTest {
                         }
                         """)),
                 new ByteArrayInputStream("abc\n".getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(new ByteArrayOutputStream()),
+                new XmlByteSink(new ByteArrayOutputStream()),
                 recorder);
 
         // The inner template's content came out of a variable, so there is no offset that would
@@ -333,10 +335,10 @@ class InstrumentTest {
 
         Shapeshifter.run(Shapeshifter.compile(ProjectReader.read(CONFIG)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(watched), new Recorder());
+                new XmlByteSink(watched), new Recorder());
         Shapeshifter.run(Shapeshifter.compile(ProjectReader.read(CONFIG)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(unwatched), Instrument.NONE);
+                new XmlByteSink(unwatched), Instrument.NONE);
 
         assertThat(watched.toByteArray()).isEqualTo(unwatched.toByteArray());
         // The default does nothing, including reading the clock.

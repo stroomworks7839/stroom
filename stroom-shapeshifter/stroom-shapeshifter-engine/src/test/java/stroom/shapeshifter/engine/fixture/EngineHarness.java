@@ -20,6 +20,7 @@ import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.ds3.Ds3Migration;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -63,7 +64,7 @@ public final class EngineHarness {
         final List<stroom.shapeshifter.engine.Message> messages = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(projectJson)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         return outcome(output, messages);
     }
 
@@ -75,7 +76,7 @@ public final class EngineHarness {
     public static Outcome runProjectWholeBuffer(final String projectJson, final byte[] input) {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         final List<stroom.shapeshifter.engine.Message> messages = Shapeshifter.runWhole(
-                Shapeshifter.compile(ProjectReader.read(projectJson)), input, OutputSink.of(output));
+                Shapeshifter.compile(ProjectReader.read(projectJson)), input, new XmlByteSink(output));
         return outcome(output, messages);
     }
 
@@ -85,7 +86,7 @@ public final class EngineHarness {
         final List<stroom.shapeshifter.engine.Message> messages = Shapeshifter.run(
                 Shapeshifter.compile(Ds3Migration.importXml(ds3Xml)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         return outcome(output, messages);
     }
 

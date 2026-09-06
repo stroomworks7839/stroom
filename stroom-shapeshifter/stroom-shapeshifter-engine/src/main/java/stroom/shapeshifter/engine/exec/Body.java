@@ -34,6 +34,7 @@ import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.match.MatchResult;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.Dates;
@@ -906,7 +907,7 @@ final class Body {
 
         final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         body(value.body(), match, matchCount, content,
-                OutputSink.of(buffer), inputBase, ignoreErrors, depth, contentEncoding);
+                new XmlByteSink(buffer), inputBase, ignoreErrors, depth, contentEncoding);
 
         List<Store> captured = vars.fromCurrentScope(value.name());
         if (captured != null && captured.stream().noneMatch(store -> store.lastIndex() >= 0)) {

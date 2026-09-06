@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.function;
 
-
 /**
  * What a function argument or result is, in design 17's terms: the five kinds of
  * {@code TypedValue}, {@code ANY} for "as it is", and {@code SEQUENCE} for an argument that

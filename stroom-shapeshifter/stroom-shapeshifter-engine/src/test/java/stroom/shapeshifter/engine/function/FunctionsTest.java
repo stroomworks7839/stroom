@@ -25,6 +25,7 @@ import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 import org.junit.jupiter.api.Test;
@@ -143,7 +144,7 @@ class FunctionsTest {
         final CompiledProject compiled = Shapeshifter.compile(ProjectReader.read(json), REGISTRY);
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         final List<Message> messages = Shapeshifter.run(compiled,
-                new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)), OutputSink.of(output),
+                new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)), new XmlByteSink(output),
                 Instrument.NONE, mode, services);
         return new Run(output.toString(StandardCharsets.UTF_8), messages);
     }
@@ -258,7 +259,7 @@ class FunctionsTest {
         final ByteArrayOutputStream wholeOutput = new ByteArrayOutputStream();
         final List<Message> wholeMessages = Shapeshifter.runWhole(
                 Shapeshifter.compile(ProjectReader.read(lines(body)), REGISTRY),
-                "a\nb\n".getBytes(StandardCharsets.UTF_8), OutputSink.of(wholeOutput),
+                "a\nb\n".getBytes(StandardCharsets.UTF_8), new XmlByteSink(wholeOutput),
                 Instrument.NONE, RunMode.PREVIEW, Services.NONE);
         assertThat(wholeOutput.toString(StandardCharsets.UTF_8)).isEqualTo("tick|tick|");
         assertThat(wholeMessages).singleElement().satisfies(m ->
@@ -311,7 +312,7 @@ class FunctionsTest {
         // moved to where a top-level record begins, whichever root loop runs it).
         final ByteArrayOutputStream whole = new ByteArrayOutputStream();
         Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read(lines(call("extent", "", null))), REGISTRY),
-                "ab\ncd\n".getBytes(StandardCharsets.UTF_8), OutputSink.of(whole));
+                "ab\ncd\n".getBytes(StandardCharsets.UTF_8), new XmlByteSink(whole));
         assertThat(whole.toString(StandardCharsets.UTF_8)).isEqualTo("1@0+3|2@3+3|");
         final Run said = run(lines(call("say", GROUP1, null)), "a\n");
         assertThat(said.output()).isEqualTo("|");

@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine;
+package stroom.shapeshifter.engine.output;
+
+import stroom.shapeshifter.engine.OutputSink;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
