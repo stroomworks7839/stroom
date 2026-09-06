@@ -371,7 +371,7 @@ class EncodedInputTest {
 
     /**
      * Found by the phase-0 audit, and the refusal was the smaller half: the walkers saw
-     * {@code PatternRef} where the executor sees the inlined steps, so a regex inside a
+     * {@code PatternRef} where the steps see the inlined sequence, so a regex inside a
      * referenced library pattern was never interned — every use crashed at match time with
      * "Pattern was not compiled", regardless of encoding. Both walkers now resolve first;
      * this pins the crash's fix and the one below pins the refusal's.

@@ -444,7 +444,7 @@ run implements the level's body callback itself so no lambda frame sits between 
 its body. Reading: against the phase 0 column every run row is inside its interval —
 `regex_lines` +2.4%, `ausearch` −1.1%, `win_sec_strict` −1.0%, `win_sec_xml` +0.6% — and
 against phase 2 `regex_lines` is +3.1%, `ausearch` inside, `win_sec_strict` −1.4%, a whisper
-outside phase 2's interval and the interface dispatch's likely residue, which phase 5's `Body`
+outside phase 2's interval and the interface dispatch's likely residue, which phase 4's `Body`
 removes when the callback becomes a class. Compile rows unchanged but for the progressive
 row's known spread. Phase 3 passes its gate on the baseline; the lesson is written on the
 loop: a per-pass method on this path costs what the JIT decides, and the gate, not the
@@ -520,7 +520,7 @@ what the 74-to-9 count says it already is. *Benchmark gate.*
 
 ### Phase 5 — `Run`, and the name goes — Done 2026-09-06
 
-*As built:* `Executor` is `Run` (342 lines) — one run of a compiled configuration over one
+*As built:* `Executor` is `Run` (342 lines; 356 after the audit's lift) — one run of a compiled configuration over one
 input — with two entry points, `stream` and `whole`, in place of a positional boolean on the
 API, both taking the mode and the services (the boolean survives privately, decided once in
 `dispatchInput`, which is the whole-or-chunk-or-window choice the root split sits around);
@@ -535,7 +535,7 @@ same private run. Engine 562, pipeline 154, app 5.
 
 *Audited 2026-09-06.* Routing preserved overload by overload; the diff touches the entries
 and nothing below them. **Fixed:** the whole-buffer entries' javadoc was thinner than the
-stream entries'; six comments in five files still named the executor as a live actor; the
+stream entries'; six comments in six files still named the executor as a live actor; the
 package javadoc ended in a fragment and omitted the value types and the abort; the input
 dispatch — whole buffer, chunk at a time for the non-consuming roots, or the window — is one
 method decided once rather than a flag threaded through two; §2.1's `Run` row said one entry
@@ -543,6 +543,18 @@ point and a sink the run opens, neither true; and ruling 7's follow-on, promised
 was not — it is E39 now. **Named for phase 8:** design 23 §1 maps the facade to
 `Executor.stream` as a live contract, and the regex module's `ByteMatcher` cites it too, the
 other session's file. Engine 562, pipeline 154, app 5.
+
+*Audited a second time, 2026-09-06, on the final commit.* The lift is statement for statement
+and the routing overload for overload; the first audit's fixes hold. **Fixed:** the root
+directive and mode were still named for the old stream loop, beside a public `stream` they
+have nothing to do with; the two fields the run wires shared one javadoc; the facade spelt
+its defaults twice in two styles; the whole-buffer preview path had no caller and now has a
+pin; one present-tense "executor" survived in a test's javadoc; the design miscounted the
+files and had the wrong phase against `Body`; E39 said `Refs` goes where its byte helper
+must move; two rewrapped lines were wrap defects. **Noted:** `execute` keeps the old verb for
+the catch-wrapper between the entries and the run, one name in a chain of four, which the
+exit review may take up; the `exec` package javadoc names six classes phase 6 moves out and
+will be rewritten last, as phase 6 says.
 
 *As written:*
 What remains of `Executor` is construction, the root split, the transcode wrap, abort handling and

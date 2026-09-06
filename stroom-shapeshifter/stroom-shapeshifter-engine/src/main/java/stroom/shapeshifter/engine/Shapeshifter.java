@@ -101,7 +101,7 @@ public final class Shapeshifter {
                                     final InputStream input,
                                     final OutputSink sink,
                                     final Instrument instrument) {
-        return Run.stream(compiled, input, sink, instrument, RunMode.NORMAL, Services.NONE);
+        return run(compiled, input, sink, instrument, RunMode.NORMAL, Services.NONE);
     }
 
     /**

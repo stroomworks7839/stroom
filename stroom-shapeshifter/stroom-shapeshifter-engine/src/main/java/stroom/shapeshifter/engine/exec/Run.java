@@ -58,8 +58,9 @@ public final class Run {
     /** The functions bound to this run, and what they may reach (design 26). */
     private final FunctionRuntime functions;
 
-    /** The body interpreter, and the dispatcher of one level against one region, wired to each other. */
+    /** The body interpreter, which the level hands a winning match's body to. */
     private final Body body;
+    /** The dispatcher of one level against one region, which the body's apply-templates hands a region to. */
     private final Level level;
     /**
      * The encoding in force: what the configuration declared, or UTF-8 once a UTF-8 byte-order
@@ -157,19 +158,19 @@ public final class Run {
         // written once at the start, what comes after once at the end, and the apply-templates
         // itself is the loop over the input. Everything the loop dispatches to is the templates
         // of the mode it names.
-        final ApplyDirective streamDirective = source == null ? null : applyDirective(source.template());
-        final String streamMode = streamDirective == null ? null : streamDirective.mode();
+        final ApplyDirective rootDirective = source == null ? null : applyDirective(source.template());
+        final String rootMode = rootDirective == null ? null : rootDirective.mode();
         final Dispatch rootDispatch = Dispatch.effective(
-                streamDirective == null ? null : streamDirective.dispatch(), compiled.project());
+                rootDirective == null ? null : rootDirective.dispatch(), compiled.project());
         final List<CompiledTemplate> roots = compiled.templates().stream()
                 .filter(t -> !(t.match() instanceof CompiledMatch.Source))
-                .filter(t -> Objects.equals(t.template().mode(), streamMode))
+                .filter(t -> Objects.equals(t.template().mode(), rootMode))
                 .toList();
 
         // The root level's gate is the configuration's own ignoreErrors — DS3's flag on the
         // dataSplitter element itself — or the document template's directive saying so.
         final boolean rootIgnoreErrors = compiled.project().source().ignoreErrors()
-                || (streamDirective != null && streamDirective.ignoreErrors());
+                || (rootDirective != null && rootDirective.ignoreErrors());
 
         final MatchResult nothing = MatchResult.empty();
         final RootSplit split = source == null ? RootSplit.NONE : RootSplit.of(source.body());
@@ -203,7 +204,8 @@ public final class Run {
 
     /**
      * Hand the input to the root level: whole-buffer inputs are addressed in one piece, and the
-     * non-consuming root dispatches — classify and any — work chunk at a time; neither slides.
+     * roots that do not slide — classify, which consumes nothing, and any, which excises from a
+     * working copy — work chunk at a time.
      * Everything else streams through the window (E13, design 23). The byte-order mark is read
      * once at the front, whichever way, and counts toward every absolute offset.
      */

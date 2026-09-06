@@ -1171,5 +1171,6 @@ change); `Conditions` and a level's capture binding still resolve the authored
 `RefExpression` through `Refs` on every evaluation, and a `matches` condition looks its pattern
 up by text. Design 10 §2's row, left half open there and named as the two-resolver seam in
 design 27 §2.7 (ruling 7): both resolvers stay until compiling conditions and capture selects
-is measured to matter, and this entry is that measurement's owner. When it is done, `Refs`
-goes and `CompiledRefs` is the one resolver.
+is measured to matter, and this entry is that measurement's owner. When it is done, `Refs`'
+resolution goes and `CompiledRefs` is the one resolver; its byte helper, which the level's
+capture normalisation also uses, moves rather than goes.

@@ -66,14 +66,15 @@ concurrency is "compile one per instance", exactly as Stroom gives each pipeline
 own parser.
 
 Two contracts follow. A `CompiledProject` executes one run at a time and is reusable
-sequentially — a `ByteMatcher`'s contract, one level up — which means it needs a defined reset
-between streams: DS3's `Node.clear()`, and the same lifecycle E19 already settled for capture
-stores. And `Executor` was transitional: it dissolved on 2026-09-06 (design 27) into a `Run` over
-the graph — a window, a level, a body and a function runtime — because "performs the
-execution" is the compiled object's job description, and a run is its state for one input. Within that shape, `CompiledTemplate` grows per-mode dispatch tables, references
+sequentially — a `ByteMatcher`'s contract, one level up — which means it needs a defined
+reset between streams: DS3's `Node.clear()`, and the same lifecycle E19 already settled for
+capture stores. And `Executor` was transitional: it dissolved on 2026-09-06 (design 27) into
+a `Run` over the graph — a window, a level, a body and a function runtime — because "performs
+the execution" is the compiled object's job description, and a run is its state for one
+input. Within that shape, `CompiledTemplate` grows per-mode dispatch tables, references
 become classified strategies with pre-encoded literals, and bodies become a compiled
-instruction list rather than a walked model — but shape follows measurement, not the other way
-round.
+instruction list rather than a walked model — but shape follows measurement, not the other
+way round.
 
 ## 3. Decoration: measurement and IO capture as a compile-time choice
 

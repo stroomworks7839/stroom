@@ -254,6 +254,15 @@ class FunctionsTest {
             assertThat(m.severity()).isEqualTo(Severity.WARNING);
             assertThat(m.text()).isEqualTo("fetch: not run in preview");
         });
+        // The whole-buffer form takes the mode too (design 27 phase 5): the same skip, the same word.
+        final ByteArrayOutputStream wholeOutput = new ByteArrayOutputStream();
+        final List<Message> wholeMessages = Shapeshifter.runWhole(
+                Shapeshifter.compile(ProjectReader.read(lines(body)), REGISTRY),
+                "a\nb\n".getBytes(StandardCharsets.UTF_8), OutputSink.of(wholeOutput),
+                Instrument.NONE, RunMode.PREVIEW, Services.NONE);
+        assertThat(wholeOutput.toString(StandardCharsets.UTF_8)).isEqualTo("tick|tick|");
+        assertThat(wholeMessages).singleElement().satisfies(m ->
+                assertThat(m.text()).isEqualTo("fetch: not run in preview"));
         final Run normal = run(lines(body), "a\nb\n");
         assertThat(normal.output()).isEqualTo("fetched atick|fetched btick|");
         assertThat(normal.messages()).isEmpty();
