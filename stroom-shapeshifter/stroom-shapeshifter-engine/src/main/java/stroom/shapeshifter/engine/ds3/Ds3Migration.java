@@ -479,7 +479,7 @@ public final class Ds3Migration {
         }
         // The guard reads __match_idx, which the engine binds as Int — the exact case that
         // makes legacy equality mean "compare string forms": both sides read as strings
-        // (design/17 §8, the phase 1 audit's correction).
+        // (design/17 §8).
         final List<Condition> conditions = onlyMatch.stream()
                 .map(index -> (Condition) new Condition.Compare(Condition.Compare.Op.EQ,
                         new Condition.Operand(

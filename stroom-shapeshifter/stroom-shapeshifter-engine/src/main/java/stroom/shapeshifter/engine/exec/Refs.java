@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
@@ -29,11 +28,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * Resolving the configuration's expressions against what has been captured.
- *
- * <p>Two ways in, and the difference is not cosmetic. {@link #write} sends the parts straight to
- * the sink, which is what an output instruction wants and costs nothing in between.
- * {@link #resolve} builds the value, which is what a condition or a nested match needs.
+ * Resolving the configuration's authored expressions against what has been captured: what a
+ * condition and a level's capture binding call. Bodies resolve compiled references through
+ * {@link CompiledRefs} instead, and E39 owns the seam between the two.
  *
  * <p><b>Empty is absent.</b> A part that resolves to nothing writes nothing, and an expression
  * whose parts all resolve to nothing has no value at all rather than an empty one. That is what
@@ -46,43 +43,6 @@ import java.util.List;
 public final class Refs {
 
     private Refs() {
-    }
-
-    /**
-     * Write an expression to the sink.
-     *
-     * @return true if anything was written
-     */
-    public static boolean write(final RefExpression expression,
-                                final MatchResult match,
-                                final int matchCount,
-                                final VarRegistry vars,
-                                final Encoding encoding,
-                                final OutputSink sink) {
-        if (expression == null || expression.parts().isEmpty()) {
-            return false;
-        }
-        boolean wrote = false;
-        for (final RefPart part : expression.parts()) {
-            switch (part) {
-                case RefPart.Text text -> {
-                    if (!text.value().isEmpty()) {
-                        sink.write(text.value());
-                        wrote = true;
-                    }
-                }
-                case RefPart.Capture capture -> {
-                    final TypedValue value = lookup(capture, match, matchCount, vars);
-                    if (value != null && !value.isEmpty()) {
-                        // Only a slice of the current match needs converting: a stored value
-                        // was normalised to UTF-8 when it was captured (E3).
-                        sink.write(capture.varId() == null ? bytes(value, encoding) : value.asBytes());
-                        wrote = true;
-                    }
-                }
-            }
-        }
-        return wrote;
     }
 
     /**
@@ -208,7 +168,7 @@ public final class Refs {
             return null;
         }
         final Store store = stores.get(group);
-        final Integer index = index(matchIndex, store, matchCount, vars);
+        final Integer index = matchIndex(matchIndex, store, matchCount, vars);
         return index == null ? store.latest() : store.get(index);
     }
 
@@ -221,7 +181,7 @@ public final class Refs {
      * header row line up with a data row — the engine's own {@code __match_count} threads the
      * column number through.
      */
-    private static Integer index(final MatchIndex matchIndex,
+    private static Integer matchIndex(final MatchIndex matchIndex,
                                  final Store store,
                                  final int matchCount,
                                  final VarRegistry vars) {

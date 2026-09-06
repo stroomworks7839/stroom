@@ -46,8 +46,14 @@ public record MatchResult(TypedValue[] groups, int advance, int matchStart) {
         return index >= 0 && index < groups.length ? groups[index] : null;
     }
 
-    /** A result with no groups, for the places that need a match-shaped nothing. */
+    private static final MatchResult EMPTY = new MatchResult(new TypedValue[0], 0, 0);
+
+    /**
+     * A result with no groups, for the places that need a match-shaped nothing. One shared
+     * instance: a zero-length array has nothing to mutate, and a guard is evaluated against
+     * it once per template per level entry.
+     */
     public static MatchResult empty() {
-        return new MatchResult(new TypedValue[0], 0, 0);
+        return EMPTY;
     }
 }

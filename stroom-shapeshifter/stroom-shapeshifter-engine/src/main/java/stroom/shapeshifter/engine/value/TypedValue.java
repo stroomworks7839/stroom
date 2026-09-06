@@ -143,7 +143,7 @@ public sealed interface TypedValue {
             // Epoch milliseconds, documented lossy: the escape hatch that keeps date
             // arithmetic ordinary without every numeric site learning about nanoseconds.
             // In doubles, because approximation is a double's whole job — an instant too
-            // wide for exact millis still has a numeric reading (phase 4 audit). The nano
+            // wide for exact millis still has a numeric reading. The nano
             // division stays integral first: the table says milliseconds truncate, and the
             // two numeric casts must agree wherever both answer.
             case Instant value -> value.epochSecond() * 1000.0 + value.nano() / 1_000_000;
@@ -231,7 +231,7 @@ public sealed interface TypedValue {
         final OffsetDateTime dateTime = OffsetDateTime.ofInstant(value.toJavaInstant(), offset);
         final StringBuilder out = new StringBuilder(35);
         // The sign is written separately: %04d would spend the field width on it and render
-        // year -44 as "-044" (phase 4 audit).
+        // year -44 as "-044".
         final int year = dateTime.getYear();
         if (year < 0) {
             out.append('-');

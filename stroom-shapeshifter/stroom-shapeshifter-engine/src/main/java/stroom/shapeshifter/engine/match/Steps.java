@@ -46,12 +46,13 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p><b>It deliberately does not backtrack.</b> A {@code Choice} takes the first alternative
  * that matches and never reconsiders; a {@code Repeat} is greedy and never gives anything back.
- * That is the Rust engine's behaviour and it is ported as-is, but it is worth being explicit
- * about, because the obvious-looking alternative would change which inputs match:
+ * That is the language's rule, and it is worth being explicit about, because the
+ * obvious-looking alternative would change which inputs match:
  * {@code stroom.shapeshifter.regex.comb} has almost exactly this vocabulary — {@code Tag},
  * {@code Sequence}, {@code Choice}, {@code Repeat}, {@code Ref} — and lowering these steps onto
  * it would compile them into a real pattern that <i>does</i> backtrack. Faster, more capable,
- * and not the same language. Making that change is a decision, not a port.
+ * and not the same language. Making that change is a decision about the language, not an
+ * optimisation.
  */
 public final class Steps {
 
@@ -81,7 +82,7 @@ public final class Steps {
                                     final int from,
                                     final int to,
                                     final Map<PatternKey, BytePattern> patterns,
-                               final Encoding encoding) {
+                                    final Encoding encoding) {
         int pos = 0;
         int highWater = 0;
         final List<TypedValue> outputs = new ArrayList<>(steps.size());
@@ -131,7 +132,8 @@ public final class Steps {
     // -----------------------------------------------------------------------------------
 
     /**
-     * Run one step at a position.
+     * Run one step at a position: one arm per step kind, so the method is as long as the
+     * vocabulary.
      *
      * @param prior    outputs from enclosing sequences, which a step reference can name
      * @param local    outputs from this sequence so far, numbered after the prior ones
@@ -145,7 +147,7 @@ public final class Steps {
                                final List<TypedValue> local,
                                final int position,
                                final Map<PatternKey, BytePattern> patterns,
-                               final Encoding encoding) {
+                                    final Encoding encoding) {
         final int available = to - from;
         return switch (step) {
             case MatchStep.Tag tag -> {
@@ -326,7 +328,7 @@ public final class Steps {
                                     final List<TypedValue> callerLocal,
                                     final int position,
                                     final Map<PatternKey, BytePattern> patterns,
-                               final Encoding encoding) {
+                                    final Encoding encoding) {
         final List<TypedValue> prior = concat(enclosing, callerLocal);
         int pos = 0;
         final List<TypedValue> local = new ArrayList<>(steps.size());

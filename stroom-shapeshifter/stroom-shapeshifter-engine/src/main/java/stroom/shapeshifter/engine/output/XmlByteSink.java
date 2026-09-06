@@ -318,7 +318,7 @@ public final class XmlByteSink implements OutputSink {
     // Escaping — Saxon's forms
     // -----------------------------------------------------------------------------------
 
-    static String escapeAttribute(final String value) {
+    private static String escapeAttribute(final String value) {
         final StringBuilder out = new StringBuilder(value.length() + 16);
         for (int i = 0; i < value.length(); i++) {
             final char c = value.charAt(i);
@@ -336,7 +336,7 @@ public final class XmlByteSink implements OutputSink {
         return out.toString();
     }
 
-    static String escapeContent(final String text) {
+    private static String escapeContent(final String text) {
         final StringBuilder out = new StringBuilder(text.length() + 16);
         for (int i = 0; i < text.length(); i++) {
             final char c = text.charAt(i);

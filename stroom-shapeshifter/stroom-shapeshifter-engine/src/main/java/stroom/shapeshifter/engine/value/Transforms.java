@@ -165,13 +165,10 @@ public final class Transforms {
             return null;
         }
         final String trimmed = input.trim();
-        // Phase 2 made this the typed cast (design/17 §3.1): the point decides the kind,
-        // exactly as the ported reading did, but the result is now a number rather than a
-        // rendering of one. No configuration in the corpus uses it, so no golden moved;
-        // the visible difference from the ported Double.toString is that a whole Real
-        // renders without its trailing .0 — the engine's own format, ruled in §16.8.
-        // The parses are Numbers' non-throwing pair (E26): this instruction answered "not a
-        // number" by throwing too, one function away from the casts the fix first reached.
+        // The typed cast (design/17 §3.1): the point decides the kind, and the result is a
+        // number rather than a rendering of one, so a whole Real renders in the engine's own
+        // format, without a trailing .0 (§16.8). The parses are Numbers' non-throwing pair
+        // (E26).
         if (trimmed.contains(".")) {
             final Double real = Numbers.real(trimmed);
             return real == null ? null : new TypedValue.Real(real);
@@ -425,8 +422,8 @@ public final class Transforms {
     /**
      * Replace every match of a pattern, expanding group references in the replacement.
      *
-     * <p>The expansion syntax is the one the dialect's own users will expect — Rust's, not
-     * {@code java.util.regex}'s. {@code $1} and {@code ${1}} are groups, {@code $name} and
+     * <p>The expansion syntax is the regex module's dialect — Rust regex's replacement
+     * syntax, not {@code java.util.regex}'s. {@code $1} and {@code ${1}} are groups, {@code $name} and
      * {@code ${name}} are named groups, and {@code $$} is a literal dollar. A reference to a
      * group that did not participate expands to nothing rather than failing, which matters when
      * the pattern has optional parts.
@@ -520,8 +517,8 @@ public final class Transforms {
 
     private static String group(final ByteMatcher matcher, final BytePattern pattern, final String name) {
         // A numeric reference names its group directly; anything else is a named group.
-        // Non-throwing (E26): a named reference like $word used to cost an exception on
-        // every expansion, which is per match in a regex replace.
+        // Non-throwing (E26): the expansion runs once per match of a regex replace, so a
+        // named reference like $word must not cost an exception each time.
         int index = Numbers.index(name);
         if (index < 0) {
             index = pattern.groupIndex(name);

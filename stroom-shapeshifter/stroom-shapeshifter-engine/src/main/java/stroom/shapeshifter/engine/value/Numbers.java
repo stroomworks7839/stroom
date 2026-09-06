@@ -24,10 +24,8 @@ package stroom.shapeshifter.engine.value;
  * where a value being absent or malformed is ordinary — which is all log data — that is the
  * common path, not the exceptional one.
  *
- * <p>This lived as a private helper inside {@link TypedValue} when E26 was first fixed, which
- * is exactly why the fix was incomplete: three sibling sites went on paying the same cost a
- * function away, because the cheap answer was not reachable from them. One home, four
- * callers.
+ * <p>One home, four callers: the casts in {@link TypedValue} and the transforms all read
+ * through here, so no site pays the exception a function away (E26).
  *
  * <p><b>Nothing here changes what parses.</b> Both methods accept and reject precisely what
  * {@code Long.valueOf} and {@code Double.valueOf} accept and reject, which

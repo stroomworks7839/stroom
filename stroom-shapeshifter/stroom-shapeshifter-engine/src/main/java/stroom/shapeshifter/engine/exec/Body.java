@@ -80,7 +80,7 @@ final class Body {
      * <p><b>Unscoped, where a sequence is scoped</b>, which is deliberate and is the shape
      * XSLT has: a key is an index over data rather than a binding, and every realistic
      * configuration builds one and uses it at the same level. The sharp edge that buys,
-     * named rather than discovered (phase 5 audit): a key holds <i>store indices</i>, so one
+     * named rather than discovered: a key holds <i>store indices</i>, so one
      * built inside a scope that later pops still answers, with positions into a store that
      * may since have been cleared. Index staleness is a property of every index-carrying
      * sequence here, not of keys — scoping is what usually hides it, and a key steps outside
@@ -102,17 +102,21 @@ final class Body {
      * <p>A {@code classify} or {@code any} root is dispatched chunk-at-a-time by repeated
      * {@code Level.dispatch} calls, so template counters reset and capture stores clear <b>per
      * chunk</b>. An accumulation there would summarise the last chunk while presenting itself
-     * as a summary of the input — a wrong answer wearing the shape of a right one, which is
-     * the failure mode this whole section exists to refuse. A whole-buffer run takes the same
-     * code path with exactly one chunk, and is therefore fine.
+     * as a summary of the input — a wrong answer wearing the shape of a right one, the
+     * failure design/16 §10 refuses. A whole-buffer run takes the same code path with exactly
+     * one chunk, and is therefore fine.
      */
     private boolean chunkedRoot;
 
     /** The run's encoding in force, told by the run, which a nested dispatch is handed. */
     private Encoding encoding;
 
-    /** The level a body's {@code apply-templates} hands a region to; attached by the run, which wires the two. */
-    private Level level;
+    /**
+     * The level a body's {@code apply-templates} hands a region to. The body constructs it,
+     * because the level binds captures into this body's registry and hands winning matches
+     * back to it: the two are one run's state, and the body owns that state.
+     */
+    private final Level level;
 
     Body(final CompiledProject compiled,
          final Instrument instrument,
@@ -124,16 +128,14 @@ final class Body {
         this.messages = messages;
         this.functions = functions;
         this.encoding = encoding;
+        // this escapes before the constructor ends; the level's constructor only stores it,
+        // and the class is final, so nothing reads through it before the run starts.
+        this.level = new Level(compiled, instrument, messages, vars, functions, this);
     }
 
-    /** The registry the level binds captures into and every body reads. */
-    VarRegistry vars() {
-        return vars;
-    }
-
-    /** Wire the level a body applies templates through; once, by the run, before any body runs. */
-    void attach(final Level level) {
-        this.level = level;
+    /** The level this body applies templates through, which the run dispatches the root into. */
+    Level level() {
+        return level;
     }
 
     /** The run's encoding in force, once a byte-order mark has settled it. */
@@ -155,24 +157,28 @@ final class Body {
         }
     }
 
-    /** Run a body against a match: the interpreter's entry, which the level and the run both call. */
+    /**
+     * Run a body against a match: the interpreter's entry, which the level and the run both
+     * call. One arm per instruction, so the method is as long as the instruction set (design 27
+     * §2.2).
+     */
     void body(final List<CompiledOp> ops,
-                      final MatchResult match,
-                      final int matchCount,
-                      final byte[] content,
-                      final OutputSink sink,
-                      final long inputBase,
-                      final boolean ignoreErrors,
-                      final int depth,
-                      final Encoding contentEncoding) {
+              final MatchResult match,
+              final int matchCount,
+              final byte[] content,
+              final OutputSink sink,
+              final long inputBase,
+              final boolean ignoreErrors,
+              final int depth,
+              final Encoding contentEncoding) {
         for (final CompiledOp op : ops) {
             switch (op) {
                 case CompiledOp.Text text -> sink.write(text.bytes());
                 case CompiledOp.ValueOf valueOf ->
                         CompiledRefs.write(valueOf.ref(), match, matchCount, vars, contentEncoding, sink);
                 case CompiledOp.Apply apply -> {
-                    // A directive naming a template is the recursive form, which the compiler
-                    // has already inlined; running it here would recurse for ever.
+                    // A directive naming a template is the template_ref form, which no run
+                    // executes: the form is read and checked and then skipped here (E42).
                     if (apply.directive().templateRef() == null) {
                         apply(apply, match, matchCount, content, sink, inputBase, ignoreErrors, depth, contentEncoding);
                     }
@@ -234,7 +240,8 @@ final class Body {
                         structure(() -> sink.namespace(value.prefix(), value.uri()),
                                 "namespace '" + value.prefix() + "'");
                 case CompiledOp.Call value ->
-                        call(value, match, matchCount, content, sink, inputBase, ignoreErrors, depth, contentEncoding);
+                        callTemplate(value, match, matchCount, content, sink, inputBase, ignoreErrors, depth,
+                                contentEncoding);
                 case CompiledOp.ValueMap value -> {
                     final String selected = textOf(value.select(), match, matchCount, contentEncoding);
                     String mapped = null;
@@ -252,7 +259,7 @@ final class Body {
                 case CompiledOp.Transform value ->
                         transform(value, match, matchCount, sink, contentEncoding);
                 case CompiledOp.CallFunction value ->
-                        call(value, match, matchCount, sink, inputBase, contentEncoding);
+                        callFunction(value, match, matchCount, sink, inputBase, contentEncoding);
                 case CompiledOp.Sequence value -> {
                     // Declared here, emptied here: an accumulation that outlived its previous
                     // run would carry the last stream's values into this one.
@@ -292,7 +299,7 @@ final class Body {
                 }
                 case CompiledOp.Key value -> {
                     // Built where it is written, so the cost is paid somewhere visible.
-                    keyIndexes.put(value.name(), index(value.select(), value.groupBy(),
+                    keyIndexes.put(value.name(), file(value.select(), value.groupBy(),
                             match, matchCount, contentEncoding));
                 }
                 case CompiledOp.KeyGet value -> {
@@ -303,7 +310,7 @@ final class Body {
                     // zero times — the same non-answer XSLT's key() gives, not an error.
                     // An absent lookup value finds the entries that had no key — the same
                     // symmetry grouping uses, where absence is a group rather than an
-                    // exclusion (phase 4). XSLT would return empty for key('k', ()); this
+                    // exclusion. XSLT would return empty for key('k', ()); this
                     // engine treats "no value" as a value one can ask about, consistently.
                     final Filed filed = index.get(wanted == null ? null : wanted.asString());
                     final List<Integer> found = filed == null ? List.of() : filed.members();
@@ -366,7 +373,7 @@ final class Body {
      * and absence null, sequences handed over whole; the runtime makes the call and says what
      * a skipped, failed or erroring call means; the result is written or bound like any value.
      */
-    private void call(final CompiledOp.CallFunction op,
+    private void callFunction(final CompiledOp.CallFunction op,
                       final MatchResult match,
                       final int matchCount,
                       final OutputSink sink,
@@ -469,10 +476,9 @@ final class Body {
      * <p>Naming a variable binds it, always. An instruction with nothing to say writes nothing
      * — the "empty is absent" rule — but it must still <i>bind</i> absence, because a name left
      * untouched is a name still holding the previous record's answer, and a reference with no
-     * index takes the latest there is. E19 named this as the residual for transform results and
-     * said its own entry was the precedent if anything ever read one across records;
-     * design/16's iteration made exactly that ordinary. The clear is at the match index, which
-     * is how a capture that did not match already says the same thing.
+     * index takes the latest there is (E19; design/16's iteration reads values across records).
+     * The clear is at the match index, which is how a capture that did not match already says
+     * the same thing.
      */
     private void emit(final TypedValue value, final String name, final int matchCount, final OutputSink sink) {
         if (name == null) {
@@ -489,16 +495,13 @@ final class Body {
     }
 
     /**
-     * Design/16 §10's chunked-root refusal, on the <b>write</b> rather than on every read
-     * (phase 6 audit).
+     * Design/16 §10's chunked-root refusal, on the <b>write</b> rather than on every read.
      *
      * <p>{@code append} is the only instruction whose purpose is to make a value outlive the
      * record that produced it, so it is the accumulation, and refusing it refuses every
-     * configuration that deliberately accumulates under a root that reads in pieces. Guarding
-     * reads as well looked thorough and was wrong: a sequence bound and walked inside one
-     * record's body — a {@code tokenize} and a walk over its pieces — crosses no record
-     * boundary and cannot be summarised wrongly, and was being refused fatally for a hazard
-     * it did not have.
+     * configuration that deliberately accumulates under a root that reads in pieces. Reads are
+     * not guarded: a sequence bound and walked inside one record's body — a {@code tokenize}
+     * and a walk over its pieces — crosses no record boundary and cannot be summarised wrongly.
      *
      * <p>What this deliberately does not cover: reading a <b>capture</b> store under such a
      * root, which accumulates across records at the root level and is cleared per chunk.
@@ -614,7 +617,7 @@ final class Body {
      * {@code __index} bound, so a key can name a parallel store: "these records, by their
      * category" is said by indexing positions rather than values.
      */
-    private Map<String, Filed> index(final String select,
+    private Map<String, Filed> file(final String select,
                                      final CompiledRef groupBy,
                                      final MatchResult match,
                                      final int matchCount,
@@ -662,8 +665,8 @@ final class Body {
      * total reading an uncast ordering uses.
      *
      * <p>{@code __group_size} is known before the group's body opens, which is what lets an
-     * author write a count into the opening tag — the thing the byte engine could not do when
-     * {@code adjacent_groups} found its trailing-empty-group limit.
+     * author write a count into the opening tag — the {@code adjacent_groups} fixture's
+     * trailing-empty-group case.
      */
     private void forEachGroup(final CompiledOp.ForEachGroup op,
                               final MatchResult match,
@@ -681,7 +684,7 @@ final class Body {
 
         // The same index a key builds (design/16 §8): grouping walks every entry of it,
         // a key reaches one entry by value. One builder, two readings.
-        final Map<String, Filed> members = index(op.select(), op.groupBy(), match, matchCount, contentEncoding);
+        final Map<String, Filed> members = file(op.select(), op.groupBy(), match, matchCount, contentEncoding);
         if (members.isEmpty()) {
             return;
         }
@@ -736,13 +739,11 @@ final class Body {
             vars.shadow(op.as());
         }
         vars.shadow(EngineVars.INDEX);
-        // __position and __last are deliberately *not* shadowed here, which reverses part of
-        // the phase 3 audit (phase 4 audit). They were, to stop a key reading a position that
-        // did not exist yet — but this walk's scope has not been pushed, so what they resolve
-        // to is an *enclosing* walk's position, which is a real value and legitimately
-        // readable. Shadowing made that outer read absent and contradicted the scoping model
-        // everywhere else in the engine. The compiler still warns, because reading them here
-        // is far more likely to mean "this entry's position", which is what does not exist.
+        // __position and __last are deliberately *not* shadowed here: this walk's scope has
+        // not been pushed, so they resolve to an *enclosing* walk's position, which is a real
+        // value and legitimately readable, as everywhere else in the scoping model. The
+        // compiler still warns, because reading them here is far more likely to mean "this
+        // entry's position", which is what does not exist.
         for (int i = 0; i < populated.size(); i++) {
             final int index = populated.get(i);
             vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));
@@ -852,7 +853,7 @@ final class Body {
         vars.shadow(EngineVars.POSITION);
         vars.shadow(EngineVars.LAST);
         // Known before the first body runs, which is what makes a last-entry test cheap and
-        // correct — and is the fix for the trailing-empty-group limit adjacent_groups found.
+        // correct (the adjacent_groups fixture's trailing-empty-group case).
         vars.store(EngineVars.LAST).set(1, new TypedValue.Int(order.size()));
         for (int position = 0; position < order.size(); position++) {
             // Position follows the ordering; the index still points at the record, so a key
@@ -933,7 +934,7 @@ final class Body {
      * <p>Parameters live in their own scope, so a call cannot leave its arguments behind for the
      * next one. Declared parameters the caller did not supply take their defaults.
      */
-    private void call(final CompiledOp.Call value,
+    private void callTemplate(final CompiledOp.Call value,
                       final MatchResult match,
                       final int matchCount,
                       final byte[] content,
@@ -1026,9 +1027,7 @@ final class Body {
 
         // A recursive apply gets its own scope, so that a nested level's captures cannot leak
         // back into the level that invoked it — and so that they are released on the way out.
-        final boolean recursive = directive.templateRef() != null
-                                  || (directive.mode() != null
-                                      && directive.mode().startsWith(ApplyDirective.RECURSIVE_PREFIX));
+        final boolean recursive = directive.recursive();
         if (recursive) {
             vars.push();
             candidates.forEach(candidate -> candidate.template().captures()
@@ -1044,5 +1043,4 @@ final class Body {
             vars.pop();
         }
     }
-
 }

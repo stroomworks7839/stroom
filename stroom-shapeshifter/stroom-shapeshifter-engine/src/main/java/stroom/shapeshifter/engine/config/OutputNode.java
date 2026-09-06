@@ -787,11 +787,19 @@ public sealed interface OutputNode {
                           Dispatch dispatch) {
 
         /** The prefix of the mode a recursive apply dispatches to, minted once here. */
-        public static final String RECURSIVE_PREFIX = "__rec_";
+        private static final String RECURSIVE_PREFIX = "__rec_";
 
         /** The mode this directive dispatches to: its own, or the recursive one for its template. */
         public String effectiveMode() {
             return templateRef != null ? RECURSIVE_PREFIX + templateRef : mode;
+        }
+
+        /**
+         * Whether this is the recursive form, which runs in its own scope: a directive naming
+         * a template, or one whose mode is spelt with the recursive prefix (design/16 §3).
+         */
+        public boolean recursive() {
+            return templateRef != null || (mode != null && mode.startsWith(RECURSIVE_PREFIX));
         }
 
         /** How deep recursion goes before the engine calls it a runaway. */

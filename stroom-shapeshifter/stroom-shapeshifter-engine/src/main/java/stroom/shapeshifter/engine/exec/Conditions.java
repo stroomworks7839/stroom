@@ -96,7 +96,7 @@ public final class Conditions {
             case Condition.Or value -> value.conditions().stream()
                     .anyMatch(child -> evaluate(child, match, matchCount, vars, encoding, patterns));
             case Condition.Not value -> !evaluate(value.condition(), match, matchCount, vars, encoding, patterns);
-            // Restored with the iteration that sets them (design/16 §4.3). Outside a
+            // Set by the iteration (design/16 §4.3). Outside a
             // for-each nothing sets __position, so both read false — E21's hazard, which the
             // compiler now warns about rather than leaving to be discovered.
             case Condition.IsFirst ignored -> {

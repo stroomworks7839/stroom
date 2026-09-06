@@ -189,7 +189,6 @@ final class Level {
         report(templates, counts, ignoreErrors, data, cursor, to);
     }
 
-
     /**
      * Process a counting winner: the first-match store clearing (E19), the skip report, the
      * engine's counter variables, and — when the match is wanted — captures, body and
@@ -261,13 +260,15 @@ final class Level {
      * <p>Match counts live for the whole stream, as DS3's do — a minimum-match requirement is
      * judged once at the end, not once per read.
      *
+     * <p>The winner loop below is {@link #dispatch}'s, written out a second time. Folding the
+     * two into one shared method cost 4 to 5% on the regex_lines and ausearch rows (design 27,
+     * phase 3 gate), so the duplication is the gate's decision, not an oversight.
+     *
      * @param window   the input window, opened and its byte-order mark already applied by the run
-     * @param capacity the window's capacity, for the message that names it
      * @param encoding the run's encoding in force, as for {@link #dispatch}
      */
     void stream(final List<CompiledTemplate> templates,
                 final InputWindow window,
-                final int capacity,
                 final OutputSink sink,
                 final boolean ignoreErrors,
                 final Dispatch dispatch,
@@ -352,7 +353,7 @@ final class Level {
                     messages.add(new Message(Severity.FATAL,
                             "Template '" + template.name() + "' consumed the entire buffer ("
                             + match.advance() + " bytes) with input still unread: the record is "
-                            + "larger than source buffer_size (currently " + capacity
+                            + "larger than source buffer_size (currently " + window.capacity()
                             + "). Increase buffer_size."));
                     throw new AbortRun();
                 }
@@ -675,7 +676,8 @@ final class Level {
                     final byte[] bytes = Refs.resolve(select.select(), match, matchCount, vars, contentEncoding);
                     yield bytes == null ? null : TypedValue.of(bytes);
                 }
-                case CaptureBinding.CaptureSource.Field ignored -> null;
+                case CaptureBinding.CaptureSource.Field ignored -> throw new IllegalStateException(
+                        "Field capture sources are refused at compile time");
                 case CaptureBinding.CaptureSource.KeyValue keyValue -> {
                     final String key = Refs.resolveText(keyValue.keyRef(), match, matchCount, vars, contentEncoding);
                     if (key != null) {
@@ -726,5 +728,4 @@ final class Level {
     static long locate(final long base, final int offset) {
         return base >= Instrument.UNLOCATABLE ? Instrument.UNLOCATABLE : base + offset;
     }
-
 }

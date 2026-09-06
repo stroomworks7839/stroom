@@ -30,7 +30,7 @@ import java.util.Arrays;
  *
  * <p>In Stroom's pipeline model nothing carries bytes between a parser and an appender: an
  * appender is a destination, and only a writer — a SAX consumer — holds one. So a text
- * configuration streams to a byte sink by emitting characters, and {@code TextWriter} is the
+ * configuration streams to a byte sink by emitting characters, and the pipeline's writer is the
  * sink's mouth. This sink is that emission. It carries no structure: a structural call is a
  * {@link StructureException}, which cannot happen through the engine, since a configuration
  * with structure is run into {@link SaxEventSink} instead.

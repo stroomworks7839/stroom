@@ -80,8 +80,7 @@ public final class Run {
         this.messages.addAll(compiled.warnings());
         this.functions = new FunctionRuntime(compiled.functions(), mode, services, messages);
         this.body = new Body(compiled, instrument, messages, functions, encoding);
-        this.level = new Level(compiled, instrument, messages, body.vars(), functions, body);
-        body.attach(level);
+        this.level = body.level();
     }
 
     /**
@@ -98,7 +97,7 @@ public final class Run {
                                        final Instrument instrument,
                                        final RunMode mode,
                                        final Services services) {
-        return new Run(compiled, sink, instrument, mode, services).execute(transcoded(compiled, input), false);
+        return new Run(compiled, sink, instrument, mode, services).run(transcoded(compiled, input), false);
     }
 
     /**
@@ -116,7 +115,7 @@ public final class Run {
                                       final Instrument instrument,
                                       final RunMode mode,
                                       final Services services) {
-        return new Run(compiled, sink, instrument, mode, services).execute(transcoded(compiled, input), true);
+        return new Run(compiled, sink, instrument, mode, services).run(transcoded(compiled, input), true);
     }
 
     /**
@@ -129,10 +128,11 @@ public final class Run {
                 : input;
     }
 
-    private List<Message> execute(final InputStream input, final boolean wholeBuffer) {
+    /** Run to the end, an abort included, and return everything the engine had to say. */
+    private List<Message> run(final InputStream input, final boolean wholeBuffer) {
         try {
             functions.bind();
-            run(input, wholeBuffer);
+            document(input, wholeBuffer);
         } catch (final AbortRun ignored) {
             // The fatal message is the last thing the run has to say.
         } catch (final UncheckedIOException e) {
@@ -149,7 +149,8 @@ public final class Run {
         return List.copyOf(messages);
     }
 
-    private void run(final InputStream input, final boolean wholeBuffer) {
+    /** The document template: its prologue, the loop over the input where its apply-templates was, its tail. */
+    private void document(final InputStream input, final boolean wholeBuffer) {
         final CompiledTemplate source = compiled.templates().stream()
                 .filter(t -> t.match() instanceof CompiledMatch.Source)
                 .findFirst()
@@ -218,8 +219,9 @@ public final class Run {
         final int bufferSize = wholeBuffer
                 ? Integer.MAX_VALUE
                 : Math.max(1, compiled.project().source().bufferSize());
-        body.chunkedRoot(!wholeBuffer && (rootDispatch == Dispatch.CLASSIFY || rootDispatch == Dispatch.ANY));
-        if (wholeBuffer || rootDispatch == Dispatch.CLASSIFY || rootDispatch == Dispatch.ANY) {
+        final boolean chunked = rootDispatch == Dispatch.CLASSIFY || rootDispatch == Dispatch.ANY;
+        body.chunkedRoot(!wholeBuffer && chunked);
+        if (wholeBuffer || chunked) {
             boolean first = true;
             long read = 0;
             for (byte[] chunk = InputWindow.read(input, bufferSize);
@@ -248,7 +250,7 @@ public final class Run {
             if (window.mark() != null) {
                 applyMark(window.mark());
             }
-            level.stream(roots, window, bufferSize, output, rootIgnoreErrors, rootDispatch, encoding);
+            level.stream(roots, window, output, rootIgnoreErrors, rootDispatch, encoding);
         }
     }
 

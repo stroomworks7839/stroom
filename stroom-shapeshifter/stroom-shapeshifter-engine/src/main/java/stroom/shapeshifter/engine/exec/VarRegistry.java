@@ -87,7 +87,10 @@ public final class VarRegistry {
         return stores.getFirst();
     }
 
-    /** Note that a name exists, so that a later write finds it rather than creating it inside. */
+    /**
+     * Note that a name exists, in the global scope, so that a later write from inside a nested
+     * scope finds it there rather than creating a local one.
+     */
     public void register(final String name) {
         if (get(name) == null) {
             scopes.getFirst().put(name, new ArrayList<>(1));

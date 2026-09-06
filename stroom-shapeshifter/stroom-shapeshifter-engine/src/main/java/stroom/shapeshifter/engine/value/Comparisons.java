@@ -24,7 +24,7 @@ import java.util.Arrays;
 
 /**
  * The comparison spine (design/17 §8): one answer to "which is bigger" shared by the
- * conditions and, when the sequence work lands, by {@code sort}, {@code min} and {@code max}.
+ * conditions and by {@code sort}, {@code min} and {@code max}.
  *
  * <p>The rule is strict. Values of the same kind compare natively; {@code Int} against
  * {@code Real} compares numerically — promotion within the one numeric kind, not coercion;

@@ -70,6 +70,11 @@ final class InputWindow {
         return new InputWindow(input, capacity);
     }
 
+    /** The window's capacity: the configuration's buffer size, which a record must fit. */
+    int capacity() {
+        return window.length;
+    }
+
     /** The byte-order mark the input opened with, or null; its bytes are already consumed. */
     Encoding.ByteOrderMark mark() {
         return mark;
