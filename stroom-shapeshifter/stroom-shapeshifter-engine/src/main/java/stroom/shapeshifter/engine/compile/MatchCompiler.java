@@ -102,21 +102,28 @@ final class MatchCompiler {
      */
     private void collect(final List<OutputNode> body, final Template template) {
         for (final OutputNode node : body) {
+            // An instruction with a pattern of its own says so on the model (D47).
+            if (node instanceof OutputNode.Regexed regexed && regexed.isRegex()) {
+                intern(PatternKey.ofValue(regexed.pattern()), template);
+            }
             switch (node) {
-                case OutputNode.Replace replace -> {
-                    if (replace.isRegex()) {
-                        intern(PatternKey.ofValue(replace.pattern()), template);
-                    }
-                }
                 case OutputNode.If value -> collect(value.test(), template);
                 case OutputNode.Choose value ->
                         value.when().forEach(branch -> collect(branch.test(), template));
-                default -> {
-                    // No pattern of its own; what it holds is walked below.
+                case OutputNode.Holder ignored -> {
+                    // No condition of its own; its bodies are walked below.
+                }
+                case OutputNode.Binding ignored -> {
+                    // No condition.
+                }
+                case OutputNode.Leaf ignored -> {
+                    // No condition.
                 }
             }
-            for (final List<OutputNode> nested : Containers.bodies(node)) {
-                collect(nested, template);
+            if (node instanceof OutputNode.Holder holder) {
+                for (final List<OutputNode> nested : holder.bodies()) {
+                    collect(nested, template);
+                }
             }
         }
     }
