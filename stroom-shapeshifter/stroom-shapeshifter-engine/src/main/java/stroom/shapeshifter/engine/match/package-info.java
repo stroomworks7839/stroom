@@ -22,9 +22,10 @@
  * where the match began. {@code Steps} is progressive matching, a sequence of steps each
  * starting where the last stopped, which is what a regex cannot do; {@code Codecs} recode the
  * bytes a step produced for the steps after it; {@code Splitter} splits on a delimiter with
- * quoting and escaping, the CSV problem generalised. This package depends on the values, the
- * configuration's step vocabulary, the interned-pattern key, the text encodings and the regex
- * library; the run depends on it, and so does the compiler, for the codecs it refuses (design 27
- * §2.5).
+ * quoting and escaping, the CSV problem generalised; {@code PatternKey} is what an interned
+ * pattern is looked up by, built here at match time and by the compiler at compile time. This
+ * package depends on the values, the configuration's step vocabulary, the text encodings and
+ * the regex library; the run depends on it, and so does the compiler, for the key and for the
+ * codecs it refuses (design 27 §2.5).
  */
 package stroom.shapeshifter.engine.match;

@@ -17,8 +17,8 @@
 package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.compile.CompiledProject;
-import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.regex.Encoding;
 
 import org.junit.jupiter.api.Test;

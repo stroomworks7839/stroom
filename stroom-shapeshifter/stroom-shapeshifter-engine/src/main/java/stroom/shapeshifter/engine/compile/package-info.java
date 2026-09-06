@@ -28,5 +28,10 @@
  * reads what; {@code StructureCheck} judges what an element's body may contain; and
  * {@code Containers} says once which instructions hold bodies. The result is the
  * executable graph, {@code CompiledProject} (D35).
+ *
+ * <p>This package depends on the model, the values (the compile-time halves of the date
+ * functions), the matching (the pattern key it interns by, the codecs it refuses), the text
+ * encodings, the function contract, the root's messages and the regex library; the run and the
+ * facade depend on it, and nothing below it does (design 27 §2.5).
  */
 package stroom.shapeshifter.engine.compile;

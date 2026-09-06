@@ -29,6 +29,7 @@ import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Signature;
+import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.Dates;
 import stroom.shapeshifter.engine.value.Transforms;

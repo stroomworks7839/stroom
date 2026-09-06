@@ -16,10 +16,11 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.match.MatchResult;
+import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.match;
 
 import stroom.shapeshifter.engine.config.Template.RegexFlags;
 import stroom.shapeshifter.regex.Encoding;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.exec;
+package stroom.shapeshifter.engine.config;
 
 import java.util.Set;
 
@@ -23,9 +23,9 @@ import java.util.Set;
  *
  * <p>Three parts of the engine have to agree about these: whatever <b>sets</b> them, whatever
  * <b>reads</b> them, and the compiler's unknown-reference refusal, which must know they are
- * writable or it would refuse every configuration that mentions one. They were previously
- * spelt as private constants in the executor and as string literals in the compiler, which is
- * the shape E27 had just finished removing from the body checks.
+ * writable or it would refuse every configuration that mentions one. The names are part of the
+ * language — an author writes {@code $__position} — so they live with the model, below both
+ * the compiler and the run (design 27 phase 8).
  *
  * <p><b>A name belongs here only once something sets it.</b> A name the refusal accepts but
  * nothing writes reads as absent for ever, which is exactly what E21 deleted the

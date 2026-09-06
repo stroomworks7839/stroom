@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.match;
 
-import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.Endianness;
 import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.Predicate;
