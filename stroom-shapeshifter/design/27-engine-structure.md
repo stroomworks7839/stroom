@@ -125,7 +125,7 @@ which way it goes rather than carry both into `Body` and call it structure.
 | `FunctionRuntime` | The bound function library for one run: binding at start, the `FunctionContext` each function sees, the preview gate, per-call offset and length, the shared state map, the service lookup. | header region, `Context`, `bindFunctions`, `describe`, the preview branch of `call` |
 | `Level` | Dispatching one level's templates against one region, and the root level against the window: iterated ordered choice, strict and lexer and classify and any dispatch, skipping reported, eaters, match limits, instrument hooks, capture binding, `locate`. `stream` stays a sibling loop of `dispatch` — its refill decisions are the window's — and the seven rules the two duplicated are one method each. | the "one level against one region" region, `stream`'s level half, `bindCaptures`, `locate` |
 | `Body` | Running a template's body: the `CompiledOp` switch and every handler, the variable registry, key indexes, the once-per-site warnings, casting, emit-or-bind. | the "captures and body" region |
-| `Run` | One run of a compiled configuration over one input: owns the collaborators above and the message list, applies the root split, opens and closes the sink, wires `Level` and `Body` to each other, turns `AbortRun` into the last message (`structure` is its rule, `AbortRun` package-visible). One entry point; the facade passes the defaults. What `Executor` was, at a size that says what it does. | `run`, `execute`, `RootSplit`, `applyDirective`, `structure`, `AbortRun` |
+| `Run` | One run of a compiled configuration over one input: owns the collaborators above and the message list, applies the root split, opens and closes the sink, wires `Level` and `Body` to each other, turns `AbortRun` into the last message (`AbortRun` package-visible; the structure rule lives on the body, which the run calls for the elements it opens). One entry point; the facade passes the defaults. What `Executor` was, at a size that says what it does. | `run`, `execute`, `RootSplit`, `applyDirective`, `AbortRun` |
 
 `Executor` as a name goes. The facade `Shapeshifter.run(...)` is unchanged, so the pipeline
 module and the app do not move.
@@ -488,7 +488,22 @@ whether the root is chunked, asks it to register the configuration's captures, a
 document template's prologue and tail through it; the structure rule — a sink call the sink
 refuses becomes the run's last message — lives on the body and the run calls it for the
 elements it opens around the loop. `Executor` is 346 lines: the two entry points, the mark
-rule, the root split, and the loop that hands the input to the level. Engine 562.
+rule, the root split, and the loop that hands the input to the level. Engine 562, as before.
+
+*Audited 2026-09-06.* The move is byte-identical apart from the callback's visibility and
+the structure rule's; the encoding is told to the body before any body could read it, and the
+prologue runs with the declared encoding as it did; the wiring never leaves the level null.
+**Fixed:** a dead `instrument` field on the run; the run's class javadoc, which still described
+the window, the ordered choice and the body; two javadocs naming the executor as the body's or
+the level's caller; the entry's javadoc, lost in the move; `registerCaptures` taking what the
+body already holds. **And the callback interface is gone:** with the body a class, the
+interface had one implementer, so the level holds the body and calls it directly — the
+vocabulary was dead, and the interface dispatch was the residue phase 3 named on strict
+dispatch. **Named:** `attach` remains the wiring for the cycle between body and level, a
+field set once after construction, the smallest honest shape until `Run` builds both; the
+ledger's phase 4 items — two methods named `call`, `index` beside `Refs.index`, the recursive
+apply's name sniff, the variable body's buffer sink — carry to phases 5 and 8, this phase
+having been the move.
 
 *As written:*
 The interpreter region, with the registry, the key indexes and the warned sites as its fields.

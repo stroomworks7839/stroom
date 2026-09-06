@@ -41,27 +41,19 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * The runtime: reads the input, drives the templates, writes the output.
+ * One run of a compiled configuration over one input.
  *
- * <p>Input arrives through a <b>sliding window</b> of the configured buffer size (E13, DS3's own
- * shape): records consume from the window's front and it refills behind them, so a
- * record is never failed for straddling where a read happened to end. The bounds are the
- * contract — memory is capped by the buffer size, and a single match must fit the window's
- * capacity or it cannot be made — which makes failures depend on record size, never on stream
- * position.
- *
- * <p>Within a buffer the shape is simple and recursive. The document template writes its prologue,
- * hands the buffer to the templates of its mode, and writes its epilogue at the end of the stream.
- * A level's templates are dispatched as <b>iterated ordered choice</b> — {@code (A|B|C)*}, DS3's
- * own model (D34): each pass, the first template that matches wins one match, and the choice
- * re-opens from the first template. A match's body can hand a captured group down to another
- * level, which is how a record becomes fields and a field becomes parts.
+ * <p>Owns what a run is: the graph, the sink, the messages, the function runtime, the body
+ * interpreter and the level dispatcher wired to each other, and the encoding in force. It
+ * settles the byte-order mark, splits the document template's body around its
+ * {@code apply-templates} — the prologue written once at the start, the tail once at the end,
+ * the loop between them handing the input to the level, window by window or chunk by chunk —
+ * and turns an abort into the run's last message.
  */
 public final class Executor {
 
     private final CompiledProject compiled;
     private final OutputSink output;
-    private final Instrument instrument;
     private final List<Message> messages = new ArrayList<>();
     /** The functions bound to this run, and what they may reach (design 26). */
     private final FunctionRuntime functions;
@@ -82,7 +74,6 @@ public final class Executor {
                      final Services services) {
         this.compiled = compiled;
         this.output = sink;
-        this.instrument = instrument;
         this.encoding = compiled.encoding();
         this.messages.addAll(compiled.warnings());
         this.functions = new FunctionRuntime(compiled.functions(), mode, services, messages);
@@ -122,10 +113,6 @@ public final class Executor {
                 : input;
         return new Executor(compiled, sink, instrument, mode, services).execute(source, wholeBuffer);
     }
-
-    // -----------------------------------------------------------------------------------
-    // The stream
-    // -----------------------------------------------------------------------------------
 
     private List<Message> execute(final InputStream input, final boolean wholeBuffer) {
         try {
@@ -174,7 +161,7 @@ public final class Executor {
         final MatchResult nothing = MatchResult.empty();
         final RootSplit split = source == null ? RootSplit.NONE : RootSplit.of(source.body());
 
-        body.registerCaptures(compiled.project());
+        body.registerCaptures();
 
         // What comes before the apply-templates, with any element it sits inside opened on the
         // way down (design 21 phase 2b: `element records { apply-templates }` is the shape the
@@ -341,6 +328,4 @@ public final class Executor {
             return false;
         }
     }
-
-
 }

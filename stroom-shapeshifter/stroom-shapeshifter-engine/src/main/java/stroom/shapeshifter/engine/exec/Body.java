@@ -29,7 +29,6 @@ import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
-import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
@@ -58,7 +57,7 @@ import java.util.function.Function;
  * instruction set, and every state an instruction touches is a field of this class or of the
  * run that owns it.
  */
-final class Body implements Level.BodyRunner {
+final class Body {
 
     private final CompiledProject compiled;
     private final Instrument instrument;
@@ -103,7 +102,6 @@ final class Body implements Level.BodyRunner {
      */
     private boolean chunkedRoot;
 
-
     /** The run's encoding in force, told by the run, which a nested dispatch is handed. */
     private Encoding encoding;
 
@@ -143,16 +141,16 @@ final class Body implements Level.BodyRunner {
     }
 
     /** Register every capture the configuration declares, so each has a store from the start. */
-    void registerCaptures(final Project project) {
-        for (final Template template : project.templates()) {
+    void registerCaptures() {
+        for (final Template template : compiled.project().templates()) {
             for (final CaptureBinding capture : template.captures()) {
                 vars.register(capture.name());
             }
         }
     }
 
-    @Override
-    public void body(final List<CompiledOp> ops,
+    /** Run a body against a match: the interpreter's entry, which the level and the run both call. */
+    void body(final List<CompiledOp> ops,
                       final MatchResult match,
                       final int matchCount,
                       final byte[] content,

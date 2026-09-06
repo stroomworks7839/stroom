@@ -46,31 +46,17 @@ import java.util.List;
  * a working copy and excises what it matches. Skipping is reported, never silent. What a
  * counted match does — clears first-match stores (E19), reports a skipped prefix, sets the
  * engine's counters — is one method the consuming modes share, and what a wanted match with
- * content does — binds captures, runs its body through the run's body callback, measures the
+ * content does — binds captures, runs its body through the body interpreter, measures the
  * output — is one method every mode shares, the classify mode included.
  */
 final class Level {
-
-    /** The run's body interpreter, which a level hands a winning match's body to. */
-    interface BodyRunner {
-
-        void body(List<CompiledOp> ops,
-                 MatchResult match,
-                 int matchCount,
-                 byte[] content,
-                 OutputSink sink,
-                 long inputBase,
-                 boolean ignoreErrors,
-                 int depth,
-                 Encoding contentEncoding);
-    }
 
     private final CompiledProject compiled;
     private final Instrument instrument;
     private final List<Message> messages;
     private final VarRegistry vars;
     private final FunctionRuntime functions;
-    private final BodyRunner body;
+    private final Body body;
 
     /** The run's encoding in force, taken on every entry; the same value throughout a run. */
     private Encoding encoding;
@@ -80,7 +66,7 @@ final class Level {
           final List<Message> messages,
           final VarRegistry vars,
           final FunctionRuntime functions,
-          final BodyRunner body) {
+          final Body body) {
         this.compiled = compiled;
         this.instrument = instrument;
         this.messages = messages;
