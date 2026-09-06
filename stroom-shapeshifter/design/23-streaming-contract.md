@@ -41,9 +41,9 @@ Three properties follow, and they are the contract:
 ## 2. Where the engine stands
 
 `Shapeshifter.run(compiled, InputStream, sink, instrument)` → `Run.stream` (`Executor.stream`
-until design 27 dissolved the executor, 2026-09-06): a byte window
-of the configuration's `buffer_size`; one byte of pushback so "full" and "exhausted" are told
-apart; a match that runs into the edge with input unread is discarded, the window compacted
+until design 27 dissolved the executor, 2026-09-06): a byte window of the configuration's
+`buffer_size`; one byte of pushback so "full" and "exhausted" are told apart; a match that runs
+into the edge with input unread is discarded, the window compacted
 and refilled, and the match retried against more — property 2. Match counts live for the
 stream. Property 1 holds by construction; property 3 holds because the sink is written as
 each body runs.
@@ -178,8 +178,9 @@ configuration — the output; a record larger than `buffer_size` is FATAL.*
 
 **Phase 2 — the filter's input, already done (design 22), re-audited against this contract —
 Done 2026-09-04.** *Confirmed:* the worker reads the engine's window from the pipe through the
-same line index and the same `Run.stream` (then `Executor.stream`) as the parser element, so `buffer_size` rules
-the window and the pipe's 64 KiB capacity is only back-pressure, not a second buffer; on the
+same line index and the same `Run.stream` (then `Executor.stream`) as the parser element, so
+`buffer_size` rules the window and the pipe's 64 KiB capacity is only back-pressure, not a
+second buffer; on the
 structured path neither end holds the stream — the event queue is 1024 deep and the pipeline's
 thread drains it between the input events it pushes and while it waits on a full pipe. The
 probe for one more byte after a full-window match blocks on an *empty* pipe until the

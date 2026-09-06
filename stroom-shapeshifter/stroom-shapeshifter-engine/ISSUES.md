@@ -1186,7 +1186,7 @@ package-private holder for the SAX call and its counter, and the qname halves si
 Pure hygiene, under the sink tests and the pipeline's goldens; no behaviour moves.
 
 ### E41 — A variable's body is serialised with Saxon's indenting layout
-**`open` 2026-09-06.** A `variable` body runs through a `XmlByteSink` over a buffer with the
+**`open` 2026-09-06.** A `variable` body runs through an `XmlByteSink` over a buffer with the
 indented layout, so a body that writes elements gets Saxon's newlines and three-space indent
 inside the variable's value. Design 27 ruling 8 filed the question (why a variable's text takes
 a serialiser's layout at all) as a behaviour question, not the structure design's; this entry

@@ -3,8 +3,8 @@
 *Proposed and ruled 2026-09-05 (D45), every ruling as recommended. Amended the same day, on the
 user's question whether the plan locates code into packages as well as classes: §1.5, §2.5 to
 §2.7 and phase 6 are the amendment; rulings 6 and 7 were made the same day, as recommended. Built
-2026-09-05 to 2026-09-06, phases 0 to 7, each audited; phase 8, the exit review, closed
-2026-09-06 (§5.6).* At entry the engine was correct, pinned at three levels, and its biggest
+2026-09-05 to 2026-09-06, phases 0 to 8; phases 1 to 7 each audited before the next began, phase
+8, the exit review, audited after it closed, 2026-09-06 (§5.6).* At entry the engine was correct, pinned at three levels, and its biggest
 class was a 2,166-line interpreter that Checkstyle warned about on every build. This design says
 what the module should look like when every class has one purpose, what moves where to get
 there, and how each move is gated so that nothing about the engine's behaviour changes on the way.
@@ -102,19 +102,21 @@ which way it goes rather than carry both into `Body` and call it structure.
 
 ### 1.5 What the designs already decided
 
-- **D35, two layers, never three.** The `Project` and the `CompiledProject` are the only artefacts.
-  Its stated consequence, as it then read: "`Executor` is transitional and dissolves into the graph
-  as compilation deepens." Design 10 §2 says the same in more words: "performs the execution" is the
-  compiled object's job description. So the direction is settled; this design is the plan for it. -
-  **What D35 forbids is a third artefact** — a cache, a factory tree, a shared-immutable middle, a
-  per-run mirror graph. It does not forbid the run having state of its own: the window, the
-  registry, the messages, the sink. That state exists today as the executor's fields; it will exist
-  afterwards as the fields of whatever owns a run. Naming that owner is not adding a layer. -
-  **Design 10's open rows** (compiled conditions and guards, step pre-encoding, capture elimination)
-  are performance work that shape follows, "not the other way round". This design does not do them.
-  It does leave the graph in a shape where each is a local change. - **The code standard**
-  (2026-08-21): blank-page Java, no port residue, keep performance and issue rationale in comments,
-  lint rules are the standard. The review in §4 holds the result to exactly that.
+- **D35, two layers, never three.** The `Project` and the `CompiledProject` are the only
+  artefacts. Its stated consequence, as it then read: "`Executor` is transitional and dissolves
+  into the graph as compilation deepens." Design 10 §2 says the same in more words: "performs the
+  execution" is the compiled object's job description. So the direction is settled; this design
+  is the plan for it.
+- **What D35 forbids is a third artefact** — a cache, a factory tree, a shared-immutable middle,
+  a per-run mirror graph. It does not forbid the run having state of its own: the window, the
+  registry, the messages, the sink. At entry that state was the executor's fields; it exists
+  afterwards as the fields of whatever owns a run. Naming that owner is not adding a layer.
+- **Design 10's open rows** (compiled conditions and guards, step pre-encoding, capture
+  elimination) are performance work that shape follows, "not the other way round". This design
+  does not do them. It does leave the graph in a shape where each is a local change.
+- **The code standard** (2026-08-21): blank-page Java, no port residue, keep performance and
+  issue rationale in comments, lint rules are the standard. The review in §4 holds the result to
+  exactly that.
 
 ## 2. The target shape
 
@@ -159,12 +161,12 @@ instruction set.
 
 | Class | Purpose |
 |---|---|
-| `Compiler` | The pass pipeline: encoding, per-template refusals and compilation, then the uses walk, name resolution and the dispatch lint through `TemplateUses`, then the body checks, zipped per template as today so the error a doubly faulty configuration reports does not change; builds the `CompiledProject`, with `structured` computed by the structure check rather than in the graph's constructor. 203 lines as built. |
+| `Compiler` | The pass pipeline: encoding, per-template refusals and compilation, then the uses walk, name resolution and the dispatch lint through `TemplateUses`, then the body checks, zipped per template as today so the error a doubly faulty configuration reports does not change; builds the `CompiledProject`, with `structured` computed by the structure check rather than in the graph's constructor. 202 lines at exit. |
 | `TemplateUses` | What one template's body refers to, the templates it calls and the applies it makes, collected in one walk per body, and the two checks that read it: every name must exist, and the dispatch lint must know which modes are strict. |
-| `MatchCompiler` | Pattern interning (with a step's flags in the key, ruling 9), step resolution, once, and pre-encoding, `compileMatch`, the codec requirement; owns `patterns` as an instance. The not-yet refusal is `ConfigException.notYet`, since a capture refusal uses it too. The E29 block that cannot fire is deleted, its rationale one sentence on `RegexEncodings.forMatch`. 278 lines. |
+| `MatchCompiler` | Pattern interning (with a step's flags in the key, ruling 9), step resolution, once, and pre-encoding, `compileMatch`, the codec requirement; owns `patterns` as an instance. The not-yet refusal is `ConfigException.notYet`, since a capture refusal uses it too. The E29 block that cannot fire is deleted, its rationale one sentence on `RegexEncodings.forMatch`. 277 lines at exit. |
 | `Containers` | Which instructions hold bodies, said once and exhaustively; the two walks that look for something anywhere inside a body — patterns to intern, templates referred to — recurse through it, so neither can stop short of an iteration again. 116 lines. |
-| `StructureCheck` | Was `Compiler.Structure`: attributes and namespaces after content, structure inside attribute values, `producesContent`; content-seen threaded as a returned boolean and the pass-through containers walked through `Containers` since phase 8. 186 lines. |
-| `ReferenceCheck` | Was `Compiler.BodyScan` (E27's walk): reads and writes, the unknown-reference refusal, sequences and keys, iteration and group hazards, the substring version gate, E37's document-template rules. 604 lines. |
+| `StructureCheck` | Was `Compiler.Structure`: attributes and namespaces after content, structure inside attribute values, `producesContent`; content-seen threaded as a returned boolean and the pass-through containers walked through `Containers` since phase 8. 188 lines at exit. |
+| `ReferenceCheck` | Was `Compiler.BodyScan` (E27's walk): reads and writes, the unknown-reference refusal, sequences and keys, iteration and group hazards, the substring version gate, E37's document-template rules. 603 lines at exit. |
 | `CompiledOp` | The ops, with `compile(body)` staying beside them — it is the body's compilation and already lives here. |
 
 ### 2.4 `config.json` after the split
@@ -192,8 +194,9 @@ is the property that matters and it is easiest to keep when the two halves are i
 | `engine.exec` | The run: `Run`, `Level`, `Body`, `InputWindow`, `FunctionRuntime`, `Conditions`, `Refs`, `CompiledRefs`, `Store`, `VarRegistry` | `match`, `value`, `compile`, `config`, `function`, `text`, `output` (the variable body's buffer sink, E41), the root's contracts, regex. The one edge back the plan accepted — `compile`'s reference check reading `exec.EngineVars` — is gone: phase 8 placed `EngineVars` in `config`, the language's reserved names with the model, and `PatternKey` in `match`, which closed the `compile` ↔ `match` cycle the table above had not drawn (§5.6). |
 | `engine.compile`, `engine.config`, `engine.config.json`, `engine.ds3`, `engine.text`, `engine.function` | as today, with the class splits of §2.3 and §2.4 | as today |
 
-The dependency column is the layering §1.4 measured, now enforced by the package line: a value
-knows nothing of a match, a match knows nothing of a run. `Conditions` stays with the run
+The dependency column is the layering §1.4 measured, now stated by the package javadocs and
+kept by the imports (nothing in the build checks it): a value knows nothing of a match, a match
+knows nothing of a run. `Conditions` stays with the run
 because it resolves references against the registry. `MatchResult` goes with matching because
 it is what a match produces and `Steps` and `Splitter` fill it; the run reads it.
 
@@ -521,7 +524,7 @@ what the 74-to-9 count says it already is. *Benchmark gate.*
 
 ### Phase 5 — `Run`, and the name goes — Done 2026-09-06
 
-*As built:* `Executor` is `Run` (342 lines; 356 after the audit's lift; 359 at exit) — one run of a
+*As built:* `Executor` is `Run` (342 lines; 356 after the audit's lift; 362 at exit) — one run of a
 compiled configuration over one input — with two entry points, `stream` and `whole`, in place of a
 positional boolean on the API, both taking the mode and the services (the boolean survives
 privately, decided once in `dispatchInput`, which is the whole-or-chunk-or-window choice the root
@@ -632,8 +635,8 @@ javadoc was another matter; see the audit): `ProjectJson`
 `MatchJson` (443), `ReferenceJson` (149), `ConditionJson`
 (241) and `OutputJson` (706), each family's reader and writer
 together so the round trip is kept where both halves can be seen, over `JsonFields`
-(238; the audit's restored javadocs and phase 8 bring the six to 181, 448, 149, 250, 708 and
-262), which holds the primitives every family uses and states the format's rules
+(238; the audit's restored javadocs bring the six to 181, 448, 149, 250, 708 and 262, and phase
+8 leaves them at 180, 442, 153, 249, 706 and 271), which holds the primitives every family uses and states the format's rules
 as this format's — the spellings kept because the corpus is written in them, the origin named
 once. The four placements the entry review corrected are as corrected: regex flags and the
 pattern library with the match family, dispatch and casts among the primitives. A member
@@ -700,16 +703,40 @@ app 5, xmlbench compiles, fresh results. Benchmark: the full suite at `d5301df67
 (`design/benchmarks/2026-09-06-1041-d5301df67b-engine.json`) against the phase 0 column — every
 run row within 1.6% of the baseline and inside the cross-run spread; the one reading outside a
 baseline interval, `run progressive` at −1.1%, was probed back to back against the phase 7
-commit with three forks and the gc profiler and came out 1.5% ahead of it (350 against 345
-ops/s), so it was spread, not structure. The compile rows sit within the ±5–8% spread the
-progressive compile row has shown since phase 1 (−8.6% against the baseline, +2.3% against
-the phase 7 point on the same row). No regression; the phase is done.
+commit (`1a8cc4e50e`, not filed under `benchmarks`; the probe JSONs stay in the bench folder) with three forks and the gc profiler and came out 1.5% ahead of it (350 against 345
+ops/s), so it was spread, not structure. The compile rows sit within the spread the
+progressive compile row has shown since phase 1, now 5–9% (−8.6% against the baseline, +2.3%
+against the last point before phase 8, the phase 4 audit's `07b7da8d46`, on the same row). No
+regression; the phase is done.
 
 *As written:* the phase 0 ledger re-run against the result, adversarially: every class one
 purpose, every class javadoc saying what and why, no method over a screen without a reason in
 its comment, no narration, no residue. Package javadocs rewritten where the shape changed; the
 engine README's architecture section updated; a D-number recorded. *Output:* §5 closed with the
 exit state.
+
+*Audited 2026-09-06, after the close, two read-only passes: the five code commits and the
+documents commit.* The code audit confirmed what the commits claimed to leave alone — the
+body/level wiring reads nothing through `this` before the run starts, the shared empty result's
+array is never written, the window's capacity is the value the run passed before, the model's
+`recursive()` is the removed expression token for token, the threaded content-seen flag accepts
+and refuses exactly what the out-cell did on every shape, `Containers` walks the pass-through
+bodies in the order the explicit arms did, the four `ofValue` keys are the four old keys — and
+named three message texts the commits had not (the root's and the three-argument `uuid`'s
+refusals gained their owner's name; a JSON-null `endian` reads as big-endian). Fixed at
+`600bdcbfe4`: a javadoc link to the renamed `CallTemplate`; parameter alignment the renames
+had left behind in `Body`, `Refs` and `Steps` (so the `Steps` row above closes with this
+commit, not before); `CompiledRefs` naming a `Refs.write` that is gone; a provenance tag
+`EngineVars` had just gained; the `Arity` enum beside the other nested types; `Containers`
+naming its third reader; the lines the renames pushed past 100 columns; the reader test's
+unused import and its pin asserting the absent case its message claimed. The documents audit
+found the rewrap had collapsed §1.5's four bullets into one paragraph, restored; the phase 7
+and §2.3 line counts and `Run`'s were pre-phase-8 and are the exit's; the "+2.3% against the
+phase 7 point" named the wrong point (the last point before phase 8 is the phase 4 audit's);
+"enforced by the package line" overstated what nothing in the build checks, here and in the
+README; D45 said eight phases for nine; two edited lines in design 23 and D45 were not
+rewrapped. Recorded as notes: §5.3's "eleven imports" and ruling 8's "sixteen files" are the
+phase's counts and are not recoverable from HEAD.
 
 ### 3.9 The benchmark gate
 

@@ -60,7 +60,7 @@ function/    the extension-function contract (design 26)
 
 Two layers, never three ([D35](../design/00-decisions.md)): the model and the executable graph,
 and the run is the graph's state for one input. A value knows nothing of a match, a match
-nothing of a run; the package line enforces it
+nothing of a run; the package javadocs state the direction and the imports keep it
 ([design 27](../design/27-engine-structure.md), D45).
 
 ## Two things worth knowing before using it
