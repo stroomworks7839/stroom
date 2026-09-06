@@ -15,10 +15,12 @@
  */
 
 /**
- * Text encodings, at the two boundaries where they matter.
+ * Text encodings, at the boundaries where they matter.
  *
  * <p>The engine matches bytes (D13), so an encoding is needed only to turn a configuration's
- * delimiters into bytes to look for, and to turn captured bytes back into text on the way out.
- * Everything between those two points is encoding-agnostic by construction.
+ * delimiters into bytes to look for ({@code Encoding}, {@code RegexEncodings}), to turn captured
+ * bytes back into text on the way out, and — for the family the regex library cannot match in
+ * — to transcode a whole source to UTF-8 before the window sees it ({@code Transcode}, design 19
+ * phase 6). Everything between those points is encoding-agnostic by construction.
  */
 package stroom.shapeshifter.engine.text;

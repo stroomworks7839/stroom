@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine;
+package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
@@ -34,16 +35,17 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 /**
- * Every instruction that binds a name is collected by the compiler's single body walk (E27).
+ * Every instruction that binds a name is collected by {@code ReferenceCheck.visit}, the
+ * compiler's one reference walk (E27).
  *
- * <p>The merged scan's switch is exhaustive, so an instruction the vocabulary gains cannot be
+ * <p>The walk's switch is exhaustive, so an instruction the vocabulary gains cannot be
  * ignored outright — but exhaustiveness cannot tell whether an arm does the <i>right</i>
  * thing, and an arm that read its selects while forgetting to bind its name would make
  * perfectly good configurations fail to compile with "reads a name nothing writes". That is
  * what this pins: one configuration per binding instruction, each writing a name and then
  * reading it straight back, each of which must compile.
  */
-class BodyScanBindingsTest {
+class ReferenceCheckBindingsTest {
 
     private static RefExpression ref(final String var) {
         return new RefExpression(List.of(new RefExpression.RefPart.Capture(var, 0, null)));

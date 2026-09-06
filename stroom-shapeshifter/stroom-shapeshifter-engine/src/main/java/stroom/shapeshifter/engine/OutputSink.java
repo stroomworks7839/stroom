@@ -30,9 +30,11 @@ import java.nio.charset.StandardCharsets;
  * transforms — do not know which; the sink does. A configuration that never opens a container
  * therefore gets the byte-transparent stream it always had.
  *
- * <p>Two implementations, one per target: {@code XmlByteSink} serialises the structure as Stroom's
- * own serialiser would (D41), and {@code SaxEventSink} forwards it as SAX events. A sink that
- * cannot do structure — a byte counter, a benchmark — keeps the defaults, which refuse it by name.
+ * <p>Three implementations in {@code output}, one per target: {@code XmlByteSink} serialises the
+ * structure as Stroom's own serialiser would (D41), {@code SaxEventSink} forwards it as SAX
+ * events, and {@code CharacterSink} delivers a text configuration's writes as characters (D42).
+ * A sink that cannot do structure — a byte counter, a benchmark — keeps the defaults, which
+ * refuse it by name.
  *
  * <p>Ordering is the one rule enforced here rather than by the compiler: a namespace or attribute
  * that arrives after an element's content has begun is a {@link StructureException}, because the
@@ -67,7 +69,7 @@ public interface OutputSink {
     }
 
     /**
-     * What a position is (design 20 S5): a byte offset when the target is bytes, an event ordinal
+     * What a position is (design 20 §5): a byte offset when the target is bytes, an event ordinal
      * when it is events. One {@link Instrument} contract, told which it is speaking.
      */
     enum Unit {

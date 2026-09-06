@@ -429,7 +429,7 @@ class EncodedInputTest {
     }
 
     /**
-     * Found by the phase-3 audit: guards were evaluated with the executor's project-level
+     * Found by the phase-3 audit: guards were evaluated with the run's project-level
      * encoding while their patterns were interned under the template-effective one, so a
      * guard's {@code matches} on an encoding-overridden template missed the map at run time
      * and died with "Pattern was not compiled". The guard now evaluates under the same

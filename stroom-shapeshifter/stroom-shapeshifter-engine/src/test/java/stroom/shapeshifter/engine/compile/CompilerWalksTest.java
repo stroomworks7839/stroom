@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine;
+package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.compile.CompiledProject;
+import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.regex.Encoding;

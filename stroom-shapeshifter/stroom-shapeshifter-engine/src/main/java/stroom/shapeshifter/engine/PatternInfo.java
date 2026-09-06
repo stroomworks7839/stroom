@@ -77,10 +77,11 @@ public record PatternInfo(boolean valid, String error, List<Group> groups) {
             return new PatternInfo(false, e.getMessage(), List.of());
         }
 
+        // Indexed by group number, entry 0 the whole match: the library's stated contract.
         final List<String> names = compiled.groupNames();
         final List<Group> groups = new ArrayList<>(compiled.groupCount());
         for (int i = 1; i <= compiled.groupCount(); i++) {
-            groups.add(new Group(i, i < names.size() ? names.get(i) : null));
+            groups.add(new Group(i, names.get(i)));
         }
         return new PatternInfo(true, null, groups);
     }

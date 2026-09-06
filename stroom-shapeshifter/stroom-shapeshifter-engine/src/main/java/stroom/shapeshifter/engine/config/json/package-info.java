@@ -22,7 +22,8 @@
  * class each — {@code MatchJson}, {@code ReferenceJson}, {@code ConditionJson},
  * {@code OutputJson} — with a family's reader and writer together, because the round trip is
  * the property that matters; {@code JsonFields} holds the primitives they all use and states
- * the format's rules. The model does not depend on this package: it is a plain tree of
- * records that a different serialiser, or none, could carry.
+ * the format's rules. The model's records do not depend on this package — {@code ProjectReader}
+ * is the one door in {@code config} that does — so the model stays a plain tree of records
+ * that a different serialiser, or none, could carry.
  */
 package stroom.shapeshifter.engine.config.json;
