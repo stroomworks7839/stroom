@@ -472,8 +472,25 @@ messages and the registry it binds captures into. The recursion — a body's `ap
 to a nested level — goes through `Body`, so `Level` and `Body` reference each other through the
 run that owns them. *Benchmark gate.*
 
-### Phase 4 — `Body`
+### Phase 4 — `Body` — Done 2026-09-06
 
+*As built:* the whole body region — the switch over the instruction vocabulary and every
+handler it reaches: conditions, text, function calls and their casting, transforms with their
+once-per-site warnings, emit-or-bind, the sequence guards, entries and dense binding, folds
+and extremes, the key index and grouping, sorting and distinct, iteration, structure calls,
+variables, call-template and apply-templates — moved verbatim into `Body` (1,044 lines) with
+the state it owns: the variable registry, the key indexes, the warned arithmetic sites and the
+chunked-root flag. `Body` implements the level's callback directly, as the run did after phase
+3's gate, so the callback costs what it cost. The run wires the two: the body first, the level
+with the body's registry and the body as its runner, then the body attached to the level, since
+each needs the other and one must be first. The run tells the body the encoding in force and
+whether the root is chunked, asks it to register the configuration's captures, and runs the
+document template's prologue and tail through it; the structure rule — a sink call the sink
+refuses becomes the run's last message — lives on the body and the run calls it for the
+elements it opens around the loop. `Executor` is 346 lines: the two entry points, the mark
+rule, the root split, and the loop that hands the input to the level. Engine 562.
+
+*As written:*
 The interpreter region, with the registry, the key indexes and the warned sites as its fields.
 `vars` stops being reachable from anything but `Body` and the capture binding in `Level`, which is
 what the 74-to-9 count says it already is. *Benchmark gate.*
