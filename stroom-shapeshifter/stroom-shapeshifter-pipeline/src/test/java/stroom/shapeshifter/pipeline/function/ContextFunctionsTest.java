@@ -356,7 +356,7 @@ class ContextFunctionsTest {
                         stroom.shapeshifter.engine.config.ProjectReader.read(json),
                         stroom.shapeshifter.engine.function.FunctionRegistry.of(new LogFunction())),
                 new java.io.ByteArrayInputStream("a\nb\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
-                new stroom.shapeshifter.engine.output.XmlByteSink(output),
+                new XmlByteSink(output),
                 stroom.shapeshifter.engine.Instrument.NONE,
                 stroom.shapeshifter.engine.function.RunMode.NORMAL,
                 stroom.shapeshifter.engine.function.Services.NONE);

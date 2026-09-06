@@ -22,7 +22,6 @@ import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.text.Encoding;
-import stroom.shapeshifter.engine.value.Numbers;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.io.ByteArrayOutputStream;

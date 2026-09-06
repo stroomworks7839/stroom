@@ -16,6 +16,7 @@
 
 package stroom.search;
 
+
 import stroom.docref.DocRef;
 import stroom.index.impl.IndexStore;
 import stroom.index.shared.LuceneIndexDoc;

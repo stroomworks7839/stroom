@@ -16,6 +16,7 @@
 
 package stroom.processor.impl;
 
+
 import stroom.data.shared.StreamTypeNames;
 import stroom.docref.DocRef;
 import stroom.entity.shared.ExpressionCriteria;

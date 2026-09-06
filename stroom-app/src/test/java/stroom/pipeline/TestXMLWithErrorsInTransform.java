@@ -16,6 +16,7 @@
 
 package stroom.pipeline;
 
+
 import stroom.docref.DocRef;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.errorhandler.RecordErrorReceiver;

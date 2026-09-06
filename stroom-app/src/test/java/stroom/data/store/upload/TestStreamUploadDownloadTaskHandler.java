@@ -16,6 +16,7 @@
 
 package stroom.data.store.upload;
 
+
 import stroom.data.shared.StreamTypeNames;
 import stroom.data.store.api.InputStreamProvider;
 import stroom.data.store.api.OutputStreamProvider;

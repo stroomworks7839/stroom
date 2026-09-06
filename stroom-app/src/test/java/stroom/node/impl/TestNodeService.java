@@ -16,6 +16,7 @@
 
 package stroom.node.impl;
 
+
 import stroom.node.api.FindNodeCriteria;
 import stroom.node.api.NodeInfo;
 import stroom.node.api.NodeService;

@@ -16,6 +16,7 @@
 
 package stroom.test;
 
+
 import org.junit.jupiter.api.Test;
 
 class TestAbstractCoreIntegrationTest extends AbstractCoreIntegrationTest {

@@ -112,6 +112,7 @@ class TestStatisticsQueryServiceImpl extends AbstractCoreIntegrationTest {
 //    private static final DocRef DOC_REF = new DocRef(
 //    StatisticStoreDoc.DOCUMENT_TYPE, UUID.randomUUID().toString(), STAT_NAME);
 
+
     @Inject
     private CommonTestControl commonTestControl;
     @Inject
@@ -243,6 +244,7 @@ class TestStatisticsQueryServiceImpl extends AbstractCoreIntegrationTest {
             doAsserts(searchResponse, 1, expectedValuesMap);
         }
     }
+
 
     @Test
     void testSearchStatisticsData_OneTagTwoOptions() throws SQLException {
@@ -424,6 +426,7 @@ class TestStatisticsQueryServiceImpl extends AbstractCoreIntegrationTest {
     private TableSettings createTableSettings(final String componentId) {
         final TableSettings.Builder tableSettingsBuilder = TableSettings.builder();
 
+
         final List<String> fields = COMPONENT_ID_TO_FIELDS_MAP.get(componentId);
         Preconditions.checkNotNull(fields);
         fields.forEach(field -> addColumn(field, tableSettingsBuilder));
@@ -497,6 +500,7 @@ class TestStatisticsQueryServiceImpl extends AbstractCoreIntegrationTest {
         }
         return count;
     }
+
 
 //    private static class MockTaskMonitor implements TaskMonitor {
 //        private static final long serialVersionUID = -8415095958756818805L;

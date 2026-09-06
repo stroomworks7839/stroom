@@ -379,6 +379,7 @@ class TestReferenceData extends AbstractCoreIntegrationTest {
             final RefStreamDefinition refStreamDefinition = new RefStreamDefinition(
                     pipelineRef, pipelineStore.readDocument(pipelineRef).getVersion(), effectiveStream.getId());
 
+
             mockLoaderActions.put(refStreamDefinition, () -> {
                 refDataStore.doWithLoaderUnlessComplete(
                         refStreamDefinition, effectiveStream.getEffectiveMs(), refDataLoader -> {
@@ -411,6 +412,7 @@ class TestReferenceData extends AbstractCoreIntegrationTest {
             final RefStreamDefinition refStreamDefinition = new RefStreamDefinition(
                     pipelineRef, pipelineStore.readDocument(pipelineRef).getVersion(), effectiveStream.getId());
 
+
             mockLoaderActions.put(refStreamDefinition, () -> {
                 refDataStore.doWithLoaderUnlessComplete(
                         refStreamDefinition, effectiveStream.getEffectiveMs(), refDataLoader -> {
@@ -439,6 +441,7 @@ class TestReferenceData extends AbstractCoreIntegrationTest {
 
             final RefStreamDefinition refStreamDefinition = new RefStreamDefinition(
                     pipelineRef, pipelineStore.readDocument(pipelineRef).getVersion(), effectiveStream.getId());
+
 
             mockLoaderActions.put(refStreamDefinition, () -> {
                 refDataStore.doWithLoaderUnlessComplete(
@@ -691,6 +694,7 @@ class TestReferenceData extends AbstractCoreIntegrationTest {
             }
         });
     }
+
 
     private Optional<String> lookup(final ReferenceData referenceData,
                                     final List<PipelineReference> pipelineReferences,

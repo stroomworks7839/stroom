@@ -80,6 +80,7 @@ public class TestListDbMigrations {
                 .max(Comparator.naturalOrder())
                 .orElseThrow(() -> new RuntimeException("Should have at least one ver in here"));
 
+
         final Map<String, List<Script>> moduleToSingleVerScriptsMap = verNestedMap.get(latestVersion);
 
         if (moduleToSingleVerScriptsMap.isEmpty()) {
@@ -405,7 +406,9 @@ public class TestListDbMigrations {
         };
     }
 
+
     // --------------------------------------------------------------------------------
+
 
     private record Script(String moduleName,
                           String fileName,

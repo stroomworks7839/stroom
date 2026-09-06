@@ -98,6 +98,7 @@ class TestInjectionPerformance {
             LOGGER.logDurationIfInfoEnabled(r, "Creating " + moduleClasses[i].getSimpleName());
         }
 
+
         final Injector injector = LOGGER.logDurationIfInfoEnabled(() ->
                 Guice.createInjector(instances), "creating injector");
 

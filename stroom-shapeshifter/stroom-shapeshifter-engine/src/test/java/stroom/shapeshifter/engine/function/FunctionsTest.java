@@ -18,7 +18,6 @@ package stroom.shapeshifter.engine.function;
 
 import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.compile.CompiledProject;

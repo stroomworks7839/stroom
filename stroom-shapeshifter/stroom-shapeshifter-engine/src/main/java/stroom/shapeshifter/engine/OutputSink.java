@@ -16,9 +16,6 @@
 
 package stroom.shapeshifter.engine;
 
-import stroom.shapeshifter.engine.output.SaxEventSink;
-import stroom.shapeshifter.engine.output.XmlByteSink;
-
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -128,7 +125,6 @@ public interface OutputSink {
     default void endElement() {
         throw new StructureException("This sink does not carry structure: endElement");
     }
-
 
     /** The output's structure was misused — an attribute after content, a close with nothing open. */
     final class StructureException extends IllegalStateException {

@@ -174,6 +174,7 @@ class TestReferenceDataWithCache extends AbstractCoreIntegrationTest {
                 final ReferenceData referenceData = referenceDataProvider.get();
                 referenceData.setEffectiveStreamCache(effectiveStreamCache);
 
+
                 // Add multiple reference data items to prove that looping over maps
                 // works.
                 addData(
@@ -288,6 +289,7 @@ class TestReferenceDataWithCache extends AbstractCoreIntegrationTest {
             final List<PipelineReference> pipelineReferences = new ArrayList<>();
             pipelineReferences.add(pipelineReference);
 
+
             final EffectiveMeta effectiveStream = buildEffectiveMeta(createMeta(feedRef.getName()).getId(), 0L);
             final EffectiveMetaSet streamSet = EffectiveMetaSet.singleton(effectiveStream);
 
@@ -335,6 +337,7 @@ class TestReferenceDataWithCache extends AbstractCoreIntegrationTest {
 
                             refDataLoader.completeProcessing();
                         });
+
 
                 for (int i = 1; i <= 3; i++) {
                     LOGGER.info("Assertion iteration {}", i);

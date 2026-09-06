@@ -70,6 +70,7 @@ class TestDBPersistence extends AbstractCoreIntegrationTest {
               "updateUser": "admin"
             }""";
 
+
     @Inject
     private Persistence persistence;
 

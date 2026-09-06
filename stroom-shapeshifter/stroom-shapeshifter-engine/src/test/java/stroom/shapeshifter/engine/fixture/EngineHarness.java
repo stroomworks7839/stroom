@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.fixture;
 
-import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.ds3.Ds3Migration;

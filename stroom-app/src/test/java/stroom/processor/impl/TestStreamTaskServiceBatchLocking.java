@@ -16,6 +16,7 @@
 
 package stroom.processor.impl;
 
+
 import stroom.node.api.NodeInfo;
 import stroom.test.AbstractCoreIntegrationTest;
 import stroom.test.CommonTestScenarioCreator;
@@ -44,6 +45,7 @@ class TestStreamTaskServiceBatchLocking extends AbstractCoreIntegrationTest {
     @Test
     void test() {
     }
+
 
 //    @Test
 //    public void testMoreLikeTheRealCall() throws InterruptedException {

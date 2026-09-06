@@ -33,7 +33,7 @@ package stroom.shapeshifter.engine.value;
  * {@code Long.valueOf} and {@code Double.valueOf} accept and reject, which
  * {@code TypedValueParseEquivalenceTest} asserts by differential comparison rather than by example.
  */
-public final class Numbers {
+final class Numbers {
 
     private Numbers() {
     }

@@ -16,6 +16,7 @@
 
 package stroom.pipeline.task;
 
+
 import stroom.data.shared.StreamTypeNames;
 import stroom.data.store.mock.MockStore;
 import stroom.meta.mock.MockMetaService;

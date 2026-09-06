@@ -16,6 +16,7 @@
 
 package stroom.searchable;
 
+
 import stroom.searchable.api.Searchable;
 import stroom.test.AbstractCoreIntegrationTest;
 import stroom.util.logging.LambdaLogger;

@@ -16,6 +16,7 @@
 
 package stroom.data.retention;
 
+
 import stroom.data.retention.impl.DataRetentionMetaCriteriaUtil;
 import stroom.data.shared.StreamTypeNames;
 import stroom.meta.api.MetaProperties;

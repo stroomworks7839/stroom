@@ -11,7 +11,7 @@ final Project project = ProjectReader.read(Files.readString(config));
 final CompiledProject compiled = Shapeshifter.compile(project);
 
 final List<Message> messages = Shapeshifter.run(
-        compiled, input, OutputSink.of(output));
+        compiled, input, new XmlByteSink(output));
 ```
 
 Compile once, run per input. Compilation is where a configuration's own errors surface — a

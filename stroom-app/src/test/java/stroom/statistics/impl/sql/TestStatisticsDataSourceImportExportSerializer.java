@@ -16,6 +16,7 @@
 
 package stroom.statistics.impl.sql;
 
+
 import stroom.docref.DocRef;
 import stroom.docstore.shared.DocRefUtil;
 import stroom.explorer.api.ExplorerService;

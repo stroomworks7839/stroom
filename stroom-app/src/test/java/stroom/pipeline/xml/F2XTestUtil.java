@@ -16,6 +16,7 @@
 
 package stroom.pipeline.xml;
 
+
 import stroom.docref.DocRef;
 import stroom.docstore.shared.DocRefUtil;
 import stroom.feed.shared.FeedDoc;

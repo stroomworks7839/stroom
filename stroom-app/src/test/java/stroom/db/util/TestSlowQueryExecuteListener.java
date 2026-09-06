@@ -51,6 +51,7 @@ public class TestSlowQueryExecuteListener extends AbstractCoreIntegrationTest {
         SlowQueryExecuteListener.setSlowQueryDurationThreshold(Duration.ZERO);
     }
 
+
     @BeforeEach
     void beforeEach() {
         JooqUtil.context(jobDbConnProvider, context -> {

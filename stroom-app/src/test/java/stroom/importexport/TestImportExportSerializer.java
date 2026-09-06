@@ -16,6 +16,7 @@
 
 package stroom.importexport;
 
+
 import stroom.data.shared.StreamTypeNames;
 import stroom.data.store.api.FsVolumeGroupService;
 import stroom.docref.DocRef;
@@ -122,6 +123,7 @@ class TestImportExportSerializer extends AbstractCoreIntegrationTest {
         feedStore.writeDocument(eventFeed);
 
         commonTestControl.createRequiredXMLSchemas();
+
 
         final Path testDataDir = getCurrentTestDir().resolve("ExportTest");
 
@@ -351,6 +353,7 @@ class TestImportExportSerializer extends AbstractCoreIntegrationTest {
 
         final Path testDataDir = getCurrentTestDir().resolve("ExportTest");
 
+
         System.err.println("Exporting to " + testDataDir);
         importExportSerializer.write(
                 null,
@@ -359,6 +362,7 @@ class TestImportExportSerializer extends AbstractCoreIntegrationTest {
                 Collections.emptySet(),
                 true,
                 ImportExportVersion.V1);
+
 
         importExportSerializer.read(
                 testDataDir,
@@ -413,6 +417,7 @@ class TestImportExportSerializer extends AbstractCoreIntegrationTest {
 
         final Path testDataDir = getCurrentTestDir().resolve("ExportTest");
 
+
         System.err.println("Exporting to " + testDataDir);
         importExportSerializer.write(
                 null,
@@ -421,6 +426,7 @@ class TestImportExportSerializer extends AbstractCoreIntegrationTest {
                 Collections.emptySet(),
                 true,
                 ImportExportVersion.V2);
+
 
         importExportSerializer.read(
                 testDataDir,
@@ -544,6 +550,7 @@ class TestImportExportSerializer extends AbstractCoreIntegrationTest {
         assertThat(pipelineStore.list().size())
                 .isEqualTo(2);
     }
+
 
     @Test
     void testConfig() throws IOException {

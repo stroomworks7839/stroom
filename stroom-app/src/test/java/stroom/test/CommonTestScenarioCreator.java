@@ -16,6 +16,7 @@
 
 package stroom.test;
 
+
 import stroom.data.shared.StreamTypeNames;
 import stroom.data.store.api.Store;
 import stroom.data.store.api.Target;

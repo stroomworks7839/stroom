@@ -16,6 +16,7 @@
 
 package stroom.statistics.impl.sql;
 
+
 import stroom.security.api.SecurityContext;
 import stroom.statistics.impl.sql.exception.StatisticsEventValidationException;
 import stroom.statistics.impl.sql.rollup.RolledUpStatisticEvent;

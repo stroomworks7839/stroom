@@ -16,6 +16,7 @@
 
 package stroom.search.manualtesting;
 
+
 import stroom.docref.DocRef;
 import stroom.index.impl.IndexShardSearchConfig;
 import stroom.index.impl.IndexStore;
@@ -123,6 +124,7 @@ class TestGroupedCountsInteractiveSearch extends AbstractCoreIntegrationTest {
         LOGGER.info("-----------------doSingleSetup complete --------------");
         return true;
     }
+
 
     /**
      * Run a query that gets counts grouped by userid and assert the total count
