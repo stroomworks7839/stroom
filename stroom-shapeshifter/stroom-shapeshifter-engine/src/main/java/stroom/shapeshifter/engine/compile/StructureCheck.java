@@ -94,12 +94,23 @@ final class StructureCheck {
                 }
                 // A variable's body writes to its own buffer: a document of its own.
                 case OutputNode.Variable value -> body(value.body(), Enclosing.NONE, null, false);
-                default -> {
-                    // A container's bodies pass through, as Containers says; a leaf holds none.
-                    for (final List<OutputNode> nested : Containers.bodies(node)) {
+                case OutputNode.Holder holder -> {
+                    // A container's bodies pass through in written order, with the content seen.
+                    for (final List<OutputNode> nested : holder.bodies()) {
                         contentSeen = body(nested, within, name, contentSeen);
                     }
-                    contentSeen |= producesContent(node);
+                }
+                // A binding writes only when it binds nothing; the leaves that write are named.
+                case OutputNode.Binding binding -> contentSeen |= !binding.binds();
+                case OutputNode.Text ignored -> contentSeen = true;
+                case OutputNode.ValueOf ignored -> contentSeen = true;
+                case OutputNode.ApplyTemplates ignored -> contentSeen = true;
+                case OutputNode.CallTemplate ignored -> contentSeen = true;
+                case OutputNode.EmitError ignored -> {
+                    // Reports; writes nothing.
+                }
+                case OutputNode.Append ignored -> {
+                    // Accumulates; writes nothing.
                 }
             }
         }
@@ -123,66 +134,5 @@ final class StructureCheck {
                                       + name + "' — attributes and namespaces must come before text, "
                                       + "values, child elements and apply-templates");
         }
-    }
-
-    /** Whether an instruction writes to the output, as opposed to binding, declaring or reporting. */
-    private static boolean producesContent(final OutputNode node) {
-        return switch (node) {
-            case OutputNode.Text ignored -> true;
-            case OutputNode.ValueOf ignored -> true;
-            case OutputNode.ApplyTemplates ignored -> true;
-            case OutputNode.CallTemplate ignored -> true;
-            case OutputNode.EmitError ignored -> false;
-            case OutputNode.Sequence ignored -> false;
-            case OutputNode.Append ignored -> false;
-            case OutputNode.Key ignored -> false;
-            case OutputNode.Call value -> value.name() == null;
-            case OutputNode.ValueMap value -> value.name() == null;
-            case OutputNode.Translate value -> value.name() == null;
-            case OutputNode.StringJoin value -> value.name() == null;
-            case OutputNode.Replace value -> value.name() == null;
-            case OutputNode.LowerCase value -> value.name() == null;
-            case OutputNode.UpperCase value -> value.name() == null;
-            case OutputNode.NormalizeSpace value -> value.name() == null;
-            case OutputNode.Trim value -> value.name() == null;
-            case OutputNode.Substring value -> value.name() == null;
-            case OutputNode.Tokenize value -> value.name() == null;
-            case OutputNode.Number value -> value.name() == null;
-            case OutputNode.Add value -> value.name() == null;
-            case OutputNode.Subtract value -> value.name() == null;
-            case OutputNode.Multiply value -> value.name() == null;
-            case OutputNode.Divide value -> value.name() == null;
-            case OutputNode.Mod value -> value.name() == null;
-            case OutputNode.Round value -> value.name() == null;
-            case OutputNode.Floor value -> value.name() == null;
-            case OutputNode.Ceiling value -> value.name() == null;
-            case OutputNode.Abs value -> value.name() == null;
-            case OutputNode.StringLength value -> value.name() == null;
-            case OutputNode.SubstringBefore value -> value.name() == null;
-            case OutputNode.SubstringAfter value -> value.name() == null;
-            case OutputNode.StartsWith value -> value.name() == null;
-            case OutputNode.EndsWith value -> value.name() == null;
-            case OutputNode.Contains value -> value.name() == null;
-            case OutputNode.FormatNumber value -> value.name() == null;
-            case OutputNode.KeyGet value -> value.name() == null;
-            case OutputNode.Count value -> value.name() == null;
-            case OutputNode.Sum value -> value.name() == null;
-            case OutputNode.Avg value -> value.name() == null;
-            case OutputNode.Min value -> value.name() == null;
-            case OutputNode.Max value -> value.name() == null;
-            case OutputNode.DistinctValues value -> value.name() == null;
-            case OutputNode.ParseDate value -> value.name() == null;
-            case OutputNode.FormatDate value -> value.name() == null;
-            // The containers are walked, not judged; the structural three are judged above.
-            case OutputNode.If ignored -> false;
-            case OutputNode.Choose ignored -> false;
-            case OutputNode.Switch ignored -> false;
-            case OutputNode.ForEach ignored -> false;
-            case OutputNode.ForEachGroup ignored -> false;
-            case OutputNode.Variable ignored -> false;
-            case OutputNode.Element ignored -> true;
-            case OutputNode.Attribute ignored -> false;
-            case OutputNode.Namespace ignored -> false;
-        };
     }
 }
