@@ -130,6 +130,9 @@ public final class Shapeshifter {
     /**
      * Run a compiled configuration over an input held whole, in a mode, with the services its
      * functions may reach (design 26 §3–4) — the whole-buffer form of the six-argument {@code run}.
+     * {@link RunMode#PREVIEW} does not call impure functions.
+     *
+     * @return everything the engine had to say, in the order it said it
      */
     public static List<Message> runWhole(final CompiledProject compiled,
                                          final byte[] input,

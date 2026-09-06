@@ -1164,3 +1164,12 @@ keep the rule on the byte path and drop it on the event path (a text node an aut
 delivered; the byte sink's indentation stays its own); or an explicit escape — a `text` that
 declares itself content; or leave it, and accept that this shape of Stroom pipeline cannot be
 reproduced. Until ruled, `FullPipelineTest` pins the text golden without its newlines. *(Ruled the same day; see above.)*
+
+### E39 — Conditions and capture selects resolve the authored expression at run time
+**`open` 2026-09-06.** Bodies resolve compiled references (`CompiledRefs`, design 10's third
+change); `Conditions` and a level's capture binding still resolve the authored
+`RefExpression` through `Refs` on every evaluation, and a `matches` condition looks its pattern
+up by text. Design 10 §2's row, left half open there and named as the two-resolver seam in
+design 27 §2.7 (ruling 7): both resolvers stay until compiling conditions and capture selects
+is measured to matter, and this entry is that measurement's owner. When it is done, `Refs`
+goes and `CompiledRefs` is the one resolver.

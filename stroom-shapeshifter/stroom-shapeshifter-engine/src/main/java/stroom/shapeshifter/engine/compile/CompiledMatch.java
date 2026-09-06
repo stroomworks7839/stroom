@@ -118,7 +118,7 @@ public sealed interface CompiledMatch {
 
     }
 
-    /** The document itself. Never enters the match loop; the executor handles it. */
+    /** The document itself. Never enters the match loop; the run handles it. */
     record Source() implements CompiledMatch {
 
     }

@@ -68,10 +68,10 @@ public final class Run {
     private Encoding encoding;
 
     private Run(final CompiledProject compiled,
-                     final OutputSink sink,
-                     final Instrument instrument,
-                     final RunMode mode,
-                     final Services services) {
+                final OutputSink sink,
+                final Instrument instrument,
+                final RunMode mode,
+                final Services services) {
         this.compiled = compiled;
         this.output = sink;
         this.encoding = compiled.encoding();
@@ -104,6 +104,8 @@ public final class Run {
      * an absolute seek is meaningless over a window — and a whole buffer has no edge for a
      * match to run into.
      *
+     * @param mode     normal, or a preview, which does not call impure functions (design 26 §4)
+     * @param services what the functions bound to this run may reach
      * @return everything the engine had to say, in the order it said it
      */
     public static List<Message> whole(final CompiledProject compiled,
@@ -187,13 +189,34 @@ public final class Run {
             }
         }
 
+        dispatchInput(roots, rootDispatch, rootIgnoreErrors, input, wholeBuffer);
+
+        // And what comes after it, closing the opened elements on the way back up.
+        for (int i = split.tails.size() - 1; i >= 0; i--) {
+            body.body(split.tails.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
+            if (i > 0) {
+                final CompiledOp.Element element = split.opened.get(i - 1);
+                body.structure(output::endElement, "element '" + element.name() + "'");
+            }
+        }
+    }
+
+    /**
+     * Hand the input to the root level: whole-buffer inputs are addressed in one piece, and the
+     * non-consuming root dispatches — classify and any — work chunk at a time; neither slides.
+     * Everything else streams through the window (E13, design 23). The byte-order mark is read
+     * once at the front, whichever way, and counts toward every absolute offset.
+     */
+    private void dispatchInput(final List<CompiledTemplate> roots,
+                               final Dispatch rootDispatch,
+                               final boolean rootIgnoreErrors,
+                               final InputStream input,
+                               final boolean wholeBuffer) {
         final int bufferSize = wholeBuffer
                 ? Integer.MAX_VALUE
                 : Math.max(1, compiled.project().source().bufferSize());
         body.chunkedRoot(!wholeBuffer && (rootDispatch == Dispatch.CLASSIFY || rootDispatch == Dispatch.ANY));
         if (wholeBuffer || rootDispatch == Dispatch.CLASSIFY || rootDispatch == Dispatch.ANY) {
-            // Whole-buffer inputs are addressed in one piece, and the non-consuming root
-            // dispatches work window-at-a-time; neither slides.
             boolean first = true;
             long read = 0;
             for (byte[] chunk = InputWindow.read(input, bufferSize);
@@ -223,15 +246,6 @@ public final class Run {
                 applyMark(window.mark());
             }
             level.stream(roots, window, bufferSize, output, rootIgnoreErrors, rootDispatch, encoding);
-        }
-
-        // And what comes after it, closing the opened elements on the way back up.
-        for (int i = split.tails.size() - 1; i >= 0; i--) {
-            body.body(split.tails.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
-            if (i > 0) {
-                final CompiledOp.Element element = split.opened.get(i - 1);
-                body.structure(output::endElement, "element '" + element.name() + "'");
-            }
         }
     }
 

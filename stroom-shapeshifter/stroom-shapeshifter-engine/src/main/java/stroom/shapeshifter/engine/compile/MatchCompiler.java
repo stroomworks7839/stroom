@@ -79,7 +79,7 @@ final class MatchCompiler {
         collect(template.body(), template, stroom.shapeshifter.regex.Encoding.UTF_8);
         final List<MatchStep> resolvedSteps;
         if (template.match() instanceof MatchExpression.Progressive progressive) {
-            // Resolved, not raw: the executor matches the inlined sequence, so a regex
+            // Resolved, not raw: the steps match the inlined sequence, so a regex
             // reached through a library reference is interned like one written in place.
             resolvedSteps = resolve(progressive.steps(), new HashSet<>());
             // Never null here: a transcode-family source is decoded first and a template may

@@ -865,7 +865,7 @@ final class Body {
 
     /**
      * A structural call, with the sink's refusal turned into the run's last message. The sink
-     * knows the rule (an attribute after content, a close with nothing open); the executor knows
+     * knows the rule (an attribute after content, a close with nothing open); the body knows
      * which instruction broke it, and a fatal is where a misshapen document stops rather than a
      * half-written one continuing.
      */

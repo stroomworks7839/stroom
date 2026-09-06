@@ -133,7 +133,7 @@ public final class Transcode {
                 n = reader.read(chars, start, CHUNK);
             } catch (final MalformedInputException | UnmappableCharacterException e) {
                 // §6.6's report: an error naming the charset, never a silent substitution. The
-                // text rides the cause, because the executor's stream-failure message prints
+                // text rides the cause, because the run's stream-failure message prints
                 // the cause and would otherwise lose it.
                 throw new UncheckedIOException(new IOException(
                         "the input is not valid " + from.name() + " (set ignore_errors to "

@@ -27,7 +27,9 @@
  * functions once and makes their calls. Around them the vocabulary a body reaches for:
  * {@code Refs} and {@code CompiledRefs} resolve references, {@code Conditions} decide,
  * {@code Transforms} compute, {@code Steps} and {@code Splitter} match progressively and on
- * delimiters, {@code Codecs} recode bytes. The graph performs the execution (D35): the run and
- * its collaborators are its state for one input, and nothing between the model and the graph.
+ * delimiters, {@code Codecs} recode bytes; {@code TypedValue} and {@code MatchResult} are what
+ * passes between them, and {@code AbortRun} is how a fatal message ends a run. The graph
+ * performs the execution (D35): the run and its collaborators are its state for one input,
+ * and there is nothing between the model and the graph.
  */
 package stroom.shapeshifter.engine.exec;

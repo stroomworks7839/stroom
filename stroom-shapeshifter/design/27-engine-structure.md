@@ -125,7 +125,7 @@ which way it goes rather than carry both into `Body` and call it structure.
 | `FunctionRuntime` | The bound function library for one run: binding at start, the `FunctionContext` each function sees, the preview gate, per-call offset and length, the shared state map, the service lookup. | header region, `Context`, `bindFunctions`, `describe`, the preview branch of `call` |
 | `Level` | Dispatching one level's templates against one region, and the root level against the window: iterated ordered choice, strict and lexer and classify and any dispatch, skipping reported, eaters, match limits, instrument hooks, capture binding, `locate`. `stream` stays a sibling loop of `dispatch` — its refill decisions are the window's — and the seven rules the two duplicated are one method each. | the "one level against one region" region, `stream`'s level half, `bindCaptures`, `locate` |
 | `Body` | Running a template's body: the `CompiledOp` switch and every handler, the variable registry, key indexes, the once-per-site warnings, casting, emit-or-bind. | the "captures and body" region |
-| `Run` | One run of a compiled configuration over one input: owns the collaborators above and the message list, applies the root split, opens and closes the sink, wires `Level` and `Body` to each other, turns `AbortRun` into the last message (`AbortRun` package-visible; the structure rule lives on the body, which the run calls for the elements it opens). One entry point; the facade passes the defaults. What `Executor` was, at a size that says what it does. | `run`, `execute`, `RootSplit`, `applyDirective`, `AbortRun` |
+| `Run` | One run of a compiled configuration over one input: owns the collaborators above and the message list, settles the byte-order mark, applies the root split, wires `Level` and `Body` to each other, turns `AbortRun` into the last message (`AbortRun` package-visible; the structure rule lives on the body, which the run calls for the elements it opens). Two entry points, `stream` and `whole`, each taking the mode and the services; the facade passes the defaults. What `Executor` was, at a size that says what it does. | `run`, `execute`, `RootSplit`, `applyDirective`, `applyMark`, `AbortRun` |
 
 `Executor` as a name goes. The facade `Shapeshifter.run(...)` is unchanged, so the pipeline
 module and the app do not move.
@@ -215,9 +215,8 @@ covers their documentation, not their shape.
 capture selects is design 10's open performance row and shape follows measurement there. What
 changes is that the seam is stated: `Conditions` and `Level`'s capture binding resolve authored
 expressions because their compilation is not yet measured to matter, and `CompiledRefs` says
-so in its class javadoc, naming design 10 §2. The compile of conditions is filed as the
-follow-on when phase 5 closes, so the duplication has an owner and an exit rather than a
-shrug.
+so in its class javadoc, naming design 10 §2. The compile of conditions is filed as E39, so
+the duplication has an owner and an exit rather than a shrug.
 
 ## 3. Phasing
 
@@ -464,7 +463,8 @@ guard inline, after earlier templates' matches have set the engine's counters an
 their captures — the mid-level re-read the `guards` rationale calls a mistake in the ordered
 modes, and the fourth copy of the guard the ledger counted. Making it the once-on-the-way-in
 rule is a behaviour change for a classify guard that reads an earlier template's capture,
-so it is not this phase's to make. Engine 561, pipeline 154, app 5.
+so it is not this phase's to make. Engine 561, pipeline 154, app 5 (562 once ruling 11's pin
+landed).
 
 *As written:*
 The dispatch region becomes its own class, constructed per run with the instrument, the
@@ -521,15 +521,28 @@ what the 74-to-9 count says it already is. *Benchmark gate.*
 ### Phase 5 — `Run`, and the name goes — Done 2026-09-06
 
 *As built:* `Executor` is `Run` (342 lines) — one run of a compiled configuration over one
-input — with two entry points, `stream` and `whole`, in place of a positional boolean, both
-taking the mode and the services; the facade's five overloads pass the defaults, and it gains
-the whole-buffer form that takes a mode and services, the gap the entry review found. The
+input — with two entry points, `stream` and `whole`, in place of a positional boolean on the
+API, both taking the mode and the services (the boolean survives privately, decided once in
+`dispatchInput`, which is the whole-or-chunk-or-window choice the root split sits around);
+the facade's overloads pass the defaults or pass through, and it gains the whole-buffer form
+that takes a mode and services, the gap the entry review found. The
 `exec` package javadoc names the five classes and how a run flows through them, and says what
 D35 said: the graph performs the execution, and the run and its collaborators are its state
 for one input. `CompiledRefs`' class javadoc states the seam §2.7 asked for. Design 10's
 "`Executor` is transitional" and D35's consequence now say it happened and when. Nothing on
 the hot path changed, so no benchmark: the rename is a rename, and the entry points reach the
 same private run. Engine 562, pipeline 154, app 5.
+
+*Audited 2026-09-06.* Routing preserved overload by overload; the diff touches the entries
+and nothing below them. **Fixed:** the whole-buffer entries' javadoc was thinner than the
+stream entries'; six comments in five files still named the executor as a live actor; the
+package javadoc ended in a fragment and omitted the value types and the abort; the input
+dispatch — whole buffer, chunk at a time for the non-consuming roots, or the window — is one
+method decided once rather than a flag threaded through two; §2.1's `Run` row said one entry
+point and a sink the run opens, neither true; and ruling 7's follow-on, promised as filed,
+was not — it is E39 now. **Named for phase 8:** design 23 §1 maps the facade to
+`Executor.stream` as a live contract, and the regex module's `ByteMatcher` cites it too, the
+other session's file. Engine 562, pipeline 154, app 5.
 
 *As written:*
 What remains of `Executor` is construction, the root split, the transcode wrap, abort handling and

@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Left stale, that byte is the previous buffer's. A continuation byte there says a character
  * continues past the region, and a legal empty match at the tail is refused — silently, and
  * according to what an earlier buffer happened to hold. Demonstrated at the library entry on
- * 2026-08-27; this pins the executor's side of it.
+ * 2026-08-27; this pins the window's side of it.
  */
 class WindowTailTest {
 
