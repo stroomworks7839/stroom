@@ -57,12 +57,17 @@ record TemplateUses(Template template, List<String> calls, List<OutputNode.Apply
             switch (node) {
                 case OutputNode.CallTemplate value -> calls.add(value.name());
                 case OutputNode.ApplyTemplates apply -> applies.add(apply.directive());
-                default -> {
-                    // Refers to no template itself; what it holds is walked below.
+                case OutputNode.Holder holder -> {
+                    for (final List<OutputNode> nested : holder.bodies()) {
+                        collectUses(nested, calls, applies);
+                    }
                 }
-            }
-            for (final List<OutputNode> nested : Containers.bodies(node)) {
-                collectUses(nested, calls, applies);
+                case OutputNode.Binding ignored -> {
+                    // Refers to no template.
+                }
+                case OutputNode.Leaf ignored -> {
+                    // Refers to no template.
+                }
             }
         }
     }
