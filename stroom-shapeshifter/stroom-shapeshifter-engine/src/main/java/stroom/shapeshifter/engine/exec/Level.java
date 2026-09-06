@@ -21,7 +21,6 @@ import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.compile.CompiledMatch;
-import stroom.shapeshifter.engine.compile.CompiledOp;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
 import stroom.shapeshifter.engine.config.CaptureBinding;
@@ -189,6 +188,7 @@ final class Level {
 
         report(templates, counts, ignoreErrors, data, cursor, to);
     }
+
 
     /**
      * Process a counting winner: the first-match store clearing (E19), the skip report, the

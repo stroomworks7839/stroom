@@ -146,6 +146,7 @@ final class InputLocations implements Instrument {
             super(in);
         }
 
+
         /** How many line starts are held right now — the bound the contract is about. */
         synchronized int held() {
             return count;

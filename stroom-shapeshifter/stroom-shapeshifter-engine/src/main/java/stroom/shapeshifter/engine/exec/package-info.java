@@ -29,8 +29,8 @@
  * conditions decided by {@code Conditions}. The values are {@code value}'s, the matching
  * {@code match}'s, the sinks {@code output}'s; this package depends on all three, on the
  * compiled graph, the model, the encodings, the function contract, the root's contracts and the
- * regex library, and nothing depends on it but the facade — and the compiler's reference check,
- * which reads {@code EngineVars} for the names it must treat as writable. The graph performs the execution
+ * regex library, and nothing depends on it but the facade — and the compiler's reference
+ * check, which reads {@code EngineVars} for the names it must treat as writable. The graph performs the execution
  * (D35): the run and its collaborators are its state for one input, and there is nothing
  * between the model and the graph.
  */

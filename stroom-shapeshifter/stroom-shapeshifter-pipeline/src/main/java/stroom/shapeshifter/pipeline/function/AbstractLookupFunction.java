@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.pipeline.function;
 
-import stroom.docref.DocRef;
 import stroom.meta.shared.Meta;
 import stroom.pipeline.refdata.LookupIdentifier;
 import stroom.pipeline.refdata.ReferenceData;

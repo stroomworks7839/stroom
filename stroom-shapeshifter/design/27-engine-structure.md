@@ -198,7 +198,7 @@ it is what a match produces and `Steps` and `Splitter` fill it; the run reads it
 
 **What it costs outside the engine.** The pipeline module imports `TypedValue` in thirty-four
 places and each sink once; inside the engine, eight test classes move with their classes and
-`CompareSpineTest`, `CompiledOp` and `MatchCompiler` carry eight more imports. All of it is import churn, which is why the moves are one phase of their
+`CompareSpineTest`, `CompiledOp` and `MatchCompiler` carry seven more imports. All of it is import churn, which is why the moves are one phase of their
 own (phase 6) and not mixed into a hot-path commit.
 
 ### 2.6 What does not move
@@ -568,11 +568,12 @@ package: renames the files under git, rewrites their package lines, rewrites eve
 across the engine, the pipeline, the benchmark module and the app tests, adds the imports
 that same-package references no longer get for free, and re-sorts each file's import blocks
 so checkstyle's order holds. `engine.value` (`6ba85bde13`): `TypedValue`, `Numbers`,
-`Transforms`, `Dates`, `Comparisons` and four tests. `engine.match` (`90ba472781`): `MatchResult`, `Steps`, `Splitter`, `Codecs`
+`Transforms`, `Dates`, `Comparisons` and four tests. `engine.match` (`90ba472781`):
+`MatchResult`, `Steps`, `Splitter`, `Codecs`
 and `StepsTest`. `engine.output` (`43fd2b94b9`): the three sinks, `Utf8` and their tests;
 `OutputSink.of` gone from the contract per ruling 8, the body's variable buffer and sixteen
-files of tests and benchmarks constructing the byte sink by name, so the root package's one
-dependency downward, through the sink contract, is gone. Each new package has a javadoc that says what it holds
+files of tests and benchmarks constructing the byte sink by name, so the sink contract's
+dependency downward is gone. Each new package has a javadoc that says what it holds
 and what it may depend on; `exec`'s is rewritten last, for what it now holds — the run, the
 level, the body, the window, the function runtime, the abort, the registry, the stores, the
 engine's names, the two resolvers and the conditions — and the root package's names every
@@ -581,7 +582,8 @@ would meet it:** the mover's first version added an import to any file that mere
 a moved class's simple name, which shadowed the pipeline's own `Dates` helper and put unused
 imports on nine other files; the value commit therefore leaves the pipeline module not
 compiling, the match commit restores it, and the mover now adds imports only where a
-same-package reference lost its free access, reading code rather than comments to decide. The gate was read from stale results once
+same-package reference lost its free access, reading code rather than comments to decide. The
+gate was read from stale results once
 before that was caught, and the reader now checks the result files' age. No benchmark: no
 code moves within a class, and the one call that changed, the variable buffer's sink,
 constructs the same class. Engine 562, pipeline 154, app 5, xmlbench compiles.
@@ -592,8 +594,8 @@ imports, every test moved with its class, and every package's imports match the 
 imports of the two sinks it mentions, reinstating at the import level the edge ruling 8
 removed; `Numbers` had gone public for callers that turned out to be comment mentions, and is
 package-private again; two mention-earned `Numbers` imports and eight `OutputSink` imports
-orphaned by the factory's removal are gone, with a qualified name in one test, a residue in
-one package javadoc and the README's example. The mover's blank-line collapse had touched
+orphaned by the factory's removal are gone, with a qualified name in one test, a trailing
+blank line in one package file and the README's example. The mover's blank-line collapse had touched
 seventy-nine app test files outside the module in the match commit, whitespace only; they are
 restored to what they were, and the mover now collapses only files it changed and reads code
 rather than comments and strings to decide a name is used. **Named:** the compiler's reference
@@ -601,6 +603,19 @@ check reads `EngineVars` for the names it must treat as writable, a compile → 
 predates this design and that §2.5 did not draw; the `exec` javadoc says so now, and where
 `EngineVars` belongs is phase 8's. The `exec` and `match` javadocs list every package they
 depend on. Fresh gate after all of it: engine 562, pipeline 154, app 5, xmlbench compiles.
+
+*Audited a second time, 2026-09-06, on the final commit.* Every moved class byte-identical to
+its origin but for its package line and one import; every package's imports the table's cells
+exactly, checked fresh; no import order checkstyle would reject; the app tests' diff against
+the phase's base empty. **Fixed:** the collapse had also taken a blank line inside `Level` and
+one in the pipeline's `InputLocations`, that file's only change in the phase — an eightieth
+untouched file — both restored; a qualified name in `CompareSpineTest` the mover rewrote rather
+than simplified; six unused imports that predate the design, taken while the sweep was open;
+the `match` javadoc omitted that the compiler depends on it for the codecs it refuses; the
+design's import count was one high and two sentences overstated what the sink factory's
+removal did. **Noted:** the mover's remaining blind spots — text blocks with inner quotes,
+static and nested-class imports, a comment marker inside a string literal — recorded against
+it; no further move is planned in this design.
 
 *As written:*
 The moves of §2.5: `value`, `match` and `output` created, their classes moved, the pipeline

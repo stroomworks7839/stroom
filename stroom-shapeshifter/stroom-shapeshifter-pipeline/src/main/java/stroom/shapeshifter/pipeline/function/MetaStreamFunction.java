@@ -22,7 +22,6 @@ import stroom.pipeline.state.MetaHolder;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
-import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Purity;
 import stroom.shapeshifter.engine.function.Signature;
 import stroom.shapeshifter.engine.value.TypedValue;

@@ -24,6 +24,7 @@
  * bytes a step produced for the steps after it; {@code Splitter} splits on a delimiter with
  * quoting and escaping, the CSV problem generalised. This package depends on the values, the
  * configuration's step vocabulary, the interned-pattern key, the text encodings and the regex
- * library, and the run depends on it (design 27 §2.5).
+ * library; the run depends on it, and so does the compiler, for the codecs it refuses (design 27
+ * §2.5).
  */
 package stroom.shapeshifter.engine.match;

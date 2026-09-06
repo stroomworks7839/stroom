@@ -21,6 +21,7 @@ import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;
 
@@ -163,7 +164,7 @@ class CompareSpineTest {
     private static boolean evaluate(final Condition condition) {
         // No match, no variables: every reference is absent.
         return stroom.shapeshifter.engine.exec.Conditions.evaluate(condition,
-                stroom.shapeshifter.engine.match.MatchResult.empty(), 1,
+                MatchResult.empty(), 1,
                 new stroom.shapeshifter.engine.exec.VarRegistry(),
                 stroom.shapeshifter.engine.text.Encoding.UTF_8, java.util.Map.of());
     }
