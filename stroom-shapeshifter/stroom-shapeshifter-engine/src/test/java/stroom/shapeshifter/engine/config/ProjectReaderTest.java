@@ -19,7 +19,6 @@ package stroom.shapeshifter.engine.config;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.fixture.FixtureLedger;
-import stroom.shapeshifter.engine.fixture.FixtureLedger.Family;
 import stroom.shapeshifter.engine.fixture.FixtureLedger.Fixture;
 
 import org.junit.jupiter.api.DynamicTest;
@@ -178,7 +177,12 @@ class ProjectReaderTest {
                 {"name": "x", "version": 3, "source": {"dispatch": null}, "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match": "source"}]}
                 """);
-        assertThat(project.source().dispatch()).as("a null dispatch inherits, as an absent one does").isNull();
+        assertThat(project.source().dispatch()).as("a null dispatch inherits").isNull();
+        final Project absent = ProjectReader.read("""
+                {"name": "x", "version": 3, "source": {}, "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match": "source"}]}
+                """);
+        assertThat(absent.source().dispatch()).as("as an absent one does").isNull();
     }
 
     @Test

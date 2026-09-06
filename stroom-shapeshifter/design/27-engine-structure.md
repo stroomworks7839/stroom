@@ -683,7 +683,9 @@ the definitions it resolves; `TemplateUses` is built as the value its javadoc de
 `StructureCheck` threads content-seen as a returned boolean instead of a one-cell array and
 walks the pass-through containers through `Containers`; the arithmetic arity rule is an enum.
 In the JSON families a scalar where a list belongs is refused by name and JSON null where a
-choice belongs means "not said" (pinned in `ProjectReaderTest`); the writer's half of
+choice belongs means "not said" (pinned in `ProjectReaderTest`; `ReadNumeric`'s `endian` is among the
+choices, and two refusal messages gained their owner's name: the root's, now "Expected an object
+for 'project'", and the three-argument `uuid`'s, now "Not a valid id for &lt;what&gt;"); the writer's half of
 `lowercase` is `label`; the two `uuid` readers are one rule. `EngineVars` moved to `config` and
 `PatternKey` to `match`, which closed the `compile → exec` edge the plan had accepted and the
 `compile` ↔ `match` cycle §2.5's table had not drawn; the packages now read value ← match ←

@@ -553,7 +553,7 @@ the three originals: the same names bound, the same references collected (includ
 and both capture-source shapes), the same lint sites, the same key-value stand-down, and the
 same reporting order — lints during the walk, the refusal in `report()` before the substring
 warning that the refusal can prevent. Coverage is now pinned rather than reasoned about:
-`BodyScanBindingsTest` compiles one configuration per binding instruction, each writing a
+`ReferenceCheckBindingsTest` (then `BodyScanBindingsTest`) compiles one configuration per binding instruction, each writing a
 name and reading it straight back, and was mutation-checked — dropping `format-date`'s bind
 fails it by name. 362 engine tests.*
 

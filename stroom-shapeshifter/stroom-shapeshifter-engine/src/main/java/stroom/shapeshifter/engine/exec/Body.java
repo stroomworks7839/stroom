@@ -80,10 +80,10 @@ final class Body {
      *
      * <p><b>Unscoped, where a sequence is scoped</b>, which is deliberate and is the shape
      * XSLT has: a key is an index over data rather than a binding, and every realistic
-     * configuration builds one and uses it at the same level. The sharp edge that buys,
-     * named rather than discovered: a key holds <i>store indices</i>, so one
-     * built inside a scope that later pops still answers, with positions into a store that
-     * may since have been cleared. Index staleness is a property of every index-carrying
+     * configuration builds one and uses it at the same level. The sharp edge that buys, named
+     * rather than discovered: a key holds <i>store indices</i>, so one built inside a scope that
+     * later pops still answers, with positions into a store that may since have been cleared.
+     * Index staleness is a property of every index-carrying
      * sequence here, not of keys — scoping is what usually hides it, and a key steps outside
      * that. No case needs a key to outlive its sequence, so nothing is built to prevent it.
      */
@@ -240,9 +240,8 @@ final class Body {
                 case CompiledOp.Namespace value ->
                         structure(() -> sink.namespace(value.prefix(), value.uri()),
                                 "namespace '" + value.prefix() + "'");
-                case CompiledOp.CallTemplate value ->
-                        callTemplate(value, match, matchCount, content, sink, inputBase, ignoreErrors, depth,
-                                contentEncoding);
+                case CompiledOp.CallTemplate value -> callTemplate(value, match, matchCount, content, sink,
+                        inputBase, ignoreErrors, depth, contentEncoding);
                 case CompiledOp.ValueMap value -> {
                     final String selected = textOf(value.select(), match, matchCount, contentEncoding);
                     String mapped = null;
@@ -311,8 +310,8 @@ final class Body {
                     // zero times — the same non-answer XSLT's key() gives, not an error.
                     // An absent lookup value finds the entries that had no key — the same
                     // symmetry grouping uses, where absence is a group rather than an
-                    // exclusion. XSLT would return empty for key('k', ()); this
-                    // engine treats "no value" as a value one can ask about, consistently.
+                    // exclusion. XSLT would return empty for key('k', ()); this engine treats
+                    // "no value" as a value one can ask about, consistently.
                     final Filed filed = index.get(wanted == null ? null : wanted.asString());
                     final List<Integer> found = filed == null ? List.of() : filed.members();
                     bindDense(value.name(), found.stream()
@@ -375,11 +374,11 @@ final class Body {
      * a skipped, failed or erroring call means; the result is written or bound like any value.
      */
     private void callFunction(final CompiledOp.CallFunction op,
-                      final MatchResult match,
-                      final int matchCount,
-                      final OutputSink sink,
-                      final long inputBase,
-                      final Encoding contentEncoding) {
+                              final MatchResult match,
+                              final int matchCount,
+                              final OutputSink sink,
+                              final long inputBase,
+                              final Encoding contentEncoding) {
         final FunctionDefinition definition = op.definition();
         if (functions.skippedInPreview(definition)) {
             emit(null, op.name(), matchCount, sink);
@@ -619,10 +618,10 @@ final class Body {
      * category" is said by indexing positions rather than values.
      */
     private Map<String, Filed> file(final String select,
-                                     final CompiledRef groupBy,
-                                     final MatchResult match,
-                                     final int matchCount,
-                                     final Encoding contentEncoding) {
+                                    final CompiledRef groupBy,
+                                    final MatchResult match,
+                                    final int matchCount,
+                                    final Encoding contentEncoding) {
         final Map<String, Filed> members = new LinkedHashMap<>();
         final List<Store> stores = vars.get(select);
         if (stores == null || stores.isEmpty()) {
@@ -936,14 +935,14 @@ final class Body {
      * next one. Declared parameters the caller did not supply take their defaults.
      */
     private void callTemplate(final CompiledOp.CallTemplate value,
-                      final MatchResult match,
-                      final int matchCount,
-                      final byte[] content,
-                      final OutputSink sink,
-                      final long inputBase,
-                      final boolean ignoreErrors,
-                      final int depth,
-                      final Encoding contentEncoding) {
+                              final MatchResult match,
+                              final int matchCount,
+                              final byte[] content,
+                              final OutputSink sink,
+                              final long inputBase,
+                              final boolean ignoreErrors,
+                              final int depth,
+                              final Encoding contentEncoding) {
         final CompiledTemplate target = compiled.template(value.name());
         if (target == null) {
             return;

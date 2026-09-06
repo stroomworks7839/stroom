@@ -182,9 +182,9 @@ public final class Refs {
      * column number through.
      */
     private static Integer matchIndex(final MatchIndex matchIndex,
-                                 final Store store,
-                                 final int matchCount,
-                                 final VarRegistry vars) {
+                                      final Store store,
+                                      final int matchCount,
+                                      final VarRegistry vars) {
         if (matchIndex == null) {
             return null;
         }

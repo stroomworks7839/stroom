@@ -124,9 +124,12 @@ final class MatchCompiler {
     /** A body's and a condition's patterns run over resolved values: {@link PatternKey#ofValue}. */
     private void collect(final Condition condition, final Template template) {
         switch (condition) {
-            case Condition.Matches matches -> intern(PatternKey.ofValue(matches.pattern()), template);
-            case Condition.And value -> value.conditions().forEach(child -> collect(child, template));
-            case Condition.Or value -> value.conditions().forEach(child -> collect(child, template));
+            case Condition.Matches matches ->
+                    intern(PatternKey.ofValue(matches.pattern()), template);
+            case Condition.And value ->
+                    value.conditions().forEach(child -> collect(child, template));
+            case Condition.Or value ->
+                    value.conditions().forEach(child -> collect(child, template));
             case Condition.Not value -> collect(value.condition(), template);
             default -> {
                 // Everything else compares values rather than matching patterns.

@@ -43,7 +43,7 @@ public record PatternKey(String text, Set<Flag> flags, Encoding encoding) {
         flags = Set.copyOf(flags);
     }
 
-    /** A key with no flags: a body's or a condition's pattern, which the model gives none. */
+    /** A key with no flags under a feed encoding; a value pattern's key is {@link #ofValue}. */
     public static PatternKey of(final String text, final Encoding encoding) {
         return new PatternKey(text, NONE, encoding);
     }

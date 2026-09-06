@@ -38,12 +38,17 @@ final class Functions {
         this.registry = registry;
     }
 
-    /** The definition a name resolves to, remembered as used; an unknown name is refused by name. */
+    /**
+     * The definition a name resolves to, remembered as used; an unknown name is refused by
+     * name.
+     */
     FunctionDefinition resolve(final String name) {
         final FunctionDefinition definition = registry.lookup(name);
         if (definition == null) {
             throw new ConfigException("Unknown function: '" + name + "'"
-                                      + (registry.size() == 0 ? " (no functions are registered)" : ""));
+                                      + (registry.size() == 0
+                    ? " (no functions are registered)"
+                    : ""));
         }
         used.putIfAbsent(definition.name(), definition);
         return definition;

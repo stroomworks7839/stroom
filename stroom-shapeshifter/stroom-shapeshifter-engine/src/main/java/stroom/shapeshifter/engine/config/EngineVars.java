@@ -25,7 +25,7 @@ import java.util.Set;
  * <b>reads</b> them, and the compiler's unknown-reference refusal, which must know they are
  * writable or it would refuse every configuration that mentions one. The names are part of the
  * language — an author writes {@code $__position} — so they live with the model, below both
- * the compiler and the run (design 27 phase 8).
+ * the compiler and the run.
  *
  * <p><b>A name belongs here only once something sets it.</b> A name the refusal accepts but
  * nothing writes reads as absent for ever, which is exactly what E21 deleted the

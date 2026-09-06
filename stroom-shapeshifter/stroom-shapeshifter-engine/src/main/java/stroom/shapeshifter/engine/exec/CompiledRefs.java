@@ -28,8 +28,8 @@ import java.nio.charset.StandardCharsets;
 /**
  * Resolving compiled references — {@link Refs} with the interpretation already done.
  *
- * <p>Same two ways in, same rules: {@link #write} streams parts to the sink, {@link #resolve}
- * builds the value, and <b>empty is absent</b>. The difference is what no longer happens per
+ * <p>Two ways in: {@link #write} streams parts to the sink, {@link #resolve} builds the
+ * value; and <b>empty is absent</b>, as it is for {@link Refs}. The difference is what no longer happens per
  * call: literal text is bytes that were encoded at compile time, and the shape of the
  * expression is a dispatch, not a walk.
  *

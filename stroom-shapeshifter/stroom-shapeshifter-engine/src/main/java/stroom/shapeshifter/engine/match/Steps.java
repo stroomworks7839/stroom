@@ -146,7 +146,7 @@ public final class Steps {
                                final List<TypedValue> local,
                                final int position,
                                final Map<PatternKey, BytePattern> patterns,
-                                    final Encoding encoding) {
+                               final Encoding encoding) {
         final int available = to - from;
         return switch (step) {
             case MatchStep.Tag tag -> {

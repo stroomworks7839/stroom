@@ -422,8 +422,8 @@ public final class Transforms {
     /**
      * Replace every match of a pattern, expanding group references in the replacement.
      *
-     * <p>The expansion syntax is the regex module's dialect — Rust regex's replacement
-     * syntax, not {@code java.util.regex}'s. {@code $1} and {@code ${1}} are groups, {@code $name} and
+     * <p>The expansion syntax is the regex module's dialect — Rust regex's replacement syntax,
+     * not {@code java.util.regex}'s. {@code $1} and {@code ${1}} are groups, {@code $name} and
      * {@code ${name}} are named groups, and {@code $$} is a literal dollar. A reference to a
      * group that did not participate expands to nothing rather than failing, which matters when
      * the pattern has optional parts.

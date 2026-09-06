@@ -125,7 +125,7 @@ public sealed interface CompiledOp {
 
     }
 
-    /** One argument of a {@link Call}. */
+    /** One argument of a {@link CallTemplate}. */
     record Arg(String name, CompiledRef value) {
 
     }
@@ -273,6 +273,12 @@ public sealed interface CompiledOp {
     }
 
     /**
+     * How an arithmetic instruction's select count is checked. Public only because an interface
+     * has no other visibility; nothing outside the compile reads it.
+     */
+    enum Arity { EXACTLY, AT_LEAST }
+
+    /**
      * Compile a body.
      *
      * @param patterns the project's interned patterns, already collected — a regex replace
@@ -374,23 +380,32 @@ public sealed interface CompiledOp {
                 case OutputNode.Number value ->
                         transform(single("number", value.select()), value.name(), Transforms::number);
                 case OutputNode.Add value ->
-                        arithmetic("add", value.select(), value.name(), Arity.AT_LEAST, 1, Transforms::add);
+                        arithmetic("add", value.select(), value.name(), Arity.AT_LEAST, 1,
+                                Transforms::add);
                 case OutputNode.Subtract value ->
-                        arithmetic("subtract", value.select(), value.name(), Arity.EXACTLY, 2, Transforms::subtract);
+                        arithmetic("subtract", value.select(), value.name(), Arity.EXACTLY, 2,
+                                Transforms::subtract);
                 case OutputNode.Multiply value ->
-                        arithmetic("multiply", value.select(), value.name(), Arity.AT_LEAST, 1, Transforms::multiply);
+                        arithmetic("multiply", value.select(), value.name(), Arity.AT_LEAST, 1,
+                                Transforms::multiply);
                 case OutputNode.Divide value ->
-                        arithmetic("divide", value.select(), value.name(), Arity.EXACTLY, 2, Transforms::divide);
+                        arithmetic("divide", value.select(), value.name(), Arity.EXACTLY, 2,
+                                Transforms::divide);
                 case OutputNode.Mod value ->
-                        arithmetic("mod", value.select(), value.name(), Arity.EXACTLY, 2, Transforms::mod);
+                        arithmetic("mod", value.select(), value.name(), Arity.EXACTLY, 2,
+                                Transforms::mod);
                 case OutputNode.Round value ->
-                        arithmetic("round", value.select(), value.name(), Arity.EXACTLY, 1, Transforms::round);
+                        arithmetic("round", value.select(), value.name(), Arity.EXACTLY, 1,
+                                Transforms::round);
                 case OutputNode.Floor value ->
-                        arithmetic("floor", value.select(), value.name(), Arity.EXACTLY, 1, Transforms::floor);
+                        arithmetic("floor", value.select(), value.name(), Arity.EXACTLY, 1,
+                                Transforms::floor);
                 case OutputNode.Ceiling value ->
-                        arithmetic("ceiling", value.select(), value.name(), Arity.EXACTLY, 1, Transforms::ceiling);
+                        arithmetic("ceiling", value.select(), value.name(), Arity.EXACTLY, 1,
+                                Transforms::ceiling);
                 case OutputNode.Abs value ->
-                        arithmetic("abs", value.select(), value.name(), Arity.EXACTLY, 1, Transforms::abs);
+                        arithmetic("abs", value.select(), value.name(), Arity.EXACTLY, 1,
+                                Transforms::abs);
                 case OutputNode.StringLength value ->
                         transform(single("string-length", value.select()), value.name(),
                                 Transforms::stringLength);
@@ -535,12 +550,6 @@ public sealed interface CompiledOp {
         return new Transform(select.stream().map(CompiledRef::of).toList(), name,
                 inputs -> inputs.size() == expected ? function.apply(inputs) : null, what);
     }
-
-    /**
-     * How an arithmetic instruction's select count is checked. Public only because an interface
-     * has no other visibility; nothing outside the compile reads it.
-     */
-    enum Arity { EXACTLY, AT_LEAST }
 
     /** A format-number closes over its picture, compiled once and refused at compile time. */
     private static Transform formatNumber(final OutputNode.FormatNumber value) {

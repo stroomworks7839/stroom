@@ -206,7 +206,9 @@ final class MatchJson {
                 yield new MatchStep.ReadNumeric(
                         JsonFields.constant(NumericType.class, JsonFields.text(body, "numeric_type", "ReadNumeric")),
                         body.path("signed").asBoolean(false),
-                        endian == null ? Endianness.BIG : JsonFields.constant(Endianness.class, endian));
+                        endian == null
+                                ? Endianness.BIG
+                                : JsonFields.constant(Endianness.class, endian));
             }
             case "ReadVarint" -> {
                 JsonFields.checkFields(body, "ReadVarint");
@@ -239,8 +241,8 @@ final class MatchJson {
                 JsonFields.checkFields(body, "Regex", "pattern", "flags");
                 yield new MatchStep.Regex(JsonFields.text(body, "pattern", "Regex"), readFlags(body.get("flags")));
             }
-            case "Choice" -> new MatchStep.Choice(JsonFields.list(body, "Choice",
-                    alternative -> JsonFields.list(alternative, "Choice alternative", MatchJson::readStep)));
+            case "Choice" -> new MatchStep.Choice(JsonFields.list(body, "Choice", alternative ->
+                    JsonFields.list(alternative, "Choice alternative", MatchJson::readStep)));
             case "Optional" -> new MatchStep.Optional(JsonFields.list(body, "Optional", MatchJson::readStep));
             case "Repeat" -> {
                 JsonFields.checkFields(body, "Repeat", "steps", "min", "max");

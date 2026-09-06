@@ -74,7 +74,10 @@ final class JsonFields {
         }
     }
 
-    /** A constant's label in the format's lowercase spelling: the writer's half of {@link #lowercase}. */
+    /**
+     * A constant's label in the format's lowercase spelling: the writer's half of
+     * {@link #lowercase}.
+     */
     static String label(final Enum<?> value) {
         return value.name().toLowerCase(Locale.ROOT);
     }
@@ -169,7 +172,10 @@ final class JsonFields {
         }
     }
 
-    /** A field that must be there: absent and JSON null are both refused, naming the field and its owner. */
+    /**
+     * A field that must be there: absent and JSON null are both refused, naming the field and
+     * its owner.
+     */
     static JsonNode required(final JsonNode node, final String field, final String what) {
         final JsonNode value = optional(node, field);
         if (value == null) {

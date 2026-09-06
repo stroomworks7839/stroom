@@ -149,7 +149,8 @@ public final class Run {
         return List.copyOf(messages);
     }
 
-    /** The document template: its prologue, the loop over the input where its apply-templates was, its tail. */
+    /** The document template: its prologue, the loop over the input where its apply-templates was,
+     * its tail. */
     private void document(final InputStream input, final boolean wholeBuffer) {
         final CompiledTemplate source = compiled.templates().stream()
                 .filter(t -> t.match() instanceof CompiledMatch.Source)
