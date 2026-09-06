@@ -1,8 +1,8 @@
 # Design 28 — The model classifies its instructions: holders, bindings, transforms, leaves
 
-*Proposed 2026-09-06, from design 27's exit review (§5.6); awaiting a ruling (D47). Ruled on
-2026-09-06 by Jon in principle — "yes, after the hygiene items" — with the shape below to be
-confirmed by the questions in §5.*
+*Proposed 2026-09-06, from design 27's exit review (§5.6). Ruled the same day by Jon (D47),
+every question in §5 as recommended: four classifications, the `Regexed` marker, `Containers`
+goes, `BodyCompiler`'s switch stays.*
 
 `OutputNode` is a sealed interface with fifty-four records and no structure between it and them.
 Every walk that needs to know something about an instruction — does it hold bodies, does it bind

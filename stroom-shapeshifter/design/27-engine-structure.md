@@ -991,7 +991,10 @@ a line, applied.
   off a public interface's signature; §2.3 placed `compile(body)` beside the ops, and a class in
   the same package is beside — a pure move under the compile rows. *Done the same day:
   `BodyCompiler` (402 lines) holds the patterns, the project and the functions and compiles a
-  body against them; `CompiledOp` (260) is the vocabulary alone.*
+  body against them; `CompiledOp` (260) is the vocabulary alone. Probed on the compile rows, two
+  forks, against the commit before it: five rows flat or better, `progressive` −7.5% inside its
+  5–9% spread, `regex_lines` −3.2% on a ±1.5% interval — borderline, and design 28's gate on the
+  same path re-measures both against the same pre-move commit.*
 - Follow-on, model: the `Holder`/`Leaf`/`Binding` sub-interfaces on `OutputNode`, which would
   close the `default` arms on the patterns axis and let `producesContent`, `ReferenceCheck.visit`
   and `CompiledOp.compile` each lose their forty name-binding arms.

@@ -1280,3 +1280,17 @@ had left implicit:
 
 **Consequences:** both pinned in `EngineBehaviourTest`; no corpus golden moved. A library of
 reusable templates, when it comes, is D11's import-time resolution and needs no run-time form.
+
+## D47 — The model classifies its instructions
+
+*Ruled by Jon, 2026-09-06, on design 28, every question as recommended.* `OutputNode` gains
+four sealed sub-interfaces — `Holder` (holds bodies), `Binding` (may bind a name), `Transform`
+(a binding with a select list) and `Leaf` — and a `Regexed` marker outside the permits clause
+for an instruction whose text is a pattern the compiler interns. A classification, not a layer:
+the records keep their fields, tags and constructors; the graph and the reader do not change.
+The walks that enumerated fifty-four records to say one thing say it once; the two searching
+walks lose their `default` arms; `Containers` goes, its lesson on `Holder`; `BodyCompiler`'s
+switch stays a switch, because one function per instruction is the vocabulary's own length.
+
+**Consequences:** gated on the three suites and the compile rows, one commit for the model and
+one per walk. D35 is unchanged: two artefacts, and a sub-interface is neither.
