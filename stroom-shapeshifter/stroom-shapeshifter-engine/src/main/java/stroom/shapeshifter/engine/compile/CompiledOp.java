@@ -120,7 +120,7 @@ public sealed interface CompiledOp {
     }
 
     /** Invoke a template by name. The target is a field read at run time, not a search. */
-    record Call(String name, List<Arg> args) implements CompiledOp {
+    record CallTemplate(String name, List<Arg> args) implements CompiledOp {
 
     }
 
@@ -316,7 +316,7 @@ public sealed interface CompiledOp {
                 }
                 case OutputNode.EmitError value ->
                         new EmitError(value.severity(), CompiledRef.of(value.message()));
-                case OutputNode.CallTemplate value -> new Call(
+                case OutputNode.CallTemplate value -> new CallTemplate(
                         value.name(),
                         value.withParam().stream()
                                 .map(param -> new Arg(param.name(), CompiledRef.of(param.value())))
@@ -350,7 +350,7 @@ public sealed interface CompiledOp {
                     // 0-based before — Dispatch.effective's precedent, applied to the base.
                     // A version-5 start below 1 follows XPath's rule: the window is
                     // [start, start + length) intersected with the string, so the length
-                    // shrinks by the part that fell before position 1 (phase 5 audit) —
+                    // shrinks by the part that fell before position 1 —
                     // substring(x, 0, 3) is the first two characters, not three. An
                     // omitted start is "from the beginning" under either base.
                     int start = value.start() == null ? 0 : value.start();
@@ -373,23 +373,23 @@ public sealed interface CompiledOp {
                 case OutputNode.Number value ->
                         transform(single("number", value.select()), value.name(), Transforms::number);
                 case OutputNode.Add value ->
-                        arithmetic("add", value.select(), value.name(), 1, Transforms::add);
+                        arithmetic("add", value.select(), value.name(), Arity.AT_LEAST, 1, Transforms::add);
                 case OutputNode.Subtract value ->
-                        arithmetic("subtract", value.select(), value.name(), 2, Transforms::subtract);
+                        arithmetic("subtract", value.select(), value.name(), Arity.EXACTLY, 2, Transforms::subtract);
                 case OutputNode.Multiply value ->
-                        arithmetic("multiply", value.select(), value.name(), 1, Transforms::multiply);
+                        arithmetic("multiply", value.select(), value.name(), Arity.AT_LEAST, 1, Transforms::multiply);
                 case OutputNode.Divide value ->
-                        arithmetic("divide", value.select(), value.name(), 2, Transforms::divide);
+                        arithmetic("divide", value.select(), value.name(), Arity.EXACTLY, 2, Transforms::divide);
                 case OutputNode.Mod value ->
-                        arithmetic("mod", value.select(), value.name(), 2, Transforms::mod);
+                        arithmetic("mod", value.select(), value.name(), Arity.EXACTLY, 2, Transforms::mod);
                 case OutputNode.Round value ->
-                        arithmetic("round", value.select(), value.name(), 1, Transforms::round);
+                        arithmetic("round", value.select(), value.name(), Arity.EXACTLY, 1, Transforms::round);
                 case OutputNode.Floor value ->
-                        arithmetic("floor", value.select(), value.name(), 1, Transforms::floor);
+                        arithmetic("floor", value.select(), value.name(), Arity.EXACTLY, 1, Transforms::floor);
                 case OutputNode.Ceiling value ->
-                        arithmetic("ceiling", value.select(), value.name(), 1, Transforms::ceiling);
+                        arithmetic("ceiling", value.select(), value.name(), Arity.EXACTLY, 1, Transforms::ceiling);
                 case OutputNode.Abs value ->
-                        arithmetic("abs", value.select(), value.name(), 1, Transforms::abs);
+                        arithmetic("abs", value.select(), value.name(), Arity.EXACTLY, 1, Transforms::abs);
                 case OutputNode.StringLength value ->
                         transform(single("string-length", value.select()), value.name(),
                                 Transforms::stringLength);
@@ -467,13 +467,7 @@ public sealed interface CompiledOp {
      * store, since that is what it receives. The definition is remembered so the run can bind it.
      */
     private static CallFunction call(final OutputNode.Call value, final Functions functions) {
-        final FunctionDefinition definition = functions.registry().lookup(value.function());
-        if (definition == null) {
-            throw new ConfigException("Unknown function: '" + value.function() + "'"
-                                      + (functions.registry().size() == 0
-                    ? " (no functions are registered)"
-                    : ""));
-        }
+        final FunctionDefinition definition = functions.resolve(value.function());
         final Signature signature = definition.signature();
         final int written = value.select().size();
         if (written < signature.minArgs() || written > signature.maxArgs()) {
@@ -506,7 +500,6 @@ public sealed interface CompiledOp {
                 select.add(CompiledRef.of(ref));
             }
         }
-        functions.used().putIfAbsent(definition.name(), definition);
         return new CallFunction(definition, select, sequences, value.name());
     }
 
@@ -522,25 +515,31 @@ public sealed interface CompiledOp {
      * shrinks the resolved list, and §5's rule is that any absent input makes the whole
      * result absent, so a short list is an answer, not an error.
      *
-     * @param arity the required select count; {@code add}/{@code multiply} fold and take
-     *              {@code arity} as a minimum instead
+     * @param arity the required select count, exactly or at least: {@code add} and
+     *              {@code multiply} fold, and take {@code count} as a minimum
      */
     private static Transform arithmetic(final String what,
                                         final List<RefExpression> select,
                                         final String name,
-                                        final int arity,
+                                        final Arity arity,
+                                        final int count,
                                         final Function<List<TypedValue>, TypedValue> function) {
-        final boolean fold = what.equals("add") || what.equals("multiply");
-        if (fold ? select.size() < arity : select.size() != arity) {
+        if (arity == Arity.AT_LEAST ? select.size() < count : select.size() != count) {
             throw new ConfigException("A " + what + " takes "
-                                      + (fold ? "at least " : "exactly ") + arity
-                                      + (arity == 1 ? " select" : " selects")
+                                      + (arity == Arity.AT_LEAST ? "at least " : "exactly ") + count
+                                      + (count == 1 ? " select" : " selects")
                                       + ", but has " + select.size());
         }
         final int expected = select.size();
         return new Transform(select.stream().map(CompiledRef::of).toList(), name,
                 inputs -> inputs.size() == expected ? function.apply(inputs) : null, what);
     }
+
+    /**
+     * How an arithmetic instruction's select count is checked. Public only because an interface
+     * has no other visibility; nothing outside the compile reads it.
+     */
+    enum Arity { EXACTLY, AT_LEAST }
 
     /** A format-number closes over its picture, compiled once and refused at compile time. */
     private static Transform formatNumber(final OutputNode.FormatNumber value) {
@@ -584,9 +583,7 @@ public sealed interface CompiledOp {
             return transform(value.select(), value.name(),
                     inputs -> Transforms.replaceLiteral(inputs, value.pattern(), value.replacement()));
         }
-        // A replace runs over resolved values — internal form, UTF-8 — never feed bytes.
-        final BytePattern pattern = patterns.get(
-                PatternKey.of(value.pattern(), stroom.shapeshifter.regex.Encoding.UTF_8));
+        final BytePattern pattern = patterns.get(PatternKey.ofValue(value.pattern()));
         if (pattern == null) {
             throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
         }

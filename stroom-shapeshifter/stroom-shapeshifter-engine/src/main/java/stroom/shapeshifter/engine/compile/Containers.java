@@ -24,7 +24,7 @@ import java.util.List;
 /**
  * Which instructions hold bodies, said once.
  *
- * <p>Three walks look for something anywhere inside a body — the patterns to intern, the
+ * <p>Two walks look for something anywhere inside a body — the patterns to intern, the
  * templates referred to — and each used to carry its own list of container instructions, with
  * a {@code default} arm for the rest. Twice that list was found to stop short of an iteration's
  * body (design 27 phase 1 audits), because a {@code default} arm cannot tell a leaf from a

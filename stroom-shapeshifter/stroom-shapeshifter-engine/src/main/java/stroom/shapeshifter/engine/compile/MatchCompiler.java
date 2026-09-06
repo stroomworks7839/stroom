@@ -74,9 +74,9 @@ final class MatchCompiler {
      */
     CompiledMatch compile(final Template template, final Encoding matchEncoding) {
         if (template.guard() != null) {
-            collect(template.guard(), template, stroom.shapeshifter.regex.Encoding.UTF_8);
+            collect(template.guard(), template);
         }
-        collect(template.body(), template, stroom.shapeshifter.regex.Encoding.UTF_8);
+        collect(template.body(), template);
         final List<MatchStep> resolvedSteps;
         if (template.match() instanceof MatchExpression.Progressive progressive) {
             // Resolved, not raw: the steps match the inlined sequence, so a regex
@@ -99,39 +99,34 @@ final class MatchCompiler {
      * {@code variable}. They are just as capable of being wrong, and finding out at compile time
      * is the difference between a configuration that is rejected and one that fails on a record.
      */
-    private void collect(final List<OutputNode> body,
-                         final Template template,
-                         final stroom.shapeshifter.regex.Encoding encoding) {
+    private void collect(final List<OutputNode> body, final Template template) {
         for (final OutputNode node : body) {
             switch (node) {
                 case OutputNode.Replace replace -> {
                     if (replace.isRegex()) {
-                        intern(PatternKey.of(replace.pattern(), encoding), template);
+                        intern(PatternKey.ofValue(replace.pattern()), template);
                     }
                 }
-                case OutputNode.If value -> collect(value.test(), template, encoding);
+                case OutputNode.If value -> collect(value.test(), template);
                 case OutputNode.Choose value ->
-                        value.when().forEach(branch -> collect(branch.test(), template, encoding));
+                        value.when().forEach(branch -> collect(branch.test(), template));
                 default -> {
                     // No pattern of its own; what it holds is walked below.
                 }
             }
             for (final List<OutputNode> nested : Containers.bodies(node)) {
-                collect(nested, template, encoding);
+                collect(nested, template);
             }
         }
     }
 
-    private void collect(final Condition condition,
-                         final Template template,
-                         final stroom.shapeshifter.regex.Encoding encoding) {
+    /** A body's and a condition's patterns run over resolved values: {@link PatternKey#ofValue}. */
+    private void collect(final Condition condition, final Template template) {
         switch (condition) {
-            case Condition.Matches matches -> intern(PatternKey.of(matches.pattern(), encoding), template);
-            case Condition.And value -> value.conditions()
-                    .forEach(child -> collect(child, template, encoding));
-            case Condition.Or value -> value.conditions()
-                    .forEach(child -> collect(child, template, encoding));
-            case Condition.Not value -> collect(value.condition(), template, encoding);
+            case Condition.Matches matches -> intern(PatternKey.ofValue(matches.pattern()), template);
+            case Condition.And value -> value.conditions().forEach(child -> collect(child, template));
+            case Condition.Or value -> value.conditions().forEach(child -> collect(child, template));
+            case Condition.Not value -> collect(value.condition(), template);
             default -> {
                 // Everything else compares values rather than matching patterns.
             }

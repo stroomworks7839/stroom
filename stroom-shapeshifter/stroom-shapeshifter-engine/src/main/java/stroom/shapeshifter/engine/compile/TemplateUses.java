@@ -41,24 +41,27 @@ record TemplateUses(Template template, List<String> calls, List<OutputNode.Apply
     static List<TemplateUses> of(final Project project) {
         final List<TemplateUses> uses = new ArrayList<>(project.templates().size());
         for (final Template template : project.templates()) {
-            final TemplateUses use = new TemplateUses(template, new ArrayList<>(), new ArrayList<>());
-            collectUses(template.body(), use);
-            uses.add(use);
+            final List<String> calls = new ArrayList<>();
+            final List<OutputNode.ApplyDirective> applies = new ArrayList<>();
+            collectUses(template.body(), calls, applies);
+            uses.add(new TemplateUses(template, List.copyOf(calls), List.copyOf(applies)));
         }
         return uses;
     }
 
-    private static void collectUses(final List<OutputNode> body, final TemplateUses uses) {
+    private static void collectUses(final List<OutputNode> body,
+                                    final List<String> calls,
+                                    final List<OutputNode.ApplyDirective> applies) {
         for (final OutputNode node : body) {
             switch (node) {
-                case OutputNode.CallTemplate value -> uses.calls().add(value.name());
-                case OutputNode.ApplyTemplates apply -> uses.applies().add(apply.directive());
+                case OutputNode.CallTemplate value -> calls.add(value.name());
+                case OutputNode.ApplyTemplates apply -> applies.add(apply.directive());
                 default -> {
                     // Refers to no template itself; what it holds is walked below.
                 }
             }
             for (final List<OutputNode> nested : Containers.bodies(node)) {
-                collectUses(nested, uses);
+                collectUses(nested, calls, applies);
             }
         }
     }
@@ -123,5 +126,4 @@ record TemplateUses(Template template, List<String> calls, List<OutputNode.Apply
             }
         }
     }
-
 }

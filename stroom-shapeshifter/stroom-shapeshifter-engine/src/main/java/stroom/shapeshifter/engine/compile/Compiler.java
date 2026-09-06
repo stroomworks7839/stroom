@@ -26,7 +26,6 @@ import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -66,12 +65,12 @@ public final class Compiler {
      * or a wrong arity is a {@link ConfigException}, by name.
      */
     public static CompiledProject compile(final Project project, final FunctionRegistry registry) {
-        final Functions functions = new Functions(registry, new LinkedHashMap<>());
+        final Functions functions = new Functions(registry);
         final Encoding sourceEncoding = encoding(project.source().encoding());
         // A transcode-family source (design 19 phase 6) is decoded whole to UTF-8 before the
         // window machinery sees it, so everything below compiles as a UTF-8 feed: delimiters,
         // steps, regexes, capture decoding. Spans are offsets into the transcoded bytes —
-        // §4.0's accepted trade for the encodings that never preserved offsets anyway.
+        // design 19 §4.0's accepted trade for the encodings that never preserved offsets anyway.
         final Encoding transcodeFrom = RegexEncodings.needsTranscode(sourceEncoding)
                 ? sourceEncoding
                 : null;
@@ -97,7 +96,7 @@ public final class Compiler {
         TemplateUses.lintDispatch(project, templates, uses, warnings);
         final boolean structured = bodyChecks(project, warnings);
         return new CompiledProject(project, templates, matches.patterns(), encoding, transcodeFrom,
-                warnings, List.copyOf(functions.used().values()), structured);
+                warnings, functions.used(), structured);
     }
 
     /** What a template's captures alone can be wrong about. */

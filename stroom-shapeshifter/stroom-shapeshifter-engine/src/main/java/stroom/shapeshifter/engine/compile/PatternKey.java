@@ -48,6 +48,16 @@ public record PatternKey(String text, Set<Flag> flags, Encoding encoding) {
         return new PatternKey(text, NONE, encoding);
     }
 
+    /**
+     * The key for a pattern over resolved values — a body's replace or a condition's matches.
+     * A value's internal form is UTF-8 whatever the feed's encoding, so the compilation is the
+     * UTF-8 one, always; only the match vocabulary sees feed bytes (design 19 phase 3). Said
+     * once here, so the compile side and the lookup side cannot build the key differently.
+     */
+    public static PatternKey ofValue(final String text) {
+        return new PatternKey(text, NONE, Encoding.UTF_8);
+    }
+
     /** A key for a pattern the model flags — a template's match, or a progressive regex step. */
     public static PatternKey of(final String text, final RegexFlags flags, final Encoding encoding) {
         return new PatternKey(text, flags(flags), encoding);

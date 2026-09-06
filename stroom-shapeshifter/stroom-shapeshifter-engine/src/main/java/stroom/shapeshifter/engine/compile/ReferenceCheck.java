@@ -87,7 +87,7 @@ final class ReferenceCheck {
      * refuses captures on an eater; the apply-templates select is the one place a group
      * may be named, because it is the idiom that hands the input to a mode and is not read.
      * A named template the document template calls runs over the same no-match, so the
-     * refusal follows call-template edges from the document template (E37 audit).
+     * refusal follows call-template edges from the document template (E37).
      */
     private boolean inDocumentTemplate;
     private boolean inApplySelect;
@@ -231,7 +231,7 @@ final class ReferenceCheck {
             case OutputNode.Trim value -> transform(value.select(), value.name());
             case OutputNode.Substring value -> {
                 // Only an explicit start moves at the version gate; an omitted one means
-                // "from the beginning" under either base (design/17 §7, phase 6 audit).
+                // "from the beginning" under either base (design/17 §7).
                 if (value.start() != null) {
                     explicitSubstringStarts++;
                 }
@@ -296,7 +296,7 @@ final class ReferenceCheck {
                 // __index is bound while the key is resolved, so the key counts as
                 // inside the iteration — but *not* yet inside the group: the key is what
                 // forms it, so reading this grouping's own names there is the same
-                // mistake as reading a position in a sort key (phase 4 audit).
+                // mistake as reading a position in a sort key.
                 iterationDepth++;
                 read(value.groupBy());
                 groupDepth++;
@@ -383,8 +383,7 @@ final class ReferenceCheck {
 
     /**
      * E21's hazard, caught rather than rediscovered: outside an iteration nothing sets
-     * {@code __position}, so these read false on every record — which is what got them
-     * deleted the first time. Inside one they are exact.
+     * {@code __position}, so these read false on every record. Inside one they are exact.
      */
     private void positional(final String spelling) {
         if (iterationDepth == 0) {
@@ -469,7 +468,7 @@ final class ReferenceCheck {
         }
     }
 
-    // The grouping names carry the iteration names' hazard, outside a grouping.
+    /** The grouping names carry the iteration names' hazard, outside a grouping. */
     private void groupOnly(final String name) {
         if (name != null && EngineVars.GROUP_ONLY.contains(name)) {
             warnings.add(new Message(Severity.WARNING, "Template '" + templateName
@@ -480,7 +479,7 @@ final class ReferenceCheck {
 
     /**
      * The same hazard the positional conditions carry, on the variables that carry it
-     * too (phase 1 audit): outside an iteration nothing sets these, and absence here is
+     * too: outside an iteration nothing sets these, and absence here is
      * quiet — {@code $__position} writes nothing, and an index reference falls back to
      * the first entry, which is a wrong value rather than no value.
      */

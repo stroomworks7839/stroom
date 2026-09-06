@@ -35,7 +35,7 @@ import java.util.List;
  */
 final class StructureCheck {
 
-    private enum Container { NONE, ELEMENT, ATTRIBUTE }
+    private enum Enclosing { NONE, ELEMENT, ATTRIBUTE }
 
     private final String templateName;
 
@@ -55,70 +55,72 @@ final class StructureCheck {
      */
     static boolean check(final Template template) {
         final StructureCheck check = new StructureCheck(template.name());
-        check.body(template.body(), Container.NONE, null, new boolean[1]);
+        check.body(template.body(), Enclosing.NONE, null, false);
         return check.structured;
     }
 
-    private void body(final List<OutputNode> nodes,
-                      final Container container,
-                      final String containerName,
-                      final boolean[] contentSeen) {
+    /**
+     * Walk one body in written order. The three structural instructions are judged and open a
+     * body of their own; a variable's body is a document of its own; every other container
+     * passes through, its bodies walked in the enclosing element with the content seen so far.
+     *
+     * @param contentSeen whether content has been written in the enclosing element before
+     *                    this body
+     * @return whether content has been written in the enclosing element after it
+     */
+    private boolean body(final List<OutputNode> nodes,
+                         final Enclosing within,
+                         final String name,
+                         final boolean seen) {
+        boolean contentSeen = seen;
         for (final OutputNode node : nodes) {
             switch (node) {
                 case OutputNode.Element value -> {
                     structured = true;
-                    refuseInAttribute(container, containerName, "element '" + value.name() + "'");
-                    contentSeen[0] = true;
-                    body(value.body(), Container.ELEMENT, value.name(), new boolean[1]);
+                    refuseInAttribute(within, name, "element '" + value.name() + "'");
+                    contentSeen = true;
+                    body(value.body(), Enclosing.ELEMENT, value.name(), false);
                 }
                 case OutputNode.Attribute value -> {
                     structured = true;
-                    refuseInAttribute(container, containerName, "attribute '" + value.name() + "'");
-                    refuseAfterContent(container, containerName, contentSeen, "attribute '" + value.name() + "'");
-                    body(value.body(), Container.ATTRIBUTE, value.name(), new boolean[1]);
+                    refuseInAttribute(within, name, "attribute '" + value.name() + "'");
+                    refuseAfterContent(within, name, contentSeen, "attribute '" + value.name() + "'");
+                    body(value.body(), Enclosing.ATTRIBUTE, value.name(), false);
                 }
                 case OutputNode.Namespace value -> {
                     structured = true;
-                    refuseInAttribute(container, containerName, "namespace '" + value.prefix() + "'");
-                    refuseAfterContent(container, containerName, contentSeen, "namespace '" + value.prefix() + "'");
+                    refuseInAttribute(within, name, "namespace '" + value.prefix() + "'");
+                    refuseAfterContent(within, name, contentSeen, "namespace '" + value.prefix() + "'");
                 }
-                case OutputNode.If value -> body(value.then(), container, containerName, contentSeen);
-                case OutputNode.Choose value -> {
-                    value.when().forEach(branch -> body(branch.body(), container, containerName, contentSeen));
-                    body(value.otherwise(), container, containerName, contentSeen);
-                }
-                case OutputNode.Switch value -> {
-                    value.cases().forEach(c -> body(c.body(), container, containerName, contentSeen));
-                    body(value.defaultBody(), container, containerName, contentSeen);
-                }
-                case OutputNode.ForEach value -> body(value.body(), container, containerName, contentSeen);
-                case OutputNode.ForEachGroup value -> body(value.body(), container, containerName, contentSeen);
                 // A variable's body writes to its own buffer: a document of its own.
-                case OutputNode.Variable value -> body(value.body(), Container.NONE, null, new boolean[1]);
+                case OutputNode.Variable value -> body(value.body(), Enclosing.NONE, null, false);
                 default -> {
-                    if (producesContent(node)) {
-                        contentSeen[0] = true;
+                    // A container's bodies pass through, as Containers says; a leaf holds none.
+                    for (final List<OutputNode> nested : Containers.bodies(node)) {
+                        contentSeen = body(nested, within, name, contentSeen);
                     }
+                    contentSeen |= producesContent(node);
                 }
             }
         }
+        return contentSeen;
     }
 
-    private void refuseInAttribute(final Container container, final String containerName, final String what) {
-        if (container == Container.ATTRIBUTE) {
+    private void refuseInAttribute(final Enclosing within, final String name, final String what) {
+        if (within == Enclosing.ATTRIBUTE) {
             throw new ConfigException("Template '" + templateName + "': " + what
-                                      + " inside the value of attribute '" + containerName
+                                      + " inside the value of attribute '" + name
                                       + "' — an attribute's body may write text and values only");
         }
     }
 
-    private void refuseAfterContent(final Container container,
-                                    final String containerName,
-                                    final boolean[] contentSeen,
+    private void refuseAfterContent(final Enclosing within,
+                                    final String name,
+                                    final boolean contentSeen,
                                     final String what) {
-        if (container == Container.ELEMENT && contentSeen[0]) {
+        if (within == Enclosing.ELEMENT && contentSeen) {
             throw new ConfigException("Template '" + templateName + "': " + what + " follows content in element '"
-                                      + containerName + "' — attributes and namespaces must come before text, "
+                                      + name + "' — attributes and namespaces must come before text, "
                                       + "values, child elements and apply-templates");
         }
     }

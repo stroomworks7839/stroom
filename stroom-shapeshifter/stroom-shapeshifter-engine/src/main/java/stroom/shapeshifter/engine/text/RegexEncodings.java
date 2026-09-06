@@ -53,11 +53,12 @@ public final class RegexEncodings {
     }
 
     /**
-     * The regex library's shape for {@code encoding}, or null where the library has none —
-     * only the transcode family (UTF-16 and friends), by design. A template's compile never
-     * meets the null: a transcode-family source is decoded whole to UTF-8 first, and a template
-     * may not declare one of its own, so E29's refusal of a regex under such an encoding is
-     * made by those two rules before any pattern is compiled.
+     * The regex library's shape for {@code encoding}, or null where the library has none: the
+     * transcode family (UTF-16 and friends), by design, and any encoding this build has no
+     * charset for, which the compiler refuses by name before it asks. A template's compile
+     * never meets the null: a transcode-family source is decoded whole to UTF-8 first, and a
+     * template may not declare one of its own, so E29's refusal of a regex under such an
+     * encoding is made by those rules before any pattern is compiled.
      */
     public static stroom.shapeshifter.regex.Encoding forMatch(final Encoding encoding) {
         if (encoding.isUtf8Compatible()) {

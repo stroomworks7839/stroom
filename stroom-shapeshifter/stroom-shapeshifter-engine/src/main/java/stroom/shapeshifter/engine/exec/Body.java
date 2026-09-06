@@ -239,7 +239,7 @@ final class Body {
                 case CompiledOp.Namespace value ->
                         structure(() -> sink.namespace(value.prefix(), value.uri()),
                                 "namespace '" + value.prefix() + "'");
-                case CompiledOp.Call value ->
+                case CompiledOp.CallTemplate value ->
                         callTemplate(value, match, matchCount, content, sink, inputBase, ignoreErrors, depth,
                                 contentEncoding);
                 case CompiledOp.ValueMap value -> {
@@ -934,7 +934,7 @@ final class Body {
      * <p>Parameters live in their own scope, so a call cannot leave its arguments behind for the
      * next one. Declared parameters the caller did not supply take their defaults.
      */
-    private void callTemplate(final CompiledOp.Call value,
+    private void callTemplate(final CompiledOp.CallTemplate value,
                       final MatchResult match,
                       final int matchCount,
                       final byte[] content,
