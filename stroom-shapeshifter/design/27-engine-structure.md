@@ -562,8 +562,33 @@ the message list: `Run`. `Executor.java` is deleted. Design 10's "transitional" 
 consequence are updated to say it happened. The `exec` package javadoc is rewritten to name the
 five classes and how a run flows through them.
 
-### Phase 6 — The packages
+### Phase 6 — The packages — Done 2026-09-06
 
+*As built, three commits and this one.* A mover (`/home/dev1/bin/move-classes.py`) does each
+package: renames the files under git, rewrites their package lines, rewrites every import
+across the engine, the pipeline, the benchmark module and the app tests, adds the imports
+that same-package references no longer get for free, and re-sorts each file's import blocks
+so checkstyle's order holds. `engine.value` (`6ba85bde13`): `TypedValue`, `Numbers`,
+`Transforms`, `Dates`, `Comparisons` and four tests; `Numbers` made public for its callers
+across the line. `engine.match` (`90ba472781`): `MatchResult`, `Steps`, `Splitter`, `Codecs`
+and `StepsTest`. `engine.output` (`43fd2b94b9`): the three sinks, `Utf8` and their tests;
+`OutputSink.of` gone from the contract per ruling 8, the body's variable buffer and
+seventeen files of tests and benchmarks constructing the byte sink by name, so the root
+package depends on nothing below it. Each new package has a javadoc that says what it holds
+and what it may depend on; `exec`'s is rewritten last, for what it now holds — the run, the
+level, the body, the window, the function runtime, the abort, the registry, the stores, the
+engine's names, the two resolvers and the conditions — and the root package's names every
+package and the direction between them. **A defect in the doing, recorded because a bisect
+would meet it:** the mover's first version added an import to any file that merely mentioned
+a moved class's simple name, which shadowed the pipeline's own `Dates` helper and put unused
+imports on nine other files; the value commit therefore leaves the pipeline module not
+compiling, the match commit restores it, and the mover now adds imports only where a
+same-package reference lost its free access. The gate was read from stale results once
+before that was caught, and the reader now checks the result files' age. No benchmark: no
+code moves within a class, and the one call that changed, the variable buffer's sink,
+constructs the same class. Engine 562, pipeline 154, app 5, xmlbench compiles.
+
+*As written:*
 The moves of §2.5: `value`, `match` and `output` created, their classes moved, the pipeline
 module's and the app tests' imports updated, a `package-info` written for each new package that
 says what it holds and what it may depend on. Pure import churn, in its own commit per package

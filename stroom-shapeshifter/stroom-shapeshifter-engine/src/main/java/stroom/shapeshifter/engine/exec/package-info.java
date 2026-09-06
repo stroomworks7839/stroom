@@ -22,21 +22,14 @@
  * {@code Level}, window by window through {@code InputWindow} or chunk by chunk. {@code Level}
  * dispatches one level's templates against one region and binds a winning match's captures;
  * {@code Body} interprets the match's body, the switch over the compiled instruction
- * vocabulary, with the scoped {@code VarRegistry} of match-indexed {@code Store}s that every
- * body reads and every capture writes; {@code FunctionRuntime} binds the configuration's
- * functions once and makes their calls. Around them the vocabulary a body reaches for:
- * {@code Refs} and {@code CompiledRefs} resolve references, {@code Conditions} decide,
- * {@code Transforms} compute, {@code Steps} and {@code Splitter} match progressively and on
- * delimiters, {@code Codecs} recode bytes; {@code TypedValue} and {@code MatchResult} are what
- * passes between them, and {@code AbortRun} is how a fatal message ends a run. The graph
- * performs the execution (D35): the run and its collaborators are its state for one input,
- * and there is nothing between the model and the graph.
+ * vocabulary; {@code FunctionRuntime} binds the configuration's functions once and makes
+ * their calls; {@code AbortRun} is how a fatal message ends a run. What they read and write:
+ * the scoped {@code VarRegistry} of match-indexed {@code Store}s, the names the engine sets
+ * itself in {@code EngineVars}, references resolved by {@code Refs} and {@code CompiledRefs},
+ * conditions decided by {@code Conditions}. The values are {@code value}'s, the matching
+ * {@code match}'s, the sinks {@code output}'s; this package depends on all three and on the
+ * compiled graph, and nothing depends on it but the facade. The graph performs the execution
+ * (D35): the run and its collaborators are its state for one input, and there is nothing
+ * between the model and the graph.
  */
 package stroom.shapeshifter.engine.exec;
-
-import stroom.shapeshifter.engine.match.Codecs;
-import stroom.shapeshifter.engine.match.MatchResult;
-import stroom.shapeshifter.engine.match.Splitter;
-import stroom.shapeshifter.engine.match.Steps;
-import stroom.shapeshifter.engine.value.Transforms;
-import stroom.shapeshifter.engine.value.TypedValue;
