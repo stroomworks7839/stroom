@@ -20,9 +20,11 @@
  * <p>{@code XmlByteSink} serialises the structure a run writes into bytes exactly as Saxon
  * would, and is the default sink; {@code SaxEventSink} forwards the same structure as SAX
  * events, counting events as its position; {@code CharacterSink} delivers a text
- * configuration's writes as {@code characters} events. {@code Utf8} is what the three share:
- * where a buffer's trailing bytes begin a character the next write will finish. This package
- * depends on the root package's sink contract and on the JDK, and nothing inside the engine
- * depends on it but the body's variable buffer (design 27 §2.5, ruling 8).
+ * configuration's writes as {@code characters} events. What the three share is said once:
+ * {@code Utf8.Carry} holds the bytes a write left mid-character for the next,
+ * {@code SaxEvents} makes and counts the two event sinks' calls, {@code QNames} splits a
+ * qualified name. This package depends on the root package's sink contract and on the JDK, and
+ * nothing inside the engine depends on it but the body's variable buffer (design 27 §2.5,
+ * ruling 8, E41).
  */
 package stroom.shapeshifter.engine.output;

@@ -45,7 +45,7 @@ final class OutputJson {
         final JsonFields.Tagged tagged = JsonFields.tag(node, "output node");
         final JsonNode body = tagged.body();
         return switch (tagged.name()) {
-            case "text" -> new OutputNode.Text(body.asString());
+            case "text" -> new OutputNode.Text(JsonFields.text(body, "text"));
             case "value-of" -> new OutputNode.ValueOf(ReferenceJson.readRef(body));
             case "call" -> {
                 JsonFields.checkFields(body, "call", "function", "select", "name");
@@ -157,8 +157,8 @@ final class OutputJson {
                 final JsonNode length = JsonFields.optional(body, "length");
                 yield new OutputNode.Substring(
                         JsonFields.list(body.get("select"), "select", ReferenceJson::readRef),
-                        start == null ? null : start.asInt(),
-                        length == null ? null : length.asInt(),
+                        start == null ? null : JsonFields.integer(start, "substring start"),
+                        length == null ? null : JsonFields.integer(length, "substring length"),
                         JsonFields.optionalText(body, "name"));
             }
             case "tokenize" -> {
@@ -665,7 +665,8 @@ final class OutputJson {
         if (!node.isArray() || node.size() != 2) {
             throw new ConfigException("A parameter must be a [name, value] pair");
         }
-        return new Param(node.get(0).asString(), ReferenceJson.readRef(node.get(1)));
+        return new Param(JsonFields.text(node.get(0), "parameter name"),
+                ReferenceJson.readRef(node.get(1)));
     }
 
     private static ArrayNode writeParam(final Param param) {
@@ -682,7 +683,8 @@ final class OutputJson {
                 ReferenceJson.readRef(JsonFields.required(node, "select", "apply-templates")),
                 JsonFields.optionalText(node, "mode"),
                 JsonFields.list(node.get("with-param"), "with-param", OutputJson::readParam),
-                node.path("max_depth").asInt(ApplyDirective.DEFAULT_MAX_DEPTH),
+                JsonFields.integer(node, "max_depth", "apply-templates",
+                        ApplyDirective.DEFAULT_MAX_DEPTH),
                 JsonFields.optionalText(node, "template_ref"),
                 node.path("ignore_errors").asBoolean(false),
                 JsonFields.readDispatch(node));

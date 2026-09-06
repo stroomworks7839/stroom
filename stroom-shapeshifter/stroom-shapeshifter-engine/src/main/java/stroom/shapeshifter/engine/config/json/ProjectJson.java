@@ -49,7 +49,7 @@ public final class ProjectJson {
         JsonFields.checkFields(node, "project", "name", "version", "source", "templates", "patterns");
         return new Project(
                 JsonFields.text(node, "name", "project"),
-                JsonFields.required(node, "version", "project").asInt(),
+                JsonFields.integer(node, "version", "project"),
                 node.has("source") ? readSource(node.get("source")) : SourceConfig.defaults(),
                 JsonFields.list(node.get("templates"), "templates", ProjectJson::readTemplate),
                 JsonFields.list(node.get("patterns"), "patterns", MatchJson::readPattern));
@@ -71,14 +71,15 @@ public final class ProjectJson {
     private static SourceConfig readSource(final JsonNode node) {
         JsonFields.checkFields(node, "source", "buffer_size", "ignore_errors", "encoding", "dispatch",
                 "strict_values", "max_sequence_entries");
+        final String encoding = JsonFields.optionalText(node, "encoding");
         return new SourceConfig(
-                node.path("buffer_size").asInt(SourceConfig.DEFAULT_BUFFER_SIZE),
+                JsonFields.integer(node, "buffer_size", "source", SourceConfig.DEFAULT_BUFFER_SIZE),
                 node.path("ignore_errors").asBoolean(false),
-                node.has("encoding") ? node.get("encoding").asString() : SourceConfig.AUTO,
+                encoding == null ? SourceConfig.AUTO : encoding,
                 JsonFields.readDispatch(node),
                 node.path("strict_values").asBoolean(false),
-                node.path("max_sequence_entries")
-                        .asInt(SourceConfig.DEFAULT_MAX_SEQUENCE_ENTRIES));
+                JsonFields.integer(node, "max_sequence_entries", "source",
+                        SourceConfig.DEFAULT_MAX_SEQUENCE_ENTRIES));
     }
 
     private static ObjectNode writeSource(final SourceConfig source) {
@@ -160,10 +161,11 @@ public final class ProjectJson {
         final JsonNode onlyMatch = JsonFields.optional(node, "only_match");
         final Set<Integer> only = onlyMatch == null
                 ? null
-                : new LinkedHashSet<>(JsonFields.list(onlyMatch, "only_match", JsonNode::asInt));
+                : new LinkedHashSet<>(JsonFields.list(onlyMatch, "only_match",
+                        index -> JsonFields.integer(index, "only_match")));
         return new MatchLimits(
-                node.path("min_match").asInt(0),
-                node.path("max_match").asInt(MatchLimits.UNLIMITED),
+                JsonFields.integer(node, "min_match", "match_limits", 0),
+                JsonFields.integer(node, "max_match", "match_limits", MatchLimits.UNLIMITED),
                 only);
     }
 

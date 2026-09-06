@@ -1176,7 +1176,16 @@ resolution goes and `CompiledRefs` is the one resolver; its byte helper, which t
 capture normalisation also uses, moves rather than goes.
 
 ### E40 — The three sinks duplicate the carry splice, the SAX call and the qname rule
-**`open` 2026-09-06.** Named at design 27's entry review and left alone by phase 6 so its move
+**`resolved` 2026-09-06, the same day.** `Utf8.Carry` owns the bytes a sink holds back between
+writes and the flush at the structural call that ends the content, one per sink; `SaxEvents`
+makes and counts the SAX calls for the two event sinks and turns the handler's refusal into the
+sink's; `QNames` holds both halves of the qualified-name rule. The `Element`/`Attribute`
+bookkeeping the two structured sinks share stays with each, because the byte sink's element
+carries the indenter's state and the event sink's carries the resolved URI, and a shared base
+would be a third thing for two fields. Under the three sink tests and the pipeline's goldens;
+no behaviour moved.
+
+Original text (found open): Named at design 27's entry review and left alone by phase 6 so its move
 commit stayed a move: the carry-splice-decode sequence is written in `XmlByteSink`,
 `SaxEventSink` and `CharacterSink`; `SaxCall` and the counting `sax()` are verbatim in the two
 event sinks; `XmlByteSink.prefixOf` and `SaxEventSink.localOf` are halves of one qname rule; and

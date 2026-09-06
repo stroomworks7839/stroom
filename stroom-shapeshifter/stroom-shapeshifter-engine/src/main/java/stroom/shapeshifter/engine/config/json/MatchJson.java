@@ -85,7 +85,7 @@ final class MatchJson {
                 JsonFields.checkFields(body, "regex", "pattern", "flags", "advance");
                 yield new MatchExpression.Regex(
                         JsonFields.text(body, "pattern", "regex"), readFlags(body.get("flags")),
-                        body.path("advance").asInt(0));
+                        JsonFields.integer(body, "advance", "regex", 0));
             }
             case "delimiter" -> {
                 JsonFields.checkFields(body, "delimiter", "delimiter", "escape", "container_start", "container_end");
@@ -175,9 +175,10 @@ final class MatchJson {
         final JsonFields.Tagged tagged = JsonFields.tag(node, "match step");
         final JsonNode body = tagged.body();
         return switch (tagged.name()) {
-            case "Tag" -> new MatchStep.Tag(body.asString());
+            case "Tag" -> new MatchStep.Tag(JsonFields.text(body, "Tag"));
             case "MatchByte" -> {
-                final List<Integer> bytes = JsonFields.list(body, "MatchByte", JsonNode::asInt);
+                final List<Integer> bytes = JsonFields.list(body, "MatchByte",
+                        b -> JsonFields.integer(b, "MatchByte"));
                 final byte[] value = new byte[bytes.size()];
                 for (int i = 0; i < value.length; i++) {
                     final int b = bytes.get(i);
@@ -195,7 +196,7 @@ final class MatchJson {
                         JsonFields.text(body, "pattern", "TakeUntil"), body.path("inclusive").asBoolean(false));
             }
             case "TakeBytes" -> new MatchStep.TakeBytes(readStepRef(body));
-            case "TakeN" -> new MatchStep.TakeN(body.asInt());
+            case "TakeN" -> new MatchStep.TakeN(JsonFields.integer(body, "TakeN"));
             case "AnyChar" -> {
                 JsonFields.checkFields(body, "AnyChar");
                 yield new MatchStep.AnyChar();
@@ -249,8 +250,8 @@ final class MatchJson {
                 final JsonNode max = JsonFields.optional(body, "max");
                 yield new MatchStep.Repeat(
                         JsonFields.list(body.get("steps"), "steps", MatchJson::readStep),
-                        body.path("min").asInt(0),
-                        max == null ? null : max.asInt());
+                        JsonFields.integer(body, "min", "Repeat", 0),
+                        max == null ? null : JsonFields.integer(max, "Repeat max"));
             }
             case "Sequence" -> new MatchStep.Sequence(JsonFields.list(body, "Sequence", MatchJson::readStep));
             case "PatternRef" -> new MatchStep.PatternRef(JsonFields.uuid(body, "PatternRef"));
@@ -339,8 +340,9 @@ final class MatchJson {
     private static StepRef readStepRef(final JsonNode node) {
         final JsonFields.Tagged tagged = JsonFields.tag(node, "step reference");
         return switch (tagged.name()) {
-            case "Literal" -> new StepRef.Literal(tagged.body().asInt());
-            case "StepOutput" -> new StepRef.StepOutput(tagged.body().asInt());
+            case "Literal" -> new StepRef.Literal(JsonFields.integer(tagged.body(), "Literal"));
+            case "StepOutput" ->
+                    new StepRef.StepOutput(JsonFields.integer(tagged.body(), "StepOutput"));
             default -> throw new ConfigException("Unknown step reference: " + tagged.name());
         };
     }
@@ -418,7 +420,7 @@ final class MatchJson {
      * match something the author never wrote.
      */
     private static char character(final JsonNode node) {
-        final String value = node.asString();
+        final String value = JsonFields.text(node, "charset entry");
         if (value.length() != 1) {
             throw new ConfigException("A charset entry must be a single character, but was '" + value + "'");
         }

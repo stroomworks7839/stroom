@@ -16,10 +16,47 @@
 
 package stroom.shapeshifter.engine.output;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+
 /** What the sinks need to know about UTF-8 that {@link java.nio.charset} does not say cheaply. */
 final class Utf8 {
 
     private Utf8() {
+    }
+
+    /**
+     * The bytes a sink holds back between writes. The sink interface promises bytes, not whole
+     * strings, so a write may end mid-character: whatever does not complete a UTF-8 sequence
+     * waits for the next write, or for the structural call that ends the content, rather than
+     * decoding into replacement characters. One per sink.
+     */
+    static final class Carry {
+
+        private byte[] held = new byte[0];
+
+        /** The text the held bytes and this write complete; what they do not complete is held. */
+        String take(final byte[] data, final int offset, final int length) {
+            final byte[] bytes = new byte[held.length + length];
+            System.arraycopy(held, 0, bytes, 0, held.length);
+            System.arraycopy(data, offset, bytes, held.length, length);
+            final int complete = bytes.length - incompleteTail(bytes);
+            held = Arrays.copyOfRange(bytes, complete, bytes.length);
+            return new String(bytes, 0, complete, StandardCharsets.UTF_8);
+        }
+
+        /**
+         * Whatever is held, decoded as it is — an incomplete sequence becomes a replacement
+         * character, as it would in a file — and nothing held afterwards; null when nothing was.
+         */
+        String flush() {
+            if (held.length == 0) {
+                return null;
+            }
+            final byte[] rest = held;
+            held = new byte[0];
+            return new String(rest, StandardCharsets.UTF_8);
+        }
     }
 
     /**

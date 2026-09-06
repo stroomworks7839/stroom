@@ -19,14 +19,12 @@ package stroom.shapeshifter.engine.output;
 import stroom.shapeshifter.engine.OutputSink;
 
 import org.xml.sax.ContentHandler;
-import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -53,9 +51,9 @@ public final class SaxEventSink implements OutputSink {
 
     private final ContentHandler handler;
     private final Deque<Element> open = new ArrayDeque<>();
-    private long events;
+    private final SaxEvents events = new SaxEvents();
     private Attribute attribute;
-    private byte[] carry = new byte[0];
+    private final Utf8.Carry carry = new Utf8.Carry();
     private boolean documentStarted;
     private boolean documentEnded;
 
@@ -81,7 +79,7 @@ public final class SaxEventSink implements OutputSink {
         final Element element = new Element(qName, parent, omitIfEmpty);
         open.push(element);
         if (namespace != null) {
-            final String prefix = XmlByteSink.prefixOf(qName);
+            final String prefix = QNames.prefixOf(qName);
             if (!namespace.equals(element.scope.get(prefix))) {
                 declare(element, prefix, namespace);
             }
@@ -137,14 +135,14 @@ public final class SaxEventSink implements OutputSink {
             return;
         }
         ensureStarted(element);
-        sax(() -> handler.endElement(element.uri, element.localName, element.qName));
+        events.make(() -> handler.endElement(element.uri, element.localName, element.qName));
         for (int i = element.declarations.size() - 1; i >= 0; i--) {
             final String prefix = element.declarations.get(i)[0];
-            sax(() -> handler.endPrefixMapping(prefix));
+            events.make(() -> handler.endPrefixMapping(prefix));
         }
         open.pop();
         if (open.isEmpty()) {
-            sax(handler::endDocument);
+            events.make(handler::endDocument);
             documentEnded = true;
         }
     }
@@ -159,17 +157,12 @@ public final class SaxEventSink implements OutputSink {
             attribute.value.write(data, offset, length);
             return;
         }
-        final byte[] bytes = new byte[carry.length + length];
-        System.arraycopy(carry, 0, bytes, 0, carry.length);
-        System.arraycopy(data, offset, bytes, carry.length, length);
-        final int complete = bytes.length - Utf8.incompleteTail(bytes);
-        carry = Arrays.copyOfRange(bytes, complete, bytes.length);
-        content(new String(bytes, 0, complete, StandardCharsets.UTF_8));
+        content(carry.take(data, offset, length));
     }
 
     @Override
     public long position() {
-        return events;
+        return events.count();
     }
 
     @Override
@@ -200,14 +193,13 @@ public final class SaxEventSink implements OutputSink {
         // a stylesheet's text nodes (E38, ruled 2026-09-04).
         ensureStarted(element);
         final char[] chars = text.toCharArray();
-        sax(() -> handler.characters(chars, 0, chars.length));
+        events.make(() -> handler.characters(chars, 0, chars.length));
     }
 
     private void flushCarry() {
-        if (carry.length > 0) {
-            final byte[] bytes = carry;
-            carry = new byte[0];
-            content(new String(bytes, StandardCharsets.UTF_8));
+        final String rest = carry.flush();
+        if (rest != null) {
+            content(rest);
         }
     }
 
@@ -223,22 +215,24 @@ public final class SaxEventSink implements OutputSink {
         if (element.parent != null) {
             ensureStarted(element.parent);
         } else if (!documentStarted) {
-            sax(handler::startDocument);
+            events.make(handler::startDocument);
             documentStarted = true;
         }
         for (final String[] declaration : element.declarations) {
-            sax(() -> handler.startPrefixMapping(declaration[0], declaration[1]));
+            events.make(() -> handler.startPrefixMapping(declaration[0], declaration[1]));
         }
-        element.uri = resolve(element, XmlByteSink.prefixOf(element.qName), "element " + element.qName);
-        element.localName = localOf(element.qName);
+        element.uri = resolve(element, QNames.prefixOf(element.qName), "element " + element.qName);
+        element.localName = QNames.localOf(element.qName);
         final AttributesImpl attributes = new AttributesImpl();
         for (final String[] attribute : element.attributes) {
-            final String prefix = XmlByteSink.prefixOf(attribute[0]);
+            final String prefix = QNames.prefixOf(attribute[0]);
             // An unprefixed attribute is in no namespace, whatever the default namespace is.
             final String uri = prefix.isEmpty() ? "" : resolve(element, prefix, "attribute " + attribute[0]);
-            attributes.addAttribute(uri, localOf(attribute[0]), attribute[0], "CDATA", attribute[1]);
+            attributes.addAttribute(uri, QNames.localOf(attribute[0]), attribute[0], "CDATA",
+                    attribute[1]);
         }
-        sax(() -> handler.startElement(element.uri, element.localName, element.qName, attributes));
+        events.make(() ->
+                handler.startElement(element.uri, element.localName, element.qName, attributes));
     }
 
     private static String resolve(final Element element, final String prefix, final String what) {
@@ -256,28 +250,9 @@ public final class SaxEventSink implements OutputSink {
         return scope;
     }
 
-    private static String localOf(final String qName) {
-        final int colon = qName.indexOf(':');
-        return colon < 0 ? qName : qName.substring(colon + 1);
-    }
-
     // -----------------------------------------------------------------------------------
     // Plumbing
     // -----------------------------------------------------------------------------------
-
-    private interface SaxCall {
-
-        void run() throws SAXException;
-    }
-
-    private void sax(final SaxCall call) {
-        try {
-            call.run();
-            events++;
-        } catch (final SAXException e) {
-            throw new StructureException("The event handler refused an event: " + e.getMessage());
-        }
-    }
 
     private Element current(final String call) {
         final Element element = open.peek();

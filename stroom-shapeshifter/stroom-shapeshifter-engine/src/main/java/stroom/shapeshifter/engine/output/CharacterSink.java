@@ -19,10 +19,6 @@ package stroom.shapeshifter.engine.output;
 import stroom.shapeshifter.engine.OutputSink;
 
 import org.xml.sax.ContentHandler;
-import org.xml.sax.SAXException;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 /**
  * A text configuration's output as SAX {@code characters} events, one per write, as the write
@@ -43,8 +39,8 @@ import java.util.Arrays;
 public final class CharacterSink implements OutputSink {
 
     private final ContentHandler handler;
-    private byte[] carry = new byte[0];
-    private long events;
+    private final Utf8.Carry carry = new Utf8.Carry();
+    private final SaxEvents events = new SaxEvents();
     private boolean started;
     private boolean ended;
 
@@ -60,13 +56,9 @@ public final class CharacterSink implements OutputSink {
         if (length == 0) {
             return;
         }
-        final byte[] bytes = new byte[carry.length + length];
-        System.arraycopy(carry, 0, bytes, 0, carry.length);
-        System.arraycopy(data, offset, bytes, carry.length, length);
-        final int complete = bytes.length - Utf8.incompleteTail(bytes);
-        carry = Arrays.copyOfRange(bytes, complete, bytes.length);
-        if (complete > 0) {
-            characters(new String(bytes, 0, complete, StandardCharsets.UTF_8));
+        final String text = carry.take(data, offset, length);
+        if (!text.isEmpty()) {
+            characters(text);
         }
     }
 
@@ -80,19 +72,18 @@ public final class CharacterSink implements OutputSink {
         if (ended) {
             return;
         }
-        if (carry.length > 0) {
-            final byte[] rest = carry;
-            carry = new byte[0];
-            characters(new String(rest, StandardCharsets.UTF_8));
+        final String rest = carry.flush();
+        if (rest != null) {
+            characters(rest);
         }
         ensureStarted();
-        sax(handler::endDocument);
+        events.make(handler::endDocument);
         ended = true;
     }
 
     @Override
     public long position() {
-        return events;
+        return events.count();
     }
 
     @Override
@@ -103,27 +94,13 @@ public final class CharacterSink implements OutputSink {
     private void characters(final String text) {
         ensureStarted();
         final char[] chars = text.toCharArray();
-        sax(() -> handler.characters(chars, 0, chars.length));
+        events.make(() -> handler.characters(chars, 0, chars.length));
     }
 
     private void ensureStarted() {
         if (!started) {
             started = true;
-            sax(handler::startDocument);
-        }
-    }
-
-    private interface SaxCall {
-
-        void run() throws SAXException;
-    }
-
-    private void sax(final SaxCall call) {
-        try {
-            call.run();
-            events++;
-        } catch (final SAXException e) {
-            throw new StructureException("The event handler refused an event: " + e.getMessage());
+            events.make(handler::startDocument);
         }
     }
 }

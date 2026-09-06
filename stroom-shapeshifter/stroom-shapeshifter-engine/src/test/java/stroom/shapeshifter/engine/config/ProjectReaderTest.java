@@ -173,6 +173,19 @@ class ProjectReaderTest {
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Expected an array for 'MatchByte'");
 
+        assertThatThrownBy(() -> ProjectReader.read("""
+                {"name": "x", "version": 3, "source": {"buffer_size": "big"}, "templates": []}
+                """))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining(
+                        "Expected a whole number for 'buffer_size' in source, but was string");
+
+        assertThatThrownBy(() -> ProjectReader.read("""
+                {"name": 5, "version": 3, "templates": []}
+                """))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Expected text for 'name' in project, but was number");
+
         final Project project = ProjectReader.read("""
                 {"name": "x", "version": 3, "source": {"dispatch": null}, "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match": "source"}]}

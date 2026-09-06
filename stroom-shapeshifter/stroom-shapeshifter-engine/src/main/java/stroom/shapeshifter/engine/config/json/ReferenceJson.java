@@ -53,9 +53,9 @@ final class ReferenceJson {
         final JsonFields.Tagged tagged = JsonFields.tag(node, "capture source");
         final JsonNode body = tagged.body();
         return switch (tagged.name()) {
-            case "group" -> new CaptureSource.Group(body.asInt());
-            case "step" -> new CaptureSource.Step(body.asInt());
-            case "field" -> new CaptureSource.Field(body.asString());
+            case "group" -> new CaptureSource.Group(JsonFields.integer(body, "group"));
+            case "step" -> new CaptureSource.Step(JsonFields.integer(body, "step"));
+            case "field" -> new CaptureSource.Field(JsonFields.text(body, "field"));
             case "select" -> new CaptureSource.Select(readRef(body));
             case "key-value" -> {
                 JsonFields.checkFields(body, "key-value", "key_ref", "value_ref");
@@ -110,10 +110,10 @@ final class ReferenceJson {
                 final JsonNode matchIndex = JsonFields.optional(body, "match_index");
                 yield new RefPart.Capture(
                         JsonFields.optionalText(body, "var_id"),
-                        body.path("group").asInt(0),
+                        JsonFields.integer(body, "group", "capture", 0),
                         matchIndex == null ? null : readMatchIndex(matchIndex));
             }
-            case "text" -> new RefPart.Text(body.asString());
+            case "text" -> new RefPart.Text(JsonFields.text(body, "text"));
             default -> throw new ConfigException("Unknown reference part: " + tagged.name());
         };
     }
@@ -136,7 +136,7 @@ final class ReferenceJson {
     private static MatchIndex readMatchIndex(final JsonNode node) {
         JsonFields.checkFields(node, "match index", "index", "is_offset", "is_last", "var_ref");
         return new MatchIndex(
-                node.path("index").asInt(0),
+                JsonFields.integer(node, "index", "match index", 0),
                 node.path("is_offset").asBoolean(false),
                 node.path("is_last").asBoolean(false),
                 JsonFields.optionalText(node, "var_ref"));

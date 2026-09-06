@@ -980,7 +980,8 @@ a line, applied.
 - E39 — conditions and capture selects resolve the authored expression; `Refs.write` is gone
   ahead of it, `Refs.resolve` and its byte helper stay until the measurement.
 - E40 — the sinks' three duplications (carry splice, SAX call, qname halves) and the shared
-  `Element`/`Attribute` bookkeeping.
+  `Element`/`Attribute` bookkeeping. *Resolved the same day: `Utf8.Carry`, `SaxEvents`,
+  `QNames`; the bookkeeping stays with each sink, as E40 says why.*
 - E41 — a variable's body takes Saxon's indenting layout (ruling 8's question). *Resolved the
   same day, D46: the faithful layout; a variable is a value.*
 - E42 — the `template_ref` apply, defined and executed or refused at compile time. *Resolved
@@ -994,7 +995,9 @@ a line, applied.
   and `CompiledOp.compile` each lose their forty name-binding arms.
 - Follow-on, reader: typed primitives (`integer`, `text` refusing anything but a number or a
   string node) so a wrong-shaped scalar is refused by name rather than reported as invalid JSON;
-  a behaviour change, so pinned when done.
+  a behaviour change, so pinned when done. *Done the same day, ruled with E40: `integer`,
+  `number` and `text` in `JsonFields`, every coercion site through them, pinned in
+  `ProjectReaderTest`; a quoted number is now refused where Jackson used to parse it.*
 - Notes, recorded and accepted: `Dispatch.effective` computed in both walks; `Steps`/`Splitter`
   parameter threading; `MatchCompiler`'s "refers to itself" naming a UUID and its linear pattern
   scan; `distinct-values` requiring `name` on read; the engine counters' `vars.store(name)`

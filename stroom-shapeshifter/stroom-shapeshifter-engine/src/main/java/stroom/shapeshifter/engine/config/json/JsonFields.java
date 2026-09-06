@@ -129,7 +129,7 @@ final class JsonFields {
         if (!node.isObject()) {
             throw new ConfigException(
                     "A " + what + " must be a name or a single-key object, but was of type "
-                    + node.getNodeType().name().toLowerCase(Locale.ROOT).replace('_', ' '));
+                    + shape(node));
         }
         if (node.size() != 1) {
             throw new ConfigException(
@@ -190,23 +190,87 @@ final class JsonFields {
         return value == null || value.isNull() ? null : value;
     }
 
-    /** A required text field. */
+    /** A required text field: anything but a string node is refused by name. */
     static String text(final JsonNode node, final String field, final String what) {
-        return required(node, field, what).asString();
+        return string(required(node, field, what), field, what);
     }
 
-    /** A text field, or null where it is absent or JSON null. */
+    /** A bare text value: anything but a string node is refused by name. */
+    static String text(final JsonNode node, final String what) {
+        return string(node, null, what);
+    }
+
+    /** A text field, or null where it is absent or JSON null; anything else is refused by name. */
     static String optionalText(final JsonNode node, final String field) {
         final JsonNode value = optional(node, field);
-        return value == null ? null : value.asString();
+        return value == null ? null : string(value, field, null);
+    }
+
+    /** A required whole-number field: anything but an integral number node is refused by name. */
+    static int integer(final JsonNode node, final String field, final String what) {
+        return whole(required(node, field, what), field, what);
+    }
+
+    /** A whole-number field, or the default where it is absent or JSON null. */
+    static int integer(final JsonNode node,
+                       final String field,
+                       final String what,
+                       final int fallback) {
+        final JsonNode value = optional(node, field);
+        return value == null ? fallback : whole(value, field, what);
+    }
+
+    /** A bare whole-number value. */
+    static int integer(final JsonNode node, final String what) {
+        return whole(node, null, what);
+    }
+
+    /** A required number field, whole or fractional. */
+    static double number(final JsonNode node, final String field, final String what) {
+        final JsonNode value = required(node, field, what);
+        if (!value.isNumber()) {
+            throw new ConfigException(
+                    "Expected a number for " + where(field, what) + ", but was " + shape(value));
+        }
+        return value.asDouble();
+    }
+
+    private static String string(final JsonNode value, final String field, final String what) {
+        if (!value.isString()) {
+            throw new ConfigException(
+                    "Expected text for " + where(field, what) + ", but was " + shape(value));
+        }
+        return value.asString();
+    }
+
+    private static int whole(final JsonNode value, final String field, final String what) {
+        if (!value.isIntegralNumber()) {
+            throw new ConfigException("Expected a whole number for " + where(field, what)
+                                      + ", but was " + shape(value));
+        }
+        return value.asInt();
+    }
+
+    /** How a refusal names its place: the field in its owner, the field alone, or the value's
+     * owner. */
+    private static String where(final String field, final String what) {
+        if (field == null) {
+            return what;
+        }
+        return what == null ? "'" + field + "'" : "'" + field + "' in " + what;
+    }
+
+    private static String shape(final JsonNode value) {
+        return value.getNodeType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
     }
 
     /** A bare id value, refused by name if it is not one. */
     static UUID uuid(final JsonNode node, final String what) {
+        final String text = text(node, what);
         try {
-            return UUID.fromString(node.asString());
+            return UUID.fromString(text);
         } catch (final IllegalArgumentException e) {
-            throw new ConfigException("Not a valid id for " + what + ": " + node.asString(), e);
+            throw new ConfigException("Not a valid id for " + what + ": " + text, e);
         }
     }
 

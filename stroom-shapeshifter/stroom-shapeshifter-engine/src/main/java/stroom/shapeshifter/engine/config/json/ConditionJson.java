@@ -99,13 +99,13 @@ final class ConditionJson {
                 JsonFields.checkFields(body, "greater-than", "select", "value");
                 yield numericOrdering(Condition.Compare.Op.GT,
                         ReferenceJson.readRef(JsonFields.required(body, "select", "greater-than")),
-                        JsonFields.required(body, "value", "greater-than").asDouble());
+                        JsonFields.number(body, "value", "greater-than"));
             }
             case "less-than" -> {
                 JsonFields.checkFields(body, "less-than", "select", "value");
                 yield numericOrdering(Condition.Compare.Op.LT,
                         ReferenceJson.readRef(JsonFields.required(body, "select", "less-than")),
-                        JsonFields.required(body, "value", "less-than").asDouble());
+                        JsonFields.number(body, "value", "less-than"));
             }
             case "and" -> new Condition.And(JsonFields.list(body, "and", ConditionJson::readCondition));
             case "or" -> new Condition.Or(JsonFields.list(body, "or", ConditionJson::readCondition));

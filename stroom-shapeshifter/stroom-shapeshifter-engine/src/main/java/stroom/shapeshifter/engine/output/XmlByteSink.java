@@ -25,7 +25,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -80,8 +79,8 @@ public final class XmlByteSink implements OutputSink {
     private final Deque<Element> open = new ArrayDeque<>();
     private long position;
     private Attribute attribute;
-    /** The tail of the last content write that did not finish a UTF-8 sequence; see {@link #write}. */
-    private byte[] carry = new byte[0];
+    /** The bytes between writes that did not finish a UTF-8 sequence; see {@link #write}. */
+    private final Utf8.Carry carry = new Utf8.Carry();
 
     /** A sink writing Saxon's indented layout. */
     public XmlByteSink(final OutputStream out) {
@@ -110,7 +109,7 @@ public final class XmlByteSink implements OutputSink {
         if (namespace != null) {
             // Element-declared (S3): the prefix's binding in scope serves if it already says so,
             // otherwise the element declares it.
-            final String prefix = prefixOf(qName);
+            final String prefix = QNames.prefixOf(qName);
             if (!namespace.equals(element.scope.get(prefix))) {
                 declare(element, prefix, namespace);
             }
@@ -194,15 +193,8 @@ public final class XmlByteSink implements OutputSink {
             raw(data, offset, length);
             return;
         }
-        // Content is escaped as characters, and a write may end mid-character: the interface
-        // promises bytes, not whole strings. Whatever does not complete a UTF-8 sequence waits
-        // for the next write, or for the structural call that ends the content.
-        final byte[] bytes = new byte[carry.length + length];
-        System.arraycopy(carry, 0, bytes, 0, carry.length);
-        System.arraycopy(data, offset, bytes, carry.length, length);
-        final int complete = bytes.length - Utf8.incompleteTail(bytes);
-        carry = Arrays.copyOfRange(bytes, complete, bytes.length);
-        content(element, new String(bytes, 0, complete, StandardCharsets.UTF_8));
+        // Content is escaped as characters; what a write leaves mid-character the carry holds.
+        content(element, carry.take(data, offset, length));
     }
 
     private void content(final Element element, final String text) {
@@ -239,12 +231,11 @@ public final class XmlByteSink implements OutputSink {
     }
 
     private void flushCarry() {
-        if (carry.length > 0) {
-            final byte[] bytes = carry;
-            carry = new byte[0];
+        final String rest = carry.flush();
+        if (rest != null) {
             final Element element = open.peek();
             if (element != null) {
-                content(element, new String(bytes, StandardCharsets.UTF_8));
+                content(element, rest);
             }
         }
     }
@@ -367,11 +358,6 @@ public final class XmlByteSink implements OutputSink {
         if (attribute != null) {
             throw new StructureException(call + " while attribute '" + attribute.qName + "' is open");
         }
-    }
-
-    static String prefixOf(final String qName) {
-        final int colon = qName.indexOf(':');
-        return colon < 0 ? "" : qName.substring(0, colon);
     }
 
     private void emit(final String text) {
