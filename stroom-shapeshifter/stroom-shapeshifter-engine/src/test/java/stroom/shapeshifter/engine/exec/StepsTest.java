@@ -24,6 +24,7 @@ import stroom.shapeshifter.engine.config.NumericType;
 import stroom.shapeshifter.engine.config.Predicate;
 import stroom.shapeshifter.engine.config.StepRef;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
 
 import org.junit.jupiter.api.Test;

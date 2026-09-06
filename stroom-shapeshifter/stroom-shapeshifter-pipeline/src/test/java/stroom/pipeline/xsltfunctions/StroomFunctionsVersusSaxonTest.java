@@ -20,10 +20,10 @@ import stroom.meta.shared.Meta;
 import stroom.pipeline.LocationFactory;
 import stroom.pipeline.errorhandler.ErrorReceiver;
 import stroom.pipeline.state.MetaHolder;
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.pipeline.ShapeshifterFunctionModule;
 
 import net.sf.saxon.expr.XPathContext;

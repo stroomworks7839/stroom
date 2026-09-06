@@ -20,6 +20,8 @@ import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.Comparisons;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;

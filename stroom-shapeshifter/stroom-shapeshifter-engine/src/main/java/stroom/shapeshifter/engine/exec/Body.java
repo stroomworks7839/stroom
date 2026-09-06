@@ -34,6 +34,10 @@ import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.Comparisons;
+import stroom.shapeshifter.engine.value.Dates;
+import stroom.shapeshifter.engine.value.Transforms;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;

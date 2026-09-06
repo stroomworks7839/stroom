@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.value.TypedValue;
+
 import java.util.ArrayList;
 import java.util.List;
 

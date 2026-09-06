@@ -33,3 +33,6 @@
  * and there is nothing between the model and the graph.
  */
 package stroom.shapeshifter.engine.exec;
+
+import stroom.shapeshifter.engine.value.Transforms;
+import stroom.shapeshifter.engine.value.TypedValue;

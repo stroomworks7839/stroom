@@ -27,6 +27,7 @@ import stroom.shapeshifter.engine.function.FunctionFailure;
 import stroom.shapeshifter.engine.function.Purity;
 import stroom.shapeshifter.engine.function.RunMode;
 import stroom.shapeshifter.engine.function.Services;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.util.HashMap;
 import java.util.HashSet;

@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.value.TypedValue;
+
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;

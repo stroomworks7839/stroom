@@ -16,12 +16,12 @@
 
 package stroom.shapeshifter.pipeline.function;
 
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Purity;
 import stroom.shapeshifter.engine.function.Signature;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 /** {@code to-unixTime}: as {@code stroom.pipeline.xsltfunctions.ToUnixTime}: a date to epoch milliseconds. */
 public final class ToUnixTimeFunction extends StroomFunction {

@@ -29,6 +29,7 @@ import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 
@@ -185,7 +186,6 @@ final class Level {
 
         report(templates, counts, ignoreErrors, data, cursor, to);
     }
-
 
     /**
      * Process a counting winner: the first-match store clearing (E19), the skip report, the

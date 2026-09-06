@@ -26,13 +26,13 @@ import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
-import stroom.shapeshifter.engine.exec.Comparisons;
-import stroom.shapeshifter.engine.exec.Dates;
-import stroom.shapeshifter.engine.exec.Transforms;
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Signature;
+import stroom.shapeshifter.engine.value.Comparisons;
+import stroom.shapeshifter.engine.value.Dates;
+import stroom.shapeshifter.engine.value.Transforms;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;

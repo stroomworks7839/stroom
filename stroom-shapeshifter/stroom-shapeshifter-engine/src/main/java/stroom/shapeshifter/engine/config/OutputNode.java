@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.config;
 
 import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.engine.value.Dates;
 
 import java.util.List;
 

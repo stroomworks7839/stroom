@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.exec;
+package stroom.shapeshifter.engine.value;
 
 /**
  * Reading numbers out of text <b>without throwing</b> — E26's mechanism, in one place.
@@ -33,7 +33,7 @@ package stroom.shapeshifter.engine.exec;
  * {@code Long.valueOf} and {@code Double.valueOf} accept and reject, which
  * {@code TypedValueParseEquivalenceTest} asserts by differential comparison rather than by example.
  */
-final class Numbers {
+public final class Numbers {
 
     private Numbers() {
     }

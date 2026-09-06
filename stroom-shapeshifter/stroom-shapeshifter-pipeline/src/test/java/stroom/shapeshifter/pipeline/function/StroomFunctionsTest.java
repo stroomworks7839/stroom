@@ -18,7 +18,6 @@ package stroom.shapeshifter.pipeline.function;
 
 import stroom.meta.shared.Meta;
 import stroom.pipeline.state.MetaHolder;
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
@@ -26,6 +25,7 @@ import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Purity;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.pipeline.ShapeshifterFunctionModule;
 import stroom.shapeshifter.pipeline.StroomFunctionLibrary;
 import stroom.util.date.DateUtil;
