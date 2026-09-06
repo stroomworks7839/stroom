@@ -16,7 +16,6 @@
 
 package stroom.feed;
 
-
 import stroom.data.shared.StreamTypeNames;
 import stroom.docref.DocRef;
 import stroom.docstore.api.DocFinder;

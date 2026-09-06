@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.exec;
 
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.compile.CompiledRef;
+import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.TypedValue;
 

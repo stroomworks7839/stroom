@@ -16,7 +16,6 @@
 
 package stroom.importexport;
 
-
 import stroom.docref.DocRef;
 import stroom.explorer.api.ExplorerNodeService;
 import stroom.explorer.api.ExplorerService;

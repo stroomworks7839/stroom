@@ -16,7 +16,6 @@
 
 package stroom.job.impl;
 
-
 import stroom.job.shared.Job;
 import stroom.job.shared.JobNode;
 import stroom.node.api.NodeInfo;

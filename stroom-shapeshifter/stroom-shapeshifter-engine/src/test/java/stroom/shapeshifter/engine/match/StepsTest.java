@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.exec;
+package stroom.shapeshifter.engine.match;
 
 import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.Codec;

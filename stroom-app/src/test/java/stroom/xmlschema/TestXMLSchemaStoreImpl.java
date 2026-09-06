@@ -16,7 +16,6 @@
 
 package stroom.xmlschema;
 
-
 import stroom.pipeline.xmlschema.FindXMLSchemaCriteria;
 import stroom.pipeline.xmlschema.XmlSchemaStore;
 import stroom.test.AbstractCoreIntegrationTest;

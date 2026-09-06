@@ -16,7 +16,6 @@
 
 package stroom.dashboard;
 
-
 import stroom.dashboard.impl.DashboardStore;
 import stroom.dashboard.impl.script.ScriptStore;
 import stroom.dashboard.impl.visualisation.VisualisationStore;
@@ -54,7 +53,6 @@ class TestDashboardStoreImpl extends AbstractCoreIntegrationTest {
         final VisComponentSettings visSettings = getVisSettings();
 
         final DocRef dashboardRef = dashboardStore.createDocument("Test Dashboard");
-
 
         final List<ComponentConfig> components = new ArrayList<>();
 

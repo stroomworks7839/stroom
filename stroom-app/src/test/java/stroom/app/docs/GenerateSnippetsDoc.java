@@ -296,9 +296,7 @@ public class GenerateSnippetsDoc implements DocumentationGenerator {
         }
     }
 
-
     // --------------------------------------------------------------------------------
-
 
     private static class Snippets {
 
@@ -315,9 +313,7 @@ public class GenerateSnippetsDoc implements DocumentationGenerator {
         }
     }
 
-
     // --------------------------------------------------------------------------------
-
 
     private static class Snippet {
 
@@ -350,9 +346,7 @@ public class GenerateSnippetsDoc implements DocumentationGenerator {
         }
     }
 
-
     // --------------------------------------------------------------------------------
-
 
     private record SnippetDefinition(
             String name,

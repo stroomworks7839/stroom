@@ -189,7 +189,6 @@ class TestJsonSerialisation {
 
     }
 
-
     /**
      * Tests full serialisation.
      */
@@ -559,7 +558,6 @@ class TestJsonSerialisation {
                     });
                 });
     }
-
 
     private Set<String> getConstructorPropNames(final Constructor<?> constructor) {
         final Annotation[][] parameterAnnotations = constructor.getParameterAnnotations();

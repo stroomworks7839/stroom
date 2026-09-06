@@ -125,7 +125,6 @@ public class GeneratePipelineElementsDoc implements DocumentationGenerator {
         generatePipeElmShortcodeNames(scanResult);
     }
 
-
     /**
      * This will modify the content of the file
      * {@code [this repo]/../stroom-docs/content/en/docs/user-guide/pipelines/element-reference.md}
@@ -377,9 +376,7 @@ public class GeneratePipelineElementsDoc implements DocumentationGenerator {
         return EXCLUDED_METHODS.contains(Map.entry(method.getDeclaringClass(), method.getName()));
     }
 
-
     // --------------------------------------------------------------------------------
-
 
     private record ElementInfo(
             Class<? extends Element> clazz,
@@ -404,9 +401,7 @@ public class GeneratePipelineElementsDoc implements DocumentationGenerator {
         }
     }
 
-
     // --------------------------------------------------------------------------------
-
 
     private record PropertyInfo(
             String name,

@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.function;
 
-import stroom.shapeshifter.engine.value.TypedValue;
 
 /**
  * What a function argument or result is, in design 17's terms: the five kinds of

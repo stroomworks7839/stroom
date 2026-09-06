@@ -16,7 +16,6 @@
 
 package stroom.pipeline.task;
 
-
 import stroom.data.shared.StreamTypeNames;
 import stroom.docref.DocRef;
 import stroom.meta.api.MetaService;

@@ -250,9 +250,7 @@ public class GenerateDocumentReferenceDoc implements DocumentationGenerator {
                 description);
     }
 
-
     // --------------------------------------------------------------------------------
-
 
     private record DocInfo(
             String type,

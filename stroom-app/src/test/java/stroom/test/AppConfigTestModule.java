@@ -63,9 +63,7 @@ public class AppConfigTestModule extends AppConfigModule {
 //        return ((ConfigHolderImpl) getConfigHolder()).getConfig();
 //    }
 
-
     // --------------------------------------------------------------------------------
-
 
     private static class ConfigHolderImpl implements ConfigHolder {
 

@@ -593,7 +593,6 @@ public abstract class TranslationTest extends AbstractCoreIntegrationTest {
 
         final PipelineStepRequest.Builder requestBuilder = PipelineStepRequest.builder();
 
-
         final PipelineDoc pipelineDoc = pipelineStore.readDocument(pipelineRef);
 
         requestBuilder.pipelineDoc(pipelineDoc);

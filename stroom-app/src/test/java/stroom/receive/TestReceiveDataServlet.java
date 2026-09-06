@@ -16,7 +16,6 @@
 
 package stroom.receive;
 
-
 import stroom.data.store.api.Source;
 import stroom.data.store.api.SourceUtil;
 import stroom.data.store.mock.MockStore;

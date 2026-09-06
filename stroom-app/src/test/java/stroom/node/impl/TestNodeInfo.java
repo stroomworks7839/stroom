@@ -16,7 +16,6 @@
 
 package stroom.node.impl;
 
-
 import stroom.node.api.NodeInfo;
 import stroom.test.AbstractCoreIntegrationTest;
 

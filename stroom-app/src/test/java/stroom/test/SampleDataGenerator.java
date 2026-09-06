@@ -307,7 +307,6 @@ public class SampleDataGenerator {
             effectiveDateTime = effectiveDateTime.plusDays(1);
         }
 
-
         runAsync(() -> {
             final Path eventsFile = makeInputFilePath(dir, 1, eventsFeed);
             LOGGER.info("Generating file {}", eventsFile.toAbsolutePath().normalize());
@@ -457,9 +456,7 @@ public class SampleDataGenerator {
         }
     }
 
-
     // --------------------------------------------------------------------------------
-
 
     private static enum DataWriterMode {
         XML,

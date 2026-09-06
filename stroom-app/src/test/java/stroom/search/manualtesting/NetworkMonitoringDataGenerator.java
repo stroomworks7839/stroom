@@ -16,7 +16,6 @@
 
 package stroom.search.manualtesting;
 
-
 import stroom.test.common.data.DataGenerator;
 import stroom.test.common.data.FlatDataWriterBuilder;
 

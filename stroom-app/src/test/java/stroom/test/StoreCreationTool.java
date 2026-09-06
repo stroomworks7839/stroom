@@ -16,7 +16,6 @@
 
 package stroom.test;
 
-
 import stroom.ai.api.OpenAIModelStore;
 import stroom.data.shared.StreamTypeNames;
 import stroom.data.store.api.OutputStreamProvider;

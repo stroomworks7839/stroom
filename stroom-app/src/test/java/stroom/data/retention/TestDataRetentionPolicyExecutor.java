@@ -16,7 +16,6 @@
 
 package stroom.data.retention;
 
-
 import stroom.data.retention.impl.DataRetentionPolicyExecutor;
 import stroom.data.retention.impl.DataRetentionRulesService;
 import stroom.data.retention.shared.DataRetentionRule;

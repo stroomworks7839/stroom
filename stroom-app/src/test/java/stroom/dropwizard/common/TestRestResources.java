@@ -80,7 +80,6 @@ class TestRestResources {
 
     private static final LambdaLogger LOGGER = LambdaLoggerFactory.getLogger(TestRestResources.class);
 
-
     //    @Disabled // Temp while REST resource refactoring / annotation work is ongoing.
     @TestFactory
     @SuppressWarnings("unchecked")
@@ -482,7 +481,6 @@ class TestRestResources {
         final boolean classIsAutoLogged = resourceClass.isAnnotationPresent(AutoLogged.class);
         LOGGER.info("classIsAutoLogged: {}", classIsAutoLogged);
 
-
         // Check that all member variables are providers.
         assertProviders(resourceClass, softAssertions);
         // Check that resource doesn't attempt to handle security
@@ -672,9 +670,7 @@ class TestRestResources {
                 });
     }
 
-
     // --------------------------------------------------------------------------------
-
 
     private static class MethodSignature {
 
@@ -722,9 +718,7 @@ class TestRestResources {
         }
     }
 
-
     // --------------------------------------------------------------------------------
-
 
     private interface MyInterfaceOne extends RestResource {
 
@@ -736,9 +730,7 @@ class TestRestResources {
         String methodThree();
     }
 
-
     // --------------------------------------------------------------------------------
-
 
     private static class MyClassOne implements MyInterfaceOne {
 

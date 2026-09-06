@@ -495,7 +495,6 @@ class TestSQLStatisticAggregationManager extends AbstractStatisticsCoreIntegrati
         assertThat(getAggregateByPrecision(COL_NAME_VAL, SQLStatisticAggregationTransactionHelper.MONTH_PRECISION))
                 .isEqualTo(expectedValueTotalByPrecision * 2);
 
-
         assertThat(getAggregateByPrecision(COL_NAME_CNT, SQLStatisticAggregationTransactionHelper.DEFAULT_PRECISION))
                 .isEqualTo(expectedCountTotalByPrecision);
 
@@ -525,7 +524,6 @@ class TestSQLStatisticAggregationManager extends AbstractStatisticsCoreIntegrati
         assertThat(getAggregateByPrecision(COL_NAME_VAL, SQLStatisticAggregationTransactionHelper.MONTH_PRECISION))
                 .isEqualTo(expectedValueTotalByPrecision);
 
-
         assertThat(getAggregateByPrecision(COL_NAME_CNT, SQLStatisticAggregationTransactionHelper.DEFAULT_PRECISION))
                 .isEqualTo(0);
 
@@ -535,7 +533,6 @@ class TestSQLStatisticAggregationManager extends AbstractStatisticsCoreIntegrati
         assertThat(getAggregateByPrecision(COL_NAME_CNT, SQLStatisticAggregationTransactionHelper.MONTH_PRECISION))
                 .isEqualTo(expectedCountTotalByPrecision);
     }
-
 
     @Test
     void testKeyDeletion() throws SQLException {
@@ -586,7 +583,6 @@ class TestSQLStatisticAggregationManager extends AbstractStatisticsCoreIntegrati
 
         assertThat(getAggregateByPrecision(COL_NAME_VAL, SQLStatisticAggregationTransactionHelper.MONTH_PRECISION))
                 .isEqualTo(expectedValueTotalByPrecision * 2);
-
 
         assertThat(getAggregateByPrecision(COL_NAME_CNT, SQLStatisticAggregationTransactionHelper.DEFAULT_PRECISION))
                 .isEqualTo(expectedCountTotalByPrecision);

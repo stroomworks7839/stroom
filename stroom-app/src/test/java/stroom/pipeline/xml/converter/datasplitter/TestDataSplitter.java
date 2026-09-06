@@ -16,7 +16,6 @@
 
 package stroom.pipeline.xml.converter.datasplitter;
 
-
 import stroom.feed.shared.FeedDoc;
 import stroom.pipeline.shared.TextConverterDoc.TextConverterType;
 import stroom.pipeline.xml.F2XTestUtil;

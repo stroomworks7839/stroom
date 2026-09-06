@@ -34,5 +34,9 @@
  */
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.match.Codecs;
+import stroom.shapeshifter.engine.match.MatchResult;
+import stroom.shapeshifter.engine.match.Splitter;
+import stroom.shapeshifter.engine.match.Steps;
 import stroom.shapeshifter.engine.value.Transforms;
 import stroom.shapeshifter.engine.value.TypedValue;

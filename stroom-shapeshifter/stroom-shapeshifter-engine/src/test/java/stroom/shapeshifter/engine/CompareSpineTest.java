@@ -163,7 +163,7 @@ class CompareSpineTest {
     private static boolean evaluate(final Condition condition) {
         // No match, no variables: every reference is absent.
         return stroom.shapeshifter.engine.exec.Conditions.evaluate(condition,
-                stroom.shapeshifter.engine.exec.MatchResult.empty(), 1,
+                stroom.shapeshifter.engine.match.MatchResult.empty(), 1,
                 new stroom.shapeshifter.engine.exec.VarRegistry(),
                 stroom.shapeshifter.engine.text.Encoding.UTF_8, java.util.Map.of());
     }

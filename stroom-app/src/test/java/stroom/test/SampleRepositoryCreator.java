@@ -16,7 +16,6 @@
 
 package stroom.test;
 
-
 /**
  * Script to create some base data for testing.
  */

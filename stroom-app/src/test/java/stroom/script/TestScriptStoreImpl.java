@@ -16,7 +16,6 @@
 
 package stroom.script;
 
-
 import stroom.dashboard.impl.script.ScriptStore;
 import stroom.docref.DocRef;
 import stroom.script.shared.ScriptDoc;

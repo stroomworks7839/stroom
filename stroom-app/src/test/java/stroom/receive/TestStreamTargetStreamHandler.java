@@ -16,7 +16,6 @@
 
 package stroom.receive;
 
-
 import stroom.data.shared.StreamTypeNames;
 import stroom.data.store.mock.MockStore;
 import stroom.data.zip.StroomZipFileType;

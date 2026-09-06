@@ -16,7 +16,6 @@
 
 package stroom.index;
 
-
 import stroom.index.api.IndexVolumeGroupService;
 import stroom.index.impl.IndexShardService;
 import stroom.index.impl.IndexStore;

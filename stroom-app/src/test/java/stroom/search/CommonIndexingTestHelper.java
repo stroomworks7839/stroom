@@ -16,7 +16,6 @@
 
 package stroom.search;
 
-
 import stroom.docref.DocRef;
 import stroom.index.impl.IndexShardManager;
 import stroom.index.impl.IndexShardManager.IndexShardAction;

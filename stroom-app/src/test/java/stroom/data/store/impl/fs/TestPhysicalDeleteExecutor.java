@@ -16,7 +16,6 @@
 
 package stroom.data.store.impl.fs;
 
-
 import stroom.data.shared.StreamTypeNames;
 import stroom.data.store.impl.fs.PhysicalDeleteExecutor.Progress;
 import stroom.db.util.JooqUtil;

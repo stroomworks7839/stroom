@@ -16,7 +16,6 @@
 
 package stroom.headless;
 
-
 import stroom.test.common.ComparisonHelper;
 import stroom.util.io.FileUtil;
 import stroom.util.zip.ZipUtil;

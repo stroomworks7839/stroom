@@ -21,7 +21,6 @@ import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Purity;
 import stroom.shapeshifter.engine.function.Signature;
-import stroom.shapeshifter.engine.value.Dates;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.time.Instant;

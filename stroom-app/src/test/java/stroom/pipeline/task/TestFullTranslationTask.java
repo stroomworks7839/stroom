@@ -16,7 +16,6 @@
 
 package stroom.pipeline.task;
 
-
 import org.junit.jupiter.api.Test;
 
 /**

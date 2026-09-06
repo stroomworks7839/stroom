@@ -16,7 +16,6 @@
 
 package stroom.index;
 
-
 import stroom.docref.DocRef;
 import stroom.index.impl.IndexDocument;
 import stroom.index.impl.IndexFields;

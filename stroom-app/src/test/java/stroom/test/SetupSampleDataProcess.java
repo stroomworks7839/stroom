@@ -597,7 +597,6 @@ public final class SetupSampleDataProcess {
     // searchExpressionService.save(expression);
     // }
 
-
     private void createSampleUsers() {
         for (final AppPermission permission : AppPermission.values()) {
             // Create a user that has explicit permission.

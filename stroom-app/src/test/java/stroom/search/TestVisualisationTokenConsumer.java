@@ -60,7 +60,6 @@ public class TestVisualisationTokenConsumer extends AbstractCoreIntegrationTest 
     @Inject
     private ContentStoreTestSetup contentStoreTestSetup;
 
-
     @BeforeEach
     void setup() {
         if (!doneSetup) {
@@ -93,7 +92,6 @@ public class TestVisualisationTokenConsumer extends AbstractCoreIntegrationTest 
 //        searchRequest = dataSourceResolver.resolveDataSource(searchRequest);
 
 //        test(queryString, 5);
-
 
     }
 }

@@ -16,7 +16,6 @@
 
 package stroom.importexport;
 
-
 import stroom.importexport.impl.ImportExportService;
 import stroom.importexport.shared.ImportSettings;
 import stroom.importexport.shared.ImportState;

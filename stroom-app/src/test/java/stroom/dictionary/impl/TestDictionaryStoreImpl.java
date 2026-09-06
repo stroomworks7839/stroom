@@ -16,7 +16,6 @@
 
 package stroom.dictionary.impl;
 
-
 import stroom.dictionary.api.DictionaryStore;
 import stroom.dictionary.api.WordListProvider;
 import stroom.dictionary.shared.DictionaryDoc;

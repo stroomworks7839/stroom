@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.exec;
+package stroom.shapeshifter.engine.match;
 
 import stroom.shapeshifter.engine.compile.PatternKey;
 import stroom.shapeshifter.engine.config.Endianness;
 import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.Predicate;
 import stroom.shapeshifter.engine.config.StepRef;
+import stroom.shapeshifter.engine.exec.Run;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.engine.value.Numbers;

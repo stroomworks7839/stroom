@@ -36,7 +36,6 @@ import java.util.List;
 
 import static org.mockito.Mockito.when;
 
-
 class TestSystemInfoResourceImpl extends AbstractResourceTest<SystemInfoResource> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestSystemInfoResourceImpl.class);

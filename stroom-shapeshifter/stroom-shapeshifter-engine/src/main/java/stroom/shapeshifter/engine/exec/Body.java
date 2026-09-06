@@ -33,6 +33,7 @@ import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
+import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.Dates;

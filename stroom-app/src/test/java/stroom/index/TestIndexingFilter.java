@@ -109,7 +109,6 @@ class TestIndexingFilter extends AbstractProcessIntegrationTest {
         final FieldValue fieldValue = list.getFirst();
         final IndexField field = fieldValue.field();
 
-
         // FIXME : BROKEN BY LUCENE553 SEGREGATION
 //        assertThat(field.isStored()).isTrue();
 //        assertThat(field.st.indexOptions().equals(IndexOptions.DOCS)).isTrue();
