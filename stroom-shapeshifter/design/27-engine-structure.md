@@ -518,8 +518,20 @@ The interpreter region, with the registry, the key indexes and the warned sites 
 `vars` stops being reachable from anything but `Body` and the capture binding in `Level`, which is
 what the 74-to-9 count says it already is. *Benchmark gate.*
 
-### Phase 5 — `Run`, and the name goes
+### Phase 5 — `Run`, and the name goes — Done 2026-09-06
 
+*As built:* `Executor` is `Run` (342 lines) — one run of a compiled configuration over one
+input — with two entry points, `stream` and `whole`, in place of a positional boolean, both
+taking the mode and the services; the facade's five overloads pass the defaults, and it gains
+the whole-buffer form that takes a mode and services, the gap the entry review found. The
+`exec` package javadoc names the five classes and how a run flows through them, and says what
+D35 said: the graph performs the execution, and the run and its collaborators are its state
+for one input. `CompiledRefs`' class javadoc states the seam §2.7 asked for. Design 10's
+"`Executor` is transitional" and D35's consequence now say it happened and when. Nothing on
+the hot path changed, so no benchmark: the rename is a rename, and the entry points reach the
+same private run. Engine 562, pipeline 154, app 5.
+
+*As written:*
 What remains of `Executor` is construction, the root split, the transcode wrap, abort handling and
 the message list: `Run`. `Executor.java` is deleted. Design 10's "transitional" sentence and D35's
 consequence are updated to say it happened. The `exec` package javadoc is rewritten to name the

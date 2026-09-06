@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
 /**
  * The function library: the operations a configuration can apply to a value.
  *
- * <p>They are pure, which is why they live here rather than in the executor. Every one takes the
+ * <p>They are pure, which is why they live here rather than in the body interpreter. Every one takes the
  * resolved inputs and returns the result, or null to mean "produced nothing" — and producing
  * nothing is different from producing an empty value, because the caller writes one and skips
  * the other.

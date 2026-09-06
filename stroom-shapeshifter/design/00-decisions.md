@@ -942,7 +942,7 @@ The recurring rationalisations, pre-refuted:
 
 **Consequences:** `CompiledProject` carries `ByteMatcher`'s contract one level up — one
 execution at a time, reusable sequentially, with a defined reset between streams (E19's
-lifecycle). `Executor` is transitional and dissolves into the graph as compilation deepens. Any
+lifecycle). `Executor` was transitional and dissolved into a `Run` over the graph on 2026-09-06 (design 27, D45). Any
 design that introduces a third artifact between the model and the graph is wrong until the user
 says otherwise.
 

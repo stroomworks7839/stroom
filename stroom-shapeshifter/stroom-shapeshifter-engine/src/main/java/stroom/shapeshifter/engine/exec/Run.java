@@ -50,7 +50,7 @@ import java.util.Objects;
  * the loop between them handing the input to the level, window by window or chunk by chunk —
  * and turns an abort into the run's last message.
  */
-public final class Executor {
+public final class Run {
 
     private final CompiledProject compiled;
     private final OutputSink output;
@@ -67,7 +67,7 @@ public final class Executor {
      */
     private Encoding encoding;
 
-    private Executor(final CompiledProject compiled,
+    private Run(final CompiledProject compiled,
                      final OutputSink sink,
                      final Instrument instrument,
                      final RunMode mode,
@@ -83,35 +83,46 @@ public final class Executor {
     }
 
     /**
-     * Run a compiled configuration over an input.
+     * Run a compiled configuration over a stream, through the window: memory is bounded by the
+     * configuration's buffer size, and a single match must fit within it (E13, design 23).
      *
-     * @param wholeBuffer read the input as a single buffer rather than through the window. The
-     *                    progressive matches need it — an absolute seek is meaningless over a
-     *                    window — and a whole buffer has no edge for a match to run into
+     * @param mode     normal, or a preview, which does not call impure functions (design 26 §4)
+     * @param services what the functions bound to this run may reach
      * @return everything the engine had to say, in the order it said it
      */
-    public static List<Message> run(final CompiledProject compiled,
-                                    final InputStream input,
-                                    final OutputSink sink,
-                                    final Instrument instrument,
-                                    final boolean wholeBuffer) {
-        return run(compiled, input, sink, instrument, wholeBuffer, RunMode.NORMAL, Services.NONE);
+    public static List<Message> stream(final CompiledProject compiled,
+                                       final InputStream input,
+                                       final OutputSink sink,
+                                       final Instrument instrument,
+                                       final RunMode mode,
+                                       final Services services) {
+        return new Run(compiled, sink, instrument, mode, services).execute(transcoded(compiled, input), false);
     }
 
-    public static List<Message> run(final CompiledProject compiled,
-                                    final InputStream input,
-                                    final OutputSink sink,
-                                    final Instrument instrument,
-                                    final boolean wholeBuffer,
-                                    final RunMode mode,
-                                    final Services services) {
-        // Design 19 phase 6: a transcode-family source becomes UTF-8 bytes before the
-        // window machinery reads it; report by default, replace under ignore_errors.
-        final InputStream source = compiled.transcodeFrom() != null
-                ? Transcode.wrap(input, compiled.transcodeFrom().charset(),
-                        compiled.project().source().ignoreErrors())
+    /**
+     * Run a compiled configuration over an input held whole. The progressive matches need it —
+     * an absolute seek is meaningless over a window — and a whole buffer has no edge for a
+     * match to run into.
+     *
+     * @return everything the engine had to say, in the order it said it
+     */
+    public static List<Message> whole(final CompiledProject compiled,
+                                      final InputStream input,
+                                      final OutputSink sink,
+                                      final Instrument instrument,
+                                      final RunMode mode,
+                                      final Services services) {
+        return new Run(compiled, sink, instrument, mode, services).execute(transcoded(compiled, input), true);
+    }
+
+    /**
+     * A transcode-family source becomes UTF-8 bytes before the window machinery reads it (design
+     * 19 phase 6): reported by default, replaced under {@code ignore_errors}.
+     */
+    private static InputStream transcoded(final CompiledProject compiled, final InputStream input) {
+        return compiled.transcodeFrom() != null
+                ? Transcode.wrap(input, compiled.transcodeFrom().charset(), compiled.project().source().ignoreErrors())
                 : input;
-        return new Executor(compiled, sink, instrument, mode, services).execute(source, wholeBuffer);
     }
 
     private List<Message> execute(final InputStream input, final boolean wholeBuffer) {

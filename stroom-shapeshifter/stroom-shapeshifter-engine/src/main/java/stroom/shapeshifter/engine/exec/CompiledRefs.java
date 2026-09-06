@@ -30,6 +30,12 @@ import java.nio.charset.StandardCharsets;
  * builds the value, and <b>empty is absent</b>. The difference is what no longer happens per
  * call: literal text is bytes that were encoded at compile time, and the shape of the
  * expression is a dispatch, not a walk.
+ *
+ * <p>Two resolvers stay, by design: bodies resolve compiled references here, while
+ * {@code Conditions} and a level's capture binding still resolve the authored expression
+ * through {@code Refs}, because compiling conditions and capture selects is design 10 §2's
+ * open performance row and shape follows measurement there (design 27 §2.7). The rule for
+ * both is the same: empty is absent.
  */
 final class CompiledRefs {
 

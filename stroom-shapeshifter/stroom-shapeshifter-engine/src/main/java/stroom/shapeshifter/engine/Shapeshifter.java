@@ -19,7 +19,7 @@ package stroom.shapeshifter.engine;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.Compiler;
 import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.exec.Executor;
+import stroom.shapeshifter.engine.exec.Run;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.function.RunMode;
 import stroom.shapeshifter.engine.function.Services;
@@ -69,7 +69,7 @@ public final class Shapeshifter {
                                     final Instrument instrument,
                                     final RunMode mode,
                                     final Services services) {
-        return Executor.run(compiled, input, sink, instrument, false, mode, services);
+        return Run.stream(compiled, input, sink, instrument, mode, services);
     }
 
     /**
@@ -101,7 +101,7 @@ public final class Shapeshifter {
                                     final InputStream input,
                                     final OutputSink sink,
                                     final Instrument instrument) {
-        return Executor.run(compiled, input, sink, instrument, false);
+        return Run.stream(compiled, input, sink, instrument, RunMode.NORMAL, Services.NONE);
     }
 
     /**
@@ -124,6 +124,19 @@ public final class Shapeshifter {
                                          final byte[] input,
                                          final OutputSink sink,
                                          final Instrument instrument) {
-        return Executor.run(compiled, new ByteArrayInputStream(input), sink, instrument, true);
+        return runWhole(compiled, input, sink, instrument, RunMode.NORMAL, Services.NONE);
+    }
+
+    /**
+     * Run a compiled configuration over an input held whole, in a mode, with the services its
+     * functions may reach (design 26 §3–4) — the whole-buffer form of the six-argument {@code run}.
+     */
+    public static List<Message> runWhole(final CompiledProject compiled,
+                                         final byte[] input,
+                                         final OutputSink sink,
+                                         final Instrument instrument,
+                                         final RunMode mode,
+                                         final Services services) {
+        return Run.whole(compiled, new ByteArrayInputStream(input), sink, instrument, mode, services);
     }
 }
