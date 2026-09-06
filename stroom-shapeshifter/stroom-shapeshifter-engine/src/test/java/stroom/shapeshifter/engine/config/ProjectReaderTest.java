@@ -152,6 +152,35 @@ class ProjectReaderTest {
                 .hasMessageContaining("Unknown match expression: telepathy");
     }
 
+    /**
+     * A scalar where a list belongs is refused by name rather than read as no entries, and a
+     * JSON null where a choice belongs means "not said", the same as absence (design 27 phase 8).
+     */
+    @Test
+    void refusesTheWrongShapeByNameAndReadsNullAsAbsent() {
+        assertThatThrownBy(() -> ProjectReader.read("""
+                {"name": "x", "version": 3, "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match": "source",
+                   "match_limits": {"only_match": 3}}]}
+                """))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Expected an array for 'only_match'");
+
+        assertThatThrownBy(() -> ProjectReader.read("""
+                {"name": "x", "version": 3, "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "t",
+                   "match": {"progressive": [{"MatchByte": 65}]}}]}
+                """))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Expected an array for 'MatchByte'");
+
+        final Project project = ProjectReader.read("""
+                {"name": "x", "version": 3, "source": {"dispatch": null}, "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match": "source"}]}
+                """);
+        assertThat(project.source().dispatch()).as("a null dispatch inherits, as an absent one does").isNull();
+    }
+
     @Test
     void carriesAReferenceExpressionsParts() {
         final Project project = ProjectReader.read("""

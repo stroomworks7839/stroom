@@ -41,33 +41,6 @@ final class OutputJson {
     private OutputJson() {
     }
 
-    private static ObjectNode sequenceAndName(final String select, final String name) {
-        final ObjectNode body = JsonFields.NODES.objectNode();
-        body.put("select", select);
-        JsonFields.putIfPresent(body, "name", name);
-        return body;
-    }
-
-    private static OutputNode.Sort readSort(final JsonNode node) {
-        JsonFields.checkFields(node, "sort", "by", "order", "as");
-        final String spelling = JsonFields.optionalText(node, "order");
-        final OutputNode.Order order = spelling == null
-                ? OutputNode.Order.ASCENDING
-                : JsonFields.lowercase(OutputNode.Order.class, spelling, "sort order");
-        return new OutputNode.Sort(ReferenceJson.readRef(JsonFields.required(node, "by", "sort")), order,
-                JsonFields.readCast(node));
-    }
-
-    private static ObjectNode writeSort(final OutputNode.Sort sort) {
-        final ObjectNode node = JsonFields.NODES.objectNode();
-        node.set("by", ReferenceJson.writeRef(sort.by()));
-        if (sort.order() != OutputNode.Order.ASCENDING) {
-            node.put("order", JsonFields.lowercase(sort.order()));
-        }
-        JsonFields.writeCast(node, sort.as());
-        return node;
-    }
-
     static OutputNode readOutput(final JsonNode node) {
         final JsonFields.Tagged tagged = JsonFields.tag(node, "output node");
         final JsonNode body = tagged.body();
@@ -180,10 +153,12 @@ final class OutputJson {
             case "trim" -> new OutputNode.Trim(selectList(body, "trim"), JsonFields.optionalText(body, "name"));
             case "substring" -> {
                 JsonFields.checkFields(body, "substring", "select", "start", "length", "name");
+                final JsonNode start = JsonFields.optional(body, "start");
+                final JsonNode length = JsonFields.optional(body, "length");
                 yield new OutputNode.Substring(
                         JsonFields.list(body.get("select"), "select", ReferenceJson::readRef),
-                        body.has("start") && !body.get("start").isNull() ? body.get("start").asInt() : null,
-                        body.has("length") && !body.get("length").isNull() ? body.get("length").asInt() : null,
+                        start == null ? null : start.asInt(),
+                        length == null ? null : length.asInt(),
                         JsonFields.optionalText(body, "name"));
             }
             case "tokenize" -> {
@@ -294,9 +269,7 @@ final class OutputJson {
                 yield new OutputNode.Key(
                         JsonFields.text(body, "name", "key"),
                         JsonFields.text(body, "select", "key"),
-                        body.has("group_by") && !body.get("group_by").isNull()
-                                ? ReferenceJson.readRef(body.get("group_by"))
-                                : null);
+                        ReferenceJson.optionalRef(body, "group_by"));
             }
             case "key-get" -> {
                 JsonFields.checkFields(body, "key-get", "key", "select", "name");
@@ -309,9 +282,7 @@ final class OutputJson {
                 JsonFields.checkFields(body, "for-each-group", "select", "group_by", "body");
                 yield new OutputNode.ForEachGroup(
                         JsonFields.text(body, "select", "for-each-group"),
-                        body.has("group_by") && !body.get("group_by").isNull()
-                                ? ReferenceJson.readRef(body.get("group_by"))
-                                : null,
+                        ReferenceJson.optionalRef(body, "group_by"),
                         JsonFields.list(body.get("body"), "body", OutputJson::readOutput));
             }
             case "for-each" -> {
@@ -328,9 +299,7 @@ final class OutputJson {
                         JsonFields.list(body.get("select"), "select", ReferenceJson::readRef),
                         JsonFields.text(body, "pattern", "parse-date"),
                         JsonFields.optionalText(body, "timezone"),
-                        body.has("reference") && !body.get("reference").isNull()
-                                ? ReferenceJson.readRef(body.get("reference"))
-                                : null,
+                        ReferenceJson.optionalRef(body, "reference"),
                         JsonFields.optionalText(body, "name"));
             }
             case "format-date" -> {
@@ -345,6 +314,10 @@ final class OutputJson {
         };
     }
 
+    /**
+     * The select list of a one-input instruction, having checked the owner's fields: every such
+     * instruction has {@code select} and {@code name} and nothing else.
+     */
     private static List<RefExpression> selectList(final JsonNode body, final String owner) {
         JsonFields.checkFields(body, owner, "select", "name");
         return JsonFields.list(body.get("select"), "select", ReferenceJson::readRef);
@@ -387,7 +360,7 @@ final class OutputJson {
             case OutputNode.ApplyTemplates value -> JsonFields.wrap("apply-templates", writeApply(value.directive()));
             case OutputNode.EmitError value -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();
-                body.put("severity", JsonFields.lowercase(value.severity()));
+                body.put("severity", JsonFields.label(value.severity()));
                 body.set("message", ReferenceJson.writeRef(value.message()));
                 yield JsonFields.wrap("emit-error", body);
             }
@@ -408,9 +381,7 @@ final class OutputJson {
             case OutputNode.Element value -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();
                 body.put("name", value.name());
-                if (value.namespace() != null) {
-                    body.put("namespace", value.namespace());
-                }
+                JsonFields.putIfPresent(body, "namespace", value.namespace());
                 if (value.omitIfEmpty()) {
                     body.put("omit-if-empty", true);
                 }
@@ -604,6 +575,26 @@ final class OutputJson {
         };
     }
 
+    private static OutputNode.Sort readSort(final JsonNode node) {
+        JsonFields.checkFields(node, "sort", "by", "order", "as");
+        final String spelling = JsonFields.optionalText(node, "order");
+        final OutputNode.Order order = spelling == null
+                ? OutputNode.Order.ASCENDING
+                : JsonFields.lowercase(OutputNode.Order.class, spelling, "sort order");
+        return new OutputNode.Sort(ReferenceJson.readRef(JsonFields.required(node, "by", "sort")), order,
+                JsonFields.readCast(node));
+    }
+
+    private static ObjectNode writeSort(final OutputNode.Sort sort) {
+        final ObjectNode node = JsonFields.NODES.objectNode();
+        node.set("by", ReferenceJson.writeRef(sort.by()));
+        if (sort.order() != OutputNode.Order.ASCENDING) {
+            node.put("order", JsonFields.label(sort.order()));
+        }
+        JsonFields.writeCast(node, sort.as());
+        return node;
+    }
+
     /** A one-input transform with one string parameter beside its select. */
     private static ObjectNode selectAndMarker(final List<RefExpression> select,
                                               final String field,
@@ -617,6 +608,14 @@ final class OutputJson {
     private static ObjectNode selectAndName(final List<RefExpression> select, final String name) {
         final ObjectNode body = JsonFields.NODES.objectNode();
         body.set("select", JsonFields.array(select, ReferenceJson::writeRef));
+        JsonFields.putIfPresent(body, "name", name);
+        return body;
+    }
+
+    /** A sequence instruction's body: the store it reads and, where it binds, its name. */
+    private static ObjectNode sequenceAndName(final String select, final String name) {
+        final ObjectNode body = JsonFields.NODES.objectNode();
+        body.put("select", select);
         JsonFields.putIfPresent(body, "name", name);
         return body;
     }
@@ -704,5 +703,4 @@ final class OutputJson {
         JsonFields.writeDispatch(node, directive.dispatch());
         return node;
     }
-
 }

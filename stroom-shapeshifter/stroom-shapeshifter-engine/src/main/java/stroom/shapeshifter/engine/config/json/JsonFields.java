@@ -28,6 +28,7 @@ import tools.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -73,34 +74,32 @@ final class JsonFields {
         }
     }
 
-    /** A constant in the format's lowercase spelling. */
-    static String lowercase(final Enum<?> value) {
+    /** A constant's label in the format's lowercase spelling: the writer's half of {@link #lowercase}. */
+    static String label(final Enum<?> value) {
         return value.name().toLowerCase(Locale.ROOT);
     }
 
-    /** A dispatch mode, or null to inherit the configuration's (D36). */
+    /** A dispatch mode, or null — absent or JSON null — to inherit the configuration's (D36). */
     static Dispatch readDispatch(final JsonNode node) {
-        return node.has("dispatch")
-                ? lowercase(Dispatch.class, node.get("dispatch").asString(), "dispatch mode")
-                : null;
+        final JsonNode value = optional(node, "dispatch");
+        return value == null ? null : lowercase(Dispatch.class, value.asString(), "dispatch mode");
     }
 
     static void writeDispatch(final ObjectNode node, final Dispatch dispatch) {
         if (dispatch != null) {
-            node.put("dispatch", lowercase(dispatch));
+            node.put("dispatch", label(dispatch));
         }
     }
 
     /** A cast, spelt lowercase, or null for the uncast string reading. */
     static Cast readCast(final JsonNode body) {
-        return body.has("as") && !body.get("as").isNull()
-                ? lowercase(Cast.class, body.get("as").asString(), "cast")
-                : null;
+        final JsonNode value = optional(body, "as");
+        return value == null ? null : lowercase(Cast.class, value.asString(), "cast");
     }
 
     static void writeCast(final ObjectNode body, final Cast as) {
         if (as != null) {
-            body.put("as", lowercase(as));
+            body.put("as", label(as));
         }
     }
 
@@ -159,54 +158,55 @@ final class JsonFields {
         if (!node.isObject()) {
             throw new ConfigException("Expected an object for '" + what + "'");
         }
-        node.propertyStream().forEach(property -> {
-            for (final String field : known) {
-                if (field.equals(property.getKey())) {
-                    return;
-                }
-            }
-            throw new ConfigException("Unknown field '" + property.getKey() + "' in " + what);
-        });
-    }
-
-    static void expectObject(final JsonNode node, final String what) {
-        if (node == null || !node.isObject()) {
-            throw new ConfigException("Expected an object for " + what);
+        final List<String> allowed = List.of(known);
+        final String unknown = node.propertyStream()
+                .map(Map.Entry::getKey)
+                .filter(key -> !allowed.contains(key))
+                .findFirst()
+                .orElse(null);
+        if (unknown != null) {
+            throw new ConfigException("Unknown field '" + unknown + "' in " + what);
         }
     }
 
+    /** A field that must be there: absent and JSON null are both refused, naming the field and its owner. */
     static JsonNode required(final JsonNode node, final String field, final String what) {
-        final JsonNode value = node == null ? null : node.get(field);
-        if (value == null || value.isNull()) {
+        final JsonNode value = optional(node, field);
+        if (value == null) {
             throw new ConfigException("Missing '" + field + "' in " + what);
         }
         return value;
     }
 
+    /** A field's node, or null where the field is absent or JSON null — both mean "not said". */
+    static JsonNode optional(final JsonNode node, final String field) {
+        final JsonNode value = node == null ? null : node.get(field);
+        return value == null || value.isNull() ? null : value;
+    }
+
+    /** A required text field. */
     static String text(final JsonNode node, final String field, final String what) {
         return required(node, field, what).asString();
     }
 
+    /** A text field, or null where it is absent or JSON null. */
     static String optionalText(final JsonNode node, final String field) {
-        final JsonNode value = node == null ? null : node.get(field);
-        return value == null || value.isNull() ? null : value.asString();
+        final JsonNode value = optional(node, field);
+        return value == null ? null : value.asString();
     }
 
-    /** A bare id value. */
+    /** A bare id value, refused by name if it is not one. */
     static UUID uuid(final JsonNode node, final String what) {
         try {
             return UUID.fromString(node.asString());
         } catch (final IllegalArgumentException e) {
-            throw new ConfigException("Not a valid id for " + what + ": " + node.asString());
+            throw new ConfigException("Not a valid id for " + what + ": " + node.asString(), e);
         }
     }
 
+    /** A required id field. */
     static UUID uuid(final JsonNode node, final String field, final String what) {
-        try {
-            return UUID.fromString(text(node, field, what));
-        } catch (final IllegalArgumentException e) {
-            throw new ConfigException("Not a valid id: " + optionalText(node, field), e);
-        }
+        return uuid(required(node, field, what), what);
     }
 
     static void putIfPresent(final ObjectNode node, final String field, final String value) {
@@ -215,6 +215,10 @@ final class JsonFields {
         }
     }
 
+    /**
+     * The elements of an array, read one by one. Absent or JSON null is an empty list; anything
+     * but an array is refused, so a scalar where a list belongs cannot read as no entries.
+     */
     static <T> List<T> list(final JsonNode node, final String what,
                             final Function<JsonNode, T> reader) {
         if (node == null || node.isNull()) {
@@ -258,5 +262,4 @@ final class JsonFields {
         }
         return pascal.toString();
     }
-
 }

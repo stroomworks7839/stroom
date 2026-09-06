@@ -126,6 +126,37 @@ final class ConditionJson {
         };
     }
 
+    static JsonNode writeCondition(final Condition condition) {
+        return switch (condition) {
+            case Condition.Compare value -> {
+                final ObjectNode body = JsonFields.NODES.objectNode();
+                body.set("left", writeOperand(value.left()));
+                body.set("right", writeOperand(value.right()));
+                yield JsonFields.wrap(JsonFields.label(value.op()), body);
+            }
+            case Condition.Matches value -> JsonFields.wrap("matches", selectAnd("pattern", value.select(),
+                    value.pattern()));
+            case Condition.Contains value ->
+                    JsonFields.wrap("contains", selectAnd("substring", value.select(), value.substring()));
+            case Condition.StartsWith value ->
+                    JsonFields.wrap("starts-with", selectAnd("prefix", value.select(), value.prefix()));
+            case Condition.And value -> JsonFields.wrap("and", JsonFields.array(value.conditions(),
+                    ConditionJson::writeCondition));
+            case Condition.Or value -> JsonFields.wrap("or", JsonFields.array(value.conditions(),
+                    ConditionJson::writeCondition));
+            case Condition.Not value -> JsonFields.wrap("not", writeCondition(value.condition()));
+            // Payload-less, so the bare string, as every other such variant is written; both
+            // spellings are read.
+            case Condition.IsFirst ignored -> JsonFields.NODES.stringNode("is-first");
+            case Condition.IsLast ignored -> JsonFields.NODES.stringNode("is-last");
+            case Condition.Exists value -> {
+                final ObjectNode body = JsonFields.NODES.objectNode();
+                body.set("select", ReferenceJson.writeRef(value.select()));
+                yield JsonFields.wrap("exists", body);
+            }
+        };
+    }
+
     private static Condition readCompare(final JsonNode body, final Condition.Compare.Op op) {
         JsonFields.checkFields(body, "comparison", "left", "right");
         return new Condition.Compare(op,
@@ -168,8 +199,8 @@ final class ConditionJson {
     private static Condition.Operand readOperand(final JsonNode node) {
         JsonFields.checkFields(node, "operand", "ref", "value", "as");
         final Cast as = JsonFields.readCast(node);
-        final boolean hasRef = node.has("ref") && !node.get("ref").isNull();
-        final boolean hasValue = node.has("value") && !node.get("value").isNull();
+        final boolean hasRef = JsonFields.optional(node, "ref") != null;
+        final boolean hasValue = JsonFields.optional(node, "value") != null;
         if (hasRef == hasValue) {
             throw new ConfigException("An operand is a ref or a value, exactly one");
         }
@@ -209,42 +240,10 @@ final class ConditionJson {
         return node;
     }
 
-    static JsonNode writeCondition(final Condition condition) {
-        return switch (condition) {
-            case Condition.Compare value -> {
-                final ObjectNode body = JsonFields.NODES.objectNode();
-                body.set("left", writeOperand(value.left()));
-                body.set("right", writeOperand(value.right()));
-                yield JsonFields.wrap(JsonFields.lowercase(value.op()), body);
-            }
-            case Condition.Matches value -> JsonFields.wrap("matches", selectAnd("pattern", value.select(),
-                    value.pattern()));
-            case Condition.Contains value ->
-                    JsonFields.wrap("contains", selectAnd("substring", value.select(), value.substring()));
-            case Condition.StartsWith value ->
-                    JsonFields.wrap("starts-with", selectAnd("prefix", value.select(), value.prefix()));
-            case Condition.And value -> JsonFields.wrap("and", JsonFields.array(value.conditions(),
-                    ConditionJson::writeCondition));
-            case Condition.Or value -> JsonFields.wrap("or", JsonFields.array(value.conditions(),
-                    ConditionJson::writeCondition));
-            case Condition.Not value -> JsonFields.wrap("not", writeCondition(value.condition()));
-            // Payload-less, so the bare string, as every other such variant is written; both
-            // spellings are read.
-            case Condition.IsFirst ignored -> JsonFields.NODES.stringNode("is-first");
-            case Condition.IsLast ignored -> JsonFields.NODES.stringNode("is-last");
-            case Condition.Exists value -> {
-                final ObjectNode body = JsonFields.NODES.objectNode();
-                body.set("select", ReferenceJson.writeRef(value.select()));
-                yield JsonFields.wrap("exists", body);
-            }
-        };
-    }
-
     private static ObjectNode selectAnd(final String field, final RefExpression select, final String value) {
         final ObjectNode body = JsonFields.NODES.objectNode();
         body.set("select", ReferenceJson.writeRef(select));
         body.put(field, value);
         return body;
     }
-
 }

@@ -93,6 +93,12 @@ final class ReferenceJson {
         return node;
     }
 
+    /** A reference field, or null where it is absent or JSON null. */
+    static RefExpression optionalRef(final JsonNode node, final String field) {
+        final JsonNode value = JsonFields.optional(node, field);
+        return value == null ? null : readRef(value);
+    }
+
     private static RefPart readRefPart(final JsonNode node) {
         final JsonFields.Tagged tagged = JsonFields.tag(node, "reference part");
         final JsonNode body = tagged.body();
@@ -101,12 +107,11 @@ final class ReferenceJson {
             // because a thousand of the fixtures' parts still use it and they are the measure.
             case "capture", "Store" -> {
                 JsonFields.checkFields(body, "capture", "var_id", "group", "match_index");
+                final JsonNode matchIndex = JsonFields.optional(body, "match_index");
                 yield new RefPart.Capture(
                         JsonFields.optionalText(body, "var_id"),
                         body.path("group").asInt(0),
-                        body.has("match_index") && !body.get("match_index").isNull()
-                                ? readMatchIndex(body.get("match_index"))
-                                : null);
+                        matchIndex == null ? null : readMatchIndex(matchIndex));
             }
             case "text" -> new RefPart.Text(body.asString());
             default -> throw new ConfigException("Unknown reference part: " + tagged.name());
@@ -145,5 +150,4 @@ final class ReferenceJson {
         JsonFields.putIfPresent(node, "var_ref", index.varRef());
         return node;
     }
-
 }

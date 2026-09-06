@@ -32,7 +32,6 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -178,9 +177,10 @@ final class MatchJson {
         return switch (tagged.name()) {
             case "Tag" -> new MatchStep.Tag(body.asString());
             case "MatchByte" -> {
-                final byte[] value = new byte[body.size()];
+                final List<Integer> bytes = JsonFields.list(body, "MatchByte", JsonNode::asInt);
+                final byte[] value = new byte[bytes.size()];
                 for (int i = 0; i < value.length; i++) {
-                    final int b = body.get(i).asInt();
+                    final int b = bytes.get(i);
                     if (b < 0 || b > 255) {
                         throw new ConfigException("A MatchByte value must be 0-255, but was " + b);
                     }
@@ -202,12 +202,11 @@ final class MatchJson {
             }
             case "ReadNumeric" -> {
                 JsonFields.checkFields(body, "ReadNumeric", "numeric_type", "signed", "endian");
+                final String endian = JsonFields.optionalText(body, "endian");
                 yield new MatchStep.ReadNumeric(
                         JsonFields.constant(NumericType.class, JsonFields.text(body, "numeric_type", "ReadNumeric")),
                         body.path("signed").asBoolean(false),
-                        body.has("endian")
-                                ? JsonFields.constant(Endianness.class, body.get("endian").asString())
-                                : Endianness.BIG);
+                        endian == null ? Endianness.BIG : JsonFields.constant(Endianness.class, endian));
             }
             case "ReadVarint" -> {
                 JsonFields.checkFields(body, "ReadVarint");
@@ -240,20 +239,16 @@ final class MatchJson {
                 JsonFields.checkFields(body, "Regex", "pattern", "flags");
                 yield new MatchStep.Regex(JsonFields.text(body, "pattern", "Regex"), readFlags(body.get("flags")));
             }
-            case "Choice" -> {
-                final List<List<MatchStep>> alternatives = new ArrayList<>();
-                for (final JsonNode alternative : body) {
-                    alternatives.add(JsonFields.list(alternative, "Choice alternative", MatchJson::readStep));
-                }
-                yield new MatchStep.Choice(alternatives);
-            }
+            case "Choice" -> new MatchStep.Choice(JsonFields.list(body, "Choice",
+                    alternative -> JsonFields.list(alternative, "Choice alternative", MatchJson::readStep)));
             case "Optional" -> new MatchStep.Optional(JsonFields.list(body, "Optional", MatchJson::readStep));
             case "Repeat" -> {
                 JsonFields.checkFields(body, "Repeat", "steps", "min", "max");
+                final JsonNode max = JsonFields.optional(body, "max");
                 yield new MatchStep.Repeat(
                         JsonFields.list(body.get("steps"), "steps", MatchJson::readStep),
                         body.path("min").asInt(0),
-                        body.has("max") && !body.get("max").isNull() ? body.get("max").asInt() : null);
+                        max == null ? null : max.asInt());
             }
             case "Sequence" -> new MatchStep.Sequence(JsonFields.list(body, "Sequence", MatchJson::readStep));
             case "PatternRef" -> new MatchStep.PatternRef(JsonFields.uuid(body, "PatternRef"));
@@ -402,19 +397,17 @@ final class MatchJson {
 
     private static CharSet readCharSet(final JsonNode node) {
         JsonFields.checkFields(node, "charset", "expression", "chars", "ranges", "negated");
-        final List<Character> chars = new ArrayList<>();
-        for (final JsonNode ch : node.path("chars")) {
-            chars.add(character(ch));
-        }
-        final List<CharSet.Range> ranges = new ArrayList<>();
-        for (final JsonNode range : node.path("ranges")) {
-            if (!range.isArray() || range.size() != 2) {
-                throw new ConfigException("A charset range must be a [from, to] pair");
-            }
-            ranges.add(new CharSet.Range(character(range.get(0)), character(range.get(1))));
-        }
-        return new CharSet(JsonFields.text(node, "expression", "charset"), chars, ranges,
+        return new CharSet(JsonFields.text(node, "expression", "charset"),
+                JsonFields.list(node.get("chars"), "chars", MatchJson::character),
+                JsonFields.list(node.get("ranges"), "ranges", MatchJson::range),
                 node.path("negated").asBoolean(false));
+    }
+
+    private static CharSet.Range range(final JsonNode node) {
+        if (!node.isArray() || node.size() != 2) {
+            throw new ConfigException("A charset range must be a [from, to] pair");
+        }
+        return new CharSet.Range(character(node.get(0)), character(node.get(1)));
     }
 
     /**
@@ -444,5 +437,4 @@ final class MatchJson {
         node.put("negated", charSet.negated());
         return node;
     }
-
 }

@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.config.json;
 
+import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Project.SourceConfig;
 import stroom.shapeshifter.engine.config.Template;
@@ -42,7 +43,9 @@ public final class ProjectJson {
 
     /** Read a whole configuration. */
     public static Project readProject(final JsonNode node) {
-        JsonFields.expectObject(node, "project");
+        if (node == null || node.isNull()) {
+            throw new ConfigException("Expected an object for 'project'");
+        }
         JsonFields.checkFields(node, "project", "name", "version", "source", "templates", "patterns");
         return new Project(
                 JsonFields.text(node, "name", "project"),
@@ -154,13 +157,10 @@ public final class ProjectJson {
 
     private static MatchLimits readMatchLimits(final JsonNode node) {
         JsonFields.checkFields(node, "match_limits", "min_match", "max_match", "only_match");
-        Set<Integer> only = null;
-        if (node.has("only_match") && !node.get("only_match").isNull()) {
-            only = new LinkedHashSet<>();
-            for (final JsonNode index : node.get("only_match")) {
-                only.add(index.asInt());
-            }
-        }
+        final JsonNode onlyMatch = JsonFields.optional(node, "only_match");
+        final Set<Integer> only = onlyMatch == null
+                ? null
+                : new LinkedHashSet<>(JsonFields.list(onlyMatch, "only_match", JsonNode::asInt));
         return new MatchLimits(
                 node.path("min_match").asInt(0),
                 node.path("max_match").asInt(MatchLimits.UNLIMITED),
@@ -177,5 +177,4 @@ public final class ProjectJson {
         }
         return node;
     }
-
 }
