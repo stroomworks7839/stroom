@@ -2,14 +2,15 @@
 
 *Proposed and ruled 2026-09-05 (D45), every ruling as recommended. Amended the same day, on the
 user's question whether the plan locates code into packages as well as classes: §1.5, §2.5 to
-§2.7 and phase 6 are the amendment; rulings 6 and 7 were made the same day, as recommended.* The
-engine is correct, pinned at three levels, and its
-biggest class is a 2,166-line interpreter that Checkstyle warns about on every build. This design
-says what the module should look like when every class has one purpose, what moves where to get
+§2.7 and phase 6 are the amendment; rulings 6 and 7 were made the same day, as recommended. Built
+2026-09-05 to 2026-09-06, phases 0 to 7, each audited; phase 8, the exit review, closed
+2026-09-06 (§5.6).* At entry the engine was correct, pinned at three levels, and its biggest
+class was a 2,166-line interpreter that Checkstyle warned about on every build. This design says
+what the module should look like when every class has one purpose, what moves where to get
 there, and how each move is gated so that nothing about the engine's behaviour changes on the way.
 It is structure only: no semantics move, no output changes, every golden stays byte-identical.
 
-## 1. What is there today
+## 1. What there was at entry (2026-09-05)
 
 Measured 2026-09-05, main sources only:
 
@@ -55,7 +56,8 @@ pattern interning, match compilation, body compilation (which already lives in
 classes — `Structure` (150 lines: attributes after content, structure inside attribute values)
 and `BodyScan` (590 lines: every reference read, every name written, sequences, keys, the
 iteration-only and group-only warnings, the version gate on substring starts, E37). The passes
-share nothing but the project and the warnings list.
+shared nothing but the project and the warnings list — except the dispatch lint, which the entry
+review found reading the compiled templates' anchoring facts (§5.2), and which §2.3 places.
 
 ### 1.3 `ProjectJson`, by family
 
@@ -88,8 +90,8 @@ are layers already, unnamed.
 **The root package mixes the facade with the sinks.** `Shapeshifter`, `Message`, `Severity`,
 `Instrument`, `OutputSink` and `PatternInfo` are the module's face and everything imports them.
 `XmlByteSink`, `SaxEventSink`, `CharacterSink` and `Utf8` are the output side's
-implementations; nothing inside the engine uses them — their users are the pipeline module,
-once each, and the tests.
+implementations; nothing inside the engine uses them but the variable body's buffer sink
+(§5.1) — their other users are the pipeline module, once each, and the tests.
 
 **Two reference resolvers are live.** `CompiledRefs` resolves compiled references for bodies,
 design 10's third change. `Refs` still resolves the *authored* `RefExpression` at run time for
@@ -100,20 +102,19 @@ which way it goes rather than carry both into `Body` and call it structure.
 
 ### 1.5 What the designs already decided
 
-- **D35, two layers, never three.** The `Project` and the `CompiledProject` are the only
-  artefacts. Its stated consequence: "`Executor` is transitional and dissolves into the graph as
-  compilation deepens." Design 10 §2 says the same in more words: "performs the execution" is the
-  compiled object's job description. So the direction is settled; this design is the plan for it.
-- **What D35 forbids is a third artefact** — a cache, a factory tree, a shared-immutable middle,
-  a per-run mirror graph. It does not forbid the run having state of its own: the window, the
-  registry, the messages, the sink. That state exists today as the executor's fields; it will
-  exist afterwards as the fields of whatever owns a run. Naming that owner is not adding a layer.
-- **Design 10's open rows** (compiled conditions and guards, step pre-encoding, capture
-  elimination) are performance work that shape follows, "not the other way round". This design
-  does not do them. It does leave the graph in a shape where each is a local change.
-- **The code standard** (2026-08-21): blank-page Java, no port residue, keep performance and
-  issue rationale in comments, lint rules are the standard. The review in §4 holds the result to
-  exactly that.
+- **D35, two layers, never three.** The `Project` and the `CompiledProject` are the only artefacts.
+  Its stated consequence, as it then read: "`Executor` is transitional and dissolves into the graph
+  as compilation deepens." Design 10 §2 says the same in more words: "performs the execution" is the
+  compiled object's job description. So the direction is settled; this design is the plan for it. -
+  **What D35 forbids is a third artefact** — a cache, a factory tree, a shared-immutable middle, a
+  per-run mirror graph. It does not forbid the run having state of its own: the window, the
+  registry, the messages, the sink. That state exists today as the executor's fields; it will exist
+  afterwards as the fields of whatever owns a run. Naming that owner is not adding a layer. -
+  **Design 10's open rows** (compiled conditions and guards, step pre-encoding, capture elimination)
+  are performance work that shape follows, "not the other way round". This design does not do them.
+  It does leave the graph in a shape where each is a local change. - **The code standard**
+  (2026-08-21): blank-page Java, no port residue, keep performance and issue rationale in comments,
+  lint rules are the standard. The review in §4 holds the result to exactly that.
 
 ## 2. The target shape
 
@@ -162,8 +163,8 @@ instruction set.
 | `TemplateUses` | What one template's body refers to, the templates it calls and the applies it makes, collected in one walk per body, and the two checks that read it: every name must exist, and the dispatch lint must know which modes are strict. |
 | `MatchCompiler` | Pattern interning (with a step's flags in the key, ruling 9), step resolution, once, and pre-encoding, `compileMatch`, the codec requirement; owns `patterns` as an instance. The not-yet refusal is `ConfigException.notYet`, since a capture refusal uses it too. The E29 block that cannot fire is deleted, its rationale one sentence on `RegexEncodings.forMatch`. 278 lines. |
 | `Containers` | Which instructions hold bodies, said once and exhaustively; the two walks that look for something anywhere inside a body — patterns to intern, templates referred to — recurse through it, so neither can stop short of an iteration again. 116 lines. |
-| `StructureCheck` | Today's `Structure`: attributes and namespaces after content, structure inside attribute values, `producesContent`. |
-| `ReferenceCheck` | Today's `BodyScan`: reads and writes, the unknown-reference refusal, sequences and keys, iteration and group hazards, the substring version gate, E37's document-template rules. |
+| `StructureCheck` | Was `Compiler.Structure`: attributes and namespaces after content, structure inside attribute values, `producesContent`; content-seen threaded as a returned boolean and the pass-through containers walked through `Containers` since phase 8. 186 lines. |
+| `ReferenceCheck` | Was `Compiler.BodyScan` (E27's walk): reads and writes, the unknown-reference refusal, sequences and keys, iteration and group hazards, the substring version gate, E37's document-template rules. 604 lines. |
 | `CompiledOp` | The ops, with `compile(body)` staying beside them — it is the body's compilation and already lives here. |
 
 ### 2.4 `config.json` after the split
@@ -187,8 +188,8 @@ is the property that matters and it is easiest to keep when the two halves are i
 | `engine` | The face: `Shapeshifter`, `Message`, `Severity`, `Instrument`, `OutputSink`, `PatternInfo` | the facade fronts `compile`, `config`, `exec` and `function`, and `PatternInfo` the regex module; nothing below depends on the root except through `OutputSink`, `Instrument`, `Message` and `Severity`, and the sink factory moves to `XmlByteSink` (ruling 8) so that stays true |
 | `engine.output` | The sinks: `XmlByteSink`, `SaxEventSink`, `CharacterSink`, `Utf8` | `engine` (for `OutputSink`), the JDK's `org.xml.sax` |
 | `engine.value` | `TypedValue`, `Numbers`, `Transforms`, `Dates`, `Comparisons` | `config` (`Cast`, `ConfigException`), regex |
-| `engine.match` | `MatchResult`, `Steps`, `Splitter`, `Codecs` | `value`, `config`, `compile.PatternKey`, `text`, regex |
-| `engine.exec` | The run: `Run`, `Level`, `Body`, `InputWindow`, `FunctionRuntime`, `Conditions`, `Refs`, `CompiledRefs`, `Store`, `VarRegistry`, `EngineVars` | `match`, `value`, `compile`, `config`, `function`, `text`, `output` (the variable body's buffer sink, until its follow-on), the root's contracts, regex. One edge back: `compile`'s reference check reads `EngineVars`, pre-existing, phase 8's to place. |
+| `engine.match` | `MatchResult`, `Steps`, `Splitter`, `Codecs`; `PatternKey` since phase 8 | `value`, `config`, `text`, regex |
+| `engine.exec` | The run: `Run`, `Level`, `Body`, `InputWindow`, `FunctionRuntime`, `Conditions`, `Refs`, `CompiledRefs`, `Store`, `VarRegistry` | `match`, `value`, `compile`, `config`, `function`, `text`, `output` (the variable body's buffer sink, E41), the root's contracts, regex. The one edge back the plan accepted — `compile`'s reference check reading `exec.EngineVars` — is gone: phase 8 placed `EngineVars` in `config`, the language's reserved names with the model, and `PatternKey` in `match`, which closed the `compile` ↔ `match` cycle the table above had not drawn (§5.6). |
 | `engine.compile`, `engine.config`, `engine.config.json`, `engine.ds3`, `engine.text`, `engine.function` | as today, with the class splits of §2.3 and §2.4 | as today |
 
 The dependency column is the layering §1.4 measured, now enforced by the package line: a value
@@ -198,8 +199,11 @@ it is what a match produces and `Steps` and `Splitter` fill it; the run reads it
 
 **What it costs outside the engine.** The pipeline module imports `TypedValue` in thirty-four
 places and each sink once; inside the engine, eight test classes move with their classes and
-`CompareSpineTest`, `CompiledOp` and `MatchCompiler` carry seven more imports. All of it is import churn, which is why the moves are one phase of their
-own (phase 6) and not mixed into a hot-path commit.
+`CompareSpineTest`, `CompiledOp` and `MatchCompiler` carry a further eleven imports (§5.3). As
+built (phase 6) the churn also reached the benchmark module and the app tests, and the sixteen
+test and benchmark files that construct the byte sink by name under ruling 8. All of it is
+import churn, which is why the moves are one phase of their own (phase 6) and not mixed into a
+hot-path commit.
 
 ### 2.6 What does not move
 
@@ -249,22 +253,22 @@ either moved to the right side or the line is redrawn, before anything else move
 
 *As built:* `7bf64c5d90`. `Compiler` (309 lines) is the pipeline and nothing else: the source
 encoding, then per template the two capture refusals, the E3 encoding rules, the match through
-`MatchCompiler` and the body through `CompiledOp.compile`; then one walk collecting what each
-body calls and applies to, read by name resolution and by the dispatch lint; then the body
-checks, `ReferenceCheck`'s walk and `StructureCheck`'s zipped per template as before, and
+`MatchCompiler` and the body through `CompiledOp.compile`; then one walk collecting what each body
+calls and applies to, read by name resolution and by the dispatch lint; then the body checks,
+`ReferenceCheck`'s walk and `StructureCheck`'s zipped per template as before, and
 `ReferenceCheck.report()` last. Every pass runs where it ran, so the error a doubly faulty
 configuration reports and the order of its warnings are unchanged; the gate said so. `MatchCompiler`
-(301) owns the interned patterns as state and resolves a progressive template's steps once,
-where they were resolved three times; the E29 block that could not fire is gone and its
-reason is one sentence on `RegexEncodings.forMatch`. `StructureCheck` (186) answers whether a
-template writes structure from the walk it already makes, and the graph is handed the flag
-instead of walking the authored bodies in its constructor. `ReferenceCheck` (604) is
-`BodyScan` at top level, unchanged inside. Four passes, five walks per body — interning, body
-compilation, the uses walk, the reference walk, the structure walk, the last two zipped at the
-loop, not merged — where there were eight. A progressive regex step's flags are part of the pattern key
-(ruling 9), and the pin was written first and failed on exactly the flag. The target of "under
-250 lines" for `Compiler` did not close: the E3 encoding rules are forty lines of refusals with
-their messages, and they belong to the pipeline, not to a pass. Engine 556, pipeline 154, app 5.
+(301) owns the interned patterns as state and resolves a progressive template's steps once, where
+they were resolved three times; the E29 block that could not fire is gone and its reason is one
+sentence on `RegexEncodings.forMatch`. `StructureCheck` (186) answers whether a template writes
+structure from the walk it already makes, and the graph is handed the flag instead of walking the
+authored bodies in its constructor. `ReferenceCheck` (604) is `BodyScan` at top level, unchanged
+inside. Four passes, five walks per body — interning, body compilation, the uses walk, the reference
+walk, the structure walk, the last two zipped at the loop, not merged — where there were eight. A
+progressive regex step's flags are part of the pattern key (ruling 9), and the pin was written first
+and failed on exactly the flag. The target of "under 250 lines" for `Compiler` did not close: the E3
+encoding rules are forty lines of refusals with their messages, and they belong to the pipeline, not
+to a pass. Engine 556, pipeline 154, app 5.
 
 *The gate.* Five forks at `7bf64c5d90`, then at `b3c403b8cb` after the finding below, against
 the phase 0 column (`design/benchmarks/2026-09-05-19*`). The run rows did not move: every row
@@ -403,28 +407,26 @@ the preview gate and the call bookkeeping; `call` asks it. Around 400 lines leav
 
 ### Phase 3 — `Level` — Done 2026-09-06
 
-*As built, in two commits so each is checkable.* First the pure move: the whole dispatch
-region — `level`, `processMatch`, `processEater`, the stream loop's level half, `anyLevel`,
-`classify`, `match`, `regexMatch`, `bindCaptures`, `effective`, `normalise`, `locate` — into
-`Level`, constructed per run with the graph, the instrument, the messages, the registry, the
-function runtime and a body callback the executor implements; the run's encoding in force is
-handed in on every entry and held by the level for the duration, the same value each time. The executor opens the window and
-applies the mark, then hands the window to the level's `stream`. The return values nobody
-read are gone. Then the fold, inside `Level`: the guards evaluated once on the way in, three copies to
-`guards`; the zero-advance error, three copies to `noProgress`, which takes whether the offset
-is within the content or absolute; the minimum-match and unmatched-content reports, three
-copies to `report`; the content-group selection, three copies to `content`; and a wanted
-match's instrumented body run, two copies to `runBody`, which the classify mode now shares
-with the ordered ones. The winner loop — the pass over the templates with the max-match skip
-and the lexer's maximal munch — was folded to `pick` and then unfolded again by the gate (see
-below): it is written in both loops, the one duplication the hottest path cannot afford. `anyLevel` keeps its
-own loop because it excises and its zero-advance rule is not the ordered modes' (`end <=
-start`, not `advance == 0`), which the fold preserves. `stream` stays a sibling loop of
-`dispatch` rather than folding into it, as §2.1 first said: its refill decisions are the
-window's and have no counterpart in a region, so what the two share is the six methods, not
-a loop. `Executor` is 1,296 lines: the run, the
-root split, the mark rule, and the body. Every message is byte for byte what it was; the
-gate said so.
+*As built, in two commits so each is checkable.* First the pure move: the whole dispatch region —
+`level`, `processMatch`, `processEater`, the stream loop's level half, `anyLevel`, `classify`,
+`match`, `regexMatch`, `bindCaptures`, `effective`, `normalise`, `locate` — into `Level`,
+constructed per run with the graph, the instrument, the messages, the registry, the function runtime
+and a body callback the executor implements; the run's encoding in force is handed in on every entry
+and held by the level for the duration, the same value each time. The executor opens the window and
+applies the mark, then hands the window to the level's `stream`. The return values nobody read are
+gone. Then the fold, inside `Level`: the guards evaluated once on the way in, three copies to
+`guards`; the zero-advance error, three copies to `noProgress`, which takes whether the offset is
+within the content or absolute; the minimum-match and unmatched-content reports, three copies to
+`report`; the content-group selection, three copies to `content`; and a wanted match's instrumented
+body run, two copies to `runBody`, which the classify mode now shares with the ordered ones. The
+winner loop — the pass over the templates with the max-match skip and the lexer's maximal munch —
+was folded to `pick` and then unfolded again by the gate (see below): it is written in both loops,
+the one duplication the hottest path cannot afford. `anyLevel` keeps its own loop because it excises
+and its zero-advance rule is not the ordered modes' (`end <= start`, not `advance == 0`), which the
+fold preserves. `stream` stays a sibling loop of `dispatch` rather than folding into it, as §2.1
+first said: its refill decisions are the window's and have no counterpart in a region, so what the
+two share is the six methods, not a loop. `Executor` is 1,296 lines: the run, the root split, the
+mark rule, and the body. Every message is byte for byte what it was; the gate said so.
 
 *The gate.* Five readings, all in `design/benchmarks/2026-09-0[56]-*`. The fold's first
 reading against phase 2 had `ausearch` −6.2% and `win_sec_strict` −2.4% outside their
@@ -519,18 +521,18 @@ what the 74-to-9 count says it already is. *Benchmark gate.*
 
 ### Phase 5 — `Run`, and the name goes — Done 2026-09-06
 
-*As built:* `Executor` is `Run` (342 lines; 356 after the audit's lift) — one run of a compiled configuration over one
-input — with two entry points, `stream` and `whole`, in place of a positional boolean on the
-API, both taking the mode and the services (the boolean survives privately, decided once in
-`dispatchInput`, which is the whole-or-chunk-or-window choice the root split sits around);
-the facade's overloads pass the defaults or pass through, and it gains the whole-buffer form
-that takes a mode and services, the gap the entry review found. The
-`exec` package javadoc names the five classes and how a run flows through them, and says what
-D35 said: the graph performs the execution, and the run and its collaborators are its state
-for one input. `CompiledRefs`' class javadoc states the seam §2.7 asked for. Design 10's
-"`Executor` is transitional" and D35's consequence now say it happened and when. Nothing on
-the hot path changed, so no benchmark: the rename is a rename, and the entry points reach the
-same private run. Engine 562, pipeline 154, app 5.
+*As built:* `Executor` is `Run` (342 lines; 356 after the audit's lift; 359 at exit) — one run of a
+compiled configuration over one input — with two entry points, `stream` and `whole`, in place of a
+positional boolean on the API, both taking the mode and the services (the boolean survives
+privately, decided once in `dispatchInput`, which is the whole-or-chunk-or-window choice the root
+split sits around); the facade's overloads pass the defaults or pass through, and it gains the
+whole-buffer form that takes a mode and services, the gap the entry review found. The `exec` package
+javadoc names the five classes and how a run flows through them, and says what D35 said: the graph
+performs the execution, and the run and its collaborators are its state for one input.
+`CompiledRefs`' class javadoc states the seam §2.7 asked for. Design 10's "`Executor` is
+transitional" and D35's consequence now say it happened and when. Nothing on the hot path changed,
+so no benchmark: the rename is a rename, and the entry points reach the same private run. Engine
+562, pipeline 154, app 5.
 
 *Audited 2026-09-06.* Routing preserved overload by overload; the diff touches the entries
 and nothing below them. **Fixed:** the whole-buffer entries' javadoc was thinner than the
@@ -539,8 +541,8 @@ package javadoc ended in a fragment and omitted the value types and the abort; t
 dispatch — whole buffer, chunk at a time for the non-consuming roots, or the window — is one
 method decided once rather than a flag threaded through two; §2.1's `Run` row said one entry
 point and a sink the run opens, neither true; and ruling 7's follow-on, promised as filed,
-was not — it is E39 now. **Named for phase 8:** design 23 §1 maps the facade to
-`Executor.stream` as a live contract, and the regex module's `ByteMatcher` cites it too, the
+was not — it is E39 now. **Named for phase 8:** design 23 §2 (and §4, phase 2) maps the facade
+to `Executor.stream` as a live contract, and the regex module's `ByteMatcher` cites it too, the
 other session's file. Engine 562, pipeline 154, app 5.
 
 *Audited a second time, 2026-09-06, on the final commit.* The lift is statement for statement
@@ -564,44 +566,41 @@ five classes and how a run flows through them.
 ### Phase 6 — The packages — Done 2026-09-06
 
 *As built, three commits and this one.* A mover (`/home/dev1/bin/move-classes.py`) does each
-package: renames the files under git, rewrites their package lines, rewrites every import
-across the engine, the pipeline, the benchmark module and the app tests, adds the imports
-that same-package references no longer get for free, and re-sorts each file's import blocks
-so checkstyle's order holds. `engine.value` (`6ba85bde13`): `TypedValue`, `Numbers`,
-`Transforms`, `Dates`, `Comparisons` and four tests. `engine.match` (`90ba472781`):
-`MatchResult`, `Steps`, `Splitter`, `Codecs`
-and `StepsTest`. `engine.output` (`43fd2b94b9`): the three sinks, `Utf8` and their tests;
-`OutputSink.of` gone from the contract per ruling 8, the body's variable buffer and sixteen
-files of tests and benchmarks constructing the byte sink by name, so the sink contract's
-dependency downward is gone. Each new package has a javadoc that says what it holds
-and what it may depend on; `exec`'s is rewritten last, for what it now holds — the run, the
-level, the body, the window, the function runtime, the abort, the registry, the stores, the
-engine's names, the two resolvers and the conditions — and the root package's names every
-package and the direction between them. **A defect in the doing, recorded because a bisect
-would meet it:** the mover's first version added an import to any file that merely mentioned
-a moved class's simple name, which shadowed the pipeline's own `Dates` helper and put unused
-imports on nine other files; the value commit therefore leaves the pipeline module not
-compiling, the match commit restores it, and the mover now adds imports only where a
-same-package reference lost its free access, reading code rather than comments to decide. The
-gate was read from stale results once
-before that was caught, and the reader now checks the result files' age. No benchmark: no
-code moves within a class, and the one call that changed, the variable buffer's sink,
-constructs the same class. Engine 562, pipeline 154, app 5, xmlbench compiles.
+package: renames the files under git, rewrites their package lines, rewrites every import across the
+engine, the pipeline, the benchmark module and the app tests, adds the imports that same-package
+references no longer get for free, and re-sorts each file's import blocks so checkstyle's order
+holds. `engine.value` (`6ba85bde13`): `TypedValue`, `Numbers`, `Transforms`, `Dates`, `Comparisons`
+and four tests. `engine.match` (`90ba472781`): `MatchResult`, `Steps`, `Splitter`, `Codecs` and
+`StepsTest`. `engine.output` (`43fd2b94b9`): the three sinks, `Utf8` and their tests;
+`OutputSink.of` gone from the contract per ruling 8, the body's variable buffer and sixteen files of
+tests and benchmarks constructing the byte sink by name, so the sink contract's dependency downward
+is gone. Each new package has a javadoc that says what it holds and what it may depend on; `exec`'s
+is rewritten last, for what it now holds — the run, the level, the body, the window, the function
+runtime, the abort, the registry, the stores, the engine's names, the two resolvers and the
+conditions — and the root package's names every package and the direction between them. **A defect
+in the doing, recorded because a bisect would meet it:** the mover's first version added an import
+to any file that merely mentioned a moved class's simple name, which shadowed the pipeline's own
+`Dates` helper and put unused imports on nine other files; the value commit therefore leaves the
+pipeline module not compiling, the match commit restores it, and the mover now adds imports only
+where a same-package reference lost its free access, reading code rather than comments to decide.
+The gate was read from stale results once before that was caught, and the reader now checks the
+result files' age. No benchmark: no code moves within a class, and the one call that changed, the
+variable buffer's sink, constructs the same class. Engine 562, pipeline 154, app 5, xmlbench
+compiles.
 
-*Audited 2026-09-06.* Every moved class is byte-identical but for its package line and
-imports, every test moved with its class, and every package's imports match the direction
-§2.5 draws — with three residues of the mover's over-reach, fixed: `OutputSink` had gained
-imports of the two sinks it mentions, reinstating at the import level the edge ruling 8
-removed; `Numbers` had gone public for callers that turned out to be comment mentions, and is
-package-private again; two mention-earned `Numbers` imports and eight `OutputSink` imports
-orphaned by the factory's removal are gone, with a qualified name in one test, a trailing
-blank line in one package file and the README's example. The mover's blank-line collapse had touched
-seventy-nine app test files outside the module in the match commit, whitespace only; they are
-restored to what they were, and the mover now collapses only files it changed and reads code
-rather than comments and strings to decide a name is used. **Named:** the compiler's reference
-check reads `EngineVars` for the names it must treat as writable, a compile → exec edge that
-predates this design and that §2.5 did not draw; the `exec` javadoc says so now, and where
-`EngineVars` belongs is phase 8's. The `exec` and `match` javadocs list every package they
+*Audited 2026-09-06.* Every moved class is byte-identical but for its package line and imports,
+every test moved with its class, and every package's imports match the direction §2.5 draws — with
+three residues of the mover's over-reach, fixed: `OutputSink` had gained imports of the two sinks it
+mentions, reinstating at the import level the edge ruling 8 removed; `Numbers` had gone public for
+callers that turned out to be comment mentions, and is package-private again; two mention-earned
+`Numbers` imports and eight `OutputSink` imports orphaned by the factory's removal are gone, with a
+qualified name in one test, a trailing blank line in one package file and the README's example. The
+mover's blank-line collapse had touched seventy-nine app test files outside the module in the match
+commit, whitespace only; they are restored to what they were, and the mover now collapses only files
+it changed and reads code rather than comments and strings to decide a name is used. **Named:** the
+compiler's reference check reads `EngineVars` for the names it must treat as writable, a compile →
+exec edge that predates this design and that §2.5 did not draw; the `exec` javadoc says so now, and
+where `EngineVars` belongs is phase 8's. The `exec` and `match` javadocs list every package they
 depend on. Fresh gate after all of it: engine 562, pipeline 154, app 5, xmlbench compiles.
 
 *Audited a second time, 2026-09-06, on the final commit.* Every moved class byte-identical to
@@ -633,7 +632,8 @@ javadoc was another matter; see the audit): `ProjectJson`
 `MatchJson` (443), `ReferenceJson` (149), `ConditionJson`
 (241) and `OutputJson` (706), each family's reader and writer
 together so the round trip is kept where both halves can be seen, over `JsonFields`
-(238), which holds the primitives every family uses and states the format's rules
+(238; the audit's restored javadocs and phase 8 bring the six to 181, 448, 149, 250, 708 and
+262), which holds the primitives every family uses and states the format's rules
 as this format's — the spellings kept because the corpus is written in them, the origin named
 once. The four placements the entry review corrected are as corrected: regex flags and the
 pattern library with the match family, dispatch and casts among the primitives. A member
@@ -665,23 +665,62 @@ Engine 563, pipeline 154, app 5.
 `MatchJson`, `ReferenceJson`, `ConditionJson`, `OutputJson`, `JsonFields` out of `ProjectJson`.
 `EveryVariantTest` is the gate, plus the corpus of fixtures read and written back.
 
-### Phase 8 — The exit review and the documentation pass
+### Phase 8 — The exit review and the documentation pass — Done 2026-09-06
 
-The phase 0 ledger re-run against the result, adversarially: every class one purpose, every
-class javadoc saying what and why, no method over a screen without a reason in its comment, no
-narration, no residue. Package javadocs rewritten where the shape changed; the engine README's
-architecture section updated; a D-number recorded. *Output:* §5 closed with the exit state.
+*As built, six commits.* Three read-only reviewers re-ran the entry ledger against the result,
+one per package group (§5.6 has the ledger and the closures), and what they found was applied
+package by package: the run's four packages, the compiler, the JSON families, the two package
+moves, the face with the tests beside what they test, and the documents. The findings that
+changed shape rather than words: `Body` constructs its `Level`, so the two are wired at
+construction and `attach` and the registry accessor go; `Run`'s chain reads `run` → `document`
+→ `dispatchInput`; `Refs.write` had no caller and is gone, which closed the "same rule in two
+loops" row by itself; `MatchResult.empty()` is one shared instance; `ApplyDirective.recursive()`
+is the model's rule and the body reads it rather than sniffing the prefix; `CompiledOp.Call` is
+`CallTemplate`, the P1 rename that had not landed, and the body's two `call`s are
+`callFunction` and `callTemplate`; `PatternKey.ofValue` says once that body and condition
+patterns run over resolved values, so four sites lose the spelt-out constant; `Functions` owns
+the definitions it resolves; `TemplateUses` is built as the value its javadoc describes;
+`StructureCheck` threads content-seen as a returned boolean instead of a one-cell array and
+walks the pass-through containers through `Containers`; the arithmetic arity rule is an enum.
+In the JSON families a scalar where a list belongs is refused by name and JSON null where a
+choice belongs means "not said" (pinned in `ProjectReaderTest`); the writer's half of
+`lowercase` is `label`; the two `uuid` readers are one rule. `EngineVars` moved to `config` and
+`PatternKey` to `match`, which closed the `compile → exec` edge the plan had accepted and the
+`compile` ↔ `match` cycle §2.5's table had not drawn; the packages now read value ← match ←
+exec with `compile` beside them and the model beneath. Every provenance tag and history
+sentence the ledger named is gone, the rules stay, and the winner loop carries the phase 3
+gate's reason in code. The documents: the engine README's architecture block and its two
+"worth knowing" paragraphs rewritten (the record-must-fit-the-window rule as design 23 states
+it; three sinks, not one); the module README's duplicate heading and "planned" pipeline
+corrected; design 23's two `Executor.stream` lines; design 10's E39 rows; D45's factory clause
+and its closing; E38's status line; E40 to E42 filed (§5.6). Gate: engine 564, pipeline 154,
+app 5, xmlbench compiles, fresh results. Benchmark: the full suite at `d5301df67b`
+(`design/benchmarks/2026-09-06-1041-d5301df67b-engine.json`) against the phase 0 column — every
+run row within 1.6% of the baseline and inside the cross-run spread; the one reading outside a
+baseline interval, `run progressive` at −1.1%, was probed back to back against the phase 7
+commit with three forks and the gc profiler and came out 1.5% ahead of it (350 against 345
+ops/s), so it was spread, not structure. The compile rows sit within the ±5–8% spread the
+progressive compile row has shown since phase 1 (−8.6% against the baseline, +2.3% against
+the phase 7 point on the same row). No regression; the phase is done.
+
+*As written:* the phase 0 ledger re-run against the result, adversarially: every class one
+purpose, every class javadoc saying what and why, no method over a screen without a reason in
+its comment, no narration, no residue. Package javadocs rewritten where the shape changed; the
+engine README's architecture section updated; a D-number recorded. *Output:* §5 closed with the
+exit state.
 
 ### 3.9 The benchmark gate
 
-Phases 3 and 4 move the hot path across class boundaries, which can change what the JIT inlines.
-The gate is `EngineBenchmark` (the engine's `jmh` task, results under `design/benchmarks`), run
-before and after on the same box with no other JMH session running (the shared-box rule),
-targeted one-minute combinations by day and the full suite in the evening. The last engine
-baseline on record is 2026-08-27, before the 2026-09-02 CPU replacement, so it is not comparable:
-phase 0 takes a fresh baseline at the commit before phase 1, and that is what phases 3 and 4 are
-measured against. The bar is no regression beyond the run-to-run noise of that baseline. A regression is investigated before the phase is called done;
-it is not accepted as the price of structure.
+Phases 3 and 4 move the hot path across class boundaries, which can change what the JIT inlines;
+phase 1 is gated on the compile rows, and phase 2 was measured without a gate because its loop
+crosses a class boundary too (as built, below). The gate is `EngineBenchmark` (the engine's `jmh`
+task, results under `design/benchmarks`), run before and after on the same box with no other JMH
+session running (the shared-box rule), targeted one-minute combinations by day and the full suite in
+the evening. The last engine baseline on record is 2026-08-27, before the 2026-09-02 CPU
+replacement, so it is not comparable: phase 0 takes a fresh baseline at the commit before phase 1,
+and that is what phases 3 and 4 are measured against. The bar is no regression beyond the run-to-run
+noise of that baseline. A regression is investigated before the phase is called done; it is not
+accepted as the price of structure.
 
 ### 3.10 Phase 0 preparation — the benchmark points, 2026-09-05
 
@@ -776,8 +815,10 @@ From the code standard, applied per class in phases 0 and 8:
 
 ## 5. The ledger
 
-*Entry review 2026-09-05, three read-only passes, one per package group; closed by phase 8.*
-Severity: **line** is fixed in phase 0; **P**n is assigned to that phase; **note** is recorded.
+*Entry review 2026-09-05, three read-only passes, one per package group, over the sources at
+`4e14740675`; the line numbers in §5.1 to §5.3 are that commit's and are not re-numbered — the
+phases say where each finding went. Closed by §5.6.* Severity: **line** is fixed in phase 0;
+**P**n is assigned to that phase; **note** is recorded.
 
 ### 5.1 `config.json` and the root package's output side
 
@@ -860,7 +901,7 @@ Nothing moved between classes; that is the phases.
 
 ### 5.5 What the entry review corrects in the plan
 
-1. **`OutputSink.of` and the variable body** (ruling 8 wanted). Three exits: (a) `of` moves to `XmlByteSink` as its factory and the executor and the test sites construct the sink by name; (b) `exec` gets its own buffer sink for variable bodies, which also asks why a variable's text is serialised with Saxon's indenting layout at all; (c) the cycle is accepted. *Recommended: (a) now, as the smallest; (b)'s question filed as a follow-on, since it is a behaviour question and not this design's.*
+1. **`OutputSink.of` and the variable body** (ruling 8 wanted). Three exits: (a) `of` leaves the contract and the executor and the test sites construct the sink by name; (b) `exec` gets its own buffer sink for variable bodies, which also asks why a variable's text is serialised with Saxon's indenting layout at all; (c) the cycle is accepted. *Recommended: (a) now, as the smallest; (b)'s question filed as a follow-on, since it is a behaviour question and not this design's.*
 2. **§2.5's `engine` row "depends on nothing"** is wrong as written: the facade imports `compile`, `config`, `exec` and `function`, and `PatternInfo` imports the regex module. The row should say that nothing below the root depends on it except through `OutputSink`, `Instrument`, `Message` and `Severity`.
 3. **§2.4's placements** of flags, casts, the combinator pattern and dispatch, as above.
 4. **§2.6 "move and nothing else"** stands for the sinks, with the three duplications above recorded as a follow-on so the move commit stays a move.
@@ -869,6 +910,67 @@ Nothing moved between classes; that is the phases.
 7. **§1.2 and §2.3** gain the dispatch lint as a pass that runs after match compilation and before the body checks, in `Compiler`; `bodyChecks` keeps its per-template zip of the two checks so the error a doubly faulty configuration reports does not change; the E29 dead block is deleted in phase 1 with its rationale kept as one sentence; `carriesStructure` moves out of the graph's constructor into `StructureCheck`'s walk; the two walkers merge, which is what brings `Compiler` under its line target.
 8. **§2.5's dependency cells** gain `engine.text` for `match` and `exec`, and `config` for `value`; the `engine` row says what item 2 says.
 9. **Two correctness defects** are fixed before phase 1 rather than carried: `EmitError`'s encoding and the unlocatable call offset (both one line). `records` under whole-buffer and chunked roots is phase 2's, with the loop. The step-regex flags and the `field` capture source are rulings 9 and 10.
+
+### 5.6 The exit review, 2026-09-06
+
+*Three read-only passes over the sources at `1a8cc4e50e` (phase 7 audited), the same three
+package groups as the entry review; every finding applied in phase 8 is at the commits the
+phase names, and what is carried has an owner below.*
+
+**The entry ledger, closed.** Every **line** and **P**n row of §5.1 to §5.3 was answered:
+fixed at the phase it was assigned to, superseded by a ruling (the `field` arm by ruling 10;
+the two `preview`s by the split), or open by decision — the winner loop written twice (the
+phase 3 gate's reversal, now said in code) and the max-match skip inside it. The rows still open
+at the exit and closed by phase 8: the P1 `Call`/`CallFunction` flip; the P1 `new boolean[1]`
+out-cell; the P1 mutable `Functions`; the FQN `regex.Encoding` cluster (one remains, in
+`MatchCompiler.steps`, and is the feed's encoding, which is right); the P4 two `call`s and
+`index()`; the P4 `__rec_` sniff (the model's rule now, though see E42); the P8 narration in
+`Body`, `Conditions`, `EngineVars`, `Comparisons`, `Numbers`, `TypedValue`, `Transforms`,
+`Steps` and `Ds3Migration`; the `MatchResult.empty()` allocation; the `Steps` mis-indents; the
+sinks' `CharacterSink` naming the pipeline's writer; the `expectObject` one-caller; and the
+`asInt()` row, now characterised (below).
+
+**The exit ledger, by package.** *exec, value, match, output:* the import graph is exactly
+§2.5's; no correctness regression from the moves; one live question that predates the design
+and the moves made visible — a `template_ref` apply is skipped at run time on the strength of a
+comment that said the compiler had inlined it, and nothing does (E42). *compile:* the pipeline
+is a pipeline (the encoding helpers are preconditions, not passes in disguise); `Containers`'
+exhaustive switch is the right cost today; the `default` arms in the searching walks
+(`MatchCompiler.collect`, `TemplateUses.collectUses`) are the audits' bug class still open on
+the patterns axis — a new leaf carrying a pattern would be interned by nobody — and the model-
+level closure, a sealed `Holder`/`Leaf` (and `Binding`) sub-interface on `OutputNode`, is the
+next structural item and a D-number of its own, not this design's edit. *config.json:*
+Jackson 3's `asInt()`/`asString()` on a non-coercible node is not silent (it throws
+`JsonNodeException`, which `ProjectReader` reports as "not valid JSON" — a wrong diagnosis,
+not a wrong answer); the silent readings were JSON null (→ 0 / `""`) and iteration over a
+non-array (→ nothing), and phase 8 closed the second and the choice-shaped instances of the
+first. *the face and the documents:* the root's open items were javadoc and hygiene, every one
+a line, applied.
+
+**Carried, with an owner.**
+- E39 — conditions and capture selects resolve the authored expression; `Refs.write` is gone
+  ahead of it, `Refs.resolve` and its byte helper stay until the measurement.
+- E40 — the sinks' three duplications (carry splice, SAX call, qname halves) and the shared
+  `Element`/`Attribute` bookkeeping.
+- E41 — a variable's body takes Saxon's indenting layout (ruling 8's question).
+- E42 — the `template_ref` apply, defined and executed or refused at compile time.
+- Follow-on, structure: `CompiledOp.compile` and its six helpers as a `BodyCompiler` holding
+  the compile context, which also takes the `Arity` enum and the package-private `Functions`
+  off a public interface's signature; §2.3 placed `compile(body)` beside the ops, and a class in
+  the same package is beside — a pure move under the compile rows.
+- Follow-on, model: the `Holder`/`Leaf`/`Binding` sub-interfaces on `OutputNode`, which would
+  close the `default` arms on the patterns axis and let `producesContent`, `ReferenceCheck.visit`
+  and `CompiledOp.compile` each lose their forty name-binding arms.
+- Follow-on, reader: typed primitives (`integer`, `text` refusing anything but a number or a
+  string node) so a wrong-shaped scalar is refused by name rather than reported as invalid JSON;
+  a behaviour change, so pinned when done.
+- Notes, recorded and accepted: `Dispatch.effective` computed in both walks; `Steps`/`Splitter`
+  parameter threading; `MatchCompiler`'s "refers to itself" naming a UUID and its linear pattern
+  scan; `distinct-values` requiring `name` on read; the engine counters' `vars.store(name)`
+  lookups per match (design 10's row); `Conditions.text` decoding bytes the matcher re-encodes
+  (E39's measurement); `Utf8` sharing its simple name with the regex module's; the dated designs
+  (09, 21, 24, 25, 26) and the regex module's `ByteMatcher` javadoc that still name the executor
+  as it was — the other session's file, to be handed over.
 
 ## 6. Rulings — all eleven ruled, each as recommended (D45)
 
@@ -890,9 +992,10 @@ Nothing moved between classes; that is the phases.
 
 *From the entry review (§5.5):*
 
-8. **`OutputSink.of`.** The factory moves to `XmlByteSink`, the executor's variable body and
-   the test sites construct the sink by name, and the question of why a variable's text takes
-   Saxon's layout is filed as a follow-on.
+8. **`OutputSink.of`.** The factory leaves the contract — as built, deleted rather than moved,
+   `new XmlByteSink(out)` being the one spelling — the executor's variable body and the test
+   sites construct the sink by name, and the question of why a variable's text takes Saxon's
+   layout is filed as a follow-on (E41).
 9. **Regex flags on a progressive step.** They are read, written back and silently ignored at
    match time because the pattern key is text and encoding only. Either `PatternKey` gains the
    flags and `intern` compiles with them, or the reader refuses flags on a step. Ruled: the key

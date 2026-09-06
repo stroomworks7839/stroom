@@ -920,7 +920,7 @@ survive, and the ratchet names any configuration that depended on `A*B*C*`.
    as fields.
 
 Everything else people are tempted to put between them is a mistake with a familiar shape, and
-this decision exists because the temptation demonstrably recurs. The the prototype project grew
+this decision exists because the temptation demonstrably recurs. The prototype project grew
 intermediate layers repeatedly and had to be fought back each time — its own docs record
 NodeConfig eras, legacy-node wrappers and multi-path compilation pipelines. And on the very day
 this was written, the same session that documented the two-layer target proposed a matcher
@@ -1253,8 +1253,11 @@ same day:* the packages follow the dependencies already measured — `engine.val
 `engine.match` and `engine.output` are created, `exec` keeps only the run, and the package line
 enforces value ← match ← exec; the two reference resolvers both stay, with the seam documented
 and the compile of conditions filed as design 10's follow-on rather than done under a structure
-design. *From the entry review, ruled the same day:* the sink factory moves onto `XmlByteSink`
-so the root package has no dependency downward; a progressive step's regex flags become part
+design. *From the entry review, ruled the same day:* the sink factory leaves the contract — callers
+construct `XmlByteSink` by name — so the root package has no dependency downward; a progressive step's regex flags become part
 of the pattern key rather than being silently ignored; and the `field` capture source is
 refused at compile time until it is defined. *From the phase 3 audit, 2026-09-06:* the
-classify mode evaluates its guards once on the way in, as every other mode does.
+classify mode evaluates its guards once on the way in, as every other mode does. *Built
+2026-09-05 to 2026-09-06 in eight phases, each audited; the exit review (design 27 §5.6,
+2026-09-06) placed `EngineVars` with the model and `PatternKey` with the matching, closing the
+two package cycles the plan had accepted.*

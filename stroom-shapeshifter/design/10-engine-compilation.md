@@ -49,9 +49,9 @@ candidate, and none may be acted on before a benchmark says which matter (§4):
 **Resolved so far** — change 1 (§6): anchored dispatch, matcher as field. Change 2 (§7): mode
 dispatch tables, `call-template` resolution. Change 3 (§8): reference strategies, pre-encoded
 literals and `Text` bytes, and pattern-by-text for regex `replace` — though a `matches`
-condition still looks its pattern up by text, so that row stays half-open with conditions.
+condition still looks its pattern up by text, so that row stays half-open with conditions (E39).
 Still open: step `Tag`/`TakeUntil` pre-encoding, `TakeWhile` byte tables, compiled
-conditions/guards, capture elimination, and the two rows above.
+conditions/guards (E39), capture elimination, and the two rows above.
 
 The regex library already proves the end state on its own layer; the engine's job is the same
 move for dispatch, references, bodies and steps. And the shape is **two layers, never three**

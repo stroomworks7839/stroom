@@ -1139,14 +1139,14 @@ silence is not: the compiler knows which template is the root and can see a capt
 in its body, and should refuse it by name, as it refuses captures on an eater. Not started.
 
 ### E38 — A structured configuration cannot author a whitespace-only text node inside an element
-**`resolved` 2026-09-04, the same day, by the user's ruling: the event sink delivers whitespace
+**`resolved` 2026-09-04, the same day, by the user's ruling:** the event sink delivers whitespace
 as the author wrote it; the byte sink keeps Saxon's rule, because it is a serialiser and an
 indenting serialiser at the end of a pipeline applies that rule anyway, while a non-indenting
 one writes the author's text as authored — the serialiser decides, which is Stroom's existing
 behaviour for a stylesheet's text nodes. `SaxEventSink` lost its pending-whitespace logic;
 `FullPipelineTest`'s text shape now matches Stroom's golden byte for byte. One consequence
 named: `omit-if-empty` on an element whose only content is whitespace omits it on the byte
-path and emits it with that whitespace on the event path, by the same division.**
+path and emits it with that whitespace on the event path, by the same division.
 
 Original text (found open): Found by the module's full-pipeline tests (`FullPipelineTest`), which
 mirror Stroom's `TestFileAppender` with Shapeshifter where the DS3 configuration and the
@@ -1174,3 +1174,35 @@ design 27 §2.7 (ruling 7): both resolvers stay until compiling conditions and c
 is measured to matter, and this entry is that measurement's owner. When it is done, `Refs`'
 resolution goes and `CompiledRefs` is the one resolver; its byte helper, which the level's
 capture normalisation also uses, moves rather than goes.
+
+### E40 — The three sinks duplicate the carry splice, the SAX call and the qname rule
+**`open` 2026-09-06.** Named at design 27's entry review and left alone by phase 6 so its move
+commit stayed a move: the carry-splice-decode sequence is written in `XmlByteSink`,
+`SaxEventSink` and `CharacterSink`; `SaxCall` and the counting `sax()` are verbatim in the two
+event sinks; `XmlByteSink.prefixOf` and `SaxEventSink.localOf` are halves of one qname rule; and
+the two structured sinks carry the same `Element`/`Attribute` bookkeeping by their own
+admission. Smallest shape: `Utf8.splice` returning the completed prefix and the new carry, a
+package-private holder for the SAX call and its counter, and the qname halves side by side.
+Pure hygiene, under the sink tests and the pipeline's goldens; no behaviour moves.
+
+### E41 — A variable's body is serialised with Saxon's indenting layout
+**`open` 2026-09-06.** A `variable` body runs through a `XmlByteSink` over a buffer with the
+indented layout, so a body that writes elements gets Saxon's newlines and three-space indent
+inside the variable's value. Design 27 ruling 8 filed the question (why a variable's text takes
+a serialiser's layout at all) as a behaviour question, not the structure design's; this entry
+is its owner. The exits: a raw layout for the buffer sink, or an `exec`-owned buffer sink that
+carries structure without a layout. Decide against a fixture that writes structure into a
+variable, if one exists; none in the corpus does today.
+
+### E42 — An apply-templates naming a template is a silent no-op at run time
+**`open` 2026-09-06.** `apply-templates` accepts `template_ref` — "invoke this named template
+rather than dispatching, while still matching content", the model says — and the reader reads
+it, `TemplateUses` checks the name exists, and the body interpreter then skips the directive on
+the strength of a comment saying the compiler had inlined it. Nothing inlines it: no pass
+reads `templateRef` beyond the existence check, and the `__rec_` mode `effectiveMode()` mints
+for it has no templates unless an author spelt them so by hand (the xmlbench challenger
+fixture does, and reaches the recursive scope through the mode, not the reference). Found by
+design 27's exit review. The exits: define the form and execute it — dispatch the named
+template's level under its own scope, which `ApplyDirective.recursive()` already provides for —
+or refuse it at compile time as ruling 10 refused the `field` capture source, until it is
+defined. Until ruled, the skip stands and the comment says what it is.
