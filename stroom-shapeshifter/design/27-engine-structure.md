@@ -625,8 +625,26 @@ so that a bisect lands on a package and not on a class. The `exec` package javad
 last, when the package holds only the run. *Gate:* the three suites; no benchmark, because no
 code moves within a class.
 
-### Phase 7 — The JSON families
+### Phase 7 — The JSON families — Done 2026-09-06
 
+*As built, two commits.* First the split, every member byte for byte as it was: `ProjectJson`
+(179 lines) keeps the project, its source and its templates and delegates to
+`MatchJson` (443), `ReferenceJson` (149), `ConditionJson`
+(241) and `OutputJson` (706), each family's reader and writer
+together so the round trip is kept where both halves can be seen, over `JsonFields`
+(238), which holds the primitives every family uses and states the format's rules
+as this format's — the spellings kept because the corpus is written in them, the origin named
+once. The four placements the entry review corrected are as corrected: regex flags and the
+pattern library with the match family, dispatch and casts among the primitives. A member
+another family calls is package-private, and the call is qualified by the family that owns
+it. Then what the split made possible: the four hand-rolled parsers for the constants the
+format spells lowercase — dispatch modes, casts, sort orders, severities — are one primitive
+with the same four messages, and `is-first` and `is-last`, the only payload-less variants
+written as an empty object, are written as the bare string every other one is, both spellings
+still read. The package javadoc names the families. Gate: engine 562, with the round-trip
+pin and every fixture read and written back, pipeline 154, app 5.
+
+*As written:*
 `MatchJson`, `ReferenceJson`, `ConditionJson`, `OutputJson`, `JsonFields` out of `ProjectJson`.
 `EveryVariantTest` is the gate, plus the corpus of fixtures read and written back.
 
