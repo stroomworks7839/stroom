@@ -167,7 +167,7 @@ instruction set.
 | `Containers` | Which instructions hold bodies, said once and exhaustively; the two walks that look for something anywhere inside a body — patterns to intern, templates referred to — recurse through it, so neither can stop short of an iteration again. 116 lines. |
 | `StructureCheck` | Was `Compiler.Structure`: attributes and namespaces after content, structure inside attribute values, `producesContent`; content-seen threaded as a returned boolean and the pass-through containers walked through `Containers` since phase 8. 188 lines at exit. |
 | `ReferenceCheck` | Was `Compiler.BodyScan` (E27's walk): reads and writes, the unknown-reference refusal, sequences and keys, iteration and group hazards, the substring version gate, E37's document-template rules. 603 lines at exit. |
-| `CompiledOp` | The ops, with `compile(body)` staying beside them — it is the body's compilation and already lives here. |
+| `CompiledOp` | The ops, with `compile(body)` staying beside them — it is the body's compilation and already lives here. *After the exit review (§5.6), `compile(body)` and its helpers are `BodyCompiler`, a class beside the ops; `CompiledOp` is the vocabulary alone.* |
 
 ### 2.4 `config.json` after the split
 
@@ -989,7 +989,9 @@ a line, applied.
 - Follow-on, structure: `CompiledOp.compile` and its six helpers as a `BodyCompiler` holding
   the compile context, which also takes the `Arity` enum and the package-private `Functions`
   off a public interface's signature; §2.3 placed `compile(body)` beside the ops, and a class in
-  the same package is beside — a pure move under the compile rows.
+  the same package is beside — a pure move under the compile rows. *Done the same day:
+  `BodyCompiler` (402 lines) holds the patterns, the project and the functions and compiles a
+  body against them; `CompiledOp` (260) is the vocabulary alone.*
 - Follow-on, model: the `Holder`/`Leaf`/`Binding` sub-interfaces on `OutputNode`, which would
   close the `default` arms on the patterns axis and let `producesContent`, `ReferenceCheck.visit`
   and `CompiledOp.compile` each lose their forty name-binding arms.

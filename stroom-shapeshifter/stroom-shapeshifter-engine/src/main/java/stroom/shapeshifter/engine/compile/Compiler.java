@@ -81,6 +81,7 @@ public final class Compiler {
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
 
+        final BodyCompiler bodies = new BodyCompiler(matches.patterns(), project, functions);
         for (final Template template : project.templates()) {
             refuseCaptures(template);
             final Encoding declared = declaredEncoding(template, transcodeFrom);
@@ -88,7 +89,7 @@ public final class Compiler {
             // The match first: it interns the patterns the body's compiled form resolves against.
             final CompiledMatch match = matches.compile(template, matchEncoding);
             templates.add(new CompiledTemplate(template, match,
-                    CompiledOp.compile(template.body(), matches.patterns(), project, functions),
+                    bodies.compile(template.body()),
                     declared));
         }
         final List<TemplateUses> uses = TemplateUses.of(project);
