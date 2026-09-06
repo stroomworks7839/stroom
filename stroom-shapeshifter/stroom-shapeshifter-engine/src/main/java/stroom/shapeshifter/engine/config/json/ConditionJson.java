@@ -219,8 +219,10 @@ public final class ConditionJson {
             case Condition.Or value -> JsonFields.wrap("or", JsonFields.array(value.conditions(),
                     ConditionJson::writeCondition));
             case Condition.Not value -> JsonFields.wrap("not", writeCondition(value.condition()));
-            case Condition.IsFirst ignored -> JsonFields.wrap("is-first", JsonFields.NODES.objectNode());
-            case Condition.IsLast ignored -> JsonFields.wrap("is-last", JsonFields.NODES.objectNode());
+            // Payload-less, so the bare string, as every other such variant is written; both
+            // spellings are read.
+            case Condition.IsFirst ignored -> JsonFields.NODES.stringNode("is-first");
+            case Condition.IsLast ignored -> JsonFields.NODES.stringNode("is-last");
             case Condition.Exists value -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();
                 body.set("select", ReferenceJson.writeRef(value.select()));

@@ -15,10 +15,14 @@
  */
 
 /**
- * Reading and writing the configuration model as JSON.
+ * The wire format: the JSON a configuration is stored as, read into a {@code Project} and
+ * written back from one.
  *
- * <p>One class, {@code ProjectJson}, holds the whole wire format. It exists as a seam: the model
- * it produces has no dependency on it, so a different serialiser — or a hand-written reader with
- * no third-party dependency at all — can be substituted without touching anything else.
+ * <p>{@code ProjectJson} is the way in and out; the families a template is made of have a
+ * class each — {@code MatchJson}, {@code ReferenceJson}, {@code ConditionJson},
+ * {@code OutputJson} — with a family's reader and writer together, because the round trip is
+ * the property that matters; {@code JsonFields} holds the primitives they all use and states
+ * the format's rules. The model does not depend on this package: it is a plain tree of
+ * records that a different serialiser, or none, could carry.
  */
 package stroom.shapeshifter.engine.config.json;

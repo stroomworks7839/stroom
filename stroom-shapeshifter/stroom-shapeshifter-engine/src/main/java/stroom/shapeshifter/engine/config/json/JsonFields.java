@@ -60,39 +60,47 @@ public final class JsonFields {
     private JsonFields() {
     }
 
-    static Dispatch readDispatch(final JsonNode node) {
-        if (!node.has("dispatch")) {
-            return null;
-        }
-        final String text = node.get("dispatch").asString();
+    /**
+     * The constants the format spells lowercase — dispatch modes, casts, sort orders,
+     * severities — read by one rule: the label upper-cased is the constant, and anything else is
+     * refused naming what it was meant to be.
+     */
+    static <E extends Enum<E>> E lowercase(final Class<E> type, final String label, final String what) {
         try {
-            return Dispatch.valueOf(text.toUpperCase(Locale.ROOT));
+            return Enum.valueOf(type, label.toUpperCase(Locale.ROOT));
         } catch (final IllegalArgumentException e) {
-            throw new ConfigException("Unknown dispatch mode: " + text);
+            throw new ConfigException("Unknown " + what + ": " + label);
         }
+    }
+
+    /** A constant in the format's lowercase spelling. */
+    static String lowercase(final Enum<?> value) {
+        return value.name().toLowerCase(Locale.ROOT);
+    }
+
+    /** A dispatch mode, or null when the directive leaves it to the configuration's default. */
+    static Dispatch readDispatch(final JsonNode node) {
+        return node.has("dispatch")
+                ? lowercase(Dispatch.class, node.get("dispatch").asString(), "dispatch mode")
+                : null;
     }
 
     static void writeDispatch(final ObjectNode node, final Dispatch dispatch) {
         if (dispatch != null) {
-            node.put("dispatch", dispatch.name().toLowerCase(Locale.ROOT));
+            node.put("dispatch", lowercase(dispatch));
         }
     }
 
+    /** A cast, spelt lowercase, or null for the uncast string reading. */
     static Cast readCast(final JsonNode body) {
-        if (!body.has("as") || body.get("as").isNull()) {
-            return null;
-        }
-        final String label = body.get("as").asString();
-        try {
-            return Cast.valueOf(label.toUpperCase(Locale.ROOT));
-        } catch (final IllegalArgumentException e) {
-            throw new ConfigException("Unknown cast: " + label);
-        }
+        return body.has("as") && !body.get("as").isNull()
+                ? lowercase(Cast.class, body.get("as").asString(), "cast")
+                : null;
     }
 
     static void writeCast(final ObjectNode body, final Cast as) {
         if (as != null) {
-            body.put("as", as.name().toLowerCase(Locale.ROOT));
+            body.put("as", lowercase(as));
         }
     }
 

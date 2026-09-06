@@ -31,7 +31,6 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * The output family of the wire format: every output instruction, sorts, branches, cases,
@@ -52,18 +51,9 @@ public final class OutputJson {
     private static OutputNode.Sort readSort(final JsonNode node) {
         JsonFields.checkFields(node, "sort", "by", "order", "as");
         final String spelling = JsonFields.optionalText(node, "order");
-        final OutputNode.Order order;
-        if (spelling == null) {
-            order = OutputNode.Order.ASCENDING;
-        } else {
-            try {
-                order = OutputNode.Order.valueOf(spelling.toUpperCase(Locale.ROOT));
-            } catch (final IllegalArgumentException e) {
-                // Only the order's own parse, so the message cannot be blamed on a
-                // neighbouring field that failed for its own reasons.
-                throw new ConfigException("Unknown sort order: " + spelling);
-            }
-        }
+        final OutputNode.Order order = spelling == null
+                ? OutputNode.Order.ASCENDING
+                : JsonFields.lowercase(OutputNode.Order.class, spelling, "sort order");
         return new OutputNode.Sort(ReferenceJson.readRef(JsonFields.required(node, "by", "sort")), order,
                 JsonFields.readCast(node));
     }
@@ -72,7 +62,7 @@ public final class OutputJson {
         final ObjectNode node = JsonFields.NODES.objectNode();
         node.set("by", ReferenceJson.writeRef(sort.by()));
         if (sort.order() != OutputNode.Order.ASCENDING) {
-            node.put("order", sort.order().name().toLowerCase(Locale.ROOT));
+            node.put("order", JsonFields.lowercase(sort.order()));
         }
         JsonFields.writeCast(node, sort.as());
         return node;
@@ -112,13 +102,8 @@ public final class OutputJson {
             case "apply-templates" -> new OutputNode.ApplyTemplates(readApply(body));
             case "emit-error" -> {
                 JsonFields.checkFields(body, "emit-error", "severity", "message");
-                final String severity = JsonFields.text(body, "severity", "emit-error");
-                final Severity level;
-                try {
-                    level = Severity.valueOf(severity.toUpperCase(Locale.ROOT));
-                } catch (final IllegalArgumentException e) {
-                    throw new ConfigException("Unknown emit-error severity: " + severity);
-                }
+                final Severity level = JsonFields.lowercase(
+                        Severity.class, JsonFields.text(body, "severity", "emit-error"), "emit-error severity");
                 yield new OutputNode.EmitError(level, ReferenceJson.readRef(JsonFields.required(body, "message",
                         "emit-error")));
             }
@@ -402,7 +387,7 @@ public final class OutputJson {
             case OutputNode.ApplyTemplates value -> JsonFields.wrap("apply-templates", writeApply(value.directive()));
             case OutputNode.EmitError value -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();
-                body.put("severity", value.severity().name().toLowerCase(Locale.ROOT));
+                body.put("severity", JsonFields.lowercase(value.severity()));
                 body.set("message", ReferenceJson.writeRef(value.message()));
                 yield JsonFields.wrap("emit-error", body);
             }
