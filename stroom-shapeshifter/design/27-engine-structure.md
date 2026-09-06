@@ -505,6 +505,14 @@ ledger's phase 4 items — two methods named `call`, `index` beside `Refs.index`
 apply's name sniff, the variable body's buffer sink — carry to phases 5 and 8, this phase
 having been the move.
 
+*The gate* (`design/benchmarks/2026-09-06-08*`). The move alone: every run row inside its
+interval against phase 3, and against the phase 0 column all but `win_sec_strict`, −1.2%, a
+hair outside — the interface residue phase 3 named. The audited commit, with the interface
+gone: every run row inside its interval against both — `win_sec_strict` 48.0 against the
+column's 48.3, `csv_header` +3.4% and `regex_lines` −0.5% against it — and the compile rows
+inside theirs but for `csv_header`'s standing gain and the progressive row's known spread.
+Phase 4 passes its gate on the baseline, and the residue is gone.
+
 *As written:*
 The interpreter region, with the registry, the key indexes and the warned sites as its fields.
 `vars` stops being reachable from anything but `Body` and the capture binding in `Level`, which is
