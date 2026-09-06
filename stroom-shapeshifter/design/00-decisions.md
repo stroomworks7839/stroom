@@ -1293,4 +1293,5 @@ walks lose their `default` arms; `Containers` goes, its lesson on `Holder`; `Bod
 switch stays a switch, because one function per instruction is the vocabulary's own length.
 
 **Consequences:** gated on the three suites and the compile rows, one commit for the model and
-one per walk. D35 is unchanged: two artefacts, and a sub-interface is neither.
+one per walk. D35 is unchanged: two artefacts, and a sub-interface is neither. *Built the same
+day, design 28 §6: no regression, `csv_header`'s compile row +12%.*

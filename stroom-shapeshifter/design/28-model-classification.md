@@ -144,4 +144,31 @@ whose per-tag switch is the format's, not the model's.
 
 ## 6. Record
 
-*To be written as built: the D-number, the commits, the gate, the benchmark, the audit.*
+*Built 2026-09-06 (D47), five commits: the model (`d8fa1782a2`), then one per walk — the
+structure check (`6c87ee08e6`), the reference check (`1354cc6d78`), the pattern walk
+(`c33c21a6ed`), the uses walk with `Containers` gone (`74fbd120d8`).*
+
+*As built.* Every record declares its classification in its `implements` clause, exactly as §2
+draws it; `Call` and `Tokenize` are transforms, having a select list and a name, which is the
+shape the reference check reads. `EveryVariantTest`, which walks the sealed hierarchy to prove
+one of everything round-trips, now sees through the sub-interfaces to the records. The walks
+are as §3 says: `StructureCheck.body` has twelve arms and `producesContent` is gone;
+`ReferenceCheck.visit` has one `Transform` arm for twenty-seven; `MatchCompiler.collect` asks
+the `Regexed` marker and has no `default`; `TemplateUses.collectUses` names the bindings and
+leaves it passes. `BodyCompiler`'s switch is untouched.
+
+*Gate.* Engine 566, pipeline 154, app 5, xmlbench compiles, fresh results. Compile rows, three
+forks, against `3369ab21cc` (the commit before `BodyCompiler`, so the two compile-path changes
+are measured together; both files under `design/benchmarks`, `…-compile-rows.json`):
+
+| Row | Δ |
+|---|---|
+| csv_header | +12.3% |
+| progressive | +5.4% |
+| regex_lines | +1.2% |
+| win_sec_strict, win_sec_xml | +0.4%, −0.1% |
+| apache_httpd, ausearch, win_sec | −1.4%, −1.5%, −1.8% (inside one interval) |
+
+The `csv_header` row recovers the 6% `Containers`' exhaustive switch cost at design 27 phase 1
+and more; the `regex_lines` −3.2% the `BodyCompiler` probe had shown on two forks is +1.2% here
+against the same base. No regression.

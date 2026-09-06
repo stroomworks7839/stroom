@@ -164,7 +164,7 @@ instruction set.
 | `Compiler` | The pass pipeline: encoding, per-template refusals and compilation, then the uses walk, name resolution and the dispatch lint through `TemplateUses`, then the body checks, zipped per template as today so the error a doubly faulty configuration reports does not change; builds the `CompiledProject`, with `structured` computed by the structure check rather than in the graph's constructor. 202 lines at exit. |
 | `TemplateUses` | What one template's body refers to, the templates it calls and the applies it makes, collected in one walk per body, and the two checks that read it: every name must exist, and the dispatch lint must know which modes are strict. |
 | `MatchCompiler` | Pattern interning (with a step's flags in the key, ruling 9), step resolution, once, and pre-encoding, `compileMatch`, the codec requirement; owns `patterns` as an instance. The not-yet refusal is `ConfigException.notYet`, since a capture refusal uses it too. The E29 block that cannot fire is deleted, its rationale one sentence on `RegexEncodings.forMatch`. 277 lines at exit. |
-| `Containers` | Which instructions hold bodies, said once and exhaustively; the two walks that look for something anywhere inside a body — patterns to intern, templates referred to — recurse through it, so neither can stop short of an iteration again. 116 lines. |
+| `Containers` | Which instructions hold bodies, said once and exhaustively; the two walks that look for something anywhere inside a body — patterns to intern, templates referred to — recurse through it, so neither can stop short of an iteration again. 116 lines. *Gone under D47 (design 28): the statement is the model's `Holder`, and the walks descend through `Holder.bodies()`.* |
 | `StructureCheck` | Was `Compiler.Structure`: attributes and namespaces after content, structure inside attribute values, `producesContent`; content-seen threaded as a returned boolean and the pass-through containers walked through `Containers` since phase 8. 188 lines at exit. |
 | `ReferenceCheck` | Was `Compiler.BodyScan` (E27's walk): reads and writes, the unknown-reference refusal, sequences and keys, iteration and group hazards, the substring version gate, E37's document-template rules. 603 lines at exit. |
 | `CompiledOp` | The ops, with `compile(body)` staying beside them — it is the body's compilation and already lives here. *After the exit review (§5.6), `compile(body)` and its helpers are `BodyCompiler`, a class beside the ops; `CompiledOp` is the vocabulary alone.* |
@@ -997,7 +997,8 @@ a line, applied.
   same path re-measures both against the same pre-move commit.*
 - Follow-on, model: the `Holder`/`Leaf`/`Binding` sub-interfaces on `OutputNode`, which would
   close the `default` arms on the patterns axis and let `producesContent`, `ReferenceCheck.visit`
-  and `CompiledOp.compile` each lose their forty name-binding arms.
+  and `CompiledOp.compile` each lose their forty name-binding arms. *Done the same day as
+  design 28 (D47); `BodyCompiler`'s switch stays by ruling.*
 - Follow-on, reader: typed primitives (`integer`, `text` refusing anything but a number or a
   string node) so a wrong-shaped scalar is refused by name rather than reported as invalid JSON;
   a behaviour change, so pinned when done. *Done the same day, ruled with E40: `integer`,

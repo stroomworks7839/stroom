@@ -108,6 +108,8 @@ The template engine's, in the parent design folder:
   resolution.
 - [27-engine-structure.md](design/27-engine-structure.md) — the engine's structure: a run over
   the graph, the passes, the packages and the direction between them (D45).
+- [28-model-classification.md](design/28-model-classification.md) — the model's instructions
+  classified as holders, bindings, transforms and leaves, so the walks say things once (D47).
 
 Prior art for both: Stroom's existing DS3 implementation at
 `stroom-pipeline/src/main/java/stroom/pipeline/xml/converter/ds3/`, which is also the
