@@ -177,13 +177,9 @@ final class Body {
                 case CompiledOp.Text text -> sink.write(text.bytes());
                 case CompiledOp.ValueOf valueOf ->
                         CompiledRefs.write(valueOf.ref(), match, matchCount, vars, contentEncoding, sink);
-                case CompiledOp.Apply apply -> {
-                    // A directive naming a template is the template_ref form, which no run
-                    // executes: the form is read and checked and then skipped here (E42).
-                    if (apply.directive().templateRef() == null) {
-                        apply(apply, match, matchCount, content, sink, inputBase, ignoreErrors, depth, contentEncoding);
-                    }
-                }
+                case CompiledOp.Apply apply ->
+                        apply(apply, match, matchCount, content, sink, inputBase, ignoreErrors, depth,
+                                contentEncoding);
                 case CompiledOp.If value -> {
                     if (test(value.test(), match, matchCount, contentEncoding)) {
                         body(value.then(), match, matchCount, content, sink,
@@ -906,9 +902,12 @@ final class Body {
         vars.push();
         vars.shadow(value.name());
 
+        // A variable is a value, not a document: its text is the bytes its body wrote, with no
+        // serialiser's newlines or indent inside it (E41, ruled 2026-09-06).
         final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         body(value.body(), match, matchCount, content,
-                new XmlByteSink(buffer), inputBase, ignoreErrors, depth, contentEncoding);
+                new XmlByteSink(buffer, XmlByteSink.Layout.FAITHFUL), inputBase, ignoreErrors, depth,
+                contentEncoding);
 
         List<Store> captured = vars.fromCurrentScope(value.name());
         if (captured != null && captured.stream().noneMatch(store -> store.lastIndex() >= 0)) {
@@ -984,7 +983,8 @@ final class Body {
      *
      * <p>Which content is a reference, and it is usually a group of the match just made — that is
      * how a row is broken into fields, and a field into parts. The templates that get it are the
-     * level of the named mode, dispatched as ordered choice, with the directive's
+     * level of the named mode — for a {@code template_ref}, the mode the graph registered holding
+     * that one template (E42) — dispatched as ordered choice, with the directive's
      * {@code ignoreErrors} as the level's reporting gate.
      */
     private void apply(final CompiledOp.Apply op,

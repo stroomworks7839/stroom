@@ -981,8 +981,10 @@ a line, applied.
   ahead of it, `Refs.resolve` and its byte helper stay until the measurement.
 - E40 — the sinks' three duplications (carry splice, SAX call, qname halves) and the shared
   `Element`/`Attribute` bookkeeping.
-- E41 — a variable's body takes Saxon's indenting layout (ruling 8's question).
-- E42 — the `template_ref` apply, defined and executed or refused at compile time.
+- E41 — a variable's body takes Saxon's indenting layout (ruling 8's question). *Resolved the
+  same day, D46: the faithful layout; a variable is a value.*
+- E42 — the `template_ref` apply, defined and executed or refused at compile time. *Resolved
+  the same day, D46: defined as the one-template mode, registered by the graph, and run.*
 - Follow-on, structure: `CompiledOp.compile` and its six helpers as a `BodyCompiler` holding
   the compile context, which also takes the `Arity` enum and the package-private `Functions`
   off a public interface's signature; §2.3 placed `compile(body)` beside the ops, and a class in

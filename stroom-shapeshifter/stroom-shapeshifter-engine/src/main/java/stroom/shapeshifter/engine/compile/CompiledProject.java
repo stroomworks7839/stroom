@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
+import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.match.PatternKey;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A configuration ready to run — the executable graph, and the second of the only two layers
@@ -55,7 +57,10 @@ public final class CompiledProject {
     /** Whether any body carries an element, attribute or namespace instruction (design 22 phase 2). */
     private final boolean structured;
 
-    /** Templates per mode, in authored order. The no-mode templates sit under the null key. */
+    /**
+     * Templates per mode, in authored order. The no-mode templates sit under the null key; a
+     * {@code template_ref}'s recursive mode holds its one template.
+     */
     private final Map<String, List<CompiledTemplate>> templatesByMode = new HashMap<>();
 
     /** The first template of each name — {@code call-template}'s meaning of a name. */
@@ -77,6 +82,8 @@ public final class CompiledProject {
      * @param warnings  anything worth saying that did not stop compilation
      * @param functions the definitions the configuration calls, bound once per run
      * @param structured whether any template writes structure, decided by the structure check
+     * @param recursiveTargets the templates {@code template_ref} directives name, each registered
+     *                  under its recursive mode as that mode's only template (E42)
      */
     public CompiledProject(final Project project,
                            final List<CompiledTemplate> templates,
@@ -85,7 +92,8 @@ public final class CompiledProject {
                            final Encoding transcodeFrom,
                            final List<Message> warnings,
                            final List<FunctionDefinition> functions,
-                           final boolean structured) {
+                           final boolean structured,
+                           final Set<String> recursiveTargets) {
         this.transcodeFrom = transcodeFrom;
         this.functions = List.copyOf(functions);
         this.project = project;
@@ -102,6 +110,11 @@ public final class CompiledProject {
             templatesByName.putIfAbsent(template.template().name(), template);
         }
         templatesByMode.replaceAll((mode, list) -> List.copyOf(list));
+        // A template_ref dispatches to a level holding the named template alone; the name was
+        // resolved and the mode's spelling reserved by the compiler's name resolution.
+        for (final String name : recursiveTargets) {
+            templatesByMode.put(ApplyDirective.recursiveMode(name), List.of(templatesByName.get(name)));
+        }
     }
 
     /**

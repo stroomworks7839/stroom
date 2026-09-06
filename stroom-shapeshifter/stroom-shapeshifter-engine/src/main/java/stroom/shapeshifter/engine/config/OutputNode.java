@@ -769,8 +769,9 @@ public sealed interface OutputNode {
      *                    no mode
      * @param withParam   parameters to pass to whichever template matches
      * @param maxDepth    how deep recursion may go before it is an error
-     * @param templateRef invoke this named template rather than dispatching, while still
-     *                    matching content — a hybrid of apply and call
+     * @param templateRef dispatch to this named template alone rather than to a mode, its match
+     *                    still having to match the content: the recursive form, which runs in a
+     *                    scope of its own ({@link #recursiveMode})
      * @param ignoreErrors suppress the dispatched level's skip and unmatched-content reports.
      *                     This is DS3's {@code ignoreErrors} on the group whose content is being
      *                     dispatched: the container owns the gate, not the templates inside it
@@ -791,7 +792,17 @@ public sealed interface OutputNode {
 
         /** The mode this directive dispatches to: its own, or the recursive one for its template. */
         public String effectiveMode() {
-            return templateRef != null ? RECURSIVE_PREFIX + templateRef : mode;
+            return templateRef != null ? recursiveMode(templateRef) : mode;
+        }
+
+        /**
+         * The mode a {@code template_ref} directive dispatches to: a mode the graph registers
+         * holding that one template, so the form is an apply-templates whose level is the named
+         * template alone — its match still runs, its captures still bind, {@code maxDepth} still
+         * guards the recursion (E42, ruled 2026-09-06).
+         */
+        public static String recursiveMode(final String templateName) {
+            return RECURSIVE_PREFIX + templateName;
         }
 
         /**

@@ -1262,3 +1262,21 @@ every other mode does. *Built 2026-09-05 to 2026-09-06, phases 0 to 8, phases 1 
 audited before the next and phase 8 after it closed; the exit review (design 27 §5.6,
 2026-09-06) placed `EngineVars` with the model and `PatternKey` with the matching, closing the
 two package cycles the plan had accepted.*
+
+## D46 — `template_ref` is the one-template mode; a variable's text is what its body wrote
+
+*Ruled by Jon, 2026-09-06, on design 27's exit review (E41, E42).* Two definitions the code
+had left implicit:
+
+- **`template_ref` on `apply-templates`** is shorthand for an apply whose level holds the named
+  template alone. The named template's match must match the content, its captures bind, and it
+  may hand what it captured back to itself, `max_depth` deep, in a scope of its own. The graph
+  registers the mode; the spelling `__rec_<name>` is reserved for it. It is distinct from
+  `call-template`, which invokes a body with parameters and matches nothing, and from a
+  library reference, which D11 resolves at import as it does patterns. Before this the form
+  was read and checked and then silently skipped at run time.
+- **A variable is a value, not a document.** Its text is the bytes its body wrote, with no
+  serialiser layout inside it. A value the body binds by name keeps its type, as before.
+
+**Consequences:** both pinned in `EngineBehaviourTest`; no corpus golden moved. A library of
+reusable templates, when it comes, is D11's import-time resolution and needs no run-time form.

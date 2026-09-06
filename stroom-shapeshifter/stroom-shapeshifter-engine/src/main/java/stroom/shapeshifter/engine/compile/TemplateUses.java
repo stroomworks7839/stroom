@@ -27,6 +27,7 @@ import stroom.shapeshifter.regex.LeadingAnchor;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -94,6 +95,32 @@ record TemplateUses(Template template, List<String> calls, List<OutputNode.Apply
                 }
             }
         }
+        for (final String name : recursiveTargets(uses)) {
+            final String reserved = OutputNode.ApplyDirective.recursiveMode(name);
+            for (final Template template : project.templates()) {
+                if (reserved.equals(template.mode())) {
+                    throw new ConfigException("Template '" + template.name() + "' is in mode '" + reserved
+                                              + "', which is the mode a template_ref to '" + name
+                                              + "' dispatches to; choose another mode name");
+                }
+            }
+        }
+    }
+
+    /**
+     * The templates {@code template_ref} directives name, for the graph to register each under
+     * its recursive mode (E42).
+     */
+    static Set<String> recursiveTargets(final List<TemplateUses> uses) {
+        final Set<String> targets = new LinkedHashSet<>();
+        for (final TemplateUses use : uses) {
+            for (final OutputNode.ApplyDirective directive : use.applies()) {
+                if (directive.templateRef() != null) {
+                    targets.add(directive.templateRef());
+                }
+            }
+        }
+        return targets;
     }
 
     /**

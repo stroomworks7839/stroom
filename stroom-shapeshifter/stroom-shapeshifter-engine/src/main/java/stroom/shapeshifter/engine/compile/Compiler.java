@@ -96,7 +96,7 @@ public final class Compiler {
         TemplateUses.lintDispatch(project, templates, uses, warnings);
         final boolean structured = bodyChecks(project, warnings);
         return new CompiledProject(project, templates, matches.patterns(), encoding, transcodeFrom,
-                warnings, functions.used(), structured);
+                warnings, functions.used(), structured, TemplateUses.recursiveTargets(uses));
     }
 
     /** What a template's captures alone can be wrong about. */

@@ -1186,7 +1186,14 @@ package-private holder for the SAX call and its counter, and the qname halves si
 Pure hygiene, under the sink tests and the pipeline's goldens; no behaviour moves.
 
 ### E41 — A variable's body is serialised with Saxon's indenting layout
-**`open` 2026-09-06.** A `variable` body runs through an `XmlByteSink` over a buffer with the
+**`resolved` 2026-09-06, the same day, by the user's ruling (D46):** a variable is a value, not
+a document, so its text is the bytes its body wrote — the buffer sink takes the faithful layout,
+and a body that writes elements leaves no serialiser newlines or indent inside the value. Typed
+values were never affected: a transform bound by name never touches a sink, and a value bound
+inside the body is promoted with its type. Pinned in `EngineBehaviourTest`; no corpus fixture
+writes structure into a variable, so no golden moved.
+
+Original text (found open): A `variable` body runs through an `XmlByteSink` over a buffer with the
 indented layout, so a body that writes elements gets Saxon's newlines and three-space indent
 inside the variable's value. Design 27 ruling 8 filed the question (why a variable's text takes
 a serialiser's layout at all) as a behaviour question, not the structure design's; this entry
@@ -1195,7 +1202,18 @@ carries structure without a layout. Decide against a fixture that writes structu
 variable, if one exists; none in the corpus does today.
 
 ### E42 — An apply-templates naming a template is a silent no-op at run time
-**`open` 2026-09-06.** `apply-templates` accepts `template_ref` — "invoke this named template
+**`resolved` 2026-09-06, the same day, by the user's ruling (D46):** `template_ref` is defined
+as shorthand for an apply-templates whose level holds the named template alone. The compiler
+resolves the name, reserves the mode's spelling (an authored template in a `__rec_<name>` mode
+that a `template_ref` to that name would dispatch to is refused), and the graph registers the
+mode with its one template; the interpreter's skip is gone. The named template's match still
+runs against the content, its captures still bind, `max_depth` still guards the recursion and
+the form still runs in a scope of its own. It is not `call-template`, which invokes a body with
+parameters and matches nothing, and not a library reference, which D11 resolves at import as
+it does patterns. Pinned in `EngineBehaviourTest` with a template that hands the rest of its
+match back to itself.
+
+Original text (found open): `apply-templates` accepts `template_ref` — "invoke this named template
 rather than dispatching, while still matching content", the model says — and the reader reads
 it, `TemplateUses` checks the name exists, and the body interpreter then skips the directive on
 the strength of a comment saying the compiler had inlined it. Nothing inlines it: no pass
