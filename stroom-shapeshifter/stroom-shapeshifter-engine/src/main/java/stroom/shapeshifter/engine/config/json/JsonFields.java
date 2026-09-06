@@ -52,7 +52,7 @@ import java.util.function.Function;
  * {@link ConfigException}, not a silent default — a configuration that half-loads is worse than
  * one that does not load, because it runs.
  */
-public final class JsonFields {
+final class JsonFields {
 
     /** The one node factory every writer builds with. */
     static final JsonNodeFactory NODES = JsonNodeFactory.instance;
@@ -78,7 +78,7 @@ public final class JsonFields {
         return value.name().toLowerCase(Locale.ROOT);
     }
 
-    /** A dispatch mode, or null when the directive leaves it to the configuration's default. */
+    /** A dispatch mode, or null to inherit the configuration's (D36). */
     static Dispatch readDispatch(final JsonNode node) {
         return node.has("dispatch")
                 ? lowercase(Dispatch.class, node.get("dispatch").asString(), "dispatch mode")
@@ -104,10 +104,19 @@ public final class JsonFields {
         }
     }
 
+    /** A variant and its payload, in the wire format's spelling. */
     record Tagged(String name, JsonNode body) {
 
     }
 
+    /**
+     * Read a sum type's variant.
+     *
+     * <p>Two spellings, and the difference is not decorative: a variant carrying nothing is a
+     * bare string, and a variant carrying something is a single-key object. Anything else — an
+     * object with two keys, say — means the document was not written to this format's rules,
+     * and saying so here is more useful than guessing.
+     */
     static Tagged tag(final JsonNode node, final String what) {
         if (node == null || node.isNull()) {
             throw new ConfigException("Missing " + what);
@@ -134,6 +143,15 @@ public final class JsonFields {
         return node;
     }
 
+    /**
+     * Reject fields the model does not know.
+     *
+     * <p>The alternative is a configuration that loads with a typo in it and runs with the
+     * setting silently absent, which is a bug that presents as a data problem weeks later.
+     * Absent is tolerated — an optional object that is not there — but a value of the wrong
+     * shape is not, because a document carrying a string where an object belongs was written
+     * by something with a different format in mind.
+     */
     static void checkFields(final JsonNode node, final String what, final String... known) {
         if (node == null || node.isNull()) {
             return;
@@ -174,6 +192,7 @@ public final class JsonFields {
         return value == null || value.isNull() ? null : value.asString();
     }
 
+    /** A bare id value. */
     static UUID uuid(final JsonNode node, final String what) {
         try {
             return UUID.fromString(node.asString());
@@ -197,7 +216,7 @@ public final class JsonFields {
     }
 
     static <T> List<T> list(final JsonNode node, final String what,
-                                    final Function<JsonNode, T> reader) {
+                            final Function<JsonNode, T> reader) {
         if (node == null || node.isNull()) {
             return List.of();
         }
@@ -215,6 +234,11 @@ public final class JsonFields {
         return node;
     }
 
+    /**
+     * The wire format's variant names are PascalCase and Java's constants are SCREAMING_SNAKE,
+     * so the two are mapped by shape rather than matched, which keeps the enums free of
+     * serialisation detail.
+     */
     static <E extends Enum<E>> E constant(final Class<E> type, final String name) {
         final String screaming = name
                 .replaceAll("([a-z0-9])([A-Z])", "$1_$2")

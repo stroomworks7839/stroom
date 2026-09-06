@@ -69,6 +69,28 @@ class EveryVariantTest {
 
     private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-0000000000ff");
 
+
+    /**
+     * A payload-less condition is written as the bare string, like every other payload-less
+     * variant; the round trip alone would not notice a regression to the empty object, which
+     * the reader also accepts (design 27 phase 7).
+     */
+    @Test
+    void payloadLessConditionsAreWrittenBare() {
+        final String json = """
+                {"name": "bare", "version": 5,
+                 "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                   "body": [{"if": {"test": {"is-first": {}}, "then": [{"text": "!"}]}},
+                            {"if": {"test": "is-last", "then": [{"text": "?"}]}}]}
+                 ]}
+                """;
+        final String written = ProjectReader.write(ProjectReader.read(json));
+        assertThat(written).contains("\"is-first\"").contains("\"is-last\"")
+                .doesNotContainPattern("\"is-first\"\\s*:\\s*\\{").doesNotContainPattern("\"is-last\"\\s*:\\s*\\{");
+    }
+
     @Test
     void everyVariantSurvivesARoundTrip() {
         final Project project = oneOfEverything();

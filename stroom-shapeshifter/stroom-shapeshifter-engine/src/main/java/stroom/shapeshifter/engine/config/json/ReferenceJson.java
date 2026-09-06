@@ -30,7 +30,7 @@ import tools.jackson.databind.node.ObjectNode;
  * The reference family of the wire format: captures, capture sources, reference expressions,
  * their parts and match indexes — read and written together.
  */
-public final class ReferenceJson {
+final class ReferenceJson {
 
     private ReferenceJson() {
     }

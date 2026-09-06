@@ -41,7 +41,7 @@ import java.util.List;
  * written together, because the round trip is the property that matters and it is kept most
  * easily where both halves can be seen at once.
  */
-public final class MatchJson {
+final class MatchJson {
 
     private MatchJson() {
     }
@@ -417,6 +417,11 @@ public final class MatchJson {
                 node.path("negated").asBoolean(false));
     }
 
+    /**
+     * One character of a charset — exactly one. A supplementary character is two UTF-16 units,
+     * which the model's {@code char} cannot carry, and truncating it to its high surrogate would
+     * match something the author never wrote.
+     */
     private static char character(final JsonNode node) {
         final String value = node.asString();
         if (value.length() != 1) {

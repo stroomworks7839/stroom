@@ -36,7 +36,7 @@ import java.util.List;
  * The output family of the wire format: every output instruction, sorts, branches, cases,
  * entries, {@code with-param} parameters and apply directives — read and written together.
  */
-public final class OutputJson {
+final class OutputJson {
 
     private OutputJson() {
     }
@@ -78,7 +78,7 @@ public final class OutputJson {
                 JsonFields.checkFields(body, "call", "function", "select", "name");
                 yield new OutputNode.Call(JsonFields.text(body, "function", "call"),
                         JsonFields.list(body.get("select"), "select", ReferenceJson::readRef),
-                                JsonFields.optionalText(body, "name"));
+                        JsonFields.optionalText(body, "name"));
             }
             case "if" -> {
                 JsonFields.checkFields(body, "if", "test", "then");
@@ -117,7 +117,7 @@ public final class OutputJson {
                 JsonFields.checkFields(body, "variable", "name", "body");
                 yield new OutputNode.Variable(
                         JsonFields.text(body, "name", "variable"), JsonFields.list(body.get("body"), "body",
-                                OutputJson::readOutput));
+                        OutputJson::readOutput));
             }
             case "element" -> {
                 JsonFields.checkFields(body, "element", "name", "namespace", "omit-if-empty", "body");
@@ -277,7 +277,7 @@ public final class OutputJson {
                 JsonFields.checkFields(body, "distinct-values", "select", "name");
                 yield new OutputNode.DistinctValues(
                         JsonFields.text(body, "select", "distinct-values"), JsonFields.text(body, "name",
-                                "distinct-values"));
+                        "distinct-values"));
             }
             case "sequence" -> {
                 JsonFields.checkFields(body, "sequence", "name");
@@ -604,6 +604,7 @@ public final class OutputJson {
         };
     }
 
+    /** A one-input transform with one string parameter beside its select. */
     private static ObjectNode selectAndMarker(final List<RefExpression> select,
                                               final String field,
                                               final String parameter,
@@ -660,6 +661,7 @@ public final class OutputJson {
         return node;
     }
 
+    /** A parameter is a two-element array: the wire format spells a tuple as a {@code [name, value]} pair. */
     private static Param readParam(final JsonNode node) {
         if (!node.isArray() || node.size() != 2) {
             throw new ConfigException("A parameter must be a [name, value] pair");

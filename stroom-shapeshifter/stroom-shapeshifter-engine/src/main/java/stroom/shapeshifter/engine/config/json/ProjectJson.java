@@ -40,6 +40,7 @@ public final class ProjectJson {
     private ProjectJson() {
     }
 
+    /** Read a whole configuration. */
     public static Project readProject(final JsonNode node) {
         JsonFields.expectObject(node, "project");
         JsonFields.checkFields(node, "project", "name", "version", "source", "templates", "patterns");
@@ -51,6 +52,7 @@ public final class ProjectJson {
                 JsonFields.list(node.get("patterns"), "patterns", MatchJson::readPattern));
     }
 
+    /** Write a whole configuration. */
     public static ObjectNode writeProject(final Project project) {
         final ObjectNode node = JsonFields.NODES.objectNode();
         node.put("name", project.name());

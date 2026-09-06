@@ -25,13 +25,12 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * The condition family of the wire format: conditions, the six comparisons and their five
  * legacy spellings, operands — read and written together.
  */
-public final class ConditionJson {
+final class ConditionJson {
 
     private ConditionJson() {
     }
@@ -55,13 +54,13 @@ public final class ConditionJson {
                 JsonFields.checkFields(body, "equals", "select", "value");
                 yield stringEquality(Condition.Compare.Op.EQ,
                         ReferenceJson.readRef(JsonFields.required(body, "select", "equals")),
-                                JsonFields.text(body, "value", "equals"));
+                        JsonFields.text(body, "value", "equals"));
             }
             case "not-equals" -> {
                 JsonFields.checkFields(body, "not-equals", "select", "value");
                 yield stringEquality(Condition.Compare.Op.NE,
                         ReferenceJson.readRef(JsonFields.required(body, "select", "not-equals")),
-                                JsonFields.text(body, "value", "not-equals"));
+                        JsonFields.text(body, "value", "not-equals"));
             }
             case "ref-equals" -> {
                 JsonFields.checkFields(body, "ref-equals", "left", "right");
@@ -82,19 +81,19 @@ public final class ConditionJson {
                 JsonFields.checkFields(body, "matches", "select", "pattern");
                 yield new Condition.Matches(
                         ReferenceJson.readRef(JsonFields.required(body, "select", "matches")),
-                                JsonFields.text(body, "pattern", "matches"));
+                        JsonFields.text(body, "pattern", "matches"));
             }
             case "contains" -> {
                 JsonFields.checkFields(body, "contains", "select", "substring");
                 yield new Condition.Contains(
                         ReferenceJson.readRef(JsonFields.required(body, "select", "contains")),
-                                JsonFields.text(body, "substring", "contains"));
+                        JsonFields.text(body, "substring", "contains"));
             }
             case "starts-with" -> {
                 JsonFields.checkFields(body, "starts-with", "select", "prefix");
                 yield new Condition.StartsWith(
                         ReferenceJson.readRef(JsonFields.required(body, "select", "starts-with")),
-                                JsonFields.text(body, "prefix", "starts-with"));
+                        JsonFields.text(body, "prefix", "starts-with"));
             }
             case "greater-than" -> {
                 JsonFields.checkFields(body, "greater-than", "select", "value");
@@ -134,6 +133,15 @@ public final class ConditionJson {
                 readOperand(JsonFields.required(body, "right", "comparison")));
     }
 
+    /**
+     * A legacy equality: string forms compared, whatever the types (design/17 §8) — with the
+     * legacy absent rule preserved exactly. The old evaluator
+     * read an absent side as the empty string, so {@code equals($x, "")} was an absence test
+     * and {@code not-equals($x, "v")} was true on a missing field. The strict {@code eq}
+     * says absent never compares, so the aliases spell those cases out: an empty literal
+     * becomes an {@code exists} test, and {@code not-equals} becomes {@code not(eq(...))},
+     * which is true on absence exactly as the old reading was.
+     */
     private static Condition stringEquality(final Condition.Compare.Op op,
                                             final RefExpression select,
                                             final String value) {
@@ -148,6 +156,7 @@ public final class ConditionJson {
         return op == Condition.Compare.Op.EQ ? equal : new Condition.Not(equal);
     }
 
+    /** A legacy ordering: the numeric parse it always performed, made visible. */
     private static Condition numericOrdering(final Condition.Compare.Op op,
                                              final RefExpression select,
                                              final double value) {
@@ -206,7 +215,7 @@ public final class ConditionJson {
                 final ObjectNode body = JsonFields.NODES.objectNode();
                 body.set("left", writeOperand(value.left()));
                 body.set("right", writeOperand(value.right()));
-                yield JsonFields.wrap(value.op().name().toLowerCase(Locale.ROOT), body);
+                yield JsonFields.wrap(JsonFields.lowercase(value.op()), body);
             }
             case Condition.Matches value -> JsonFields.wrap("matches", selectAnd("pattern", value.select(),
                     value.pattern()));

@@ -627,7 +627,8 @@ code moves within a class.
 
 ### Phase 7 — The JSON families — Done 2026-09-06
 
-*As built, two commits.* First the split, every member byte for byte as it was: `ProjectJson`
+*As built, two commits.* First the split, every member's code byte for byte as it was (its
+javadoc was another matter; see the audit): `ProjectJson`
 (179 lines) keeps the project, its source and its templates and delegates to
 `MatchJson` (443), `ReferenceJson` (149), `ConditionJson`
 (241) and `OutputJson` (706), each family's reader and writer
@@ -642,7 +643,23 @@ format spells lowercase — dispatch modes, casts, sort orders, severities — a
 with the same four messages, and `is-first` and `is-last`, the only payload-less variants
 written as an empty object, are written as the bare string every other one is, both spellings
 still read. The package javadoc names the families. Gate: engine 562, with the round-trip
-pin and every fixture read and written back, pipeline 154, app 5.
+pin and every fixture read and written back, pipeline 154, app 5. The sizes are the final
+ones; the split alone had `ConditionJson` 239, `JsonFields` 230 and `OutputJson` 721.
+
+*Audited 2026-09-06.* Every one of the old file's eighty-two members is at HEAD once, in the
+family the ledger mapped it to, with its code byte for byte apart from qualification,
+visibility and wrapping; every package-private member has a caller in another family; the
+lowercase primitive reproduces its four messages exactly and keeps each parse as narrow as
+it was. **A regression, fixed:** the splitter separated a javadoc from its declaration and
+dropped it — thirteen of the old file's fourteen member javadocs, four of them the entry
+review's own rewordings — and they are back, verbatim, from the old file. **Fixed besides:**
+the five family classes were public with no public member and no reader outside the
+package; the comparison operator's writer was a fifth lowercase writer outside the primitive;
+`readDispatch`'s new javadoc described only one of its two callers; eight wrapped lines were
+misaligned; and a pin now asserts the bare spelling is written, since the round trip alone
+would accept a regression to the empty object. **Noted:** a body's `asInt()` on an unchecked
+node relies on Jackson's coercion, the ledger's open item; `expectObject` has one caller.
+Engine 563, pipeline 154, app 5.
 
 *As written:*
 `MatchJson`, `ReferenceJson`, `ConditionJson`, `OutputJson`, `JsonFields` out of `ProjectJson`.
