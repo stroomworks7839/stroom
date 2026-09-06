@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.config;
 
 import stroom.shapeshifter.engine.Severity;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -32,57 +33,146 @@ import java.util.List;
  * values, produces one, and either writes it or — when {@code name} is set — binds it to a
  * variable instead. That dual behaviour is why they are instructions rather than expressions.
  */
-public sealed interface OutputNode {
+public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding, OutputNode.Leaf {
+
+    /**
+     * An instruction that holds bodies, walked in written order (D47). Every walk that needs to
+     * look inside an instruction asks here rather than carrying its own list of containers,
+     * which twice stopped short of an iteration's body before this was said once (design 27
+     * phase 1). A record is a holder or it is not: the {@code permits} list is the statement.
+     */
+    sealed interface Holder extends OutputNode
+            permits If, Choose, Switch, Variable, Element, Attribute, ForEach, ForEachGroup {
+
+        /** The bodies nested directly inside, in written order. */
+        List<List<OutputNode>> bodies();
+    }
+
+    /**
+     * An instruction that may bind a name instead of, or as well as, writing (D47). The
+     * transforms bind when named and write when not; a variable, a sequence and a key always
+     * bind, their constructors refusing a missing name.
+     */
+    sealed interface Binding extends OutputNode
+            permits Transform, Variable, Sequence, Key, KeyGet, Count, Sum, Avg, Min, Max,
+                    DistinctValues, ValueMap {
+
+        String name();
+
+        /** Whether this instruction binds rather than writes. */
+        default boolean binds() {
+            return name() != null;
+        }
+    }
+
+    /**
+     * A transform: one or more selected values in, one value out, written or bound (D47). The
+     * function library's shape, and a function call's.
+     */
+    sealed interface Transform extends Binding
+            permits Translate, StringJoin, Call, Replace, LowerCase, UpperCase, NormalizeSpace,
+                    Trim, Substring, Tokenize, Number, Add, Subtract, Multiply, Divide, Mod, Round,
+                    Floor, Ceiling, Abs, StringLength, SubstringBefore, SubstringAfter, StartsWith,
+                    EndsWith, Contains, FormatNumber, ParseDate, FormatDate {
+
+        List<RefExpression> select();
+    }
+
+    /** Everything else: writes, reads or declares, and holds nothing (D47). */
+    sealed interface Leaf extends OutputNode
+            permits Text, ValueOf, EmitError, ApplyTemplates, CallTemplate, Namespace, Append {
+
+    }
+
+    /**
+     * An instruction whose text may be a regular expression the compiler interns (D47). A
+     * marker, not a classification: it is outside the {@code permits} lists, and an instruction
+     * with a pattern of its own declares it here, in the same clause that says everything else
+     * about it, so the pattern-collecting walk needs no list of its own.
+     */
+    interface Regexed {
+
+        String pattern();
+
+        boolean isRegex();
+    }
 
     /**
      * Emit a message into the run's message stream, as {@code value-of} emits into output —
      * authored diagnostics for paths the author can name, like the cautionary eater (D36).
      * A {@link Severity#FATAL} emission aborts the run.
      */
-    record EmitError(Severity severity, RefExpression message) implements OutputNode {
+    record EmitError(Severity severity, RefExpression message) implements Leaf {
 
     }
 
     /** Write literal text. XSLT: {@code xsl:text}. */
-    record Text(String value) implements OutputNode {
+    record Text(String value) implements Leaf {
 
     }
 
     /** Write the value of an expression. XSLT: {@code xsl:value-of}. */
-    record ValueOf(RefExpression select) implements OutputNode {
+    record ValueOf(RefExpression select) implements Leaf {
 
     }
 
     /** Run a body if a condition holds. XSLT: {@code xsl:if}. */
-    record If(Condition test, List<OutputNode> then) implements OutputNode {
+    record If(Condition test, List<OutputNode> then) implements Holder {
 
         public If {
             then = then == null ? List.of() : List.copyOf(then);
         }
+
+        @Override
+        public List<List<OutputNode>> bodies() {
+            return List.of(then);
+        }
     }
 
     /** Run the first branch whose condition holds. XSLT: {@code xsl:choose}. */
-    record Choose(List<WhenBranch> when, List<OutputNode> otherwise) implements OutputNode {
+    record Choose(List<WhenBranch> when, List<OutputNode> otherwise) implements Holder {
 
         public Choose {
             when = when == null ? List.of() : List.copyOf(when);
             otherwise = otherwise == null ? List.of() : List.copyOf(otherwise);
+        }
+
+        /** The branches in written order, then the otherwise. */
+        @Override
+        public List<List<OutputNode>> bodies() {
+            final List<List<OutputNode>> bodies = new ArrayList<>(when.size() + 1);
+            for (final WhenBranch branch : when) {
+                bodies.add(branch.body());
+            }
+            bodies.add(otherwise);
+            return bodies;
         }
     }
 
     /** Run the branch whose value matches, comparing a single expression against literals. */
     record Switch(RefExpression select,
                   List<SwitchCase> cases,
-                  List<OutputNode> defaultBody) implements OutputNode {
+                  List<OutputNode> defaultBody) implements Holder {
 
         public Switch {
             cases = cases == null ? List.of() : List.copyOf(cases);
             defaultBody = defaultBody == null ? List.of() : List.copyOf(defaultBody);
         }
+
+        /** The cases in written order, then the default. */
+        @Override
+        public List<List<OutputNode>> bodies() {
+            final List<List<OutputNode>> bodies = new ArrayList<>(cases.size() + 1);
+            for (final SwitchCase switchCase : cases) {
+                bodies.add(switchCase.body());
+            }
+            bodies.add(defaultBody);
+            return bodies;
+        }
     }
 
     /** Match templates against some content. XSLT: {@code xsl:apply-templates}. */
-    record ApplyTemplates(ApplyDirective directive) implements OutputNode {
+    record ApplyTemplates(ApplyDirective directive) implements Leaf {
 
     }
 
@@ -92,7 +182,7 @@ public sealed interface OutputNode {
      * @param name      the template to invoke
      * @param withParam parameters to pass, in order
      */
-    record CallTemplate(String name, List<Param> withParam) implements OutputNode {
+    record CallTemplate(String name, List<Param> withParam) implements Leaf {
 
         public CallTemplate {
             withParam = withParam == null ? List.of() : List.copyOf(withParam);
@@ -100,10 +190,15 @@ public sealed interface OutputNode {
     }
 
     /** Bind a variable to what a nested body writes. XSLT: {@code xsl:variable}. */
-    record Variable(String name, List<OutputNode> body) implements OutputNode {
+    record Variable(String name, List<OutputNode> body) implements Holder, Binding {
 
         public Variable {
             body = body == null ? List.of() : List.copyOf(body);
+        }
+
+        @Override
+        public List<List<OutputNode>> bodies() {
+            return List.of(body);
         }
     }
 
@@ -122,10 +217,15 @@ public sealed interface OutputNode {
      *                    (DS3's lazy {@code <record>}, P1 in design 21)
      */
     record Element(String name, String namespace, boolean omitIfEmpty, List<OutputNode> body)
-            implements OutputNode {
+            implements Holder {
 
         public Element {
             body = body == null ? List.of() : List.copyOf(body);
+        }
+
+        @Override
+        public List<List<OutputNode>> bodies() {
+            return List.of(body);
         }
     }
 
@@ -136,15 +236,20 @@ public sealed interface OutputNode {
      * @param omitIfEmpty drop the attribute if its value came out empty (DS3's normalised
      *                    {@code <data>} attributes, P2 in design 21)
      */
-    record Attribute(String name, boolean omitIfEmpty, List<OutputNode> body) implements OutputNode {
+    record Attribute(String name, boolean omitIfEmpty, List<OutputNode> body) implements Holder {
 
         public Attribute {
             body = body == null ? List.of() : List.copyOf(body);
         }
+
+        @Override
+        public List<List<OutputNode>> bodies() {
+            return List.of(body);
+        }
     }
 
     /** Declare a prefix on the enclosing element; the empty prefix is the default namespace. */
-    record Namespace(String prefix, String uri) implements OutputNode {
+    record Namespace(String prefix, String uri) implements Leaf {
 
         public Namespace {
             prefix = prefix == null ? "" : prefix;
@@ -162,7 +267,7 @@ public sealed interface OutputNode {
     record ValueMap(RefExpression select,
                     List<Entry> entries,
                     String defaultValue,
-                    String name) implements OutputNode {
+                    String name) implements Binding {
 
         public ValueMap {
             entries = entries == null ? List.of() : List.copyOf(entries);
@@ -178,7 +283,7 @@ public sealed interface OutputNode {
      * select list — positional, absent where a reference resolves to nothing — and, with a
      * name, a binding rather than a write.
      */
-    record Call(String function, List<RefExpression> select, String name) implements OutputNode {
+    record Call(String function, List<RefExpression> select, String name) implements Transform {
 
     }
 
@@ -191,7 +296,7 @@ public sealed interface OutputNode {
     record Translate(List<RefExpression> select,
                      List<String> from,
                      List<String> to,
-                     String name) implements OutputNode {
+                     String name) implements Transform {
 
         public Translate {
             select = select == null ? List.of() : List.copyOf(select);
@@ -201,7 +306,8 @@ public sealed interface OutputNode {
     }
 
     /** Join values with a separator. XSLT: {@code string-join()}. */
-    record StringJoin(List<RefExpression> select, String separator, String name) implements OutputNode {
+    record StringJoin(List<RefExpression> select, String separator, String name)
+            implements Transform {
 
         public StringJoin {
             select = select == null ? List.of() : List.copyOf(select);
@@ -218,7 +324,7 @@ public sealed interface OutputNode {
                    String pattern,
                    String replacement,
                    boolean isRegex,
-                   String name) implements OutputNode {
+                   String name) implements Transform, Regexed {
 
         public Replace {
             select = select == null ? List.of() : List.copyOf(select);
@@ -226,7 +332,7 @@ public sealed interface OutputNode {
     }
 
     /** Lower-case. XSLT: {@code lower-case()}. */
-    record LowerCase(List<RefExpression> select, String name) implements OutputNode {
+    record LowerCase(List<RefExpression> select, String name) implements Transform {
 
         public LowerCase {
             select = select == null ? List.of() : List.copyOf(select);
@@ -234,7 +340,7 @@ public sealed interface OutputNode {
     }
 
     /** Upper-case. XSLT: {@code upper-case()}. */
-    record UpperCase(List<RefExpression> select, String name) implements OutputNode {
+    record UpperCase(List<RefExpression> select, String name) implements Transform {
 
         public UpperCase {
             select = select == null ? List.of() : List.copyOf(select);
@@ -242,7 +348,7 @@ public sealed interface OutputNode {
     }
 
     /** Collapse runs of whitespace. XSLT: {@code normalize-space()}. */
-    record NormalizeSpace(List<RefExpression> select, String name) implements OutputNode {
+    record NormalizeSpace(List<RefExpression> select, String name) implements Transform {
 
         public NormalizeSpace {
             select = select == null ? List.of() : List.copyOf(select);
@@ -250,7 +356,7 @@ public sealed interface OutputNode {
     }
 
     /** Strip leading and trailing whitespace. */
-    record Trim(List<RefExpression> select, String name) implements OutputNode {
+    record Trim(List<RefExpression> select, String name) implements Transform {
 
         public Trim {
             select = select == null ? List.of() : List.copyOf(select);
@@ -270,7 +376,7 @@ public sealed interface OutputNode {
     record Substring(List<RefExpression> select,
                      Integer start,
                      Integer length,
-                     String name) implements OutputNode {
+                     String name) implements Transform {
 
         public Substring {
             select = select == null ? List.of() : List.copyOf(select);
@@ -278,7 +384,8 @@ public sealed interface OutputNode {
     }
 
     /** Split on a delimiter. XSLT: {@code tokenize()}. */
-    record Tokenize(List<RefExpression> select, String delimiter, String name) implements OutputNode {
+    record Tokenize(List<RefExpression> select, String delimiter, String name)
+            implements Transform {
 
         public Tokenize {
             select = select == null ? List.of() : List.copyOf(select);
@@ -286,7 +393,7 @@ public sealed interface OutputNode {
     }
 
     /** Read as a number. XSLT: {@code number()}. */
-    record Number(List<RefExpression> select, String name) implements OutputNode {
+    record Number(List<RefExpression> select, String name) implements Transform {
 
         public Number {
             select = select == null ? List.of() : List.copyOf(select);
@@ -299,7 +406,7 @@ public sealed interface OutputNode {
     // -----------------------------------------------------------------------------------
 
     /** Fold {@code +} over the inputs. Whole numbers stay exact; overflow promotes (§11). */
-    record Add(List<RefExpression> select, String name) implements OutputNode {
+    record Add(List<RefExpression> select, String name) implements Transform {
 
         public Add {
             select = select == null ? List.of() : List.copyOf(select);
@@ -307,7 +414,7 @@ public sealed interface OutputNode {
     }
 
     /** {@code a - b}, exactly two inputs. */
-    record Subtract(List<RefExpression> select, String name) implements OutputNode {
+    record Subtract(List<RefExpression> select, String name) implements Transform {
 
         public Subtract {
             select = select == null ? List.of() : List.copyOf(select);
@@ -315,7 +422,7 @@ public sealed interface OutputNode {
     }
 
     /** Fold {@code *} over the inputs. */
-    record Multiply(List<RefExpression> select, String name) implements OutputNode {
+    record Multiply(List<RefExpression> select, String name) implements Transform {
 
         public Multiply {
             select = select == null ? List.of() : List.copyOf(select);
@@ -323,7 +430,7 @@ public sealed interface OutputNode {
     }
 
     /** {@code a / b}. Whole when exact, fractional otherwise; division by zero is absent. */
-    record Divide(List<RefExpression> select, String name) implements OutputNode {
+    record Divide(List<RefExpression> select, String name) implements Transform {
 
         public Divide {
             select = select == null ? List.of() : List.copyOf(select);
@@ -331,7 +438,7 @@ public sealed interface OutputNode {
     }
 
     /** {@code a mod b}, the sign following the dividend — XPath's {@code mod}, Java's {@code %}. */
-    record Mod(List<RefExpression> select, String name) implements OutputNode {
+    record Mod(List<RefExpression> select, String name) implements Transform {
 
         public Mod {
             select = select == null ? List.of() : List.copyOf(select);
@@ -339,7 +446,7 @@ public sealed interface OutputNode {
     }
 
     /** Round half-up on ties — XPath's {@code round()}: {@code round(-2.5)} is {@code -2}. */
-    record Round(List<RefExpression> select, String name) implements OutputNode {
+    record Round(List<RefExpression> select, String name) implements Transform {
 
         public Round {
             select = select == null ? List.of() : List.copyOf(select);
@@ -347,7 +454,7 @@ public sealed interface OutputNode {
     }
 
     /** XSLT: {@code floor()}. */
-    record Floor(List<RefExpression> select, String name) implements OutputNode {
+    record Floor(List<RefExpression> select, String name) implements Transform {
 
         public Floor {
             select = select == null ? List.of() : List.copyOf(select);
@@ -355,7 +462,7 @@ public sealed interface OutputNode {
     }
 
     /** XSLT: {@code ceiling()}. */
-    record Ceiling(List<RefExpression> select, String name) implements OutputNode {
+    record Ceiling(List<RefExpression> select, String name) implements Transform {
 
         public Ceiling {
             select = select == null ? List.of() : List.copyOf(select);
@@ -363,7 +470,7 @@ public sealed interface OutputNode {
     }
 
     /** XPath: {@code abs()}. */
-    record Abs(List<RefExpression> select, String name) implements OutputNode {
+    record Abs(List<RefExpression> select, String name) implements Transform {
 
         public Abs {
             select = select == null ? List.of() : List.copyOf(select);
@@ -375,7 +482,7 @@ public sealed interface OutputNode {
     // -----------------------------------------------------------------------------------
 
     /** Length in code points — what a person would count. XSLT: {@code string-length()}. */
-    record StringLength(List<RefExpression> select, String name) implements OutputNode {
+    record StringLength(List<RefExpression> select, String name) implements Transform {
 
         public StringLength {
             select = select == null ? List.of() : List.copyOf(select);
@@ -389,7 +496,7 @@ public sealed interface OutputNode {
      */
     record SubstringBefore(List<RefExpression> select,
                            String marker,
-                           String name) implements OutputNode {
+                           String name) implements Transform {
 
         public SubstringBefore {
             select = select == null ? List.of() : List.copyOf(select);
@@ -399,7 +506,7 @@ public sealed interface OutputNode {
     /** The part after the first occurrence of a marker; absent when not found, as above. */
     record SubstringAfter(List<RefExpression> select,
                           String marker,
-                          String name) implements OutputNode {
+                          String name) implements Transform {
 
         public SubstringAfter {
             select = select == null ? List.of() : List.copyOf(select);
@@ -407,7 +514,7 @@ public sealed interface OutputNode {
     }
 
     /** {@code starts-with()} as a value — for binding and for choosing on a computed flag. */
-    record StartsWith(List<RefExpression> select, String prefix, String name) implements OutputNode {
+    record StartsWith(List<RefExpression> select, String prefix, String name) implements Transform {
 
         public StartsWith {
             select = select == null ? List.of() : List.copyOf(select);
@@ -415,7 +522,7 @@ public sealed interface OutputNode {
     }
 
     /** {@code ends-with()} as a value. */
-    record EndsWith(List<RefExpression> select, String suffix, String name) implements OutputNode {
+    record EndsWith(List<RefExpression> select, String suffix, String name) implements Transform {
 
         public EndsWith {
             select = select == null ? List.of() : List.copyOf(select);
@@ -423,7 +530,8 @@ public sealed interface OutputNode {
     }
 
     /** {@code contains()} as a value. The condition of the same name stays; this one binds. */
-    record Contains(List<RefExpression> select, String substring, String name) implements OutputNode {
+    record Contains(List<RefExpression> select, String substring, String name)
+            implements Transform {
 
         public Contains {
             select = select == null ? List.of() : List.copyOf(select);
@@ -438,7 +546,7 @@ public sealed interface OutputNode {
      */
     record FormatNumber(List<RefExpression> select,
                         String picture,
-                        String name) implements OutputNode {
+                        String name) implements Transform {
 
         public FormatNumber {
             select = select == null ? List.of() : List.copyOf(select);
@@ -464,7 +572,7 @@ public sealed interface OutputNode {
      * collides with a capture is refused, because a template's first-match clearing would
      * empty the accumulation underneath it mid-run (design/16 §9).
      */
-    record Sequence(String name) implements OutputNode {
+    record Sequence(String name) implements Binding {
 
         public Sequence {
             if (name == null || name.isEmpty()) {
@@ -480,7 +588,7 @@ public sealed interface OutputNode {
      * position, so a hole in one would mean nothing at all; the sparse reading belongs to
      * capture-indexed stores, where an index is a match number and a gap is meaningful.
      */
-    record Append(String name, RefExpression select) implements OutputNode {
+    record Append(String name, RefExpression select) implements Leaf {
 
         public Append {
             if (name == null || name.isEmpty()) {
@@ -502,7 +610,7 @@ public sealed interface OutputNode {
      *               {@code __last} bound (§4.3)
      */
     record ForEach(String select, String as, List<Sort> sort, List<OutputNode> body)
-            implements OutputNode {
+            implements Holder {
 
         public ForEach {
             if (select == null || select.isEmpty()) {
@@ -510,6 +618,11 @@ public sealed interface OutputNode {
             }
             sort = sort == null ? List.of() : List.copyOf(sort);
             body = body == null ? List.of() : List.copyOf(body);
+        }
+
+        @Override
+        public List<List<OutputNode>> bodies() {
+            return List.of(body);
         }
     }
 
@@ -528,13 +641,18 @@ public sealed interface OutputNode {
      *                group by the entry's own value
      */
     record ForEachGroup(String select, RefExpression groupBy, List<OutputNode> body)
-            implements OutputNode {
+            implements Holder {
 
         public ForEachGroup {
             if (select == null || select.isEmpty()) {
                 throw new ConfigException("A for-each-group needs the name of a sequence");
             }
             body = body == null ? List.of() : List.copyOf(body);
+        }
+
+        @Override
+        public List<List<OutputNode>> bodies() {
+            return List.of(body);
         }
     }
 
@@ -553,7 +671,7 @@ public sealed interface OutputNode {
      * @param groupBy the key each entry is filed under, evaluated with {@code __index}
      *                bound, or null to file each entry under its own value
      */
-    record Key(String name, String select, RefExpression groupBy) implements OutputNode {
+    record Key(String name, String select, RefExpression groupBy) implements Binding {
 
         public Key {
             if (name == null || name.isEmpty()) {
@@ -573,7 +691,7 @@ public sealed interface OutputNode {
      * times and {@code count} reports as 0: the same non-answer XSLT's {@code key()} gives,
      * and not an error.
      */
-    record KeyGet(String key, RefExpression select, String name) implements OutputNode {
+    record KeyGet(String key, RefExpression select, String name) implements Binding {
 
         public KeyGet {
             if (key == null || key.isEmpty()) {
@@ -619,7 +737,7 @@ public sealed interface OutputNode {
      * fold over computed values is wanted it is composed — walk the source, {@code append}
      * the computed value, fold that.
      */
-    record Count(String select, String name) implements OutputNode {
+    record Count(String select, String name) implements Binding {
 
         public Count {
             requireSequence(select, "count");
@@ -631,7 +749,7 @@ public sealed interface OutputNode {
      * fractional otherwise (design/17 §11); <b>zero</b> over an empty sequence, which is
      * XPath's answer for {@code sum(())}.
      */
-    record Sum(String select, String name) implements OutputNode {
+    record Sum(String select, String name) implements Binding {
 
         public Sum {
             requireSequence(select, "sum");
@@ -642,7 +760,7 @@ public sealed interface OutputNode {
      * The mean. <b>Absent</b> over an empty sequence rather than zero — XPath's answer for
      * {@code avg(())} too, and the engine's own word for "there was no value".
      */
-    record Avg(String select, String name) implements OutputNode {
+    record Avg(String select, String name) implements Binding {
 
         public Avg {
             requireSequence(select, "avg");
@@ -650,7 +768,7 @@ public sealed interface OutputNode {
     }
 
     /** The smallest entry, ordered by {@code as} — uncast orders by string form (17 §8). */
-    record Min(String select, Cast as, String name) implements OutputNode {
+    record Min(String select, Cast as, String name) implements Binding {
 
         public Min {
             requireSequence(select, "min");
@@ -658,7 +776,7 @@ public sealed interface OutputNode {
     }
 
     /** The largest entry, under the same ordering. */
-    record Max(String select, Cast as, String name) implements OutputNode {
+    record Max(String select, Cast as, String name) implements Binding {
 
         public Max {
             requireSequence(select, "max");
@@ -669,7 +787,7 @@ public sealed interface OutputNode {
      * The distinct entries of a sequence, bound as a dense one — first appearance order,
      * compared by string form, which is the same total reading an uncast ordering uses.
      */
-    record DistinctValues(String select, String name) implements OutputNode {
+    record DistinctValues(String select, String name) implements Binding {
 
         public DistinctValues {
             requireSequence(select, "distinct-values");
@@ -703,7 +821,7 @@ public sealed interface OutputNode {
                      String pattern,
                      String timezone,
                      RefExpression reference,
-                     String name) implements OutputNode {
+                     String name) implements Transform {
 
         public ParseDate {
             select = select == null ? List.of() : List.copyOf(select);
@@ -721,7 +839,7 @@ public sealed interface OutputNode {
     record FormatDate(List<RefExpression> select,
                       String pattern,
                       String timezone,
-                      String name) implements OutputNode {
+                      String name) implements Transform {
 
         public FormatDate {
             select = select == null ? List.of() : List.copyOf(select);

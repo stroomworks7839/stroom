@@ -37,7 +37,6 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -105,13 +104,29 @@ class EveryVariantTest {
         for (final Class<?> sum : List.of(MatchExpression.class, MatchStep.class, StepRef.class,
                 Predicate.class, CaptureSource.class, Condition.class, OutputNode.class,
                 RefPart.class)) {
-            final List<Class<?>> missing = Arrays.stream(sum.getPermittedSubclasses())
+            final List<Class<?>> missing = variants(sum).stream()
                     .filter(variant -> !found.contains(variant))
                     .toList();
             assertThat(missing)
                     .as("%s variants not covered by oneOfEverything()", sum.getSimpleName())
                     .isEmpty();
         }
+    }
+
+    /**
+     * The records a sealed type permits, through any sealed interfaces between: an
+     * {@code OutputNode} is a holder, a binding or a leaf before it is an instruction (D47).
+     */
+    private static List<Class<?>> variants(final Class<?> sum) {
+        final List<Class<?>> records = new ArrayList<>();
+        for (final Class<?> permitted : sum.getPermittedSubclasses()) {
+            if (permitted.isInterface()) {
+                records.addAll(variants(permitted));
+            } else {
+                records.add(permitted);
+            }
+        }
+        return records;
     }
 
     // -----------------------------------------------------------------------------------
