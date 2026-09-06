@@ -221,14 +221,6 @@ final class ReferenceCheck {
             case OutputNode.Namespace ignored -> {
             }
             case OutputNode.ValueMap value -> transform(List.of(value.select()), value.name());
-            case OutputNode.Translate value -> transform(value.select(), value.name());
-            case OutputNode.StringJoin value -> transform(value.select(), value.name());
-            case OutputNode.Call value -> transform(value.select(), value.name());
-            case OutputNode.Replace value -> transform(value.select(), value.name());
-            case OutputNode.LowerCase value -> transform(value.select(), value.name());
-            case OutputNode.UpperCase value -> transform(value.select(), value.name());
-            case OutputNode.NormalizeSpace value -> transform(value.select(), value.name());
-            case OutputNode.Trim value -> transform(value.select(), value.name());
             case OutputNode.Substring value -> {
                 // Only an explicit start moves at the version gate; an omitted one means
                 // "from the beginning" under either base (design/17 §7).
@@ -237,29 +229,12 @@ final class ReferenceCheck {
                 }
                 transform(value.select(), value.name());
             }
-            case OutputNode.Tokenize value -> transform(value.select(), value.name());
-            case OutputNode.Number value -> transform(value.select(), value.name());
-            case OutputNode.Add value -> transform(value.select(), value.name());
-            case OutputNode.Subtract value -> transform(value.select(), value.name());
-            case OutputNode.Multiply value -> transform(value.select(), value.name());
-            case OutputNode.Divide value -> transform(value.select(), value.name());
-            case OutputNode.Mod value -> transform(value.select(), value.name());
-            case OutputNode.Round value -> transform(value.select(), value.name());
-            case OutputNode.Floor value -> transform(value.select(), value.name());
-            case OutputNode.Ceiling value -> transform(value.select(), value.name());
-            case OutputNode.Abs value -> transform(value.select(), value.name());
-            case OutputNode.StringLength value -> transform(value.select(), value.name());
-            case OutputNode.SubstringBefore value -> transform(value.select(), value.name());
-            case OutputNode.SubstringAfter value -> transform(value.select(), value.name());
-            case OutputNode.StartsWith value -> transform(value.select(), value.name());
-            case OutputNode.EndsWith value -> transform(value.select(), value.name());
-            case OutputNode.Contains value -> transform(value.select(), value.name());
-            case OutputNode.FormatNumber value -> transform(value.select(), value.name());
             case OutputNode.ParseDate value -> {
                 transform(value.select(), value.name());
                 read(value.reference());
             }
-            case OutputNode.FormatDate value -> transform(value.select(), value.name());
+            // Every other transform: its selects read, its name bound when it has one.
+            case OutputNode.Transform value -> transform(value.select(), value.name());
             case OutputNode.Sequence value -> {
                 declaredSequences.add(value.name());
                 writable.add(value.name());
