@@ -1271,9 +1271,10 @@ had left implicit:
 - **`template_ref` on `apply-templates`** is shorthand for an apply whose level holds the named
   template alone. The named template's match must match the content, its captures bind, and it
   may hand what it captured back to itself, `max_depth` deep, in a scope of its own. The graph
-  registers the mode; the spelling `__rec_<name>` is reserved for it. It is distinct from
+  registers the mode; the spelling `__rec_<name>` is reserved for it, an authored template
+  in that mode being refused where a `template_ref` to the name exists. It is distinct from
   `call-template`, which invokes a body with parameters and matches nothing, and from a
-  library reference, which D11 resolves at import as it does patterns. Before this the form
+  library reference, resolved at import as D11 resolves patterns. Before this the form
   was read and checked and then silently skipped at run time.
 - **A variable is a value, not a document.** Its text is the bytes its body wrote, with no
   serialiser layout inside it. A value the body binds by name keeps its type, as before.
@@ -1293,5 +1294,7 @@ walks lose their `default` arms; `Containers` goes, its lesson on `Holder`; `Bod
 switch stays a switch, because one function per instruction is the vocabulary's own length.
 
 **Consequences:** gated on the three suites and the compile rows, one commit for the model and
-one per walk. D35 is unchanged: two artefacts, and a sub-interface is neither. *Built the same
+one per walk, the five gated together at the last (the model commit removed `Containers` ahead
+of its last caller, so the four before the last do not build alone). D35 is unchanged: two
+artifacts, and a sub-interface is neither. *Built the same
 day, design 28 §6: no regression, `csv_header`'s compile row +12%.*

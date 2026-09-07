@@ -1218,8 +1218,8 @@ that a `template_ref` to that name would dispatch to is refused), and the graph 
 mode with its one template; the interpreter's skip is gone. The named template's match still
 runs against the content, its captures still bind, `max_depth` still guards the recursion and
 the form still runs in a scope of its own. It is not `call-template`, which invokes a body with
-parameters and matches nothing, and not a library reference, which D11 resolves at import as
-it does patterns. Pinned in `EngineBehaviourTest` with a template that hands the rest of its
+parameters and matches nothing, and not a library reference, resolved at import as D11
+resolves patterns. Pinned in `EngineBehaviourTest` with a template that hands the rest of its
 match back to itself.
 
 Original text (found open): `apply-templates` accepts `template_ref` — "invoke this named template
