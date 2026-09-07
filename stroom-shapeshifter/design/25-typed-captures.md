@@ -1,11 +1,12 @@
 # Typed captures: a value knows its encoding, and nothing is transcoded until someone asks
 
-**Status: design, ruled 2026-09-04 (D43) and deferred the same day; deferral lifted
-2026-09-07, design 24 having been built. Amended 2026-09-07 with §9 — a capture declares what
-it is, and the capture binding is compiled — on the user's direction; the amendment awaits a
-ruling (D50). Amends E3's "stores hold UTF-8" and design 17 §3.1's string row when built, and
-takes the capture half of E39. Engine only. Design 24's character sink decodes the internal
-UTF-8 form under E3 today and gains the sink declaration of §4 when this lands.**
+**Status: design, ruled 2026-09-04 (D43) and deferred the same day; deferral lifted 2026-09-07,
+design 24 having been built. Amended 2026-09-07 with §9 — a capture declares what it is, and the
+capture binding is compiled — on the user's direction, and ruled the same day (D50), every
+question as recommended. Building. Amends E3's "stores hold UTF-8" and design 17 §3.1's string
+row when built, and takes the capture half of E39. Engine only. Design 24's character sink
+decodes the internal UTF-8 form under E3 today and gains the sink declaration of §4 when this
+lands.**
 
 Today a captured slice of the input is converted to UTF-8 the moment it is bound to a
 variable (`Executor.normalise`, E3), and a slice of the *current* match is converted on the
@@ -213,7 +214,7 @@ from D13 and E3; this design's as-built record.
 
 *Added 2026-09-07 on the user's direction: a capture is a variable like any other, so it
 should be able to say what kind it holds — and say it once, at bind, rather than have every
-consumer convert. Awaiting D50.*
+consumer convert. Ruled 2026-09-07 (D50), every question as recommended.*
 
 ### 9.1 The field
 
@@ -297,7 +298,7 @@ beyond the value's type (§3). The lint that checks capture names against reads
 - The round trip: `as` reads and writes through `ReferenceJson`, `EveryVariantTest` sees it,
   and an unknown cast label is refused by name as `Cast`'s other readers refuse it.
 
-### 9.4 Questions for the ruling (D50)
+### 9.4 Questions for the ruling — all four ruled 2026-09-07, each as recommended (D50)
 
 1. **A failed cast at bind:** absent, as the table says (*recommended*), or a `FATAL` message
    naming the capture and the bytes. Absent keeps the table the single source and treats a

@@ -1226,7 +1226,7 @@ would need — framing, integers, slicing, a byte-writing element — is E36, no
 
 *Deferral lifted 2026-09-07, design 24 built. Amended the same day with §9 — a capture
 declares its kind through `as`, cast once at bind, on a compiled capture that also takes
-E39's capture half — awaiting D50.*
+E39's capture half — ruled D50.*
 
 ## D44 — Extension functions: a registry and a contract in the engine, Stroom's functions in the pipeline
 
@@ -1347,3 +1347,26 @@ its own arithmetic and comparison; that is a new kind, not a cast.
 **Consequences:** a rename across the engine and the three designs that name the kinds; the
 two casts on operands, sorts, `min` and `max` now, and on capture bindings when design 25 §9
 lands (D50). No configuration in the corpus names a kind, so no golden moves.
+
+## D50 — A capture declares its kind, once, on a compiled capture
+
+*Ruled by Jon, 2026-09-07, on design 25 §9, every question as recommended.* A capture
+binding takes `as`, the cast vocabulary of D49, applied once at bind by the casting table: an
+author says which captures are read as text, as a whole number, as a fractional one, as a
+boolean or as a date, and a capture nobody casts is never converted. Four answers:
+
+1. **A cast that fails is absent**, as the table says of an operand — the slot is removed as
+   an unmatched capture's is; `exists` is false. A field that is sometimes not a number is
+   input, not error; `emit-error` under `exists` makes it one where the author wants that.
+2. **`as: string` fills the UTF-8 memo at bind.** The value stays `Bytes` tagged UTF-8 with
+   its text form computed up front — free on UTF-8, and E3's conversion chosen per capture
+   on any other feed.
+3. **E39's capture half comes here.** A `CompiledCapture`, built once per binding, holds the
+   source, the tag and the cast; `select` and key-value sources resolve through the compiled
+   reference, and `Refs` loses its capture callers. E39 narrows to conditions.
+4. **Phases 1 to 4 now, E36 after.** The tag, the sink declaration, the compiled capture with
+   its cast, the record. E36's framing step needs the captured `Integer` phase 3 provides.
+
+**Consequences:** design 25 builds in its four phases, each audited before the next, gated on
+the corpus, `EncodedInputTest`, §9.3's pins and the capture workloads' compile and run rows.
+No golden moves: every fixture's captures are uncast. The deferral D43 recorded is over.

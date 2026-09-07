@@ -1182,7 +1182,7 @@ design 27 §2.7 (ruling 7): both resolvers stay until compiling conditions and c
 is measured to matter, and this entry is that measurement's owner. When it is done, `Refs`'
 resolution goes and `CompiledRefs` is the one resolver; its byte helper, which the level's
 capture normalisation also uses, moves rather than goes. *2026-09-07: the capture half is
-taken by design 25 §9 (awaiting D50) — a compiled capture is where the declared cast lives,
+taken by design 25 §9 (D50) — a compiled capture is where the declared cast lives,
 so the `select` and key-value sources compile with it; conditions stay this entry's.*
 
 ### E40 — The three sinks duplicate the carry splice, the SAX call and the qname rule
