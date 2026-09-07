@@ -132,20 +132,19 @@ public final class Splitter {
                                            final Encoding encoding) {
         for (int i = from; i < to; i++) {
             if (data[i] == delimiter) {
-                final byte[] content = Arrays.copyOfRange(data, from, i);
+                // Groups 1 and 2 are the same bytes here, so they are the same value: one
+                // object per field fewer on the hottest delimiter path.
+                final TypedValue content =
+                        TypedValue.of(Arrays.copyOfRange(data, from, i), encoding);
                 return new MatchResult(new TypedValue[]{
                         TypedValue.of(Arrays.copyOfRange(data, from, i + 1), encoding),
-                        TypedValue.of(content, encoding),
-                        TypedValue.of(content, encoding)},
+                        content,
+                        content},
                         i + 1 - from, 0);
             }
         }
-        final byte[] content = Arrays.copyOfRange(data, from, to);
-        return new MatchResult(new TypedValue[]{
-                TypedValue.of(content, encoding),
-                TypedValue.of(content, encoding),
-                TypedValue.of(content, encoding)},
-                to - from, 0);
+        final TypedValue content = TypedValue.of(Arrays.copyOfRange(data, from, to), encoding);
+        return new MatchResult(new TypedValue[]{content, content, content}, to - from, 0);
     }
 
     private static MatchResult build(final byte[] data,
@@ -183,15 +182,15 @@ public final class Splitter {
         }
 
         final byte[] group1 = Arrays.copyOfRange(data, contentStart, Math.max(contentStart, contentEnd));
-        final byte[] group2 = escapes.isEmpty()
-                ? group1
-                : stripEscapes(data, contentStart, contentEnd, escape.length, escapes);
+        // Group 2 is group 1 with the escapes stripped, and the same value when there are none.
+        final TypedValue content = TypedValue.of(group1, encoding);
+        final TypedValue unescaped = escapes.isEmpty()
+                ? content
+                : TypedValue.of(stripEscapes(data, contentStart, contentEnd, escape.length,
+                        escapes), encoding);
 
         return new MatchResult(new TypedValue[]{
-                TypedValue.of(group0, encoding),
-                TypedValue.of(group1, encoding),
-                TypedValue.of(group2, encoding)},
-                matchEnd - from, 0);
+                TypedValue.of(group0, encoding), content, unescaped}, matchEnd - from, 0);
     }
 
     private static byte[] stripEscapes(final byte[] data,
