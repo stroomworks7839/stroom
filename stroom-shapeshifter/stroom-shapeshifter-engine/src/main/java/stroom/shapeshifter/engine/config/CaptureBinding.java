@@ -22,9 +22,6 @@ package stroom.shapeshifter.engine.config;
  * <p>Captures are populated after a successful match and before the body runs, which is the
  * whole reason a guard cannot see them.
  *
- * @param name   the name the value takes in scope
- * @param select where the value comes from
- *
  * @param name   the variable the value binds to (ignored by a key-value source, which names
  *               its own)
  * @param select where the value comes from

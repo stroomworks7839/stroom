@@ -1349,7 +1349,7 @@ its own arithmetic and comparison; that is a new kind, not a cast.
 
 **Consequences:** a rename across the engine and the three designs that name the kinds; the
 two casts on operands, sorts, `min` and `max` now, and on capture bindings when design 25 §9
-lands (D50). No configuration in the corpus names a kind, so no golden moves.
+lands (D50; *landed 2026-09-07*). No configuration in the corpus names a kind, so no golden moves.
 
 ## D50 — A capture declares its kind, once, on a compiled capture
 
@@ -1365,7 +1365,7 @@ boolean or as a date, and a capture nobody casts is never converted. Four answer
    its text form computed up front — free on UTF-8, and E3's conversion chosen per capture
    on any other feed.
 3. **E39's capture half comes here.** A `CompiledCapture`, built once per binding, holds the
-   source, the tag and the cast; `select` and key-value sources resolve through the compiled
+   name, the source and the cast; `select` and key-value sources resolve through the compiled
    reference, and `Refs` loses its capture callers. E39 narrows to conditions.
 4. **Phases 1 to 4 now, E36 after.** The tag, the sink declaration, the compiled capture with
    its cast, the record. E36's framing step needs the captured `Integer` phase 3 provides.

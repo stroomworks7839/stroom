@@ -51,7 +51,7 @@ That is the whole design. What follows is where the tag comes from, who reads it
 | a group of the current match — regex, delimiter, `All`, a progressive step | the template's *effective* encoding (`Level.effective`: its E3 override, else the run's) |
 | the output of a decode step — base64, hex, gzip, deflate — inside a progressive match | the same: the steps that follow already read those bytes under the template's encoding, so that is what they are |
 | a literal — `text`, a `RefPart.Text`, a default value, a function argument | UTF-8 (they are Java strings) |
-| a composite of parts (`Refs.resolve`), a key-value capture, a `Select` capture | UTF-8: parts are joined in their UTF-8 forms, as design 17 §3.1 says a multi-part expression is a string by construction |
+| a composite of parts (`Refs.resolve` for a condition, `CompiledRefs` for a body or a capture since phase 3), a key-value capture, a `Select` capture | UTF-8: parts are joined in their UTF-8 forms, as design 17 §3.1 says a multi-part expression is a string by construction |
 | a function result | UTF-8, or a non-`Bytes` kind |
 | under a transcode-family source (UTF-16, design 19 phase 6) | UTF-8: the stream was decoded whole before matching, so every slice already is |
 
@@ -270,16 +270,16 @@ overlapping, not "inside the interval"; back to back, not interleaved; 299–317
 benchmarks README told what a `run-rows` file is; D42 pointed here.*
 
 *Measured 2026-09-07, four run rows at five forks against the phase 1 commit (`35515569b0`),
-files under `design/benchmarks`. At the phase commit: `apache_httpd` +0.2%, `progressive`
-+0.1%, `win_sec_xml` −0.6%, `csv_header` −3.2% (forks 190–200 against 198–205). With the
-seam testing UTF-8 itself first (`80dd6ca2ea`), two rows again: `apache_httpd` −0.8% with one
-collapsed fork, `csv_header` −2.9% (forks 190–206 against 199–211), the error bars
-overlapping both times. The cost is the query every write now makes — `sink.encoding()`
-through the interface, then `bytes()` — on the row that writes three values per field and
-little else; the other rows do not see it. Accepted as the declared sink's price, about three
-per cent on that one row within its spread, pending phase 3's gate, which measures the same
-rows against this commit; the exits, if it compounds, are to ask the sink once per body call
-rather than per write, or a `utf8()` flag on the sink.*
+files under `design/benchmarks`. At the phase commit: `apache_httpd` +0.2%, `progressive` +0.1%,
+`win_sec_xml` −0.6%, `csv_header` −3.2% (forks 190–200 against 198–205). With the seam testing
+UTF-8 itself first (`80dd6ca2ea`), two rows again: `apache_httpd` −0.8% with one collapsed fork,
+`csv_header` −2.9% (forks 190–206 against 199–211), the fork ranges overlapping both times and
+the error bars the second. The cost is the query every write now makes — `sink.encoding()`
+through the interface, then `bytes()` — on the row that writes five times per field, three of
+them literals, and little else; the other rows do not see it. Accepted as the declared sink's
+price, about three per cent on that one row within its spread, pending phase 3's gate, which
+measures the same rows against this commit; the exits, if it compounds, are to ask the sink once
+per body call rather than per write, or a `utf8()` flag on the sink.*
 
 **Phase 3 — the compiled capture and its cast.** §9: `CompiledCapture` built once per binding
 by the compiler, the `select` and key-value sources through the compiled reference, the `as`
@@ -309,7 +309,7 @@ bind what the walk bound, the cast on the key-value's value; an unknown cast lab
 The eager fill of `string`'s memo is a call the code makes and is not observable without
 reflection; the code is its pin. Gate: engine 583 (576 and the seven new pins), pipeline 154,
 app 5, xmlbench compiles, checkstyle clean; every corpus golden unchanged — no fixture casts
-a capture, and the corpus's 340 `select` and two key-value captures bind through the compiled
+a capture, and the corpus's 338 `select` and two key-value captures bind through the compiled
 reference now.*
 
 **Phase 4 — the record.** E3 amended; E39's entry narrowed to conditions with the capture half
@@ -381,8 +381,11 @@ capture nobody reads as text is never converted.
 removed as an unmatched capture's is, `exists` is false, a reference to it resolves to
 nothing, and a comparison against it is false. Not a run-time error: a field that is
 sometimes not a number is ordinary input, and the author who wants to know has `exists` and
-`emit-error`. The instrument sees the cast value, so a recording instrument can show the
-absence next to the bytes that failed.
+`emit-error`. The instrument is told of the value bound, as for any capture; an absence, as
+for an unmatched group, is not reported. Absent means the record's own slot: a reference that
+names no match index still reads the latest slot that holds a value (E19), so a bare `exists`
+on the record after a failed cast can be true of the record before — the pin reads the
+current slot by index for that reason.
 
 **Which sources.** `group` and `step` cast the slice. `select` casts the composite, which is
 UTF-8 by construction (§2), so its cast is the table's `Bytes` row on UTF-8 bytes. Key-value
@@ -401,9 +404,10 @@ cast needs a place to live that is decided once, and that place is the same obje
 `compile` package beside `CompiledOp`: the source is a group index, a step's group index, a
 `CompiledRef` for `select`, or a pair of them for key-value; the cast is the `Cast` or null.
 `CompiledTemplate` carries the list. Binding a capture becomes: take the value (a group by
-index; a reference through `CompiledRefs.resolveValue`), which is already tagged (§2); apply
-the cast, or none; store or remove. `normalise` went in phase 1; after this phase `Refs` has no
-capture caller, and its remaining callers are `Conditions`' — E39's other half, which this
+index; a reference through `CompiledRefs.resolve`, the UTF-8 bytes the walk gave, so a
+select's kind and tag are what they were), apply the cast, or none; store or remove.
+`normalise` went in phase 1; after this phase `Refs` has no capture caller, and its remaining
+callers are `Conditions`' and the lookup `CompiledRefs` shares — E39's other half, which this
 design does not take because conditions are not captures and their compile is still the
 measurement E39 owns.
 
@@ -414,23 +418,29 @@ beyond the value's type (§3). The lint that checks capture names against reads
 
 ### 9.3 Pinned
 
-- A `number` capture compared with `greater-than` against a numeric literal, no `as` on the
-  operand, is true where the bytes read `"10"` and the literal is `9` — and false today, since
-  the comparison is cross-kind (§8).
-- A `number` capture whose bytes are not a number is absent: `exists` false, a `value-of` of
-  it writes nothing, the store slot is not the previous record's.
-- A `string` capture under a Windows-1252 template has its UTF-8 form filled at bind (the
-  memo is already there before any read, as §6's identity pin reads it), and an uncast
-  capture under the same template has none until a consumer asks.
-- A `date` capture sorts on the timeline, so `"2026-01-02T00:00:00Z"` follows
-  `"2025-12-31T23:59:59Z"` where a string sort would agree and `"2026-01-02T00:00:00+01:00"`
-  precedes both, where a string sort would not.
-- A `boolean` capture takes the lexical reading: `"1"` is true, `"yes"` is absent.
+*As pinned (`CaptureCastTest`, 2026-09-07):*
+
+- An `integer` capture compared with `gt` against a numeric literal, no `as` on the operand,
+  is true where the bytes read `"10"` and the literal is `9` — and false uncast, since the
+  comparison is cross-kind (§8); `double` and `number` likewise. The §8 lint knows a declared
+  kind: no warning for that comparison, and one for a text literal against a declared kind.
+- An `integer` capture whose bytes are not a number is absent: `exists` false and a
+  `value-of` empty, at the record's own slot, which the pin reads by index (the E19 note in
+  §9.1).
+- A `string` capture under a Windows-1252 template reads as its text. That its UTF-8 form
+  was filled at bind is not observable without reflection; `Level.cast` is that pin, by
+  reading.
+- A `date` capture orders on the timeline: `"2026-01-02T00:00:00+01:00"` is less than
+  `"2026-01-01T23:30:00Z"` where a string comparison would not say so — pinned with `lt`, the
+  same spine `sort` uses (§8).
+- A `boolean` capture takes the lexical reading: `"1"` is true, `"yes"` is absent, `"false"`
+  is false.
 - A `select` capture and a key-value capture through the compiled reference bind what the
-  authored walk bound: the corpus, and a pin with a composite of a group, a literal and a
-  stored variable.
-- The round trip: `as` reads and writes through `ReferenceJson`, `EveryVariantTest` sees it,
-  and an unknown cast label is refused by name as `Cast`'s other readers refuse it.
+  authored walk bound: the corpus, and a pin with a composite of a group, a literal and the
+  stored variable's previous value, the cast on the key-value's value.
+- The round trip: `as` reads and writes through `ReferenceJson`, `EveryVariantTest`'s one of
+  everything carries it, and an unknown cast label is refused by name as `Cast`'s other
+  readers refuse it.
 
 ### 9.4 Questions for the ruling — all four ruled 2026-09-07, each as recommended (D50)
 

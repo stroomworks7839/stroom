@@ -699,7 +699,8 @@ final class Level {
                     final byte[] bytes = CompiledRefs.resolve(select.ref(), match, matchCount, vars);
                     yield bytes == null ? null : TypedValue.utf8(bytes);
                 }
-                case CompiledCapture.Source.KeyValue ignored -> throw new IllegalStateException();
+                case CompiledCapture.Source.KeyValue ignored ->
+                        throw new IllegalStateException("key-value bound above");
             };
             final TypedValue value = cast(read, capture.as());
             final Store store = vars.store(capture.name());

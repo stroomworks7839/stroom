@@ -55,7 +55,7 @@ public record CompiledCapture(String name, Source source, Cast as) {
     }
 
     /** The compiled form of a template's bindings, in their authored order. */
-    public static List<CompiledCapture> compile(final List<CaptureBinding> captures) {
+    static List<CompiledCapture> compile(final List<CaptureBinding> captures) {
         final List<CompiledCapture> compiled = new ArrayList<>(captures.size());
         for (final CaptureBinding capture : captures) {
             final Source source = switch (capture.select()) {

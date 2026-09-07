@@ -80,7 +80,8 @@ public interface Instrument {
      * @param templateId which template bound it
      * @param name       the variable's name
      * @param value      its value as bound: captured bytes as read, tagged with their encoding
-     *                   (design 25), or a typed value a step produced
+     *                   (design 25), a typed value a step produced, or the kind the binding
+     *                   declared (§9); a binding that bound nothing is not reported
      * @param matchIndex which match it belongs to
      */
     default void onCapture(final UUID templateId,

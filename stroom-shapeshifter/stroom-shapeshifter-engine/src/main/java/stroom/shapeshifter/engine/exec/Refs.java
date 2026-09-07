@@ -28,8 +28,9 @@ import java.util.List;
 
 /**
  * Resolving the configuration's authored expressions against what has been captured: what a
- * condition and a level's capture binding call. Bodies resolve compiled references through
- * {@link CompiledRefs} instead, and E39 owns the seam between the two.
+ * condition calls. Bodies and capture bindings resolve compiled references through
+ * {@link CompiledRefs} instead (design 25 phase 3 took the captures), and E39 owns the seam
+ * between the two.
  *
  * <p><b>Empty is absent.</b> A part that resolves to nothing writes nothing, and an expression
  * whose parts all resolve to nothing has no value at all rather than an empty one. That is what

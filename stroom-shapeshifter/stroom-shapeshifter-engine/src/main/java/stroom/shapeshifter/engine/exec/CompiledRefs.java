@@ -32,10 +32,10 @@ import java.nio.charset.StandardCharsets;
  * call: literal text is a value made at compile time, written as its own array by a UTF-8
  * sink (design 25), and the shape of the expression is a dispatch, not a walk.
  *
- * <p>Two resolvers stay, by design: bodies resolve compiled references here, while
- * {@code Conditions} and a level's capture binding still resolve the authored expression
- * through {@code Refs}, because compiling conditions and capture selects is design 10 §2's
- * open performance row and shape follows measurement there (design 27 §2.7, E39).
+ * <p>Two resolvers stay, by design: bodies and capture bindings resolve compiled references
+ * here, while {@code Conditions} still resolves the authored expression through {@code Refs},
+ * because compiling conditions is design 10 §2's open performance row and shape follows
+ * measurement there (design 27 §2.7, E39; the captures came here with design 25 phase 3).
  */
 final class CompiledRefs {
 

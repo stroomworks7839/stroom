@@ -62,6 +62,10 @@ class CaptureCastTest {
         return "{\"capture\": {\"var_id\": \"n\", \"group\": 0, " + CURRENT + "}}";
     }
 
+    private static List<Message> warnings(final String config) {
+        return Shapeshifter.compile(ProjectReader.read(config)).warnings();
+    }
+
     private static String run(final String config, final String input) {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         final List<Message> messages = Shapeshifter.run(
@@ -140,7 +144,9 @@ class CaptureCastTest {
                      "match": {"regex": {"pattern": "(\\\\w+) (\\\\w+) (\\\\w+)\\n"}},
                      "captures": [
                        {"name": "joined", "select": {"select": {"parts": [
-                          {"capture": {"group": 1}}, {"text": "-"}, {"capture": {"group": 2}}]}}},
+                          {"capture": {"group": 1}}, {"text": "-"}, {"capture": {"group": 2}}, {"text": "+"},
+                          {"capture": {"var_id": "joined", "group": 0,
+                                       "match_index": {"index": -1, "is_offset": true}}}]}}},
                        {"name": "ignored", "as": "integer", "select": {"key-value": {
                           "key_ref": {"parts": [{"capture": {"group": 1}}]},
                           "value_ref": {"parts": [{"capture": {"group": 3}}]}}}}],
@@ -151,8 +157,26 @@ class CaptureCastTest {
                   ]
                 }
                 """;
-        // The key-value binding under "k" takes the cast: 42 binds, "x" is absent.
-        assertThat(run(config, "k v 42\nk w x\n")).isEqualTo("k-v=42|k-w=|");
+        // The composite is a group, a literal and the stored variable's previous value; the
+        // key-value binding under "k" takes the cast: 42 binds, "x" is absent.
+        assertThat(run(config, "k v 42\nk w x\n")).isEqualTo("k-v+=42|k-w+k-v+=|");
+    }
+
+    @Test
+    void lintKnowsADeclaredKind() {
+        // Design 17 §8's warning is for an uncast capture against a typed literal; a capture that
+        // declares its kind is exactly the intended comparison, and draws none.
+        assertThat(warnings(config("integer", greaterThan("9"))))
+                .noneMatch(m -> m.text().contains("uncast reference"));
+        assertThat(warnings(config(null, greaterThan("9"))))
+                .anyMatch(m -> m.text().contains("uncast reference"));
+        // The mirror image: a text literal against a declared kind is cross-kind, false always.
+        final String textEq = "{\"if\": {\"test\": {\"eq\": {\"left\": {\"ref\": {\"parts\": ["
+                              + current() + "]}}, \"right\": {\"value\": \"10\"}}},"
+                              + " \"then\": [{\"text\": \"same\"}]}}";
+        assertThat(warnings(config("integer", textEq)))
+                .anyMatch(m -> m.text().contains("declared as integer"));
+        assertThat(run(config("integer", textEq), "10\n")).isEmpty();
     }
 
     @Test

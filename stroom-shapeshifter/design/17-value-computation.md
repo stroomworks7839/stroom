@@ -108,15 +108,17 @@ Three points that are choices rather than consequences:
   `ceiling` (§5).
 - **Boolean of a string is the lexical cast** (`true`/`1`/`false`/`0`, anything else absent) —
   XPath's *constructor* rule, not its effective-boolean-value rule (non-emptiness, under which
-  the string `"false"` is true). The distinction matters because §8's explicit `as: "boolean"`
-  is this column's only consumer, and a cast is what `as` says — so `eq` of a false flag
+  the string `"false"` is true). The distinction matters because the explicit `as: "boolean"`
+  — §8's on an operand, design 25 §9's on a capture binding — is this column's only consumer,
+  and a cast is what `as` says — so `eq` of a false flag
   against the literal `"false"` read `as: "boolean"` is true, as a reader expects (uncast,
   the operands are cross-kind and the comparison is simply false). EBV is deliberately not
   modelled at all: the engine's conditions are explicit predicates and `Exists` covers
   presence, so non-emptiness has no call site — and with it goes the `"false"`-is-true trap
   the draft had documented. *(Corrected 2026-08-25 on review: the draft's non-emptiness row
   conflated the two rules and would have diverged from the specification it cited.)*
-- **A multi-part reference is a string by construction.** `Refs.resolve` concatenates parts
+- **A multi-part reference is a string by construction.** `Refs.resolve` (a condition) or
+  `CompiledRefs.resolve` (a body or a capture) concatenates parts
   into bytes, so `$a$b` is text even when `$a` and `$b` are both `Integer`. Only a *single-part*
   reference to a single capture can preserve a non-`Bytes` type. This wants saying out loud
   because it is the one place a value's type depends on how its reference was written.
@@ -286,7 +288,8 @@ vocabulary, no second condition set, and no untyped-atomic rule.
   cannot be made — and consistent with absent: false in a condition and last in an ordering
   are the same statement, *this value did not participate*.
 - **The cast is explicit, on the operand:** `as`: `string` | `number` | `integer` | `double` |
-  `boolean` | `date` (`integer` and `double` added by D49),
+  `boolean` | `date` (`integer` and `double` added by D49; the same `as` on a capture binding
+  casts once at bind, design 25 §9),
   applying §3.1's casts — absent on failure, false in comparison. It lives on the operand
   rather than only as a bind-first instruction because **guards need it**: a template guard
   is a condition with no body before it, so there is nowhere to run a `number` instruction
@@ -330,7 +333,9 @@ silent wrong guess; strict's is a forgotten cast reading always-false — `gt` o
 field against a numeric literal with no `as`. That one is **statically detectable**: a typed
 literal compared against an uncast reference earns a compile-time warning ("captures are
 text; add `as: number` if a numeric comparison is meant"), in D36's warning tier — warnings
-until a lint can prove confusion rather than suspect it. Coercion's failure mode was not
+until a lint can prove confusion rather than suspect it. *Since design 25 §9 (D50) a capture
+may declare its kind; the lint reads the binding and stays silent for one, and warns the other
+way round for a text literal against a declared kind.* Coercion's failure mode was not
 detectable at all, which is the trade the ruling takes.
 
 **Ordering uses the same `as`, and `data_type` dissolves.** A sort key is

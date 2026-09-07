@@ -220,7 +220,8 @@ covers their documentation, not their shape.
 `Refs` and `CompiledRefs` both stay through this design, because compiling conditions and
 capture selects is design 10's open performance row and shape follows measurement there. What
 changes is that the seam is stated: `Conditions` and `Level`'s capture binding resolve authored
-expressions because their compilation is not yet measured to matter, and `CompiledRefs` says
+expressions because their compilation is not yet measured to matter (*the capture binding
+compiled with design 25 phase 3, D50; `Conditions` remains*), and `CompiledRefs` says
 so in its class javadoc, naming design 10 §2. The compile of conditions is filed as E39, so
 the duplication has an owner and an exit rather than a shrug.
 
@@ -979,7 +980,7 @@ a line, applied.
 **Carried, with an owner.**
 - E39 — conditions and capture selects resolve the authored expression; `Refs.write` is gone
   ahead of it, `Refs.resolve` and its byte helper stay until the measurement. *The byte helper
-  went with design 25 phase 1; the capture half goes with its phase 3 (D50).*
+  went with design 25 phase 1; the capture half went with its phase 3 (D50, `fe0849b7b2`).*
 - E40 — the sinks' three duplications (carry splice, SAX call, qname halves) and the shared
   `Element`/`Attribute` bookkeeping. *Resolved the same day: `Utf8.Carry`, `SaxEvents`,
   `QNames`; the bookkeeping stays with each sink, as E40 says why.*

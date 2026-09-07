@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.CaptureBinding;
+import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.EngineVars;
@@ -33,6 +34,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -92,6 +94,8 @@ final class ReferenceCheck {
     private boolean inDocumentTemplate;
     private boolean inApplySelect;
     private final Set<String> ownCaptures = new HashSet<>();
+    /** This template's captures that declare a kind (design 25 §9), by name. */
+    private final Map<String, Cast> ownCasts = new HashMap<>();
     private final List<String> documentTemplates = new ArrayList<>();
     private final Map<String, Set<String>> callsByTemplate = new HashMap<>();
     /** The first match read in each template, for the message that names it. */
@@ -136,8 +140,12 @@ final class ReferenceCheck {
             documentTemplates.add(template.name());
         }
         ownCaptures.clear();
+        ownCasts.clear();
         for (final CaptureBinding capture : template.captures()) {
             ownCaptures.add(capture.name());
+            if (capture.as() != null && capture.as() != Cast.STRING) {
+                ownCasts.put(capture.name(), capture.as());
+            }
         }
         if (template.guard() != null) {
             condition(template.guard());
@@ -322,10 +330,12 @@ final class ReferenceCheck {
 
     /**
      * Design/17 §8's lint, decided in place: a typed literal compared against an uncast
-     * reference is the strict rule's one foot-gun — captures are text, so the comparison
-     * is false on every record, silently — and it is statically visible, so it draws a
-     * warning (D36's tier: warnings until a lint can prove confusion rather than suspect
-     * it). Conditions also carry reads, which are collected on the same visit.
+     * reference is the strict rule's one foot-gun — a capture is text unless it declares a
+     * kind (design 25 §9), so the comparison is false on every record, silently — and it is
+     * statically visible, so it draws a warning (D36's tier: warnings until a lint can prove
+     * confusion rather than suspect it). The mirror image since D50 — a text literal against a
+     * capture that declares a kind — is the same foot-gun the other way round. Conditions
+     * also carry reads, which are collected on the same visit.
      */
     private void condition(final Condition condition) {
         switch (condition) {
@@ -342,6 +352,16 @@ final class ReferenceCheck {
                             + " captures are text, so this is false on every record."
                             + " Add as: \"number\" (or the intended cast) to the reference"
                             + " if a typed comparison is meant."));
+                }
+                final Cast declared = textAgainstDeclared(value.left(), value.right());
+                final Cast declaredOther = textAgainstDeclared(value.right(), value.left());
+                if (declared != null || declaredOther != null) {
+                    warnings.add(new Message(Severity.WARNING, "Template '" + templateName
+                            + "' compares a text literal against a capture declared as "
+                            + (declared != null ? declared : declaredOther).name()
+                                    .toLowerCase(Locale.ROOT)
+                            + ": the kinds differ, so this is false on every record."
+                            + " Read the literal with the same as, or drop the capture's."));
                 }
             }
             case Condition.Matches value -> read(value.select());
@@ -368,14 +388,36 @@ final class ReferenceCheck {
         }
     }
 
-    /** A typed literal on one side, an uncast reference on the other. */
-    private static boolean mismatch(final Condition.Operand literalSide,
-                                    final Condition.Operand refSide) {
+    /** A typed literal on one side, an uncast reference to no declared kind on the other. */
+    private boolean mismatch(final Condition.Operand literalSide,
+                             final Condition.Operand refSide) {
         return literalSide.literal() != null
                && !(literalSide.literal() instanceof Condition.Literal.Text)
                && literalSide.as() == null
                && refSide.ref() != null
-               && refSide.as() == null;
+               && refSide.as() == null
+               && declaredKind(refSide.ref()) == null;
+    }
+
+    /** A text literal against an uncast reference to a capture that declares a kind: the kind. */
+    private Cast textAgainstDeclared(final Condition.Operand literalSide,
+                                     final Condition.Operand refSide) {
+        return literalSide.literal() instanceof Condition.Literal.Text
+               && literalSide.as() == null
+               && refSide.ref() != null
+               && refSide.as() == null
+                ? declaredKind(refSide.ref())
+                : null;
+    }
+
+    /** The kind a single-part reference to one of this template's captures declares, or null. */
+    private Cast declaredKind(final RefExpression ref) {
+        if (ref.parts().size() == 1
+            && ref.parts().getFirst() instanceof RefExpression.RefPart.Capture capture
+            && capture.varId() != null) {
+            return ownCasts.get(capture.varId());
+        }
+        return null;
     }
 
     private void read(final RefExpression ref) {
