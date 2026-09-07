@@ -35,9 +35,9 @@ import java.util.List;
  * whose parts all resolve to nothing has no value at all rather than an empty one. That is what
  * lets a configuration ask whether a field exists.
  *
- * <p>This is also one of the two places an encoding matters. A captured value is a slice of the
- * input, so when the input is not UTF-8 it has to be converted on the way out — and when it is,
- * which is the overwhelming majority of the time, the bytes go straight through.
+ * <p>No encoding is threaded here: a captured value carries its own (design 25), and every
+ * part of a composite is joined in its UTF-8 form, which for the overwhelming majority of
+ * inputs is the bytes themselves.
  */
 public final class Refs {
 

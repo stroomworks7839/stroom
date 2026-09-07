@@ -207,7 +207,8 @@ public final class Steps {
                 }
                 final int length = (int) (decoded & 0xFF);
                 yield new Result(
-                        TypedValue.of(Arrays.copyOfRange(data, from, from + length), encoding), length);
+                        TypedValue.of(Arrays.copyOfRange(data, from, from + length), encoding),
+                        length);
             }
             case MatchStep.ReadNumeric numeric -> number(numeric, data, from, to);
             case MatchStep.ReadVarint ignored -> {

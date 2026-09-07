@@ -45,12 +45,18 @@ public sealed interface TypedValue {
 
         private final byte[] value;
         private final Encoding encoding;
-        /** The UTF-8 form, filled on first use. The run is single-threaded. */
+        /**
+         * The UTF-8 form: the value itself from construction when the tag is UTF-8-compatible,
+         * else filled on first use. The run is single-threaded; the two instances shared across
+         * runs ({@code Steps.NOTHING}, compile-time literals) are UTF-8-tagged, so they never
+         * fill lazily.
+         */
         private byte[] utf8;
 
         private Bytes(final byte[] value, final Encoding encoding) {
             this.value = value;
             this.encoding = encoding;
+            this.utf8 = encoding.isUtf8Compatible() ? value : null;
         }
 
         /** The bytes as read, in {@link #encoding()}. */
@@ -66,9 +72,7 @@ public sealed interface TypedValue {
         /** The bytes as UTF-8 — the array itself when the tag is UTF-8-compatible. */
         public byte[] utf8() {
             if (utf8 == null) {
-                utf8 = encoding.isUtf8Compatible()
-                        ? value
-                        : encoding.decode(value).getBytes(StandardCharsets.UTF_8);
+                utf8 = encoding.decode(value).getBytes(StandardCharsets.UTF_8);
             }
             return utf8;
         }

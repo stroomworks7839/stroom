@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 package stroom.shapeshifter.engine.value;
 
 import stroom.shapeshifter.engine.text.Encoding;
@@ -209,6 +208,7 @@ class TypedValueTest {
         final byte[] utf8 = "é".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         assertThat(((TypedValue.Bytes) TypedValue.utf8(utf8)).utf8()).isSameAs(utf8);
         assertThat(((TypedValue.Bytes) TypedValue.of(utf8, Encoding.AUTO)).utf8()).isSameAs(utf8);
+        assertThat(((TypedValue.Bytes) TypedValue.of(utf8, Encoding.ASCII)).utf8()).isSameAs(utf8);
     }
 
     @Test

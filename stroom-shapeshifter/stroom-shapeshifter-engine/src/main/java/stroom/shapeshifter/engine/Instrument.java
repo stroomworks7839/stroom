@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.value.TypedValue;

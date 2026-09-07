@@ -3,19 +3,20 @@
 **Status: design, ruled 2026-09-04 (D43) and deferred the same day; deferral lifted 2026-09-07,
 design 24 having been built. Amended 2026-09-07 with §9 — a capture declares what it is, and the
 capture binding is compiled — on the user's direction, and ruled the same day (D50), every
-question as recommended. Building. Amends E3's "stores hold UTF-8" and design 17 §3.1's string
-row when built, and takes the capture half of E39. Engine only. Design 24's character sink
-decodes the internal UTF-8 form under E3 today and gains the sink declaration of §4 when this
-lands.**
+question as recommended. Building; phase 1 built and audited 2026-09-07. Amends E3 (the
+normalisation at capture) and design 17 §3.1's string row, and takes the capture half of E39.
+Engine only. Design 24's character sink decodes the internal UTF-8 form under E3 today and gains
+the sink declaration of §4 when this lands.**
 
-Today a captured slice of the input is converted to UTF-8 the moment it is bound to a
-variable (`Executor.normalise`, E3), and a slice of the *current* match is converted on the
-way out by the template's encoding (`Refs.bytes`), while a stored value is assumed to be UTF-8
-already. That gives the engine one internal text form, which every function, condition and
-comparison relies on. It also means the engine cannot write a byte it read: under `raw`, the
-byte 0x93 leaves as the two bytes C2 93, and a binary payload captured for pass-through is
-inflated on capture and re-encoded on write, twice, for nothing. `EncodedInputTest.
-matchesWithARegexUnderRaw` pins exactly that.
+Before phase 1 (built 2026-09-07) a captured slice of the input was converted to UTF-8 the
+moment it was bound to a variable (`Level.normalise`, E3), and a slice of the *current* match
+was converted on the way out by the template's encoding (`Refs.bytes`), while a stored value
+was assumed to be UTF-8 already. That gave the engine one internal text form, which every
+function, condition and comparison relied on. It also meant the engine could not write a byte
+it read: under `raw`, the byte 0x93 left as the two bytes C2 93, and a binary payload captured
+for pass-through was inflated on capture and re-encoded on write, twice, for nothing.
+`EncodedInputTest.matchesWithARegexUnderRaw` pinned exactly that, and still passes: the two
+bytes now leave the UTF-8 sink the same way, transcoded at the write.
 
 The reason to change it is not capability and not efficiency; it is consistency with the type
 model the engine already has. Design 17 §3.1 made the casting table the single source of
@@ -47,7 +48,7 @@ That is the whole design. What follows is where the tag comes from, who reads it
 
 | value | tag |
 |---|---|
-| a group of the current match — regex, delimiter, `All`, a progressive step | the template's *effective* encoding (`Executor.effective`: its E3 override, else the run's) |
+| a group of the current match — regex, delimiter, `All`, a progressive step | the template's *effective* encoding (`Level.effective`: its E3 override, else the run's) |
 | the output of a decode step — base64, hex, gzip, deflate — inside a progressive match | the same: the steps that follow already read those bytes under the template's encoding, so that is what they are |
 | a literal — `text`, a `RefPart.Text`, a default value, a function argument | UTF-8 (they are Java strings) |
 | a composite of parts (`Refs.resolve`), a key-value capture, a `Select` capture | UTF-8: parts are joined in their UTF-8 forms, as design 17 §3.1 says a multi-part expression is a string by construction |
@@ -72,7 +73,8 @@ shows the engine the true bytes and is the one the parser element prefers.
 
 `MatchResult` gets the encoding at construction — the three places that build one
 (`regexMatch`, the delimiter match, `Steps.match`) all have `effective(template)` in reach —
-and tags its groups. `normalise` is deleted; `bindCaptures` stores what the match gives it.
+and tags its groups (*as built: the builders tag each group; `MatchResult` itself is
+untouched*). `normalise` is deleted; `bindCaptures` stores what the match gives it.
 
 **`ASCII`, `AUTO` and `UTF_8` are one class for transcoding.** Today an ASCII-declared feed
 passes bytes above 0x7F through unchanged, the documented garbage-in-garbage-out fast path.
@@ -89,10 +91,11 @@ them change, because each already asks the value for a string. The casting table
 row reads "decode by the value's encoding" and means the same thing it did.
 
 **Equality and ordering.** `Bytes.equals`/`hashCode` compare the UTF-8 forms; two values with
-the same tag and the same bytes short-circuit. `Comparisons.compare` is unchanged since it
-compares through the casts.
+the same tag and the same bytes short-circuit. `Comparisons.compare` is unchanged but for its
+`Bytes` fast path, which now compares the UTF-8 forms.
 
-**Writes.** One seam, `Output.write(sink, value)`: `sink.write(value.bytes(sink.encoding()))`.
+**Writes.** *Phase 2; phase 1 writes `utf8()` to the sinks, which are all UTF-8.* One seam,
+`Output.write(sink, value)`: `sink.write(value.bytes(sink.encoding()))`.
 `Refs.resolve`, `CompiledRefs.write` and `emit` all go through it. The "only a local group
 converts; a stored value passes through" split — E3's implementation, and correct, since every
 route into a store normalised — is deleted because the value knows and the template need not:
@@ -131,10 +134,10 @@ function sees; it is simply not applied when nobody needs text.
 `TypedValue.Bytes` becomes a final class rather than a record: `value`, `encoding`, and a
 lazily filled `utf8` (the run is single-threaded; no volatile). `TypedValue.of(byte[])` is
 gone — a caller must say what its bytes are — and `of(String)` tags UTF-8. `asBytes()` returns
-the bytes as tagged; the places that used it to write now use the seam in §3, and the places
-that used it as "UTF-8 bytes" use `utf8()`. The compiler's grep for `asBytes()` is the
-checklist: `CompiledRefs`, `Refs`, `Executor` (`emit`, `Tokenize`'s joined write, the
-instrument call), `Transforms`, and the two sinks' attribute buffers.
+the bytes as tagged; the places that used it to write use `utf8()` until phase 2's seam, and
+the places that used it as "UTF-8 bytes" use `utf8()`. *As built:* the callers of `asBytes()`
+that remain are `Level`'s two hand-offs of the content to the body and `Steps.bytes`, a step
+output fed to a codec — both rightly raw.
 
 ## 6. What does not change, and is pinned
 
@@ -145,12 +148,15 @@ instrument call), `Transforms`, and the two sinks' attribute buffers.
   override, any override under a transcoded source); `matchesWithARegexUnderRaw` — still the
   UTF-8 of U+0093 and U+00E9 between the literal brackets, into the UTF-8 sink it uses. These
   pin that "transcode at use" produces what "transcode at capture" did.
-- **New pins.** A `raw` capture into a `raw` sink is the input's bytes (0x93 0xE9 out as
-  0x93 0xE9, the literal brackets around them); Latin-1 into Latin-1 likewise; a literal
-  above 0xFF into `raw` is `?`; structure into a non-UTF-8 sink is refused; a value captured
-  under one template's encoding and written by another with a different one is right (the
-  case the deleted split answered by provenance, now answered by the tag); the UTF-8 form is
-  computed once per value (a counting encoding in the test).
+- **New pins.** *Phase 1, built:* a `raw` capture is stored as the two bytes it matched,
+  tagged `raw`, not their UTF-8 image; a value captured under one template's encoding and
+  written by another with a different one is right (the case the deleted split answered by
+  provenance, now answered by the tag); the UTF-8 form is computed once per value and is the
+  value's own array under a UTF-8-compatible tag (an identity pin — `Encoding` is an enum, so
+  a counting encoding cannot be written); bytes are equal when their text is. *Phase 2:* a
+  `raw` capture into a `raw` sink is the input's bytes (0x93 0xE9 out as 0x93 0xE9, the
+  literal brackets around them); Latin-1 into Latin-1 likewise; a literal above 0xFF into
+  `raw` is `?`; structure into a non-UTF-8 sink is refused.
 
 ## 7. Phasing
 
@@ -165,20 +171,36 @@ Each phase is audited before the next, and each is gated on the corpus and `Enco
 casting-table row and E3's entry amended. *Test:* corpus and `EncodedInputTest` unchanged; the
 provenance pins.
 
-*Built 2026-09-07. As designed, with four things to note. `TypedValue.of(byte[])` is replaced
+*Built 2026-09-07. As designed, with five things to note. `TypedValue.of(byte[])` is replaced
 by `of(byte[], Encoding)` and `utf8(byte[])` — the second for bytes that are UTF-8 by
 construction: a literal, a composite, a variable's buffer, a function's argument. `utf8()` on
 the interface is the UTF-8 form of any kind, the memo for `Bytes` and the ASCII rendering for
-the rest; every write and every join goes through it. The encoding parameter left the two
-resolvers, the conditions and the body interpreter altogether — fifty-two pass-throughs in
-`Body`, the run's two prologue and tail calls, the level's guard — because nothing below the
-match builders needs to know it any more; `Refs.bytes` went rather than moved (E39's note).
-The delimiter splitter, the regex match and the whole-content match take the template's
-effective encoding at construction and tag every group; the step matcher already had it.
+the rest; every write and every join goes through it. The encoding left the two resolvers,
+the conditions and the body interpreter as a parameter — fifty-two pass-throughs in `Body`,
+the run's two prologue and tail calls, the level's two hand-offs to the body and its guard —
+because nothing below the match builders needs to know it any more; `Body` keeps the run's
+encoding for the nested dispatch. `Refs.bytes` went rather than moved (E39's note). The
+delimiter splitter, the regex match and the whole-content match take the template's
+effective encoding at the call and tag every group; the step matcher already had it.
 The "counting encoding" pin of §6 is an identity pin instead, `Encoding` being an enum:
 `utf8()` returns the same array twice, and the value array itself under a UTF-8-compatible
 tag. Gate: engine 570 (566 and the four new pins), pipeline 154, app 5, xmlbench compiles,
 checkstyle clean; every corpus golden and all nineteen encoding pins unchanged.*
+
+*Audited 2026-09-07, one reviewer over the code and one over the documents. Code: no
+defect; every construction site's tag checked against §2's table, every consumer through
+the tag, the two old paths and the new one shown byte-identical for every configuration.
+Fixed: a `@param` in `Level` and `Refs`' class javadoc still describing the split; a second
+blank line after four licence blocks; an ASCII case added to the identity pin; the memo's
+comment now says why the two instances shared across runs are safe. And one change the
+audit did not ask for: the memo is filled at construction when the tag is UTF-8-compatible,
+so `utf8()` on the common path is a field read with no branch — a targeted probe of four run
+rows had read two to three per cent down, inside the new side's own intervals, and the
+branch was the one cost the phase had added to every write. Documents: §3's write seam and
+§5's factories marked as phase 2 where they are; the `asBytes()` checklist rewritten as
+built; §6's pins sorted into built and phase 2; the intro moved to the past tense; design
+17 §12 rewritten, having said the conversion boundary was where it was; E3's amendment
+moved below its resolution in the ledger's form; E39's two notes merged.*
 
 **Phase 2 — the sink declares.** §4: `encoding()`, `of(stream, encoding)`, the plain byte
 sink, the write seam. *Test:* the identity pins; the refusal; `Encoding`'s class comment
@@ -194,10 +216,10 @@ capture through the compiled reference must give what the authored walk gave); �
 `select` or key-value capture, three forks, against the phase 2 commit; a regression beyond
 its interval blocks the phase (design 27 ruling 4's gate).
 
-**Phase 4 — the record.** E3 amended; E39's entry narrowed to conditions with the capture
-half recorded here; design 17 §3.1's string row and §8's list of the cast's consumers; design
-24 §2's sink sentence; E36 pointed at §9's slot for the binary readings; D43 cross-referenced
-from D13 and E3; this design's as-built record.
+**Phase 4 — the record.** E3 amended; E39's entry narrowed to conditions with the capture half
+recorded here; design 17 §3.1's boolean bullet and §12; design 24 §2's sink sentence; E36
+pointed at §9's slot for the binary readings; D43 cross-referenced from D13 and E3; this
+design's as-built record.
 
 ## 8. What this does not decide
 
@@ -301,8 +323,9 @@ beyond the value's type (§3). The lint that checks capture names against reads
   the comparison is cross-kind (§8).
 - A `number` capture whose bytes are not a number is absent: `exists` false, a `value-of` of
   it writes nothing, the store slot is not the previous record's.
-- A `string` capture under a Windows-1252 template has its UTF-8 form computed exactly once
-  (the counting encoding of §6), and an uncast capture under the same template never.
+- A `string` capture under a Windows-1252 template has its UTF-8 form filled at bind (the
+  memo is already there before any read, as §6's identity pin reads it), and an uncast
+  capture under the same template has none until a consumer asks.
 - A `date` capture sorts on the timeline, so `"2026-01-02T00:00:00Z"` follows
   `"2025-12-31T23:59:59Z"` where a string sort would agree and `"2026-01-02T00:00:00+01:00"`
   precedes both, where a string sort would not.

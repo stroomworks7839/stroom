@@ -496,11 +496,13 @@ string and a length past its end are both ordinary rather than errors.
 
 ## 12. Encoding
 
-Unchanged by all of the above, and worth one line so it stays that way. Values are UTF-8
-internally (E3 split conversion by provenance: only the current match's bytes convert; stored
-values were normalised at capture). Numbers render as ASCII, which is safe in every supported
-encoding — `TypedValue.asBytes` already relies on this. A typed value model changes nothing
-here because the conversion boundary is where it was.
+Unchanged by all of the above when written. *Rewritten 2026-09-07 by design 25 phase 1:* a
+`Bytes` value carries the encoding it was matched under and decodes itself, once, when a
+consumer asks for text (`utf8()`); nothing is transcoded at capture, and the old split by
+provenance — the current match's bytes converted, stored values normalised at capture — is
+gone. Numbers still render as ASCII, which is safe in every supported encoding. The casting
+table's first column now reads "decode by the value's encoding", which is the same rule
+stated where the value is rather than where it is read.
 
 ## 13. Performance — predictions, and the measurement protocol
 

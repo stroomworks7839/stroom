@@ -96,8 +96,9 @@ final class Level {
      *
      * @param ignoreErrors the level's gate, from the directive that dispatched it — DS3's group
      *                     flag — or from the source configuration at the root
-     * @param encoding     the run's encoding in force, which the level reads guards, previews
-     *                     and captures with; the same value on every nested dispatch of a run
+     * @param encoding     the run's encoding in force, which the level decodes previews with and
+     *                     resolves each template's effective encoding against — the tag on every
+     *                     group it matches; the same value on every nested dispatch of a run
      */
     void dispatch(final List<CompiledTemplate> templates,
                   final byte[] data,

@@ -50,7 +50,9 @@ sink's mouth.**
   withdrawn.
 - **Bytes and characters.** The engine's output is UTF-8 by construction under E3: captures
   are decoded by the source encoding and re-encoded as UTF-8 (`Refs`, `Steps`), and literals
-  are Java strings. So the decode in the character sink is lossless, and a `TextWriter` set to
+  are Java strings *(design 25 phase 1, 2026-09-07, changed the mechanism — a capture is
+  tagged and decoded at the write — not the outcome; this sentence is corrected in its phase
+  4)*. So the decode in the character sink is lossless, and a `TextWriter` set to
   UTF-8 (its default) writes the engine's bytes exactly. When design 25 (D43) lands,
   the same fact is restated as the sink declaring UTF-8 and every write transcoding to it. Any other writer encoding is the writer's
   transcoding, as it is for every other text output in Stroom. The three `text_*_exact`
