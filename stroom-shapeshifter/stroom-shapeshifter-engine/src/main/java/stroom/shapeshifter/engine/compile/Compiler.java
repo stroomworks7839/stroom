@@ -38,7 +38,7 @@ import java.util.List;
  *
  * <p>This class is the pipeline; the passes are their own classes. In order: the source
  * encoding is settled; each template is refused for what a template alone can be wrong about,
- * its match compiled by {@link MatchCompiler} and its body by {@link CompiledOp#compile}; the
+ * its match compiled by {@link MatchCompiler} and its body by {@link BodyCompiler#compile}; the
  * names templates call and apply to are collected once by {@link TemplateUses}, resolved, and
  * read by D36's dispatch lint against the compiled matches; and the body checks —
  * {@link ReferenceCheck} and {@link StructureCheck}, zipped per template — run last, the

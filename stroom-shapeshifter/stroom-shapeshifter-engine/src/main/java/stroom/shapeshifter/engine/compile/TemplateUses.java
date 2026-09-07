@@ -104,7 +104,8 @@ record TemplateUses(Template template, List<String> calls, List<OutputNode.Apply
             final String reserved = OutputNode.ApplyDirective.recursiveMode(name);
             for (final Template template : project.templates()) {
                 if (reserved.equals(template.mode())) {
-                    throw new ConfigException("Template '" + template.name() + "' is in mode '" + reserved
+                    throw new ConfigException("Template '" + template.name() + "' is in mode '"
+                                              + reserved
                                               + "', which is the mode a template_ref to '" + name
                                               + "' dispatches to; choose another mode name");
                 }

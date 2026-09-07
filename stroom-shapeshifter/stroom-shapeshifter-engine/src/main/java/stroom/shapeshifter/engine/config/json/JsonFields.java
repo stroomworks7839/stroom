@@ -251,8 +251,10 @@ final class JsonFields {
         return value.asInt();
     }
 
-    /** How a refusal names its place: the field in its owner, the field alone, or the value's
-     * owner. */
+    /**
+     * How a refusal names its place: the field in its owner, the field alone, or the value's
+     * owner.
+     */
     private static String where(final String field, final String what) {
         if (field == null) {
             return what;

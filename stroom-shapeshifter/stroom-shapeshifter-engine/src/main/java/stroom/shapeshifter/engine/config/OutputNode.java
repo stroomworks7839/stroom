@@ -193,6 +193,9 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
     record Variable(String name, List<OutputNode> body) implements Holder, Binding {
 
         public Variable {
+            if (name == null || name.isEmpty()) {
+                throw new ConfigException("A variable needs a name");
+            }
             body = body == null ? List.of() : List.copyOf(body);
         }
 
@@ -917,7 +920,7 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
          * The mode a {@code template_ref} directive dispatches to: a mode the graph registers
          * holding that one template, so the form is an apply-templates whose level is the named
          * template alone — its match still runs, its captures still bind, {@code maxDepth} still
-         * guards the recursion (E42, ruled 2026-09-06).
+         * guards the recursion (E42).
          */
         public static String recursiveMode(final String templateName) {
             return RECURSIVE_PREFIX + templateName;

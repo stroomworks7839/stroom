@@ -113,7 +113,8 @@ public final class CompiledProject {
         // A template_ref dispatches to a level holding the named template alone; the name was
         // resolved and the mode's spelling reserved by the compiler's name resolution.
         for (final String name : recursiveTargets) {
-            templatesByMode.put(ApplyDirective.recursiveMode(name), List.of(templatesByName.get(name)));
+            templatesByMode.put(ApplyDirective.recursiveMode(name),
+                    List.of(templatesByName.get(name)));
         }
     }
 

@@ -176,7 +176,8 @@ final class Body {
             switch (op) {
                 case CompiledOp.Text text -> sink.write(text.bytes());
                 case CompiledOp.ValueOf valueOf ->
-                        CompiledRefs.write(valueOf.ref(), match, matchCount, vars, contentEncoding, sink);
+                        CompiledRefs.write(valueOf.ref(), match, matchCount, vars, contentEncoding,
+                                sink);
                 case CompiledOp.Apply apply ->
                         apply(apply, match, matchCount, content, sink, inputBase, ignoreErrors, depth,
                                 contentEncoding);
@@ -903,11 +904,11 @@ final class Body {
         vars.shadow(value.name());
 
         // A variable is a value, not a document: its text is the bytes its body wrote, with no
-        // serialiser's newlines or indent inside it (E41, ruled 2026-09-06).
+        // serialiser's newlines or indent inside it (E41).
         final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         body(value.body(), match, matchCount, content,
-                new XmlByteSink(buffer, XmlByteSink.Layout.FAITHFUL), inputBase, ignoreErrors, depth,
-                contentEncoding);
+                new XmlByteSink(buffer, XmlByteSink.Layout.FAITHFUL), inputBase, ignoreErrors,
+                depth, contentEncoding);
 
         List<Store> captured = vars.fromCurrentScope(value.name());
         if (captured != null && captured.stream().noneMatch(store -> store.lastIndex() >= 0)) {

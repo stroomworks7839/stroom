@@ -58,8 +58,9 @@ final class BodyCompiler {
      * @param patterns the project's interned patterns, already collected — a regex replace
      *                 resolves its {@link BytePattern} here, once
      */
-    BodyCompiler(final Map<PatternKey, BytePattern> patterns, final Project project,
-            final Functions functions) {
+    BodyCompiler(final Map<PatternKey, BytePattern> patterns,
+                 final Project project,
+                 final Functions functions) {
         this.patterns = patterns;
         this.project = project;
         this.functions = functions;
@@ -109,9 +110,8 @@ final class BodyCompiler {
                 case OutputNode.CallTemplate value -> new CompiledOp.CallTemplate(
                         value.name(),
                         value.withParam().stream()
-                                .map(param ->
-                                        new CompiledOp.Arg(param.name(), CompiledRef.of(
-                                                param.value())))
+                                .map(param -> new CompiledOp.Arg(param.name(),
+                                        CompiledRef.of(param.value())))
                                 .toList());
                 case OutputNode.Variable value ->
                         new CompiledOp.Variable(value.name(), compile(value.body()));
@@ -329,8 +329,8 @@ final class BodyCompiler {
     }
 
     private static CompiledOp.Transform transform(final List<RefExpression> select,
-                                       final String name,
-                                       final Function<List<TypedValue>, TypedValue> function) {
+                                                  final String name,
+                                                  final Function<List<TypedValue>, TypedValue> function) {
         return new CompiledOp.Transform(select.stream().map(CompiledRef::of).toList(), name,
                 function, null);
     }
@@ -345,11 +345,11 @@ final class BodyCompiler {
      *              {@code multiply} fold, and take {@code count} as a minimum
      */
     private static CompiledOp.Transform arithmetic(final String what,
-                                        final List<RefExpression> select,
-                                        final String name,
-                                        final Arity arity,
-                                        final int count,
-                                        final Function<List<TypedValue>, TypedValue> function) {
+                                                   final List<RefExpression> select,
+                                                   final String name,
+                                                   final Arity arity,
+                                                   final int count,
+                                                   final Function<List<TypedValue>, TypedValue> function) {
         if (arity == Arity.AT_LEAST ? select.size() < count : select.size() != count) {
             throw new ConfigException("A " + what + " takes "
                                       + (arity == Arity.AT_LEAST ? "at least " : "exactly ") + count
