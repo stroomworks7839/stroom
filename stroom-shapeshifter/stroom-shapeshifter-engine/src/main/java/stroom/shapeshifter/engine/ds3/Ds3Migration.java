@@ -149,7 +149,7 @@ public final class Ds3Migration {
                                 literalAttribute("version", RECORDS_VERSION),
                                 new OutputNode.ApplyTemplates(new ApplyDirective(
                                         RefExpression.group(0), ROOT_MODE, List.of(),
-                                        ApplyDirective.DEFAULT_MAX_DEPTH, null, false, null))))),
+                                        ApplyDirective.DEFAULT_MAX_DEPTH, false, null))))),
                 null,
                 false);
     }
@@ -268,7 +268,7 @@ public final class Ds3Migration {
                             // is where all of them live.
                             body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
                                     RefExpression.group(0), subMode, List.of(),
-                                    ApplyDirective.DEFAULT_MAX_DEPTH, null, false, null)));
+                                    ApplyDirective.DEFAULT_MAX_DEPTH, false, null)));
                             dispatched = true;
                         }
                     }
@@ -335,7 +335,7 @@ public final class Ds3Migration {
         // flattening.
         into.add(new OutputNode.ApplyTemplates(new ApplyDirective(
                 group.value() == null ? RefExpression.group(0) : LegacyRefs.parse(group.value()),
-                subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, null, group.ignoreErrors(), null)));
+                subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, group.ignoreErrors(), null)));
         for (int i = 0; i < members.size(); i++) {
             final Ds3Config child = members.get(i);
             if (!child.isExpression()) {

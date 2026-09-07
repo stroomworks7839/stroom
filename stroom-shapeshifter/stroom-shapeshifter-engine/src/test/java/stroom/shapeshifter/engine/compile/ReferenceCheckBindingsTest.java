@@ -105,8 +105,8 @@ class ReferenceCheckBindingsTest {
                 new Template.MatchLimits(0, -1, null), List.of(),
                 List.of(new OutputNode.ApplyTemplates(new OutputNode.ApplyDirective(
                         new RefExpression(List.of(new RefExpression.RefPart.Capture(null, 0, null))),
-                        "doc", List.of(), OutputNode.ApplyDirective.DEFAULT_MAX_DEPTH, null,
-                        false, null))),
+                        "doc", List.of(), OutputNode.ApplyDirective.DEFAULT_MAX_DEPTH, false,
+                        null))),
                 null, false);
         return new Project("t", 5, Project.SourceConfig.defaults(), List.of(source, line), List.of());
     }

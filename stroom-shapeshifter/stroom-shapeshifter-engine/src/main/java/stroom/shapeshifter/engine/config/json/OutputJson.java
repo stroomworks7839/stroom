@@ -677,7 +677,7 @@ final class OutputJson {
     }
 
     private static ApplyDirective readApply(final JsonNode node) {
-        JsonFields.checkFields(node, "apply-templates", "select", "mode", "with-param", "max_depth", "template_ref",
+        JsonFields.checkFields(node, "apply-templates", "select", "mode", "with-param", "max_depth",
                 "ignore_errors", "dispatch");
         return new ApplyDirective(
                 ReferenceJson.readRef(JsonFields.required(node, "select", "apply-templates")),
@@ -685,7 +685,6 @@ final class OutputJson {
                 JsonFields.list(node.get("with-param"), "with-param", OutputJson::readParam),
                 JsonFields.integer(node, "max_depth", "apply-templates",
                         ApplyDirective.DEFAULT_MAX_DEPTH),
-                JsonFields.optionalText(node, "template_ref"),
                 node.path("ignore_errors").asBoolean(false),
                 JsonFields.readDispatch(node));
     }
@@ -698,7 +697,6 @@ final class OutputJson {
             node.set("with-param", JsonFields.array(directive.withParam(), OutputJson::writeParam));
         }
         node.put("max_depth", directive.maxDepth());
-        JsonFields.putIfPresent(node, "template_ref", directive.templateRef());
         if (directive.ignoreErrors()) {
             node.put("ignore_errors", true);
         }

@@ -242,7 +242,7 @@ class EveryVariantTest {
                         List.of(new SwitchCase("a", List.of(new OutputNode.Text("case")))),
                         List.of(new OutputNode.Text("default"))),
                 new OutputNode.ApplyTemplates(new ApplyDirective(
-                        ref(), "row", List.of(new Param("depth", ref())), 32, "named", true,
+                        ref(), "row", List.of(new Param("depth", ref())), 32, true,
                         Dispatch.CLASSIFY)),
                 new OutputNode.EmitError(Severity.WARNING, ref()),
                 new OutputNode.CallTemplate("named", List.of(new Param("depth", ref()))),

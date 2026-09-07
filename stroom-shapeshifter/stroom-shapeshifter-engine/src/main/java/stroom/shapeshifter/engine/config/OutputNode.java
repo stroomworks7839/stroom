@@ -890,9 +890,6 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
      *                    no mode
      * @param withParam   parameters to pass to whichever template matches
      * @param maxDepth    how deep recursion may go before it is an error
-     * @param templateRef dispatch to this named template alone rather than to a mode, its match
-     *                    still having to match the content: the recursive form, which runs in a
-     *                    scope of its own ({@link #recursiveMode})
      * @param ignoreErrors suppress the dispatched level's skip and unmatched-content reports.
      *                     This is DS3's {@code ignoreErrors} on the group whose content is being
      *                     dispatched: the container owns the gate, not the templates inside it
@@ -904,34 +901,18 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
                           String mode,
                           List<Param> withParam,
                           int maxDepth,
-                          String templateRef,
                           boolean ignoreErrors,
                           Dispatch dispatch) {
 
-        /** The prefix of the mode a recursive apply dispatches to, minted once here. */
+        /** The prefix that marks a mode as the recursive form, minted once here. */
         private static final String RECURSIVE_PREFIX = "__rec_";
 
-        /** The mode this directive dispatches to: its own, or the recursive one for its template. */
-        public String effectiveMode() {
-            return templateRef != null ? recursiveMode(templateRef) : mode;
-        }
-
         /**
-         * The mode a {@code template_ref} directive dispatches to: a mode the graph registers
-         * holding that one template, so the form is an apply-templates whose level is the named
-         * template alone — its match still runs, its captures still bind, {@code maxDepth} still
-         * guards the recursion (E42).
-         */
-        public static String recursiveMode(final String templateName) {
-            return RECURSIVE_PREFIX + templateName;
-        }
-
-        /**
-         * Whether this is the recursive form, which runs in its own scope: a directive naming
-         * a template, or one whose mode is spelt with the recursive prefix (design/16 §3).
+         * Whether this is the recursive form, which runs in its own scope: a directive whose
+         * mode is spelt with the recursive prefix (design/16 §3).
          */
         public boolean recursive() {
-            return templateRef != null || (mode != null && mode.startsWith(RECURSIVE_PREFIX));
+            return mode != null && mode.startsWith(RECURSIVE_PREFIX);
         }
 
         /** How deep recursion goes before the engine calls it a runaway. */

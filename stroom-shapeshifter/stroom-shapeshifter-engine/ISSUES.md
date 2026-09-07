@@ -1211,6 +1211,10 @@ carries structure without a layout. Decide against a fixture that writes structu
 variable, if one exists; none in the corpus does today.
 
 ### E42 — An apply-templates naming a template is a silent no-op at run time
+**`superseded` 2026-09-07 (D48):** the form is removed — the field, its reading, the compiler's
+checks, the graph's one-template mode and the pin. Nothing produced it and modes express every
+recursive case; D46's definition below held for a day.
+
 **`resolved` 2026-09-06, the same day, by the user's ruling (D46):** `template_ref` is defined
 as shorthand for an apply-templates whose level holds the named template alone. The compiler
 resolves the name, reserves the mode's spelling (an authored template in a `__rec_<name>` mode

@@ -1298,3 +1298,23 @@ one per walk, the five gated together at the last (the model commit removed `Con
 of its last caller, so the four before the last do not build alone). D35 is unchanged: two
 artifacts, and a sub-interface is neither. *Built the same
 day, design 28 §6: no regression, `csv_header`'s compile row +12%.*
+
+## D48 — `template_ref` is removed
+
+*Ruled by Jon, 2026-09-07.* The `template_ref` option on `apply-templates` goes: the field on
+`ApplyDirective`, its reading and writing, the compiler's name and reserved-mode checks, the
+graph's registration of a one-template mode, and the pin. It was carried over from the ported
+model, which had outgrown the need for it: nothing produced it — the DS3 migration emits modes,
+and no configuration in the corpus or the benchmarks uses it — and modes already express every
+recursive case, a template applying its own mode to part of its match being how `xml_to_json`
+descends nested elements. D46's first ruling, which defined the form when E42 found it skipped,
+is superseded by this one; its second, on a variable's text, stands.
+
+What stays: the `__rec_` mode prefix as the spelling of the recursive form (design 16 §3), which
+gives an apply its own scope and which the xmlbench challengers use. Whether a prefix sniffed
+from a mode name should remain the rule, or a field should say it, is a question of its own,
+not this ruling's.
+
+**Consequences:** no golden moved; the DS3 migration and every fixture read as before. The
+design 28 audit's two accepted notes on the form — the conditional reserved-mode refusal and
+first-wins dispatch on a shared name — go with it.

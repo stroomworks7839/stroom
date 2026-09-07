@@ -984,8 +984,7 @@ final class Body {
      *
      * <p>Which content is a reference, and it is usually a group of the match just made — that is
      * how a row is broken into fields, and a field into parts. The templates that get it are the
-     * level of the named mode — for a {@code template_ref}, the mode the graph registered holding
-     * that one template (E42) — dispatched as ordered choice, with the directive's
+     * level of the named mode, dispatched as ordered choice, with the directive's
      * {@code ignoreErrors} as the level's reporting gate.
      */
     private void apply(final CompiledOp.Apply op,
@@ -1022,9 +1021,8 @@ final class Body {
             instrument.onMatchContent(null, content);
         }
 
-        final String mode = directive.effectiveMode();
         // A compile-time fact read as a field — nothing filters the template list per call.
-        final List<CompiledTemplate> candidates = compiled.templates(mode);
+        final List<CompiledTemplate> candidates = compiled.templates(directive.mode());
 
         // A recursive apply gets its own scope, so that a nested level's captures cannot leak
         // back into the level that invoked it — and so that they are released on the way out.
