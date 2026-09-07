@@ -1,7 +1,7 @@
 # Streaming output: text is characters, structure is events, and nothing is parsed twice
 
 **Status: design, ruled 2026-09-04. Completes design 23's output round (its §3b); supersedes
-design 21 phase 1's parse-and-forward and amends design 22's byte path. D42. Builds now;
+design 21 phase 1's parse-and-forward and amends design 22's byte path. D42. Built 2026-09-04;
 design 25 (D43) is ruled, its deferral lifted 2026-09-07, and its sink declaration landed the
 same day (phase 2) as the interface's default; nothing in this design's character sink changed.**
 

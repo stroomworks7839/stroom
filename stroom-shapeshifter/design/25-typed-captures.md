@@ -60,7 +60,8 @@ ISO-2022-JP — is converted to UTF-8 *before* matching, so a capture under it i
 transcoded stream, not of the input. That is the byte matcher's limitation, not the value
 model's: it lowers character classes for UTF-8 and the single-byte encodings and cannot match
 those multi-byte encodings in their own bytes, so design 19 phase 6 decodes the stream whole
-and accepts that spans are offsets into the decoded bytes (its §4.0). The UTF-8 tag on such a
+and accepts that spans are offsets into the decoded bytes (regex design 01 §4.0). The UTF-8
+tag on such a
 capture is truthful — those are the bytes it has — and it does not pretend to be the input.
 Nothing in the byte-identity story depends on it: `raw`, UTF-8, ASCII and every single-byte
 encoding reach the matcher as the bytes they were. Binary declared as UTF-16 is an authoring
@@ -188,7 +189,7 @@ output fed to a codec — both rightly raw.
 *Rewritten 2026-09-07. As first written this section argued for landing before design 24, so
 that 24's exact-fixture pins would be taken once against the final write path. The deferral
 went the other way and design 24 is built; its `CharacterSink` declares UTF-8 and decodes
-UTF-8 bytes to characters, which is what it will do after phase 2 too, so nothing is redone.
+UTF-8 bytes to characters, which is what it did after phase 2 too, so nothing was redone.
 Each phase is audited before the next, and each is gated on the corpus and `EncodedInputTest`.*
 
 **Phase 1 — the tag.** §2, §3, §5: `Bytes` with its encoding and memo, `MatchResult` tagging,
@@ -267,7 +268,8 @@ seam and §5 brought to as-built; §4's factory sentence marked overtaken and th
 scoped; the status block, design 24's two sentences and the engine README's sink list brought
 to the present; the phase 1 measurement's phrasing corrected against the files (error bars
 overlapping, not "inside the interval"; back to back, not interleaved; 299–317); the
-benchmarks README told what a `run-rows` file is; D42 pointed here.*
+benchmarks README told what a `run-rows` file is; D42 pointed here. Gate: engine 576 (575 and
+the Windows-1252 pin), pipeline 154, checkstyle clean.*
 
 *Measured 2026-09-07, four run rows at five forks against the phase 1 commit (`35515569b0`),
 files under `design/benchmarks`. At the phase commit: `apache_httpd` +0.2%, `progressive` +0.1%,
@@ -277,9 +279,10 @@ UTF-8 itself first (`80dd6ca2ea`), two rows again: `apache_httpd` −0.8% with o
 the error bars the second. The cost is the query every write now makes — `sink.encoding()`
 through the interface, then `bytes()` — on the row that writes five times per field, three of
 them literals, and little else; the other rows do not see it. Accepted as the declared sink's
-price, about three per cent on that one row within its spread, pending phase 3's gate, which
-measures the same rows against this commit; the exits, if it compounds, are to ask the sink once
-per body call rather than per write, or a `utf8()` flag on the sink.*
+price, about three per cent on that one row within its spread; the exits, if it compounds, are
+to ask the sink once per body call rather than per write, or a `utf8()` flag on the sink. Phase
+3's gate measured the capture rows, not this one, so `csv_header` stands on these two files; the
+full-suite gate re-reads every row.*
 
 **Phase 3 — the compiled capture and its cast.** §9: `CompiledCapture` built once per binding
 by the compiler, the `select` and key-value sources through the compiled reference, the `as`
@@ -326,7 +329,7 @@ bare read of the latest slot after a failed cast is the record before's (§9.1 s
 Documents: §9.1's absence under E19 and the instrument; §9.2's `resolve`, not `resolveValue`,
 and `Refs`' remaining callers; §9.3 as pinned; the phase 2 measurement's phrasing; design 17's
 cast consumers and lint; design 27's seam and E39 line; E39 narrowed; D49 landed; D50's third
-answer.*
+answer. Gate: engine 584 (583 and the lint pin), pipeline 154, checkstyle clean.*
 
 *Measured 2026-09-07, the compile rows and the run rows of the five workloads whose
 configurations carry a `select` or key-value capture — `apache_httpd`, `ausearch`, `win_sec`,
@@ -339,7 +342,7 @@ the authored expression per match — E39's trade, taken here for captures. Run 
 `apache_httpd` −0.5%, `win_sec_strict` +0.1%, `win_sec_xml` +1.9%, `win_sec` +4.6% on a
 collapsed base fork, `ausearch` −2.7% at three forks and −0.8% at five, the ranges overlapping
 both times. No run row regresses; the compile rows pay one to three per cent on the
-capture-heavy configurations, which is the row the design named as the price.*
+capture-heavy configurations, inside the gate the design set for them.*
 
 **Phase 4 — the record.** E3 amended; E39's entry narrowed to conditions with the capture half
 recorded here; design 17 §3.1's boolean bullet and §12; design 24 §2's sink sentence; E36
@@ -391,21 +394,21 @@ consumer convert. Ruled 2026-09-07 (D50), every question as recommended.*
 A capture binding gains `as`, the cast vocabulary the engine already has on a condition's
 operand, a `sort`, `min` and `max`: `string` | `number` | `integer` | `double` | `boolean` |
 `date` (the kinds and the two typed casts named as XSLT 2.0 names them, D49). Absent means no
-cast: the value is `Bytes` as phase 1 leaves it, carrying its tag (§2) — not, as today under
-E3, converted to UTF-8 at bind.
+cast: the value is `Bytes` as phase 1 leaves it, carrying its tag (§2) — not, as it was under
+E3 before phase 1, converted to UTF-8 at bind.
 
 ```json
 {"capture": {"name": "size", "select": {"group": 2}, "as": "number"}}
 ```
 
-**Semantics: §3.1's table, applied at bind.** The captured bytes are decoded by their tag and
-read as the kind named; the store holds the result — an `Integer` or `Double` for `number`,
-whichever the text is, an `Integer` for `integer` and a `Double` for `double` (absent if the
-text is not that), a `Bool` for `boolean`, an `Instant` for `date` (the ISO-8601 reading; a
-format is `parse-date`'s business, as it is everywhere else). Every consumer then sees the kind
-and never converts: a `greater-than` against a number literal compares natively under §8's
-strict rule with no `as` on the operand, `sort` orders on the timeline, `sum` adds without a
-parse per record.
+**Semantics: design 17 §3.1's table, applied at bind.** The captured bytes are decoded by their
+tag and read as the kind named; the store holds the result — an `Integer` or `Double` for
+`number`, whichever the text is, an `Integer` for `integer` and a `Double` for `double` (absent
+if the text is not that), a `Bool` for `boolean`, an `Instant` for `date` (the ISO-8601 reading;
+a format is `parse-date`'s business, as it is everywhere else). Every consumer then sees the
+kind and never converts: a `greater-than` against a number literal compares natively under
+design 17 §8's strict rule with no `as` on the operand, `sort` orders on the timeline, `sum`
+adds without a parse per record.
 
 **`as: string` is the memo filled eagerly.** The value stays `Bytes`, tagged UTF-8, with its
 UTF-8 form computed at bind rather than on first use. For a UTF-8 feed that is the identity
@@ -431,22 +434,23 @@ refused at compile time.
 
 ### 9.2 The compiled capture
 
-Today `Level.bindCaptures` switches on the authored `CaptureSource` per match: a `group` or
-`step` reads a group directly; a `select` or key-value capture resolves its `RefExpression`
-through `Refs`, walking the authored parts on every match, while a body's references were
-compiled once by design 10's change 3. E39 names that as the capture half of its row. The
-cast needs a place to live that is decided once, and that place is the same object E39 wants.
+Before phase 3, `Level.bindCaptures` switched on the authored `CaptureSource` per match: a
+`group` or `step` read a group directly; a `select` or key-value capture resolved its
+`RefExpression` through `Refs`, walking the authored parts on every match, while a body's
+references were compiled once by design 10's change 3. E39 named that as the capture half of its
+row. The cast needs a place to live that is decided once, and that place is the same object E39
+wanted.
 
 **`CompiledCapture(name, source, cast)`**, built by the compiler once per binding, in the
 `compile` package beside `CompiledOp`: the source is a group index, a step's group index, a
 `CompiledRef` for `select`, or a pair of them for key-value; the cast is the `Cast` or null.
-`CompiledTemplate` carries the list. Binding a capture becomes: take the value (a group by
-index; a reference through `CompiledRefs.resolve`, the UTF-8 bytes the walk gave, so a
-select's kind and tag are what they were), apply the cast, or none; store or remove.
-`normalise` went in phase 1; after this phase `Refs` has no capture caller, and its remaining
-callers are `Conditions`' and the lookup `CompiledRefs` shares — E39's other half, which this
-design does not take because conditions are not captures and their compile is still the
-measurement E39 owns.
+`CompiledTemplate` carries the list. Binding a capture is (*as built*): take the value (a group
+by index; a reference through `CompiledRefs.resolve`, the UTF-8 bytes the walk gave, so a
+select's kind and tag are what they were), apply the cast, or none; store or remove. `normalise`
+went in phase 1; after this phase `Refs` has no capture caller, and its remaining callers are
+`Conditions`' and the lookup `CompiledRefs` shares — E39's other half, which this design does
+not take because conditions are not captures and their compile is still the measurement E39
+owns.
 
 **What does not move.** The `Store`, `VarRegistry`, the per-template capture-name
 registration, the dense binding for sequences (design 16), and the instrument's contract
@@ -457,27 +461,23 @@ beyond the value's type (§3). The lint that checks capture names against reads
 
 *As pinned (`CaptureCastTest`, 2026-09-07):*
 
-- An `integer` capture compared with `gt` against a numeric literal, no `as` on the operand,
-  is true where the bytes read `"10"` and the literal is `9` — and false uncast, since the
-  comparison is cross-kind (§8); `double` and `number` likewise. The §8 lint knows a declared
-  kind: no warning for that comparison, and one for a text literal against a declared kind.
-- An `integer` capture whose bytes are not a number is absent: `exists` false and a
+- An `integer` capture compared with `gt` against a numeric literal, no `as` on the operand, is
+  true where the bytes read `"10"` and the literal is `9` — and false uncast, since the
+  comparison is cross-kind (design 17 §8); `double` and `number` likewise. That lint knows a
+  declared kind: no warning for that comparison, and one for a text literal against a declared
+  kind. - An `integer` capture whose bytes are not a number is absent: `exists` false and a
   `value-of` empty, at the record's own slot, which the pin reads by index (the E19 note in
-  §9.1).
-- A `string` capture under a Windows-1252 template reads as its text. That its UTF-8 form
-  was filled at bind is not observable without reflection; `Level.cast` is that pin, by
-  reading.
-- A `date` capture orders on the timeline: `"2026-01-02T00:00:00+01:00"` is less than
+  §9.1). - A `string` capture under a Windows-1252 template reads as its text. That its UTF-8
+  form was filled at bind is not observable without reflection; `Level.cast` is that pin, by
+  reading. - A `date` capture orders on the timeline: `"2026-01-02T00:00:00+01:00"` is less than
   `"2026-01-01T23:30:00Z"` where a string comparison would not say so — pinned with `lt`, the
-  same spine `sort` uses (§8).
-- A `boolean` capture takes the lexical reading: `"1"` is true, `"yes"` is absent, `"false"`
-  is false.
-- A `select` capture and a key-value capture through the compiled reference bind what the
-  authored walk bound: the corpus, and a pin with a composite of a group, a literal and the
-  stored variable's previous value, the cast on the key-value's value.
-- The round trip: `as` reads and writes through `ReferenceJson`, `EveryVariantTest`'s one of
-  everything carries it, and an unknown cast label is refused by name as `Cast`'s other
-  readers refuse it.
+  same spine `sort` uses (design 17 §8). - A `boolean` capture takes the lexical reading: `"1"`
+  is true, `"yes"` is absent, `"false"` is false. - A `select` capture and a key-value capture
+  through the compiled reference bind what the authored walk bound: the corpus, and a pin with a
+  composite of a group, a literal and the stored variable's previous value, the cast on the
+  key-value's value. - The round trip: `as` reads and writes through `ReferenceJson`,
+  `EveryVariantTest`'s one of everything carries it, and an unknown cast label is refused by
+  name as `Cast`'s other readers refuse it.
 
 ### 9.4 Questions for the ruling — all four ruled 2026-09-07, each as recommended (D50)
 

@@ -1186,19 +1186,19 @@ delivered; the byte sink's indentation stays its own); or an explicit escape —
 declares itself content; or leave it, and accept that this shape of Stroom pipeline cannot be
 reproduced. Until ruled, `FullPipelineTest` pins the text golden without its newlines. *(Ruled the same day; see above.)*
 
-### E39 — Conditions resolve the authored expression at run time
-**`open` 2026-09-06; narrowed to conditions 2026-09-07.** Bodies resolve compiled references (`CompiledRefs`, design 10's third
-change); `Conditions` and a level's capture binding still resolve the authored
-`RefExpression` through `Refs` on every evaluation, and a `matches` condition looks its pattern
-up by text. Design 10 §2's row, left half open there and named as the two-resolver seam in
-design 27 §2.7 (ruling 7): both resolvers stay until compiling conditions and capture selects
-is measured to matter, and this entry is that measurement's owner. When it is done, `Refs`'
-resolution goes and `CompiledRefs` is the one resolver. *2026-09-07: its byte helper went
-with design 25 phase 1 — a value decodes itself, and `Refs` no longer takes an encoding — and
-the capture half went with design 25 phase 3 (D50, `fe0849b7b2`): a compiled capture is where
-the declared cast lives, so the `select` and key-value sources compile with it and `Level`
-no longer calls `Refs`. What remains is conditions: `Conditions` and the lookup `CompiledRefs`
-shares are `Refs`' callers, and this entry owns their measurement.*
+### E39 — Conditions resolve the authored expression at run time **`open` 2026-09-06; narrowed
+to conditions 2026-09-07.** Bodies and, since design 25 phase 3, capture bindings resolve
+compiled references (`CompiledRefs`, design 10's third change); `Conditions` still resolves the
+authored `RefExpression` through `Refs` on every evaluation, and a `matches` condition looks its
+pattern up by text. Design 10 §2's row, left half open there and named as the two-resolver seam
+in design 27 §2.7 (ruling 7): both resolvers stay until compiling conditions is measured to
+matter, and this entry is that measurement's owner. When it is done, `Refs`' resolution goes and
+`CompiledRefs` is the one resolver. *2026-09-07: its byte helper went with design 25 phase 1 — a
+value decodes itself, and `Refs` no longer takes an encoding — and the capture half went with
+design 25 phase 3 (D50, `fe0849b7b2`): a compiled capture is where the declared cast lives, so
+the `select` and key-value sources compile with it and `Level` no longer calls `Refs`. What
+remains is conditions: `Conditions` and the lookup `CompiledRefs` shares are `Refs`' callers,
+and this entry owns their measurement.*
 
 ### E40 — The three sinks duplicate the carry splice, the SAX call and the qname rule
 **`resolved` 2026-09-06, the same day.** `Utf8.Carry` owns the bytes a sink holds back between

@@ -1233,7 +1233,7 @@ would need — framing, integers, slicing, a byte-writing element — is E36, no
 
 *Deferral lifted 2026-09-07, design 24 built. Amended the same day with §9 — a capture
 declares its kind through `as`, cast once at bind, on a compiled capture that also takes
-E39's capture half — ruled D50.*
+E39's capture half — ruled D50. Built the same day, phases 1 to 4; design 25 §7 is the record.*
 
 ## D44 — Extension functions: a registry and a contract in the engine, Stroom's functions in the pipeline
 
