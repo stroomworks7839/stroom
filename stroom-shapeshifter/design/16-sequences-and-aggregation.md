@@ -19,7 +19,8 @@ The matrix said this family "needs whole-input state before first output byte" a
 that as an architectural question. Reading the engine says otherwise: **the whole-input state
 already exists, and the ordering already works.** What is missing is iteration.
 
-Three facts, each checkable in the source:
+Three facts, each checkable in the source (*as read 2026-08-25: `Executor` is `Run` and `Body`
+since D45, and `template_ref` went with D48*):
 
 1. **Stores already accumulate across a level's whole run.** `exec/Store.java` is a sparse
    list indexed by match number, and `Executor.processMatch` clears a template's capture
@@ -303,9 +304,9 @@ uses:
 
 | Instruction | Result | Notes |
 |---|---|---|
-| `count` | `Int` | populated entries, holes not counted |
-| `sum` | `Int` or `Real` | see [17 §11](17-value-computation.md) for promotion and overflow |
-| `avg` | `Real` | absent for an empty sequence, not zero |
+| `count` | `Integer` | populated entries, holes not counted |
+| `sum` | `Integer` or `Double` | see [17 §11](17-value-computation.md) for promotion and overflow |
+| `avg` | `Double` | absent for an empty sequence, not zero |
 | `min`, `max` | as input | `as` selects the comparison, uncast = string forms (17 §8) |
 | `distinct-values` | binds a **dense sequence** | first appearance order, keeping the first index |
 

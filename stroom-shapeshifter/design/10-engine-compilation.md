@@ -49,9 +49,9 @@ candidate, and none may be acted on before a benchmark says which matter (§4):
 **Resolved so far** — change 1 (§6): anchored dispatch, matcher as field. Change 2 (§7): mode
 dispatch tables, `call-template` resolution. Change 3 (§8): reference strategies, pre-encoded
 literals and `Text` bytes, and pattern-by-text for regex `replace` — though a `matches`
-condition still looks its pattern up by text, so that row stays half-open with conditions.
+condition still looks its pattern up by text, so that row stays half-open with conditions (E39).
 Still open: step `Tag`/`TakeUntil` pre-encoding, `TakeWhile` byte tables, compiled
-conditions/guards, capture elimination, and the two rows above.
+conditions/guards (E39), capture elimination, and the two rows above.
 
 The regex library already proves the end state on its own layer; the engine's job is the same
 move for dispatch, references, bodies and steps. And the shape is **two layers, never three**
@@ -66,14 +66,15 @@ concurrency is "compile one per instance", exactly as Stroom gives each pipeline
 own parser.
 
 Two contracts follow. A `CompiledProject` executes one run at a time and is reusable
-sequentially — a `ByteMatcher`'s contract, one level up — which means it needs a defined reset
-between streams: DS3's `Node.clear()`, and the same lifecycle E19 already settled for capture
-stores. And `Executor` is transitional: as bodies and dispatch become compiled structures, it
-dissolves into the graph, because "performs the execution" is the compiled object's job
-description. Within that shape, `CompiledTemplate` grows per-mode dispatch tables, references
+sequentially — a `ByteMatcher`'s contract, one level up — which means it needs a defined
+reset between streams: DS3's `Node.clear()`, and the same lifecycle E19 already settled for
+capture stores. And `Executor` was transitional: it dissolved on 2026-09-06 (design 27) into
+a `Run` over the graph — a window, a level, a body and a function runtime — because "performs
+the execution" is the compiled object's job description, and a run is its state for one
+input. Within that shape, `CompiledTemplate` grows per-mode dispatch tables, references
 become classified strategies with pre-encoded literals, and bodies become a compiled
-instruction list rather than a walked model — but shape follows measurement, not the other way
-round.
+instruction list rather than a walked model — but shape follows measurement, not the other
+way round.
 
 ## 3. Decoration: measurement and IO capture as a compile-time choice
 

@@ -18,13 +18,13 @@ package stroom.shapeshifter.pipeline.function;
 
 import stroom.feed.api.FeedProperties;
 import stroom.pipeline.state.FeedHolder;
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Purity;
 import stroom.shapeshifter.engine.function.Signature;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 /** {@code classification}: as {@code stroom.pipeline.xsltfunctions.Classification}: the feed's classification. */
 public final class ClassificationFunction extends StroomFunction {

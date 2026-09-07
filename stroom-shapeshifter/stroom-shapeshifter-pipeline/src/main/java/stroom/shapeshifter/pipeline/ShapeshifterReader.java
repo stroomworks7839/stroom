@@ -18,14 +18,14 @@ package stroom.shapeshifter.pipeline;
 
 import stroom.pipeline.errorhandler.ErrorHandlerAdaptor;
 import stroom.pipeline.xml.converter.AbstractParser;
-import stroom.shapeshifter.engine.CharacterSink;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
-import stroom.shapeshifter.engine.SaxEventSink;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.function.RunMode;
 import stroom.shapeshifter.engine.function.Services;
+import stroom.shapeshifter.engine.output.CharacterSink;
+import stroom.shapeshifter.engine.output.SaxEventSink;
 import stroom.util.shared.Severity;
 
 import org.xml.sax.ContentHandler;

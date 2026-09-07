@@ -16,12 +16,12 @@
 
 package stroom.shapeshifter.pipeline.function;
 
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Purity;
 import stroom.shapeshifter.engine.function.Signature;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 /** {@code hex-to-dec}: as {@code stroom.pipeline.xsltfunctions.HexToDec}. */
 public final class HexToDecFunction extends StroomFunction {

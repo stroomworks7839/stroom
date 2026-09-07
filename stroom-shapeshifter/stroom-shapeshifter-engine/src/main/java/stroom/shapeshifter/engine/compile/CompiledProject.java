@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
+import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 
@@ -54,7 +55,7 @@ public final class CompiledProject {
     /** Whether any body carries an element, attribute or namespace instruction (design 22 phase 2). */
     private final boolean structured;
 
-    /** Templates per mode, in authored order. The no-mode templates sit under the null key. */
+    /** Templates per mode, in authored order; the no-mode templates sit under the null key. */
     private final Map<String, List<CompiledTemplate>> templatesByMode = new HashMap<>();
 
     /** The first template of each name — {@code call-template}'s meaning of a name. */
@@ -65,11 +66,17 @@ public final class CompiledProject {
      *
      * @param project   the authored configuration
      * @param templates its templates, compiled, in their authored order
-     * @param patterns  every pattern used outside a template's own match, compiled once and
-     *                  keyed by its text
-     * @param encoding  the encoding its input is declared to be in, which a byte-order mark on
-     *                  the input may still override
+     * @param patterns  every pattern the templates use except a regex match's own — bodies',
+     *                  conditions' and progressive steps' — compiled once and keyed by text,
+     *                  flags and encoding
+     * @param encoding  the encoding its input is matched in: the declared one, or UTF-8 when a
+     *                  transcode-family source is decoded first; a byte-order mark on the input
+     *                  may still override it
+     * @param transcodeFrom the source encoding a transcode-family input is decoded from, or
+     *                  null when the input is matched as it arrives
      * @param warnings  anything worth saying that did not stop compilation
+     * @param functions the definitions the configuration calls, bound once per run
+     * @param structured whether any template writes structure, decided by the structure check
      */
     public CompiledProject(final Project project,
                            final List<CompiledTemplate> templates,
@@ -77,7 +84,8 @@ public final class CompiledProject {
                            final Encoding encoding,
                            final Encoding transcodeFrom,
                            final List<Message> warnings,
-                           final List<FunctionDefinition> functions) {
+                           final List<FunctionDefinition> functions,
+                           final boolean structured) {
         this.transcodeFrom = transcodeFrom;
         this.functions = List.copyOf(functions);
         this.project = project;
@@ -85,7 +93,7 @@ public final class CompiledProject {
         this.patterns = Map.copyOf(patterns);
         this.encoding = encoding;
         this.warnings = List.copyOf(warnings);
-        this.structured = project.templates().stream().anyMatch(t -> carriesStructure(t.body()));
+        this.structured = structured;
 
         for (final CompiledTemplate template : this.templates) {
             templatesByMode
@@ -98,36 +106,11 @@ public final class CompiledProject {
 
     /**
      * Whether the configuration writes structure. A structured configuration can be run straight
-     * into an event sink; a text one must be serialised and parsed (design 20 S7, design 22
+     * into an event sink; a text one must be serialised and parsed (design 20 §7, design 22
      * phase 2).
      */
     public boolean structured() {
         return structured;
-    }
-
-    private static boolean carriesStructure(final List<stroom.shapeshifter.engine.config.OutputNode> body) {
-        for (final stroom.shapeshifter.engine.config.OutputNode node : body) {
-            final boolean found = switch (node) {
-                case stroom.shapeshifter.engine.config.OutputNode.Element ignored -> true;
-                case stroom.shapeshifter.engine.config.OutputNode.Attribute ignored -> true;
-                case stroom.shapeshifter.engine.config.OutputNode.Namespace ignored -> true;
-                case stroom.shapeshifter.engine.config.OutputNode.If value -> carriesStructure(value.then());
-                case stroom.shapeshifter.engine.config.OutputNode.Choose value ->
-                        value.when().stream().anyMatch(w -> carriesStructure(w.body()))
-                        || carriesStructure(value.otherwise());
-                case stroom.shapeshifter.engine.config.OutputNode.Switch value ->
-                        value.cases().stream().anyMatch(c -> carriesStructure(c.body()))
-                        || carriesStructure(value.defaultBody());
-                case stroom.shapeshifter.engine.config.OutputNode.ForEach value -> carriesStructure(value.body());
-                case stroom.shapeshifter.engine.config.OutputNode.ForEachGroup value -> carriesStructure(value.body());
-                case stroom.shapeshifter.engine.config.OutputNode.Variable value -> carriesStructure(value.body());
-                default -> false;
-            };
-            if (found) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /** The authored configuration. */
@@ -160,12 +143,12 @@ public final class CompiledProject {
         return transcodeFrom;
     }
 
-    /** The interned patterns, keyed by text and encoding. */
+    /** The interned patterns, keyed by text, flags and encoding. */
     public Map<PatternKey, BytePattern> patterns() {
         return patterns;
     }
 
-    /** The declared input encoding. */
+    /** The encoding the input is matched in: the declared one, or UTF-8 when the source is transcoded first. */
     public Encoding encoding() {
         return encoding;
     }

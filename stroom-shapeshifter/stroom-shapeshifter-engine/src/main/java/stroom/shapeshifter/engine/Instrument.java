@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine;
 
+import stroom.shapeshifter.engine.value.TypedValue;
+
 import java.util.UUID;
 
 /**
@@ -30,8 +32,9 @@ import java.util.UUID;
  * <p>Every method has a default that does nothing, so an implementation can answer only the
  * questions it cares about.
  *
- * <p>Offsets are byte counts from the start of the input and the start of the output
- * respectively. An offset into content that came from a variable rather than from the input
+ * <p>Input offsets are byte counts from the start of the input; output offsets are in the
+ * sink's currency — bytes or events, as {@link OutputSink#unit()} says (design 20 §5). An
+ * offset into content that came from a variable rather than from the input
  * cannot be meaningful, and the engine says so by reporting {@link #UNLOCATABLE} rather than a
  * plausible-looking number.
  */
@@ -76,13 +79,14 @@ public interface Instrument {
      *
      * @param templateId which template bound it
      * @param name       the variable's name
-     * @param value      its value, in the engine's internal form — UTF-8, already normalised
-     *                   from the template's declared encoding — not necessarily the input bytes
+     * @param value      its value as bound: captured bytes as read, tagged with their encoding
+     *                   (design 25), a typed value a step produced, or the kind the binding
+     *                   declared (§9); a binding that bound nothing is not reported
      * @param matchIndex which match it belongs to
      */
     default void onCapture(final UUID templateId,
                            final String name,
-                           final byte[] value,
+                           final TypedValue value,
                            final int matchIndex) {
     }
 
@@ -121,7 +125,7 @@ public interface Instrument {
      *
      * <p>The span is measured on the sink's {@link OutputSink#position()} before and after the
      * body, in the sink's own currency — byte offsets for a byte sink, event ordinals for an
-     * event sink — and {@code unit} says which (design 20 S5). Spans nest: a parent's span
+     * event sink — and {@code unit} says which (design 20 §5). Spans nest: a parent's span
      * covers its children's. One consequence of the deferred start tag (design 21 phase 2a):
      * an enclosing element opened by a parent is written when the first child emits, so the
      * first child's span begins with the parent's start tag or start event. That is where the

@@ -146,7 +146,7 @@ Re-checked against the working tree, not carried over on trust:
 - [pending] Template.RegexFlags is still nested in Template (med).
 - [pending] RefExpression.MatchIndex is still a four-way union flattened into flag fields (med, model+codec surgery).
 - [pending] Compiler still lacks the shared charsetFor(Encoding) extraction (med).
-- [pending] The "__rec_" prefix is still spelt independently in Compiler and Executor (low).
+- [resolved 2026-09-06] The "__rec_" prefix is one literal on ApplyDirective since design 27; D48 kept it as the recursive form's spelling (low).
 - [pending] The remaining low-severity nits listed per package below needed a confirmation pass — delivered 2026-08-22; see "The confirmation pass" section for the verdicts.
 
 ## The confirmation pass (2026-08-22) — the per-package pending lists, retired
@@ -175,8 +175,8 @@ idea was not pursued).
   package's sealed idiom (med, model+codec surgery).
 - [pending] Compiler: extract the shared charsetFor(Encoding) resolution; the duplicated
   ternary appears twice in compile() (med).
-- [pending] The "__rec_" synthetic-mode prefix spelt independently in Compiler and Executor
-  — one constant (low).
+- [resolved 2026-09-06] The "__rec_" synthetic-mode prefix — one constant on ApplyDirective
+  since design 27 (low).
 - [pending] Strict-level line-anchor lint misses the root level when no document template
   exists (low).
 - [decision] Lax-level unanchored eater consumes a searched-past prefix with no skip report —

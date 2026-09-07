@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.pipeline.function;
 
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.FunctionCall;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.util.http.HttpClientConfiguration;
 import stroom.util.jersey.HttpClientProvider;
 import stroom.util.jersey.HttpClientProviderCache;

@@ -17,9 +17,12 @@
 package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.regex.BytePattern;
+import stroom.shapeshifter.regex.Encoding;
+import stroom.shapeshifter.regex.Flag;
 import stroom.shapeshifter.regex.PatternCompileException;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -55,30 +58,30 @@ public record PatternInfo(boolean valid, String error, List<Group> groups) {
 
     /** Inspect a pattern, as UTF-8 — the default the encoding-aware overload generalises. */
     public static PatternInfo inspect(final String pattern) {
-        return inspect(pattern, stroom.shapeshifter.regex.Encoding.UTF_8);
+        return inspect(pattern, Encoding.UTF_8);
     }
 
     /**
-     * Inspect a pattern for an encoding, because validity is per-encoding (phase 4's audit):
+     * Inspect a pattern for an encoding, because validity is per-encoding:
      * {@code \p{L}} compiles under UTF-8 and is refused under RAW, {@code 中} under a table
      * that cannot express it — an editor answering from the UTF-8 parse alone would call
      * valid what the template's compile then refuses. Pass the template's mapped encoding
      * ({@code RegexEncodings.forMatch}) and this reports what the engine will actually do.
      */
     public static PatternInfo inspect(final String pattern,
-                                      final stroom.shapeshifter.regex.Encoding encoding) {
+                                      final Encoding encoding) {
         final BytePattern compiled;
         try {
-            compiled = BytePattern.compile(pattern,
-                    java.util.EnumSet.noneOf(stroom.shapeshifter.regex.Flag.class), encoding);
+            compiled = BytePattern.compile(pattern, EnumSet.noneOf(Flag.class), encoding);
         } catch (final PatternCompileException e) {
             return new PatternInfo(false, e.getMessage(), List.of());
         }
 
+        // Indexed by group number, entry 0 the whole match: the library's stated contract.
         final List<String> names = compiled.groupNames();
         final List<Group> groups = new ArrayList<>(compiled.groupCount());
         for (int i = 1; i <= compiled.groupCount(); i++) {
-            groups.add(new Group(i, i < names.size() ? names.get(i) : null));
+            groups.add(new Group(i, names.get(i)));
         }
         return new PatternInfo(true, null, groups);
     }

@@ -17,10 +17,12 @@
 package stroom.shapeshifter.engine.config;
 
 /**
- * A configuration could not be read: malformed, or naming something the engine does not know.
+ * A configuration is wrong: malformed, naming something the engine does not know, or asking
+ * for what this build does not carry — found reading it into a {@link Project} or compiling
+ * that {@code Project}, before any input has been read.
  *
- * <p>Distinct from a failure while <i>running</i> a configuration. This one means the document
- * never became a {@link Project}, so nothing was attempted.
+ * <p>Distinct from anything that happens while <i>running</i> a configuration, which is a
+ * message, never an exception: one bad record in a million is not a failure.
  */
 public class ConfigException extends RuntimeException {
 
@@ -30,5 +32,14 @@ public class ConfigException extends RuntimeException {
 
     public ConfigException(final String message, final Throwable cause) {
         super(message, cause);
+    }
+
+    /**
+     * Refuse clearly rather than fail obscurely: a template asks for what this build does not
+     * carry, and is told so by name at compile time rather than run to produce nothing.
+     */
+    public static ConfigException notYet(final String templateName, final String what) {
+        return new ConfigException(
+                "Template '" + templateName + "' needs " + what + ", which this build does not support");
     }
 }

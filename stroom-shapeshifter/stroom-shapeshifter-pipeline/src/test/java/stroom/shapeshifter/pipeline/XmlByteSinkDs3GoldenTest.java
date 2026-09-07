@@ -17,7 +17,7 @@
 package stroom.shapeshifter.pipeline;
 
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
-import stroom.shapeshifter.engine.XmlByteSink;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;

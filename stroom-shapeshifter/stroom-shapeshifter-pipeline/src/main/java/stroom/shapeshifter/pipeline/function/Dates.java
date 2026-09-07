@@ -18,8 +18,8 @@ package stroom.shapeshifter.pipeline.function;
 
 import stroom.meta.shared.Meta;
 import stroom.pipeline.state.MetaHolder;
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.FunctionContext;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.util.date.DateFormatterCache;
 
 import java.time.Instant;

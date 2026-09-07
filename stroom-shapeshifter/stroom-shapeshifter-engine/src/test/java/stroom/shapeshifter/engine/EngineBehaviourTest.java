@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,8 +49,128 @@ class EngineBehaviourTest {
         final List<Message> messages = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(json)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         return new Run(output.toString(StandardCharsets.UTF_8), messages);
+    }
+
+    /**
+     * Design 27 ruling 9: a progressive regex step's flags are part of the pattern it compiles
+     * to, so a case-insensitive step matches upper case — they were read, written back and
+     * silently ignored because the interned key was text and encoding alone.
+     */
+    @Test
+    void progressiveRegexStepHonoursItsFlags() {
+        final Run result = run("""
+                {
+                  "name": "flags", "version": 5,
+                  "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "match": {"progressive": [
+                       {"Tag": "L:"},
+                       {"Regex": {"pattern": "[a-z]+", "flags": {"case_insensitive": true}}},
+                       {"Tag": "\\n"}]},
+                     "captures": [{"name": "word", "select": {"step": 1}}],
+                     "body": [{"value-of": {"parts": [{"capture": {"var_id": "word", "group": 0}}]}},
+                              {"text": ";"}]}
+                  ]
+                }
+                """, "L:def\nL:ABC\n");
+        assertThat(result.output()).as(result.messages().toString()).isEqualTo("def;ABC;");
+    }
+
+    /**
+     * Design 27 phase 2: a UTF-16 byte-order mark reaching the window means the source was
+     * declared as something else — a UTF-16 source is transcoded whole before the window sees
+     * it — so the run is refused by name rather than matching UTF-8 machines against UTF-16
+     * bytes, streamed and whole-buffer alike.
+     */
+    @Test
+    void utf16ByteOrderMarkOnAUtf8SourceIsRefusedByName() {
+        final byte[] input = {(byte) 0xFF, (byte) 0xFE, 'a', 0, '\n', 0};
+        final var compiled = Shapeshifter.compile(ProjectReader.read(lines(2000)));
+        for (final boolean whole : new boolean[]{false, true}) {
+            final ByteArrayOutputStream output = new ByteArrayOutputStream();
+            final List<Message> messages = whole
+                    ? Shapeshifter.runWhole(compiled, input, new XmlByteSink(output))
+                    : Shapeshifter.run(compiled, new ByteArrayInputStream(input), new XmlByteSink(output));
+            assertThat(messages).as("whole=" + whole).singleElement().satisfies(message -> {
+                assertThat(message.severity()).isEqualTo(Severity.FATAL);
+                assertThat(message.text()).contains("begins with a utf-16le byte-order mark")
+                        .contains("declared utf-8").contains("declare utf-16le on the source");
+            });
+            assertThat(output.size()).as("whole=" + whole).isZero();
+        }
+    }
+
+    /**
+     * The recursive form is a mode spelt with the {@code __rec_} prefix (design 16 §1; D48): a
+     * template applying that mode to part of its match hands it back to itself, and
+     * {@code max_depth} cuts the recursion.
+     */
+    @Test
+    void recursiveModeHandsTheMatchBackToItselfUntilMaxDepth() {
+        assertThat(run(recursion(64), "abc\n").output()).isEqualTo("<a><b><c>;");
+        // The row's own apply is depth 0, so a limit of 2 allows the head twice.
+        assertThat(run(recursion(2), "abc\n").output()).as("max_depth cuts the recursion")
+                .isEqualTo("<a><b>;");
+    }
+
+    /** A template that writes its first character and hands the rest back to its own mode. */
+    private static String recursion(final int maxDepth) {
+        return """
+                {
+                  "name": "rec", "version": 5,
+                  "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 1}}]},
+                                                   "mode": "__rec_head", "max_depth": %d}},
+                              {"text": ";"}]},
+                    {"id": "00000000-0000-0000-0000-000000000003", "name": "head", "mode": "__rec_head",
+                     "match": {"regex": {"pattern": "^(.)(.*)$"}},
+                     "body": [{"text": "<"}, {"value-of": {"parts": [{"capture": {"group": 1}}]}}, {"text": ">"},
+                              {"apply-templates": {"select": {"parts": [{"capture": {"group": 2}}]},
+                                                   "mode": "__rec_head", "max_depth": %d}}]}
+                  ]
+                }
+                """.formatted(maxDepth, maxDepth);
+    }
+
+    /**
+     * E41, ruled 2026-09-06: a variable's text is the bytes its body wrote — a body that writes
+     * elements leaves no serialiser newlines or indent inside the value.
+     */
+    @Test
+    void variableHoldsWhatItsBodyWroteWithoutLayout() {
+        final Run result = run("""
+                {
+                  "name": "var", "version": 5,
+                  "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
+                     "body": [{"variable": {"name": "v", "body": [
+                                 {"element": {"name": "a", "body": [
+                                   {"element": {"name": "b", "body": [
+                                     {"value-of": {"parts": [{"capture": {"group": 1}}]}}]}}]}}]}},
+                              {"element": {"name": "out", "body": [
+                                 {"value-of": {"parts": [{"capture": {"var_id": "v", "group": 0}}]}}]}}]}
+                  ]
+                }
+                """, "x\n");
+        assertThat(result.output()).as(result.messages().toString())
+                .contains("<out>&lt;a&gt;&lt;b&gt;x&lt;/b&gt;&lt;/a&gt;</out>");
     }
 
     /** A configuration that writes each line of its input in brackets. */

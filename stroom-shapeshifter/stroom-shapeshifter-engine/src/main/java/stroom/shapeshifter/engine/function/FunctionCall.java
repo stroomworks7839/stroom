@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.function;
 
-import stroom.shapeshifter.engine.exec.TypedValue;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 /** A function bound to a run: what a {@code call} instruction invokes. */
 @FunctionalInterface

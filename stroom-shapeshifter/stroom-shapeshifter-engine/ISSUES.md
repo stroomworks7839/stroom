@@ -9,7 +9,9 @@ Each entry says what was seen, where to see it again, and what resolving it woul
 to them by id in commits and tests.
 
 **Status** is one of: `open` — decided against nothing yet; `deferred` — decided, with a reason,
-and revisitable; `blocked` — needs something that does not exist.
+and revisitable; `blocked` — needs something that does not exist; `resolved` — done, the
+finding's text kept below; `superseded` — a resolution overtaken by a later ruling, which stays
+below it.
 
 ---
 
@@ -57,6 +59,15 @@ by provenance — only the current match's bytes are converted; stored values we
 at capture and now pass through untouched — which quietly fixed a latent double-conversion of
 variable reads under non-UTF-8 runs. Pinned by `EncodedInputTest`: one stream, two encodings,
 0xE9 is é only where declared.
+
+*Amended 2026-09-07 by design 25 phase 1 (D43): the normalisation at capture is gone. A
+captured value carries the encoding it was matched under and decodes itself, once, when a
+consumer asks for text; the write path's split by provenance — a local group converts, a
+stored value passes through — is gone with it, since the value carries the rule. What this
+entry guaranteed stands: a template's declared encoding governs its own content, now as the
+tag on every group of its match rather than as a conversion at bind. Pinned in
+`EncodedInputTest` (a raw capture holds the bytes it matched; a value captured under one
+template's encoding is written right by another) and `TypedValueTest`.*
 
 Original text:
 
@@ -399,7 +410,7 @@ phases, each audited before the next began:
 | 7 | The A/B, this closure, and the matrix rescored |
 
 **What it cost to get right.** Each phase's audit found something the tests could not: the
-legacy-alias mapping was wrong twice — first on typed counters (`__match_count` binds `Int`,
+legacy-alias mapping was wrong twice — first on typed counters (`__match_count` binds `Integer`,
 so equality must cast to string), then on the *absent* rule, where three legacy truth tables
 would have silently flipped and no golden could have caught it because the corpus never
 exercises them. `divide` wrapped silently on `MIN_VALUE / -1`, the one long division Java
@@ -553,7 +564,7 @@ the three originals: the same names bound, the same references collected (includ
 and both capture-source shapes), the same lint sites, the same key-value stand-down, and the
 same reporting order — lints during the walk, the refusal in `report()` before the substring
 warning that the refusal can prevent. Coverage is now pinned rather than reasoned about:
-`BodyScanBindingsTest` compiles one configuration per binding instruction, each writing a
+`ReferenceCheckBindingsTest` (then `BodyScanBindingsTest`) compiles one configuration per binding instruction, each writing a
 name and reading it straight back, and was mutation-checked — dropping `format-date`'s bind
 fails it by name. 362 engine tests.*
 
@@ -632,7 +643,7 @@ which is what makes the change safe to attempt.
 
 ### E14 — Whether the textual step subset should be lowered onto the combinator layer
 **`open`, reframed by [D34](../design/00-decisions.md) — now purely an optimisation question.
-Waits for E17.**
+Waited for E17, which resolved 2026-08-20; nothing gates it now but E12's ordering.**
 
 The original framing said the steps "could not" be lowered because they are possessive. Wrong:
 **atoms are semantics-neutral** — `comb` compiles the same vocabulary into the HIR and gets full
@@ -998,10 +1009,16 @@ Under events there are no byte offsets — the trace needs an event-indexed span
 one, and that decision reaches the UI.
 
 ### E32 — An extensible function library
-**`open` — design 26 written 2026-09-04 on the user's direction: a registry and contract in the
-engine mirrored on Stroom's Saxon library, a `call` instruction, purity with a preview mode, and
-the pipeline module carrying a variant of each of Stroom's fifty-eight functions (fifty-seven;
-`split-document` has no counterpart). Awaiting its §7 rulings.**
+**`resolved` 2026-09-05, by design 26 (D44, ruled 2026-09-04):** a registry and contract in
+`stroom.shapeshifter.engine.function`, a `call` instruction, purity with a preview mode, and the
+pipeline module carrying a variant of each of Stroom's functions but `split-document`, built in
+four phases the same night and each audited before the next; the last audit landed 2026-09-05.
+What the design left undecided is its §8.
+
+Original status (found open): design 26 written 2026-09-04 on the user's direction: a registry
+and contract in the engine mirrored on Stroom's Saxon library, a `call` instruction, purity with
+a preview mode, and the pipeline module carrying a variant of each of Stroom's fifty-eight
+functions (fifty-seven; `split-document` has no counterpart). Awaiting its §7 rulings.
 
 There is no registry, and the shape of the code is the reason: transform functions are a
 **closed** set of records in `OutputNode` (`Translate`, `StringJoin`, `Replace`, `LowerCase`, …),
@@ -1116,6 +1133,10 @@ character-based by nature and design 24 rightly does not bypass it for text. Tex
 a `raw` value keep decoding to the byte-as-code-point image, which is what makes byte
 operations expressible through character ones until real byte functions exist beside them.
 Not started; design after the streaming contract (23, 24) and the carrier (25) have landed.
+*2026-09-07: the carrier landed — design 25 built, phases 1 to 3. A capture's `as` (§9, D50)
+is the slot the binary readings go in, an integer of a declared width and endianness beside
+the decimal parse, and the framing step needs the captured `Integer` it provides; re-tagging
+a capture under a named encoding belongs here too (design 25 §8).*
 
 ### E37 — A capture referenced from the root template's body is silently empty
 **`resolved` 2026-09-05, in the compiler.** The reference checker knows the document template
@@ -1139,14 +1160,14 @@ silence is not: the compiler knows which template is the root and can see a capt
 in its body, and should refuse it by name, as it refuses captures on an eater. Not started.
 
 ### E38 — A structured configuration cannot author a whitespace-only text node inside an element
-**`resolved` 2026-09-04, the same day, by the user's ruling: the event sink delivers whitespace
+**`resolved` 2026-09-04, the same day, by the user's ruling:** the event sink delivers whitespace
 as the author wrote it; the byte sink keeps Saxon's rule, because it is a serialiser and an
 indenting serialiser at the end of a pipeline applies that rule anyway, while a non-indenting
 one writes the author's text as authored — the serialiser decides, which is Stroom's existing
 behaviour for a stylesheet's text nodes. `SaxEventSink` lost its pending-whitespace logic;
 `FullPipelineTest`'s text shape now matches Stroom's golden byte for byte. One consequence
 named: `omit-if-empty` on an element whose only content is whitespace omits it on the byte
-path and emits it with that whitespace on the event path, by the same division.**
+path and emits it with that whitespace on the event path, by the same division.
 
 Original text (found open): Found by the module's full-pipeline tests (`FullPipelineTest`), which
 mirror Stroom's `TestFileAppender` with Shapeshifter where the DS3 configuration and the
@@ -1164,3 +1185,80 @@ keep the rule on the byte path and drop it on the event path (a text node an aut
 delivered; the byte sink's indentation stays its own); or an explicit escape — a `text` that
 declares itself content; or leave it, and accept that this shape of Stroom pipeline cannot be
 reproduced. Until ruled, `FullPipelineTest` pins the text golden without its newlines. *(Ruled the same day; see above.)*
+
+### E39 — Conditions resolve the authored expression at run time **`open` 2026-09-06; narrowed
+to conditions 2026-09-07.** Bodies and, since design 25 phase 3, capture bindings resolve
+compiled references (`CompiledRefs`, design 10's third change); `Conditions` still resolves the
+authored `RefExpression` through `Refs` on every evaluation, and a `matches` condition looks its
+pattern up by text. Design 10 §2's row, left half open there and named as the two-resolver seam
+in design 27 §2.7 (ruling 7): both resolvers stay until compiling conditions is measured to
+matter, and this entry is that measurement's owner. When it is done, `Refs`' resolution goes and
+`CompiledRefs` is the one resolver. *2026-09-07: its byte helper went with design 25 phase 1 — a
+value decodes itself, and `Refs` no longer takes an encoding — and the capture half went with
+design 25 phase 3 (D50, `fe0849b7b2`): a compiled capture is where the declared cast lives, so
+the `select` and key-value sources compile with it and `Level` no longer calls `Refs`. What
+remains is conditions: `Conditions` and the lookup `CompiledRefs` shares are `Refs`' callers,
+and this entry owns their measurement.*
+
+### E40 — The three sinks duplicate the carry splice, the SAX call and the qname rule
+**`resolved` 2026-09-06, the same day.** `Utf8.Carry` owns the bytes a sink holds back between
+writes and the flush at the structural call that ends the content, one per sink; `SaxEvents`
+makes and counts the SAX calls for the two event sinks and turns the handler's refusal into the
+sink's; `QNames` holds both halves of the qualified-name rule. The `Element`/`Attribute`
+bookkeeping the two structured sinks share stays with each, because the byte sink's element
+carries the indenter's state and the event sink's carries the resolved URI, and a shared base
+would be a third thing for two fields. Under the three sink tests and the pipeline's goldens;
+no behaviour moved.
+
+Original text (found open): Named at design 27's entry review and left alone by phase 6 so its move
+commit stayed a move: the carry-splice-decode sequence is written in `XmlByteSink`,
+`SaxEventSink` and `CharacterSink`; `SaxCall` and the counting `sax()` are verbatim in the two
+event sinks; `XmlByteSink.prefixOf` and `SaxEventSink.localOf` are halves of one qname rule; and
+the two structured sinks carry the same `Element`/`Attribute` bookkeeping by their own
+admission. Smallest shape: `Utf8.splice` returning the completed prefix and the new carry, a
+package-private holder for the SAX call and its counter, and the qname halves side by side.
+Pure hygiene, under the sink tests and the pipeline's goldens; no behaviour moves.
+
+### E41 — A variable's body is serialised with Saxon's indenting layout
+**`resolved` 2026-09-06, the same day, by the user's ruling (D46):** a variable is a value, not
+a document, so its text is the bytes its body wrote — the buffer sink takes the faithful layout,
+and a body that writes elements leaves no serialiser newlines or indent inside the value. Typed
+values were never affected: a transform bound by name never touches a sink, and a value bound
+inside the body is promoted with its type. Pinned in `EngineBehaviourTest`; no corpus fixture
+writes structure into a variable, so no golden moved.
+
+Original text (found open): A `variable` body runs through an `XmlByteSink` over a buffer with the
+indented layout, so a body that writes elements gets Saxon's newlines and three-space indent
+inside the variable's value. Design 27 ruling 8 filed the question (why a variable's text takes
+a serialiser's layout at all) as a behaviour question, not the structure design's; this entry
+is its owner. The exits: a raw layout for the buffer sink, or an `exec`-owned buffer sink that
+carries structure without a layout. Decide against a fixture that writes structure into a
+variable, if one exists; none in the corpus does today.
+
+### E42 — An apply-templates naming a template is a silent no-op at run time
+**`superseded` 2026-09-07 (D48):** the form is removed — the field, its reading, the compiler's
+checks, the graph's one-template mode and the pin. Nothing produced it and modes express every
+recursive case; D46's definition below stands as the record of the day it held.
+
+**`resolved` 2026-09-06, the same day, by the user's ruling (D46):** `template_ref` is defined
+as shorthand for an apply-templates whose level holds the named template alone. The compiler
+resolves the name, reserves the mode's spelling (an authored template in a `__rec_<name>` mode
+that a `template_ref` to that name would dispatch to is refused), and the graph registers the
+mode with its one template; the interpreter's skip is gone. The named template's match still
+runs against the content, its captures still bind, `max_depth` still guards the recursion and
+the form still runs in a scope of its own. It is not `call-template`, which invokes a body with
+parameters and matches nothing, and not a library reference, resolved at import as D11
+resolves patterns. Pinned in `EngineBehaviourTest` with a template that hands the rest of its
+match back to itself.
+
+Original text (found open): `apply-templates` accepts `template_ref` — "invoke this named template
+rather than dispatching, while still matching content", the model says — and the reader reads
+it, `TemplateUses` checks the name exists, and the body interpreter then skips the directive on
+the strength of a comment saying the compiler had inlined it. Nothing inlines it: no pass
+reads `templateRef` beyond the existence check, and the `__rec_` mode `effectiveMode()` mints
+for it has no templates unless an author spelt them so by hand (the xmlbench challenger
+fixture does, and reaches the recursive scope through the mode, not the reference). Found by
+design 27's exit review. The exits: define the form and execute it — dispatch the named
+template's level under its own scope, which `ApplyDirective.recursive()` already provides for —
+or refuse it at compile time as ruling 10 refused the `field` capture source, until it is
+defined. Until ruled, the skip stands and the comment says what it is.

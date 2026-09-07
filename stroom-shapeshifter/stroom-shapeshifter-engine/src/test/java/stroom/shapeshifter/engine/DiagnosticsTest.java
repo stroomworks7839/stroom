@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
 
@@ -58,7 +59,7 @@ class DiagnosticsTest {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         final List<Message> messages = Shapeshifter.run(compiled,
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(out));
+                new XmlByteSink(out));
         return new Outcome(out.toString(StandardCharsets.UTF_8), messages);
     }
 

@@ -16,12 +16,12 @@
 
 package stroom.shapeshifter.pipeline.function;
 
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Purity;
 import stroom.shapeshifter.engine.function.Signature;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.util.List;
 
@@ -56,9 +56,9 @@ public final class CosineSimilarityFunction extends StroomFunction {
                 normB += b[i] * b[i];
             }
             if (normA == 0 || normB == 0) {
-                return new TypedValue.Real(0);
+                return new TypedValue.Double(0);
             }
-            return new TypedValue.Real(dot / (Math.sqrt(normA) * Math.sqrt(normB)));
+            return new TypedValue.Double(dot / (Math.sqrt(normA) * Math.sqrt(normB)));
         };
     }
 

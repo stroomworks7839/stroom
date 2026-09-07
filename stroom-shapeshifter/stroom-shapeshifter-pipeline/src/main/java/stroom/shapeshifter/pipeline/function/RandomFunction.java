@@ -16,12 +16,12 @@
 
 package stroom.shapeshifter.pipeline.function;
 
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Purity;
 import stroom.shapeshifter.engine.function.Signature;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 /** {@code random}: as {@code stroom.pipeline.xsltfunctions.Random}: a double in [0, 1). */
 public final class RandomFunction extends StroomFunction {
@@ -32,6 +32,6 @@ public final class RandomFunction extends StroomFunction {
 
     @Override
     public FunctionCall bind(final FunctionContext context) {
-        return arguments -> new TypedValue.Real(Math.random());
+        return arguments -> new TypedValue.Double(Math.random());
     }
 }

@@ -20,10 +20,10 @@ import stroom.meta.shared.Meta;
 import stroom.pipeline.LocationFactory;
 import stroom.pipeline.errorhandler.ErrorReceiver;
 import stroom.pipeline.state.MetaHolder;
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.pipeline.ShapeshifterFunctionModule;
 
 import net.sf.saxon.expr.XPathContext;
@@ -181,7 +181,7 @@ class StroomFunctionsVersusSaxonTest {
         for (final Object input : c.inputs()) {
             final TypedValue value = switch (input) {
                 case String s -> TypedValue.of(s);
-                case Long l -> new TypedValue.Int(l);
+                case Long l -> new TypedValue.Integer(l);
                 case Boolean b -> new TypedValue.Bool(b);
                 case Instant instant -> new TypedValue.Instant(instant.getEpochSecond(), instant.getNano(), null);
                 default -> throw new IllegalArgumentException(String.valueOf(input));

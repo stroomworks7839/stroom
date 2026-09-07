@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,7 +46,7 @@ class StrictDispatchTest {
         final List<Message> messages = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(json)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         return new Run(output.toString(StandardCharsets.UTF_8), messages);
     }
 
@@ -164,6 +165,24 @@ class StrictDispatchTest {
         assertThat(result.output()).isEqualTo("[A][B]");
         // A mode that consumes nothing cannot leave anything unmatched.
         assertThat(result.messages()).noneMatch(m -> m.severity() == Severity.ERROR);
+    }
+
+    /**
+     * Design 27 ruling 11: a classify guard is evaluated once on the way in, like every other
+     * mode's, so it cannot see a sibling's capture bound by an earlier match in the same pass.
+     * Before, has_b's guard ran after has_a had matched and bound "seen", and has_b ran.
+     */
+    @Test
+    void classifyGuardsAreEvaluatedOnceOnTheWayIn() {
+        final Run result = run(project(4, "classify",
+                row("02", "has_a", "a", ", \"captures\": [{\"name\": \"seen\", \"select\": {\"group\": 0}}]",
+                        "{\"value-of\": {\"parts\": [{\"text\": \"[A]\"}]}}") + ",\n"
+                + row("03", "has_b", "b",
+                        ", \"guard\": {\"exists\": {\"select\": {\"parts\": [{\"capture\": {\"var_id\": \"seen\","
+                        + " \"group\": 0}}]}}}",
+                        "{\"value-of\": {\"parts\": [{\"text\": \"[B]\"}]}}")),
+                "xaxb");
+        assertThat(result.output()).isEqualTo("[A]");
     }
 
     @Test

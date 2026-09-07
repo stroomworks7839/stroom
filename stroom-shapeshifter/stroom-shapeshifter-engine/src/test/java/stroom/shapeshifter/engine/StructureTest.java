@@ -20,6 +20,7 @@ import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.fixture.EngineHarness;
 import stroom.shapeshifter.engine.fixture.EngineHarness.Outcome;
+import stroom.shapeshifter.engine.output.SaxEventSink;
 
 import org.junit.jupiter.api.Test;
 import org.xml.sax.helpers.DefaultHandler;
@@ -108,6 +109,37 @@ class StructureTest {
                         "Template 'root' calls 'outer', which calls 'inner', which reads capture group 2");
         // The same helpers called from the matching template alone are fine.
         assertThat(Shapeshifter.compile(ProjectReader.read(helper.formatted(APPLY, "")))).isNotNull();
+    }
+
+    /** A field capture source is read by the model and bound by nothing, so it is refused by name (design 27). */
+    @Test
+    void fieldCaptureSourceIsRefusedAtCompileTime() {
+        final String json = """
+                {"name": "field", "version": 5,
+                 "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                   "body": [%s]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "lines",
+                   "match": {"regex": {"pattern": "([a-z]+)\\n"}},
+                   "captures": [{"name": "f", "select": {"field": "x"}}],
+                   "body": []}
+                 ]}
+                """.formatted(APPLY);
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(json)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining(
+                        "Template 'line' needs a field capture source, which this build does not support");
+    }
+
+    /** A call inside an iteration names a template like any other; a missing one is refused (design 27). */
+    @Test
+    void callToAMissingTemplateInsideAForEachIsACompileError() {
+        final String json = project(APPLY + ", {\"sequence\": {\"name\": \"s\"}}, {\"for-each\": {\"select\": \"s\","
+                                    + " \"body\": [{\"call-template\": {\"name\": \"ghost\", \"with-param\": []}}]}}");
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(json)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("refers to a template named 'ghost', which does not exist");
     }
 
     @Test

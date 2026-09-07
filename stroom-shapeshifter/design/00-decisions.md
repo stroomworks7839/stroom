@@ -190,6 +190,10 @@ what the pipeline supports.
 **Revisit if:** follow-up 7 in [03-baseline-results.md](../stroom-shapeshifter-regex/design/03-baseline-results.md) shows the
 char-to-byte boundary cost is material, or if vectorised scanning fails to close the 6%.
 
+*D43 (design 25, built 2026-09-07) completes this on the value side: a captured value carries
+the encoding its bytes are in and nothing is transcoded until a consumer asks for text or a
+sink declares what it accepts, so bytes stay bytes from the match to the write.*
+
 ---
 
 ## D14 — Tier 0 is interpreted, with flat opcodes and byte-table classes
@@ -920,7 +924,7 @@ survive, and the ratchet names any configuration that depended on `A*B*C*`.
    as fields.
 
 Everything else people are tempted to put between them is a mistake with a familiar shape, and
-this decision exists because the temptation demonstrably recurs. The the prototype project grew
+this decision exists because the temptation demonstrably recurs. The prototype project grew
 intermediate layers repeatedly and had to be fought back each time — its own docs record
 NodeConfig eras, legacy-node wrappers and multi-path compilation pipelines. And on the very day
 this was written, the same session that documented the two-layer target proposed a matcher
@@ -942,9 +946,9 @@ The recurring rationalisations, pre-refuted:
 
 **Consequences:** `CompiledProject` carries `ByteMatcher`'s contract one level up — one
 execution at a time, reusable sequentially, with a defined reset between streams (E19's
-lifecycle). `Executor` is transitional and dissolves into the graph as compilation deepens. Any
-design that introduces a third artifact between the model and the graph is wrong until the user
-says otherwise.
+lifecycle). `Executor` was transitional and dissolved into a `Run` over the graph on
+2026-09-06 (design 27, D45). Any design that introduces a third artifact between the model
+and the graph is wrong until the user says otherwise.
 
 ## D36 — Strict dispatch: the cursor moves only by matching at it
 
@@ -1204,6 +1208,9 @@ is a separate pipeline element. The engine's output is UTF-8 by construction, so
 to characters is lossless and a UTF-8 `TextWriter` writes the engine's bytes exactly.
 Design 24; completes design 23 §3b.
 
+*Design 25 phase 2 (2026-09-07) restated the output's UTF-8 as the sink's declaration, the
+interface's default, with every write transcoded to it; the outcome here is unchanged.*
+
 ## D43 — A value knows its encoding; nothing is transcoded until someone asks
 
 *2026-09-04.* Captured bytes are no longer converted to UTF-8 at capture (E3's
@@ -1223,6 +1230,10 @@ nor decoded. The "local group converts, stored value passes through" split in th
 — correct under E3 — is deleted because the value carries the rule itself. Design 25; ruled and deferred
 the same day — the build waits, design 24 goes first. The binary vocabulary a JPEG
 would need — framing, integers, slicing, a byte-writing element — is E36, not this.
+
+*Deferral lifted 2026-09-07, design 24 built. Amended the same day with §9 — a capture
+declares its kind through `as`, cast once at bind, on a compiled capture that also takes
+E39's capture half — ruled D50. Built the same day, phases 1 to 4; design 25 §7 is the record.*
 
 ## D44 — Extension functions: a registry and a contract in the engine, Stroom's functions in the pipeline
 
@@ -1253,4 +1264,116 @@ same day:* the packages follow the dependencies already measured — `engine.val
 `engine.match` and `engine.output` are created, `exec` keeps only the run, and the package line
 enforces value ← match ← exec; the two reference resolvers both stay, with the seam documented
 and the compile of conditions filed as design 10's follow-on rather than done under a structure
-design.
+design. *From the entry review, ruled the same day:* the sink factory leaves the contract —
+callers construct `XmlByteSink` by name — so the root package has no dependency downward; a
+progressive step's regex flags become part of the pattern key rather than being silently
+ignored; and the `field` capture source is refused at compile time until it is defined. *From
+the phase 3 audit, 2026-09-06:* the classify mode evaluates its guards once on the way in, as
+every other mode does. *Built 2026-09-05 to 2026-09-06, phases 0 to 8, phases 1 to 7 each
+audited before the next and phase 8 after it closed; the exit review (design 27 §5.6,
+2026-09-06) placed `EngineVars` with the model and `PatternKey` with the matching, closing the
+two package cycles the plan had accepted.*
+
+## D46 — `template_ref` is the one-template mode; a variable's text is what its body wrote
+
+*Superseded in part by [D48](#d48--template_ref-is-removed), 2026-09-07: the first ruling, and
+its pin, went with the form; the second stands.*
+
+*Ruled by Jon, 2026-09-06, on design 27's exit review (E41, E42).* Two definitions the code
+had left implicit:
+
+- **`template_ref` on `apply-templates`** is shorthand for an apply whose level holds the named
+  template alone. The named template's match must match the content, its captures bind, and it
+  may hand what it captured back to itself, `max_depth` deep, in a scope of its own. The graph
+  registers the mode; the spelling `__rec_<name>` is reserved for it, an authored template
+  in that mode being refused where a `template_ref` to the name exists. It is distinct from
+  `call-template`, which invokes a body with parameters and matches nothing, and from a
+  library reference, resolved at import as D11 resolves patterns. Before this the form
+  was read and checked and then silently skipped at run time.
+- **A variable is a value, not a document.** Its text is the bytes its body wrote, with no
+  serialiser layout inside it. A value the body binds by name keeps its type, as before.
+
+**Consequences:** both pinned in `EngineBehaviourTest`; no corpus golden moved. A library of
+reusable templates, when it comes, is D11's import-time resolution and needs no run-time form.
+
+## D47 — The model classifies its instructions
+
+*Ruled by Jon, 2026-09-06, on design 28, every question as recommended.* `OutputNode` gains
+four sealed sub-interfaces — `Holder` (holds bodies), `Binding` (may bind a name), `Transform`
+(a binding with a select list) and `Leaf` — and a `Regexed` marker outside the permits clause
+for an instruction whose text is a pattern the compiler interns. A classification, not a layer:
+the records keep their fields, tags and constructors; the graph and the reader do not change.
+The walks that enumerated fifty-four records to say one thing say it once; the two searching
+walks lose their `default` arms; `Containers` goes, its lesson on `Holder`; `BodyCompiler`'s
+switch stays a switch, because one function per instruction is the vocabulary's own length.
+
+**Consequences:** gated on the three suites and the compile rows, one commit for the model and
+one per walk, the five gated together at the last (the model commit removed `Containers` ahead
+of its last caller, so the four before the last do not build alone). D35 is unchanged: two
+artifacts, and a sub-interface is neither. *Built the same
+day, design 28 §6: no regression, `csv_header`'s compile row +12%.*
+
+## D48 — `template_ref` is removed
+
+*Ruled by Jon, 2026-09-07.* The `template_ref` option on `apply-templates` goes: the field on
+`ApplyDirective`, its reading and writing, the compiler's name and reserved-mode checks, the
+graph's registration of a one-template mode, the run's reading of the mode through it, and the
+pin. It was carried over from the ported
+model, which had outgrown the need for it: nothing produced it — the DS3 migration emits modes,
+and no configuration in the corpus or the benchmarks uses it — and modes already express every
+recursive case: `xml_to_json` descends nested elements by a template applying its own mode to
+part of its match. D46's first ruling, which defined the form when E42 found it skipped,
+is superseded by this one; its second, on a variable's text, stands.
+
+What stays: the `__rec_` mode prefix as the spelling of the recursive form (design 16 §1), which
+gives an apply its own scope and which the xmlbench challengers use. Whether a prefix sniffed
+from a mode name should remain the rule, or a field should say it, is a question of its own,
+not this ruling's.
+
+**Consequences:** no golden moved; the DS3 migration and every fixture read as before. The
+design 28 audit's two accepted notes on the form — the conditional reserved-mode refusal and
+first-wins dispatch on a shared name — go with it.
+
+## D49 — The numeric kinds are named as XSLT 2.0 names them: `integer` and `double`
+
+*Ruled by Jon, 2026-09-07.* `TypedValue.Int` is `TypedValue.Integer` and `TypedValue.Real`
+is `TypedValue.Double`, and the cast vocabulary gains `integer` and `double` beside `number`.
+The kinds themselves do not change: a whole number held in a `long`, a fractional one held
+in a `double`, promotion within the one numeric kind as design 17 §8 says. The names were
+chosen against three alternatives. Stroom's own `Val` family (`ValLong`, `ValDouble`) names
+Java widths because it serialises values and its comparators collapse to long and double
+anyway; the engine's values live for one run and are never serialised, so widths would be
+labels with nothing behind them, and authors never see `Val`. `integer` and `decimal` are the
+plain words a non-programmer would choose, but XSLT 2.0's `xs:decimal` is the exact kind and
+the engine's is the approximate one; an XSLT author would read the word as a promise the
+engine does not keep. `integer` and `double` are what XPath 2.0 and Saxon call the same two
+things, with `number()` kept as the reading that picks between them — the engine's `number`
+cast already. `decimal` stays free for an exact kind, should a format ever need one, with
+its own arithmetic and comparison; that is a new kind, not a cast.
+
+**Consequences:** a rename across the engine and the three designs that name the kinds; the
+two casts on operands, sorts, `min` and `max` now, and on capture bindings when design 25 §9
+lands (D50; *landed 2026-09-07*). No configuration in the corpus names a kind, so no golden moves.
+
+## D50 — A capture declares its kind, once, on a compiled capture
+
+*Ruled by Jon, 2026-09-07, on design 25 §9, every question as recommended.* A capture
+binding takes `as`, the cast vocabulary of D49, applied once at bind by the casting table: an
+author says which captures are read as text, as a whole number, as a fractional one, as a
+boolean or as a date, and a capture nobody casts is never converted. Four answers:
+
+1. **A cast that fails is absent**, as the table says of an operand — the slot is removed as
+   an unmatched capture's is; `exists` is false. A field that is sometimes not a number is
+   input, not error; `emit-error` under `exists` makes it one where the author wants that.
+2. **`as: string` fills the UTF-8 memo at bind.** The value stays `Bytes` tagged UTF-8 with
+   its text form computed up front — free on UTF-8, and E3's conversion chosen per capture
+   on any other feed.
+3. **E39's capture half comes here.** A `CompiledCapture`, built once per binding, holds the
+   name, the source and the cast; `select` and key-value sources resolve through the compiled
+   reference, and `Refs` loses its capture callers. E39 narrows to conditions.
+4. **Phases 1 to 4 now, E36 after.** The tag, the sink declaration, the compiled capture with
+   its cast, the record. E36's framing step needs the captured `Integer` phase 3 provides.
+
+**Consequences:** design 25 builds in its four phases, each audited before the next, gated on
+the corpus, `EncodedInputTest`, §9.3's pins and the capture workloads' compile and run rows.
+No golden moves: every fixture's captures are uncast. The deferral D43 recorded is over.

@@ -18,14 +18,14 @@ package stroom.shapeshifter.engine.function;
 
 import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.ProjectReader;
-import stroom.shapeshifter.engine.exec.TypedValue;
+import stroom.shapeshifter.engine.output.XmlByteSink;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import org.junit.jupiter.api.Test;
 
@@ -50,9 +50,9 @@ class FunctionsTest {
             FunctionDefinition.of("upper", Signature.of(Kind.STRING, Kind.STRING), Purity.PURE,
                     context -> args -> args.string(0) == null ? null : TypedValue.of(args.string(0).toUpperCase())),
             FunctionDefinition.of("twice", Signature.of(Kind.NUMBER, Kind.NUMBER), Purity.PURE,
-                    context -> args -> args.number(0) == null ? null : new TypedValue.Real(args.number(0) * 2)),
+                    context -> args -> args.number(0) == null ? null : new TypedValue.Double(args.number(0) * 2)),
             FunctionDefinition.of("whole", Signature.of(Kind.INTEGER, Kind.INTEGER), Purity.PURE,
-                    context -> args -> args.integer(0) == null ? null : new TypedValue.Int(args.integer(0) + 1)),
+                    context -> args -> args.integer(0) == null ? null : new TypedValue.Integer(args.integer(0) + 1)),
             FunctionDefinition.of("flag", Signature.of(Kind.STRING, Kind.BOOLEAN), Purity.PURE,
                     context -> args -> TypedValue.of(args.bool(0) == null ? "absent" : args.bool(0) ? "yes" : "no")),
             FunctionDefinition.of("year", Signature.of(Kind.STRING, Kind.DATE), Purity.PURE,
@@ -71,7 +71,7 @@ class FunctionsTest {
                         return TypedValue.of(args.number(0) == null ? "-" : "n");
                     }),
             FunctionDefinition.of("total", Signature.of(Kind.NUMBER, Kind.SEQUENCE), Purity.PURE,
-                    context -> args -> new TypedValue.Real(args.sequence(0).stream()
+                    context -> args -> new TypedValue.Double(args.sequence(0).stream()
                             .mapToDouble(v -> v.asNumber() == null ? 0 : v.asNumber()).sum())),
             FunctionDefinition.of("boom", Signature.of(Kind.STRING, Kind.STRING), Purity.PURE,
                     context -> args -> {
@@ -88,10 +88,10 @@ class FunctionsTest {
             FunctionDefinition.of("count", Signature.of(Kind.INTEGER), Purity.CONTEXT,
                     context -> args -> {
                         final int n = (int) context.state().merge("count", 1, (a, b) -> (Integer) a + (Integer) b);
-                        return new TypedValue.Int(n);
+                        return new TypedValue.Integer(n);
                     }),
             FunctionDefinition.of("where", Signature.of(Kind.INTEGER), Purity.CONTEXT,
-                    context -> args -> new TypedValue.Int(context.inputOffset())),
+                    context -> args -> new TypedValue.Integer(context.inputOffset())),
             FunctionDefinition.of("extent", Signature.of(Kind.STRING), Purity.CONTEXT,
                     context -> args -> TypedValue.of(context.recordNumber() + "@" + context.inputOffset()
                                                      + "+" + context.inputLength())),
@@ -109,7 +109,7 @@ class FunctionsTest {
             FunctionDefinition.of("bound", Signature.of(Kind.INTEGER), Purity.CONTEXT,
                     context -> {
                         final int binding = COUNTER.incrementAndGet();
-                        return args -> new TypedValue.Int(binding);
+                        return args -> new TypedValue.Integer(binding);
                     }));
 
     private record Run(String output, List<Message> messages) {
@@ -143,7 +143,7 @@ class FunctionsTest {
         final CompiledProject compiled = Shapeshifter.compile(ProjectReader.read(json), REGISTRY);
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         final List<Message> messages = Shapeshifter.run(compiled,
-                new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)), OutputSink.of(output),
+                new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)), new XmlByteSink(output),
                 Instrument.NONE, mode, services);
         return new Run(output.toString(StandardCharsets.UTF_8), messages);
     }
@@ -254,6 +254,15 @@ class FunctionsTest {
             assertThat(m.severity()).isEqualTo(Severity.WARNING);
             assertThat(m.text()).isEqualTo("fetch: not run in preview");
         });
+        // The whole-buffer form takes the mode too (design 27 phase 5): the same skip, the same word.
+        final ByteArrayOutputStream wholeOutput = new ByteArrayOutputStream();
+        final List<Message> wholeMessages = Shapeshifter.runWhole(
+                Shapeshifter.compile(ProjectReader.read(lines(body)), REGISTRY),
+                "a\nb\n".getBytes(StandardCharsets.UTF_8), new XmlByteSink(wholeOutput),
+                Instrument.NONE, RunMode.PREVIEW, Services.NONE);
+        assertThat(wholeOutput.toString(StandardCharsets.UTF_8)).isEqualTo("tick|tick|");
+        assertThat(wholeMessages).singleElement().satisfies(m ->
+                assertThat(m.text()).isEqualTo("fetch: not run in preview"));
         final Run normal = run(lines(body), "a\nb\n");
         assertThat(normal.output()).isEqualTo("fetched atick|fetched btick|");
         assertThat(normal.messages()).isEmpty();
@@ -298,6 +307,12 @@ class FunctionsTest {
     @Test
     void contextReportsTheMatchsExtentTheRecordNumberAndMessagesOfAnySeverity() {
         assertThat(run(lines(call("extent", "", null)), "ab\ncd\n").output()).isEqualTo("1@0+3|2@3+3|");
+        // The record number counts under a whole-buffer run too (design 27 phase 2: the count
+        // moved to where a top-level record begins, whichever root loop runs it).
+        final ByteArrayOutputStream whole = new ByteArrayOutputStream();
+        Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read(lines(call("extent", "", null))), REGISTRY),
+                "ab\ncd\n".getBytes(StandardCharsets.UTF_8), new XmlByteSink(whole));
+        assertThat(whole.toString(StandardCharsets.UTF_8)).isEqualTo("1@0+3|2@3+3|");
         final Run said = run(lines(call("say", GROUP1, null)), "a\n");
         assertThat(said.output()).isEqualTo("|");
         assertThat(said.messages()).singleElement().satisfies(m -> {

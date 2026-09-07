@@ -22,10 +22,14 @@ package stroom.shapeshifter.engine.config;
  * <p>Captures are populated after a successful match and before the body runs, which is the
  * whole reason a guard cannot see them.
  *
- * @param name   the name the value takes in scope
+ * @param name   the variable the value binds to (ignored by a key-value source, which names
+ *               its own)
  * @param select where the value comes from
+ * @param as     the kind the capture declares, applied once at bind by the casting table
+ *               (design 25 §9, D50): a string, a number, an integer, a double, a boolean or a
+ *               date; null for none, the bytes as tagged. A cast that fails is absent.
  */
-public record CaptureBinding(String name, CaptureSource select) {
+public record CaptureBinding(String name, CaptureSource select, Cast as) {
 
     /** Where a captured value comes from. */
     public sealed interface CaptureSource {

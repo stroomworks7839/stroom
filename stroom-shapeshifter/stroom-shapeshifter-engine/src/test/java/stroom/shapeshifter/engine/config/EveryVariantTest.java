@@ -37,7 +37,6 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -69,6 +68,28 @@ class EveryVariantTest {
 
     private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-0000000000ff");
 
+
+    /**
+     * A payload-less condition is written as the bare string, like every other payload-less
+     * variant; the round trip alone would not notice a regression to the empty object, which
+     * the reader also accepts (design 27 phase 7).
+     */
+    @Test
+    void payloadLessConditionsAreWrittenBare() {
+        final String json = """
+                {"name": "bare", "version": 5,
+                 "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                   "body": [{"if": {"test": {"is-first": {}}, "then": [{"text": "!"}]}},
+                            {"if": {"test": "is-last", "then": [{"text": "?"}]}}]}
+                 ]}
+                """;
+        final String written = ProjectReader.write(ProjectReader.read(json));
+        assertThat(written).contains("\"is-first\"").contains("\"is-last\"")
+                .doesNotContainPattern("\"is-first\"\\s*:\\s*\\{").doesNotContainPattern("\"is-last\"\\s*:\\s*\\{");
+    }
+
     @Test
     void everyVariantSurvivesARoundTrip() {
         final Project project = oneOfEverything();
@@ -83,13 +104,29 @@ class EveryVariantTest {
         for (final Class<?> sum : List.of(MatchExpression.class, MatchStep.class, StepRef.class,
                 Predicate.class, CaptureSource.class, Condition.class, OutputNode.class,
                 RefPart.class)) {
-            final List<Class<?>> missing = Arrays.stream(sum.getPermittedSubclasses())
+            final List<Class<?>> missing = variants(sum).stream()
                     .filter(variant -> !found.contains(variant))
                     .toList();
             assertThat(missing)
                     .as("%s variants not covered by oneOfEverything()", sum.getSimpleName())
                     .isEmpty();
         }
+    }
+
+    /**
+     * The records a sealed type permits, through any sealed interfaces between: an
+     * {@code OutputNode} is a holder, a binding or a leaf before it is an instruction (D47).
+     */
+    private static List<Class<?>> variants(final Class<?> sum) {
+        final List<Class<?>> records = new ArrayList<>();
+        for (final Class<?> permitted : sum.getPermittedSubclasses()) {
+            if (permitted.isInterface()) {
+                records.addAll(variants(permitted));
+            } else {
+                records.add(permitted);
+            }
+        }
+        return records;
     }
 
     // -----------------------------------------------------------------------------------
@@ -176,11 +213,11 @@ class EveryVariantTest {
                 new MatchExpression.Progressive(steps),
                 new MatchLimits(1, 9, Set.of(1, 2, 5)),
                 List.of(
-                        new CaptureBinding("byGroup", new CaptureSource.Group(2)),
-                        new CaptureBinding("byStep", new CaptureSource.Step(3)),
-                        new CaptureBinding("byField", new CaptureSource.Field("name")),
-                        new CaptureBinding("bySelect", new CaptureSource.Select(ref())),
-                        new CaptureBinding("ignored", new CaptureSource.KeyValue(ref(), ref()))),
+                        new CaptureBinding("byGroup", new CaptureSource.Group(2), Cast.INTEGER),
+                        new CaptureBinding("byStep", new CaptureSource.Step(3), null),
+                        new CaptureBinding("byField", new CaptureSource.Field("name"), null),
+                        new CaptureBinding("bySelect", new CaptureSource.Select(ref()), null),
+                        new CaptureBinding("ignored", new CaptureSource.KeyValue(ref(), ref()), null)),
                 List.of(new OutputNode.Text("matched")),
                 "utf-8",
                 true);
@@ -205,7 +242,7 @@ class EveryVariantTest {
                         List.of(new SwitchCase("a", List.of(new OutputNode.Text("case")))),
                         List.of(new OutputNode.Text("default"))),
                 new OutputNode.ApplyTemplates(new ApplyDirective(
-                        ref(), "row", List.of(new Param("depth", ref())), 32, "named", true,
+                        ref(), "row", List.of(new Param("depth", ref())), 32, true,
                         Dispatch.CLASSIFY)),
                 new OutputNode.EmitError(Severity.WARNING, ref()),
                 new OutputNode.CallTemplate("named", List.of(new Param("depth", ref()))),

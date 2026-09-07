@@ -3,7 +3,7 @@
 Status: **decided 2026-08-25, in full — all eight decisions ruled (§16), three reshaping the
 draft: comparisons become one strict typed vocabulary with explicit `as`-casts — ruled twice
 the same day, first from a parallel `compare` condition to coercion, then from coercion to
-strict (§8) — a date is a first-class `Instant` variant rather than epoch millis in an `Int`
+strict (§8) — a date is a first-class `Instant` variant rather than epoch millis in an `Integer`
 (§9), and run-time parameters are deferred to D10 after the draft's premise was checked
 against the pipeline and found wrong (§9.3).** Written 2026-08-25 against
 [14-xslt-coverage-matrix.md](14-xslt-coverage-matrix.md)'s second gap family — *value
@@ -22,7 +22,7 @@ syslog-with-no-year problem gets a section of its own (§9.2), and why `xsl:eval
 
 ## 1. The finding: the type system exists and is thrown away
 
-`exec/TypedValue.java` is a sealed interface with four variants — `Bytes`, `Int`, `Real`,
+`exec/TypedValue.java` is a sealed interface with four variants — `Bytes`, `Integer`, `Double`,
 `Bool` — and complete conversions between them (`asBytes`, `asString`, `asNumber`). It is a
 serviceable little value model, and it was ported for a real reason: binary match steps decode
 integers, and rendering them to text so the other end can parse them back is work nobody
@@ -70,7 +70,7 @@ adopted:
 
 - **A sequence variant — refused.** [16 §2](16-sequences-and-aggregation.md) makes the store
   the sequence type. Adding `Seq` here would give the engine two ways to hold many values.
-- **A date variant — adopted (ruled 2026-08-25; the draft proposed epoch millis in an `Int`
+- **A date variant — adopted (ruled 2026-08-25; the draft proposed epoch millis in an `Integer`
   and the ruling overrode it).** `Instant(long epochSecond, int nano, Integer offsetSeconds)`.
   Nanosecond precision is the reason — OTEL traces and kernel logs carry it, and a millisecond
   model rounds it away unrecoverably. The offset is carried but **inert in comparison and
@@ -85,11 +85,11 @@ adopted:
 The single source for every conversion in the engine. Read it as: *what this value is, when a
 function or comparison asks for that kind*.
 
-| | → string | → number (`Real`) | → integer (`Int`) | → boolean |
+| | → string | → number (`Double`) | → integer (`Integer`) | → boolean |
 |---|---|---|---|---|
-| **`Bytes`** | decode UTF-8 | parse trimmed; **absent** if not a number | parse trimmed; **absent** if not integral | lexical, trimmed: `true`/`1` → true, `false`/`0` → false, else **absent** |
-| **`Int`** | decimal | the value | the value | `!= 0` |
-| **`Real`** | whole numbers without `.0` (existing `TypedValue.format`) | the value | **absent** unless integral | `!= 0.0` |
+| **`Bytes`** | decode by the value's encoding (design 25) | parse trimmed; **absent** if not a number | parse trimmed; **absent** if not integral | lexical, trimmed: `true`/`1` → true, `false`/`0` → false, else **absent** |
+| **`Integer`** | decimal | the value | the value | `!= 0` |
+| **`Double`** | whole numbers without `.0` (existing `TypedValue.format`) | the value | **absent** unless integral | `!= 0.0` |
 | **`Bool`** | `true` / `false` | `1.0` / `0.0` | `1` / `0` | the value |
 | **`Instant`** | ISO-8601, in the carried offset else `Z`, trailing zero nanos trimmed | epoch **milliseconds** (documented lossy: nanos truncate) | epoch milliseconds, same loss | **absent** |
 | **absent** | absent | absent | absent | false |
@@ -103,21 +103,23 @@ trips — the value stays an `Instant` and no cast happens. The other direction,
 
 Three points that are choices rather than consequences:
 
-- **`Real` → integer is absent, not truncated.** Silent truncation is how a total of `£9.99`
+- **`Double` → integer is absent, not truncated.** Silent truncation is how a total of `£9.99`
   becomes `£9`. An author who wants a whole number says which one: `round`, `floor` or
   `ceiling` (§5).
 - **Boolean of a string is the lexical cast** (`true`/`1`/`false`/`0`, anything else absent) —
   XPath's *constructor* rule, not its effective-boolean-value rule (non-emptiness, under which
-  the string `"false"` is true). The distinction matters because §8's explicit `as: "boolean"`
-  is this column's only consumer, and a cast is what `as` says — so `eq` of a false flag
+  the string `"false"` is true). The distinction matters because the explicit `as: "boolean"`
+  — §8's on an operand, design 25 §9's on a capture binding — is this column's only consumer,
+  and a cast is what `as` says — so `eq` of a false flag
   against the literal `"false"` read `as: "boolean"` is true, as a reader expects (uncast,
   the operands are cross-kind and the comparison is simply false). EBV is deliberately not
   modelled at all: the engine's conditions are explicit predicates and `Exists` covers
   presence, so non-emptiness has no call site — and with it goes the `"false"`-is-true trap
   the draft had documented. *(Corrected 2026-08-25 on review: the draft's non-emptiness row
   conflated the two rules and would have diverged from the specification it cited.)*
-- **A multi-part reference is a string by construction.** `Refs.resolve` concatenates parts
-  into bytes, so `$a$b` is text even when `$a` and `$b` are both `Int`. Only a *single-part*
+- **A multi-part reference is a string by construction.** `Refs.resolve` (a condition) or
+  `CompiledRefs.resolve` (a body or a capture) concatenates parts
+  into bytes, so `$a$b` is text even when `$a` and `$b` are both `Integer`. Only a *single-part*
   reference to a single capture can preserve a non-`Bytes` type. This wants saying out loud
   because it is the one place a value's type depends on how its reference was written.
 
@@ -176,8 +178,8 @@ Verbose beside `$price * $qty`. Three things make the trade worth taking:
 | `subtract`, `divide`, `mod` | exactly two | `a op b` |
 | `round`, `floor`, `ceiling`, `abs` | exactly one | as named |
 
-- **Type.** `Int` if every input is `Int` and the operation is exact; `Real` otherwise.
-  `divide` is `Real` unless the division is exact. `mod` follows Java's `%` — the sign follows
+- **Type.** `Integer` if every input is `Integer` and the operation is exact; `Double` otherwise.
+  `divide` is `Double` unless the division is exact. `mod` follows Java's `%` — the sign follows
   the dividend, which is what XPath's `mod` does too.
 - **Any absent or non-numeric input makes the whole result absent** (§2). Not zero, and not a
   partial fold over the inputs that happened to parse.
@@ -197,7 +199,7 @@ only, and nothing else:
 
 | Instruction | XSLT | Notes |
 |---|---|---|
-| `string-length` | `string-length()` | **`Int`**, counted in code points, matching `substring`'s existing code-point counting. The matrix's "length-as-value stays a gap" row. |
+| `string-length` | `string-length()` | **`Integer`**, counted in code points, matching `substring`'s existing code-point counting. The matrix's "length-as-value stays a gap" row. |
 | `substring-before`, `substring-after` | same | absent when the marker is not found — *not* the empty string, so a condition can tell the two apart |
 | `starts-with`, `ends-with`, `contains` | same | as **values** (`Bool`). The conditions of the same name stay; these are for binding and for `if` over a computed flag |
 | `format-number` | `format-number()` | picture string via `DecimalFormat` under `Locale.ROOT` |
@@ -278,14 +280,16 @@ vocabulary, no second condition set, and no untyped-atomic rule.
 - **Same kind compares natively.** Two `Bytes` as strings — code-point order,
   `String.compareTo`'s order; not a collator, because a locale-dependent order would make
   output depend on where it ran, the reason `lowerCase` already pins `Locale.ROOT`. Two
-  `Instant`s on the timeline (§3). Two `Bool`s with false < true. `Int` against `Real`
+  `Instant`s on the timeline (§3). Two `Bool`s with false < true. `Integer` against `Double`
   numerically — **promotion within the one numeric kind, not coercion**, without which an
   arithmetic result could never meet an integer literal.
 - **A cross-kind comparison is false.** No implicit reading of bytes as numbers, booleans or
   dates. False rather than an error, per the engine's existing rule for a comparison that
   cannot be made — and consistent with absent: false in a condition and last in an ordering
   are the same statement, *this value did not participate*.
-- **The cast is explicit, on the operand:** `as`: `string` | `number` | `boolean` | `date`,
+- **The cast is explicit, on the operand:** `as`: `string` | `number` | `integer` | `double` |
+  `boolean` | `date` (`integer` and `double` added by D49; the same `as` on a capture binding
+  casts once at bind, design 25 §9),
   applying §3.1's casts — absent on failure, false in comparison. It lives on the operand
   rather than only as a bind-first instruction because **guards need it**: a template guard
   is a condition with no body before it, so there is nowhere to run a `number` instruction
@@ -297,7 +301,7 @@ vocabulary, no second condition set, and no untyped-atomic rule.
 **`eq`, `ne`, `lt`, `le`, `gt`, `ge`** — XPath 2.0's own value-comparison operators, the
 vocabulary this engine's authors already read. Each takes `left` and `right`, and an operand
 is a reference or a literal, with **the literal's JSON type as its declared type**: a JSON
-string is untyped (`Bytes`), a JSON number is `Int` or `Real`, a JSON boolean is `Bool` —
+string is untyped (`Bytes`), a JSON number is `Integer` or `Double`, a JSON boolean is `Bool` —
 and either operand may carry an `as`. Six uniform conditions therefore subsume all three
 existing shapes: `equals`/`not-equals`/`ref-equals` are `eq`/`ne` with **`as: "string"` on
 both operands**; `greater-than`/`less-than` (ref against numeric literal) are `gt`/`lt` with
@@ -312,10 +316,10 @@ to borrow.
 **Why the equality aliases carry `as: "string"` rather than no cast — a phase 1 audit
 finding (2026-08-25), and the corpus-safety argument corrected.** The draft claimed every
 value is `Bytes` today, so uncast `eq` would preserve legacy `equals`. False: the engine's
-own counters are already typed — `__match_count`/`__match_idx` bind as `Int`, binary-step
-captures bind as `Int`/`Real` — and today's `Conditions.evaluate` compares their *string
-forms* via `resolveText` (an `Int` 42 renders `"42"` and matches the literal). An uncast
-`eq` would read `Int` against a string literal as cross-kind, always false — breaking,
+own counters are already typed — `__match_count`/`__match_idx` bind as `Integer`, binary-step
+captures bind as `Integer`/`Double` — and today's `Conditions.evaluate` compares their *string
+forms* via `resolveText` (an `Integer` 42 renders `"42"` and matches the literal). An uncast
+`eq` would read `Integer` against a string literal as cross-kind, always false — breaking,
 among other things, the documented `equals`-on-`__match_count` idiom that `adjacent_groups`
 proves. `as: "string"` is the total cast, so the alias compares string forms for every type,
 which is exactly what the legacy conditions do. `greater-than`/`less-than` map with
@@ -329,7 +333,9 @@ silent wrong guess; strict's is a forgotten cast reading always-false — `gt` o
 field against a numeric literal with no `as`. That one is **statically detectable**: a typed
 literal compared against an uncast reference earns a compile-time warning ("captures are
 text; add `as: number` if a numeric comparison is meant"), in D36's warning tier — warnings
-until a lint can prove confusion rather than suspect it. Coercion's failure mode was not
+until a lint can prove confusion rather than suspect it. *Since design 25 §9 (D50) a capture
+may declare its kind; the lint reads the binding and stays silent for one, and warns the other
+way round for a text literal against a declared kind.* Coercion's failure mode was not
 detectable at all, which is the trade the ruling takes.
 
 **Ordering uses the same `as`, and `data_type` dissolves.** A sort key is
@@ -366,7 +372,7 @@ that ruling.
 - `parse-date` → **`Instant`** (§3): epoch second, nanosecond, and the parsed offset when the
   pattern parses one. Absent if the input does not match the pattern. Nanosecond-stamped
   sources — OTEL traces, kernel logs — keep their precision, which is the reason the ruling
-  chose a variant over the draft's epoch-millis `Int`.
+  chose a variant over the draft's epoch-millis `Integer`.
 - `format-date` → string. Its input is an `Instant`, or anything §3.1 can cast to one — a
   `Bytes` holding ISO-8601 passes straight through parse.
 - `pattern` is a `DateTimeFormatter` pattern under `Locale.ROOT`, plus three reserved names:
@@ -477,16 +483,16 @@ string and a length past its end are both ordinary rather than errors.
 
 ## 11. Overflow and precision
 
-- `Int` is a `long`. `add`, `subtract` and `multiply` over `Int`s use `Math.addExact` and
-  friends and, **on overflow, promote the result to `Real`** rather than wrapping. Wrapping
+- `Integer` is a `long`. `add`, `subtract` and `multiply` over `Integer`s use `Math.addExact` and
+  friends and, **on overflow, promote the result to `Double`** rather than wrapping. Wrapping
   produces a plausible wrong number; promotion produces an approximate right one and says so
   by its type. Both are worse than nothing at all, and this picks the one whose failure is
   visible in the value.
-- `sum` over a sequence accumulates as `long` while every entry is `Int` and no step
-  overflows; it switches to `double` at the first `Real` or the first overflow, and does not
+- `sum` over a sequence accumulates as `long` while every entry is `Integer` and no step
+  overflows; it switches to `double` at the first `Double` or the first overflow, and does not
   switch back. So a column of integers sums exactly, which is the case people check by hand.
-- `avg` is always `Real`.
-- `Real` rendering keeps `TypedValue.format`'s existing behaviour — whole numbers without a
+- `avg` is always `Double`.
+- `Double` rendering keeps `TypedValue.format`'s existing behaviour — whole numbers without a
   trailing `.0`, which is the ported Rust rendering. **This diverges from XSLT's `xs:double`
   serialization** (`1.0E10`, `NaN`, `-0`), and a byte-parity case against Saxon will find it.
   The recommendation is to keep the existing rendering as the default — it is what existing
@@ -495,11 +501,13 @@ string and a length past its end are both ordinary rather than errors.
 
 ## 12. Encoding
 
-Unchanged by all of the above, and worth one line so it stays that way. Values are UTF-8
-internally (E3 split conversion by provenance: only the current match's bytes convert; stored
-values were normalised at capture). Numbers render as ASCII, which is safe in every supported
-encoding — `TypedValue.asBytes` already relies on this. A typed value model changes nothing
-here because the conversion boundary is where it was.
+Unchanged by all of the above when written. *Rewritten 2026-09-07 by design 25 phase 1:* a
+`Bytes` value carries the encoding it was matched under and decodes itself, once, when a
+consumer asks for text (`utf8()`); nothing is transcoded at capture, and the old split by
+provenance — the current match's bytes converted, stored values normalised at capture — is
+gone. Numbers still render as ASCII, which is safe in every supported encoding. The casting
+table's first column now reads "decode by the value's encoding", which is the same rule
+stated where the value is rather than where it is read.
 
 ## 13. Performance — predictions, and the measurement protocol
 
@@ -661,7 +669,7 @@ drift on untouched rows before reading any moved one.
 | Case | Proves | Status |
 |---|---|---|
 | `string_functions` | extended with `string-length`, `substring-before`/`after`, `format-number` including one picture edge | exists ✓ — extend |
-| `value_types` | casting table end to end: numeric strings, non-numeric input going absent, the boolean lexical cast through `as: "boolean"` (`"1"` true, `"yes"` absent, a false flag equalling the literal `"false"`), `Real`→integer refusing to truncate | new |
+| `value_types` | casting table end to end: numeric strings, non-numeric input going absent, the boolean lexical cast through `as: "boolean"` (`"1"` true, `"yes"` absent, a false flag equalling the literal `"false"`), `Double`→integer refusing to truncate | new |
 | `arithmetic` | `add`/`subtract`/`multiply`/`divide`/`mod`, `round`/`floor`/`ceiling`/`abs`, divide-by-zero absent, overflow promotion | new |
 | `dates` | `parse-date`/`format-date` round trip preserving nanoseconds and the original offset, two offsets of one instant comparing equal, a real syslog line with `reference` supplying the year from a captured field, one duration by subtraction | new |
 | `comparison` | §8's strict rule: two `Bytes` still comparing as strings (the corpus-safety half), cross-kind without a cast reading false, `as: "number"` making the same pair compare numerically, a failed cast reading false, absent sorting last in both directions; plus legacy `greater-than` reading as its `gt`+`as:number` alias unchanged, legacy `equals` against a typed counter (`__match_count`) surviving its `as:string` alias, and the uncast-against-typed-literal lint firing | new |
@@ -716,7 +724,7 @@ through `emit` yet; the typed-bind surface wakes in phase 2, whose audit should 
 which instructions first bind non-`Bytes`. One material finding, in the design rather than
 the code: §8's legacy-alias mapping said `equals` aliases uncast, on the premise that every
 value is `Bytes` today — but the store-writer inventory shows `__match_count`/`__match_idx`
-and binary captures already bind `Int`, and legacy `equals` compares string forms; the
+and binary captures already bind `Integer`, and legacy `equals` compares string forms; the
 equality aliases therefore carry `as: "string"`, corrected in §8 with the evidence. Two
 notes: `asBoolean` trims before the lexical match, now documented in §3.1's cell; and
 `resolve` now allocates a wrapper on the literal and composite paths — expected
@@ -735,7 +743,7 @@ this engine.*
 
 **Phase 2 — arithmetic and the string additions.**
 §§5–6 and §11's overflow rules. Tests, direct: each function's edges — overflow promoting to
-`Real` not wrapping, `divide` by zero absent, `round` half-up on the negative tie, `mod`'s
+`Double` not wrapping, `divide` by zero absent, `round` half-up on the negative tie, `mod`'s
 sign, `string-length` counting code points not bytes, `substring-before` absent-not-empty on
 a missing marker, `format-number`'s ordinary pictures and one documented edge. Cases:
 `arithmetic`, `value_types`, `string_functions` extended.
@@ -747,8 +755,8 @@ is `MIN_VALUE`, a negative "answer" for a positive quotient, the plausible wrong
 exists to prevent — where the exact folds get an `ArithmeticException` to catch; `divide`
 now guards the pair and promotes, pinned in `TransformsTest` beside its modulus twin (which
 has a long answer, 0, and keeps it). Phase 1's hand-forward completed: the instructions that
-first bind non-`Bytes` are `number` and the nine arithmetic ops (`Int`/`Real`), the three
-predicates (`Bool`) and `string-length` (`Int`); every store reader routes through
+first bind non-`Bytes` are `number` and the nine arithmetic ops (`Integer`/`Double`), the three
+predicates (`Bool`) and `string-length` (`Integer`); every store reader routes through
 `Refs.lookup` and the casts, none pattern-matches `Bytes` exclusively, and the one
 `toString` in reach is a `StringBuilder`, so no output path can leak a record rendering.
 Two scope notes: `value_types`' challenger guards on `[0-9]` where the stylesheet guards on
@@ -758,7 +766,7 @@ its input grew a marker-absent row, so the workload moved with the feature — a
 two new rows, which have no before.*
 
 **Phase 3 — the comparison spine.**
-§8 in full: the strict rule and `Int`↔`Real` promotion through `Conditions`, the operand
+§8 in full: the strict rule and `Integer`↔`Double` promotion through `Conditions`, the operand
 `as`-cast, the `eq`/`ne`/`lt`/`le`/`gt`/`ge` spellings with the legacy aliases carrying
 their implied casts, the uncast-literal lint, and the ordering
 [16](16-sequences-and-aggregation.md) needs for `sort`/`min`/`max`. Tests, direct: cross-kind
@@ -781,7 +789,7 @@ The aliases now spell the legacy rule out in existing vocabulary — `not-equals
 both-absent case as an explicit disjunct — and all four truth tables are pinned in
 `CompareSpineTest`, including the proof that the new spellings do **not** inherit the old
 rule. Verified beside it: the unsigned byte comparison (signed would say é < m), the exact
-`Int`/`Int` path above 2^53, cast identity on already-`Bytes` strings (no allocation on the
+`Integer`/`Integer` path above 2^53, cast identity on already-`Bytes` strings (no allocation on the
 guard path), literal JSON typing round-tripping `Whole` against `Fractional`, and the lint
 walking guards, `if`, `choose`, `switch` bodies and `variable` bodies. One perf watch:
 a literal `Text` operand materialises its bytes per evaluation; conditions stay authored by
@@ -833,7 +841,7 @@ extreme instant's millis cast went through `Math.multiplyExact` — an `Arithmet
 escaping `asInteger` mid-record, aborting a run on data. Now the double reading computes in
 doubles (approximation is a double's whole job, truncation kept so the two numeric casts
 agree) and the exact reading returns absent when a long cannot hold it, `format-date`'s
-`epoch-millis` rendering absent with it — the same refusal as a `Real` too wide. Second,
+`epoch-millis` rendering absent with it — the same refusal as a `Double` too wide. Second,
 the ISO rendering spent its field width on the sign: year −44 rendered `-044`, malformed;
 the sign now writes outside the width. Both pinned in `TypedValueTest`. Verified beside
 them: `floorDiv`/`floorMod` handle negative epoch millis correctly; the resolver's failures
@@ -914,7 +922,7 @@ XPath edge, and now by the migration itself; (3) strict comparison, the `as`-cas
 design 16's sequence store, deliberately, and is recorded here rather than skipped**;
 (5) the parameter deferral needs no test beyond `Shapeshifter.run`'s unchanged signature;
 (6) the diagnostics by `DiagnosticsTest`, with E25 as the field evidence; (7) the `Instant`
-by `TypedValueTest`, `DatesTest` and the `dates` case; (8) the `Real` rendering by
+by `TypedValueTest`, `DatesTest` and the `dates` case; (8) the `Double` rendering by
 `TypedValueTest` and the `value_types` case against Saxon live.*
 
 *Audited 2026-08-26, diff-scoped, landed as `c41f182de6`. One inconsistency found and
@@ -978,7 +986,7 @@ rewritten to the rulings.
 3. **One condition vocabulary with strict typed semantics and explicit `as`-casts** (§8) —
    ruled in two same-day steps: first from the draft's parallel typed `compare` condition to
    one coercing vocabulary, then from coercion to strict, on the ground that casting is
-   available so the engine should never guess. Same kind compares natively (`Int`↔`Real`
+   available so the engine should never guess. Same kind compares natively (`Integer`↔`Double`
    promotion included), cross-kind is false, `as: string|number|boolean|date` on either
    operand applies §3.1's casts — on the operand because guards have no body to pre-bind in.
    `sort`/`min`/`max` take the same `as` and `data_type` dissolves; an uncast sort key
@@ -987,7 +995,7 @@ rewritten to the rulings.
    `left` and `right` as ref-or-typed-literal; the equality trio aliases with
    `as: "string"` on both sides and `greater-than`/`less-than` with `as: "number"` on the
    left — the casts their semantics always implied, made visible (the string cast corrected
-   from "no casts" by the phase 1 audit: the engine's counters are already `Int`, and legacy
+   from "no casts" by the phase 1 audit: the engine's counters are already `Integer`, and legacy
    `equals` compares string forms), per the `Store`/`capture` precedent. A typed literal
    against an uncast ref is a compile-time warning.
 4. **`tokenize` binds a sequence when it binds a name**, keeping the joined rendering when it
@@ -1002,8 +1010,8 @@ rewritten to the rulings.
 7. **A date is a first-class `Instant`** — `(epochSecond, nano, offset)`, nanosecond
    precision preserved, comparison and arithmetic on the timeline with the offset inert,
    offset used only as `format-date`'s default rendering zone; number casts are epoch millis,
-   documented lossy (§§3, 9). **Ruled so** — the draft proposed epoch millis in an `Int` and
+   documented lossy (§§3, 9). **Ruled so** — the draft proposed epoch millis in an `Integer` and
    the ruling overrode it for nanosecond sources.
-8. **`Real` keeps its existing Rust-style rendering** as the default, with `format-number` as
+8. **`Double` keeps its existing Rust-style rendering** as the default, with `format-number` as
    the answer for anything specific — revisited only if a Saxon parity case makes it
    untenable. **Ruled: yes**, as recommended.

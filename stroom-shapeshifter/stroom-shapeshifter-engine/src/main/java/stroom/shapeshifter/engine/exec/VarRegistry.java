@@ -69,11 +69,9 @@ public final class VarRegistry {
 
     /** The stores for a name, creating them in the innermost scope if nothing holds it yet. */
     public List<Store> entry(final String name) {
-        for (int i = scopes.size() - 1; i >= 0; i--) {
-            final List<Store> stores = scopes.get(i).get(name);
-            if (stores != null) {
-                return stores;
-            }
+        final List<Store> found = get(name);
+        if (found != null) {
+            return found;
         }
         final List<Store> stores = new ArrayList<>(1);
         scopes.getLast().put(name, stores);
@@ -89,7 +87,10 @@ public final class VarRegistry {
         return stores.getFirst();
     }
 
-    /** Note that a name exists, so that a later write finds it rather than creating it inside. */
+    /**
+     * Note that a name exists, in the global scope, so that a later write from inside a nested
+     * scope finds it there rather than creating a local one.
+     */
     public void register(final String name) {
         if (get(name) == null) {
             scopes.getFirst().put(name, new ArrayList<>(1));

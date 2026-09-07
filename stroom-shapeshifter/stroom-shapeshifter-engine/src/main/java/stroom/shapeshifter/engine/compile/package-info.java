@@ -20,5 +20,18 @@
  * <p>Patterns are compiled, delimiters pre-encoded, and everything the match loop needs is
  * inlined onto the template that needs it, so the hot path has no lookups to do. Compilation is
  * also where a configuration's errors are found — before any input has been read.
+ *
+ * <p>{@code Compiler} is the pipeline and the passes are their own classes: {@code MatchCompiler}
+ * interns the patterns and compiles each template's match; {@code BodyCompiler} compiles
+ * its body against them; {@code TemplateUses} collects what each body calls and applies to, for
+ * name resolution and the dispatch lint; {@code ReferenceCheck} walks every body once for what
+ * reads what; {@code StructureCheck} judges what an element's body may contain; and
+ * the model's {@code Holder} says which instructions hold bodies (D47). The result is the
+ * executable graph, {@code CompiledProject} (D35).
+ *
+ * <p>This package depends on the model, the values (the compile-time halves of the date
+ * functions), the matching (the pattern key it interns by, the codecs it refuses), the text
+ * encodings, the function contract, the root's messages and the regex library; the run and the
+ * facade depend on it, and nothing below it does (design 27 §2.5).
  */
 package stroom.shapeshifter.engine.compile;

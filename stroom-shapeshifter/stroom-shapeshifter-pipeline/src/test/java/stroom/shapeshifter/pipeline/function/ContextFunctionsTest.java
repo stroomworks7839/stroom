@@ -34,12 +34,12 @@ import stroom.pipeline.state.PipelineHolder;
 import stroom.pipeline.state.SearchIdHolder;
 import stroom.security.api.UserIdentity;
 import stroom.shapeshifter.engine.Severity;
-import stroom.shapeshifter.engine.exec.TypedValue;
-import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Purity;
+import stroom.shapeshifter.engine.output.XmlByteSink;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.pipeline.PipelineState;
 import stroom.shapeshifter.pipeline.RunLocations;
 import stroom.shapeshifter.pipeline.ShapeshifterFunctionModule;
@@ -355,7 +355,7 @@ class ContextFunctionsTest {
                         stroom.shapeshifter.engine.config.ProjectReader.read(json),
                         stroom.shapeshifter.engine.function.FunctionRegistry.of(new LogFunction())),
                 new java.io.ByteArrayInputStream("a\nb\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
-                stroom.shapeshifter.engine.OutputSink.of(output),
+                new XmlByteSink(output),
                 stroom.shapeshifter.engine.Instrument.NONE,
                 stroom.shapeshifter.engine.function.RunMode.NORMAL,
                 stroom.shapeshifter.engine.function.Services.NONE);

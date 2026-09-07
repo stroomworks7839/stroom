@@ -18,7 +18,6 @@ package stroom.shapeshifter.pipeline.function;
 
 import stroom.meta.shared.Meta;
 import stroom.pipeline.state.MetaHolder;
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
@@ -26,6 +25,7 @@ import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Purity;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.pipeline.ShapeshifterFunctionModule;
 import stroom.shapeshifter.pipeline.StroomFunctionLibrary;
 import stroom.util.date.DateUtil;
@@ -117,9 +117,9 @@ class StroomFunctionsTest {
         return switch (value) {
             case null -> null;
             case String s -> TypedValue.of(s);
-            case Long l -> new TypedValue.Int(l);
-            case Integer i -> new TypedValue.Int(i);
-            case Double d -> new TypedValue.Real(d);
+            case Long l -> new TypedValue.Integer(l);
+            case Integer i -> new TypedValue.Integer(i);
+            case Double d -> new TypedValue.Double(d);
             case Boolean b -> new TypedValue.Bool(b);
             case Instant i -> new TypedValue.Instant(i.getEpochSecond(), i.getNano(), null);
             default -> throw new IllegalArgumentException(value.toString());

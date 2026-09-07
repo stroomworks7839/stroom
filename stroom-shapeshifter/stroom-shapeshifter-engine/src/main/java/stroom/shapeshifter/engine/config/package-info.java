@@ -21,5 +21,7 @@
  * <p>A plain tree of records and sealed interfaces, deliberately free of framework annotations.
  * Serialisation lives in the {@code json} subpackage; compilation and execution live above it.
  * Keeping the model inert is what lets the format be replaced without the engine noticing.
+ * {@code EngineVars} names the variables the language reserves for the engine to set, which
+ * the compiler's refusal and the run both read.
  */
 package stroom.shapeshifter.engine.config;

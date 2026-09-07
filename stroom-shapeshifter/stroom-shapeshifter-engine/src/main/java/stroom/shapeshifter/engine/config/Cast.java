@@ -18,25 +18,26 @@ package stroom.shapeshifter.engine.config;
 
 /**
  * An explicit typed read — the {@code as} of design/17 §8, applying the casting table of
- * §3.1 wherever a value is about to be compared or ordered. There is no implicit coercion
- * anywhere in the engine: a comparison between different kinds is simply false, and an
- * author who means a numeric or boolean reading says so with one of these. A cast that
- * fails yields absence, and absence compares false.
- *
- * <p>{@code DATE} — the ISO-8601 reading — arrives with the {@code Instant} work (phase 4)
- * and is refused at compile time until then.
+ * §3.1 wherever a value is about to be compared or ordered, and at a capture's bind (design
+ * 25 §9, D50). There is no implicit coercion anywhere in the engine: a comparison between
+ * different kinds is simply false, and an author who means a numeric or boolean reading says
+ * so with one of these. A cast that fails yields absence, and absence compares false.
  */
 public enum Cast {
 
     /** The string form — total: every value has one. */
     STRING,
 
-    /** The numeric reading, absent when the value has none. */
+    /** The numeric reading: whole if the value is whole, else fractional; absent if neither. */
     NUMBER,
+    /** The whole-number reading, absent unless the value is whole (D49). */
+    INTEGER,
+    /** The fractional reading, absent when the value has no numeric reading (D49). */
+    DOUBLE,
 
     /** The lexical boolean reading: {@code true}/{@code 1}/{@code false}/{@code 0}. */
     BOOLEAN,
 
-    /** The ISO-8601 instant reading. Refused until the {@code Instant} variant lands. */
+    /** The ISO-8601 instant reading, offset or Z required (design/17 §9). */
     DATE
 }

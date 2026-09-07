@@ -7,11 +7,18 @@ legacy and native families byte-identical to Stroom's DS3, the structured emitte
 as Saxon does.
 
 ```java
+import stroom.shapeshifter.engine.Shapeshifter;
+import stroom.shapeshifter.engine.Message;
+import stroom.shapeshifter.engine.compile.CompiledProject;
+import stroom.shapeshifter.engine.config.Project;
+import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
+
 final Project project = ProjectReader.read(Files.readString(config));
 final CompiledProject compiled = Shapeshifter.compile(project);
 
 final List<Message> messages = Shapeshifter.run(
-        compiled, input, OutputSink.of(output));
+        compiled, input, new XmlByteSink(output));
 ```
 
 Compile once, run per input. Compilation is where a configuration's own errors surface — a
@@ -39,26 +46,36 @@ match, and the choice re-opens. Content a match skips, and content nothing can m
 reported rather than lost, gated by the dispatching container's `ignore_errors`.
 
 ```
-config/     the authored model — plain records, no framework annotations
-config/json the whole wire format, in one file
-compile/    patterns compiled, delimiters encoded, references inlined
-exec/       the runtime: stores, scopes, references, steps, transforms
-text/       encodings, at the two boundaries that need them
-ds3/        reading Data Splitter v3 configurations and converting them
+config/      the authored model — plain records, no framework annotations
+config/json  the wire format: one reader-and-writer class per family, over shared primitives
+ds3/         reading Data Splitter v3 configurations and converting them
+compile/     the passes: patterns interned and compiled, references checked, the graph built
+value/       what a match captures and a body computes with — depends on nothing above the model
+match/       what a match produces, and the two ways of matching that are not a regex
+exec/        one run over the graph: the window, the level dispatcher, the body interpreter
+output/      the sinks: bytes as Saxon would write them, SAX events, characters, bytes as they are
+text/        encodings, at the boundaries that need them
+function/    the extension-function contract (design 26)
 ```
+
+Two layers, never three ([D35](../design/00-decisions.md)): the model and the executable graph,
+and the run is the graph's state for one input. A value knows nothing of a match, a match
+nothing of a run; the package javadocs state the direction and the imports keep it
+([design 27](../design/27-engine-structure.md), D45).
 
 ## Two things worth knowing before using it
 
-**A match never spans two buffers.** Input is read in buffers of the configuration's own size,
-and a record longer than one cannot be matched whole — the engine warns rather than emitting half
-of it. This is the Rust engine's limitation, ported deliberately so that golden parity meant
-something, and the matching layer underneath can do better. Lifting it is the first decision the
-port sets up.
+**A record must fit the window.** Input streams through a window of the configuration's
+`buffer_size`: a record is never cut by where a read happened to end, and one larger than the
+window is fatal, by name ([design 23](../design/23-streaming-contract.md)). Memory is the window,
+not the stream.
 
-**Everything writes through `OutputSink`.** Today its only implementation writes bytes, because
-configurations describe their output as text that happens to be XML. A Stroom pipeline element
-will want something else, and that choice is still open ([D10](../design/00-decisions.md)) — the
-interface is one place to answer it rather than twenty.
+**Everything writes through `OutputSink`.** Four sinks in `output`: `XmlByteSink` writes bytes
+as Saxon would ([D41](../design/00-decisions.md)), `SaxEventSink` forwards the structure as
+events, and `CharacterSink` delivers a text configuration's writes as characters (D42). The
+pipeline module chooses per element; the interface is one place to answer that rather than
+twenty. `ByteSink` writes a non-UTF-8 target's bytes as they are and carries no structure; a sink
+declares the encoding it accepts and every write is transcoded to it (design 25 §4).
 
 ## Open issues
 
@@ -80,7 +97,7 @@ deliberately left out, and the decisions the port enables. Refer to them by id.
 
 ## Testing
 
-`src/test/resources/fixtures` holds the corpus — 132 files, three families, with the ledger that
+`src/test/resources/fixtures` holds the corpus — 203 files, three families, with the ledger that
 drives them and the provenance of every golden ([its README](src/test/resources/fixtures/README.md)).
 The ledger is a ratchet: a fixture recorded as failing that starts passing **fails the build**
 until it is promoted, so progress is recorded on purpose and regressions cannot go quiet.

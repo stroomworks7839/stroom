@@ -19,7 +19,6 @@ package stroom.shapeshifter.engine.config;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.fixture.FixtureLedger;
-import stroom.shapeshifter.engine.fixture.FixtureLedger.Family;
 import stroom.shapeshifter.engine.fixture.FixtureLedger.Fixture;
 
 import org.junit.jupiter.api.DynamicTest;
@@ -150,6 +149,53 @@ class ProjectReaderTest {
                 """))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Unknown match expression: telepathy");
+    }
+
+    /**
+     * A scalar where a list belongs is refused by name rather than read as no entries, and a
+     * JSON null where a choice belongs means "not said", the same as absence (design 27 phase 8).
+     */
+    @Test
+    void refusesTheWrongShapeByNameAndReadsNullAsAbsent() {
+        assertThatThrownBy(() -> ProjectReader.read("""
+                {"name": "x", "version": 3, "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match": "source",
+                   "match_limits": {"only_match": 3}}]}
+                """))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Expected an array for 'only_match'");
+
+        assertThatThrownBy(() -> ProjectReader.read("""
+                {"name": "x", "version": 3, "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "t",
+                   "match": {"progressive": [{"MatchByte": 65}]}}]}
+                """))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Expected an array for 'MatchByte'");
+
+        assertThatThrownBy(() -> ProjectReader.read("""
+                {"name": "x", "version": 3, "source": {"buffer_size": "big"}, "templates": []}
+                """))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining(
+                        "Expected a whole number for 'buffer_size' in source, but was string");
+
+        assertThatThrownBy(() -> ProjectReader.read("""
+                {"name": 5, "version": 3, "templates": []}
+                """))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("Expected text for 'name' in project, but was number");
+
+        final Project project = ProjectReader.read("""
+                {"name": "x", "version": 3, "source": {"dispatch": null}, "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match": "source"}]}
+                """);
+        assertThat(project.source().dispatch()).as("a null dispatch inherits").isNull();
+        final Project absent = ProjectReader.read("""
+                {"name": "x", "version": 3, "source": {}, "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match": "source"}]}
+                """);
+        assertThat(absent.source().dispatch()).as("as an absent one does").isNull();
     }
 
     @Test

@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Left stale, that byte is the previous buffer's. A continuation byte there says a character
  * continues past the region, and a legal empty match at the tail is refused — silently, and
  * according to what an earlier buffer happened to hold. Demonstrated at the library entry on
- * 2026-08-27; this pins the executor's side of it.
+ * 2026-08-27; this pins the window's side of it.
  */
 class WindowTailTest {
 
@@ -25,7 +25,7 @@ class WindowTailTest {
         final byte[] window = new byte[8];
         Arrays.fill(window, (byte) 0x82);   // the last buffer: UTF-8 continuation bytes throughout
 
-        final int got = Executor.fillAndBlankTail(
+        final int got = InputWindow.fillAndBlankTail(
                 new ByteArrayInputStream("ab".getBytes(StandardCharsets.UTF_8)), window, 0);
 
         assertThat(got).isEqualTo(2);
@@ -41,7 +41,7 @@ class WindowTailTest {
         Arrays.fill(window, (byte) 0x82);
         window[0] = 'x';                    // a compacted remainder already at the front
 
-        final int got = Executor.fillAndBlankTail(
+        final int got = InputWindow.fillAndBlankTail(
                 new ByteArrayInputStream("yz".getBytes(StandardCharsets.UTF_8)), window, 1);
 
         assertThat(got).isEqualTo(2);

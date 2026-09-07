@@ -2,13 +2,6 @@
 
 A byte-level parsing and transformation engine.
 
-## Modules
-
-| Module | Contents |
-|---|---|
-| [`stroom-shapeshifter-regex`](stroom-shapeshifter-regex/README.md) | Byte-level regex and combinator matching engine |
-| `stroom-shapeshifter-engine` | Configurations, templates and transforms, built on it |
-
 ## Status
 
 A first working slice of the matching engine exists: patterns compile to a byte-level scan
@@ -60,7 +53,7 @@ deliberately has none of.
 
 Also built: the combinator layer (`comb.Matchers`), which flattens to the same plans as the
 equivalent regex. A streaming surface (`StreamMatcher`, a three-way outcome) was built and
-then retired by D37 (2026-08-25): the executor never consumed it, and the library is
+then retired by D37 (2026-08-25): the engine never consumed it, and the library is
 complete-inputs-only — byte arrays and slices.
 
 Encodings landed on 2026-08-28 ([design/19-encoding-plan.md](design/19-encoding-plan.md)):
@@ -77,8 +70,8 @@ A pattern outside the dialect is rejected with the reason — never matched appr
   transforms and the output side, ported from the Rust prototype (D33). Depends on the regex
   module; the reverse is forbidden by the zero-dependency check.
   [Its README](stroom-shapeshifter-engine/README.md) is the way in.
-- `stroom-shapeshifter-pipeline` — planned (D10): the thin adapter that puts the engine
-  into a Stroom pipeline, keeping Stroom's types out of both library modules.
+- `stroom-shapeshifter-pipeline` — the thin adapter that puts the engine into a Stroom
+  pipeline (D10, designs 21 to 24), keeping Stroom's types out of both library modules.
 
 ## Design
 
@@ -105,6 +98,7 @@ The regex library's design record lives with the module it describes, indexed at
   divergence found so far.
 - [06-performance-plan.md](stroom-shapeshifter-regex/design/06-performance-plan.md) — the performance work and its
   standing, the per-tier audit record, and the method notes; future sessions start here.
+
 The template engine's, in the parent design folder:
 
 - [10-engine-compilation.md](design/10-engine-compilation.md) — the engine's compilation
@@ -112,6 +106,10 @@ The template engine's, in the parent design folder:
 - [09-engine-semantics.md](design/09-engine-semantics.md) — what the engine's matching,
   dispatch and transformation layers mean, where the port diverges from real DS3, and D34's
   resolution.
+- [27-engine-structure.md](design/27-engine-structure.md) — the engine's structure: a run over
+  the graph, the passes, the packages and the direction between them (D45).
+- [28-model-classification.md](design/28-model-classification.md) — the model's instructions
+  classified as holders, bindings, transforms and leaves, so the walks say things once (D47).
 
 Prior art for both: Stroom's existing DS3 implementation at
 `stroom-pipeline/src/main/java/stroom/pipeline/xml/converter/ds3/`, which is also the

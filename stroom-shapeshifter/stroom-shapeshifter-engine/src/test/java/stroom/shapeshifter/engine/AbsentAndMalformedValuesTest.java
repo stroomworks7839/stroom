@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -278,7 +279,7 @@ class AbsentAndMalformedValuesTest {
         final List<Message> messages = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(json)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(out));
+                new XmlByteSink(out));
         // Nothing here is an error. A missing field is normal and a malformed one is answered,
         // not raised; anything louder than silence is the finding (E26).
         assertThat(messages)

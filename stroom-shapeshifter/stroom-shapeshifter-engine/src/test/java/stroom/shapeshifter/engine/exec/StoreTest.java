@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.value.TypedValue;
+
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -33,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StoreTest {
 
     private static TypedValue text(final String value) {
-        return TypedValue.of(value.getBytes(StandardCharsets.UTF_8));
+        return TypedValue.of(value);
     }
 
     // -----------------------------------------------------------------------------------
@@ -99,15 +101,15 @@ class StoreTest {
 
     @Test
     void numbersKeepTheirType() {
-        assertThat(new TypedValue.Int(42).asString()).isEqualTo("42");
-        assertThat(new TypedValue.Int(-17).asString()).isEqualTo("-17");
-        assertThat(new TypedValue.Int(42).asNumber()).isEqualTo(42.0);
+        assertThat(new TypedValue.Integer(42).asString()).isEqualTo("42");
+        assertThat(new TypedValue.Integer(-17).asString()).isEqualTo("-17");
+        assertThat(new TypedValue.Integer(42).asNumber()).isEqualTo(42.0);
         // A whole number does not acquire a decimal point on the way out.
-        assertThat(new TypedValue.Real(3.0).asString()).isEqualTo("3");
-        assertThat(new TypedValue.Real(3.5).asString()).isEqualTo("3.5");
+        assertThat(new TypedValue.Double(3.0).asString()).isEqualTo("3");
+        assertThat(new TypedValue.Double(3.5).asString()).isEqualTo("3.5");
         // Whole but beyond a long: the cast would saturate to Long.MAX_VALUE and render the
         // wrong number, so it keeps its floating form instead.
-        assertThat(new TypedValue.Real(1e19).asString()).isEqualTo("1.0E19");
+        assertThat(new TypedValue.Double(1e19).asString()).isEqualTo("1.0E19");
         assertThat(new TypedValue.Bool(true).asString()).isEqualTo("true");
         assertThat(new TypedValue.Bool(true).asNumber()).isEqualTo(1.0);
         assertThat(new TypedValue.Bool(false).asNumber()).isZero();
@@ -126,7 +128,7 @@ class StoreTest {
 
     @Test
     void numbersRenderAsAsciiWhateverTheInputWas() {
-        assertThat(new TypedValue.Int(42).asBytes()).isEqualTo("42".getBytes(StandardCharsets.US_ASCII));
+        assertThat(new TypedValue.Integer(42).asBytes()).isEqualTo("42".getBytes(StandardCharsets.US_ASCII));
         assertThat(new TypedValue.Bool(false).asBytes()).isEqualTo("false".getBytes(StandardCharsets.US_ASCII));
     }
 
@@ -135,7 +137,7 @@ class StoreTest {
         assertThat(text("").isEmpty()).isTrue();
         assertThat(text("x").isEmpty()).isFalse();
         // A number is never "absent" the way a missing capture is.
-        assertThat(new TypedValue.Int(0).isEmpty()).isFalse();
+        assertThat(new TypedValue.Integer(0).isEmpty()).isFalse();
     }
 
     @Test

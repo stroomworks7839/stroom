@@ -28,8 +28,8 @@ import stroom.pipeline.refdata.store.StringValue;
 import stroom.pipeline.refdata.store.offheapstore.TypedByteBuffer;
 import stroom.pipeline.shared.data.PipelineReference;
 import stroom.pipeline.state.MetaHolder;
-import stroom.shapeshifter.engine.exec.TypedValue;
 import stroom.shapeshifter.engine.function.FunctionCall;
+import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.pipeline.ElementServices;
 
 import org.junit.jupiter.api.BeforeEach;

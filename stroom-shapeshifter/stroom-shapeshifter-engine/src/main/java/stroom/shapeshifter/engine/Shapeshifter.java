@@ -18,8 +18,9 @@ package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.Compiler;
+import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.exec.Executor;
+import stroom.shapeshifter.engine.exec.Run;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.function.RunMode;
 import stroom.shapeshifter.engine.function.Services;
@@ -42,7 +43,7 @@ public final class Shapeshifter {
     /**
      * Compile a configuration, so it can be run more than once without recompiling.
      *
-     * @throws stroom.shapeshifter.engine.config.ConfigException if it cannot be compiled
+     * @throws ConfigException if it cannot be compiled
      */
     public static CompiledProject compile(final Project project) {
         return Compiler.compile(project);
@@ -50,15 +51,18 @@ public final class Shapeshifter {
 
     /**
      * Compile a configuration against the functions it may call (design 26): an unknown name or
-     * a wrong arity is a {@link stroom.shapeshifter.engine.config.ConfigException}, by name.
+     * a wrong arity is a {@link ConfigException}, by name.
      */
     public static CompiledProject compile(final Project project, final FunctionRegistry registry) {
         return Compiler.compile(project, registry);
     }
 
     /**
-     * Run a configuration in a mode, with the services its functions may reach (design 26 §3–4).
-     * {@link RunMode#PREVIEW} does not call impure functions.
+     * Run a configuration over a stream in a mode, with the services its functions may reach
+     * (design 26 §3–4). {@link RunMode#PREVIEW} does not call impure functions. Memory stays
+     * bounded by the configuration's buffer size, as for the three-argument form.
+     *
+     * @return everything the engine had to say, in the order it said it
      */
     public static List<Message> run(final CompiledProject compiled,
                                     final InputStream input,
@@ -66,7 +70,7 @@ public final class Shapeshifter {
                                     final Instrument instrument,
                                     final RunMode mode,
                                     final Services services) {
-        return Executor.run(compiled, input, sink, instrument, false, mode, services);
+        return Run.stream(compiled, input, sink, instrument, mode, services);
     }
 
     /**
@@ -76,7 +80,7 @@ public final class Shapeshifter {
      * sliding window of that capacity, so a single match must fit within it — but whether a
      * record parses never depends on where a read happened to end (E13).
      *
-     * @return everything the engine had to say, in order
+     * @return everything the engine had to say, in the order it said it
      */
     public static List<Message> run(final CompiledProject compiled,
                                     final InputStream input,
@@ -92,13 +96,13 @@ public final class Shapeshifter {
      * working, and enough to find the template that is being tried everywhere and matching
      * nowhere.
      *
-     * @return everything the engine had to say, in order
+     * @return everything the engine had to say, in the order it said it
      */
     public static List<Message> run(final CompiledProject compiled,
                                     final InputStream input,
                                     final OutputSink sink,
                                     final Instrument instrument) {
-        return Executor.run(compiled, input, sink, instrument, false);
+        return run(compiled, input, sink, instrument, RunMode.NORMAL, Services.NONE);
     }
 
     /**
@@ -108,7 +112,7 @@ public final class Shapeshifter {
      * seek has no meaning otherwise — and a single buffer also removes the question of whether a
      * record was cut in half by one.
      *
-     * @return everything the engine had to say, in order
+     * @return everything the engine had to say, in the order it said it
      */
     public static List<Message> runWhole(final CompiledProject compiled,
                                          final byte[] input,
@@ -116,11 +120,31 @@ public final class Shapeshifter {
         return runWhole(compiled, input, sink, Instrument.NONE);
     }
 
-    /** Run a compiled configuration over an input held whole, watching what it does. */
+    /**
+     * Run a compiled configuration over an input held whole, watching what it does.
+     *
+     * @return everything the engine had to say, in the order it said it
+     */
     public static List<Message> runWhole(final CompiledProject compiled,
                                          final byte[] input,
                                          final OutputSink sink,
                                          final Instrument instrument) {
-        return Executor.run(compiled, new ByteArrayInputStream(input), sink, instrument, true);
+        return runWhole(compiled, input, sink, instrument, RunMode.NORMAL, Services.NONE);
+    }
+
+    /**
+     * Run a compiled configuration over an input held whole, in a mode, with the services its
+     * functions may reach (design 26 §3–4) — the whole-buffer form of the six-argument {@code run}.
+     * {@link RunMode#PREVIEW} does not call impure functions.
+     *
+     * @return everything the engine had to say, in the order it said it
+     */
+    public static List<Message> runWhole(final CompiledProject compiled,
+                                         final byte[] input,
+                                         final OutputSink sink,
+                                         final Instrument instrument,
+                                         final RunMode mode,
+                                         final Services services) {
+        return Run.whole(compiled, new ByteArrayInputStream(input), sink, instrument, mode, services);
     }
 }

@@ -18,13 +18,19 @@ package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.ByteSink;
+import stroom.shapeshifter.engine.output.XmlByteSink;
+import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -72,7 +78,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config(encoding))),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         return output.toString(StandardCharsets.UTF_8);
     }
 
@@ -108,7 +114,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é][é]");
     }
 
@@ -161,7 +167,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(withPilcrow)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[a][b]");
     }
 
@@ -209,7 +215,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é“]"); // U+201C, left double quotation mark
     }
 
@@ -239,7 +245,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é中]");
     }
 
@@ -264,14 +270,14 @@ class EncodedInputTest {
         final List<Message> reported = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config.replace("IGNORE", "false"))),
                 new ByteArrayInputStream(input),
-                OutputSink.of(new ByteArrayOutputStream()));
+                new XmlByteSink(new ByteArrayOutputStream()));
         assertThat(reported).anyMatch(m -> m.severity() == Severity.FATAL
                 && m.text().contains("UTF-16LE"));
         final ByteArrayOutputStream replaced = new ByteArrayOutputStream();
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config.replace("IGNORE", "true"))),
                 new ByteArrayInputStream(input),
-                OutputSink.of(replaced));
+                new XmlByteSink(replaced));
         // How many code units the decoder folds into one replacement is its own business;
         // what matters is that data flowed and the malformed span became U+FFFD, not a loss.
         assertThat(replaced.toString(StandardCharsets.UTF_8)).contains("a�"); // U+FFFD, the replacement character
@@ -364,14 +370,14 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         // RAW reads each byte as its own code point: 0x93 is U+0093, 0xE9 is é.
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[\u0093é]");
     }
 
     /**
      * Found by the phase-0 audit, and the refusal was the smaller half: the walkers saw
-     * {@code PatternRef} where the executor sees the inlined steps, so a regex inside a
+     * {@code PatternRef} where the steps see the inlined sequence, so a regex inside a
      * referenced library pattern was never interned — every use crashed at match time with
      * "Pattern was not compiled", regardless of encoding. Both walkers now resolve first;
      * this pins the crash's fix and the one below pins the refusal's.
@@ -402,7 +408,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream("abc\n".getBytes(StandardCharsets.UTF_8)),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[abc]");
     }
 
@@ -428,7 +434,7 @@ class EncodedInputTest {
     }
 
     /**
-     * Found by the phase-3 audit: guards were evaluated with the executor's project-level
+     * Found by the phase-3 audit: guards were evaluated with the run's project-level
      * encoding while their patterns were interned under the template-effective one, so a
      * guard's {@code matches} on an encoding-overridden template missed the map at run time
      * and died with "Pattern was not compiled". The guard now evaluates under the same
@@ -458,7 +464,7 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é]");
     }
 
@@ -514,9 +520,163 @@ class EncodedInputTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output));
+                new XmlByteSink(output));
         final String out = output.toString(StandardCharsets.UTF_8);
         assertThat(out).contains("𐍈y");
         assertThat(out).contains("tail𐍈");
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Design 25 phase 1: a capture is the bytes it matched, tagged; nothing is transcoded
+    // until a consumer asks
+    // -----------------------------------------------------------------------------------
+
+    /** Keeps what each capture was bound to. */
+    private static final class CaptureRecorder implements Instrument {
+
+        private final List<TypedValue> bound = new ArrayList<>();
+
+        @Override
+        public void onCapture(final UUID templateId, final String name, final TypedValue value,
+                              final int matchIndex) {
+            bound.add(value);
+        }
+    }
+
+    @Test
+    void rawCaptureHoldsTheBytesItMatched() {
+        final String config = """
+                {
+                  "name": "raw-capture", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "raw"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "rec", "mode": "row",
+                     "match": {"regex": {"pattern": "X([\\\\x80-\\\\xff]+)X"}},
+                     "captures": [{"name": "payload", "select": {"group": 1}}],
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"var_id": "payload", "group": 0}}, {"text": "]"}]}}]}]
+                }
+                """;
+        final byte[] input = {'X', (byte) 0x93, (byte) 0xE9, 'X'};
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        final CaptureRecorder recorder = new CaptureRecorder();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                new XmlByteSink(output), recorder);
+        // The store holds the two bytes read, tagged raw — not their four-byte UTF-8 image.
+        assertThat(recorder.bound).singleElement()
+                .isInstanceOfSatisfying(TypedValue.Bytes.class, bytes -> {
+                    assertThat(bytes.value()).containsExactly(0x93, 0xE9);
+                    assertThat(bytes.encoding()).isEqualTo(Encoding.RAW);
+                });
+        // Written to the UTF-8 sink, it decodes by its tag on the way out: the same answer as
+        // before, now computed at the write rather than at the capture.
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[\u0093é]");
+    }
+
+    /**
+     * The case E3's write-path split answered by provenance and the tag now answers by itself:
+     * a value captured under one template's encoding, written by a template with another.
+     */
+    @Test
+    void valueCapturedUnderOneEncodingIsWrittenRightByAnother() {
+        final String config = """
+                {
+                  "name": "cross", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "windows-1252"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "a", "mode": "row",
+                     "match": {"regex": {"pattern": "A:([^\\\\n]*)\\\\n"}},
+                     "captures": [{"name": "held", "select": {"group": 1}}],
+                     "body": []},
+                    {"id": "00000000-0000-0000-0000-000000000003", "name": "b", "mode": "row",
+                     "encoding": "iso-8859-1",
+                     "match": {"regex": {"pattern": "B:\\\\n"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"var_id": "held", "group": 0}}, {"text": "]"}]}}]}]
+                }
+                """;
+        final byte[] input = {'A', ':', (byte) 0x93, '\n', 'B', ':', '\n'};
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                new XmlByteSink(output));
+        // 0x93 is U+201C under windows-1252, which captured it, and U+0093 under the writer's
+        // Latin-1; the value's own tag decides.
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[“]");
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Design 25 phase 2: the sink declares what it accepts, and a write transcodes to it
+    // -----------------------------------------------------------------------------------
+
+    private static byte[] runInto(final String config, final byte[] input, final Encoding target) {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        final List<Message> messages = Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                new ByteSink(output, target));
+        assertThat(messages).noneMatch(m -> m.severity() == Severity.FATAL);
+        return output.toByteArray();
+    }
+
+    @Test
+    void rawIntoARawSinkIsTheBytesItMatched() {
+        final byte[] input = {(byte) 0x93, (byte) 0xE9};
+        assertThat(runInto(config("raw"), input, Encoding.RAW))
+                .containsExactly('[', 0x93, 0xE9, ']');
+    }
+
+    @Test
+    void latin1IntoALatin1SinkIsTheBytesItMatched() {
+        final byte[] input = {(byte) 0xE9, (byte) 0xC7};
+        assertThat(runInto(config("iso-8859-1"), input, Encoding.LATIN_1))
+                .containsExactly('[', 0xE9, 0xC7, ']');
+        // The same feed into the UTF-8 sink is the decoded text, as before.
+        assertThat(run("iso-8859-1", input)).isEqualTo("[éÇ]");
+    }
+
+    @Test
+    void windows1252IntoAWindows1252SinkIsTheBytesItMatched() {
+        // A JDK charset on both sides: the tags are equal, so the value's own array is written.
+        final byte[] input = {(byte) 0x93, (byte) 0xE9};
+        assertThat(runInto(config("windows-1252"), input, Encoding.WINDOWS_1252))
+                .containsExactly('[', 0x93, 0xE9, ']');
+    }
+
+    @Test
+    void literalTheSinkCannotExpressBecomesAQuestionMark() {
+        // Only a literal can put a character above 0xFF into a raw sink; a raw capture never
+        // has one.
+        final byte[] input = {(byte) 0xE9};
+        final String config = config("raw").replace("\"text\": \"[\"", "\"text\": \"€\"");
+        assertThat(runInto(config, input, Encoding.RAW)).containsExactly('?', 0xE9, ']');
+    }
+
+    @Test
+    void structureIntoANonUtf8SinkIsRefused() {
+        final String config = """
+                {
+                  "name": "structured", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "raw"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"element": {"name": "doc", "body": [{"text": "x"}]}}]}]
+                }
+                """;
+        final List<Message> messages = Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(new byte[]{'a'}),
+                new ByteSink(new ByteArrayOutputStream(), Encoding.RAW));
+        assertThat(messages).anyMatch(m -> m.severity() == Severity.FATAL
+                && m.text().contains("does not carry structure"));
     }
 }

@@ -16,30 +16,29 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
-import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.match.MatchResult;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * Resolving the configuration's expressions against what has been captured.
- *
- * <p>Two ways in, and the difference is not cosmetic. {@link #write} sends the parts straight to
- * the sink, which is what an output instruction wants and costs nothing in between.
- * {@link #resolve} builds the value, which is what a condition or a nested match needs.
+ * Resolving the configuration's authored expressions against what has been captured: what a
+ * condition calls. Bodies and capture bindings resolve compiled references through
+ * {@link CompiledRefs} instead (design 25 phase 3 took the captures), and E39 owns the seam
+ * between the two.
  *
  * <p><b>Empty is absent.</b> A part that resolves to nothing writes nothing, and an expression
  * whose parts all resolve to nothing has no value at all rather than an empty one. That is what
  * lets a configuration ask whether a field exists.
  *
- * <p>This is also one of the two places an encoding matters. A captured value is a slice of the
- * input, so when the input is not UTF-8 it has to be converted on the way out — and when it is,
- * which is the overwhelming majority of the time, the bytes go straight through.
+ * <p>No encoding is threaded here: a captured value carries its own (design 25), and every
+ * part of a composite is joined in its UTF-8 form, which for the overwhelming majority of
+ * inputs is the bytes themselves.
  */
 public final class Refs {
 
@@ -47,80 +46,33 @@ public final class Refs {
     }
 
     /**
-     * Write an expression to the sink.
-     *
-     * @return true if anything was written
-     */
-    public static boolean write(final RefExpression expression,
-                                final MatchResult match,
-                                final int matchCount,
-                                final VarRegistry vars,
-                                final Encoding encoding,
-                                final OutputSink sink) {
-        if (expression == null || expression.parts().isEmpty()) {
-            return false;
-        }
-        boolean wrote = false;
-        for (final RefPart part : expression.parts()) {
-            switch (part) {
-                case RefPart.Text text -> {
-                    if (!text.value().isEmpty()) {
-                        sink.write(text.value());
-                        wrote = true;
-                    }
-                }
-                case RefPart.Capture capture -> {
-                    final TypedValue value = lookup(capture, match, matchCount, vars);
-                    if (value != null && !value.isEmpty()) {
-                        // Only a slice of the current match needs converting: a stored value
-                        // was normalised to UTF-8 when it was captured (E3).
-                        sink.write(capture.varId() == null ? bytes(value, encoding) : value.asBytes());
-                        wrote = true;
-                    }
-                }
-            }
-        }
-        return wrote;
-    }
-
-    /**
      * The value of an expression with its type preserved, or null if it resolves to nothing.
      *
      * <p>Only a single-part capture reference can carry a type (design/17 §3.1): literal text
-     * and a multi-part expression are strings by construction. The encoding rule is
-     * {@link #resolve}'s: a slice of the current match converts, a stored value passes through.
+     * and a multi-part expression are strings by construction. A captured value carries its
+     * own encoding (design 25), so nothing here converts.
      */
     public static TypedValue resolveValue(final RefExpression expression,
                                           final MatchResult match,
                                           final int matchCount,
-                                          final VarRegistry vars,
-                                          final Encoding encoding) {
+                                          final VarRegistry vars) {
         if (expression == null || expression.parts().isEmpty()) {
             return null;
         }
         if (expression.parts().size() == 1
             && expression.parts().getFirst() instanceof RefPart.Capture capture) {
             final TypedValue value = lookup(capture, match, matchCount, vars);
-            if (value == null || value.isEmpty()) {
-                return null;
-            }
-            if (capture.varId() == null
-                && value instanceof TypedValue.Bytes
-                && !encoding.isUtf8Compatible()) {
-                return TypedValue.of(bytes(value, encoding));
-            }
-            return value;
+            return value == null || value.isEmpty() ? null : value;
         }
-        final byte[] resolved = resolve(expression, match, matchCount, vars, encoding);
-        return resolved == null ? null : TypedValue.of(resolved);
+        final byte[] resolved = resolve(expression, match, matchCount, vars);
+        return resolved == null ? null : TypedValue.utf8(resolved);
     }
 
-    /** The value of an expression as bytes, or null if it resolves to nothing. */
+    /** The value of an expression as UTF-8 bytes, or null if it resolves to nothing. */
     public static byte[] resolve(final RefExpression expression,
                                  final MatchResult match,
                                  final int matchCount,
-                                 final VarRegistry vars,
-                                 final Encoding encoding) {
+                                 final VarRegistry vars) {
         if (expression == null || expression.parts().isEmpty()) {
             return null;
         }
@@ -133,9 +85,7 @@ public final class Refs {
                         : text.value().getBytes(StandardCharsets.UTF_8);
                 case RefPart.Capture capture -> {
                     final TypedValue value = lookup(capture, match, matchCount, vars);
-                    yield value == null || value.isEmpty()
-                            ? null
-                            : capture.varId() == null ? bytes(value, encoding) : value.asBytes();
+                    yield value == null || value.isEmpty() ? null : value.utf8();
                 }
             };
         }
@@ -147,9 +97,7 @@ public final class Refs {
                 case RefPart.Text text -> text.value().getBytes(StandardCharsets.UTF_8);
                 case RefPart.Capture capture -> {
                     final TypedValue value = lookup(capture, match, matchCount, vars);
-                    yield value == null
-                            ? null
-                            : capture.varId() == null ? bytes(value, encoding) : value.asBytes();
+                    yield value == null ? null : value.utf8();
                 }
             };
             if (bytes != null && bytes.length > 0) {
@@ -164,24 +112,9 @@ public final class Refs {
     public static String resolveText(final RefExpression expression,
                                      final MatchResult match,
                                      final int matchCount,
-                                     final VarRegistry vars,
-                                     final Encoding encoding) {
-        final byte[] bytes = resolve(expression, match, matchCount, vars, encoding);
+                                     final VarRegistry vars) {
+        final byte[] bytes = resolve(expression, match, matchCount, vars);
         return bytes == null ? null : new String(bytes, StandardCharsets.UTF_8);
-    }
-
-    /**
-     * A value as UTF-8 bytes, ready to write.
-     *
-     * <p>Numbers are already ASCII whatever the input was. Captured bytes are in the input's
-     * encoding and need converting unless that is already UTF-8-compatible — which is the
-     * common case and costs nothing to check.
-     */
-    static byte[] bytes(final TypedValue value, final Encoding encoding) {
-        if (encoding.isUtf8Compatible() || !(value instanceof TypedValue.Bytes captured)) {
-            return value.asBytes();
-        }
-        return encoding.decode(captured.value()).getBytes(StandardCharsets.UTF_8);
     }
 
     /** One capture reference: a group of the current match, or of a named variable. */
@@ -206,7 +139,7 @@ public final class Refs {
             return null;
         }
         final Store store = stores.get(group);
-        final Integer index = index(matchIndex, store, matchCount, vars);
+        final Integer index = matchIndex(matchIndex, store, matchCount, vars);
         return index == null ? store.latest() : store.get(index);
     }
 
@@ -219,10 +152,10 @@ public final class Refs {
      * header row line up with a data row — the engine's own {@code __match_count} threads the
      * column number through.
      */
-    private static Integer index(final MatchIndex matchIndex,
-                                 final Store store,
-                                 final int matchCount,
-                                 final VarRegistry vars) {
+    private static Integer matchIndex(final MatchIndex matchIndex,
+                                      final Store store,
+                                      final int matchCount,
+                                      final VarRegistry vars) {
         if (matchIndex == null) {
             return null;
         }

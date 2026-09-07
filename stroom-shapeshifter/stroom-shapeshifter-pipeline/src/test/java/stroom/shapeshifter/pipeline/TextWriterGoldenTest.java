@@ -20,9 +20,9 @@ import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
 import stroom.pipeline.writer.TextWriter;
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Indicators;
 import stroom.util.shared.Severity;
@@ -86,7 +86,7 @@ class TextWriterGoldenTest {
         // their severity; nothing comes from the writer.
         final List<String> expected = Shapeshifter.run(
                         Shapeshifter.compile(ProjectReader.read(Files.readString(dir.resolve("project.json")))),
-                        new ByteArrayInputStream(input), OutputSink.of(new ByteArrayOutputStream()))
+                        new ByteArrayInputStream(input), new XmlByteSink(new ByteArrayOutputStream()))
                 .stream().map(Message::toString).toList();
         final List<String> reported = logged(receiver, "ShapeshifterParser");
         assertThat(reported).as(fixture).hasSameSizeAs(expected);

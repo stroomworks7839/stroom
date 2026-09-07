@@ -149,7 +149,7 @@ public final class Ds3Migration {
                                 literalAttribute("version", RECORDS_VERSION),
                                 new OutputNode.ApplyTemplates(new ApplyDirective(
                                         RefExpression.group(0), ROOT_MODE, List.of(),
-                                        ApplyDirective.DEFAULT_MAX_DEPTH, null, false, null))))),
+                                        ApplyDirective.DEFAULT_MAX_DEPTH, false, null))))),
                 null,
                 false);
     }
@@ -198,7 +198,7 @@ public final class Ds3Migration {
         // than group 0 — group 0 still carries the quotes.
         final List<CaptureBinding> adjusted = captures.stream()
                 .map(capture -> capture.select() instanceof CaptureSource.Group group && group.group() == 0
-                        ? new CaptureBinding(capture.name(), new CaptureSource.Group(1))
+                        ? new CaptureBinding(capture.name(), new CaptureSource.Group(1), null)
                         : capture)
                 .toList();
 
@@ -268,7 +268,7 @@ public final class Ds3Migration {
                             // is where all of them live.
                             body.add(new OutputNode.ApplyTemplates(new ApplyDirective(
                                     RefExpression.group(0), subMode, List.of(),
-                                    ApplyDirective.DEFAULT_MAX_DEPTH, null, false, null)));
+                                    ApplyDirective.DEFAULT_MAX_DEPTH, false, null)));
                             dispatched = true;
                         }
                     }
@@ -289,7 +289,7 @@ public final class Ds3Migration {
                                  final List<CaptureBinding> captures,
                                  final List<OutputNode> body) {
         if (var.value() == null) {
-            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0)));
+            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0), null));
             return;
         }
         final RefExpression reference = LegacyRefs.parse(var.value());
@@ -297,7 +297,7 @@ public final class Ds3Migration {
                 part instanceof RefPart.Text
                 || (part instanceof RefPart.Capture capture && capture.varId() == null));
         if (localOnly) {
-            captures.add(new CaptureBinding(var.id(), new CaptureSource.Select(reference)));
+            captures.add(new CaptureBinding(var.id(), new CaptureSource.Select(reference), null));
         } else {
             body.add(new OutputNode.Variable(var.id(),
                     List.of(new OutputNode.ValueOf(indexed(reference)))));
@@ -335,14 +335,14 @@ public final class Ds3Migration {
         // flattening.
         into.add(new OutputNode.ApplyTemplates(new ApplyDirective(
                 group.value() == null ? RefExpression.group(0) : LegacyRefs.parse(group.value()),
-                subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, null, group.ignoreErrors(), null)));
+                subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, group.ignoreErrors(), null)));
         for (int i = 0; i < members.size(); i++) {
             final Ds3Config child = members.get(i);
             if (!child.isExpression()) {
                 switch (child) {
                     case Ds3Config.Var var -> {
                         if (var.value() == null) {
-                            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0)));
+                            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0), null));
                         } else {
                             into.add(new OutputNode.Variable(var.id(),
                                     List.of(new OutputNode.ValueOf(
@@ -479,7 +479,7 @@ public final class Ds3Migration {
         }
         // The guard reads __match_idx, which the engine binds as Int — the exact case that
         // makes legacy equality mean "compare string forms": both sides read as strings
-        // (design/17 §8, the phase 1 audit's correction).
+        // (design/17 §8).
         final List<Condition> conditions = onlyMatch.stream()
                 .map(index -> (Condition) new Condition.Compare(Condition.Compare.Op.EQ,
                         new Condition.Operand(
