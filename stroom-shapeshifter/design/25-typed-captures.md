@@ -100,13 +100,14 @@ the same tag and the same bytes short-circuit. `Comparisons.compare` is unchange
 is `TypedValue.bytes(Encoding)`, called with `sink.encoding()` at the six writes — three in
 `CompiledRefs.write`, the literal, the tokenize join and `emit` in `Body`; `Refs` builds values
 for conditions and captures and never writes. After the record (2026-09-07), the seam object
-this paragraph first drew: `exec.Output` pairs the sink with what it accepts once, where the
-sink enters the run — the run's own, the level's dispatch, the variable buffer — and
-`out.write(value)` is the six writes; the record loop no longer asks the sink.* The "only a
-local group converts; a stored value passes through" split — E3's implementation, and correct,
-since every route into a store normalised — is deleted because the value knows and the template
-need not: the rule moves from the caller's provenance to the value's tag. Literal `text` ops
-hold a UTF-8-tagged value and take the same seam; for a UTF-8 sink that is today's byte copy.
+this paragraph first drew: `exec.Output` pairs the sink with what it accepts once per sink,
+where it enters a body — the run's own and a variable's buffer; a level's dispatch and a nested
+apply pass the pairing down — and `out.write(value)` is the six writes; the record loop no
+longer asks the sink.* The "only a local group converts; a stored value passes through" split —
+E3's implementation, and correct, since every route into a store normalised — is deleted because
+the value knows and the template need not: the rule moves from the caller's provenance to the
+value's tag. Literal `text` ops hold a UTF-8-tagged value and take the same seam; for a UTF-8
+sink that is today's byte copy.
 
 **Instrumentation.** `Instrument.onCapture` receives the `TypedValue`, not a `byte[]` "already
 normalised": `Instrument.NONE` then pays nothing, and a real instrument decodes as it likes.
@@ -353,16 +354,17 @@ design's as-built record.
 
 *The seam object, after the record (2026-09-07).* Phase 2's measurement had left `csv_header`
 about three per cent down, the query of the sink's encoding on every write. Asked whether that
-could be resolved at compile time: no, the sink is not the configuration's (§8), but it is
-known when a run starts and does not change, so it is resolved there, which is where design 26
-binds functions and the graph holds its matchers. `exec.Output` is §3's seam as first drawn:
-the sink and its encoding paired by `Output.of(sink)` at the three places a sink enters a
-body — `Run` for the root and its prologue and tails, `Level.dispatch` for a level (the
-object travels down, so a nested apply pairs nothing), `Body.variable` for the buffer — and
-threaded in place of the bare sink through `Body`, `Level` and `CompiledRefs`; `out.write(value)`
-is `sink.write(value.bytes(encoding))` with the encoding a field. Structure still goes to the
-sink, which owns its rule. Not a flag on the sink: that would be a second way to state what
-`encoding()` states. Gate unchanged: engine 584, pipeline 154, app 5, checkstyle clean.
+could be resolved at compile time: no, the sink is not the configuration's (§8), but it is known
+when a run starts and does not change, so it is resolved there, which is where design 26 binds
+functions and the graph holds its matchers. `exec.Output` is §3's seam as first drawn: the sink
+and its encoding paired by `Output.of(sink)` at the two places a sink enters a body — `Run` for
+the root, whose one pairing serves the prologue, the tails, the root dispatch and every nested
+level, and `Body.variable` for the buffer, once per evaluation — and threaded in place of the
+bare sink through `Body`, `Level` and `CompiledRefs`, `Level.dispatch` passing it down;
+`out.write(value)` is `sink.write(value.bytes(encoding))` with the encoding a field. Structure
+still goes to the sink, which owns its rule. Not a flag on the sink: that would be a second way
+to state what `encoding()` states. Gate unchanged: engine 584, pipeline 154, app 5, checkstyle
+clean.
 
 *Done 2026-09-07, each item as listed, most of them as the phase audits went: E3's amendment
 with phase 1, E39 narrowed and design 17's bullets with the phase 3 audit, design 24's §2

@@ -21,8 +21,8 @@ import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 /**
- * Where a body's writes go: the sink and the encoding it accepts, paired once where the sink
- * enters the run (design 25 §3). Every value a body writes is transcoded from its own tag to
+ * Where a body's writes go: the sink and the encoding it accepts, paired once per sink, where
+ * it enters a body (design 25 §3). Every value a body writes is transcoded from its own tag to
  * that encoding here, so the record loop never asks the sink what it accepts — the question's
  * answer does not change for the life of a sink, and asking it per write was a dispatch on the
  * path every write takes. Structure goes to the sink itself, which owns the rule for it.

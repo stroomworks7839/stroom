@@ -54,7 +54,6 @@ import java.util.Objects;
 public final class Run {
 
     private final CompiledProject compiled;
-    private final OutputSink output;
     /** The run's sink paired with what it accepts, once (design 25 §3). */
     private final Output out;
     private final List<Message> messages = new ArrayList<>();
@@ -77,8 +76,7 @@ public final class Run {
                 final RunMode mode,
                 final Services services) {
         this.compiled = compiled;
-        this.output = sink;
-        this.out = Output.of(this.output);
+        this.out = Output.of(sink);
         this.encoding = compiled.encoding();
         this.messages.addAll(compiled.warnings());
         this.functions = new FunctionRuntime(compiled.functions(), mode, services, messages);
@@ -192,7 +190,8 @@ public final class Run {
                     0);
             if (i < split.opened.size()) {
                 final CompiledOp.Element element = split.opened.get(i);
-                body.structure(() -> output.startElement(element.name(), element.namespace(), element.omitIfEmpty()),
+                body.structure(() -> out.sink().startElement(element.name(), element.namespace(),
+                        element.omitIfEmpty()),
                         "element '" + element.name() + "'");
             }
         }
@@ -205,7 +204,7 @@ public final class Run {
                     0);
             if (i > 0) {
                 final CompiledOp.Element element = split.opened.get(i - 1);
-                body.structure(output::endElement, "element '" + element.name() + "'");
+                body.structure(out.sink()::endElement, "element '" + element.name() + "'");
             }
         }
     }

@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * Resolving compiled references — {@link Refs} with the interpretation already done.
  *
- * <p>Two ways in: {@link #write} streams parts to the out, {@link #resolve} builds the
+ * <p>Two ways in: {@link #write} streams parts through the seam, {@link #resolve} builds the
  * value; and <b>empty is absent</b>, as it is for {@link Refs}. The difference is what no longer happens per
  * call: literal text is a value made at compile time, written as its own array by a UTF-8
  * sink (design 25), and the shape of the expression is a dispatch, not a walk.
