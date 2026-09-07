@@ -57,10 +57,10 @@ final class CompiledRefs {
                 return false;
             }
             case CompiledRef.Bytes bytes -> {
-                if (bytes.value().length == 0) {
+                if (bytes.value().isEmpty()) {
                     return false;
                 }
-                sink.write(bytes.value());
+                sink.write(bytes.value().bytes(sink.encoding()));
                 return true;
             }
             case CompiledRef.Composite composite -> {
@@ -75,7 +75,7 @@ final class CompiledRefs {
                 if (value == null || value.isEmpty()) {
                     return false;
                 }
-                sink.write(value.utf8());
+                sink.write(value.bytes(sink.encoding()));
                 return true;
             }
             case CompiledRef.RemoteVar remote -> {
@@ -83,7 +83,7 @@ final class CompiledRefs {
                 if (value == null || value.isEmpty()) {
                     return false;
                 }
-                sink.write(value.utf8());
+                sink.write(value.bytes(sink.encoding()));
                 return true;
             }
         }
@@ -105,7 +105,7 @@ final class CompiledRefs {
                 return null;
             }
             case CompiledRef.Bytes bytes -> {
-                return bytes.value().length == 0 ? null : TypedValue.utf8(bytes.value());
+                return bytes.value().isEmpty() ? null : bytes.value();
             }
             case CompiledRef.Composite composite -> {
                 final ByteArrayOutputStream buffer = new ByteArrayOutputStream();

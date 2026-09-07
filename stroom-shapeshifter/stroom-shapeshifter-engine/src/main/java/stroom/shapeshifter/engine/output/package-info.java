@@ -20,7 +20,9 @@
  * <p>{@code XmlByteSink} serialises the structure a run writes into bytes exactly as Saxon
  * would, and is the default sink; {@code SaxEventSink} forwards the same structure as SAX
  * events, counting events as its position; {@code CharacterSink} delivers a text
- * configuration's writes as {@code characters} events. What the three share is said once:
+ * configuration's writes as {@code characters} events; {@code ByteSink} writes a non-UTF-8
+ * target's bytes as they are and carries no structure (design 25 §4). What the three
+ * structured sinks share is said once:
  * {@code Utf8.Carry} holds the bytes a write left mid-character for the next,
  * {@code SaxEvents} makes and counts the two event sinks' calls, {@code QNames} splits a
  * qualified name. This package depends on the root package's sink contract and on the JDK, and

@@ -223,4 +223,21 @@ class TypedValueTest {
         assertThat(TypedValue.of(new byte[]{(byte) 0x93}, Encoding.RAW))
                 .isNotEqualTo(TypedValue.of(new byte[]{(byte) 0x93}, Encoding.WINDOWS_1252));
     }
+
+    @Test
+    void bytesInAnEncodingAreTranscodedOnlyWhereTheTagsDiffer() {
+        final byte[] read = {(byte) 0xE9};
+        final TypedValue latin = TypedValue.of(read, Encoding.LATIN_1);
+        // Into the UTF-8 class: the memo. Into its own encoding: the array itself.
+        assertThat(latin.bytes(Encoding.UTF_8))
+                .isEqualTo("é".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(latin.bytes(Encoding.LATIN_1)).isSameAs(read);
+        // Into another single-byte encoding: through text; a character it cannot express is '?'.
+        assertThat(latin.bytes(Encoding.RAW)).containsExactly(0xE9);
+        assertThat(TypedValue.of("é€").bytes(Encoding.LATIN_1)).containsExactly(0xE9, '?');
+        // A number renders as text in the target's encoding, not as ASCII regardless.
+        assertThat(new TypedValue.Integer(42).bytes(Encoding.UTF_16LE))
+                .isEqualTo("42".getBytes(java.nio.charset.StandardCharsets.UTF_16LE));
+        assertThat(new TypedValue.Integer(42).bytes(Encoding.ASCII)).isEqualTo("42".getBytes());
+    }
 }

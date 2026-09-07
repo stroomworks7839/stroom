@@ -16,7 +16,11 @@
 
 package stroom.shapeshifter.engine;
 
-import java.nio.charset.StandardCharsets;
+import stroom.shapeshifter.engine.output.ByteSink;
+import stroom.shapeshifter.engine.output.XmlByteSink;
+import stroom.shapeshifter.engine.text.Encoding;
+
+import java.io.OutputStream;
 
 /**
  * Where a run's output goes.
@@ -30,11 +34,15 @@ import java.nio.charset.StandardCharsets;
  * transforms — do not know which; the sink does. A configuration that never opens a container
  * therefore gets the byte-transparent stream it always had.
  *
- * <p>Three implementations in {@code output}, one per target: {@code XmlByteSink} serialises the
+ * <p>Four implementations in {@code output}, one per target: {@code XmlByteSink} serialises the
  * structure as Stroom's own serialiser would (D41), {@code SaxEventSink} forwards it as SAX
- * events, and {@code CharacterSink} delivers a text configuration's writes as characters (D42).
- * A sink that cannot do structure — a byte counter, a benchmark — keeps the defaults, which
- * refuse it by name.
+ * events, {@code CharacterSink} delivers a text configuration's writes as characters (D42), and
+ * {@code ByteSink} writes a non-UTF-8 target's bytes as they are. A sink that cannot do
+ * structure — a byte counter, a benchmark — keeps the defaults, which refuse it by name.
+ *
+ * <p>A sink declares the encoding it accepts ({@link #encoding()}, design 25 §4), and every
+ * value written through it is transcoded from the value's own encoding to that at the write —
+ * the identity for the UTF-8 sinks, which are all three that carry structure.
  *
  * <p>Ordering is the one rule enforced here rather than by the compiler: a namespace or attribute
  * that arrives after an element's content has begun is a {@link StructureException}, because the
@@ -51,9 +59,32 @@ public interface OutputSink {
         write(data, 0, data.length);
     }
 
-    /** Write UTF-8 text. */
+    /** Write text, in the encoding this sink accepts. */
     default void write(final String text) {
-        write(text.getBytes(StandardCharsets.UTF_8));
+        write(encoding().encode(text));
+    }
+
+    /**
+     * The encoding this sink accepts (design 25 §4): what a value written here is transcoded
+     * to from its own. UTF-8 unless a sink says otherwise, and every sink that carries
+     * structure is UTF-8 — an element name has no bytes in {@code raw}.
+     */
+    default Encoding encoding() {
+        return Encoding.UTF_8;
+    }
+
+    /** The default sink over a stream: the XML byte serialiser, UTF-8. */
+    static OutputSink of(final OutputStream out) {
+        return new XmlByteSink(out);
+    }
+
+    /**
+     * A sink over a stream that accepts the given encoding: the XML byte serialiser when that
+     * is UTF-8-compatible, else a {@link ByteSink} that writes what it is given and refuses
+     * structure.
+     */
+    static OutputSink of(final OutputStream out, final Encoding encoding) {
+        return encoding.isUtf8Compatible() ? new XmlByteSink(out) : new ByteSink(out, encoding);
     }
 
     /**

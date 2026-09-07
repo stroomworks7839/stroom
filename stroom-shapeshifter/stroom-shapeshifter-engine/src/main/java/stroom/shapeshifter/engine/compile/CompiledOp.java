@@ -46,8 +46,8 @@ import java.util.function.Function;
  */
 public sealed interface CompiledOp {
 
-    /** Write literal bytes, encoded once. */
-    record Text(byte[] bytes) implements CompiledOp {
+    /** Write a literal: a UTF-8-tagged value; the sink's encoding decides its bytes (design 25). */
+    record Text(TypedValue value) implements CompiledOp {
 
     }
 

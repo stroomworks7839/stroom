@@ -178,6 +178,22 @@ public sealed interface TypedValue {
         return this instanceof Bytes bytes ? bytes.utf8() : asBytes();
     }
 
+    /**
+     * The value as bytes in an encoding — what a sink that declares one receives (design 25 §4).
+     * The UTF-8-compatible class is one encoding for this purpose; a value already in the
+     * target's encoding is its own bytes; anything else is transcoded through text, where a
+     * character the target cannot express becomes {@code ?} ({@link Encoding#encode}).
+     */
+    default byte[] bytes(final Encoding target) {
+        if (target.isUtf8Compatible()) {
+            return utf8();
+        }
+        if (this instanceof Bytes bytes && bytes.encoding() == target) {
+            return bytes.value();
+        }
+        return target.encode(asString());
+    }
+
     /** The value as text, decoding bytes by their tag. */
     default String asString() {
         return switch (this) {

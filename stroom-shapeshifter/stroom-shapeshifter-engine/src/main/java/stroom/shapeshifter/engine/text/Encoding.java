@@ -26,12 +26,14 @@ import java.util.Map;
  * How the bytes of an input are meant to be read as text.
  *
  * <p>The engine matches bytes, not characters (D13), so an encoding matters at exactly two
- * boundaries: turning a configuration's delimiters into bytes to look for, and turning captured
- * bytes back into text to write out. In between, nothing needs to know.
+ * boundaries: turning a configuration's delimiters into bytes to look for, and a captured
+ * value's own tag — read when a consumer asks for text, and transcoded to what a sink declares
+ * at the write (design 25). In between, nothing needs to know.
  *
  * <p>Three encodings are handled here rather than by the JDK, because each has a definition
  * simpler than a lookup table. {@link #LATIN_1} and {@link #RAW} map every byte to the code point
- * of the same number — which is what makes RAW usable for binary that must survive a round trip.
+ * of the same number — so a {@code raw} capture written to a {@code raw} sink is the bytes it
+ * matched, and a text function on it sees one character per byte (design 25).
  * {@link #ASCII} is the same for the low half and a replacement character above it.
  *
  * <p>{@link #AUTO} is not an encoding; it is an instruction to look at the input's byte-order
@@ -142,8 +144,8 @@ public enum Encoding {
     /**
      * True if bytes in this encoding can be written out as UTF-8 unchanged.
      *
-     * <p>The engine's internal form is UTF-8, so this is the test for whether a capture needs
-     * converting at all — and for most real inputs the answer is no.
+     * <p>A value's UTF-8 form is its own bytes under any of these (design 25), so this is the
+     * test for whether a decode is needed at all — and for most real inputs the answer is no.
      *
      * <p>ASCII qualifies as a fast path: a byte above 0x7F is not ASCII at all, and passing it
      * through unchanged (rather than paying a conversion to substitute a replacement character,

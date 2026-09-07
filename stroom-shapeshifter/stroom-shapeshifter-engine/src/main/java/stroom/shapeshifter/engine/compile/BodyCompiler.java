@@ -33,7 +33,6 @@ import stroom.shapeshifter.engine.value.Transforms;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
 
-import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
@@ -75,7 +74,7 @@ final class BodyCompiler {
         for (final OutputNode node : body) {
             final CompiledOp op = switch (node) {
                 case OutputNode.Text text ->
-                        new CompiledOp.Text(text.value().getBytes(StandardCharsets.UTF_8));
+                        new CompiledOp.Text(TypedValue.of(text.value()));
                 case OutputNode.ValueOf valueOf ->
                         new CompiledOp.ValueOf(CompiledRef.of(valueOf.select()));
                 case OutputNode.Call value -> call(value);

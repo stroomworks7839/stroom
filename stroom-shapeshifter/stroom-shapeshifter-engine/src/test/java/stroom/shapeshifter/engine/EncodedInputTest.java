@@ -612,4 +612,62 @@ class EncodedInputTest {
         // Latin-1; the value's own tag decides.
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[“]");
     }
+
+    // -----------------------------------------------------------------------------------
+    // Design 25 phase 2: the sink declares what it accepts, and a write transcodes to it
+    // -----------------------------------------------------------------------------------
+
+    private static byte[] runInto(final String config, final byte[] input, final Encoding target) {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        final List<Message> messages = Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                OutputSink.of(output, target));
+        assertThat(messages).noneMatch(m -> m.severity() == Severity.FATAL);
+        return output.toByteArray();
+    }
+
+    @Test
+    void rawIntoARawSinkIsTheBytesItMatched() {
+        final byte[] input = {(byte) 0x93, (byte) 0xE9};
+        assertThat(runInto(config("raw"), input, Encoding.RAW))
+                .containsExactly('[', 0x93, 0xE9, ']');
+    }
+
+    @Test
+    void latin1IntoALatin1SinkIsTheBytesItMatched() {
+        final byte[] input = {(byte) 0xE9, (byte) 0xC7};
+        assertThat(runInto(config("iso-8859-1"), input, Encoding.LATIN_1))
+                .containsExactly('[', 0xE9, 0xC7, ']');
+        // The same feed into the UTF-8 sink is the decoded text, as before.
+        assertThat(run("iso-8859-1", input)).isEqualTo("[éÇ]");
+    }
+
+    @Test
+    void literalTheSinkCannotExpressBecomesAQuestionMark() {
+        // Only a literal can put a character above 0xFF into a raw sink; a raw capture never
+        // has one.
+        final byte[] input = {(byte) 0xE9};
+        final String config = config("raw").replace("\"text\": \"[\"", "\"text\": \"€\"");
+        assertThat(runInto(config, input, Encoding.RAW)).containsExactly('?', 0xE9, ']');
+    }
+
+    @Test
+    void structureIntoANonUtf8SinkIsRefused() {
+        final String config = """
+                {
+                  "name": "structured", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "raw"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"element": {"name": "doc", "body": [{"text": "x"}]}}]}]
+                }
+                """;
+        final List<Message> messages = Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(new byte[]{'a'}),
+                OutputSink.of(new ByteArrayOutputStream(), Encoding.RAW));
+        assertThat(messages).anyMatch(m -> m.severity() == Severity.FATAL
+                && m.text().contains("does not carry structure"));
+    }
 }

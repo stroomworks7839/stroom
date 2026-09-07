@@ -172,7 +172,7 @@ final class Body {
               final int depth) {
         for (final CompiledOp op : ops) {
             switch (op) {
-                case CompiledOp.Text text -> sink.write(text.bytes());
+                case CompiledOp.Text text -> sink.write(text.value().bytes(sink.encoding()));
                 case CompiledOp.ValueOf valueOf ->
                         CompiledRefs.write(valueOf.ref(), match, matchCount, vars, sink);
                 case CompiledOp.Apply apply ->
@@ -282,7 +282,7 @@ final class Body {
                         if (input != null) {
                             // Written straight out, it keeps the joined rendering it always had.
                             sink.write(Transforms.tokenize(List.of(input), value.delimiter())
-                                    .utf8());
+                                    .bytes(sink.encoding()));
                         }
                     } else {
                         // Nothing to split is the empty sequence, which a walk runs over zero
@@ -473,7 +473,7 @@ final class Body {
     private void emit(final TypedValue value, final String name, final int matchCount, final OutputSink sink) {
         if (name == null) {
             if (value != null) {
-                sink.write(value.utf8());
+                sink.write(value.bytes(sink.encoding()));
             }
         } else if (value == null) {
             vars.store(name).remove(matchCount);

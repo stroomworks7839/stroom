@@ -19,8 +19,8 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
+import stroom.shapeshifter.engine.value.TypedValue;
 
-import java.nio.charset.StandardCharsets;
 
 /**
  * A reference expression with its resolution strategy already decided.
@@ -39,8 +39,8 @@ public sealed interface CompiledRef {
 
     }
 
-    /** Pure literal text, encoded once. */
-    record Bytes(byte[] value) implements CompiledRef {
+    /** Pure literal text: a UTF-8-tagged value (design 25). */
+    record Bytes(TypedValue value) implements CompiledRef {
 
     }
 
@@ -76,7 +76,7 @@ public sealed interface CompiledRef {
 
     private static CompiledRef part(final RefPart part) {
         return switch (part) {
-            case RefPart.Text text -> new Bytes(text.value().getBytes(StandardCharsets.UTF_8));
+            case RefPart.Text text -> new Bytes(TypedValue.of(text.value()));
             case RefPart.Capture capture -> capture.varId() == null
                     ? new LocalGroup(capture.group())
                     : new RemoteVar(capture.varId(), capture.group(), capture.matchIndex());

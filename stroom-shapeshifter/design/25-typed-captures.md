@@ -129,6 +129,17 @@ bytes it matched. Same for Latin-1 into Latin-1, Windows-1252 into Windows-1252.
 reversible byte-to-code-point mapping that made `raw` "lossless" is still what a text
 function sees; it is simply not applied when nobody needs text.
 
+*As built (phase 2, 2026-09-07):* the seam is `TypedValue.bytes(Encoding)` — the UTF-8 form
+for a UTF-8-compatible target, the value's own array when the tags are equal, else through
+text with `Encoding.encode` — and every write into a sink calls it with `sink.encoding()`:
+the three in `CompiledRefs.write`, the literal, the tokenize join and `emit` in `Body`. A
+literal is a UTF-8-tagged value now (`CompiledOp.Text`, `CompiledRef.Bytes`), not bytes
+encoded once, since the sink decides its bytes. A non-`Bytes` kind into a non-UTF-8 sink
+renders through text in the target's encoding rather than as ASCII, which a UTF-16 sink
+could not take. `OutputSink.write(String)` encodes in the sink's encoding. The plain byte
+sink is `output.ByteSink`; `OutputSink.of(stream)` and `of(stream, encoding)` are the
+factories, the second choosing the XML serialiser for the UTF-8-compatible class.
+
 ## 5. The value itself
 
 `TypedValue.Bytes` becomes a final class rather than a record: `value`, `encoding`, and a
@@ -218,6 +229,15 @@ forks read +0.1% with the two sides interleaved. No regression stands.*
 sink, the write seam. *Test:* the identity pins; the refusal; `Encoding`'s class comment
 corrected — it says `raw` "survives a round trip", which was true of the mapping and false
 of the bytes, and is now true of both.
+
+*Built 2026-09-07, as §4's as-built note records. Pinned: `raw` into a `raw` sink and Latin-1
+into a Latin-1 sink are the bytes matched, the literal brackets around them; a literal above
+0xFF into `raw` is `?`; an element into a non-UTF-8 sink is the run's FATAL, naming the
+refusal; and `bytes(target)` at the value — the memo for the UTF-8 class, the array itself
+for its own encoding, `?` for what the target cannot express, a number rendered in the
+target's encoding. `Encoding`'s class comment and `isUtf8Compatible`'s javadoc say what is
+true now. Gate: engine 575 (570 and the five new pins), pipeline 154, app 5, xmlbench
+compiles, checkstyle clean; no golden moved.*
 
 **Phase 3 — the compiled capture and its cast.** §9: `CompiledCapture` built once per binding
 by the compiler, the `select` and key-value sources through the compiled reference, the `as`
