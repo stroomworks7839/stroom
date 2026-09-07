@@ -13,8 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Both halves are pinned because both have been got wrong. Reading the byte is R1's fix — a
  * slice ending mid-character must not admit a match inside that character. Reading it from a
  * buffer whose data stopped earlier is the caller's bug, and cost a silent refusal at the tail
- * of every short-filled window until {@code Executor.stream} learned to blank it (ISSUES.md,
- * 2026-08-27).
+ * of every short-filled window until the engine's window learned to blank it, now
+ * {@code InputWindow.fillAndBlankTail} (ISSUES.md, 2026-08-27).
  */
 class RegionContextTest {
 
