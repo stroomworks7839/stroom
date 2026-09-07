@@ -304,9 +304,9 @@ uses:
 
 | Instruction | Result | Notes |
 |---|---|---|
-| `count` | `Int` | populated entries, holes not counted |
-| `sum` | `Int` or `Real` | see [17 §11](17-value-computation.md) for promotion and overflow |
-| `avg` | `Real` | absent for an empty sequence, not zero |
+| `count` | `Integer` | populated entries, holes not counted |
+| `sum` | `Integer` or `Double` | see [17 §11](17-value-computation.md) for promotion and overflow |
+| `avg` | `Double` | absent for an empty sequence, not zero |
 | `min`, `max` | as input | `as` selects the comparison, uncast = string forms (17 §8) |
 | `distinct-values` | binds a **dense sequence** | first appearance order, keeping the first index |
 

@@ -36,8 +36,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CompareSpineTest {
 
     private static final TypedValue BYTES = TypedValue.of("42");
-    private static final TypedValue INT = new TypedValue.Int(42);
-    private static final TypedValue REAL = new TypedValue.Real(42.0);
+    private static final TypedValue INT = new TypedValue.Integer(42);
+    private static final TypedValue REAL = new TypedValue.Double(42.0);
     private static final TypedValue BOOL = new TypedValue.Bool(true);
 
     // -----------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ class CompareSpineTest {
     @Test
     void intAgainstRealIsPromotionNotCoercion() {
         assertThat(Comparisons.compare(INT, REAL)).isZero();
-        assertThat(Comparisons.compare(new TypedValue.Int(3), new TypedValue.Real(2.5)))
+        assertThat(Comparisons.compare(new TypedValue.Integer(3), new TypedValue.Double(2.5)))
                 .isPositive();
     }
 
@@ -65,7 +65,7 @@ class CompareSpineTest {
     void longRangeIntegersCompareExactly() {
         // 2^53 and 2^53 + 1 collapse to one double; the Int/Int path must not go there.
         assertThat(Comparisons.compare(
-                new TypedValue.Int(9007199254740992L), new TypedValue.Int(9007199254740993L)))
+                new TypedValue.Integer(9007199254740992L), new TypedValue.Integer(9007199254740993L)))
                 .isNegative();
     }
 
@@ -99,7 +99,7 @@ class CompareSpineTest {
     void castsSucceedAndFailPerTheTable() {
         assertThat(Comparisons.cast(BYTES, Cast.NUMBER)).isEqualTo(INT);
         assertThat(Comparisons.cast(TypedValue.of("2.5"), Cast.NUMBER))
-                .isEqualTo(new TypedValue.Real(2.5));
+                .isEqualTo(new TypedValue.Double(2.5));
         assertThat(Comparisons.cast(TypedValue.of("n/a"), Cast.NUMBER)).isNull();
         assertThat(Comparisons.cast(TypedValue.of("true"), Cast.BOOLEAN))
                 .isEqualTo(new TypedValue.Bool(true));
@@ -113,7 +113,7 @@ class CompareSpineTest {
     @Test
     void numberCastKeepsLongRangeIntegersWhole() {
         assertThat(Comparisons.cast(TypedValue.of("9007199254740993"), Cast.NUMBER))
-                .isEqualTo(new TypedValue.Int(9007199254740993L));
+                .isEqualTo(new TypedValue.Integer(9007199254740993L));
     }
 
     // -----------------------------------------------------------------------------------

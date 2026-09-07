@@ -112,7 +112,7 @@ class TransformsTest {
     @Test
     void addOverflowPromotesToRealRatherThanWrapping() {
         final TypedValue result = Transforms.add(vals(String.valueOf(Long.MAX_VALUE), "1"));
-        assertThat(result).isInstanceOf(TypedValue.Real.class);
+        assertThat(result).isInstanceOf(TypedValue.Double.class);
         assertThat(result.asNumber()).isEqualTo((double) Long.MAX_VALUE + 1);
     }
 
@@ -127,12 +127,12 @@ class TransformsTest {
         assertThat(text(Transforms.subtract(vals("10", "4")))).isEqualTo("6");
         assertThat(text(Transforms.multiply(vals("2.5", "4")))).isEqualTo("10");
         final TypedValue product = Transforms.multiply(vals("2.5", "4"));
-        assertThat(product).isInstanceOf(TypedValue.Real.class);
+        assertThat(product).isInstanceOf(TypedValue.Double.class);
     }
 
     @Test
     void divideIsWholeWhenExactAndAbsentOnZero() {
-        assertThat(Transforms.divide(vals("10", "2"))).isInstanceOf(TypedValue.Int.class);
+        assertThat(Transforms.divide(vals("10", "2"))).isInstanceOf(TypedValue.Integer.class);
         assertThat(text(Transforms.divide(vals("10", "2")))).isEqualTo("5");
         assertThat(text(Transforms.divide(vals("10", "4")))).isEqualTo("2.5");
         assertThat(Transforms.divide(vals("10", "0"))).isNull();
@@ -144,7 +144,7 @@ class TransformsTest {
         // Java's long / wraps this one silently: MIN / -1 == MIN, a negative "answer" for a
         // positive quotient. Found by the phase 2 audit; the promotion rule covers it (§11).
         final TypedValue result = Transforms.divide(vals(String.valueOf(Long.MIN_VALUE), "-1"));
-        assertThat(result).isInstanceOf(TypedValue.Real.class);
+        assertThat(result).isInstanceOf(TypedValue.Double.class);
         assertThat(result.asNumber()).isEqualTo(-(double) Long.MIN_VALUE);
         // Its modulus twin has a long answer and keeps it.
         assertThat(text(Transforms.mod(vals(String.valueOf(Long.MIN_VALUE), "-1")))).isEqualTo("0");
@@ -173,14 +173,14 @@ class TransformsTest {
         assertThat(text(Transforms.abs(vals("-9")))).isEqualTo("9");
         // The one long with no positive twin promotes rather than staying negative.
         assertThat(Transforms.abs(vals(String.valueOf(Long.MIN_VALUE))))
-                .isInstanceOf(TypedValue.Real.class);
+                .isInstanceOf(TypedValue.Double.class);
     }
 
     @Test
     void numberIsNowTheTypedCast() {
         // Phase 2: the point decides the kind, and the result is a number, not a rendering.
-        assertThat(Transforms.number(vals("42"))).isInstanceOf(TypedValue.Int.class);
-        assertThat(Transforms.number(vals("42.5"))).isInstanceOf(TypedValue.Real.class);
+        assertThat(Transforms.number(vals("42"))).isInstanceOf(TypedValue.Integer.class);
+        assertThat(Transforms.number(vals("42.5"))).isInstanceOf(TypedValue.Double.class);
         // The visible rendering change from the ported form: a whole Real drops its .0.
         assertThat(text(Transforms.number(vals("5.0")))).isEqualTo("5");
     }
@@ -194,7 +194,7 @@ class TransformsTest {
         assertThat(text(Transforms.stringLength(vals("abc")))).isEqualTo("3");
         // Two characters, three bytes and four bytes: still 2.
         assertThat(text(Transforms.stringLength(vals("é😀")))).isEqualTo("2");
-        assertThat(Transforms.stringLength(vals("abc"))).isInstanceOf(TypedValue.Int.class);
+        assertThat(Transforms.stringLength(vals("abc"))).isInstanceOf(TypedValue.Integer.class);
     }
 
     @Test
@@ -223,7 +223,7 @@ class TransformsTest {
         assertThat(Transforms.formatNumber(vals("n/a"), format)).isNull();
         // The documented edge: DecimalFormat renders infinity as ∞ where XSLT says Infinity.
         assertThat(text(Transforms.formatNumber(
-                List.of(new TypedValue.Real(Double.POSITIVE_INFINITY)), format)))
+                List.of(new TypedValue.Double(Double.POSITIVE_INFINITY)), format)))
                 .isEqualTo("∞");
     }
 

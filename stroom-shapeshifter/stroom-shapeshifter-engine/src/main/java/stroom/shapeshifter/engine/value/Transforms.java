@@ -171,10 +171,10 @@ public final class Transforms {
         // (E26).
         if (trimmed.contains(".")) {
             final Double real = Numbers.real(trimmed);
-            return real == null ? null : new TypedValue.Real(real);
+            return real == null ? null : new TypedValue.Double(real);
         }
         final Long whole = Numbers.whole(trimmed);
-        return whole == null ? null : new TypedValue.Int(whole);
+        return whole == null ? null : new TypedValue.Integer(whole);
     }
 
     // -----------------------------------------------------------------------------------
@@ -212,30 +212,30 @@ public final class Transforms {
                 // The one long division with no long answer: Java's / wraps it silently to
                 // MIN_VALUE — a negative result for a positive quotient. Promotion, not
                 // wrapping (§11), exactly as the exact folds already do via ArithmeticException.
-                return new TypedValue.Real(-(double) Long.MIN_VALUE);
+                return new TypedValue.Double(-(double) Long.MIN_VALUE);
             }
             return longs[0] % longs[1] == 0
-                    ? new TypedValue.Int(longs[0] / longs[1])
-                    : new TypedValue.Real((double) longs[0] / longs[1]);
+                    ? new TypedValue.Integer(longs[0] / longs[1])
+                    : new TypedValue.Double((double) longs[0] / longs[1]);
         }
         final double[] doubles = numbers(inputs);
         if (doubles == null || doubles[1] == 0.0) {
             return null;
         }
-        return new TypedValue.Real(doubles[0] / doubles[1]);
+        return new TypedValue.Double(doubles[0] / doubles[1]);
     }
 
     /** {@code a mod b} — the sign follows the dividend (XPath's {@code mod}, Java's {@code %}). */
     public static TypedValue mod(final List<TypedValue> inputs) {
         final long[] longs = integers(inputs);
         if (longs != null) {
-            return longs[1] == 0 ? null : new TypedValue.Int(longs[0] % longs[1]);
+            return longs[1] == 0 ? null : new TypedValue.Integer(longs[0] % longs[1]);
         }
         final double[] doubles = numbers(inputs);
         if (doubles == null || doubles[1] == 0.0) {
             return null;
         }
-        return new TypedValue.Real(doubles[0] % doubles[1]);
+        return new TypedValue.Double(doubles[0] % doubles[1]);
     }
 
     /** Round half-up on ties — XPath's rule, {@code floor(x + 0.5)}: {@code -2.5} rounds to {@code -2}. */
@@ -262,11 +262,11 @@ public final class Transforms {
         if (whole != null) {
             // Math.absExact would throw on MIN_VALUE; the promotion rule applies (§11).
             return whole == Long.MIN_VALUE
-                    ? new TypedValue.Real(Math.abs((double) whole))
-                    : new TypedValue.Int(Math.abs(whole));
+                    ? new TypedValue.Double(Math.abs((double) whole))
+                    : new TypedValue.Integer(Math.abs(whole));
         }
         final Double value = inputs.getFirst().asNumber();
-        return value == null ? null : new TypedValue.Real(Math.abs(value));
+        return value == null ? null : new TypedValue.Double(Math.abs(value));
     }
 
     /** A rounding operation: identity on a whole number, the rule on a fractional one. */
@@ -277,7 +277,7 @@ public final class Transforms {
         }
         final Long whole = inputs.getFirst().asInteger();
         if (whole != null) {
-            return new TypedValue.Int(whole);
+            return new TypedValue.Integer(whole);
         }
         final Double value = inputs.getFirst().asNumber();
         if (value == null) {
@@ -285,8 +285,8 @@ public final class Transforms {
         }
         final double result = operation.applyAsDouble(value);
         return result == Math.rint(result) && !Double.isInfinite(result) && Math.abs(result) < 0x1p63
-                ? new TypedValue.Int((long) result)
-                : new TypedValue.Real(result);
+                ? new TypedValue.Integer((long) result)
+                : new TypedValue.Double(result);
     }
 
     private static TypedValue fold(final List<TypedValue> inputs,
@@ -302,7 +302,7 @@ public final class Transforms {
                 for (int i = 1; i < longs.length; i++) {
                     result = exact.applyAsLong(result, longs[i]);
                 }
-                return new TypedValue.Int(result);
+                return new TypedValue.Integer(result);
             } catch (final ArithmeticException overflow) {
                 // Fall through to the approximate fold: promotion, not wrapping (§11).
             }
@@ -315,7 +315,7 @@ public final class Transforms {
         for (int i = 1; i < doubles.length; i++) {
             result = approximate.applyAsDouble(result, doubles[i]);
         }
-        return new TypedValue.Real(result);
+        return new TypedValue.Double(result);
     }
 
     /** Every input's integral reading, or null if any input lacks one. */
@@ -353,7 +353,7 @@ public final class Transforms {
         final String input = first(inputs);
         return input == null
                 ? null
-                : new TypedValue.Int(input.codePointCount(0, input.length()));
+                : new TypedValue.Integer(input.codePointCount(0, input.length()));
     }
 
     /**

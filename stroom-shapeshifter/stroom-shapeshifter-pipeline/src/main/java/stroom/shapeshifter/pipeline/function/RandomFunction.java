@@ -32,6 +32,6 @@ public final class RandomFunction extends StroomFunction {
 
     @Override
     public FunctionCall bind(final FunctionContext context) {
-        return arguments -> new TypedValue.Real(Math.random());
+        return arguments -> new TypedValue.Double(Math.random());
     }
 }

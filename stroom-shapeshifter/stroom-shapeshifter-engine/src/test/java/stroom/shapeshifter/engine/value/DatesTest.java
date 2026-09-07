@@ -68,7 +68,7 @@ class DatesTest {
         assertThat(Comparisons.compare(paris, utc)).isZero();
         // Date arithmetic through the millis cast: a duration is a subtraction away.
         assertThat(Transforms.subtract(List.of(paris, utc)))
-                .isEqualTo(new TypedValue.Int(0));
+                .isEqualTo(new TypedValue.Integer(0));
     }
 
     @Test

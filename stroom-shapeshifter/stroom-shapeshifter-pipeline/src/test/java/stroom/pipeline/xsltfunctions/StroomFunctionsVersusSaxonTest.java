@@ -181,7 +181,7 @@ class StroomFunctionsVersusSaxonTest {
         for (final Object input : c.inputs()) {
             final TypedValue value = switch (input) {
                 case String s -> TypedValue.of(s);
-                case Long l -> new TypedValue.Int(l);
+                case Long l -> new TypedValue.Integer(l);
                 case Boolean b -> new TypedValue.Bool(b);
                 case Instant instant -> new TypedValue.Instant(instant.getEpochSecond(), instant.getNano(), null);
                 default -> throw new IllegalArgumentException(String.valueOf(input));

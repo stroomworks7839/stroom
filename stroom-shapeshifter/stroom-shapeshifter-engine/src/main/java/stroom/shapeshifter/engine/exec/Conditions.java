@@ -144,8 +144,8 @@ public final class Conditions {
         }
         final TypedValue value = switch (operand.literal()) {
             case Condition.Literal.Text text -> TypedValue.of(text.value());
-            case Condition.Literal.Whole whole -> new TypedValue.Int(whole.value());
-            case Condition.Literal.Fractional fraction -> new TypedValue.Real(fraction.value());
+            case Condition.Literal.Whole whole -> new TypedValue.Integer(whole.value());
+            case Condition.Literal.Fractional fraction -> new TypedValue.Double(fraction.value());
             case Condition.Literal.Truth truth -> new TypedValue.Bool(truth.value());
         };
         return Comparisons.cast(value, operand.as());

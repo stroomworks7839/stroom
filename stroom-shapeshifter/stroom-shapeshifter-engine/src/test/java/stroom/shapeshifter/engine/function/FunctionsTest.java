@@ -50,9 +50,9 @@ class FunctionsTest {
             FunctionDefinition.of("upper", Signature.of(Kind.STRING, Kind.STRING), Purity.PURE,
                     context -> args -> args.string(0) == null ? null : TypedValue.of(args.string(0).toUpperCase())),
             FunctionDefinition.of("twice", Signature.of(Kind.NUMBER, Kind.NUMBER), Purity.PURE,
-                    context -> args -> args.number(0) == null ? null : new TypedValue.Real(args.number(0) * 2)),
+                    context -> args -> args.number(0) == null ? null : new TypedValue.Double(args.number(0) * 2)),
             FunctionDefinition.of("whole", Signature.of(Kind.INTEGER, Kind.INTEGER), Purity.PURE,
-                    context -> args -> args.integer(0) == null ? null : new TypedValue.Int(args.integer(0) + 1)),
+                    context -> args -> args.integer(0) == null ? null : new TypedValue.Integer(args.integer(0) + 1)),
             FunctionDefinition.of("flag", Signature.of(Kind.STRING, Kind.BOOLEAN), Purity.PURE,
                     context -> args -> TypedValue.of(args.bool(0) == null ? "absent" : args.bool(0) ? "yes" : "no")),
             FunctionDefinition.of("year", Signature.of(Kind.STRING, Kind.DATE), Purity.PURE,
@@ -71,7 +71,7 @@ class FunctionsTest {
                         return TypedValue.of(args.number(0) == null ? "-" : "n");
                     }),
             FunctionDefinition.of("total", Signature.of(Kind.NUMBER, Kind.SEQUENCE), Purity.PURE,
-                    context -> args -> new TypedValue.Real(args.sequence(0).stream()
+                    context -> args -> new TypedValue.Double(args.sequence(0).stream()
                             .mapToDouble(v -> v.asNumber() == null ? 0 : v.asNumber()).sum())),
             FunctionDefinition.of("boom", Signature.of(Kind.STRING, Kind.STRING), Purity.PURE,
                     context -> args -> {
@@ -88,10 +88,10 @@ class FunctionsTest {
             FunctionDefinition.of("count", Signature.of(Kind.INTEGER), Purity.CONTEXT,
                     context -> args -> {
                         final int n = (int) context.state().merge("count", 1, (a, b) -> (Integer) a + (Integer) b);
-                        return new TypedValue.Int(n);
+                        return new TypedValue.Integer(n);
                     }),
             FunctionDefinition.of("where", Signature.of(Kind.INTEGER), Purity.CONTEXT,
-                    context -> args -> new TypedValue.Int(context.inputOffset())),
+                    context -> args -> new TypedValue.Integer(context.inputOffset())),
             FunctionDefinition.of("extent", Signature.of(Kind.STRING), Purity.CONTEXT,
                     context -> args -> TypedValue.of(context.recordNumber() + "@" + context.inputOffset()
                                                      + "+" + context.inputLength())),
@@ -109,7 +109,7 @@ class FunctionsTest {
             FunctionDefinition.of("bound", Signature.of(Kind.INTEGER), Purity.CONTEXT,
                     context -> {
                         final int binding = COUNTER.incrementAndGet();
-                        return args -> new TypedValue.Int(binding);
+                        return args -> new TypedValue.Integer(binding);
                     }));
 
     private record Run(String output, List<Message> messages) {

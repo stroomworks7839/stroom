@@ -135,10 +135,10 @@ class StepsTest {
                 new MatchStep.ReadNumeric(NumericType.SHORT, true, Endianness.BIG)),
                 data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
 
-        assertThat(result.group(1)).isEqualTo(new TypedValue.Int(0x0102));
-        assertThat(result.group(2)).isEqualTo(new TypedValue.Int(0x0102));
+        assertThat(result.group(1)).isEqualTo(new TypedValue.Integer(0x0102));
+        assertThat(result.group(2)).isEqualTo(new TypedValue.Integer(0x0102));
         // Signed, so all-ones is minus one rather than 65535.
-        assertThat(result.group(3)).isEqualTo(new TypedValue.Int(-1));
+        assertThat(result.group(3)).isEqualTo(new TypedValue.Integer(-1));
     }
 
     @Test
@@ -157,9 +157,9 @@ class StepsTest {
         final MatchResult result = Steps.match(List.of(
                 new MatchStep.ReadVarint(), new MatchStep.ReadVarintZigZag()),
                 data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
-        assertThat(result.group(1)).isEqualTo(new TypedValue.Int(300));
+        assertThat(result.group(1)).isEqualTo(new TypedValue.Integer(300));
         // ZigZag: 3 encodes -2.
-        assertThat(result.group(2)).isEqualTo(new TypedValue.Int(-2));
+        assertThat(result.group(2)).isEqualTo(new TypedValue.Integer(-2));
         assertThat(result.advance()).isEqualTo(3);
     }
 
@@ -173,7 +173,7 @@ class StepsTest {
                 new MatchStep.TakeN(1),
                 new MatchStep.SeekAbs(new StepRef.Literal(7))), "abcdefgh");
 
-        assertThat(result.group(2)).isEqualTo(new TypedValue.Int(3));
+        assertThat(result.group(2)).isEqualTo(new TypedValue.Integer(3));
         assertThat(group(result, 3)).isEqualTo("de");
         assertThat(group(result, 5)).isEqualTo("a");
         // A rewind does not un-read: the match still consumes up to the furthest point reached.

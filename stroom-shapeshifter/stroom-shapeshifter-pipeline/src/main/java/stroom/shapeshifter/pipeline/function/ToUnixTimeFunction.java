@@ -40,7 +40,7 @@ public final class ToUnixTimeFunction extends StroomFunction {
                 }
                 return null;
             }
-            return new TypedValue.Int(value.toJavaInstant().toEpochMilli());
+            return new TypedValue.Integer(value.toJavaInstant().toEpochMilli());
         };
     }
 }

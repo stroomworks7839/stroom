@@ -312,7 +312,7 @@ final class Body {
                     final Filed filed = index.get(wanted == null ? null : wanted.asString());
                     final List<Integer> found = filed == null ? List.of() : filed.members();
                     bindDense(value.name(), found.stream()
-                            .map(entry -> (TypedValue) new TypedValue.Int(entry))
+                            .map(entry -> (TypedValue) new TypedValue.Integer(entry))
                             .toList());
                 }
                 case CompiledOp.ForEachGroup value ->
@@ -413,7 +413,7 @@ final class Body {
             case NUMBER -> Comparisons.cast(value, Cast.NUMBER);
             case INTEGER -> {
                 final Long whole = value.asInteger();
-                yield whole == null ? null : new TypedValue.Int(whole);
+                yield whole == null ? null : new TypedValue.Integer(whole);
             }
             case BOOLEAN -> Comparisons.cast(value, Cast.BOOLEAN);
             case DATE -> Comparisons.cast(value, Cast.DATE);
@@ -567,15 +567,15 @@ final class Body {
     private TypedValue fold(final CompiledOp.Fold op) {
         final List<TypedValue> values = entries(op.select());
         return switch (op.kind()) {
-            case COUNT -> new TypedValue.Int(values.size());
-            case SUM -> values.isEmpty() ? new TypedValue.Int(0) : Transforms.add(values);
+            case COUNT -> new TypedValue.Integer(values.size());
+            case SUM -> values.isEmpty() ? new TypedValue.Integer(0) : Transforms.add(values);
             case AVG -> {
                 if (values.isEmpty()) {
                     yield null;
                 }
                 final TypedValue total = Transforms.add(values);
                 final Double sum = total == null ? null : total.asNumber();
-                yield sum == null ? null : new TypedValue.Real(sum / values.size());
+                yield sum == null ? null : new TypedValue.Double(sum / values.size());
             }
             case MIN, MAX -> extreme(values, op.as(), op.kind() == CompiledOp.FoldKind.MIN);
         };
@@ -632,7 +632,7 @@ final class Body {
             if (entry == null) {
                 continue;
             }
-            vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));
+            vars.store(EngineVars.INDEX).set(1, new TypedValue.Integer(index));
             final TypedValue key = groupBy == null
                     ? entry
                     : CompiledRefs.resolveValue(groupBy, match, matchCount, vars, contentEncoding);
@@ -693,7 +693,7 @@ final class Body {
         for (final Filed group : members.values()) {
             final List<Integer> indices = group.members();
             bindDense(EngineVars.GROUP, indices.stream()
-                    .map(index -> (TypedValue) new TypedValue.Int(index))
+                    .map(index -> (TypedValue) new TypedValue.Integer(index))
                     .toList());
             final TypedValue key = group.key();
             if (key == null) {
@@ -701,7 +701,7 @@ final class Body {
             } else {
                 vars.store(EngineVars.GROUP_KEY).set(1, key);
             }
-            vars.store(EngineVars.GROUP_SIZE).set(1, new TypedValue.Int(indices.size()));
+            vars.store(EngineVars.GROUP_SIZE).set(1, new TypedValue.Integer(indices.size()));
             body(op.body(), match, matchCount, content, sink,
                     inputBase, ignoreErrors, depth, contentEncoding);
         }
@@ -743,7 +743,7 @@ final class Body {
         // entry's position", which is what does not exist.
         for (int i = 0; i < populated.size(); i++) {
             final int index = populated.get(i);
-            vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));
+            vars.store(EngineVars.INDEX).set(1, new TypedValue.Integer(index));
             if (op.as() != null) {
                 vars.store(op.as()).set(1, store.get(index));
             }
@@ -851,13 +851,13 @@ final class Body {
         vars.shadow(EngineVars.LAST);
         // Known before the first body runs, which is what makes a last-entry test cheap and
         // correct (the adjacent_groups fixture's trailing-empty-group case).
-        vars.store(EngineVars.LAST).set(1, new TypedValue.Int(order.size()));
+        vars.store(EngineVars.LAST).set(1, new TypedValue.Integer(order.size()));
         for (int position = 0; position < order.size(); position++) {
             // Position follows the ordering; the index still points at the record, so a key
             // that reordered the walk does not disturb what a body reads (design/16 §5).
             final int index = order.get(position);
-            vars.store(EngineVars.INDEX).set(1, new TypedValue.Int(index));
-            vars.store(EngineVars.POSITION).set(1, new TypedValue.Int(position + 1L));
+            vars.store(EngineVars.INDEX).set(1, new TypedValue.Integer(index));
+            vars.store(EngineVars.POSITION).set(1, new TypedValue.Integer(position + 1L));
             if (op.as() != null) {
                 vars.store(op.as()).set(1, store.get(index));
             }

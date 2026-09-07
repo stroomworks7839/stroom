@@ -117,9 +117,9 @@ class StroomFunctionsTest {
         return switch (value) {
             case null -> null;
             case String s -> TypedValue.of(s);
-            case Long l -> new TypedValue.Int(l);
-            case Integer i -> new TypedValue.Int(i);
-            case Double d -> new TypedValue.Real(d);
+            case Long l -> new TypedValue.Integer(l);
+            case Integer i -> new TypedValue.Integer(i);
+            case Double d -> new TypedValue.Double(d);
             case Boolean b -> new TypedValue.Bool(b);
             case Instant i -> new TypedValue.Instant(i.getEpochSecond(), i.getNano(), null);
             default -> throw new IllegalArgumentException(value.toString());

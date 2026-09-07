@@ -51,13 +51,13 @@ public sealed interface TypedValue {
         }
     }
 
-    /** A whole number. */
-    record Int(long value) implements TypedValue {
+    /** A whole number, as XSLT 2.0's {@code xs:integer}; held in a {@code long} (D49). */
+    record Integer(long value) implements TypedValue {
 
     }
 
-    /** A number with a fractional part. Named to leave {@code java.lang.Float} unshadowed. */
-    record Real(double value) implements TypedValue {
+    /** A number with a fractional part, as XSLT 2.0's {@code xs:double} (D49). */
+    record Double(double value) implements TypedValue {
 
     }
 
@@ -74,7 +74,9 @@ public sealed interface TypedValue {
      * {@code format-date}'s default rendering zone. A null offset means none was parsed and
      * none is claimed.
      */
-    record Instant(long epochSecond, int nano, Integer offsetSeconds) implements TypedValue {
+    record Instant(long epochSecond,
+                   int nano,
+                   java.lang.Integer offsetSeconds) implements TypedValue {
 
         public Instant {
             if (nano < 0 || nano > 999_999_999) {
@@ -112,8 +114,8 @@ public sealed interface TypedValue {
     default byte[] asBytes() {
         return switch (this) {
             case Bytes bytes -> bytes.value();
-            case Int value -> Long.toString(value.value()).getBytes(StandardCharsets.US_ASCII);
-            case Real value -> format(value.value()).getBytes(StandardCharsets.US_ASCII);
+            case Integer value -> Long.toString(value.value()).getBytes(StandardCharsets.US_ASCII);
+            case Double value -> format(value.value()).getBytes(StandardCharsets.US_ASCII);
             case Bool value -> Boolean.toString(value.value()).getBytes(StandardCharsets.US_ASCII);
             case Instant value -> iso(value).getBytes(StandardCharsets.US_ASCII);
         };
@@ -123,18 +125,18 @@ public sealed interface TypedValue {
     default String asString() {
         return switch (this) {
             case Bytes bytes -> new String(bytes.value(), StandardCharsets.UTF_8);
-            case Int value -> Long.toString(value.value());
-            case Real value -> format(value.value());
+            case Integer value -> Long.toString(value.value());
+            case Double value -> format(value.value());
             case Bool value -> Boolean.toString(value.value());
             case Instant value -> iso(value);
         };
     }
 
     /** The value as a number, parsing bytes if that is what it holds. */
-    default Double asNumber() {
+    default java.lang.Double asNumber() {
         return switch (this) {
-            case Int value -> (double) value.value();
-            case Real value -> value.value();
+            case Integer value -> (double) value.value();
+            case Double value -> value.value();
             case Bool value -> value.value() ? 1.0 : 0.0;
             case Bytes bytes -> {
                 // E26: the parse that answers "no" without throwing (Numbers).
@@ -159,15 +161,15 @@ public sealed interface TypedValue {
      */
     default Long asInteger() {
         return switch (this) {
-            case Int value -> value.value();
-            case Real value -> value.value() == Math.rint(value.value())
-                               && !Double.isInfinite(value.value())
+            case Integer value -> value.value();
+            case Double value -> value.value() == Math.rint(value.value())
+                               && !java.lang.Double.isInfinite(value.value())
                                && Math.abs(value.value()) < 0x1p63
                     ? (long) value.value()
                     : null;
             case Bool value -> value.value() ? 1L : 0L;
             case Bytes bytes -> Numbers.whole(new String(bytes.value(), StandardCharsets.UTF_8).trim());
-            // Absent when exact millis do not fit a long — the same refusal as a Real too
+            // Absent when exact millis do not fit a long — the same refusal as a Double too
             // wide for the cast: unrepresentable is absent, never a throw (§2).
             case Instant value -> millis(value);
         };
@@ -184,8 +186,8 @@ public sealed interface TypedValue {
      */
     default Boolean asBoolean() {
         return switch (this) {
-            case Int value -> value.value() != 0;
-            case Real value -> value.value() != 0.0;
+            case Integer value -> value.value() != 0;
+            case Double value -> value.value() != 0.0;
             case Bool value -> value.value();
             case Bytes bytes -> switch (new String(bytes.value(), StandardCharsets.UTF_8).trim()) {
                 case "true", "1" -> true;
@@ -203,10 +205,11 @@ public sealed interface TypedValue {
      * while they fit a long, beyond which the cast saturates and would render the wrong number.
      */
     private static String format(final double value) {
-        if (value == Math.rint(value) && !Double.isInfinite(value) && Math.abs(value) < 0x1p63) {
+        if (value == Math.rint(value) && !java.lang.Double.isInfinite(value)
+                && Math.abs(value) < 0x1p63) {
             return Long.toString((long) value);
         }
-        return Double.toString(value);
+        return java.lang.Double.toString(value);
     }
 
     /** Exact epoch milliseconds, truncating nanos, or null when a long cannot hold them. */

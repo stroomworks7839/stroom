@@ -69,12 +69,12 @@ class TypedValueTest {
 
     @Test
     void intCasts() {
-        final TypedValue value = new TypedValue.Int(-7);
+        final TypedValue value = new TypedValue.Integer(-7);
         assertThat(value.asString()).isEqualTo("-7");
         assertThat(value.asNumber()).isEqualTo(-7.0);
         assertThat(value.asInteger()).isEqualTo(-7L);
         assertThat(value.asBoolean()).isTrue();
-        assertThat(new TypedValue.Int(0).asBoolean()).isFalse();
+        assertThat(new TypedValue.Integer(0).asBoolean()).isFalse();
     }
 
     // -----------------------------------------------------------------------------------
@@ -84,29 +84,29 @@ class TypedValueTest {
     @Test
     void realToStringDropsWholeNumberPoint() {
         // The Rust-style rendering the engine already had, kept by ruling (§16.8).
-        assertThat(new TypedValue.Real(5.0).asString()).isEqualTo("5");
-        assertThat(new TypedValue.Real(5.5).asString()).isEqualTo("5.5");
+        assertThat(new TypedValue.Double(5.0).asString()).isEqualTo("5");
+        assertThat(new TypedValue.Double(5.5).asString()).isEqualTo("5.5");
     }
 
     @Test
     void realToNumber() {
-        assertThat(new TypedValue.Real(2.5).asNumber()).isEqualTo(2.5);
+        assertThat(new TypedValue.Double(2.5).asNumber()).isEqualTo(2.5);
     }
 
     @Test
     void realToIntegerRefusesToTruncate() {
-        assertThat(new TypedValue.Real(9.0).asInteger()).isEqualTo(9L);
+        assertThat(new TypedValue.Double(9.0).asInteger()).isEqualTo(9L);
         // Absent, not 9 — silent truncation is how 9.99 becomes 9 (§3.1).
-        assertThat(new TypedValue.Real(9.99).asInteger()).isNull();
-        assertThat(new TypedValue.Real(Double.POSITIVE_INFINITY).asInteger()).isNull();
+        assertThat(new TypedValue.Double(9.99).asInteger()).isNull();
+        assertThat(new TypedValue.Double(Double.POSITIVE_INFINITY).asInteger()).isNull();
         // Integral by rint but too wide for a long: the cast would saturate to the wrong number.
-        assertThat(new TypedValue.Real(0x1p63).asInteger()).isNull();
+        assertThat(new TypedValue.Double(0x1p63).asInteger()).isNull();
     }
 
     @Test
     void realToBoolean() {
-        assertThat(new TypedValue.Real(0.5).asBoolean()).isTrue();
-        assertThat(new TypedValue.Real(0.0).asBoolean()).isFalse();
+        assertThat(new TypedValue.Double(0.5).asBoolean()).isTrue();
+        assertThat(new TypedValue.Double(0.0).asBoolean()).isFalse();
     }
 
     // -----------------------------------------------------------------------------------
@@ -177,13 +177,13 @@ class TypedValueTest {
     @Test
     void emptyBytesAreAbsent() {
         assertThat(TypedValue.of("").isEmpty()).isTrue();
-        assertThat(new TypedValue.Int(0).isEmpty()).isFalse();
+        assertThat(new TypedValue.Integer(0).isEmpty()).isFalse();
     }
 
     @Test
     void numbersRenderAsAscii() {
         // asBytes is the encoding-independent form: numbers are ASCII whatever the input was.
-        assertThat(new TypedValue.Int(42).asBytes()).isEqualTo("42".getBytes());
+        assertThat(new TypedValue.Integer(42).asBytes()).isEqualTo("42".getBytes());
         assertThat(TypedValue.of("é").asBytes()).isEqualTo("é".getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }

@@ -56,9 +56,9 @@ public final class CosineSimilarityFunction extends StroomFunction {
                 normB += b[i] * b[i];
             }
             if (normA == 0 || normB == 0) {
-                return new TypedValue.Real(0);
+                return new TypedValue.Double(0);
             }
-            return new TypedValue.Real(dot / (Math.sqrt(normA) * Math.sqrt(normB)));
+            return new TypedValue.Double(dot / (Math.sqrt(normA) * Math.sqrt(normB)));
         };
     }
 

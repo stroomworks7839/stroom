@@ -34,6 +34,6 @@ public final class CurrentUnixTimeFunction extends StroomFunction {
 
     @Override
     public FunctionCall bind(final FunctionContext context) {
-        return arguments -> new TypedValue.Int(Instant.now().toEpochMilli());
+        return arguments -> new TypedValue.Integer(Instant.now().toEpochMilli());
     }
 }

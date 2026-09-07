@@ -123,8 +123,8 @@ class TypedValueParseEquivalenceTest {
         final String trimmed = text.trim();
         try {
             return trimmed.contains(".")
-                    ? new TypedValue.Real(Double.parseDouble(trimmed)).asString()
-                    : new TypedValue.Int(Long.parseLong(trimmed)).asString();
+                    ? new TypedValue.Double(Double.parseDouble(trimmed)).asString()
+                    : new TypedValue.Integer(Long.parseLong(trimmed)).asString();
         } catch (final NumberFormatException e) {
             return null;
         }

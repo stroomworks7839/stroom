@@ -3,7 +3,7 @@
 **Status: design, ruled 2026-09-04 (D43) and deferred the same day; deferral lifted
 2026-09-07, design 24 having been built. Amended 2026-09-07 with §9 — a capture declares what
 it is, and the capture binding is compiled — on the user's direction; the amendment awaits a
-ruling (D49). Amends E3's "stores hold UTF-8" and design 17 §3.1's string row when built, and
+ruling (D50). Amends E3's "stores hold UTF-8" and design 17 §3.1's string row when built, and
 takes the capture half of E39. Engine only. Design 24's character sink decodes the internal
 UTF-8 form under E3 today and gains the sink declaration of §4 when this lands.**
 
@@ -18,7 +18,7 @@ matchesWithARegexUnderRaw` pins exactly that.
 
 The reason to change it is not capability and not efficiency; it is consistency with the type
 model the engine already has. Design 17 §3.1 made the casting table the single source of
-every conversion, and every other kind obeys it: an `Int` is not rendered to decimal when it
+every conversion, and every other kind obeys it: an `Integer` is not rendered to decimal when it
 is captured, an `Instant` is not formatted until someone asks for a string. `Bytes` alone is
 converted eagerly, outside the table, at capture — a hidden cast applied to everything whether
 or not anyone asks, which is why "the internal form is UTF-8" has had to be a rule every
@@ -213,12 +213,13 @@ from D13 and E3; this design's as-built record.
 
 *Added 2026-09-07 on the user's direction: a capture is a variable like any other, so it
 should be able to say what kind it holds — and say it once, at bind, rather than have every
-consumer convert. Awaiting D49.*
+consumer convert. Awaiting D50.*
 
 ### 9.1 The field
 
 A capture binding gains `as`, the cast vocabulary the engine already has on a condition's
-operand, a `sort`, `min` and `max`: `string` | `number` | `boolean` | `date`. Absent means no
+operand, a `sort`, `min` and `max`: `string` | `number` | `integer` | `double` | `boolean` |
+`date` (the kinds and the two typed casts named as XSLT 2.0 names them, D49). Absent means no
 cast: the value is `Bytes` as phase 1 leaves it, carrying its tag (§2) — not, as today under
 E3, converted to UTF-8 at bind.
 
@@ -227,11 +228,13 @@ E3, converted to UTF-8 at bind.
 ```
 
 **Semantics: §3.1's table, applied at bind.** The captured bytes are decoded by their tag and
-read as the kind named; the store holds the result — an `Int` or `Real` for `number`, a `Bool`
-for `boolean`, an `Instant` for `date` (the ISO-8601 reading; a format is `parse-date`'s
-business, as it is everywhere else). Every consumer then sees the kind and never converts: a
-`greater-than` against a number literal compares natively under §8's strict rule with no `as`
-on the operand, `sort` orders on the timeline, `sum` adds without a parse per record.
+read as the kind named; the store holds the result — an `Integer` or `Double` for `number`,
+whichever the text is, an `Integer` for `integer` and a `Double` for `double` (absent if the
+text is not that), a `Bool` for `boolean`, an `Instant` for `date` (the ISO-8601 reading; a
+format is `parse-date`'s business, as it is everywhere else). Every consumer then sees the kind
+and never converts: a `greater-than` against a number literal compares natively under §8's
+strict rule with no `as` on the operand, `sort` orders on the timeline, `sum` adds without a
+parse per record.
 
 **`as: string` is the memo filled eagerly.** The value stays `Bytes`, tagged UTF-8, with its
 UTF-8 form computed at bind rather than on first use. For a UTF-8 feed that is the identity
@@ -294,7 +297,7 @@ beyond the value's type (§3). The lint that checks capture names against reads
 - The round trip: `as` reads and writes through `ReferenceJson`, `EveryVariantTest` sees it,
   and an unknown cast label is refused by name as `Cast`'s other readers refuse it.
 
-### 9.4 Questions for the ruling (D49)
+### 9.4 Questions for the ruling (D50)
 
 1. **A failed cast at bind:** absent, as the table says (*recommended*), or a `FATAL` message
    naming the capture and the bytes. Absent keeps the table the single source and treats a
@@ -306,5 +309,5 @@ beyond the value's type (§3). The lint that checks capture names against reads
    inside the interpreted walk. The compiled capture is where the cast lives; doing it twice
    is the only alternative.
 4. **Order:** phases 1–4 now, E36 after (*recommended*); or phase 3 waits for E36 so the
-   binary readings arrive with the slot. E36 has no design yet and needs phase 3's `Int` to
+   binary readings arrive with the slot. E36 has no design yet and needs phase 3's `Integer` to
    frame a take; the slot should exist before the readings do.

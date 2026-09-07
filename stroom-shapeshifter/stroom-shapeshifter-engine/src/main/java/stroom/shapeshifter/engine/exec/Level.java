@@ -228,8 +228,8 @@ final class Level {
                     + "' failed to match from the start of the content. Skipped: ["
                     + preview(data, cursor, cursor + match.matchStart()) + "]"));
         }
-        vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Int(matchCount - 1));
-        vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Int(matchCount));
+        vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Integer(matchCount - 1));
+        vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Integer(matchCount));
         final boolean wanted = template.matchLimits().onlyMatch() == null
                                || template.matchLimits().onlyMatch().contains(matchCount);
         if (wanted) {
@@ -486,8 +486,8 @@ final class Level {
             if (depth == 0) {
                 functions.countRecord();
             }
-            vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Int(0));
-            vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Int(1));
+            vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Integer(0));
+            vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Integer(1));
             runBody(candidate, match, 1, sink, inputBase, ignoreErrors, depth);
         }
     }

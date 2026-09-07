@@ -31,8 +31,12 @@ public enum Cast {
     /** The string form — total: every value has one. */
     STRING,
 
-    /** The numeric reading, absent when the value has none. */
+    /** The numeric reading: whole if the value is whole, else fractional; absent if neither. */
     NUMBER,
+    /** The whole-number reading, absent unless the value is whole (D49). */
+    INTEGER,
+    /** The fractional reading, absent when the value has no numeric reading (D49). */
+    DOUBLE,
 
     /** The lexical boolean reading: {@code true}/{@code 1}/{@code false}/{@code 0}. */
     BOOLEAN,

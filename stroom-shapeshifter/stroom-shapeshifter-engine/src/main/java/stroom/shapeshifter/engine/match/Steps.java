@@ -215,7 +215,7 @@ public final class Steps {
                 // the low bit is the sign, the rest is the magnitude.
                 yield varint == null
                         ? null
-                        : new Result(new TypedValue.Int((varint[0] >>> 1) ^ -(varint[0] & 1)),
+                        : new Result(new TypedValue.Integer((varint[0] >>> 1) ^ -(varint[0] & 1)),
                         (int) varint[1]);
             }
             case MatchStep.Seek seek -> {
@@ -233,7 +233,7 @@ public final class Steps {
                 yield forward > available ? null : new Result(NOTHING, forward);
             }
             case MatchStep.SeekBack ignored -> null;
-            case MatchStep.Tell ignored -> new Result(new TypedValue.Int(position), 0);
+            case MatchStep.Tell ignored -> new Result(new TypedValue.Integer(position), 0);
             case MatchStep.Decode decode -> {
                 final byte[] input = bytes(decode.data(), prior, local);
                 if (input == null) {
@@ -552,11 +552,11 @@ public final class Steps {
         }
 
         final TypedValue value = switch (numeric.numericType()) {
-            case SHORT -> new TypedValue.Int(numeric.signed() ? (short) raw : raw);
-            case INT -> new TypedValue.Int(numeric.signed() ? (int) raw : raw);
-            case LONG -> numeric.signed() ? new TypedValue.Int(raw) : unsigned(raw);
-            case FLOAT -> new TypedValue.Real(Float.intBitsToFloat((int) raw));
-            case DOUBLE -> new TypedValue.Real(Double.longBitsToDouble(raw));
+            case SHORT -> new TypedValue.Integer(numeric.signed() ? (short) raw : raw);
+            case INT -> new TypedValue.Integer(numeric.signed() ? (int) raw : raw);
+            case LONG -> numeric.signed() ? new TypedValue.Integer(raw) : unsigned(raw);
+            case FLOAT -> new TypedValue.Double(Float.intBitsToFloat((int) raw));
+            case DOUBLE -> new TypedValue.Double(Double.longBitsToDouble(raw));
         };
         return new Result(value, size);
     }
@@ -569,7 +569,7 @@ public final class Steps {
      */
     private static TypedValue unsigned(final long raw) {
         return raw >= 0
-                ? new TypedValue.Int(raw)
+                ? new TypedValue.Integer(raw)
                 : TypedValue.of(Long.toUnsignedString(raw).getBytes(StandardCharsets.US_ASCII));
     }
 

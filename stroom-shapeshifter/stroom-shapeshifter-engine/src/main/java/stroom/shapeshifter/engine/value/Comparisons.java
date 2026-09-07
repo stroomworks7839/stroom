@@ -59,10 +59,18 @@ public final class Comparisons {
                 // double on its way into a comparison.
                 final Long whole = value.asInteger();
                 if (whole != null) {
-                    yield new TypedValue.Int(whole);
+                    yield new TypedValue.Integer(whole);
                 }
                 final Double number = value.asNumber();
-                yield number == null ? null : new TypedValue.Real(number);
+                yield number == null ? null : new TypedValue.Double(number);
+            }
+            case INTEGER -> {
+                final Long whole = value.asInteger();
+                yield whole == null ? null : new TypedValue.Integer(whole);
+            }
+            case DOUBLE -> {
+                final java.lang.Double number = value.asNumber();
+                yield number == null ? null : new TypedValue.Double(number);
             }
             case BOOLEAN -> {
                 final Boolean truth = value.asBoolean();
@@ -101,7 +109,7 @@ public final class Comparisons {
             return Arrays.compareUnsigned(a.value(), b.value());
         }
         if (isNumeric(left) && isNumeric(right)) {
-            if (left instanceof TypedValue.Int a && right instanceof TypedValue.Int b) {
+            if (left instanceof TypedValue.Integer a && right instanceof TypedValue.Integer b) {
                 return Long.compare(a.value(), b.value());
             }
             return Double.compare(left.asNumber(), right.asNumber());
@@ -118,6 +126,6 @@ public final class Comparisons {
     }
 
     private static boolean isNumeric(final TypedValue value) {
-        return value instanceof TypedValue.Int || value instanceof TypedValue.Real;
+        return value instanceof TypedValue.Integer || value instanceof TypedValue.Double;
     }
 }

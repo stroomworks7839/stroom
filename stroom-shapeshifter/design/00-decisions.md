@@ -1226,7 +1226,7 @@ would need — framing, integers, slicing, a byte-writing element — is E36, no
 
 *Deferral lifted 2026-09-07, design 24 built. Amended the same day with §9 — a capture
 declares its kind through `as`, cast once at bind, on a compiled capture that also takes
-E39's capture half — awaiting D49.*
+E39's capture half — awaiting D50.*
 
 ## D44 — Extension functions: a registry and a contract in the engine, Stroom's functions in the pipeline
 
@@ -1326,3 +1326,24 @@ not this ruling's.
 **Consequences:** no golden moved; the DS3 migration and every fixture read as before. The
 design 28 audit's two accepted notes on the form — the conditional reserved-mode refusal and
 first-wins dispatch on a shared name — go with it.
+
+## D49 — The numeric kinds are named as XSLT 2.0 names them: `integer` and `double`
+
+*Ruled by Jon, 2026-09-07.* `TypedValue.Int` is `TypedValue.Integer` and `TypedValue.Real`
+is `TypedValue.Double`, and the cast vocabulary gains `integer` and `double` beside `number`.
+The kinds themselves do not change: a whole number held in a `long`, a fractional one held
+in a `double`, promotion within the one numeric kind as design 17 §8 says. The names were
+chosen against three alternatives. Stroom's own `Val` family (`ValLong`, `ValDouble`) names
+Java widths because it serialises values and its comparators collapse to long and double
+anyway; the engine's values live for one run and are never serialised, so widths would be
+labels with nothing behind them, and authors never see `Val`. `integer` and `decimal` are the
+plain words a non-programmer would choose, but XSLT 2.0's `xs:decimal` is the exact kind and
+the engine's is the approximate one; an XSLT author would read the word as a promise the
+engine does not keep. `integer` and `double` are what XPath 2.0 and Saxon call the same two
+things, with `number()` kept as the reading that picks between them — the engine's `number`
+cast already. `decimal` stays free for an exact kind, should a format ever need one, with
+its own arithmetic and comparison; that is a new kind, not a cast.
+
+**Consequences:** a rename across the engine and the three designs that name the kinds; the
+two casts on operands, sorts, `min` and `max` now, and on capture bindings when design 25 §9
+lands (D50). No configuration in the corpus names a kind, so no golden moves.

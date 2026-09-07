@@ -401,7 +401,7 @@ phases, each audited before the next began:
 | 7 | The A/B, this closure, and the matrix rescored |
 
 **What it cost to get right.** Each phase's audit found something the tests could not: the
-legacy-alias mapping was wrong twice — first on typed counters (`__match_count` binds `Int`,
+legacy-alias mapping was wrong twice — first on typed counters (`__match_count` binds `Integer`,
 so equality must cast to string), then on the *absent* rule, where three legacy truth tables
 would have silently flipped and no golden could have caught it because the corpus never
 exercises them. `divide` wrapped silently on `MIN_VALUE / -1`, the one long division Java
@@ -1182,7 +1182,7 @@ design 27 §2.7 (ruling 7): both resolvers stay until compiling conditions and c
 is measured to matter, and this entry is that measurement's owner. When it is done, `Refs`'
 resolution goes and `CompiledRefs` is the one resolver; its byte helper, which the level's
 capture normalisation also uses, moves rather than goes. *2026-09-07: the capture half is
-taken by design 25 §9 (awaiting D49) — a compiled capture is where the declared cast lives,
+taken by design 25 §9 (awaiting D50) — a compiled capture is where the declared cast lives,
 so the `select` and key-value sources compile with it; conditions stay this entry's.*
 
 ### E40 — The three sinks duplicate the carry splice, the SAX call and the qname rule
