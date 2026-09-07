@@ -1265,6 +1265,9 @@ two package cycles the plan had accepted.*
 
 ## D46 — `template_ref` is the one-template mode; a variable's text is what its body wrote
 
+*Superseded in part by [D48](#d48--template_ref-is-removed), 2026-09-07: the first ruling, and
+its pin, went with the form; the second stands.*
+
 *Ruled by Jon, 2026-09-06, on design 27's exit review (E41, E42).* Two definitions the code
 had left implicit:
 
@@ -1303,14 +1306,15 @@ day, design 28 §6: no regression, `csv_header`'s compile row +12%.*
 
 *Ruled by Jon, 2026-09-07.* The `template_ref` option on `apply-templates` goes: the field on
 `ApplyDirective`, its reading and writing, the compiler's name and reserved-mode checks, the
-graph's registration of a one-template mode, and the pin. It was carried over from the ported
+graph's registration of a one-template mode, the run's reading of the mode through it, and the
+pin. It was carried over from the ported
 model, which had outgrown the need for it: nothing produced it — the DS3 migration emits modes,
 and no configuration in the corpus or the benchmarks uses it — and modes already express every
-recursive case, a template applying its own mode to part of its match being how `xml_to_json`
-descends nested elements. D46's first ruling, which defined the form when E42 found it skipped,
+recursive case: `xml_to_json` descends nested elements by a template applying its own mode to
+part of its match. D46's first ruling, which defined the form when E42 found it skipped,
 is superseded by this one; its second, on a variable's text, stands.
 
-What stays: the `__rec_` mode prefix as the spelling of the recursive form (design 16 §3), which
+What stays: the `__rec_` mode prefix as the spelling of the recursive form (design 16 §1), which
 gives an apply its own scope and which the xmlbench challengers use. Whether a prefix sniffed
 from a mode name should remain the rule, or a field should say it, is a question of its own,
 not this ruling's.

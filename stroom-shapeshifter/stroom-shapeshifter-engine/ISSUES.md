@@ -9,7 +9,9 @@ Each entry says what was seen, where to see it again, and what resolving it woul
 to them by id in commits and tests.
 
 **Status** is one of: `open` — decided against nothing yet; `deferred` — decided, with a reason,
-and revisitable; `blocked` — needs something that does not exist.
+and revisitable; `blocked` — needs something that does not exist; `resolved` — done, the
+finding's text kept below; `superseded` — a resolution overtaken by a later ruling, which stays
+below it.
 
 ---
 
@@ -1213,7 +1215,7 @@ variable, if one exists; none in the corpus does today.
 ### E42 — An apply-templates naming a template is a silent no-op at run time
 **`superseded` 2026-09-07 (D48):** the form is removed — the field, its reading, the compiler's
 checks, the graph's one-template mode and the pin. Nothing produced it and modes express every
-recursive case; D46's definition below held for a day.
+recursive case; D46's definition below stands as the record of the day it held.
 
 **`resolved` 2026-09-06, the same day, by the user's ruling (D46):** `template_ref` is defined
 as shorthand for an apply-templates whose level holds the named template alone. The compiler

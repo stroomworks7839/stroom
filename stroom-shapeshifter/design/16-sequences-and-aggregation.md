@@ -19,7 +19,8 @@ The matrix said this family "needs whole-input state before first output byte" a
 that as an architectural question. Reading the engine says otherwise: **the whole-input state
 already exists, and the ordering already works.** What is missing is iteration.
 
-Three facts, each checkable in the source:
+Three facts, each checkable in the source (*as read 2026-08-25: `Executor` is `Run` and `Body`
+since D45, and `template_ref` went with D48*):
 
 1. **Stores already accumulate across a level's whole run.** `exec/Store.java` is a sparse
    list indexed by match number, and `Executor.processMatch` clears a template's capture
@@ -37,7 +38,7 @@ Three facts, each checkable in the source:
    emit a summary at the end" is already a shape the engine can express.
 
 3. **A non-recursive apply does not push a scope.** `Executor.apply()` pushes and pops only
-   for the recursive form (a `__rec_` mode; `template_ref` went with D48). Every capture name is
+   for the recursive form (`template_ref`, or a `__rec_` mode). Every capture name is
    registered in the global scope by `run()` before matching starts. So captures made by a
    child level survive into the parent's post-apply instructions, which is exactly where a
    summary would be written.

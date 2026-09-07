@@ -909,7 +909,7 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
 
         /**
          * Whether this is the recursive form, which runs in its own scope: a directive whose
-         * mode is spelt with the recursive prefix (design/16 §3).
+         * mode is spelt with the recursive prefix (design/16 §1).
          */
         public boolean recursive() {
             return mode != null && mode.startsWith(RECURSIVE_PREFIX);

@@ -107,6 +107,44 @@ class EngineBehaviourTest {
     }
 
     /**
+     * The recursive form is a mode spelt with the {@code __rec_} prefix (design 16 §1; D48): a
+     * template applying that mode to part of its match hands it back to itself, and
+     * {@code max_depth} cuts the recursion.
+     */
+    @Test
+    void recursiveModeHandsTheMatchBackToItselfUntilMaxDepth() {
+        assertThat(run(recursion(64), "abc\n").output()).isEqualTo("<a><b><c>;");
+        // The row's own apply is depth 0, so a limit of 2 allows the head twice.
+        assertThat(run(recursion(2), "abc\n").output()).as("max_depth cuts the recursion")
+                .isEqualTo("<a><b>;");
+    }
+
+    /** A template that writes its first character and hands the rest back to its own mode. */
+    private static String recursion(final int maxDepth) {
+        return """
+                {
+                  "name": "rec", "version": 5,
+                  "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 1}}]},
+                                                   "mode": "__rec_head", "max_depth": %d}},
+                              {"text": ";"}]},
+                    {"id": "00000000-0000-0000-0000-000000000003", "name": "head", "mode": "__rec_head",
+                     "match": {"regex": {"pattern": "^(.)(.*)$"}},
+                     "body": [{"text": "<"}, {"value-of": {"parts": [{"capture": {"group": 1}}]}}, {"text": ">"},
+                              {"apply-templates": {"select": {"parts": [{"capture": {"group": 2}}]},
+                                                   "mode": "__rec_head", "max_depth": %d}}]}
+                  ]
+                }
+                """.formatted(maxDepth, maxDepth);
+    }
+
+    /**
      * E41, ruled 2026-09-06: a variable's text is the bytes its body wrote — a body that writes
      * elements leaves no serialiser newlines or indent inside the value.
      */

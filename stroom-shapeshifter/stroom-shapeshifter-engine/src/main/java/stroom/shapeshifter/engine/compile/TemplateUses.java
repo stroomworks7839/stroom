@@ -72,8 +72,8 @@ record TemplateUses(Template template, List<String> calls, List<OutputNode.Apply
     }
 
     /**
-     * Resolve every name that points at a template — a {@code call-template}'s target and an
-     * {@code apply-templates}' template reference — against the templates that exist.
+     * Resolve every name that points at a template — a {@code call-template}'s target — against
+     * the templates that exist.
      *
      * <p>Compilation is where a configuration's mistakes are found. Left to run time, a name
      * with a typo in it finds nothing, and finding nothing is spelt the same as a template that

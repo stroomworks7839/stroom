@@ -181,22 +181,22 @@ readers, `BodyCompiler`, this design), one over the documents; both read-only. C
 javadoc in `Compiler` still linked `CompiledOp#compile`; `Variable`'s constructor did not refuse
 a missing name, which `Binding`'s javadoc and §2 said it did — it does now, as `Sequence` and
 `Key` do, and the reader required the name already; four parameter wraps left at their old
-column by the `BodyCompiler` move; four lines over 100 columns; two issue tags carrying a
-ruling date. Everything else verified: the fifty-four records placed once each, the acceptance
-of `StructureCheck.body` identical to `producesContent` for every record, the twenty-seven
-removed arms each exactly the transform call, the three splices and the SAX call byte-identical
-under `Utf8.Carry` and `SaxEvents`, the `BodyCompiler` move a move. Accepted notes: booleans
-still read through Jackson's `asBoolean`, and `readDispatch`/`readCast` take an optional node's
-text unchecked, so a number there is refused by the enum's message rather than a shape's; the
+column by the `BodyCompiler` move; four lines over 100 columns; two issue tags carrying a ruling
+date. Everything else verified: the fifty-four records placed once each, the acceptance of
+`StructureCheck.body` identical to `producesContent` for every record, the twenty-seven removed
+arms each exactly the transform call, the three splices and the SAX call byte-identical under
+`Utf8.Carry` and `SaxEvents`, the `BodyCompiler` move a move. Accepted notes: booleans still
+read through Jackson's `asBoolean`, and `readDispatch`/`readCast` take an optional node's text
+unchecked, so a number there is refused by the enum's message rather than a shape's; the
 optional text readers' refusal names the field without its owner; the reserved-mode refusal
 fires only when a `template_ref` to the name exists, so a hand-spelt `__rec_` mode with no
-reference is left alone — the two xmlbench challengers do exactly that and keep their
-recursive scope; a `template_ref` to a name several templates share dispatches to the first,
-silently, as `templatesByName` is first-wins. Documents: the record above claimed a commit per
-walk each gated and a hash the amend had replaced; §2's sketch had `Call` and `Tokenize` as
-bindings; §1 counted twenty-eight arms and thirty compiled transforms for twenty-seven and
-twenty-six; §4 and this record misread phase 1's `csv_header` figure as the helper's cost
-rather than the gain that survived it; design 27's `BodyCompiler` line count and its
-`StructureCheck` row, D46's reading of D11 and D47's spelling of D35's artifacts. The
+reference is left alone — the two xmlbench challengers do exactly that and keep their recursive
+scope; a `template_ref` to a name several templates share dispatches to the first, silently, as
+`templatesByName` is first-wins — both moot under D48. Documents: the record above claimed a
+commit per walk each gated and a hash the amend had replaced; §2's sketch had `Call` and
+`Tokenize` as bindings; §1 counted twenty-eight arms and thirty compiled transforms for
+twenty-seven and twenty-six; §4 and this record misread phase 1's `csv_header` figure as the
+helper's cost rather than the gain that survived it; design 27's `BodyCompiler` line count and
+its `StructureCheck` row, D46's reading of D11 and D47's spelling of D35's artifacts. The
 `BodyCompiler` probe's numbers in design 27 §5.6 stand on no filed run; this gate supersedes
 them.*
