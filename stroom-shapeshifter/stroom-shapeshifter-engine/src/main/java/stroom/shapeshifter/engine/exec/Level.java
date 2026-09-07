@@ -18,7 +18,6 @@ package stroom.shapeshifter.engine.exec;
 
 import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.compile.CompiledCapture;
 import stroom.shapeshifter.engine.compile.CompiledMatch;
@@ -107,7 +106,7 @@ final class Level {
                   final byte[] data,
                   final int from,
                   final int to,
-                  final OutputSink sink,
+                  final Output out,
                   final long inputBase,
                   final boolean ignoreErrors,
                   final int depth,
@@ -115,11 +114,11 @@ final class Level {
                   final Encoding encoding) {
         this.encoding = encoding;
         if (dispatch == Dispatch.CLASSIFY) {
-            classify(templates, data, from, to, sink, inputBase, ignoreErrors, depth);
+            classify(templates, data, from, to, out, inputBase, ignoreErrors, depth);
             return;
         }
         if (dispatch == Dispatch.ANY) {
-            anyLevel(templates, data, from, to, sink, inputBase, ignoreErrors, depth);
+            anyLevel(templates, data, from, to, out, inputBase, ignoreErrors, depth);
             return;
         }
         // Strict and lexer levels ask the anchored question of every template: the mode
@@ -177,7 +176,7 @@ final class Level {
             // An eater: advance, don't count (D36). No counters move, no stores clear,
             // no skip report — the eater is the authored skip.
             if (template.consume()) {
-                processEater(candidate, match, sink, inputBase, ignoreErrors, depth);
+                processEater(candidate, match, out, inputBase, ignoreErrors, depth);
                 cursor += match.advance();
                 matched = true;
                 continue;
@@ -185,7 +184,7 @@ final class Level {
 
             counts[winner]++;
             processMatch(candidate, match, counts[winner], data, cursor,
-                    locate(inputBase, cursor - from), sink, ignoreErrors, depth, true);
+                    locate(inputBase, cursor - from), out, ignoreErrors, depth, true);
             cursor += match.advance();
             matched = true;
             // The choice re-opens from the first template.
@@ -211,7 +210,7 @@ final class Level {
                               final byte[] data,
                               final int cursor,
                               final long locateBase,
-                              final OutputSink sink,
+                              final Output out,
                               final boolean ignoreErrors,
                               final int depth,
                               final boolean reportSkips) {
@@ -237,20 +236,20 @@ final class Level {
         final boolean wanted = template.matchLimits().onlyMatch() == null
                                || template.matchLimits().onlyMatch().contains(matchCount);
         if (wanted) {
-            runBody(candidate, match, matchCount, sink, locateBase, ignoreErrors, depth);
+            runBody(candidate, match, matchCount, out, locateBase, ignoreErrors, depth);
         }
     }
 
     /** An eater's win: the body runs — often to say what was swallowed — and nothing counts. */
     private void processEater(final CompiledTemplate candidate,
                               final MatchResult match,
-                              final OutputSink sink,
+                              final Output out,
                               final long locateBase,
                               final boolean ignoreErrors,
                               final int depth) {
         final TypedValue swallowed = content(candidate.template(), match);
         if (swallowed != null && !swallowed.isEmpty()) {
-            body.body(candidate.body(), match, 1, swallowed.asBytes(), sink,
+            body.body(candidate.body(), match, 1, swallowed.asBytes(), out,
                     locateBase, ignoreErrors, depth);
         }
     }
@@ -274,7 +273,7 @@ final class Level {
      */
     void stream(final List<CompiledTemplate> templates,
                 final InputWindow window,
-                final OutputSink sink,
+                final Output out,
                 final boolean ignoreErrors,
                 final Dispatch dispatch,
                 final Encoding encoding) {
@@ -365,14 +364,14 @@ final class Level {
             }
 
             if (template.consume()) {
-                processEater(candidate, match, sink, window.consumed(), ignoreErrors, 0);
+                processEater(candidate, match, out, window.consumed(), ignoreErrors, 0);
                 window.consume(match.advance());
                 continue;
             }
 
             counts[winner]++;
             processMatch(candidate, match, counts[winner], window.bytes(), start,
-                    window.consumed(), sink, ignoreErrors, 0, true);
+                    window.consumed(), out, ignoreErrors, 0, true);
             window.consume(match.advance());
         }
 
@@ -394,7 +393,7 @@ final class Level {
                          final byte[] data,
                          final int from,
                          final int to,
-                         final OutputSink sink,
+                         final Output out,
                          final long inputBase,
                          final boolean ignoreErrors,
                          final int depth) {
@@ -437,7 +436,7 @@ final class Level {
 
                 if (!template.consume()) {
                     counts[i]++;
-                    processMatch(candidate, match, counts[i], work, 0, base, sink,
+                    processMatch(candidate, match, counts[i], work, 0, base, out,
                             ignoreErrors, depth, false);
                 }
 
@@ -466,7 +465,7 @@ final class Level {
                          final byte[] data,
                          final int from,
                          final int to,
-                         final OutputSink sink,
+                         final Output out,
                          final long inputBase,
                          final boolean ignoreErrors,
                          final int depth) {
@@ -492,7 +491,7 @@ final class Level {
             }
             vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Integer(0));
             vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Integer(1));
-            runBody(candidate, match, 1, sink, inputBase, ignoreErrors, depth);
+            runBody(candidate, match, 1, out, inputBase, ignoreErrors, depth);
         }
     }
 
@@ -576,7 +575,7 @@ final class Level {
     private void runBody(final CompiledTemplate candidate,
                          final MatchResult match,
                          final int matchCount,
-                         final OutputSink sink,
+                         final Output out,
                          final long locateBase,
                          final boolean ignoreErrors,
                          final int depth) {
@@ -588,10 +587,11 @@ final class Level {
         instrument.onMatch(template.id(), template.name(), locate(locateBase, match.matchStart()),
                 match.advance() - match.matchStart(), matchCount, depth);
         bindCaptures(candidate, match, matchCount);
-        final long before = sink.position();
-        body.body(candidate.body(), match, matchCount, content.asBytes(), sink,
+        final long before = out.sink().position();
+        body.body(candidate.body(), match, matchCount, content.asBytes(), out,
                 locateBase, ignoreErrors, depth);
-        instrument.onOutput(template.id(), matchCount, before, sink.position() - before, sink.unit());
+        instrument.onOutput(template.id(), matchCount, before, out.sink().position() - before,
+                out.sink().unit());
     }
 
     /** True if a region holds anything but whitespace. Blank remainders are not worth a message. */

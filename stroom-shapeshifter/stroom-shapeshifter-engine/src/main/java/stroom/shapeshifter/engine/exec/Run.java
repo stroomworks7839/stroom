@@ -55,6 +55,8 @@ public final class Run {
 
     private final CompiledProject compiled;
     private final OutputSink output;
+    /** The run's sink paired with what it accepts, once (design 25 §3). */
+    private final Output out;
     private final List<Message> messages = new ArrayList<>();
     /** The functions bound to this run, and what they may reach (design 26). */
     private final FunctionRuntime functions;
@@ -76,6 +78,7 @@ public final class Run {
                 final Services services) {
         this.compiled = compiled;
         this.output = sink;
+        this.out = Output.of(this.output);
         this.encoding = compiled.encoding();
         this.messages.addAll(compiled.warnings());
         this.functions = new FunctionRuntime(compiled.functions(), mode, services, messages);
@@ -185,7 +188,7 @@ public final class Run {
         // migration takes, and the sink's deferred start tag is what makes opening-then-looping
         // serialise as if the body had run in one piece).
         for (int i = 0; i < split.prologues.size(); i++) {
-            body.body(split.prologues.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors,
+            body.body(split.prologues.get(i), nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
                     0);
             if (i < split.opened.size()) {
                 final CompiledOp.Element element = split.opened.get(i);
@@ -198,7 +201,7 @@ public final class Run {
 
         // And what comes after it, closing the opened elements on the way back up.
         for (int i = split.tails.size() - 1; i >= 0; i--) {
-            body.body(split.tails.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors,
+            body.body(split.tails.get(i), nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
                     0);
             if (i > 0) {
                 final CompiledOp.Element element = split.opened.get(i - 1);
@@ -244,7 +247,7 @@ public final class Run {
                 if (from >= chunk.length) {
                     continue;
                 }
-                level.dispatch(roots, chunk, from, chunk.length, output, read,
+                level.dispatch(roots, chunk, from, chunk.length, out, read,
                         rootIgnoreErrors, 0, rootDispatch, encoding);
                 read += chunk.length - from;
             }
@@ -253,7 +256,7 @@ public final class Run {
             if (window.mark() != null) {
                 applyMark(window.mark());
             }
-            level.stream(roots, window, output, rootIgnoreErrors, rootDispatch, encoding);
+            level.stream(roots, window, out, rootIgnoreErrors, rootDispatch, encoding);
         }
     }
 

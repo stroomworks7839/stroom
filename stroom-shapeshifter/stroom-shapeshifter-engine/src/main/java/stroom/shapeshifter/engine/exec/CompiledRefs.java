@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.compile.CompiledRef;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.value.TypedValue;
@@ -27,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * Resolving compiled references — {@link Refs} with the interpretation already done.
  *
- * <p>Two ways in: {@link #write} streams parts to the sink, {@link #resolve} builds the
+ * <p>Two ways in: {@link #write} streams parts to the out, {@link #resolve} builds the
  * value; and <b>empty is absent</b>, as it is for {@link Refs}. The difference is what no longer happens per
  * call: literal text is a value made at compile time, written as its own array by a UTF-8
  * sink (design 25), and the shape of the expression is a dispatch, not a walk.
@@ -51,7 +50,7 @@ final class CompiledRefs {
                          final MatchResult match,
                          final int matchCount,
                          final VarRegistry vars,
-                         final OutputSink sink) {
+                         final Output out) {
         switch (ref) {
             case CompiledRef.Empty ignored -> {
                 return false;
@@ -60,13 +59,13 @@ final class CompiledRefs {
                 if (bytes.value().isEmpty()) {
                     return false;
                 }
-                sink.write(bytes.value().bytes(sink.encoding()));
+                out.write(bytes.value());
                 return true;
             }
             case CompiledRef.Composite composite -> {
                 boolean wrote = false;
                 for (final CompiledRef part : composite.parts()) {
-                    wrote |= write(part, match, matchCount, vars, sink);
+                    wrote |= write(part, match, matchCount, vars, out);
                 }
                 return wrote;
             }
@@ -75,7 +74,7 @@ final class CompiledRefs {
                 if (value == null || value.isEmpty()) {
                     return false;
                 }
-                sink.write(value.bytes(sink.encoding()));
+                out.write(value);
                 return true;
             }
             case CompiledRef.RemoteVar remote -> {
@@ -83,7 +82,7 @@ final class CompiledRefs {
                 if (value == null || value.isEmpty()) {
                     return false;
                 }
-                sink.write(value.bytes(sink.encoding()));
+                out.write(value);
                 return true;
             }
         }
