@@ -364,7 +364,16 @@ bare sink through `Body`, `Level` and `CompiledRefs`, `Level.dispatch` passing i
 `out.write(value)` is `sink.write(value.bytes(encoding))` with the encoding a field. Structure
 still goes to the sink, which owns its rule. Not a flag on the sink: that would be a second way
 to state what `encoding()` states. Gate unchanged: engine 584, pipeline 154, app 5, checkstyle
-clean.
+clean. Audited: no defect; the pairings are two, not the three first written, and `Run` keeps
+one field for its sink. Measured, files under `design/benchmarks`: a first five-fork run against
+the record commit was discarded, its base side having run while a gate held the other cores and
+two of its forks collapsed; the clean run reads `apache_httpd` −0.2%, `csv_header` +0.6%,
+`progressive` −1.4% (its spread), `win_sec_xml` −0.1% — the seam is neutral against the code
+that queried the sink per write. Against the phase 1 commit, the comparison phase 2's paragraph
+made, eight forks a side read `csv_header` −1.6% with the error bars overlapping (forks 196–210
+against 190–203), half of the earlier reading and inside the row's own spread. So the seam is
+the right shape and costs nothing; what it recovers is within the noise it was meant to recover,
+and no regression stands on any row.
 
 *Done 2026-09-07, each item as listed, most of them as the phase audits went: E3's amendment
 with phase 1, E39 narrowed and design 17's bullets with the phase 3 audit, design 24's §2
