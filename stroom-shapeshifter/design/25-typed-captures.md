@@ -202,6 +202,18 @@ built; §6's pins sorted into built and phase 2; the intro moved to the past ten
 17 §12 rewritten, having said the conversion boundary was where it was; E3's amendment
 moved below its resolution in the ledger's form; E39's two notes merged.*
 
+*Measured 2026-09-07, four run rows against the commit before the phase (`d383bd31b0`), the
+files under `design/benchmarks`, `…-run-rows-f<forks>.json`. Three forks at the phase commit
+read `apache_httpd` −1.1%, `csv_header` −2.2%, `progressive` −3.5%, `win_sec_xml` −2.6%, each
+inside the new side's own interval. Five forks after the memo change read `apache_httpd` and
+`win_sec_xml` flat, `progressive` −2.1% and `csv_header` −4.5% with every new fork below every
+base fork — real. The cause was on the delimiter path: three values per field where the old
+record had cost the same three allocations but eight bytes less each. `Splitter` now makes
+one value where two groups are the same bytes (`810d3a8b24`), one object per field fewer than
+before the phase; five forks read `csv_header` +0.2%. `progressive`'s reading was its known
+spread (design 27 phase 1): two of five forks collapsed to 300–317 against 350, and eight
+forks read +0.1% with the two sides interleaved. No regression stands.*
+
 **Phase 2 — the sink declares.** §4: `encoding()`, `of(stream, encoding)`, the plain byte
 sink, the write seam. *Test:* the identity pins; the refusal; `Encoding`'s class comment
 corrected — it says `raw` "survives a round trip", which was true of the mapping and false
