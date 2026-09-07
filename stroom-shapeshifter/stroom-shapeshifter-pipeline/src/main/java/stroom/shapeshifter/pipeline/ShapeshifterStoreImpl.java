@@ -18,6 +18,7 @@ package stroom.shapeshifter.pipeline;
 
 import stroom.docstore.api.AbstractDocumentStore;
 import stroom.docstore.api.StoreFactory;
+import stroom.security.api.SecurityContext;
 import stroom.shapeshifter.shared.ShapeshifterDoc;
 
 import jakarta.inject.Inject;
@@ -30,8 +31,10 @@ class ShapeshifterStoreImpl
 
     @Inject
     ShapeshifterStoreImpl(final StoreFactory storeFactory,
+                          final SecurityContext securityContext,
                           final ShapeshifterSerialiser serialiser) {
         super(storeFactory,
+                securityContext,
                 serialiser,
                 ShapeshifterDoc.TYPE,
                 ShapeshifterDoc::builder,
