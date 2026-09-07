@@ -198,7 +198,7 @@ public final class Ds3Migration {
         // than group 0 — group 0 still carries the quotes.
         final List<CaptureBinding> adjusted = captures.stream()
                 .map(capture -> capture.select() instanceof CaptureSource.Group group && group.group() == 0
-                        ? new CaptureBinding(capture.name(), new CaptureSource.Group(1))
+                        ? new CaptureBinding(capture.name(), new CaptureSource.Group(1), null)
                         : capture)
                 .toList();
 
@@ -289,7 +289,7 @@ public final class Ds3Migration {
                                  final List<CaptureBinding> captures,
                                  final List<OutputNode> body) {
         if (var.value() == null) {
-            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0)));
+            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0), null));
             return;
         }
         final RefExpression reference = LegacyRefs.parse(var.value());
@@ -297,7 +297,7 @@ public final class Ds3Migration {
                 part instanceof RefPart.Text
                 || (part instanceof RefPart.Capture capture && capture.varId() == null));
         if (localOnly) {
-            captures.add(new CaptureBinding(var.id(), new CaptureSource.Select(reference)));
+            captures.add(new CaptureBinding(var.id(), new CaptureSource.Select(reference), null));
         } else {
             body.add(new OutputNode.Variable(var.id(),
                     List.of(new OutputNode.ValueOf(indexed(reference)))));
@@ -342,7 +342,7 @@ public final class Ds3Migration {
                 switch (child) {
                     case Ds3Config.Var var -> {
                         if (var.value() == null) {
-                            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0)));
+                            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0), null));
                         } else {
                             into.add(new OutputNode.Variable(var.id(),
                                     List.of(new OutputNode.ValueOf(

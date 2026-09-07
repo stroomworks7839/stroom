@@ -90,7 +90,8 @@ public final class Compiler {
             final CompiledMatch match = matches.compile(template, matchEncoding);
             templates.add(new CompiledTemplate(template, match,
                     bodies.compile(template.body()),
-                    declared));
+                    declared,
+                    CompiledCapture.compile(template.captures())));
         }
         final List<TemplateUses> uses = TemplateUses.of(project);
         TemplateUses.resolveNames(project, uses);

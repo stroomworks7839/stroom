@@ -213,11 +213,11 @@ class EveryVariantTest {
                 new MatchExpression.Progressive(steps),
                 new MatchLimits(1, 9, Set.of(1, 2, 5)),
                 List.of(
-                        new CaptureBinding("byGroup", new CaptureSource.Group(2)),
-                        new CaptureBinding("byStep", new CaptureSource.Step(3)),
-                        new CaptureBinding("byField", new CaptureSource.Field("name")),
-                        new CaptureBinding("bySelect", new CaptureSource.Select(ref())),
-                        new CaptureBinding("ignored", new CaptureSource.KeyValue(ref(), ref()))),
+                        new CaptureBinding("byGroup", new CaptureSource.Group(2), Cast.INTEGER),
+                        new CaptureBinding("byStep", new CaptureSource.Step(3), null),
+                        new CaptureBinding("byField", new CaptureSource.Field("name"), null),
+                        new CaptureBinding("bySelect", new CaptureSource.Select(ref()), null),
+                        new CaptureBinding("ignored", new CaptureSource.KeyValue(ref(), ref()), null)),
                 List.of(new OutputNode.Text("matched")),
                 "utf-8",
                 true);

@@ -36,16 +36,18 @@ final class ReferenceJson {
     }
 
     static CaptureBinding readCapture(final JsonNode node) {
-        JsonFields.checkFields(node, "capture", "name", "select");
+        JsonFields.checkFields(node, "capture", "name", "select", "as");
         return new CaptureBinding(
-                JsonFields.text(node, "name", "capture"), readCaptureSource(JsonFields.required(node, "select",
-                        "capture")));
+                JsonFields.text(node, "name", "capture"),
+                readCaptureSource(JsonFields.required(node, "select", "capture")),
+                JsonFields.readCast(node));
     }
 
     static ObjectNode writeCapture(final CaptureBinding capture) {
         final ObjectNode node = JsonFields.NODES.objectNode();
         node.put("name", capture.name());
         node.set("select", writeCaptureSource(capture.select()));
+        JsonFields.writeCast(node, capture.as());
         return node;
     }
 

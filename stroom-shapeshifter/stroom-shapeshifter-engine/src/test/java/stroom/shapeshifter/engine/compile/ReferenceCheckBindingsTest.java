@@ -96,7 +96,7 @@ class ReferenceCheckBindingsTest {
                 UUID.randomUUID(), "line", "doc", false, null, List.of(),
                 new MatchExpression.Regex("([^\n]*)\n", null, 0),
                 new Template.MatchLimits(0, -1, null),
-                List.of(new CaptureBinding("seed", new CaptureBinding.CaptureSource.Group(1))),
+                List.of(new CaptureBinding("seed", new CaptureBinding.CaptureSource.Group(1), null)),
                 List.of(binder, new OutputNode.ValueOf(ref("bound"))),
                 null, false);
         final Template source = new Template(

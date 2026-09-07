@@ -290,6 +290,28 @@ capture through the compiled reference must give what the authored walk gave); �
 `select` or key-value capture, three forks, against the phase 2 commit; a regression beyond
 its interval blocks the phase (design 27 ruling 4's gate).
 
+*Built 2026-09-07. `CaptureBinding` gains `as`, read and written as `"as"` beside `select`
+with the cast vocabulary's readers, refused by name for a label the vocabulary lacks;
+`CompiledCapture` in `compile` holds the name, the source and the cast, built once per binding
+by `Compiler` and carried on `CompiledTemplate`; a step's output is its group index plus one,
+so the run has two sources to read and one to name. `Level.bindCaptures` walks the compiled
+list: a `select` or key-value source resolves through `CompiledRefs`, `Refs` losing its last
+capture caller; the cast is `Comparisons.cast` at bind, `string` then filling the memo; a cast
+that fails removes the slot as an unmatched capture does, for a key-value binding too. The
+authored bindings stay the compile-time checks' (`ReferenceCheck`, `Compiler.refuseCaptures`)
+and the level's first-match clearing's. Pinned in `CaptureCastTest`: an `integer` capture
+compares natively with no cast on the operand where the uncast bytes are cross-kind and
+false, `double` and `number` likewise; a cast that fails is absent — `exists` false, a
+`value-of` empty, the record's own slot rather than the one before; `boolean` is the lexical
+reading; `date` orders on the timeline where a string would not; `string` under Windows-1252
+reads as text; a `select` composite and a key-value binding through the compiled reference
+bind what the walk bound, the cast on the key-value's value; an unknown cast label refused.
+The eager fill of `string`'s memo is a call the code makes and is not observable without
+reflection; the code is its pin. Gate: engine 583 (576 and the seven new pins), pipeline 154,
+app 5, xmlbench compiles, checkstyle clean; every corpus golden unchanged — no fixture casts
+a capture, and the corpus's 340 `select` and two key-value captures bind through the compiled
+reference now.*
+
 **Phase 4 — the record.** E3 amended; E39's entry narrowed to conditions with the capture half
 recorded here; design 17 §3.1's boolean bullet and §12; design 24 §2's sink sentence; E36
 pointed at §9's slot for the binary readings; D43 cross-referenced from D13 and E3; this

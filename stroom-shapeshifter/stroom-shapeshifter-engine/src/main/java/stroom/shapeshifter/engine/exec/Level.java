@@ -20,10 +20,12 @@ import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.engine.compile.CompiledCapture;
 import stroom.shapeshifter.engine.compile.CompiledMatch;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
 import stroom.shapeshifter.engine.config.CaptureBinding;
+import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.MatchExpression;
@@ -32,6 +34,7 @@ import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.match.Splitter;
 import stroom.shapeshifter.engine.match.Steps;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
@@ -670,33 +673,35 @@ final class Level {
     private void bindCaptures(final CompiledTemplate compiledTemplate,
                               final MatchResult match,
                               final int matchCount) {
-        for (final CaptureBinding capture : compiledTemplate.template().captures()) {
-            final TypedValue value = switch (capture.select()) {
-                // A capture is a slice of the input, stored as the match tagged it: nothing is
-                // transcoded until a consumer asks for text (design 25).
-                case CaptureBinding.CaptureSource.Group group -> match.group(group.group());
-                case CaptureBinding.CaptureSource.Step step -> match.group(step.index() + 1);
-                case CaptureBinding.CaptureSource.Select select -> {
-                    final byte[] bytes = Refs.resolve(select.select(), match, matchCount, vars);
-                    yield bytes == null ? null : TypedValue.utf8(bytes);
-                }
-                case CaptureBinding.CaptureSource.Field ignored -> throw new IllegalStateException(
-                        "Field capture sources are refused at compile time");
-                case CaptureBinding.CaptureSource.KeyValue keyValue -> {
-                    final String key = Refs.resolveText(keyValue.keyRef(), match, matchCount, vars);
-                    if (key != null) {
-                        final byte[] bytes = Refs.resolve(keyValue.valueRef(), match, matchCount,
-                                vars);
-                        if (bytes != null) {
-                            vars.store(key).set(matchCount, TypedValue.utf8(bytes));
+        for (final CompiledCapture capture : compiledTemplate.captures()) {
+            if (capture.source() instanceof CompiledCapture.Source.KeyValue keyValue) {
+                // The name is computed too; nothing binds under the declared one.
+                final String key = CompiledRefs.resolveText(keyValue.key(), match, matchCount, vars);
+                if (key != null) {
+                    final byte[] bytes = CompiledRefs.resolve(keyValue.value(), match, matchCount,
+                            vars);
+                    if (bytes != null) {
+                        final TypedValue value = cast(TypedValue.utf8(bytes), capture.as());
+                        if (value == null) {
+                            vars.store(key).remove(matchCount);
+                        } else {
+                            vars.store(key).set(matchCount, value);
                         }
                     }
-                    yield null;
                 }
-            };
-            if (capture.select() instanceof CaptureBinding.CaptureSource.KeyValue) {
                 continue;
             }
+            // A capture is a slice of the input, stored as the match tagged it: nothing is
+            // transcoded until a consumer asks for text (design 25).
+            final TypedValue read = switch (capture.source()) {
+                case CompiledCapture.Source.Group group -> match.group(group.group());
+                case CompiledCapture.Source.Select select -> {
+                    final byte[] bytes = CompiledRefs.resolve(select.ref(), match, matchCount, vars);
+                    yield bytes == null ? null : TypedValue.utf8(bytes);
+                }
+                case CompiledCapture.Source.KeyValue ignored -> throw new IllegalStateException();
+            };
+            final TypedValue value = cast(read, capture.as());
             final Store store = vars.store(capture.name());
             if (value != null) {
                 instrument.onCapture(compiledTemplate.template().id(), capture.name(), value,
@@ -704,12 +709,28 @@ final class Level {
             }
             if (value == null) {
                 // An unmatched capture must read as empty, not as whatever the previous record
-                // left there.
+                // left there — and a cast that failed is absent the same way (design 25 §9).
                 store.remove(matchCount);
             } else {
                 store.set(matchCount, value);
             }
         }
+    }
+
+    /**
+     * The capture's declared kind, applied once at bind (design 25 §9.1, D50): the casting
+     * table's reading, absent when it has none; {@code string} keeps the bytes and fills their
+     * UTF-8 form now, so no consumer decodes later.
+     */
+    private static TypedValue cast(final TypedValue value, final Cast as) {
+        if (value == null || as == null) {
+            return value;
+        }
+        final TypedValue cast = Comparisons.cast(value, as);
+        if (as == Cast.STRING && cast instanceof TypedValue.Bytes bytes) {
+            bytes.utf8();
+        }
+        return cast;
     }
 
     /**

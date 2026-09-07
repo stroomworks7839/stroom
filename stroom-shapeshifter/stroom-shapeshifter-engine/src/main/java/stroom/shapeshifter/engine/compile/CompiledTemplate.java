@@ -35,10 +35,14 @@ import java.util.List;
  * @param encoding the template's declared encoding override, parsed and validated (E3), or
  *                 null to inherit the run's — which a byte-order mark may still have replaced
  */
-public record CompiledTemplate(Template template, CompiledMatch match, List<CompiledOp> body,
-                               Encoding encoding) {
+public record CompiledTemplate(Template template,
+                               CompiledMatch match,
+                               List<CompiledOp> body,
+                               Encoding encoding,
+                               List<CompiledCapture> captures) {
 
     public CompiledTemplate {
         body = List.copyOf(body);
+        captures = List.copyOf(captures);
     }
 }
