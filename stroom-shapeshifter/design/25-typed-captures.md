@@ -3,10 +3,10 @@
 **Status: design, ruled 2026-09-04 (D43) and deferred the same day; deferral lifted 2026-09-07,
 design 24 having been built. Amended 2026-09-07 with §9 — a capture declares what it is, and the
 capture binding is compiled — on the user's direction, and ruled the same day (D50), every
-question as recommended. Building; phases 1 and 2 built and audited 2026-09-07. Amends E3
-(the normalisation at capture) and design 17 §3.1's string row, and takes the capture half of
-E39. Engine only. Design 24's character sink declares UTF-8 through the interface's default
-(§4, phase 2); nothing in `CharacterSink` changed.**
+question as recommended. Built 2026-09-07: phases 1 to 3 built, audited and measured the same
+day, phase 4 the record. Amended E3 (the normalisation at capture) and design 17 §3.1's string
+row, and took the capture half of E39. Engine only. Design 24's character sink declares UTF-8
+through the interface's default (§4, phase 2); nothing in `CharacterSink` changed.**
 
 Before phase 1 (built 2026-09-07) a captured slice of the input was converted to UTF-8 the
 moment it was bound to a variable (`Level.normalise`, E3), and a slice of the *current* match
@@ -312,10 +312,47 @@ app 5, xmlbench compiles, checkstyle clean; every corpus golden unchanged — no
 a capture, and the corpus's 338 `select` and two key-value captures bind through the compiled
 reference now.*
 
+*Audited 2026-09-07, one reviewer over the code and one over the documents. The finding both
+made: design 17 §8's comparison lint did not know a capture can declare a kind, so it warned
+of an uncast reference on exactly the comparison the phase pins and said nothing of a text
+literal against a declared kind; it reads the binding now and warns each way round, and the
+pin covers both. Fixed: a duplicated `@param` block on `CaptureBinding`; javadoc in `Refs`,
+`CompiledRefs`, `Cast` and `Instrument` that still had captures on the authored walk or `DATE`
+refused; the level's unreachable arm named; `CompiledCapture.compile` package-private; the
+composite pin given the stored variable's previous value. Accepted notes: a composite
+`select` allocates one more value per bind than the walk did, wrapped and unwrapped through
+`CompiledRefs`; a matched-but-empty group is a tombstone uncast and absent under a cast, so a
+bare read of the latest slot after a failed cast is the record before's (§9.1 says so now).
+Documents: §9.1's absence under E19 and the instrument; §9.2's `resolve`, not `resolveValue`,
+and `Refs`' remaining callers; §9.3 as pinned; the phase 2 measurement's phrasing; design 17's
+cast consumers and lint; design 27's seam and E39 line; E39 narrowed; D49 landed; D50's third
+answer.*
+
+*Measured 2026-09-07, the compile rows and the run rows of the five workloads whose
+configurations carry a `select` or key-value capture — `apache_httpd`, `ausearch`, `win_sec`,
+`win_sec_strict`, `win_sec_xml` — three forks against the phase 2 commit (`8c315ac777`), files
+under `design/benchmarks`. Compile rows: `win_sec` −2.2% with the fork ranges disjoint,
+`ausearch` −3.0%, `apache_httpd` −1.2% and `win_sec_strict` −1.2% with the ranges overlapping,
+`win_sec_xml` +1.7%. That is the compile doing what it did not before: a compiled reference
+per `select` capture, seventy-eight of them in `win_sec`, built once so the run need not walk
+the authored expression per match — E39's trade, taken here for captures. Run rows:
+`apache_httpd` −0.5%, `win_sec_strict` +0.1%, `win_sec_xml` +1.9%, `win_sec` +4.6% on a
+collapsed base fork, `ausearch` −2.7% at three forks and −0.8% at five, the ranges overlapping
+both times. No run row regresses; the compile rows pay one to three per cent on the
+capture-heavy configurations, which is the row the design named as the price.*
+
 **Phase 4 — the record.** E3 amended; E39's entry narrowed to conditions with the capture half
 recorded here; design 17 §3.1's boolean bullet and §12; design 24 §2's sink sentence; E36
 pointed at §9's slot for the binary readings; D43 cross-referenced from D13 and E3; this
 design's as-built record.
+
+*Done 2026-09-07, each item as listed, most of them as the phase audits went: E3's amendment
+with phase 1, E39 narrowed and design 17's bullets with the phase 3 audit, design 24's §2
+bullet rewritten to the present, E36 pointed at §9's slot, D13 pointed at D43, the status
+block saying built. What this design leaves is in §8 and E36; what it measured is in each
+phase's paragraph above: no run row regresses, the delimiter row paid three per cent for the
+declared sink within its spread, the capture-heavy compile rows one to three for the compiled
+capture.*
 
 ## 8. What this does not decide
 

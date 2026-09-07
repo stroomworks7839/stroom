@@ -48,16 +48,17 @@ sink's mouth.**
   element, built as one, not Shapeshifter's. *As first written:* "the refusal is the
   consumer's … text outside a root element is not well-formed" — true of XML, not of XDM, and
   withdrawn.
-- **Bytes and characters.** The engine's output is UTF-8 by construction under E3: captures
-  are decoded by the source encoding and re-encoded as UTF-8 (`Refs`, `Steps`), and literals
-  are Java strings *(design 25 phase 1, 2026-09-07, changed the mechanism — a capture is
-  tagged and decoded at the write — not the outcome; this sentence is corrected in its phase
-  4)*. So the decode in the character sink is lossless, and a `TextWriter` set to
-  UTF-8 (its default) writes the engine's bytes exactly. Design 25 phase 2 (2026-09-07)
-  restated the same fact as the sink declaring UTF-8 and every write transcoding to it. Any
-  other writer encoding is the writer's
-  transcoding, as it is for every other text output in Stroom. The three `text_*_exact`
-  fixtures pin the identity through a real `TextWriter`.
+- **Bytes and characters.** The engine's output is UTF-8 because the sink says so: the
+  character sink declares UTF-8 through `OutputSink.encoding()`'s default, and every write is
+  transcoded from the value's own encoding to it (design 25, D43 — a capture is the bytes it
+  matched, tagged, decoded at the write; a literal is a UTF-8-tagged value). *As first
+  written this bullet said "by construction under E3: captures are decoded by the source
+  encoding and re-encoded as UTF-8"; design 25 phases 1 and 2 (2026-09-07) moved the
+  conversion to the write without changing the outcome.* So the decode in the character
+  sink is lossless, and a `TextWriter` set to UTF-8 (its default) writes the engine's bytes
+  exactly. Any other writer encoding is the writer's transcoding, as it is for every other
+  text output in Stroom. The three `text_*_exact` fixtures pin the identity through a real
+  `TextWriter`.
 
 ## 3. What is built
 

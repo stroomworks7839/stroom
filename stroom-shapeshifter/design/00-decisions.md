@@ -190,6 +190,10 @@ what the pipeline supports.
 **Revisit if:** follow-up 7 in [03-baseline-results.md](../stroom-shapeshifter-regex/design/03-baseline-results.md) shows the
 char-to-byte boundary cost is material, or if vectorised scanning fails to close the 6%.
 
+*D43 (design 25, built 2026-09-07) completes this on the value side: a captured value carries
+the encoding its bytes are in and nothing is transcoded until a consumer asks for text or a
+sink declares what it accepts, so bytes stay bytes from the match to the write.*
+
 ---
 
 ## D14 — Tier 0 is interpreted, with flat opcodes and byte-table classes

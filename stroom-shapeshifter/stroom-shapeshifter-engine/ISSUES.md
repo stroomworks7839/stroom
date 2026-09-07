@@ -1133,6 +1133,10 @@ character-based by nature and design 24 rightly does not bypass it for text. Tex
 a `raw` value keep decoding to the byte-as-code-point image, which is what makes byte
 operations expressible through character ones until real byte functions exist beside them.
 Not started; design after the streaming contract (23, 24) and the carrier (25) have landed.
+*2026-09-07: the carrier landed — design 25 built, phases 1 to 3. A capture's `as` (§9, D50)
+is the slot the binary readings go in, an integer of a declared width and endianness beside
+the decimal parse, and the framing step needs the captured `Integer` it provides; re-tagging
+a capture under a named encoding belongs here too (design 25 §8).*
 
 ### E37 — A capture referenced from the root template's body is silently empty
 **`resolved` 2026-09-05, in the compiler.** The reference checker knows the document template
