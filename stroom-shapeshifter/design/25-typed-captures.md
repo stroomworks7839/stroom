@@ -269,6 +269,18 @@ to the present; the phase 1 measurement's phrasing corrected against the files (
 overlapping, not "inside the interval"; back to back, not interleaved; 299–317); the
 benchmarks README told what a `run-rows` file is; D42 pointed here.*
 
+*Measured 2026-09-07, four run rows at five forks against the phase 1 commit (`35515569b0`),
+files under `design/benchmarks`. At the phase commit: `apache_httpd` +0.2%, `progressive`
++0.1%, `win_sec_xml` −0.6%, `csv_header` −3.2% (forks 190–200 against 198–205). With the
+seam testing UTF-8 itself first (`80dd6ca2ea`), two rows again: `apache_httpd` −0.8% with one
+collapsed fork, `csv_header` −2.9% (forks 190–206 against 199–211), the error bars
+overlapping both times. The cost is the query every write now makes — `sink.encoding()`
+through the interface, then `bytes()` — on the row that writes three values per field and
+little else; the other rows do not see it. Accepted as the declared sink's price, about three
+per cent on that one row within its spread, pending phase 3's gate, which measures the same
+rows against this commit; the exits, if it compounds, are to ask the sink once per body call
+rather than per write, or a `utf8()` flag on the sink.*
+
 **Phase 3 — the compiled capture and its cast.** §9: `CompiledCapture` built once per binding
 by the compiler, the `select` and key-value sources through the compiled reference, the `as`
 field read, written and applied at bind. `Refs` loses its capture callers; E39 narrows to
