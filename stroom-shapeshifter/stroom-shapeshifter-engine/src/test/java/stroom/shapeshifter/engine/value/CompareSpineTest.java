@@ -164,8 +164,7 @@ class CompareSpineTest {
         // No match, no variables: every reference is absent.
         return stroom.shapeshifter.engine.exec.Conditions.evaluate(condition,
                 MatchResult.empty(), 1,
-                new stroom.shapeshifter.engine.exec.VarRegistry(),
-                stroom.shapeshifter.engine.text.Encoding.UTF_8, java.util.Map.of());
+                new stroom.shapeshifter.engine.exec.VarRegistry(), java.util.Map.of());
     }
 
     private static final String MISSING_REF =

@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+
 package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.output.SaxEventSink;
 import stroom.shapeshifter.engine.output.XmlByteSink;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import org.junit.jupiter.api.Test;
 
@@ -74,9 +76,9 @@ class InstrumentTest {
         }
 
         @Override
-        public void onCapture(final UUID templateId, final String name, final byte[] value,
+        public void onCapture(final UUID templateId, final String name, final TypedValue value,
                               final int matchIndex) {
-            captures.add(new Capture(name, new String(value, StandardCharsets.UTF_8), matchIndex));
+            captures.add(new Capture(name, value.asString(), matchIndex));
         }
 
         @Override
@@ -125,8 +127,7 @@ class InstrumentTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(CONFIG)),
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
-                new XmlByteSink(new ByteArrayOutputStream()),
-                recorder);
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
         return recorder;
     }
 
@@ -195,8 +196,7 @@ class InstrumentTest {
         Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(STRUCTURED)),
                 new ByteArrayInputStream("a\nb\n".getBytes(StandardCharsets.UTF_8)),
-                sink,
-                recorder);
+                sink, recorder);
         return recorder;
     }
 
@@ -283,8 +283,7 @@ class InstrumentTest {
                         }
                         """)),
                 new ByteArrayInputStream("abc".getBytes(StandardCharsets.UTF_8)),
-                new XmlByteSink(new ByteArrayOutputStream()),
-                recorder);
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
 
         assertThat(recorder.matches).isEmpty();
         assertThat(recorder.attempts).isPositive();
@@ -316,8 +315,7 @@ class InstrumentTest {
                         }
                         """)),
                 new ByteArrayInputStream("abc\n".getBytes(StandardCharsets.UTF_8)),
-                new XmlByteSink(new ByteArrayOutputStream()),
-                recorder);
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
 
         // The inner template's content came out of a variable, so there is no offset that would
         // let anything find it — and a plausible-looking wrong number would be worse than none.

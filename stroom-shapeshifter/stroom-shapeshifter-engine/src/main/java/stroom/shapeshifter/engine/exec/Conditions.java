@@ -21,7 +21,6 @@ import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.match.PatternKey;
-import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
@@ -55,12 +54,11 @@ public final class Conditions {
                                    final MatchResult match,
                                    final int matchCount,
                                    final VarRegistry vars,
-                                   final Encoding encoding,
                                    final Map<PatternKey, BytePattern> patterns) {
         return switch (condition) {
             case Condition.Compare value -> {
-                final TypedValue left = operand(value.left(), match, matchCount, vars, encoding);
-                final TypedValue right = operand(value.right(), match, matchCount, vars, encoding);
+                final TypedValue left = operand(value.left(), match, matchCount, vars);
+                final TypedValue right = operand(value.right(), match, matchCount, vars);
                 final Integer order = Comparisons.compare(left, right);
                 if (order == null) {
                     // Absent, or a cross-kind pair: the comparison cannot be made, and a
@@ -82,17 +80,19 @@ public final class Conditions {
                     throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
                 }
                 yield pattern.matcher().find(
-                        text(value.select(), match, matchCount, vars, encoding).getBytes(StandardCharsets.UTF_8));
+                        text(value.select(), match, matchCount, vars)
+                                .getBytes(StandardCharsets.UTF_8));
             }
             case Condition.Contains value ->
-                    text(value.select(), match, matchCount, vars, encoding).contains(value.substring());
+                    text(value.select(), match, matchCount, vars).contains(value.substring());
             case Condition.StartsWith value ->
-                    text(value.select(), match, matchCount, vars, encoding).startsWith(value.prefix());
+                    text(value.select(), match, matchCount, vars).startsWith(value.prefix());
             case Condition.And value -> value.conditions().stream()
-                    .allMatch(child -> evaluate(child, match, matchCount, vars, encoding, patterns));
+                    .allMatch(child -> evaluate(child, match, matchCount, vars, patterns));
             case Condition.Or value -> value.conditions().stream()
-                    .anyMatch(child -> evaluate(child, match, matchCount, vars, encoding, patterns));
-            case Condition.Not value -> !evaluate(value.condition(), match, matchCount, vars, encoding, patterns);
+                    .anyMatch(child -> evaluate(child, match, matchCount, vars, patterns));
+            case Condition.Not value ->
+                    !evaluate(value.condition(), match, matchCount, vars, patterns);
             // Set by the iteration (design/16 §4.3). Outside a
             // for-each nothing sets __position, so both read false — E21's hazard, which the
             // compiler now warns about rather than leaving to be discovered.
@@ -106,7 +106,7 @@ public final class Conditions {
                 yield position != null && position.equals(last);
             }
             case Condition.Exists value -> {
-                final byte[] resolved = Refs.resolve(value.select(), match, matchCount, vars, encoding);
+                final byte[] resolved = Refs.resolve(value.select(), match, matchCount, vars);
                 yield resolved != null && resolved.length > 0;
             }
         };
@@ -125,9 +125,8 @@ public final class Conditions {
     private static String text(final RefExpression expression,
                                final MatchResult match,
                                final int matchCount,
-                               final VarRegistry vars,
-                               final Encoding encoding) {
-        final String resolved = Refs.resolveText(expression, match, matchCount, vars, encoding);
+                               final VarRegistry vars) {
+        final String resolved = Refs.resolveText(expression, match, matchCount, vars);
         return resolved == null ? "" : resolved;
     }
 
@@ -135,11 +134,10 @@ public final class Conditions {
     private static TypedValue operand(final Condition.Operand operand,
                                       final MatchResult match,
                                       final int matchCount,
-                                      final VarRegistry vars,
-                                      final Encoding encoding) {
+                                      final VarRegistry vars) {
         if (operand.ref() != null) {
             return Comparisons.cast(
-                    Refs.resolveValue(operand.ref(), match, matchCount, vars, encoding),
+                    Refs.resolveValue(operand.ref(), match, matchCount, vars),
                     operand.as());
         }
         final TypedValue value = switch (operand.literal()) {

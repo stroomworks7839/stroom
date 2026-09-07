@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
+
 package stroom.shapeshifter.engine.value;
+
+import stroom.shapeshifter.engine.text.Encoding;
 
 import org.junit.jupiter.api.Test;
 
@@ -185,5 +188,39 @@ class TypedValueTest {
         // asBytes is the encoding-independent form: numbers are ASCII whatever the input was.
         assertThat(new TypedValue.Integer(42).asBytes()).isEqualTo("42".getBytes());
         assertThat(TypedValue.of("é").asBytes()).isEqualTo("é".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Design 25: a value knows its encoding, and nothing is transcoded until someone asks
+    // -----------------------------------------------------------------------------------
+
+    @Test
+    void bytesKeepWhatTheyReadAndDecodeOnceWhenAsked() {
+        final byte[] read = {(byte) 0xE9, (byte) 0x93};
+        final TypedValue.Bytes value = (TypedValue.Bytes) TypedValue.of(read, Encoding.WINDOWS_1252);
+        // Nothing transcoded at capture: the bytes are the array that was read.
+        assertThat(value.asBytes()).isSameAs(read);
+        assertThat(value.encoding()).isEqualTo(Encoding.WINDOWS_1252);
+        // Text is asked for, decoded by the tag, and computed once.
+        assertThat(value.asString()).isEqualTo("é“");
+        assertThat(value.utf8()).isSameAs(value.utf8());
+        assertThat(value.utf8()).isEqualTo("é“".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // A UTF-8-compatible tag has nothing to compute: the form is the array itself.
+        final byte[] utf8 = "é".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(((TypedValue.Bytes) TypedValue.utf8(utf8)).utf8()).isSameAs(utf8);
+        assertThat(((TypedValue.Bytes) TypedValue.of(utf8, Encoding.AUTO)).utf8()).isSameAs(utf8);
+    }
+
+    @Test
+    void bytesAreEqualWhenTheirTextIs() {
+        final TypedValue latin = TypedValue.of(new byte[]{(byte) 0xE9}, Encoding.LATIN_1);
+        final TypedValue utf8 = TypedValue.of("é");
+        assertThat(latin).isEqualTo(utf8);
+        assertThat(latin.hashCode()).isEqualTo(utf8.hashCode());
+        assertThat(Comparisons.compare(latin, utf8)).isZero();
+        // Under raw a byte is the code point of the same number, so 0x93 reads as U+0093.
+        assertThat(TypedValue.of(new byte[]{(byte) 0x93}, Encoding.RAW)).isEqualTo(TypedValue.of("\u0093"));
+        assertThat(TypedValue.of(new byte[]{(byte) 0x93}, Encoding.RAW))
+                .isNotEqualTo(TypedValue.of(new byte[]{(byte) 0x93}, Encoding.WINDOWS_1252));
     }
 }

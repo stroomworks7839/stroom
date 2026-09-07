@@ -27,7 +27,6 @@ import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -60,7 +59,7 @@ public final class Steps {
 
     }
 
-    private static final TypedValue NOTHING = TypedValue.of(new byte[0]);
+    private static final TypedValue NOTHING = TypedValue.utf8(new byte[0]);
 
     /** Decode tables for the single-byte encodings, one lazy row per encoding. */
     private static final ConcurrentHashMap<Encoding, char[]> SINGLE_BYTE = new ConcurrentHashMap<>();
@@ -119,7 +118,7 @@ public final class Steps {
         // A rewind does not un-read what was read. The match consumes up to the furthest point
         // reached, so the stream never re-reads bytes a seek stepped back over.
         final TypedValue[] groups = new TypedValue[outputs.size() + 1];
-        groups[0] = TypedValue.of(Arrays.copyOfRange(data, from, from + highWater));
+        groups[0] = TypedValue.of(Arrays.copyOfRange(data, from, from + highWater), encoding);
         for (int i = 0; i < outputs.size(); i++) {
             groups[i + 1] = outputs.get(i);
         }
@@ -154,10 +153,12 @@ public final class Steps {
                 // literals under the template's charset (E3), and a tag is the same kind of
                 // literal looking for the same kind of bytes.
                 final byte[] bytes = encoding.encode(tag.value());
-                yield startsWith(data, from, to, bytes) ? new Result(TypedValue.of(bytes), bytes.length) : null;
+                yield startsWith(data, from, to, bytes)
+                        ? new Result(TypedValue.of(bytes, encoding), bytes.length)
+                        : null;
             }
             case MatchStep.MatchByte value -> startsWith(data, from, to, value.value())
-                    ? new Result(TypedValue.of(value.value()), value.value().length)
+                    ? new Result(TypedValue.of(value.value(), encoding), value.value().length)
                     : null;
             case MatchStep.TakeWhile takeWhile -> {
                 // E5: the predicate classifies characters, not bytes, and a character is what
@@ -174,7 +175,8 @@ public final class Steps {
                     end += (int) (decoded & 0xFF);
                 }
                 yield end > from
-                        ? new Result(TypedValue.of(Arrays.copyOfRange(data, from, end)), end - from)
+                        ? new Result(TypedValue.of(Arrays.copyOfRange(data, from, end), encoding),
+                                end - from)
                         : null;
             }
             case MatchStep.TakeUntil takeUntil -> {
@@ -187,10 +189,12 @@ public final class Steps {
                     yield null;
                 }
                 final int end = takeUntil.inclusive() ? found + needle.length : found;
-                yield new Result(TypedValue.of(Arrays.copyOfRange(data, from, end)), end - from);
+                yield new Result(TypedValue.of(Arrays.copyOfRange(data, from, end), encoding),
+                        end - from);
             }
-            case MatchStep.TakeBytes takeBytes -> take(count(takeBytes.count(), prior, local), data, from, to);
-            case MatchStep.TakeN takeN -> take(takeN.count(), data, from, to);
+            case MatchStep.TakeBytes takeBytes ->
+                    take(count(takeBytes.count(), prior, local), data, from, to, encoding);
+            case MatchStep.TakeN takeN -> take(takeN.count(), data, from, to, encoding);
             case MatchStep.AnyChar ignored -> {
                 if (available <= 0) {
                     yield null;
@@ -202,7 +206,8 @@ public final class Steps {
                     yield null;
                 }
                 final int length = (int) (decoded & 0xFF);
-                yield new Result(TypedValue.of(Arrays.copyOfRange(data, from, from + length)), length);
+                yield new Result(
+                        TypedValue.of(Arrays.copyOfRange(data, from, from + length), encoding), length);
             }
             case MatchStep.ReadNumeric numeric -> number(numeric, data, from, to);
             case MatchStep.ReadVarint ignored -> {
@@ -240,7 +245,7 @@ public final class Steps {
                     yield null;
                 }
                 final byte[] decoded = Codecs.decode(input, decode.codec());
-                yield decoded == null ? null : new Result(TypedValue.of(decoded), 0);
+                yield decoded == null ? null : new Result(TypedValue.of(decoded, encoding), 0);
             }
             case MatchStep.Encode encode -> {
                 final byte[] input = bytes(encode.data(), prior, local);
@@ -248,7 +253,7 @@ public final class Steps {
                     yield null;
                 }
                 final byte[] encoded = Codecs.encode(input, encode.codec());
-                yield encoded == null ? null : new Result(TypedValue.of(encoded), 0);
+                yield encoded == null ? null : new Result(TypedValue.of(encoded, encoding), 0);
             }
             case MatchStep.Regex regex -> {
                 final BytePattern pattern = patterns.get(
@@ -262,14 +267,14 @@ public final class Steps {
                     yield null;
                 }
                 final byte[] matched = matcher.groupBytes(0);
-                yield new Result(TypedValue.of(matched), matched.length);
+                yield new Result(TypedValue.of(matched, encoding), matched.length);
             }
             case MatchStep.Choice choice -> {
                 for (final List<MatchStep> alternative : choice.alternatives()) {
                     final Integer consumed = sequence(
                             alternative, data, from, to, prior, local, position, patterns, encoding);
                     if (consumed != null) {
-                        yield consumed(data, from, consumed);
+                        yield consumed(data, from, consumed, encoding);
                     }
                 }
                 yield null;
@@ -277,7 +282,7 @@ public final class Steps {
             case MatchStep.Optional optional -> {
                 final Integer consumed = sequence(
                         optional.steps(), data, from, to, prior, local, position, patterns, encoding);
-                yield consumed(data, from, consumed == null ? 0 : consumed);
+                yield consumed(data, from, consumed == null ? 0 : consumed, encoding);
             }
             case MatchStep.Repeat repeat -> {
                 int total = 0;
@@ -292,12 +297,12 @@ public final class Steps {
                     total += consumed;
                     iterations++;
                 }
-                yield iterations >= repeat.min() ? consumed(data, from, total) : null;
+                yield iterations >= repeat.min() ? consumed(data, from, total, encoding) : null;
             }
             case MatchStep.Sequence nested -> {
                 final Integer consumed = sequence(
                         nested.steps(), data, from, to, prior, local, position, patterns, encoding);
-                yield consumed == null ? null : consumed(data, from, consumed);
+                yield consumed == null ? null : consumed(data, from, consumed, encoding);
             }
             case MatchStep.Peek peek -> sequence(
                     peek.steps(), data, from, to, prior, local, position, patterns, encoding) == null
@@ -363,15 +368,24 @@ public final class Steps {
     // Pieces
     // -----------------------------------------------------------------------------------
 
-    private static Result consumed(final byte[] data, final int from, final int length) {
-        return new Result(TypedValue.of(Arrays.copyOfRange(data, from, from + length)), length);
+    private static Result consumed(final byte[] data,
+                                   final int from,
+                                   final int length,
+                                   final Encoding encoding) {
+        return new Result(TypedValue.of(Arrays.copyOfRange(data, from, from + length), encoding),
+                length);
     }
 
-    private static Result take(final Integer count, final byte[] data, final int from, final int to) {
+    private static Result take(final Integer count,
+                               final byte[] data,
+                               final int from,
+                               final int to,
+                               final Encoding encoding) {
         if (count == null || count < 0 || count > to - from) {
             return null;
         }
-        return new Result(TypedValue.of(Arrays.copyOfRange(data, from, from + count)), count);
+        return new Result(TypedValue.of(Arrays.copyOfRange(data, from, from + count), encoding),
+                count);
     }
 
     /** A step reference: a number written down, or one an earlier step produced. */
@@ -570,7 +584,7 @@ public final class Steps {
     private static TypedValue unsigned(final long raw) {
         return raw >= 0
                 ? new TypedValue.Integer(raw)
-                : TypedValue.of(Long.toUnsignedString(raw).getBytes(StandardCharsets.US_ASCII));
+                : TypedValue.of(Long.toUnsignedString(raw));
     }
 
     /**

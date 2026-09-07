@@ -43,7 +43,6 @@ import stroom.shapeshifter.engine.value.Transforms;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -170,77 +169,75 @@ final class Body {
               final OutputSink sink,
               final long inputBase,
               final boolean ignoreErrors,
-              final int depth,
-              final Encoding contentEncoding) {
+              final int depth) {
         for (final CompiledOp op : ops) {
             switch (op) {
                 case CompiledOp.Text text -> sink.write(text.bytes());
                 case CompiledOp.ValueOf valueOf ->
-                        CompiledRefs.write(valueOf.ref(), match, matchCount, vars, contentEncoding,
-                                sink);
+                        CompiledRefs.write(valueOf.ref(), match, matchCount, vars, sink);
                 case CompiledOp.Apply apply ->
-                        apply(apply, match, matchCount, content, sink, inputBase, ignoreErrors, depth,
-                                contentEncoding);
+                        apply(apply, match, matchCount, content, sink, inputBase, ignoreErrors,
+                                depth);
                 case CompiledOp.If value -> {
-                    if (test(value.test(), match, matchCount, contentEncoding)) {
+                    if (test(value.test(), match, matchCount)) {
                         body(value.then(), match, matchCount, content, sink,
-                                inputBase, ignoreErrors, depth, contentEncoding);
+                                inputBase, ignoreErrors, depth);
                     }
                 }
                 case CompiledOp.Choose value -> {
                     boolean taken = false;
                     for (final CompiledOp.When branch : value.when()) {
-                        if (test(branch.test(), match, matchCount, contentEncoding)) {
+                        if (test(branch.test(), match, matchCount)) {
                             body(branch.body(), match, matchCount, content, sink,
-                                    inputBase, ignoreErrors, depth, contentEncoding);
+                                    inputBase, ignoreErrors, depth);
                             taken = true;
                             break;
                         }
                     }
                     if (!taken) {
                         body(value.otherwise(), match, matchCount, content, sink,
-                                inputBase, ignoreErrors, depth, contentEncoding);
+                                inputBase, ignoreErrors, depth);
                     }
                 }
                 case CompiledOp.Switch value -> {
-                    final String selected = textOf(value.select(), match, matchCount, contentEncoding);
+                    final String selected = textOf(value.select(), match, matchCount);
                     boolean taken = false;
                     for (final CompiledOp.Case switchCase : value.cases()) {
                         if (switchCase.value().equals(selected)) {
                             body(switchCase.body(), match, matchCount, content, sink,
-                                    inputBase, ignoreErrors, depth, contentEncoding);
+                                    inputBase, ignoreErrors, depth);
                             taken = true;
                             break;
                         }
                     }
                     if (!taken) {
                         body(value.defaultBody(), match, matchCount, content, sink,
-                                inputBase, ignoreErrors, depth, contentEncoding);
+                                inputBase, ignoreErrors, depth);
                     }
                 }
                 case CompiledOp.Variable value ->
-                        variable(value, match, matchCount, content, inputBase, ignoreErrors, depth, contentEncoding);
+                        variable(value, match, matchCount, content, inputBase, ignoreErrors, depth);
                 case CompiledOp.Element value -> {
                     structure(() -> sink.startElement(value.name(), value.namespace(), value.omitIfEmpty()),
                             "element '" + value.name() + "'");
                     body(value.body(), match, matchCount, content, sink,
-                            inputBase, ignoreErrors, depth, contentEncoding);
+                            inputBase, ignoreErrors, depth);
                     structure(sink::endElement, "element '" + value.name() + "'");
                 }
                 case CompiledOp.Attribute value -> {
                     structure(() -> sink.startAttribute(value.name(), value.omitIfEmpty()),
                             "attribute '" + value.name() + "'");
                     body(value.body(), match, matchCount, content, sink,
-                            inputBase, ignoreErrors, depth, contentEncoding);
+                            inputBase, ignoreErrors, depth);
                     structure(sink::endAttribute, "attribute '" + value.name() + "'");
                 }
                 case CompiledOp.Namespace value ->
                         structure(() -> sink.namespace(value.prefix(), value.uri()),
                                 "namespace '" + value.prefix() + "'");
                 case CompiledOp.CallTemplate value -> callTemplate(value, match, matchCount, content, sink,
-                        inputBase, ignoreErrors, depth, contentEncoding);
+                        inputBase, ignoreErrors, depth);
                 case CompiledOp.ValueMap value -> {
-                    final String selected = textOf(value.select(), match, matchCount, contentEncoding);
+                    final String selected = textOf(value.select(), match, matchCount);
                     String mapped = null;
                     for (final OutputNode.Entry entry : value.entries()) {
                         if (entry.from().equals(selected)) {
@@ -254,9 +251,9 @@ final class Body {
                     emit(TypedValue.of(mapped == null ? "" : mapped), value.name(), matchCount, sink);
                 }
                 case CompiledOp.Transform value ->
-                        transform(value, match, matchCount, sink, contentEncoding);
+                        transform(value, match, matchCount, sink);
                 case CompiledOp.CallFunction value ->
-                        callFunction(value, match, matchCount, sink, inputBase, contentEncoding);
+                        callFunction(value, match, matchCount, sink, inputBase);
                 case CompiledOp.Sequence value -> {
                     // Declared here, emptied here: an accumulation that outlived its previous
                     // run would carry the last stream's values into this one.
@@ -265,7 +262,7 @@ final class Body {
                 }
                 case CompiledOp.Append value -> {
                     final TypedValue appended = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars, contentEncoding);
+                            value.select(), match, matchCount, vars);
                     if (appended != null) {
                         guardAccumulation(value.name());
                         // Absent appends nothing rather than a hole: in a dense sequence an
@@ -280,11 +277,12 @@ final class Body {
                 case CompiledOp.DistinctValues value -> distinct(value);
                 case CompiledOp.Tokenize value -> {
                     final TypedValue input = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars, contentEncoding);
+                            value.select(), match, matchCount, vars);
                     if (value.name() == null) {
                         if (input != null) {
                             // Written straight out, it keeps the joined rendering it always had.
-                            sink.write(Transforms.tokenize(List.of(input), value.delimiter()).asBytes());
+                            sink.write(Transforms.tokenize(List.of(input), value.delimiter())
+                                    .utf8());
                         }
                     } else {
                         // Nothing to split is the empty sequence, which a walk runs over zero
@@ -297,11 +295,11 @@ final class Body {
                 case CompiledOp.Key value -> {
                     // Built where it is written, so the cost is paid somewhere visible.
                     keyIndexes.put(value.name(), file(value.select(), value.groupBy(),
-                            match, matchCount, contentEncoding));
+                            match, matchCount));
                 }
                 case CompiledOp.KeyGet value -> {
                     final TypedValue wanted = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars, contentEncoding);
+                            value.select(), match, matchCount, vars);
                     final Map<String, Filed> index = keyIndexes.getOrDefault(value.key(), Map.of());
                     // A value with no entry binds an empty sequence, which a walk runs over
                     // zero times — the same non-answer XSLT's key() gives, not an error.
@@ -317,13 +315,13 @@ final class Body {
                 }
                 case CompiledOp.ForEachGroup value ->
                         forEachGroup(value, match, matchCount, content, sink,
-                                inputBase, ignoreErrors, depth, contentEncoding);
+                                inputBase, ignoreErrors, depth);
                 case CompiledOp.ForEach value ->
                         forEach(value, match, matchCount, content, sink,
-                                inputBase, ignoreErrors, depth, contentEncoding);
+                                inputBase, ignoreErrors, depth);
                 case CompiledOp.ParseDate value -> {
                     final TypedValue input = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars, contentEncoding);
+                            value.select(), match, matchCount, vars);
                     TypedValue result = null;
                     if (input != null) {
                         // The reference is a date read like any other (design/17 §9.2): a
@@ -332,8 +330,7 @@ final class Body {
                         final TypedValue reference = value.reference() == null
                                 ? null
                                 : Comparisons.cast(CompiledRefs.resolveValue(
-                                        value.reference(), match, matchCount, vars, contentEncoding),
-                                        Cast.DATE);
+                                        value.reference(), match, matchCount, vars), Cast.DATE);
                         result = Dates.parse(value.parser(), input.asString(),
                                 (TypedValue.Instant) reference);
                     }
@@ -341,7 +338,7 @@ final class Body {
                 }
                 case CompiledOp.EmitError value -> {
                     final String text = CompiledRefs.resolveText(
-                            value.message(), match, matchCount, vars, contentEncoding);
+                            value.message(), match, matchCount, vars);
                     messages.add(new Message(value.severity(), text == null ? "" : text));
                     if (value.severity() == Severity.FATAL) {
                         // The message is recorded; the run ends here (D36).
@@ -354,14 +351,12 @@ final class Body {
 
     private boolean test(final Condition condition,
                          final MatchResult match,
-                         final int matchCount,
-                         final Encoding contentEncoding) {
-        return Conditions.evaluate(condition, match, matchCount, vars, contentEncoding, compiled.patterns());
+                         final int matchCount) {
+        return Conditions.evaluate(condition, match, matchCount, vars, compiled.patterns());
     }
 
-    private String textOf(final CompiledRef ref, final MatchResult match, final int matchCount,
-                          final Encoding contentEncoding) {
-        final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars, contentEncoding);
+    private String textOf(final CompiledRef ref, final MatchResult match, final int matchCount) {
+        final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars);
         return resolved == null ? "" : resolved;
     }
 
@@ -374,8 +369,7 @@ final class Body {
                               final MatchResult match,
                               final int matchCount,
                               final OutputSink sink,
-                              final long inputBase,
-                              final Encoding contentEncoding) {
+                              final long inputBase) {
         final FunctionDefinition definition = op.definition();
         if (functions.skippedInPreview(definition)) {
             emit(null, op.name(), matchCount, sink);
@@ -395,7 +389,7 @@ final class Body {
                 continue;
             }
             final TypedValue resolved = CompiledRefs.resolveValue(
-                    op.select().get(i), match, matchCount, vars, contentEncoding);
+                    op.select().get(i), match, matchCount, vars);
             raw.add(resolved);
             values.add(resolved == null ? null : castTo(resolved, kinds.get(i)));
             sequences.add(null);
@@ -431,14 +425,13 @@ final class Body {
     private void transform(final CompiledOp.Transform op,
                            final MatchResult match,
                            final int matchCount,
-                           final OutputSink sink,
-                           final Encoding contentEncoding) {
+                           final OutputSink sink) {
         final List<CompiledRef> select = op.select();
         final String name = op.name();
         final Function<List<TypedValue>, TypedValue> function = op.function();
         final List<TypedValue> inputs = new ArrayList<>(select.size());
         for (final CompiledRef ref : select) {
-            final TypedValue resolved = CompiledRefs.resolveValue(ref, match, matchCount, vars, contentEncoding);
+            final TypedValue resolved = CompiledRefs.resolveValue(ref, match, matchCount, vars);
             if (resolved != null) {
                 inputs.add(resolved);
             }
@@ -480,7 +473,7 @@ final class Body {
     private void emit(final TypedValue value, final String name, final int matchCount, final OutputSink sink) {
         if (name == null) {
             if (value != null) {
-                sink.write(value.asBytes());
+                sink.write(value.utf8());
             }
         } else if (value == null) {
             vars.store(name).remove(matchCount);
@@ -617,8 +610,7 @@ final class Body {
     private Map<String, Filed> file(final String select,
                                     final CompiledRef groupBy,
                                     final MatchResult match,
-                                    final int matchCount,
-                                    final Encoding contentEncoding) {
+                                    final int matchCount) {
         final Map<String, Filed> members = new LinkedHashMap<>();
         final List<Store> stores = vars.get(select);
         if (stores == null || stores.isEmpty()) {
@@ -635,7 +627,7 @@ final class Body {
             vars.store(EngineVars.INDEX).set(1, new TypedValue.Integer(index));
             final TypedValue key = groupBy == null
                     ? entry
-                    : CompiledRefs.resolveValue(groupBy, match, matchCount, vars, contentEncoding);
+                    : CompiledRefs.resolveValue(groupBy, match, matchCount, vars);
             members.computeIfAbsent(key == null ? null : key.asString(),
                     ignored -> new Filed(key, new ArrayList<>())).members().add(index);
         }
@@ -672,8 +664,7 @@ final class Body {
                               final OutputSink sink,
                               final long inputBase,
                               final boolean ignoreErrors,
-                              final int depth,
-                              final Encoding contentEncoding) {
+                              final int depth) {
         final List<Store> stores = vars.get(op.select());
         if (stores == null || stores.isEmpty()) {
             return;
@@ -681,7 +672,7 @@ final class Body {
 
         // The same index a key builds (design/16 §8): grouping walks every entry of it,
         // a key reaches one entry by value. One builder, two readings.
-        final Map<String, Filed> members = file(op.select(), op.groupBy(), match, matchCount, contentEncoding);
+        final Map<String, Filed> members = file(op.select(), op.groupBy(), match, matchCount);
         if (members.isEmpty()) {
             return;
         }
@@ -703,7 +694,7 @@ final class Body {
             }
             vars.store(EngineVars.GROUP_SIZE).set(1, new TypedValue.Integer(indices.size()));
             body(op.body(), match, matchCount, content, sink,
-                    inputBase, ignoreErrors, depth, contentEncoding);
+                    inputBase, ignoreErrors, depth);
         }
         vars.pop();
     }
@@ -726,8 +717,7 @@ final class Body {
                                  final List<Integer> populated,
                                  final Store store,
                                  final MatchResult match,
-                                 final int matchCount,
-                                 final Encoding contentEncoding) {
+                                 final int matchCount) {
         final int keyCount = op.sort().size();
         final TypedValue[][] keys = new TypedValue[populated.size()][keyCount];
 
@@ -750,7 +740,7 @@ final class Body {
             for (int k = 0; k < keyCount; k++) {
                 final CompiledOp.SortKey key = op.sort().get(k);
                 final TypedValue raw = CompiledRefs.resolveValue(
-                        key.by(), match, matchCount, vars, contentEncoding);
+                        key.by(), match, matchCount, vars);
                 // Uncast, an ordering compares string forms — the one total reading.
                 keys[i][k] = Comparisons.cast(raw, key.as() == null ? Cast.STRING : key.as());
             }
@@ -822,8 +812,7 @@ final class Body {
                          final OutputSink sink,
                          final long inputBase,
                          final boolean ignoreErrors,
-                         final int depth,
-                         final Encoding contentEncoding) {
+                         final int depth) {
         final List<Store> stores = vars.get(op.select());
         if (stores == null || stores.isEmpty()) {
             return;
@@ -840,7 +829,7 @@ final class Body {
         }
         final List<Integer> order = op.sort().isEmpty()
                 ? populated
-                : sorted(op, populated, store, match, matchCount, contentEncoding);
+                : sorted(op, populated, store, match, matchCount);
 
         vars.push();
         if (op.as() != null) {
@@ -862,7 +851,7 @@ final class Body {
                 vars.store(op.as()).set(1, store.get(index));
             }
             body(op.body(), match, matchCount, content, sink,
-                    inputBase, ignoreErrors, depth, contentEncoding);
+                    inputBase, ignoreErrors, depth);
         }
         vars.pop();
     }
@@ -898,8 +887,7 @@ final class Body {
                           final byte[] content,
                           final long inputBase,
                           final boolean ignoreErrors,
-                          final int depth,
-                          final Encoding contentEncoding) {
+                          final int depth) {
         vars.push();
         vars.shadow(value.name());
 
@@ -908,7 +896,7 @@ final class Body {
         final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         body(value.body(), match, matchCount, content,
                 new XmlByteSink(buffer, XmlByteSink.Layout.FAITHFUL), inputBase, ignoreErrors,
-                depth, contentEncoding);
+                depth);
 
         List<Store> captured = vars.fromCurrentScope(value.name());
         if (captured != null && captured.stream().noneMatch(store -> store.lastIndex() >= 0)) {
@@ -922,7 +910,7 @@ final class Body {
             target.clear();
             target.addAll(promoted);
         } else if (buffer.size() > 0) {
-            vars.store(value.name()).set(matchCount, TypedValue.of(buffer.toByteArray()));
+            vars.store(value.name()).set(matchCount, TypedValue.utf8(buffer.toByteArray()));
         } else {
             vars.store(value.name()).remove(matchCount);
         }
@@ -941,8 +929,7 @@ final class Body {
                               final OutputSink sink,
                               final long inputBase,
                               final boolean ignoreErrors,
-                              final int depth,
-                              final Encoding contentEncoding) {
+                              final int depth) {
         final CompiledTemplate target = compiled.template(value.name());
         if (target == null) {
             return;
@@ -952,7 +939,7 @@ final class Body {
         // variable its parameter will shadow — and only then does the call's own scope open.
         final List<byte[]> resolved = new ArrayList<>(value.args().size());
         for (final CompiledOp.Arg arg : value.args()) {
-            resolved.add(CompiledRefs.resolve(arg.value(), match, matchCount, vars, contentEncoding));
+            resolved.add(CompiledRefs.resolve(arg.value(), match, matchCount, vars));
         }
 
         vars.push();
@@ -963,7 +950,7 @@ final class Body {
             // through the new scope and outlive the call.
             vars.shadow(arg.name());
             if (resolved.get(i) != null) {
-                vars.store(arg.name()).set(1, TypedValue.of(resolved.get(i)));
+                vars.store(arg.name()).set(1, TypedValue.utf8(resolved.get(i)));
             }
         }
         for (final Template.ParamDecl declared : target.template().param()) {
@@ -972,10 +959,10 @@ final class Body {
                     .anyMatch(arg -> arg.name().equals(declared.name()));
             if (!supplied && declared.defaultValue() != null) {
                 vars.store(declared.name())
-                        .set(1, TypedValue.of(declared.defaultValue().getBytes(StandardCharsets.UTF_8)));
+                        .set(1, TypedValue.of(declared.defaultValue()));
             }
         }
-        body(target.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth, contentEncoding);
+        body(target.body(), match, matchCount, content, sink, inputBase, ignoreErrors, depth);
         vars.pop();
     }
 
@@ -994,8 +981,7 @@ final class Body {
                        final OutputSink sink,
                        final long parentBase,
                        final boolean inheritedIgnoreErrors,
-                       final int depth,
-                       final Encoding contentEncoding) {
+                       final int depth) {
         final ApplyDirective directive = op.directive();
         if (depth >= directive.maxDepth()) {
             return;
@@ -1009,7 +995,7 @@ final class Body {
         // that is what the select means was decided at compile time.
         final byte[] content = op.wholeParentContent()
                 ? parentContent
-                : CompiledRefs.resolve(op.select(), match, matchCount, vars, contentEncoding);
+                : CompiledRefs.resolve(op.select(), match, matchCount, vars);
         if (content == null || content.length == 0) {
             return;
         }

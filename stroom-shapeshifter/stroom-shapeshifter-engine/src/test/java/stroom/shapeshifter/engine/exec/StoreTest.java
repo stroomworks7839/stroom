@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StoreTest {
 
     private static TypedValue text(final String value) {
-        return TypedValue.of(value.getBytes(StandardCharsets.UTF_8));
+        return TypedValue.of(value);
     }
 
     // -----------------------------------------------------------------------------------

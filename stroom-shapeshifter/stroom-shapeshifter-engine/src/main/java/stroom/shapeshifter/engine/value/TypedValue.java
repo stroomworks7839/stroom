@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine.value;
 
+import stroom.shapeshifter.engine.text.Encoding;
+
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -24,30 +26,72 @@ import java.util.Arrays;
 /**
  * A value captured during matching.
  *
- * <p>Bytes are the default and the common case: a capture is a slice of the input, and turning
- * it into text costs a decode that most captures never need — they are written straight back
- * out. The numeric variants exist so that binary match steps, which have already done the work
- * of decoding an integer, do not have to render it to a string and parse it again at the other
- * end. Formatting is deferred to the output boundary in every case.
+ * <p>Bytes are the default and the common case: a capture is a slice of the input, tagged with
+ * the encoding it is in and never transcoded until a consumer asks for text (design 25, D43).
+ * Most captures never need that — they are written straight back out. The numeric variants
+ * exist so that binary match steps, which have already done the work of decoding an integer,
+ * do not have to render it to a string and parse it again at the other end. Formatting is
+ * deferred to the output boundary in every case.
  */
 public sealed interface TypedValue {
 
-    /** Raw bytes from the input. */
-    record Bytes(byte[] value) implements TypedValue {
+    /**
+     * Bytes as they were read, and the encoding they are in (design 25, D43). Nothing is
+     * transcoded when a value is captured, stored, bound or passed; a consumer that needs text
+     * asks for {@link #utf8()}, which is computed on first use and kept. Two values are equal
+     * when their text is: the same tag and the same bytes decide it without decoding.
+     */
+    final class Bytes implements TypedValue {
+
+        private final byte[] value;
+        private final Encoding encoding;
+        /** The UTF-8 form, filled on first use. The run is single-threaded. */
+        private byte[] utf8;
+
+        private Bytes(final byte[] value, final Encoding encoding) {
+            this.value = value;
+            this.encoding = encoding;
+        }
+
+        /** The bytes as read, in {@link #encoding()}. */
+        public byte[] value() {
+            return value;
+        }
+
+        /** What the bytes are in. */
+        public Encoding encoding() {
+            return encoding;
+        }
+
+        /** The bytes as UTF-8 — the array itself when the tag is UTF-8-compatible. */
+        public byte[] utf8() {
+            if (utf8 == null) {
+                utf8 = encoding.isUtf8Compatible()
+                        ? value
+                        : encoding.decode(value).getBytes(StandardCharsets.UTF_8);
+            }
+            return utf8;
+        }
 
         @Override
         public boolean equals(final Object other) {
-            return other instanceof Bytes bytes && Arrays.equals(value, bytes.value);
+            if (!(other instanceof Bytes bytes)) {
+                return false;
+            }
+            if (encoding == bytes.encoding && Arrays.equals(value, bytes.value)) {
+                return true;
+            }
+            return Arrays.equals(utf8(), bytes.utf8());
         }
 
         @Override
         public int hashCode() {
-            return Arrays.hashCode(value);
+            return Arrays.hashCode(utf8());
         }
 
         @Override
         public String toString() {
-            return new String(value, StandardCharsets.UTF_8);
+            return new String(utf8(), StandardCharsets.UTF_8);
         }
     }
 
@@ -90,14 +134,19 @@ public sealed interface TypedValue {
         }
     }
 
-    /** Wrap bytes. */
-    static TypedValue of(final byte[] value) {
-        return new Bytes(value);
+    /** Wrap bytes, saying what they are in. */
+    static TypedValue of(final byte[] value, final Encoding encoding) {
+        return new Bytes(value, encoding);
     }
 
-    /** Wrap text, as UTF-8 bytes — the engine's internal form. */
+    /** Wrap bytes that are UTF-8 already: a literal, a composite, a function's result. */
+    static TypedValue utf8(final byte[] value) {
+        return new Bytes(value, Encoding.UTF_8);
+    }
+
+    /** Wrap text, as UTF-8 bytes. */
     static TypedValue of(final String value) {
-        return new Bytes(value.getBytes(StandardCharsets.UTF_8));
+        return new Bytes(value.getBytes(StandardCharsets.UTF_8), Encoding.UTF_8);
     }
 
     /** True if this value has no content. Empty captures are treated as absent by references. */
@@ -106,10 +155,9 @@ public sealed interface TypedValue {
     }
 
     /**
-     * The value as bytes, ready to write.
+     * The value as bytes: captured bytes as they are, in their own encoding.
      *
-     * <p>Numbers render as ASCII, which is safe in every encoding the engine supports, so this
-     * is also the encoding-independent form.
+     * <p>Numbers render as ASCII, which is safe in every encoding the engine supports.
      */
     default byte[] asBytes() {
         return switch (this) {
@@ -121,10 +169,15 @@ public sealed interface TypedValue {
         };
     }
 
-    /** The value as text, decoding bytes as UTF-8. */
+    /** The value as UTF-8 bytes: captured bytes decoded by their tag, once; the rest as ASCII. */
+    default byte[] utf8() {
+        return this instanceof Bytes bytes ? bytes.utf8() : asBytes();
+    }
+
+    /** The value as text, decoding bytes by their tag. */
     default String asString() {
         return switch (this) {
-            case Bytes bytes -> new String(bytes.value(), StandardCharsets.UTF_8);
+            case Bytes bytes -> new String(bytes.utf8(), StandardCharsets.UTF_8);
             case Integer value -> Long.toString(value.value());
             case Double value -> format(value.value());
             case Bool value -> Boolean.toString(value.value());
@@ -140,7 +193,7 @@ public sealed interface TypedValue {
             case Bool value -> value.value() ? 1.0 : 0.0;
             case Bytes bytes -> {
                 // E26: the parse that answers "no" without throwing (Numbers).
-                yield Numbers.real(new String(bytes.value(), StandardCharsets.UTF_8).trim());
+                yield Numbers.real(new String(bytes.utf8(), StandardCharsets.UTF_8).trim());
             }
             // Epoch milliseconds, documented lossy: the escape hatch that keeps date
             // arithmetic ordinary without every numeric site learning about nanoseconds.
@@ -168,7 +221,8 @@ public sealed interface TypedValue {
                     ? (long) value.value()
                     : null;
             case Bool value -> value.value() ? 1L : 0L;
-            case Bytes bytes -> Numbers.whole(new String(bytes.value(), StandardCharsets.UTF_8).trim());
+            case Bytes bytes ->
+                    Numbers.whole(new String(bytes.utf8(), StandardCharsets.UTF_8).trim());
             // Absent when exact millis do not fit a long — the same refusal as a Double too
             // wide for the cast: unrepresentable is absent, never a throw (§2).
             case Instant value -> millis(value);
@@ -189,7 +243,7 @@ public sealed interface TypedValue {
             case Integer value -> value.value() != 0;
             case Double value -> value.value() != 0.0;
             case Bool value -> value.value();
-            case Bytes bytes -> switch (new String(bytes.value(), StandardCharsets.UTF_8).trim()) {
+            case Bytes bytes -> switch (new String(bytes.utf8(), StandardCharsets.UTF_8).trim()) {
                 case "true", "1" -> true;
                 case "false", "0" -> false;
                 default -> null;

@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
+
 package stroom.shapeshifter.engine;
+
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.util.UUID;
 
@@ -77,13 +80,13 @@ public interface Instrument {
      *
      * @param templateId which template bound it
      * @param name       the variable's name
-     * @param value      its value, in the engine's internal form — UTF-8, already normalised
-     *                   from the template's declared encoding — not necessarily the input bytes
+     * @param value      its value as bound: captured bytes as read, tagged with their encoding
+     *                   (design 25), or a typed value a step produced
      * @param matchIndex which match it belongs to
      */
     default void onCapture(final UUID templateId,
                            final String name,
-                           final byte[] value,
+                           final TypedValue value,
                            final int matchIndex) {
     }
 

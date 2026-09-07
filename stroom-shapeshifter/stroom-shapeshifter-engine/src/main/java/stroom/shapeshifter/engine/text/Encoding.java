@@ -39,7 +39,7 @@ import java.util.Map;
  */
 public enum Encoding {
 
-    /** UTF-8. The default, and what everything else is converted to internally. */
+    /** UTF-8. The default, and the tag of every literal, composite and function result. */
     UTF_8("utf-8", "UTF-8"),
     /** UTF-16, least significant byte first. */
     UTF_16LE("utf-16le", "UTF-16LE"),

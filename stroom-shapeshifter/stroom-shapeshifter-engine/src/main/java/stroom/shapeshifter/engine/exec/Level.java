@@ -247,7 +247,7 @@ final class Level {
         final TypedValue swallowed = content(candidate.template(), match);
         if (swallowed != null && !swallowed.isEmpty()) {
             body.body(candidate.body(), match, 1, swallowed.asBytes(), sink,
-                    locateBase, ignoreErrors, depth, effective(candidate));
+                    locateBase, ignoreErrors, depth);
         }
     }
 
@@ -507,7 +507,7 @@ final class Level {
             final Template template = templates.get(i).template();
             allowed[i] = template.guard() == null
                          || Conditions.evaluate(
-                    template.guard(), MatchResult.empty(), 1, vars, encoding, compiled.patterns());
+                    template.guard(), MatchResult.empty(), 1, vars, compiled.patterns());
         }
         return allowed;
     }
@@ -586,7 +586,7 @@ final class Level {
         bindCaptures(candidate, match, matchCount);
         final long before = sink.position();
         body.body(candidate.body(), match, matchCount, content.asBytes(), sink,
-                locateBase, ignoreErrors, depth, effective(candidate));
+                locateBase, ignoreErrors, depth);
         instrument.onOutput(template.id(), matchCount, before, sink.position() - before, sink.unit());
     }
 
@@ -619,13 +619,16 @@ final class Level {
         return switch (compiledTemplate.match()) {
             case CompiledMatch.Delimiter delimiter -> Splitter.split(data, from, to,
                     delimiter.delimiter(), delimiter.escape(),
-                    delimiter.containerStart(), delimiter.containerEnd());
-            case CompiledMatch.Regex regex -> regexMatch(regex, data, from, to, atCursor);
+                    delimiter.containerStart(), delimiter.containerEnd(),
+                    effective(compiledTemplate));
+            case CompiledMatch.Regex regex ->
+                    regexMatch(regex, data, from, to, atCursor, effective(compiledTemplate));
             case CompiledMatch.Progressive progressive ->
                     Steps.match(progressive.steps(), data, from, to, compiled.patterns(),
                             effective(compiledTemplate));
             case CompiledMatch.All ignored -> new MatchResult(
-                    new TypedValue[]{TypedValue.of(Arrays.copyOfRange(data, from, to))}, to - from, 0);
+                    new TypedValue[]{TypedValue.of(Arrays.copyOfRange(data, from, to),
+                            effective(compiledTemplate))}, to - from, 0);
             case CompiledMatch.Source ignored -> null;
             case CompiledMatch.Named ignored -> null;
         };
@@ -635,7 +638,8 @@ final class Level {
                                           final byte[] data,
                                           final int from,
                                           final int to,
-                                          final boolean atCursor) {
+                                          final boolean atCursor,
+                                          final Encoding encoding) {
         // The node owns its matcher (D35) and asks the question the library's published
         // anchor fact licenses: for an input-anchored pattern the anchored and unanchored
         // questions provably agree, so the node asks the one with the bare prologue. The
@@ -649,7 +653,7 @@ final class Level {
         final TypedValue[] groups = new TypedValue[groupCount];
         for (int i = 0; i < groupCount; i++) {
             if (matcher.matchedGroup(i)) {
-                groups[i] = TypedValue.of(matcher.groupBytes(i));
+                groups[i] = TypedValue.of(matcher.groupBytes(i), encoding);
             }
         }
 
@@ -665,27 +669,25 @@ final class Level {
     private void bindCaptures(final CompiledTemplate compiledTemplate,
                               final MatchResult match,
                               final int matchCount) {
-        final Encoding contentEncoding = effective(compiledTemplate);
         for (final CaptureBinding capture : compiledTemplate.template().captures()) {
             final TypedValue value = switch (capture.select()) {
-                // A capture is a slice of the input, and is stored in the engine's own form so
-                // that everything reading it later can assume UTF-8.
-                case CaptureBinding.CaptureSource.Group group -> normalise(match.group(group.group()), contentEncoding);
-                case CaptureBinding.CaptureSource.Step step -> normalise(match.group(step.index() + 1),
-                        contentEncoding);
+                // A capture is a slice of the input, stored as the match tagged it: nothing is
+                // transcoded until a consumer asks for text (design 25).
+                case CaptureBinding.CaptureSource.Group group -> match.group(group.group());
+                case CaptureBinding.CaptureSource.Step step -> match.group(step.index() + 1);
                 case CaptureBinding.CaptureSource.Select select -> {
-                    final byte[] bytes = Refs.resolve(select.select(), match, matchCount, vars, contentEncoding);
-                    yield bytes == null ? null : TypedValue.of(bytes);
+                    final byte[] bytes = Refs.resolve(select.select(), match, matchCount, vars);
+                    yield bytes == null ? null : TypedValue.utf8(bytes);
                 }
                 case CaptureBinding.CaptureSource.Field ignored -> throw new IllegalStateException(
                         "Field capture sources are refused at compile time");
                 case CaptureBinding.CaptureSource.KeyValue keyValue -> {
-                    final String key = Refs.resolveText(keyValue.keyRef(), match, matchCount, vars, contentEncoding);
+                    final String key = Refs.resolveText(keyValue.keyRef(), match, matchCount, vars);
                     if (key != null) {
-                        final byte[] bytes = Refs.resolve(keyValue.valueRef(), match, matchCount, vars,
-                                contentEncoding);
+                        final byte[] bytes = Refs.resolve(keyValue.valueRef(), match, matchCount,
+                                vars);
                         if (bytes != null) {
-                            vars.store(key).set(matchCount, TypedValue.of(bytes));
+                            vars.store(key).set(matchCount, TypedValue.utf8(bytes));
                         }
                     }
                     yield null;
@@ -696,8 +698,8 @@ final class Level {
             }
             final Store store = vars.store(capture.name());
             if (value != null) {
-                instrument.onCapture(compiledTemplate.template().id(), capture.name(),
-                        value.asBytes(), matchCount);
+                instrument.onCapture(compiledTemplate.template().id(), capture.name(), value,
+                        matchCount);
             }
             if (value == null) {
                 // An unmatched capture must read as empty, not as whatever the previous record
@@ -715,14 +717,6 @@ final class Level {
      */
     private Encoding effective(final CompiledTemplate candidate) {
         return Encoding.resolve(candidate.encoding(), encoding);
-    }
-
-    /** Convert a captured value into the engine's internal form, which is UTF-8. */
-    private TypedValue normalise(final TypedValue value, final Encoding contentEncoding) {
-        if (value == null || contentEncoding.isUtf8Compatible() || !(value instanceof TypedValue.Bytes)) {
-            return value;
-        }
-        return TypedValue.of(Refs.bytes(value, contentEncoding));
     }
 
     /** An absolute input offset, unless the base says the content cannot be located. */

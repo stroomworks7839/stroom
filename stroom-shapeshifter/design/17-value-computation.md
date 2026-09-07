@@ -87,7 +87,7 @@ function or comparison asks for that kind*.
 
 | | → string | → number (`Double`) | → integer (`Integer`) | → boolean |
 |---|---|---|---|---|
-| **`Bytes`** | decode UTF-8 | parse trimmed; **absent** if not a number | parse trimmed; **absent** if not integral | lexical, trimmed: `true`/`1` → true, `false`/`0` → false, else **absent** |
+| **`Bytes`** | decode by the value's encoding (design 25) | parse trimmed; **absent** if not a number | parse trimmed; **absent** if not integral | lexical, trimmed: `true`/`1` → true, `false`/`0` → false, else **absent** |
 | **`Integer`** | decimal | the value | the value | `!= 0` |
 | **`Double`** | whole numbers without `.0` (existing `TypedValue.format`) | the value | **absent** unless integral | `!= 0.0` |
 | **`Bool`** | `true` / `false` | `1.0` / `0.0` | `1` / `0` | the value |

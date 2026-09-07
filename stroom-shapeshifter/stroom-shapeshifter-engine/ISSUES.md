@@ -50,6 +50,15 @@ the root's rides the source configuration, and both inherit down the dispatch tr
 (group flag) and `012` (root flag) are both silent, matching Stroom.
 
 ### E3 — `Template.encoding` is never read
+**Amended 2026-09-07 by design 25 phase 1 (D43):** the normalisation at capture is gone. A
+captured value carries the encoding it was matched under and decodes itself, once, when a
+consumer asks for text; the write path's split by provenance — a local group converts, a
+stored value passes through — is gone with it, since the value carries the rule. What this
+entry guaranteed stands: a template's declared encoding governs its own content, now as the
+tag on every group of its match rather than as a conversion at bind. Pinned in
+`EncodedInputTest` (a raw capture holds the bytes it matched; a value captured under one
+template's encoding is written right by another) and `TypedValueTest`.
+
 **`resolved` 2026-08-21: implemented, per the user's ruling.** A template's declared encoding
 now governs its own content end to end: its delimiters are encoded to bytes in it at compile
 time, its captures are normalised from it, its body's reads of the current match's groups
@@ -1180,8 +1189,8 @@ change); `Conditions` and a level's capture binding still resolve the authored
 up by text. Design 10 §2's row, left half open there and named as the two-resolver seam in
 design 27 §2.7 (ruling 7): both resolvers stay until compiling conditions and capture selects
 is measured to matter, and this entry is that measurement's owner. When it is done, `Refs`'
-resolution goes and `CompiledRefs` is the one resolver; its byte helper, which the level's
-capture normalisation also uses, moves rather than goes. *2026-09-07: the capture half is
+resolution goes and `CompiledRefs` is the one resolver. *Its byte helper went with design 25
+phase 1 (2026-09-07): a value decodes itself, and `Refs` no longer takes an encoding.* *2026-09-07: the capture half is
 taken by design 25 §9 (D50) — a compiled capture is where the declared cast lives,
 so the `select` and key-value sources compile with it; conditions stay this entry's.*
 

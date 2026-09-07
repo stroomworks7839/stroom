@@ -14,18 +14,23 @@
  * limitations under the License.
  */
 
+
 package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.output.XmlByteSink;
+import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -519,5 +524,93 @@ class EncodedInputTest {
         final String out = output.toString(StandardCharsets.UTF_8);
         assertThat(out).contains("𐍈y");
         assertThat(out).contains("tail𐍈");
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Design 25 phase 1: a capture is the bytes it matched, tagged; nothing is transcoded
+    // until a consumer asks
+    // -----------------------------------------------------------------------------------
+
+    /** Keeps what each capture was bound to. */
+    private static final class CaptureRecorder implements Instrument {
+
+        private final List<TypedValue> bound = new ArrayList<>();
+
+        @Override
+        public void onCapture(final UUID templateId, final String name, final TypedValue value,
+                              final int matchIndex) {
+            bound.add(value);
+        }
+    }
+
+    @Test
+    void rawCaptureHoldsTheBytesItMatched() {
+        final String config = """
+                {
+                  "name": "raw-capture", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "raw"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "rec", "mode": "row",
+                     "match": {"regex": {"pattern": "X([\\\\x80-\\\\xff]+)X"}},
+                     "captures": [{"name": "payload", "select": {"group": 1}}],
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"var_id": "payload", "group": 0}}, {"text": "]"}]}}]}]
+                }
+                """;
+        final byte[] input = {'X', (byte) 0x93, (byte) 0xE9, 'X'};
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        final CaptureRecorder recorder = new CaptureRecorder();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                new XmlByteSink(output), recorder);
+        // The store holds the two bytes read, tagged raw — not their four-byte UTF-8 image.
+        assertThat(recorder.bound).singleElement()
+                .isInstanceOfSatisfying(TypedValue.Bytes.class, bytes -> {
+                    assertThat(bytes.value()).containsExactly(0x93, 0xE9);
+                    assertThat(bytes.encoding()).isEqualTo(Encoding.RAW);
+                });
+        // Written to the UTF-8 sink, it decodes by its tag on the way out: the same answer as
+        // before, now computed at the write rather than at the capture.
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[\u0093é]");
+    }
+
+    /**
+     * The case E3's write-path split answered by provenance and the tag now answers by itself:
+     * a value captured under one template's encoding, written by a template with another.
+     */
+    @Test
+    void valueCapturedUnderOneEncodingIsWrittenRightByAnother() {
+        final String config = """
+                {
+                  "name": "cross", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "windows-1252"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "a", "mode": "row",
+                     "match": {"regex": {"pattern": "A:([^\\\\n]*)\\\\n"}},
+                     "captures": [{"name": "held", "select": {"group": 1}}],
+                     "body": []},
+                    {"id": "00000000-0000-0000-0000-000000000003", "name": "b", "mode": "row",
+                     "encoding": "iso-8859-1",
+                     "match": {"regex": {"pattern": "B:\\\\n"}},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"var_id": "held", "group": 0}}, {"text": "]"}]}}]}]
+                }
+                """;
+        final byte[] input = {'A', ':', (byte) 0x93, '\n', 'B', ':', '\n'};
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config)),
+                new ByteArrayInputStream(input),
+                new XmlByteSink(output));
+        // 0x93 is U+201C under windows-1252, which captured it, and U+0093 under the writer's
+        // Latin-1; the value's own tag decides.
+        assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[“]");
     }
 }

@@ -978,7 +978,8 @@ a line, applied.
 
 **Carried, with an owner.**
 - E39 — conditions and capture selects resolve the authored expression; `Refs.write` is gone
-  ahead of it, `Refs.resolve` and its byte helper stay until the measurement.
+  ahead of it, `Refs.resolve` and its byte helper stay until the measurement. *The byte helper
+  went with design 25 phase 1; the capture half goes with its phase 3 (D50).*
 - E40 — the sinks' three duplications (carry splice, SAX call, qname halves) and the shared
   `Element`/`Attribute` bookkeeping. *Resolved the same day: `Utf8.Carry`, `SaxEvents`,
   `QNames`; the bookkeeping stays with each sink, as E40 says why.*

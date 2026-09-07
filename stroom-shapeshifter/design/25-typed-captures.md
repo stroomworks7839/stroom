@@ -165,6 +165,21 @@ Each phase is audited before the next, and each is gated on the corpus and `Enco
 casting-table row and E3's entry amended. *Test:* corpus and `EncodedInputTest` unchanged; the
 provenance pins.
 
+*Built 2026-09-07. As designed, with four things to note. `TypedValue.of(byte[])` is replaced
+by `of(byte[], Encoding)` and `utf8(byte[])` — the second for bytes that are UTF-8 by
+construction: a literal, a composite, a variable's buffer, a function's argument. `utf8()` on
+the interface is the UTF-8 form of any kind, the memo for `Bytes` and the ASCII rendering for
+the rest; every write and every join goes through it. The encoding parameter left the two
+resolvers, the conditions and the body interpreter altogether — fifty-two pass-throughs in
+`Body`, the run's two prologue and tail calls, the level's guard — because nothing below the
+match builders needs to know it any more; `Refs.bytes` went rather than moved (E39's note).
+The delimiter splitter, the regex match and the whole-content match take the template's
+effective encoding at construction and tag every group; the step matcher already had it.
+The "counting encoding" pin of §6 is an identity pin instead, `Encoding` being an enum:
+`utf8()` returns the same array twice, and the value array itself under a UTF-8-compatible
+tag. Gate: engine 570 (566 and the four new pins), pipeline 154, app 5, xmlbench compiles,
+checkstyle clean; every corpus golden and all nineteen encoding pins unchanged.*
+
 **Phase 2 — the sink declares.** §4: `encoding()`, `of(stream, encoding)`, the plain byte
 sink, the write seam. *Test:* the identity pins; the refusal; `Encoding`'s class comment
 corrected — it says `raw` "survives a round trip", which was true of the mapping and false

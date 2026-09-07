@@ -185,7 +185,8 @@ public final class Run {
         // migration takes, and the sink's deferred start tag is what makes opening-then-looping
         // serialise as if the body had run in one piece).
         for (int i = 0; i < split.prologues.size(); i++) {
-            body.body(split.prologues.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
+            body.body(split.prologues.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors,
+                    0);
             if (i < split.opened.size()) {
                 final CompiledOp.Element element = split.opened.get(i);
                 body.structure(() -> output.startElement(element.name(), element.namespace(), element.omitIfEmpty()),
@@ -197,7 +198,8 @@ public final class Run {
 
         // And what comes after it, closing the opened elements on the way back up.
         for (int i = split.tails.size() - 1; i >= 0; i--) {
-            body.body(split.tails.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors, 0, encoding);
+            body.body(split.tails.get(i), nothing, 0, new byte[0], output, 0L, rootIgnoreErrors,
+                    0);
             if (i > 0) {
                 final CompiledOp.Element element = split.opened.get(i - 1);
                 body.structure(output::endElement, "element '" + element.name() + "'");
