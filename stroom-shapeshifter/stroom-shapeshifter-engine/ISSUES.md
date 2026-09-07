@@ -634,7 +634,7 @@ which is what makes the change safe to attempt.
 
 ### E14 — Whether the textual step subset should be lowered onto the combinator layer
 **`open`, reframed by [D34](../design/00-decisions.md) — now purely an optimisation question.
-Waits for E17.**
+Waited for E17, which resolved 2026-08-20; nothing gates it now but E12's ordering.**
 
 The original framing said the steps "could not" be lowered because they are possessive. Wrong:
 **atoms are semantics-neutral** — `comb` compiles the same vocabulary into the HIR and gets full
@@ -1000,10 +1000,16 @@ Under events there are no byte offsets — the trace needs an event-indexed span
 one, and that decision reaches the UI.
 
 ### E32 — An extensible function library
-**`open` — design 26 written 2026-09-04 on the user's direction: a registry and contract in the
-engine mirrored on Stroom's Saxon library, a `call` instruction, purity with a preview mode, and
-the pipeline module carrying a variant of each of Stroom's fifty-eight functions (fifty-seven;
-`split-document` has no counterpart). Awaiting its §7 rulings.**
+**`resolved` 2026-09-05, by design 26 (D44, ruled 2026-09-04):** a registry and contract in
+`stroom.shapeshifter.engine.function`, a `call` instruction, purity with a preview mode, and the
+pipeline module carrying a variant of each of Stroom's functions but `split-document`, built in
+four phases the same night and each audited before the next; the last audit landed 2026-09-05.
+What the design left undecided is its §8.
+
+Original status (found open): design 26 written 2026-09-04 on the user's direction: a registry
+and contract in the engine mirrored on Stroom's Saxon library, a `call` instruction, purity with
+a preview mode, and the pipeline module carrying a variant of each of Stroom's fifty-eight
+functions (fifty-seven; `split-document` has no counterpart). Awaiting its §7 rulings.
 
 There is no registry, and the shape of the code is the reason: transform functions are a
 **closed** set of records in `OutputNode` (`Translate`, `StringJoin`, `Replace`, `LowerCase`, …),
