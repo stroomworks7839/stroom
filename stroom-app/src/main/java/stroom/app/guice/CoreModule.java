@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 Crown Copyright
+ * Copyright 2018 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -111,6 +111,7 @@ public class CoreModule extends AbstractModule {
         install(new stroom.pipeline.factory.PipelineFactoryModule());
         install(new stroom.pipeline.refdata.ReferenceDataModule());
         install(new stroom.pipeline.stepping.PipelineSteppingModule());
+        install(new stroom.pipeline.xsltfunctions.AiXsltFunctionModule());
         install(new stroom.pipeline.xsltfunctions.CommonXsltFunctionModule());
         install(new stroom.pipeline.xsltfunctions.DataStoreXsltFunctionModule());
         install(new stroom.processor.impl.ProcessorModule());

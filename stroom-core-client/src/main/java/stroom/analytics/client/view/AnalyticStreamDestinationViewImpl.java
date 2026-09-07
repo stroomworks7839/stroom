@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 Crown Copyright
+ * Copyright 2023 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,6 +75,11 @@ public class AnalyticStreamDestinationViewImpl
     @Override
     public void setUseSourceFeedIfPossible(final boolean useSourceFeedIfPossible) {
         this.useSourceFeedIfPossible.setValue(useSourceFeedIfPossible);
+    }
+
+    @Override
+    public void setUseSourceFeedIfPossibleEnabled(final boolean enabled) {
+        this.useSourceFeedIfPossible.setEnabled(enabled);
     }
 
     @UiHandler("setDefaultDestinationFeed")

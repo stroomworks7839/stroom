@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 Crown Copyright
+ * Copyright 2023 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package stroom.analytics.client.presenter;
 
 import stroom.analytics.client.presenter.AnalyticNotificationEditPresenter.AnalyticNotificationEditView;
+import stroom.analytics.shared.AnalyticProcessType;
 import stroom.analytics.shared.NotificationConfig;
 import stroom.analytics.shared.NotificationDestination;
 import stroom.analytics.shared.NotificationDestinationType;
@@ -69,7 +70,9 @@ public class AnalyticNotificationEditPresenter
     }
 
     public void read(final DocRef docRef,
+                     final AnalyticProcessType analyticProcessType,
                      final NotificationConfig config) {
+        analyticStreamDestinationPresenter.setAnalyticProcessType(analyticProcessType);
         uiConfigCache.get(extendedUiConfig -> {
             if (extendedUiConfig != null) {
                 if (config != null) {
