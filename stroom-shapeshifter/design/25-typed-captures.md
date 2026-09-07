@@ -339,13 +339,14 @@ configurations carry a `select` or key-value capture — `apache_httpd`, `ausear
 `win_sec_strict`, `win_sec_xml` — three forks against the phase 2 commit (`8c315ac777`), files
 under `design/benchmarks`. Compile rows: `win_sec` −2.2% with the fork ranges disjoint,
 `ausearch` −3.0%, `apache_httpd` −1.2% and `win_sec_strict` −1.2% with the ranges overlapping,
-`win_sec_xml` +1.7%. That is the compile doing what it did not before: a compiled reference
-per `select` capture, seventy-eight of them in `win_sec`, built once so the run need not walk
-the authored expression per match — E39's trade, taken here for captures. Run rows:
-`apache_httpd` −0.5%, `win_sec_strict` +0.1%, `win_sec_xml` +1.9%, `win_sec` +4.6% on a
-collapsed base fork, `ausearch` −2.7% at three forks and −0.8% at five, the ranges overlapping
-both times. No run row regresses; the compile rows pay one to three per cent on the
-capture-heavy configurations, inside the gate the design set for them.*
+`win_sec_xml` +1.7%. That is the compile doing what it did not before: a compiled reference per
+`select` capture, seventy-eight of them in `win_sec`, built once so the run need not walk the
+authored expression per match — E39's trade, taken here for captures. Run rows: `apache_httpd`
+−0.5%, `win_sec_strict` +0.1%, `win_sec_xml` +1.9%, `win_sec` +4.6% on a collapsed base fork,
+`ausearch` −2.7% at three forks and −0.8% at five, the ranges overlapping both times. The
+compile rows pay one to three per cent on the capture-heavy configurations, inside the gate the
+design set for them. *Read against the full suite (below), these run-row figures were measured
+too narrowly to support the "no regression" they were written to say.*
 
 **Phase 4 — the record.** E3 amended; E39's entry narrowed to conditions with the capture half
 recorded here; design 17 §3.1's boolean bullet and §12; design 24 §2's sink sentence; E36
@@ -372,16 +373,57 @@ two of its forks collapsed; the clean run reads `apache_httpd` −0.2%, `csv_hea
 that queried the sink per write. Against the phase 1 commit, the comparison phase 2's paragraph
 made, eight forks a side read `csv_header` −1.6% with the error bars overlapping (forks 196–210
 against 190–203), half of the earlier reading and inside the row's own spread. So the seam is
-the right shape and costs nothing; what it recovers is within the noise it was meant to recover,
-and no regression stands on any row.
+the right shape and costs nothing; what it recovers is within the noise it was meant to recover.
+*No regression stands on any row was this paragraph's conclusion and the full suite below
+withdraws it: the seam is neutral, but the design it sits in is not.*
 
 *Done 2026-09-07, each item as listed, most of them as the phase audits went: E3's amendment
-with phase 1, E39 narrowed and design 17's bullets with the phase 3 audit, design 24's §2
-bullet rewritten to the present, E36 pointed at §9's slot, D13 pointed at D43, the status
-block saying built. What this design leaves is in §8 and E36; what it measured is in each
-phase's paragraph above: no run row regresses, the delimiter row paid three per cent for the
-declared sink within its spread, the capture-heavy compile rows one to three for the compiled
-capture.*
+with phase 1, E39 narrowed and design 17's bullets with the phase 3 audit, design 24's §2 bullet
+rewritten to the present, E36 pointed at §9's slot, D13 pointed at D43, the status block saying
+built. What this design leaves is in §8, E36 and now E43; what each phase measured is in its
+paragraph above, and what the whole design costs is below — the phase figures are the narrower
+instrument and the full suite is the gate.*
+
+*Gated on the full suite, 2026-09-08.* The evening run the phases never had: `EngineBenchmark`
+at its own fidelity — five forks, three warmup and five measurement iterations — over all eight
+workloads and both the run and the compile rows, at three points, the files under
+`design/benchmarks` as `…-full.json`. **Design 25 costs one to four per cent on the run rows.**
+End to end, yesterday's built state (`a9ca4f2853`) against the merge (`a46bc6e4ca`): `ausearch`
+−3.1%, `progressive` −2.2%, `apache_httpd` −2.1%, `csv_header` −2.1%, `win_sec_strict` −1.5%,
+`regex_lines` −1.3%, `win_sec` and `win_sec_xml` −0.6%, five of the eight outside their
+intervals; the compile rows are flat to better over the same span, D48's removal having taken
+a per-template walk out of the compiler.
+
+Split at the middle point the two halves disagreed implausibly — the removal and the rename
+appearing to speed run rows they cannot execute — so the sequence was suspected of drift and
+an interleaved control run: the two endpoints alternating round by round, four rows, five
+forks, three rounds (`…-interleaved-r<n>.json`). Twelve of twelve readings negative, which
+drift does not produce: `csv_header` −3.8% (−2.7, −3.7, −4.8), `progressive` −2.4%,
+`apache_httpd` −1.4%, `win_sec_xml` −0.9%. The cost is real, and the split reading was drift
+on top of it.
+
+Where it comes from: allocation per operation rose 6.1% on `apache_httpd` and 2.2% on
+`csv_header` (`…-alloc.json`), which is the tagged value — three fields where the record had
+one, allocated per group per match, the engine's hottest allocation (design 10's row). §5 said
+the value would hold more and phase 1's own deferral argument said the same; this is that,
+measured. The eager fill of the memo, the one change made outside the design, was tested
+against a lazy variant interleaved over three rounds and is not the cause: the signs wander and
+the spread exceeds the effect. The seam is not the cause either, being neutral against the code
+it replaced.
+
+**What it does not change.** The design was ruled on consistency with the type model (D43),
+not on speed, over an explicit timing objection that the user overruled with the argument the
+record keeps. Correctness is unmoved: the corpus, the encoding pins and every golden are as
+they were. The cost is now E43's, with the exits named there; recovering it is not this
+design's to do, and unpicking a ruled design over one to four per cent would be the wrong
+answer to a measurement.
+
+**The method, recorded because it failed.** Each phase was probed against its adjacent commit
+on four or five rows at three to five forks, and each probe read overlapping intervals as
+neutrality. Adjacent-commit probes on a subset are for steering, not for gating: they cannot
+see a cost spread thinly across every row, and a sequence of them accumulates a conclusion
+none of them measured. Where a reading has to be trusted, interleave the two sides and take
+the sign, as the control above did.
 
 ## 8. What this does not decide
 

@@ -308,7 +308,8 @@ suite, checked-in results and a scoreboard ([D21](../design/00-decisions.md),
 [05-engine-benchmarks.md](../stroom-shapeshifter-regex/design/05-engine-benchmarks.md)); this layer has none of it. D33
 deferred it until the suite was green, which it now is.
 
-Known costs nobody has measured, listed so they are not re-derived: `Tag` steps encode their text
+Measured since: the tagged value's one to four per cent (E43, 2026-09-08). Known costs nobody
+has measured, listed so they are not re-derived: `Tag` steps encode their text
 on every match rather than once at compile time; `apply-templates` filters the template list per
 call instead of grouping by mode once; and every captured group is copied out of the buffer even
 when nothing reads it — which is what E10's optimiser was for.
@@ -1262,3 +1263,30 @@ design 27's exit review. The exits: define the form and execute it — dispatch 
 template's level under its own scope, which `ApplyDirective.recursive()` already provides for —
 or refuse it at compile time as ruling 10 refused the `field` capture source, until it is
 defined. Until ruled, the skip stands and the comment says what it is.
+
+### E43 — The tagged value costs one to four per cent on the run rows
+**`open` 2026-09-08.** Design 25's `Bytes` carries the encoding its bytes are in and a memo of
+their UTF-8 form: three fields where the ported record had one, allocated per group per match,
+which is the engine's hottest allocation (design 10's row — every captured group is copied out
+of the buffer whether or not anything reads it). The full suite reads the whole design at one
+to four per cent off the run rows, worst on `csv_header` and `ausearch`, and an interleaved
+control confirms the sign twelve times out of twelve; allocation per operation is up 6.1% on
+`apache_httpd` and 2.2% on `csv_header`. Design 25 §7's full-suite paragraph has the figures and
+the files.
+
+This is the price of the type model D43 ruled for, not a defect, and it is recorded rather than
+paid back by unpicking the design. The exits, in the order they would be tried:
+
+- **Capture elimination (E10).** A group nobody reads need not be copied out or wrapped at all.
+  That removes the allocation rather than shrinking it, and it was the prototype's optimiser,
+  deliberately unported. The largest win available and the one already designed for.
+- **A lighter tag.** The encoding is one of twenty-odd constants; a byte ordinal, or two
+  interned instances for the UTF-8-compatible class, would take a reference off every value.
+  Measure before believing: the object's size class may not change.
+- **The memo's field.** A value written straight out never fills it. Splitting the memo off,
+  or holding the UTF-8 form only where a consumer asked for it, trades a field for an
+  indirection on the text path.
+
+Not to be taken by reverting the tag: the byte identity, the sink declaration and the capture's
+cast all rest on it, and the consistency argument the design was ruled on does not weaken
+because the row moved. Owner of the measurement when one of the above is tried.
