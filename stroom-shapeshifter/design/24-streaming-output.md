@@ -2,8 +2,8 @@
 
 **Status: design, ruled 2026-09-04. Completes design 23's output round (its §3b); supersedes
 design 21 phase 1's parse-and-forward and amends design 22's byte path. D42. Builds now;
-design 25 (D43) is ruled but deferred, and its sink declaration is added to this design's
-character sink when it lands.**
+design 25 (D43) is ruled, its deferral lifted 2026-09-07, and its sink declaration is added to
+this design's character sink when it lands.**
 
 Design 23 settled the input side of the streaming contract: the engine windows its input by
 `buffer_size`, and both pipeline elements feed it a stream. This document settles the output
@@ -51,7 +51,7 @@ sink's mouth.**
 - **Bytes and characters.** The engine's output is UTF-8 by construction under E3: captures
   are decoded by the source encoding and re-encoded as UTF-8 (`Refs`, `Steps`), and literals
   are Java strings. So the decode in the character sink is lossless, and a `TextWriter` set to
-  UTF-8 (its default) writes the engine's bytes exactly. When design 25 (D43, deferred) lands,
+  UTF-8 (its default) writes the engine's bytes exactly. When design 25 (D43) lands,
   the same fact is restated as the sink declaring UTF-8 and every write transcoding to it. Any other writer encoding is the writer's
   transcoding, as it is for every other text output in Stroom. The three `text_*_exact`
   fixtures pin the identity through a real `TextWriter`.

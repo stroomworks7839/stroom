@@ -1224,6 +1224,10 @@ nor decoded. The "local group converts, stored value passes through" split in th
 the same day — the build waits, design 24 goes first. The binary vocabulary a JPEG
 would need — framing, integers, slicing, a byte-writing element — is E36, not this.
 
+*Deferral lifted 2026-09-07, design 24 built. Amended the same day with §9 — a capture
+declares its kind through `as`, cast once at bind, on a compiled capture that also takes
+E39's capture half — awaiting D49.*
+
 ## D44 — Extension functions: a registry and a contract in the engine, Stroom's functions in the pipeline
 
 *2026-09-04.* Design 26, ruled in full. The engine gains a function contract mirrored on

@@ -1181,7 +1181,9 @@ up by text. Design 10 §2's row, left half open there and named as the two-resol
 design 27 §2.7 (ruling 7): both resolvers stay until compiling conditions and capture selects
 is measured to matter, and this entry is that measurement's owner. When it is done, `Refs`'
 resolution goes and `CompiledRefs` is the one resolver; its byte helper, which the level's
-capture normalisation also uses, moves rather than goes.
+capture normalisation also uses, moves rather than goes. *2026-09-07: the capture half is
+taken by design 25 §9 (awaiting D49) — a compiled capture is where the declared cast lives,
+so the `select` and key-value sources compile with it; conditions stay this entry's.*
 
 ### E40 — The three sinks duplicate the carry splice, the SAX call and the qname rule
 **`resolved` 2026-09-06, the same day.** `Utf8.Carry` owns the bytes a sink holds back between

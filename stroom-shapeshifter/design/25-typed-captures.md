@@ -1,10 +1,11 @@
 # Typed captures: a value knows its encoding, and nothing is transcoded until someone asks
 
-**Status: design, ruled 2026-09-04 (D43) and deferred the same day by the user: the design
-stands, the build waits. Amends E3's "stores hold UTF-8" and design 17 §3.1's string row when
-built. Engine only. Design 24 builds first; its character sink decodes the internal UTF-8 form
-under E3 and gains the sink declaration of §4 when this lands (§7's ordering argument was
-about pinning once, and is outweighed by not doing this now).**
+**Status: design, ruled 2026-09-04 (D43) and deferred the same day; deferral lifted
+2026-09-07, design 24 having been built. Amended 2026-09-07 with §9 — a capture declares what
+it is, and the capture binding is compiled — on the user's direction; the amendment awaits a
+ruling (D49). Amends E3's "stores hold UTF-8" and design 17 §3.1's string row when built, and
+takes the capture half of E39. Engine only. Design 24's character sink decodes the internal
+UTF-8 form under E3 today and gains the sink declaration of §4 when this lands.**
 
 Today a captured slice of the input is converted to UTF-8 the moment it is bound to a
 variable (`Executor.normalise`, E3), and a slice of the *current* match is converted on the
@@ -147,10 +148,16 @@ instrument call), `Transforms`, and the two sinks' attribute buffers.
   0x93 0xE9, the literal brackets around them); Latin-1 into Latin-1 likewise; a literal
   above 0xFF into `raw` is `?`; structure into a non-UTF-8 sink is refused; a value captured
   under one template's encoding and written by another with a different one is right (the
-  case the deleted split answered by provenance, now answered by the tag); the UTF-8 form is computed once per value (a counting
-  encoding in the test).
+  case the deleted split answered by provenance, now answered by the tag); the UTF-8 form is
+  computed once per value (a counting encoding in the test).
 
-## 7. Phasing, and why this lands before design 24
+## 7. Phasing
+
+*Rewritten 2026-09-07. As first written this section argued for landing before design 24, so
+that 24's exact-fixture pins would be taken once against the final write path. The deferral
+went the other way and design 24 is built; its `CharacterSink` declares UTF-8 and decodes
+UTF-8 bytes to characters, which is what it will do after phase 2 too, so nothing is redone.
+Each phase is audited before the next, and each is gated on the corpus and `EncodedInputTest`.*
 
 **Phase 1 — the tag.** §2, §3, §5: `Bytes` with its encoding and memo, `MatchResult` tagging,
 `normalise` and the provenance split deleted, `Instrument.onCapture(TypedValue)`, the
@@ -162,27 +169,142 @@ sink, the write seam. *Test:* the identity pins; the refusal; `Encoding`'s class
 corrected — it says `raw` "survives a round trip", which was true of the mapping and false
 of the bytes, and is now true of both.
 
-**Phase 3 — the record.** E36 filed for the binary vocabulary (§8); D43 cross-referenced from
-D13 and E3.
+**Phase 3 — the compiled capture and its cast.** §9: `CompiledCapture` built once per binding
+by the compiler, the `select` and key-value sources through the compiled reference, the `as`
+field read, written and applied at bind. `Refs` loses its capture callers; E39 narrows to
+conditions. *Test:* corpus unchanged (every fixture's captures are uncast, and a `select`
+capture through the compiled reference must give what the authored walk gave); §9's pins.
+*Benchmark:* the compile rows and the run rows of the workloads whose configurations carry a
+`select` or key-value capture, three forks, against the phase 2 commit; a regression beyond
+its interval blocks the phase (design 27 ruling 4's gate).
 
-**Before 24, not after.** Either order works without rework: design 24's `CharacterSink`
-declares UTF-8 and decodes UTF-8 bytes to characters whichever lands first. But 24's contract
-sentence — "the engine's output is UTF-8 by construction" — is the sentence this design
-replaces with "the sink declares what it accepts and every write is transcoded to it", and
-24's exact-fixture pins through a real `TextWriter` should be pinned once, against the final
-write path, not pinned and then re-verified when the path changes underneath them. This design
-is engine-only and its safety net — the corpus and the nineteen encoding pins — is already in
-place; nothing about it waits on the pipeline. So: 25, then 24.
+**Phase 4 — the record.** E3 amended; E39's entry narrowed to conditions with the capture
+half recorded here; design 17 §3.1's string row and §8's list of the cast's consumers; design
+24 §2's sink sentence; E36 pointed at §9's slot for the binary readings; D43 cross-referenced
+from D13 and E3; this design's as-built record.
 
 ## 8. What this does not decide
 
 - **A binary vocabulary.** Length-prefixed framing (take N bytes where N was just captured),
   integer fields with endianness, slicing a captured value by offset, and a Stroom element in
   the writer role that holds destinations and writes bytes. Those are what a JPEG needs and
-  DS3 cannot do; this design makes the *carrier* right for them and stops. Filed as E36.
+  DS3 cannot do; this design makes the *carrier* right for them and stops. Filed as E36. §9's
+  `as` slot is where the binary readings go when E36 adds them — an integer of a declared
+  width and endianness beside the decimal parse — and E36's framing step needs the captured
+  integer §9 provides.
+- **Re-tagging.** A cast that reads a capture's bytes under a named encoding other than the
+  template's — the bytes stay, the tag changes. The natural sibling of `as` and small; it
+  belongs with E36's vocabulary, since nothing in the corpus needs it and the template's
+  `encoding` override covers the text case.
+- **A cast on a variable.** A `variable` is a value its body wrote, `Bytes` tagged UTF-8 (D46);
+  the same `as` slot would fit it. Not asked for; the transforms already bind typed values by
+  name, which is what a variable holding a number is for.
+- **Capture elimination.** §9's cast is paid per match whether the capture is read or not,
+  as the group copy is today (design 10's row, E10). Elimination would skip both for an unread
+  capture and is E10's, not this design's.
 - **An `output.encoding` field in the project.** The sink decides; a runner or command line
   may read a project field to choose the sink later. Not modelled here.
 - **XML sinks in other encodings.** `XmlByteSink` is UTF-8; a declaration in the prolog and a
   transcoding serialiser would be a separate change nobody has asked for.
 - **A separate "binary" kind beside `raw`.** `raw` already means bytes with no text meaning;
   a second kind would exist only to be told apart from it.
+
+## 9. The capture declares what it is
+
+*Added 2026-09-07 on the user's direction: a capture is a variable like any other, so it
+should be able to say what kind it holds — and say it once, at bind, rather than have every
+consumer convert. Awaiting D49.*
+
+### 9.1 The field
+
+A capture binding gains `as`, the cast vocabulary the engine already has on a condition's
+operand, a `sort`, `min` and `max`: `string` | `number` | `boolean` | `date`. Absent means no
+cast: the value is `Bytes` as phase 1 leaves it, carrying its tag (§2) — not, as today under
+E3, converted to UTF-8 at bind.
+
+```json
+{"capture": {"name": "size", "select": {"group": 2}, "as": "number"}}
+```
+
+**Semantics: §3.1's table, applied at bind.** The captured bytes are decoded by their tag and
+read as the kind named; the store holds the result — an `Int` or `Real` for `number`, a `Bool`
+for `boolean`, an `Instant` for `date` (the ISO-8601 reading; a format is `parse-date`'s
+business, as it is everywhere else). Every consumer then sees the kind and never converts: a
+`greater-than` against a number literal compares natively under §8's strict rule with no `as`
+on the operand, `sort` orders on the timeline, `sum` adds without a parse per record.
+
+**`as: string` is the memo filled eagerly.** The value stays `Bytes`, tagged UTF-8, with its
+UTF-8 form computed at bind rather than on first use. For a UTF-8 feed that is the identity
+and costs nothing; for a Windows-1252 or `raw` feed it is E3's conversion, now chosen by the
+author for the captures that will be read as text rather than applied to all of them. This is
+the optimisation the user named: the author decides where the conversion happens, and a
+capture nobody reads as text is never converted.
+
+**A cast that fails is absent** — the same answer the table gives an operand: the store slot is
+removed as an unmatched capture's is, `exists` is false, a reference to it resolves to
+nothing, and a comparison against it is false. Not a run-time error: a field that is
+sometimes not a number is ordinary input, and the author who wants to know has `exists` and
+`emit-error`. The instrument sees the cast value, so a recording instrument can show the
+absence next to the bytes that failed.
+
+**Which sources.** `group` and `step` cast the slice. `select` casts the composite, which is
+UTF-8 by construction (§2), so its cast is the table's `Bytes` row on UTF-8 bytes. Key-value
+casts the value, not the key: the key is a store name and is text by definition. `field` stays
+refused at compile time.
+
+### 9.2 The compiled capture
+
+Today `Level.bindCaptures` switches on the authored `CaptureSource` per match: a `group` or
+`step` reads a group directly; a `select` or key-value capture resolves its `RefExpression`
+through `Refs`, walking the authored parts on every match, while a body's references were
+compiled once by design 10's change 3. E39 names that as the capture half of its row. The
+cast needs a place to live that is decided once, and that place is the same object E39 wants.
+
+**`CompiledCapture(name, source, cast)`**, built by the compiler once per binding, in the
+`compile` package beside `CompiledOp`: the source is a group index, a step's group index, a
+`CompiledRef` for `select`, or a pair of them for key-value; the cast is the `Cast` or null.
+`CompiledTemplate` carries the list. Binding a capture becomes: take the value (a group by
+index; a reference through `CompiledRefs.resolveValue`), which is already tagged (§2); apply
+the cast, or none; store or remove. `normalise` went in phase 1; after this phase `Refs` has no
+capture caller, and its remaining callers are `Conditions`' — E39's other half, which this
+design does not take because conditions are not captures and their compile is still the
+measurement E39 owns.
+
+**What does not move.** The `Store`, `VarRegistry`, the per-template capture-name
+registration, the dense binding for sequences (design 16), and the instrument's contract
+beyond the value's type (§3). The lint that checks capture names against reads
+(`ReferenceCheck`) reads the authored binding as before; the compiled capture is the run's.
+
+### 9.3 Pinned
+
+- A `number` capture compared with `greater-than` against a numeric literal, no `as` on the
+  operand, is true where the bytes read `"10"` and the literal is `9` — and false today, since
+  the comparison is cross-kind (§8).
+- A `number` capture whose bytes are not a number is absent: `exists` false, a `value-of` of
+  it writes nothing, the store slot is not the previous record's.
+- A `string` capture under a Windows-1252 template has its UTF-8 form computed exactly once
+  (the counting encoding of §6), and an uncast capture under the same template never.
+- A `date` capture sorts on the timeline, so `"2026-01-02T00:00:00Z"` follows
+  `"2025-12-31T23:59:59Z"` where a string sort would agree and `"2026-01-02T00:00:00+01:00"`
+  precedes both, where a string sort would not.
+- A `boolean` capture takes the lexical reading: `"1"` is true, `"yes"` is absent.
+- A `select` capture and a key-value capture through the compiled reference bind what the
+  authored walk bound: the corpus, and a pin with a composite of a group, a literal and a
+  stored variable.
+- The round trip: `as` reads and writes through `ReferenceJson`, `EveryVariantTest` sees it,
+  and an unknown cast label is refused by name as `Cast`'s other readers refuse it.
+
+### 9.4 Questions for the ruling (D49)
+
+1. **A failed cast at bind:** absent, as the table says (*recommended*), or a `FATAL` message
+   naming the capture and the bytes. Absent keeps the table the single source and treats a
+   non-numeric field as input, not error; `emit-error` under `exists` is the author's way to
+   make it one.
+2. **`as: string`** fills the memo at bind (*recommended*) or is a no-op that documents
+   intent. Filling is the optimisation asked for and is free on UTF-8.
+3. **E39's capture half** comes here (*recommended*) or E39 stays whole and phase 3 casts
+   inside the interpreted walk. The compiled capture is where the cast lives; doing it twice
+   is the only alternative.
+4. **Order:** phases 1–4 now, E36 after (*recommended*); or phase 3 waits for E36 so the
+   binary readings arrive with the slot. E36 has no design yet and needs phase 3's `Int` to
+   frame a take; the slot should exist before the readings do.
