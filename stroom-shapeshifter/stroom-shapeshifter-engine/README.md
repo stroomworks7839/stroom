@@ -53,7 +53,7 @@ compile/     the passes: patterns interned and compiled, references checked, the
 value/       what a match captures and a body computes with — depends on nothing above the model
 match/       what a match produces, and the two ways of matching that are not a regex
 exec/        one run over the graph: the window, the level dispatcher, the body interpreter
-output/      the sinks: bytes as Saxon would write them, SAX events, characters
+output/      the sinks: bytes as Saxon would write them, SAX events, characters, bytes as they are
 text/        encodings, at the boundaries that need them
 function/    the extension-function contract (design 26)
 ```
@@ -70,11 +70,12 @@ nothing of a run; the package javadocs state the direction and the imports keep 
 window is fatal, by name ([design 23](../design/23-streaming-contract.md)). Memory is the window,
 not the stream.
 
-**Everything writes through `OutputSink`.** Three sinks in `output`: `XmlByteSink` writes bytes
+**Everything writes through `OutputSink`.** Four sinks in `output`: `XmlByteSink` writes bytes
 as Saxon would ([D41](../design/00-decisions.md)), `SaxEventSink` forwards the structure as
 events, and `CharacterSink` delivers a text configuration's writes as characters (D42). The
 pipeline module chooses per element; the interface is one place to answer that rather than
-twenty.
+twenty. `ByteSink` writes a non-UTF-8 target's bytes as they are and carries no structure; a sink
+declares the encoding it accepts and every write is transcoded to it (design 25 §4).
 
 ## Open issues
 

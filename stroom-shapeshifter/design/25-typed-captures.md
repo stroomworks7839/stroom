@@ -3,10 +3,10 @@
 **Status: design, ruled 2026-09-04 (D43) and deferred the same day; deferral lifted 2026-09-07,
 design 24 having been built. Amended 2026-09-07 with §9 — a capture declares what it is, and the
 capture binding is compiled — on the user's direction, and ruled the same day (D50), every
-question as recommended. Building; phase 1 built and audited 2026-09-07. Amends E3 (the
-normalisation at capture) and design 17 §3.1's string row, and takes the capture half of E39.
-Engine only. Design 24's character sink decodes the internal UTF-8 form under E3 today and gains
-the sink declaration of §4 when this lands.**
+question as recommended. Building; phases 1 and 2 built and audited 2026-09-07. Amends E3
+(the normalisation at capture) and design 17 §3.1's string row, and takes the capture half of
+E39. Engine only. Design 24's character sink declares UTF-8 through the interface's default
+(§4, phase 2); nothing in `CharacterSink` changed.**
 
 Before phase 1 (built 2026-09-07) a captured slice of the input was converted to UTF-8 the
 moment it was bound to a variable (`Level.normalise`, E3), and a slice of the *current* match
@@ -94,9 +94,11 @@ row reads "decode by the value's encoding" and means the same thing it did.
 the same tag and the same bytes short-circuit. `Comparisons.compare` is unchanged but for its
 `Bytes` fast path, which now compares the UTF-8 forms.
 
-**Writes.** *Phase 2; phase 1 writes `utf8()` to the sinks, which are all UTF-8.* One seam,
-`Output.write(sink, value)`: `sink.write(value.bytes(sink.encoding()))`.
-`Refs.resolve`, `CompiledRefs.write` and `emit` all go through it. The "only a local group
+**Writes.** One seam, `Output.write(sink, value)`: `sink.write(value.bytes(sink.encoding()))`.
+`Refs.resolve`, `CompiledRefs.write` and `emit` all go through it. *As built (phase 2): the
+seam is `TypedValue.bytes(Encoding)`, called with `sink.encoding()` at the six writes — three
+in `CompiledRefs.write`, the literal, the tokenize join and `emit` in `Body`; `Refs` builds
+values for conditions and captures and never writes.* The "only a local group
 converts; a stored value passes through" split — E3's implementation, and correct, since every
 route into a store normalised — is deleted because the value knows and the template need not:
 the rule moves from the caller's provenance to the value's tag. Literal
@@ -117,12 +119,16 @@ construction, and an XML document in another encoding is not this design's.
 `OutputSink.of(stream)` stays UTF-8. New: `OutputSink.of(stream, encoding)` — for UTF-8 the
 `XmlByteSink` as now; for anything else a plain byte sink that writes what it is given and
 refuses structure with `StructureException`, since an element name has no bytes in `raw`.
+*(Overtaken: design 27 ruling 8 deleted `OutputSink.of` two days after this was written, so
+that the root package has no dependency on `output`; see the as-built note.)*
 
 **Transcoding into a sink** is `Encoding.encode(decoded)` where the tags differ, with the
 UTF-8-compatible class collapsed to identity. Into `raw` or Latin-1, a character above 0xFF
 becomes `?`, which is `Encoding.encode`'s existing rule and the authored case: only a literal
-can put one there, since a `raw` capture never has one. A UTF-8 sequence split across two
-writes cannot occur, because a value is written whole.
+can put one there, since a `raw` capture never has one. On the transcoded path a UTF-8
+sequence split across two writes cannot occur, because a value is written whole; the
+structured sinks keep their carry, since a UTF-8-tagged capture is a byte-regex slice that
+can end mid-sequence (design 24 §3).
 
 **The byte identity** is then: a `raw` template's capture, written to a `raw` sink, is the
 bytes it matched. Same for Latin-1 into Latin-1, Windows-1252 into Windows-1252. The
@@ -137,15 +143,22 @@ literal is a UTF-8-tagged value now (`CompiledOp.Text`, `CompiledRef.Bytes`), no
 encoded once, since the sink decides its bytes. A non-`Bytes` kind into a non-UTF-8 sink
 renders through text in the target's encoding rather than as ASCII, which a UTF-16 sink
 could not take. `OutputSink.write(String)` encodes in the sink's encoding. The plain byte
-sink is `output.ByteSink`; `OutputSink.of(stream)` and `of(stream, encoding)` are the
-factories, the second choosing the XML serialiser for the UTF-8-compatible class.
+sink is `output.ByteSink`. There is no factory: the phase built the two of §4 and its audit
+found them reinstating the package cycle design 27 ruling 8 had removed, with the
+one-argument form uncalled, so both went — a caller names the sink, `new XmlByteSink(out)` for
+UTF-8 and `new ByteSink(out, encoding)` for anything else. A `ByteSink` declared ASCII, AUTO or
+UTF-8 receives the UTF-8 form: the class is one encoding for writing, as §2 says for reading,
+so a literal above 0x7F into a sink declared ASCII is its UTF-8 bytes, not `?`. A literal into
+a non-UTF-8 sink is transcoded through text on every write, as `CompiledRef`'s javadoc now
+says; a memo per target would be a cache on the value and is not this phase's.
 
 ## 5. The value itself
 
-`TypedValue.Bytes` becomes a final class rather than a record: `value`, `encoding`, and a
-lazily filled `utf8` (the run is single-threaded; no volatile). `TypedValue.of(byte[])` is
+`TypedValue.Bytes` is a final class rather than a record (phase 1): `value`, `encoding`, and
+a `utf8` filled at construction under a UTF-8-compatible tag, else on first use (the run is
+single-threaded; no volatile). `TypedValue.of(byte[])` is
 gone — a caller must say what its bytes are — and `of(String)` tags UTF-8. `asBytes()` returns
-the bytes as tagged; the places that used it to write use `utf8()` until phase 2's seam, and
+the bytes as tagged; the places that used it to write use `bytes(sink.encoding())`, and
 the places that used it as "UTF-8 bytes" use `utf8()`. *As built:* the callers of `asBytes()`
 that remain are `Level`'s two hand-offs of the content to the body and `Steps.bytes`, a step
 output fed to a codec — both rightly raw.
@@ -154,7 +167,8 @@ output fed to a codec — both rightly raw.
 
 - **The corpus.** Every fixture declares `utf-8` or `auto`; every sink is UTF-8. Identity end to
   end; 68/68 must stay 68/68 with no golden touched.
-- **`EncodedInputTest`, all nineteen.** Latin-1 and Windows-1252 read and written as UTF-8;
+- **`EncodedInputTest`, the nineteen that predate this design.** Latin-1 and Windows-1252 read
+  and written as UTF-8;
   the per-template override; UTF-16 transcoded whole; the two refusals (a transcode-family
   override, any override under a transcoded source); `matchesWithARegexUnderRaw` — still the
   UTF-8 of U+0093 and U+00E9 between the literal brackets, into the UTF-8 sink it uses. These
@@ -164,8 +178,8 @@ output fed to a codec — both rightly raw.
   written by another with a different one is right (the case the deleted split answered by
   provenance, now answered by the tag); the UTF-8 form is computed once per value and is the
   value's own array under a UTF-8-compatible tag (an identity pin — `Encoding` is an enum, so
-  a counting encoding cannot be written); bytes are equal when their text is. *Phase 2:* a
-  `raw` capture into a `raw` sink is the input's bytes (0x93 0xE9 out as 0x93 0xE9, the
+  a counting encoding cannot be written); bytes are equal when their text is. *Phase 2,
+  built:* a `raw` capture into a `raw` sink is the input's bytes (0x93 0xE9 out as 0x93 0xE9, the
   literal brackets around them); Latin-1 into Latin-1 likewise; a literal above 0xFF into
   `raw` is `?`; structure into a non-UTF-8 sink is refused.
 
@@ -206,7 +220,7 @@ blank line after four licence blocks; an ASCII case added to the identity pin; t
 comment now says why the two instances shared across runs are safe. And one change the
 audit did not ask for: the memo is filled at construction when the tag is UTF-8-compatible,
 so `utf8()` on the common path is a field read with no branch — a targeted probe of four run
-rows had read two to three per cent down, inside the new side's own intervals, and the
+rows had read two to three per cent down, the error bars overlapping, and the
 branch was the one cost the phase had added to every write. Documents: §3's write seam and
 §5's factories marked as phase 2 where they are; the `asBytes()` checklist rewritten as
 built; §6's pins sorted into built and phase 2; the intro moved to the past tense; design
@@ -215,15 +229,15 @@ moved below its resolution in the ledger's form; E39's two notes merged.*
 
 *Measured 2026-09-07, four run rows against the commit before the phase (`d383bd31b0`), the
 files under `design/benchmarks`, `…-run-rows-f<forks>.json`. Three forks at the phase commit
-read `apache_httpd` −1.1%, `csv_header` −2.2%, `progressive` −3.5%, `win_sec_xml` −2.6%, each
-inside the new side's own interval. Five forks after the memo change read `apache_httpd` and
+read `apache_httpd` −1.1%, `csv_header` −2.2%, `progressive` −3.5%, `win_sec_xml` −2.6%, the
+error bars overlapping on every row. Five forks after the memo change read `apache_httpd` and
 `win_sec_xml` flat, `progressive` −2.1% and `csv_header` −4.5% with every new fork below every
 base fork — real. The cause was on the delimiter path: three values per field where the old
 record had cost the same three allocations but eight bytes less each. `Splitter` now makes
 one value where two groups are the same bytes (`810d3a8b24`), one object per field fewer than
 before the phase; five forks read `csv_header` +0.2%. `progressive`'s reading was its known
-spread (design 27 phase 1): two of five forks collapsed to 300–317 against 350, and eight
-forks read +0.1% with the two sides interleaved. No regression stands.*
+spread (design 27 phase 1): two of five forks collapsed to 299–317 against 350, and eight
+forks a side, run back to back, read +0.1%. No regression stands.*
 
 **Phase 2 — the sink declares.** §4: `encoding()`, `of(stream, encoding)`, the plain byte
 sink, the write seam. *Test:* the identity pins; the refusal; `Encoding`'s class comment
@@ -238,6 +252,22 @@ for its own encoding, `?` for what the target cannot express, a number rendered 
 target's encoding. `Encoding`'s class comment and `isUtf8Compatible`'s javadoc say what is
 true now. Gate: engine 575 (570 and the five new pins), pipeline 154, app 5, xmlbench
 compiles, checkstyle clean; no golden moved.*
+
+*Audited 2026-09-07, one reviewer over the code and one over the documents. Code: no defect
+in the seam — every write into a sink through it, the kind-by-target table right, literals
+tagged at both construction sites; the finding was the factories, which put the root package
+back in a cycle with `output` that design 27 ruling 8 had removed, the one-argument form
+uncalled — both deleted, the pins naming `ByteSink`. Fixed: `CompiledRef` and `CompiledRefs`
+still calling a literal pre-encoded bytes; a double blank line; `Encoding`'s two-boundaries
+sentence; Windows-1252 into Windows-1252 pinned, the tags-equal path through a JDK charset.
+Accepted notes: the structure-refusal pin proves only that a `ByteSink` keeps the interface's
+refusal, the message and the FATAL being older; `Encoding.encode` turns a character above
+U+FFFF into two `?`s, a rule older than this phase that literals now reach. Documents: §3's
+seam and §5 brought to as-built; §4's factory sentence marked overtaken and the carry sentence
+scoped; the status block, design 24's two sentences and the engine README's sink list brought
+to the present; the phase 1 measurement's phrasing corrected against the files (error bars
+overlapping, not "inside the interval"; back to back, not interleaved; 299–317); the
+benchmarks README told what a `run-rows` file is; D42 pointed here.*
 
 **Phase 3 — the compiled capture and its cast.** §9: `CompiledCapture` built once per binding
 by the compiler, the `select` and key-value sources through the compiled reference, the `as`

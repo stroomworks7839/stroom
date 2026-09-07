@@ -16,11 +16,7 @@
 
 package stroom.shapeshifter.engine;
 
-import stroom.shapeshifter.engine.output.ByteSink;
-import stroom.shapeshifter.engine.output.XmlByteSink;
 import stroom.shapeshifter.engine.text.Encoding;
-
-import java.io.OutputStream;
 
 /**
  * Where a run's output goes.
@@ -42,7 +38,9 @@ import java.io.OutputStream;
  *
  * <p>A sink declares the encoding it accepts ({@link #encoding()}, design 25 §4), and every
  * value written through it is transcoded from the value's own encoding to that at the write —
- * the identity for the UTF-8 sinks, which are all three that carry structure.
+ * the identity for the UTF-8 sinks, which are all three that carry structure. There is no
+ * factory here (design 27 ruling 8): a caller names the sink it wants, {@code new
+ * XmlByteSink(out)} for UTF-8 and {@code new ByteSink(out, encoding)} for anything else.
  *
  * <p>Ordering is the one rule enforced here rather than by the compiler: a namespace or attribute
  * that arrives after an element's content has begun is a {@link StructureException}, because the
@@ -71,20 +69,6 @@ public interface OutputSink {
      */
     default Encoding encoding() {
         return Encoding.UTF_8;
-    }
-
-    /** The default sink over a stream: the XML byte serialiser, UTF-8. */
-    static OutputSink of(final OutputStream out) {
-        return new XmlByteSink(out);
-    }
-
-    /**
-     * A sink over a stream that accepts the given encoding: the XML byte serialiser when that
-     * is UTF-8-compatible, else a {@link ByteSink} that writes what it is given and refuses
-     * structure.
-     */
-    static OutputSink of(final OutputStream out, final Encoding encoding) {
-        return encoding.isUtf8Compatible() ? new XmlByteSink(out) : new ByteSink(out, encoding);
     }
 
     /**

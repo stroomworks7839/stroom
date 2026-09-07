@@ -185,7 +185,8 @@ public sealed interface TypedValue {
      * character the target cannot express becomes {@code ?} ({@link Encoding#encode}).
      */
     default byte[] bytes(final Encoding target) {
-        if (target.isUtf8Compatible()) {
+        // UTF-8 itself first: the sinks' default, and one compare on the path every write takes.
+        if (target == Encoding.UTF_8 || target.isUtf8Compatible()) {
             return utf8();
         }
         if (this instanceof Bytes bytes && bytes.encoding() == target) {

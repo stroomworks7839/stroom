@@ -2,7 +2,10 @@
 
 One JSON file per JMH run, written automatically by the `jmh` Gradle task of
 `stroom-shapeshifter-engine` (suffix `-engine`) or `stroom-shapeshifter-xmlbench` (suffix
-`-xml`), and named `<date>-<time>-<commit>-<suffix>.json`.
+`-xml`), and named `<date>-<time>-<commit>-<suffix>.json`. A `-compile-rows` or
+`-run-rows-f<forks>` suffix is a targeted probe instead: chosen rows of `EngineBenchmark` at the
+named commit, run by `engine-probe-rows.sh` with the gc profiler and that many forks, filed by
+hand — a subset for a decision, not the gate.
 
 They are checked in on purpose. A throughput figure that exists only in a terminal scrollback
 cannot be compared with the next one, and comparing runs is the entire point:

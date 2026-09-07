@@ -21,16 +21,15 @@ import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.value.TypedValue;
 
-
 /**
  * A reference expression with its resolution strategy already decided.
  *
  * <p>The authored {@link RefExpression} is a list of parts to be interpreted; this is what the
- * interpretation concluded, once, at compile time. Literal text is <b>pre-encoded bytes</b> —
- * the single change that stops every write re-encoding the same string — and the common
- * one-part shapes are named so the body interpreter dispatches on what an expression <i>is</i>
- * rather than walking what it says. Kept as compiled nodes rather than annotations on the
- * model, because the model stays the model (D35).
+ * interpretation concluded, once, at compile time. Literal text is <b>a value made once</b>,
+ * UTF-8-tagged (design 25) — a UTF-8 sink writes its array without re-encoding the string —
+ * and the common one-part shapes are named so the body interpreter dispatches on what an
+ * expression <i>is</i> rather than walking what it says. Kept as compiled nodes rather than
+ * annotations on the model, because the model stays the model (D35).
  */
 public sealed interface CompiledRef {
 

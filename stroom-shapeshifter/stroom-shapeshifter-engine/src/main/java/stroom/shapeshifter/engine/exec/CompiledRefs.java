@@ -29,8 +29,8 @@ import java.nio.charset.StandardCharsets;
  *
  * <p>Two ways in: {@link #write} streams parts to the sink, {@link #resolve} builds the
  * value; and <b>empty is absent</b>, as it is for {@link Refs}. The difference is what no longer happens per
- * call: literal text is bytes that were encoded at compile time, and the shape of the
- * expression is a dispatch, not a walk.
+ * call: literal text is a value made at compile time, written as its own array by a UTF-8
+ * sink (design 25), and the shape of the expression is a dispatch, not a walk.
  *
  * <p>Two resolvers stay, by design: bodies resolve compiled references here, while
  * {@code Conditions} and a level's capture binding still resolve the authored expression

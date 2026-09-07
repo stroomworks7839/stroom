@@ -1204,6 +1204,9 @@ is a separate pipeline element. The engine's output is UTF-8 by construction, so
 to characters is lossless and a UTF-8 `TextWriter` writes the engine's bytes exactly.
 Design 24; completes design 23 §3b.
 
+*Design 25 phase 2 (2026-09-07) restated the output's UTF-8 as the sink's declaration, the
+interface's default, with every write transcoded to it; the outcome here is unchanged.*
+
 ## D43 — A value knows its encoding; nothing is transcoded until someone asks
 
 *2026-09-04.* Captured bytes are no longer converted to UTF-8 at capture (E3's

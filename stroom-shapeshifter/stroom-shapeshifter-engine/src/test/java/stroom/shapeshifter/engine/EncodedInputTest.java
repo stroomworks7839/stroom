@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.output.ByteSink;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.TypedValue;
@@ -622,7 +623,7 @@ class EncodedInputTest {
         final List<Message> messages = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
-                OutputSink.of(output, target));
+                new ByteSink(output, target));
         assertThat(messages).noneMatch(m -> m.severity() == Severity.FATAL);
         return output.toByteArray();
     }
@@ -641,6 +642,14 @@ class EncodedInputTest {
                 .containsExactly('[', 0xE9, 0xC7, ']');
         // The same feed into the UTF-8 sink is the decoded text, as before.
         assertThat(run("iso-8859-1", input)).isEqualTo("[éÇ]");
+    }
+
+    @Test
+    void windows1252IntoAWindows1252SinkIsTheBytesItMatched() {
+        // A JDK charset on both sides: the tags are equal, so the value's own array is written.
+        final byte[] input = {(byte) 0x93, (byte) 0xE9};
+        assertThat(runInto(config("windows-1252"), input, Encoding.WINDOWS_1252))
+                .containsExactly('[', 0x93, 0xE9, ']');
     }
 
     @Test
@@ -666,7 +675,7 @@ class EncodedInputTest {
         final List<Message> messages = Shapeshifter.run(
                 Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(new byte[]{'a'}),
-                OutputSink.of(new ByteArrayOutputStream(), Encoding.RAW));
+                new ByteSink(new ByteArrayOutputStream(), Encoding.RAW));
         assertThat(messages).anyMatch(m -> m.severity() == Severity.FATAL
                 && m.text().contains("does not carry structure"));
     }
