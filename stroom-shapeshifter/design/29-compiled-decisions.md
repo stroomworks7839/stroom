@@ -158,8 +158,8 @@ on the op; pre-split names and pre-encoded tags for the sinks; the prologue's fi
 
 Each phase is gated and audited before the next, and each is measured as §6 says.
 
-**Before phase 1 — E43, measured against the baseline it still has.** The tagged value takes
-the shape design 25's own family already implies and Stroom's `Val` family uses: the conversions
+**Before phase 1 — E43, measured against the baseline it still has.** The tagged value takes the
+shape design 25's own family already implies and Stroom's `Val` family uses: the conversions
 implemented by each variant rather than switched over in the interface, and `Bytes` split into a
 one-field UTF-8 variant, which is sixteen bytes, what the ported record cost, and a three-field
 encoded one for everything else. Measured twice: interleaved against the head before it, which
@@ -167,6 +167,16 @@ says what the fix wins, and against `a9ca4f2853`, the commit before design 25, w
 whether the loss is recovered. The second comparison is why this comes first — it is clean now
 and will not be after phase 1. If the fix does not recover it, that is worth knowing before four
 phases of other work make the question unanswerable.
+
+*Built and measured 2026-09-08 (`f9bcef57af`), and it half worked, which is why it came first.
+The fix wins `csv_header` +2.3% and `progressive` +1.8% against design 25 complete, the sign
+holding in all three rounds. Against the commit before design 25, `apache_httpd`, `progressive`
+and `win_sec_xml` are level or better and `csv_header` is still about two per cent down. So the
+value's size is answered — under a UTF-8 feed it is now the shape the ported record had — and
+something else on the delimiter row is not. E43 records it as a residue with two candidates:
+the interface dispatch the fix introduced, and the per-record work §3 surveys. Phase 1 now has
+a question to answer as well as a target, and the `csv_header` figure is the one to watch: it
+was −3.8% at design 25, is −2.0% now, and should reach zero if §3 is the explanation.*
 
 **Phase 1 — the innermost loops.** §3.2's pattern lookup and §3.3's decoder, both in the step
 interpreter; §3.5's matcher and replacement parse in the body's replace. The four hottest sites

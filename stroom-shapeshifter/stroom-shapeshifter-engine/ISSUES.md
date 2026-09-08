@@ -1302,8 +1302,36 @@ Not to be taken by reverting the tag: the byte identity, the sink declaration an
 cast all rest on it, and the consistency argument the design was ruled on does not weaken
 because the row moved. Owner of the measurement when one of the above is tried.
 
-*Ordering, 2026-09-08:* this is fixed before design 29's phases, not after. The cost of the
+*Ordering, 2026-09-08:* this was fixed before design 29's phases, not after. The cost of the
 tagged value can be attributed at any baseline by building the counterfactual and interleaving,
 but whether the loss is *recovered* can only be asked against `a9ca4f2853`, the commit before
 design 25, and that comparison means what it says only while the surrounding code is unchanged.
 Design 29 §5 has the order and the reason.
+
+**`resolved` in shape 2026-09-08 (`f9bcef57af`), with a residue named.** The encoding is in the
+class: `Bytes` is a sealed interface over a one-field `Utf8Bytes` — sixteen bytes, what the
+ported record cost, and what every corpus fixture and very nearly every real feed makes — and a
+three-field `EncodedBytes`. The conversions moved onto the variants. Measured as design 29 §6
+requires, interleaved three rounds a side, files under `design/benchmarks`
+(`…-run-rows-f5-won-r<n>` and `…-back-r<n>`):
+
+- *What the fix wins*, against design 25 complete: `csv_header` +2.3% and `progressive` +1.8%,
+  both with the sign in all three rounds; `apache_httpd` +0.8% and `win_sec_xml` level, signs
+  mixed. It wins most where the loss was worst, which is what the allocation argument predicted.
+- *Whether the loss is recovered*, against the commit before design 25: `apache_httpd`,
+  `progressive` and `win_sec_xml` are level or better — recovered. `csv_header` is still about
+  2% down, its rounds −3.4, +1.3, −3.9, so the sign is not clean but it leans negative, and it
+  is consistent with the +2.3% the fix won against the −3.8% it had lost.
+
+So roughly half to two thirds of design 25's cost is back, three of the four sampled rows are
+level, and the delimiter row keeps about two per cent whose cause is **not established**. It is
+not the value's size — under a UTF-8 feed the value is now exactly the shape the ported record
+had. The candidates are the interface dispatch this change introduced, which the entry warned
+about, and the per-record work design 29 §3 surveys, of which `csv_header`'s loop has more than
+its share. That residue is design 29's to explain, not this entry's: §5's phase 5 says E43 is
+closed or restated once the phases have run, and this is the restatement it will read.
+
+The full suite over all eight workloads, run and compile rows, was taken at both ends the same
+day (`…-1249-a9ca4f2853-full`, `…-1301-f9bcef57af-full`). It agrees on the shape and disagrees
+on the size — `csv_header` −4.5%, `regex_lines` −4.0% on an interval of ±35 — which is what a
+sequential pair does and why the interleaved rounds are the reading to believe.
