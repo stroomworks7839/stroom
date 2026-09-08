@@ -19,9 +19,10 @@ keeping, and so is one that did not.
 | 2 | `a46bc6e4ca` | 2026-09-07 | Design 25 complete, phases 1–4 and the write seam | The tagged value, the declaring sink and the compiled capture, together. Where the one-to-four per cent first showed. |
 | 3 | `f9bcef57af` | 2026-09-08 | E43, the value's encoding in its class | The one-field UTF-8 variant. Won back most of it; `csv_header` did not recover. |
 | 4 | `5dfdabc46f` | 2026-09-08 | Design 29 phase 1, the match loop | Owns `csv_header`'s unexplained two per cent. |
+| 5 | `d504945cd5` | 2026-09-08 | Design 29 phase 2, the compiled step | The first phase expected to *win* rather than to recover: a per-character decoder cascade and a per-attempt encode, pattern lookup and matcher allocation all removed. `progressive` and `regex_lines` are its rows; a compile row moving here would be the doubled step tree. |
 
-*Rows to add as they land: phase 2 (the compiled step), phase 3 (the body's ops), phase 4
-(conditions), phase 5 (the sinks and the prologue).*
+*Rows to add as they land: phase 3 (the body's ops), phase 4 (conditions), phase 5 (the sinks
+and the prologue).*
 
 ## Points deliberately not on the list
 
