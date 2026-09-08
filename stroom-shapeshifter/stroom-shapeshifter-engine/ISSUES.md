@@ -1328,13 +1328,24 @@ level, and the delimiter row keeps about two per cent whose cause is **not estab
 not the value's size — under a UTF-8 feed the value is now exactly the shape the ported record
 had. The candidates are the interface dispatch this change introduced, which the entry warned
 about, and the per-record work design 29 §3 surveys, of which `csv_header`'s loop has more than
-its share. Reading the fixture narrows it. `csv_header` is five delimiter templates writing text and
-opening no element, so the sinks' per-element work is not in its loop; what is there is design
-29 §3.1's reads of the authored model per field and §3.3's factory branch, which are that
-design's **phase 2**, and the dispatch above, which is no part of it. The residue is design
-29's to explain where it is §3's, and this entry's where it is the dispatch's — §5's phase 5
-says E43 is closed or restated once the phases have run, and this is the restatement it will
-read.
+its share. Reading the fixture narrows it. `csv_header` is five delimiter templates writing text
+and opening no element, so the sinks' per-element work is not in its loop; what is there is
+design 29 §3.1's reads of the authored model per field and §3.3's factory branch, which are that
+design's **phase 2**, and the dispatch above, which is no part of it. The residue is design 29's
+to explain where it is §3's, and this entry's where it is the dispatch's — §5's phase 5 says E43
+is closed or restated once the phases have run, and this is the restatement it will read.
+
+*The dispatch, tested 2026-09-08 (`…-run-rows-f5-mono-r<n>`).* The claim wanted sharpening
+first: the write path called an interface method before E43 too, and what changed is that
+`bytes` and `asUtf8` each had exactly one implementation, so the compiler could inline them from
+the hierarchy without profiling, and now have two and three. A variant of the head giving
+`Output.write` a monomorphic fast path — an exact type test for `Utf8Bytes`, whose class is
+final, then its field — was interleaved against the head over three rounds. `csv_header` +1.2%,
+the sign in all three rounds (+2.4, +0.9, +0.2); `apache_httpd` level, as a row that writes
+little per record should be. So the dispatch is **about half to two thirds of the residue** and
+the rest, some 0.8%, is inside the noise and not worth chasing on its own. The variant is not
+committed: buying monomorphism with a special case in the seam is a shape decision, not a
+measurement, and it belongs beside design 29 §3.3's factory binding rather than ahead of it.
 
 The full suite over all eight workloads, run and compile rows, was taken at both ends the same
 day (`…-1249-a9ca4f2853-full`, `…-1301-f9bcef57af-full`). It agrees on the shape and disagrees
