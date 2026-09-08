@@ -110,6 +110,8 @@ The template engine's, in the parent design folder:
   the graph, the passes, the packages and the direction between them (D45).
 - [28-model-classification.md](design/28-model-classification.md) — the model's instructions
   classified as holders, bindings, transforms and leaves, so the walks say things once (D47).
+- [29-compiled-decisions.md](design/29-compiled-decisions.md) — the twenty-five places the
+  compiled graph re-reads its configuration per record, and what each should hold instead.
 
 Prior art for both: Stroom's existing DS3 implementation at
 `stroom-pipeline/src/main/java/stroom/pipeline/xml/converter/ds3/`, which is also the

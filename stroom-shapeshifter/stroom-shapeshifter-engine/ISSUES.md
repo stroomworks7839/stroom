@@ -308,7 +308,9 @@ suite, checked-in results and a scoreboard ([D21](../design/00-decisions.md),
 [05-engine-benchmarks.md](../stroom-shapeshifter-regex/design/05-engine-benchmarks.md)); this layer has none of it. D33
 deferred it until the suite was green, which it now is.
 
-Measured since: the tagged value's one to four per cent (E43, 2026-09-08). Known costs nobody
+Measured since: the tagged value's one to four per cent (E43, 2026-09-08). Twenty-five places
+where the graph re-reads its configuration per record are surveyed and grouped in design 29
+(2026-09-08), several of them of the same order and none buying anything. Known costs nobody
 has measured, listed so they are not re-derived: `Tag` steps encode their text
 on every match rather than once at compile time; `apply-templates` filters the template list per
 call instead of grouping by mode once; and every captured group is copied out of the buffer even
