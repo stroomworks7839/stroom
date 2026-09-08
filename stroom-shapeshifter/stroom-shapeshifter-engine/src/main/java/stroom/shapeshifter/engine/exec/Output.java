@@ -37,7 +37,13 @@ record Output(OutputSink sink, Encoding encoding) {
         return new Output(sink, sink.encoding());
     }
 
-    /** Write a value in the sink's encoding — the seam every write of a value goes through. */
+    /**
+     * Write a value in the sink's encoding — the one place transcoding is decided.
+     *
+     * <p>Needs no fast path for the common case. The receiver here is monomorphic in a run, so
+     * the conversion devirtualises and inlines to a field read; a hand-written type test would
+     * buy one guard in place of another (E43).
+     */
     void write(final TypedValue value) {
         sink.write(value.bytes(encoding));
     }

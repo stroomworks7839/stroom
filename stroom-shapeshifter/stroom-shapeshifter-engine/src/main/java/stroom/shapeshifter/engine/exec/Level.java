@@ -23,11 +23,9 @@ import stroom.shapeshifter.engine.compile.CompiledCapture;
 import stroom.shapeshifter.engine.compile.CompiledMatch;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
-import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.EngineVars;
-import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.match.Splitter;
@@ -40,6 +38,7 @@ import stroom.shapeshifter.regex.ByteMatcher;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Dispatching one level — the templates of a mode — against one region of content, or the
@@ -136,18 +135,17 @@ final class Level {
             int winner = -1;
             MatchResult match = null;
             for (int i = 0; i < templates.size(); i++) {
-                if (!allowed[i]) {
+                if (allowed != null && !allowed[i]) {
                     continue;
                 }
                 final CompiledTemplate candidate = templates.get(i);
-                final Template template = candidate.template();
-                final int maxMatch = template.matchLimits().maxMatch();
-                if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
+                final int maxMatch = candidate.maxMatch();
+                if (!candidate.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
                     continue;
                 }
                 final long timing = instrument.startTiming();
                 final MatchResult attempt = match(candidate, data, cursor, to, atCursor);
-                instrument.stopTiming(template.id(), timing, attempt != null);
+                instrument.stopTiming(candidate.template().id(), timing, attempt != null);
                 if (attempt == null) {
                     continue;
                 }
@@ -175,7 +173,7 @@ final class Level {
 
             // An eater: advance, don't count (D36). No counters move, no stores clear,
             // no skip report — the eater is the authored skip.
-            if (template.consume()) {
+            if (candidate.consume()) {
                 processEater(candidate, match, out, inputBase, ignoreErrors, depth);
                 cursor += match.advance();
                 matched = true;
@@ -219,10 +217,8 @@ final class Level {
         }
         final Template template = candidate.template();
         if (matchCount == 1) {
-            for (final CaptureBinding capture : template.captures()) {
-                if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
-                    vars.store(capture.name()).clear();
-                }
+            for (final String name : candidate.clearNames()) {
+                vars.store(name).clear();
             }
         }
         if (reportSkips && match.matchStart() > 0 && !ignoreErrors && !template.ignoreErrors()) {
@@ -233,8 +229,8 @@ final class Level {
         }
         vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Integer(matchCount - 1));
         vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Integer(matchCount));
-        final boolean wanted = template.matchLimits().onlyMatch() == null
-                               || template.matchLimits().onlyMatch().contains(matchCount);
+        final Set<Integer> onlyMatch = candidate.onlyMatch();
+        final boolean wanted = onlyMatch == null || onlyMatch.contains(matchCount);
         if (wanted) {
             runBody(candidate, match, matchCount, out, locateBase, ignoreErrors, depth);
         }
@@ -247,7 +243,7 @@ final class Level {
                               final long locateBase,
                               final boolean ignoreErrors,
                               final int depth) {
-        final TypedValue swallowed = content(candidate.template(), match);
+        final TypedValue swallowed = content(candidate, match);
         if (swallowed != null && !swallowed.isEmpty()) {
             body.body(candidate.body(), match, 1, swallowed.asBytes(), out,
                     locateBase, ignoreErrors, depth);
@@ -289,18 +285,17 @@ final class Level {
             int winner = -1;
             MatchResult match = null;
             for (int i = 0; i < templates.size(); i++) {
-                if (!allowed[i]) {
+                if (allowed != null && !allowed[i]) {
                     continue;
                 }
                 final CompiledTemplate candidate = templates.get(i);
-                final Template template = candidate.template();
-                final int maxMatch = template.matchLimits().maxMatch();
-                if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
+                final int maxMatch = candidate.maxMatch();
+                if (!candidate.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
                     continue;
                 }
                 final long timing = instrument.startTiming();
                 final MatchResult attempt = match(candidate, window.bytes(), start, filled, atCursor);
-                instrument.stopTiming(template.id(), timing, attempt != null);
+                instrument.stopTiming(candidate.template().id(), timing, attempt != null);
                 if (attempt == null) {
                     continue;
                 }
@@ -363,7 +358,7 @@ final class Level {
                 }
             }
 
-            if (template.consume()) {
+            if (candidate.consume()) {
                 processEater(candidate, match, out, window.consumed(), ignoreErrors, 0);
                 window.consume(match.advance());
                 continue;
@@ -408,18 +403,17 @@ final class Level {
         while (length > 0 && matched) {
             matched = false;
             for (int i = 0; i < templates.size(); i++) {
-                if (!allowed[i]) {
+                if (allowed != null && !allowed[i]) {
                     continue;
                 }
                 final CompiledTemplate candidate = templates.get(i);
-                final Template template = candidate.template();
-                final int maxMatch = template.matchLimits().maxMatch();
-                if (!template.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
+                final int maxMatch = candidate.maxMatch();
+                if (!candidate.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
                     continue;
                 }
                 final long timing = instrument.startTiming();
                 final MatchResult match = match(candidate, work, 0, length, false);
-                instrument.stopTiming(template.id(), timing, match != null);
+                instrument.stopTiming(candidate.template().id(), timing, match != null);
                 if (match == null) {
                     continue;
                 }
@@ -430,11 +424,11 @@ final class Level {
                     // Break, not return: the level can say nothing more, but the minimum-match
                     // and unmatched-content reporting below still has its say — exactly as the
                     // equivalent break in the ordered modes reaches it.
-                    noProgress(template, "content", start);
+                    noProgress(candidate.template(), "content", start);
                     break;
                 }
 
-                if (!template.consume()) {
+                if (!candidate.consume()) {
                     counts[i]++;
                     processMatch(candidate, match, counts[i], work, 0, base, out,
                             ignoreErrors, depth, false);
@@ -473,7 +467,7 @@ final class Level {
         // earlier sibling's match would see that sibling's counters and captures.
         final boolean[] allowed = guards(templates);
         for (int i = 0; i < templates.size(); i++) {
-            if (!allowed[i]) {
+            if (allowed != null && !allowed[i]) {
                 continue;
             }
             final CompiledTemplate candidate = templates.get(i);
@@ -503,14 +497,28 @@ final class Level {
      * against itself. DS3 gets this for free by passing the parent's count down as a
      * parameter; evaluating here, while the scope still describes the parent, is the same
      * thing said with variables.
+     *
+     * <p>Returns <b>null when every template may be tried</b>, which is the shape a level takes
+     * when nothing in it is guarded — most levels in most configurations — and which then costs
+     * neither the array nor the walk (design 29 §3.1).
      */
     private boolean[] guards(final List<CompiledTemplate> templates) {
+        boolean any = false;
+        for (final CompiledTemplate candidate : templates) {
+            if (candidate.guarded()) {
+                any = true;
+                break;
+            }
+        }
+        if (!any) {
+            return null;
+        }
         final boolean[] allowed = new boolean[templates.size()];
         for (int i = 0; i < templates.size(); i++) {
-            final Template template = templates.get(i).template();
-            allowed[i] = template.guard() == null
-                         || Conditions.evaluate(
-                    template.guard(), MatchResult.empty(), 1, vars, compiled.patterns());
+            final CompiledTemplate candidate = templates.get(i);
+            allowed[i] = !candidate.guarded()
+                         || Conditions.evaluate(candidate.template().guard(),
+                    MatchResult.empty(), 1, vars, compiled.patterns());
         }
         return allowed;
     }
@@ -564,10 +572,12 @@ final class Level {
     /**
      * The content a match hands its body: a delimiter template's is the field, group 1, and
      * every other template's is the whole match, group 0 — the group that carries the
-     * delimiter too, which is why a delimiter's group 0 is not it.
+     * delimiter too, which is why a delimiter's group 0 is not it. Which group that is was
+     * decided when the template compiled; the fallback to group 0 is for a match that produced
+     * no such group.
      */
-    private static TypedValue content(final Template template, final MatchResult match) {
-        final int contentGroup = template.match() instanceof MatchExpression.Delimiter ? 1 : 0;
+    private static TypedValue content(final CompiledTemplate candidate, final MatchResult match) {
+        final int contentGroup = candidate.contentGroup();
         return match.group(contentGroup) != null ? match.group(contentGroup) : match.group(0);
     }
 
@@ -580,7 +590,7 @@ final class Level {
                          final boolean ignoreErrors,
                          final int depth) {
         final Template template = candidate.template();
-        final TypedValue content = content(template, match);
+        final TypedValue content = content(candidate, match);
         if (content == null || content.isEmpty()) {
             return;
         }

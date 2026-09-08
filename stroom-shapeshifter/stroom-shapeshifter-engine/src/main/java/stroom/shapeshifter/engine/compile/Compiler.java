@@ -88,7 +88,7 @@ public final class Compiler {
             final Encoding matchEncoding = declared == null ? encoding : declared;
             // The match first: it interns the patterns the body's compiled form resolves against.
             final CompiledMatch match = matches.compile(template, matchEncoding);
-            templates.add(new CompiledTemplate(template, match,
+            templates.add(CompiledTemplate.of(template, match,
                     bodies.compile(template.body()),
                     declared,
                     CompiledCapture.compile(template.captures())));

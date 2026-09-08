@@ -1021,8 +1021,11 @@ final class Body {
         final boolean recursive = directive.recursive();
         if (recursive) {
             vars.push();
-            candidates.forEach(candidate -> candidate.template().captures()
-                    .forEach(capture -> vars.shadow(capture.name())));
+            for (final CompiledTemplate candidate : candidates) {
+                for (final String name : candidate.captureNames()) {
+                    vars.shadow(name);
+                }
+            }
         }
 
         // DS3 inherits ignoreErrors down the tree: a level inside an ignoring container is
