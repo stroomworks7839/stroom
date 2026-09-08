@@ -22,11 +22,14 @@ import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
+import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.value.Dates;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -45,6 +48,9 @@ import java.util.function.Function;
  * interned here, and compiling them further is design 10 §2's open row (design 27 §2.7).
  */
 public sealed interface CompiledOp {
+
+    /** Shared empty, so an unlinked or capture-free apply allocates no array. */
+    String[] EMPTY_NAMES = new String[0];
 
     /** Write a literal: a UTF-8-tagged value; the sink's encoding decides its bytes (design 25). */
     record Text(TypedValue value) implements CompiledOp {
@@ -71,13 +77,17 @@ public sealed interface CompiledOp {
 
     }
 
-    /** Run the branch whose value matches. */
-    record Switch(CompiledRef select, List<Case> cases, List<CompiledOp> defaultBody) implements CompiledOp {
-
-    }
-
-    /** One case of a {@link Switch}. */
-    record Case(String value, List<CompiledOp> body) {
+    /**
+     * Run the branch whose value matches.
+     *
+     * @param cases      the branch each case value takes, first declaration winning where a
+     *                   value is written twice — the order the authored scan had
+     * @param defaultBody what runs when no case matches, which a select resolving to nothing
+     *                   also reaches
+     */
+    record Switch(CompiledRef select,
+                  Map<String, List<CompiledOp>> cases,
+                  List<CompiledOp> defaultBody) implements CompiledOp {
 
     }
 
@@ -93,12 +103,82 @@ public sealed interface CompiledOp {
      * @param dispatch           how the dispatched level runs — the directive's word, the
      *                           source default, or the version default, resolved once (D36)
      */
-    record Apply(ApplyDirective directive,
-                 CompiledRef select,
-                 boolean wholeParentContent,
-                 boolean locatable,
-                 Dispatch dispatch) implements CompiledOp {
+    final class Apply implements CompiledOp {
 
+        private final ApplyDirective directive;
+        private final CompiledRef select;
+        private final boolean wholeParentContent;
+        private final boolean locatable;
+        private final Dispatch dispatch;
+        private List<CompiledTemplate> candidates = List.of();
+        private String[] recursiveShadow = EMPTY_NAMES;
+
+        Apply(final ApplyDirective directive,
+              final CompiledRef select,
+              final boolean wholeParentContent,
+              final boolean locatable,
+              final Dispatch dispatch) {
+            this.directive = directive;
+            this.select = select;
+            this.wholeParentContent = wholeParentContent;
+            this.locatable = locatable;
+            this.dispatch = dispatch;
+        }
+
+        /**
+         * Bind the templates this apply dispatches to, once the whole project has compiled.
+         *
+         * <p>A body compiles before every template exists, so the mode cannot be resolved where
+         * the op is built — which is why design 29 phase 1 left this to phase 3. The ops are
+         * collected as they are made and linked when the list is complete, rather than found
+         * again by walking the compiled bodies, so no nesting can hide one.
+         */
+        void link(final List<CompiledTemplate> candidates) {
+            this.candidates = candidates;
+            final List<String> shadow = new ArrayList<>();
+            for (final CompiledTemplate candidate : candidates) {
+                shadow.addAll(Arrays.asList(candidate.captureNames()));
+            }
+            this.recursiveShadow = shadow.toArray(EMPTY_NAMES);
+        }
+
+        /** The authored directive — mode, limits, gates. */
+        public ApplyDirective directive() {
+            return directive;
+        }
+
+        /** The content reference, compiled. */
+        public CompiledRef select() {
+            return select;
+        }
+
+        /**
+         * Whether the select means "the content this template is working on", which is passed
+         * straight through rather than re-resolved.
+         */
+        public boolean wholeParentContent() {
+            return wholeParentContent;
+        }
+
+        /** Whether the dispatched content is still part of the input, and can be pointed at. */
+        public boolean locatable() {
+            return locatable;
+        }
+
+        /** How the dispatched level runs — the directive's word, or a default, resolved once (D36). */
+        public Dispatch dispatch() {
+            return dispatch;
+        }
+
+        /** The templates answering this apply's mode, in authored order. */
+        public List<CompiledTemplate> candidates() {
+            return candidates;
+        }
+
+        /** Every capture name a recursive apply shadows, flattened once across the candidates. */
+        public String[] recursiveShadow() {
+            return recursiveShadow;
+        }
     }
 
     /** Emit a message into the run's stream; {@code FATAL} aborts the run (D36). */
@@ -107,7 +187,75 @@ public sealed interface CompiledOp {
     }
 
     /** Invoke a template by name. The target is a field read at run time, not a search. */
-    record CallTemplate(String name, List<Arg> args) implements CompiledOp {
+    final class CallTemplate implements CompiledOp {
+
+        private final String name;
+        private final List<Arg> args;
+        private CompiledTemplate target;
+        private List<Param> params = List.of();
+
+        CallTemplate(final String name, final List<Arg> args) {
+            this.name = name;
+            this.args = args;
+        }
+
+        /**
+         * Bind the template this calls and work out what its parameters do here.
+         *
+         * <p>Which parameters this call site leaves unsupplied is fixed: the target's
+         * declarations and the call's arguments are both written down. So the search through the
+         * arguments per declared parameter, and the encoding of each default, happen once — see
+         * {@link Param}.
+         *
+         * @param target the template named, or null when the name resolves to none, which is
+         *               not an error here: the call does nothing at run time
+         */
+        void link(final CompiledTemplate target) {
+            this.target = target;
+            if (target == null) {
+                return;
+            }
+            final List<Param> declared = new ArrayList<>();
+            for (final Template.ParamDecl parameter : target.template().param()) {
+                final boolean supplied = args.stream()
+                        .anyMatch(arg -> arg.name().equals(parameter.name()));
+                declared.add(new Param(parameter.name(),
+                        !supplied && parameter.defaultValue() != null
+                                ? TypedValue.of(parameter.defaultValue())
+                                : null));
+            }
+            this.params = List.copyOf(declared);
+        }
+
+        /** The name called, kept for diagnostics. */
+        public String name() {
+            return name;
+        }
+
+        /** The arguments this call supplies. */
+        public List<Arg> args() {
+            return args;
+        }
+
+        /** The template called, or null when the name names none. */
+        public CompiledTemplate target() {
+            return target;
+        }
+
+        /** The target's parameters as this call site sees them. */
+        public List<Param> params() {
+            return params;
+        }
+    }
+
+    /**
+     * A called template's parameter, at one call site.
+     *
+     * @param name         the parameter, which the call always shadows
+     * @param defaultValue the value to bind, encoded once — or null when this call supplies the
+     *                     parameter itself, or the declaration has no default
+     */
+    record Param(String name, TypedValue defaultValue) {
 
     }
 
@@ -137,10 +285,18 @@ public sealed interface CompiledOp {
 
     }
 
-    /** Map a value through a lookup table. */
+    /**
+     * Map a value to another, from a table written in the configuration.
+     *
+     * @param entries      the mapped value for each input, encoded once — first declaration
+     *                     winning, and an entry mapping to nothing holding the default, so a
+     *                     lookup that misses and one that finds nothing agree as they did
+     * @param defaultValue what an unmapped value produces, never null: an undeclared default
+     *                     is the empty value
+     */
     record ValueMap(CompiledRef select,
-                    List<OutputNode.Entry> entries,
-                    String defaultValue,
+                    Map<String, TypedValue> entries,
+                    TypedValue defaultValue,
                     String name) implements CompiledOp {
 
     }
@@ -149,8 +305,12 @@ public sealed interface CompiledOp {
      * A call to a registered function (design 26): {@code select.get(i)} is the reference at
      * position {@code i}, or null where {@code sequences.get(i)} names the store whose entries
      * that position receives.
+     *
+     * @param slot where the run's bindings hold this function, so the call reads an array rather
+     *             than hashing its name
      */
     record CallFunction(FunctionDefinition definition,
+                        int slot,
                         List<CompiledRef> select,
                         List<String> sequences,
                         String name) implements CompiledOp {

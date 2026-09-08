@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.value;
 
-import stroom.shapeshifter.regex.BytePattern;
 
 import org.junit.jupiter.api.Test;
 
@@ -227,53 +226,4 @@ class TransformsTest {
                 .isEqualTo("∞");
     }
 
-    // -----------------------------------------------------------------------------------
-    // Regex replacement — no fixture reaches this
-    // -----------------------------------------------------------------------------------
-
-    @Test
-    void replaceRegexExpandsGroupReferences() {
-        final BytePattern pattern = BytePattern.compile("(\\w+)=(\\w+)");
-        assertThat(Transforms.replaceRegex(pattern, "a=1 b=2", "$2:$1"))
-                .isEqualTo("1:a 2:b");
-        assertThat(Transforms.replaceRegex(pattern, "a=1", "${2}${1}"))
-                .isEqualTo("1a");
-    }
-
-    @Test
-    void replaceRegexUsesRustsExpansionRulesNotJavas() {
-        final BytePattern pattern = BytePattern.compile("(\\d+)");
-        // $$ is a literal dollar.
-        assertThat(Transforms.replaceRegex(pattern, "cost 5", "$$$1"))
-                .isEqualTo("cost $5");
-        // A dollar followed by nothing nameable is a literal dollar, not an error — which is
-        // where java.util.regex would throw.
-        assertThat(Transforms.replaceRegex(pattern, "5", "$ x")).isEqualTo("$ x");
-        // A named group, by name.
-        assertThat(Transforms.replaceRegex(BytePattern.compile("(?<word>[a-z]+)"), "hi there", "<$word>"))
-                .isEqualTo("<hi> <there>");
-    }
-
-    @Test
-    void replaceRegexExpandsAnAbsentGroupToNothing() {
-        final BytePattern pattern = BytePattern.compile("a(x)?b");
-        assertThat(Transforms.replaceRegex(pattern, "ab axb", "[$1]"))
-                .isEqualTo("[] [x]");
-    }
-
-    @Test
-    void replaceRegexTerminatesOnAZeroWidthMatch() {
-        // The pattern matches emptily everywhere. Without advancing past a zero-width match this
-        // would never finish, which is the classic way a replace-all loop hangs.
-        assertThat(Transforms.replaceRegex(BytePattern.compile("x*"), "abc", "-"))
-                .isEqualTo("-a-b-c-");
-    }
-
-    @Test
-    void replaceRegexAdvancesByWholeCharacters() {
-        // A zero-width match before a multi-byte character must step over all of it, or the
-        // output is cut through the middle of a character.
-        assertThat(Transforms.replaceRegex(BytePattern.compile("x*"), "é😀", "-"))
-                .isEqualTo("-é-😀-");
-    }
 }

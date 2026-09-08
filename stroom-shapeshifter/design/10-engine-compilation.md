@@ -53,6 +53,9 @@ condition still looks its pattern up by text, so that row stays half-open with c
 Design 29 phase 2: the step vocabulary compiled — `Tag`/`TakeUntil` pre-encoded, `TakeWhile`
 byte tables built, and a step regex holding its pattern and its matcher rather than looking one
 up and allocating the other per attempt.
+Design 29 phase 3: change 1's matcher-as-a-field carried to the body side, where a regex
+`replace` had been allocating one per call — the row above says `apache_httpd` runs 209 of them
+per record — together with its replacement parsed once instead of per match.
 Still open: compiled conditions/guards (E39), capture elimination, and the two rows above.
 
 The regex library already proves the end state on its own layer; the engine's job is the same

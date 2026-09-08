@@ -47,7 +47,11 @@ final class FunctionRuntime {
     private final RunMode mode;
     private final Services services;
     private final List<Message> messages;
-    private final Map<String, FunctionCall> library = new HashMap<>();
+    /**
+     * The bound calls, in the order the compiled project lists them — which is the order a
+     * compiled call's slot indexes (design 29 §3.2).
+     */
+    private FunctionCall[] bound = new FunctionCall[0];
     private final Map<String, Object> state = new HashMap<>();
     private final Set<String> notRunInPreview = new HashSet<>();
     private long callOffset = Instrument.UNLOCATABLE;
@@ -70,9 +74,11 @@ final class FunctionRuntime {
      * last message, FATAL, rather than an exception through the caller.
      */
     void bind() {
-        for (final FunctionDefinition definition : definitions) {
+        bound = new FunctionCall[definitions.size()];
+        for (int slot = 0; slot < definitions.size(); slot++) {
+            final FunctionDefinition definition = definitions.get(slot);
             try {
-                library.put(definition.name(), definition.bind(new Context(definition.name())));
+                bound[slot] = definition.bind(new Context(definition.name()));
             } catch (final RuntimeException e) {
                 messages.add(new Message(Severity.FATAL,
                         definition.name() + ": could not be bound to this run: " + describe(e)));
@@ -106,14 +112,19 @@ final class FunctionRuntime {
      * ({@link FunctionFailure}) is FATAL and ends the run; any other exception is an ERROR and
      * the call produced nothing.
      *
+     * @param slot     where the call's function was bound, decided when the call compiled
      * @return the function's result, or null for nothing
      */
-    TypedValue invoke(final String function, final Arguments arguments, final long offset, final long length) {
-        final FunctionCall bound = library.get(function);
+    TypedValue invoke(final int slot,
+                      final String function,
+                      final Arguments arguments,
+                      final long offset,
+                      final long length) {
+        final FunctionCall call = bound[slot];
         callOffset = offset;
         callLength = length;
         try {
-            return bound.call(arguments);
+            return call.call(arguments);
         } catch (final FunctionFailure e) {
             messages.add(new Message(Severity.FATAL, function + ": " + e.getMessage()));
             throw new AbortRun();

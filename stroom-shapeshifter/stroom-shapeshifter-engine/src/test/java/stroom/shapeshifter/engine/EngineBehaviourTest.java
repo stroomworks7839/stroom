@@ -368,6 +368,68 @@ class EngineBehaviourTest {
     // -----------------------------------------------------------------------------------
 
     @Test
+    void switchTakesTheFirstMatchingCaseAndOtherwiseTheDefault() {
+        // Design 29 phase 3 turned the authored case scan into a table. The scan took the first
+        // case whose value matched, so a value written twice still runs the first branch, and a
+        // select matching nothing reaches the default.
+        final Run result = run("""
+                {
+                  "name": "switching", "version": 3,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "match": {"delimiter": {"delimiter": "\\n"}},
+                     "body": [{"switch": {
+                       "select": {"parts": [{"capture": {"group": 1}}]},
+                       "cases": [
+                         {"value": "a", "body": [{"value-of": {"parts": [{"text": "[A]"}]}}]},
+                         {"value": "b", "body": [{"value-of": {"parts": [{"text": "[B]"}]}}]},
+                         {"value": "a", "body": [{"value-of": {"parts": [{"text": "[second a]"}]}}]},
+                         {"value": "quiet", "body": []}],
+                       "default": [{"value-of": {"parts": [{"text": "[?]"}]}}]}}]}
+                  ]
+                }
+                """, "a\nb\nz\nquiet\n");
+
+        // 'a' takes the first of its two branches; 'z' matches nothing and takes the default;
+        // 'quiet' matches a case with an empty body, which is not the same as not matching.
+        assertThat(result.output()).isEqualTo("[A][B][?]");
+    }
+
+    @Test
+    void valueMapFallsBackToItsDefault() {
+        // The other half of the same rewrite: a lookup that misses produces the declared
+        // default, and where none is declared, nothing.
+        final Run mapped = run(valueMapConfig(", \"default\": \"none\""), "Jan\nzzz\n");
+        assertThat(mapped.output()).isEqualTo("01none");
+
+        final Run undeclared = run(valueMapConfig(""), "Jan\nzzz\n");
+        assertThat(undeclared.output()).isEqualTo("01");
+    }
+
+    private static String valueMapConfig(final String defaultClause) {
+        return """
+                {
+                  "name": "mapping", "version": 3,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "match": {"delimiter": {"delimiter": "\\n"}},
+                     "body": [{"value-map": {
+                       "select": {"parts": [{"capture": {"group": 1}}]},
+                       "entries": [{"from": "Jan", "to": "01"}, {"from": "Feb", "to": "02"}]DEFAULT}}]}
+                  ]
+                }
+                """.replace("DEFAULT", defaultClause);
+    }
+
+    @Test
     void callsANamedTemplateWithParameters() {
         final Run result = run("""
                 {

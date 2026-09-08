@@ -106,8 +106,12 @@ public final class Compiler {
         TemplateUses.resolveNames(project, uses);
         TemplateUses.lintDispatch(project, templates, uses, warnings);
         final boolean structured = bodyChecks(project, warnings);
-        return new CompiledProject(project, templates, matches.patterns(), encoding, transcodeFrom,
-                warnings, functions.used(), structured);
+        final CompiledProject compiled = new CompiledProject(project, templates, matches.patterns(),
+                encoding, transcodeFrom, warnings, functions.used(), structured);
+
+        // The bodies were compiled before the templates they name existed; now they do.
+        bodies.link(compiled);
+        return compiled;
     }
 
     /** What a template's captures alone can be wrong about. */

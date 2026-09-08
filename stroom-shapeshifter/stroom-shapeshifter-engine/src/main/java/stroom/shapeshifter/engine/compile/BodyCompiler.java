@@ -29,6 +29,7 @@ import stroom.shapeshifter.engine.function.Signature;
 import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.Dates;
+import stroom.shapeshifter.engine.value.Replacer;
 import stroom.shapeshifter.engine.value.Transforms;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
@@ -36,6 +37,7 @@ import stroom.shapeshifter.regex.BytePattern;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -54,6 +56,18 @@ final class BodyCompiler {
     private final Functions functions;
 
     /**
+     * The ops that cannot be finished until every template has compiled, collected as they are
+     * built (design 29 §3.2).
+     *
+     * <p>An apply's mode and a call's name both name a template, and a body compiles before the
+     * templates it names exist. Collecting the ops here rather than walking the compiled bodies
+     * afterwards is what makes {@link #link} total: an op that is built is registered, so no
+     * nesting — a switch case inside a for-each inside a variable — can hide one.
+     */
+    private final List<CompiledOp.Apply> applies = new ArrayList<>();
+    private final List<CompiledOp.CallTemplate> calls = new ArrayList<>();
+
+    /**
      * @param patterns the project's interned patterns, already collected — a regex replace
      *                 resolves its {@link BytePattern} here, once
      */
@@ -63,6 +77,22 @@ final class BodyCompiler {
         this.patterns = patterns;
         this.project = project;
         this.functions = functions;
+    }
+
+    /**
+     * Give every collected op the template or templates it names, now that all of them exist.
+     *
+     * <p>An apply whose mode answers to nothing gets an empty list and matches nothing, and a
+     * call naming no template gets null and does nothing — both are what the lookups they
+     * replace returned.
+     */
+    void link(final CompiledProject compiled) {
+        for (final CompiledOp.Apply apply : applies) {
+            apply.link(compiled.templates(apply.directive().mode()));
+        }
+        for (final CompiledOp.CallTemplate call : calls) {
+            call.link(compiled.template(call.name()));
+        }
     }
 
     /** How an arithmetic instruction's select count is checked. */
@@ -87,31 +117,32 @@ final class BodyCompiler {
                                 .toList(),
                         compile(value.otherwise()));
                 case OutputNode.Switch value -> new CompiledOp.Switch(
-                        CompiledRef.of(value.select()),
-                        value.cases().stream()
-                                .map(c -> new CompiledOp.Case(c.value(),
-                                        compile(c.body())))
-                                .toList(),
-                        compile(value.defaultBody()));
+                        CompiledRef.of(value.select()), cases(value), compile(value.defaultBody()));
                 case OutputNode.ApplyTemplates apply -> {
                     // Whole-parent-content is the group-0 special case of a local group, so
                     // being a local group is the whole of being locatable.
                     final RefExpression select = apply.directive().select();
-                    yield new CompiledOp.Apply(
+                    final CompiledOp.Apply applyOp = new CompiledOp.Apply(
                             apply.directive(),
                             CompiledRef.of(select),
                             isWholeParentContent(select),
                             isLocalGroup(select),
                             Dispatch.effective(apply.directive().dispatch(), project));
+                    applies.add(applyOp);
+                    yield applyOp;
                 }
                 case OutputNode.EmitError value ->
                         new CompiledOp.EmitError(value.severity(), CompiledRef.of(value.message()));
-                case OutputNode.CallTemplate value -> new CompiledOp.CallTemplate(
-                        value.name(),
-                        value.withParam().stream()
-                                .map(param -> new CompiledOp.Arg(param.name(),
-                                        CompiledRef.of(param.value())))
-                                .toList());
+                case OutputNode.CallTemplate value -> {
+                    final CompiledOp.CallTemplate call = new CompiledOp.CallTemplate(
+                            value.name(),
+                            value.withParam().stream()
+                                    .map(param -> new CompiledOp.Arg(param.name(),
+                                            CompiledRef.of(param.value())))
+                                    .toList());
+                    calls.add(call);
+                    yield call;
+                }
                 case OutputNode.Variable value ->
                         new CompiledOp.Variable(value.name(), compile(value.body()));
                 case OutputNode.Element value -> new CompiledOp.Element(
@@ -122,9 +153,7 @@ final class BodyCompiler {
                                 compile(value.body()));
                 case OutputNode.Namespace value ->
                         new CompiledOp.Namespace(value.prefix(), value.uri());
-                case OutputNode.ValueMap value -> new CompiledOp.ValueMap(
-                        CompiledRef.of(value.select()), value.entries(), value.defaultValue(),
-                                value.name());
+                case OutputNode.ValueMap value -> valueMap(value);
                 case OutputNode.Translate value -> transform(single("translate", value.select()),
                         value.name(), inputs ->
                                 Transforms.translate(inputs, value.from(), value.to()));
@@ -324,7 +353,8 @@ final class BodyCompiler {
                 select.add(CompiledRef.of(ref));
             }
         }
-        return new CompiledOp.CallFunction(definition, select, sequences, value.name());
+        return new CompiledOp.CallFunction(definition, functions.slot(definition.name()),
+                select, sequences, value.name());
     }
 
     private static CompiledOp.Transform transform(final List<RefExpression> select,
@@ -395,6 +425,40 @@ final class BodyCompiler {
         return select;
     }
 
+    /**
+     * A switch's branches as a table.
+     *
+     * <p>{@code putIfAbsent} keeps the authored order's answer: the scan this replaces took the
+     * first case whose value matched, so a value written twice still runs the first branch.
+     */
+    private Map<String, List<CompiledOp>> cases(final OutputNode.Switch value) {
+        final Map<String, List<CompiledOp>> cases = new HashMap<>();
+        for (final OutputNode.SwitchCase branch : value.cases()) {
+            cases.putIfAbsent(branch.value(), compile(branch.body()));
+        }
+        return Map.copyOf(cases);
+    }
+
+    /**
+     * A value map as a table of encoded results.
+     *
+     * <p>Two shapes of the authored scan are preserved. First declaration wins, as
+     * {@link #cases} does. And an entry that maps to nothing produced the default rather than
+     * nothing, because the scan could not tell "mapped to null" from "not mapped" — so such an
+     * entry holds the default here, and the two stay indistinguishable.
+     */
+    private static CompiledOp.ValueMap valueMap(final OutputNode.ValueMap value) {
+        final TypedValue defaultValue = TypedValue.of(
+                value.defaultValue() == null ? "" : value.defaultValue());
+        final Map<String, TypedValue> entries = new HashMap<>();
+        for (final OutputNode.Entry entry : value.entries()) {
+            entries.putIfAbsent(entry.from(),
+                    entry.to() == null ? defaultValue : TypedValue.of(entry.to()));
+        }
+        return new CompiledOp.ValueMap(CompiledRef.of(value.select()), Map.copyOf(entries),
+                defaultValue, value.name());
+    }
+
     /** A regex replace closes over its compiled pattern; a literal one over its text. */
     private CompiledOp.Transform replace(final OutputNode.Replace value) {
         single("replace", value.select());
@@ -408,11 +472,13 @@ final class BodyCompiler {
         if (pattern == null) {
             throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
         }
+        // One replacer per instruction, holding its matcher and its parsed replacement; the
+        // transform closes over it rather than rebuilding both per call.
+        final Replacer replacer = new Replacer(pattern, value.replacement());
         return transform(value.select(), value.name(),
                 inputs -> inputs.isEmpty()
                         ? null
-                        : TypedValue.of(Transforms.replaceRegex(
-                                pattern, inputs.getFirst().asString(), value.replacement())));
+                        : TypedValue.of(replacer.replace(inputs.getFirst().asString())));
     }
 
     /** True if an expression is exactly "group 0 of this match, whichever one that is". */

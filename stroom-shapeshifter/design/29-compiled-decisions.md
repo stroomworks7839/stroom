@@ -376,3 +376,72 @@ shared tag value and the per-node matcher are new mutable state on the graph, an
 `CompiledProject`'s documented one-run-at-a-time contract that `CompiledMatch.Regex` already
 relied on; and the byte tables agree with the old decode-then-classify on all four readings,
 including the replacement character that `raw` and `ascii` give every byte past 0x7F.
+
+### Phase 3 — the body's ops
+
+Built, tests green, unmeasured. Nine sites, the largest count of any phase and the smallest
+each. All nine closed:
+
+- **The two source flags** (§3.3) are fields on `Body`, read when the run's body is built rather
+  than per arithmetic transform and per append.
+- **`Switch` and `ValueMap`** (§3.5) answer from a table instead of scanning the authored
+  entries with `String.equals`. Both preserve two shapes of the scan they replace: first
+  declaration wins where a value is written twice, and — for a value map — an entry mapping to
+  nothing produces the default, because the scan could not tell that from a miss. The mapped
+  values are encoded once rather than per record.
+- **The regex replace** (§3.5) became `value/Replacer`: a compiled instruction holding its
+  pattern's matcher and its replacement already parsed into literals and group indices. This is
+  design 10's change 1 — the matcher as a field — finally carried to the body side, where
+  `apache_httpd` runs 209 replaces per record. The replacement's `$1`, `${name}` and `$$` syntax
+  was being re-parsed character by character *per match*, and each group re-resolved from its
+  name; both are now compile-time work.
+- **The apply's mode, the call's target and the function's binding** (§3.2) are held by the ops
+  rather than looked up by string per call.
+- **A call-template's parameters** (§3.5) are settled per call site: which the site leaves
+  unsupplied, and each default encoded. It was a stream `anyMatch` per declared parameter and a
+  string encoded per call.
+
+**The forward reference, and why there is no tree walk.** Phase 1 deferred the mode lookup here
+because a body compiles before the templates it names exist. The ops that need a template are
+therefore collected by `BodyCompiler` as they are *built*, and linked once the project is
+complete. The alternative — walking the compiled bodies afterwards to find them — is total only
+if the walk knows every op that can nest another, and a switch case inside a for-each inside a
+variable is exactly the kind of nesting a walk written today would miss when an op is added
+tomorrow. Collecting at construction cannot miss one. `Apply` and `CallTemplate` stop being
+records to hold what they are given; both are set once at compile time and read-only thereafter,
+which is the same shape `CompiledMatch.Regex` has had since August.
+
+Two notes for the record. An apply's recursive shadow list is now flattened once across its
+candidates rather than walked as two nested loops per call — not a surveyed site, but the same
+fix falling out of the op holding its candidates. And one site of the same shape was left: a
+call-function reads `definition.signature().argKinds()` per call. The survey did not list it,
+and it is noted here rather than taken quietly.
+
+*The audit* found no correctness defect and two coverage holes, both in code this phase
+rewrote. `switch` had **no execution test at all** — `EveryVariantTest` round-trips it as
+configuration and nothing ran one — so the scan-to-table rewrite was unverified, including the
+two shapes of the scan it was written to preserve. It now has one: a duplicated case value takes
+the first branch (with `put` for `putIfAbsent` the test reads `[second a]`), a case with an empty
+body is still a match and not a fall-through, and a select matching nothing reaches the default.
+The value map's miss was untested for the same reason — `apache_httpd`'s month table never
+misses — and now covers a declared default and an undeclared one.
+
+The replacement parser was verified differentially rather than by inspection: the new parse
+against the pre-phase-3 expander, over every combination of eight patterns, thirteen inputs and
+twenty-six replacements, all 2704 agreeing. The old algorithm was carried into a throwaway test
+for that run and then deleted; the branches no fixture reaches — a trailing `$`, an unclosed
+`${`, an empty `${}`, a reference past the group count — are pinned in `ReplacerTest` with the
+answers it gave.
+
+Three things the audit checked and found sound. Nothing hashes or compares the two ops that
+stopped being records, so losing value equality costs nothing (`Body`'s one op-keyed set is over
+`Transform`, by identity). The tables cannot be handed a null key: the reader requires both a
+case value and an entry's `from`, and the DS3 importer builds neither node — so `Map.copyOf` is
+safe, and the lookup key is never null because `textOf` returns the empty string. And every
+function slot is filled or the run aborts, because `bind` binds all of them, unconditionally,
+first thing in the run.
+
+One residual risk, named rather than fixed: an apply that is never linked would match nothing
+silently rather than fail, because an empty candidate list is also the right answer for a mode
+nothing answers to. There is exactly one place that builds a `CompiledProject`, and it links
+immediately afterwards, so nothing today can reach that state.

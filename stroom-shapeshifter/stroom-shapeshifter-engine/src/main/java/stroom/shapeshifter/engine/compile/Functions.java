@@ -54,6 +54,24 @@ final class Functions {
         return definition;
     }
 
+    /**
+     * Where a used function sits in {@link #used()}, which is where the run binds it.
+     *
+     * <p>First-use order is stable and only grows, so a call site can be told its function's
+     * position while it compiles and read the binding from an array at run time rather than
+     * hashing the name on every call (design 29 §3.2).
+     */
+    int slot(final String name) {
+        int slot = 0;
+        for (final String used : this.used.keySet()) {
+            if (used.equals(name)) {
+                return slot;
+            }
+            slot++;
+        }
+        throw new IllegalStateException("Function was not resolved: " + name);
+    }
+
     /** The definitions the configuration uses, in first-use order. */
     List<FunctionDefinition> used() {
         return List.copyOf(used.values());

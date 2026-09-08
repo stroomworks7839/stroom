@@ -111,6 +111,12 @@ final class Body {
     /** The run's encoding in force, told by the run, which a nested dispatch is handed. */
     private Encoding encoding;
 
+    /** {@code strict_values}, read once: a source flag, not a per-transform question. */
+    private final boolean strictValues;
+
+    /** {@code max_sequence_entries}, likewise, read once rather than per append. */
+    private final int maxSequenceEntries;
+
     /**
      * The level a body's {@code apply-templates} hands a region to. The body constructs it,
      * because the level binds captures into this body's registry and hands winning matches
@@ -128,6 +134,8 @@ final class Body {
         this.messages = messages;
         this.functions = functions;
         this.encoding = encoding;
+        this.strictValues = compiled.project().source().strictValues();
+        this.maxSequenceEntries = compiled.project().source().maxSequenceEntries();
         // this escapes before the constructor ends; the level's constructor only stores it,
         // and the class is final, so nothing reads through it before the run starts.
         this.level = new Level(compiled, instrument, messages, vars, functions, this);
@@ -201,19 +209,9 @@ final class Body {
                 }
                 case CompiledOp.Switch value -> {
                     final String selected = textOf(value.select(), match, matchCount);
-                    boolean taken = false;
-                    for (final CompiledOp.Case switchCase : value.cases()) {
-                        if (switchCase.value().equals(selected)) {
-                            body(switchCase.body(), match, matchCount, content, out,
-                                    inputBase, ignoreErrors, depth);
-                            taken = true;
-                            break;
-                        }
-                    }
-                    if (!taken) {
-                        body(value.defaultBody(), match, matchCount, content, out,
-                                inputBase, ignoreErrors, depth);
-                    }
+                    final List<CompiledOp> taken = value.cases().get(selected);
+                    body(taken == null ? value.defaultBody() : taken, match, matchCount, content,
+                            out, inputBase, ignoreErrors, depth);
                 }
                 case CompiledOp.Variable value ->
                         variable(value, match, matchCount, content, inputBase, ignoreErrors, depth);
@@ -240,17 +238,8 @@ final class Body {
                                 ignoreErrors, depth);
                 case CompiledOp.ValueMap value -> {
                     final String selected = textOf(value.select(), match, matchCount);
-                    String mapped = null;
-                    for (final OutputNode.Entry entry : value.entries()) {
-                        if (entry.from().equals(selected)) {
-                            mapped = entry.to();
-                            break;
-                        }
-                    }
-                    if (mapped == null) {
-                        mapped = value.defaultValue();
-                    }
-                    emit(TypedValue.of(mapped == null ? "" : mapped), value.name(), matchCount,
+                    final TypedValue mapped = value.entries().get(selected);
+                    emit(mapped == null ? value.defaultValue() : mapped, value.name(), matchCount,
                             out);
                 }
                 case CompiledOp.Transform value ->
@@ -396,7 +385,8 @@ final class Body {
             values.add(resolved == null ? null : castTo(resolved, kinds.get(i)));
             sequences.add(null);
         }
-        final TypedValue result = functions.invoke(definition.name(), new Arguments(values, raw, sequences),
+        final TypedValue result = functions.invoke(op.slot(), definition.name(),
+                new Arguments(values, raw, sequences),
                 Level.locate(inputBase, match.matchStart()), match.advance() - match.matchStart());
         emit(result, op.name(), matchCount, out);
     }
@@ -438,8 +428,7 @@ final class Body {
                 inputs.add(resolved);
             }
         }
-        if (op.numericKind() != null && compiled.project().source().strictValues()
-            && !warnedNumeric.contains(op)) {
+        if (op.numericKind() != null && strictValues && !warnedNumeric.contains(op)) {
             // A present value with no numeric reading — a missing field is normal and stays
             // quiet; a value that is there and is not a number is the evidence strict_values
             // exists to surface (design/17 §10).
@@ -517,7 +506,7 @@ final class Body {
 
     /** The size a sequence may not exceed, and the stop when it does. */
     private void guardSequenceSize(final String name, final int size) {
-        final int limit = compiled.project().source().maxSequenceEntries();
+        final int limit = maxSequenceEntries;
         if (size > limit) {
             messages.add(new Message(Severity.FATAL, "Sequence '" + name + "' exceeded "
                     + "max_sequence_entries (" + limit + "). A truncated aggregate is a wrong "
@@ -936,7 +925,7 @@ final class Body {
                               final long inputBase,
                               final boolean ignoreErrors,
                               final int depth) {
-        final CompiledTemplate target = compiled.template(value.name());
+        final CompiledTemplate target = value.target();
         if (target == null) {
             return;
         }
@@ -959,13 +948,12 @@ final class Body {
                 vars.store(arg.name()).set(1, TypedValue.utf8(resolved.get(i)));
             }
         }
-        for (final Template.ParamDecl declared : target.template().param()) {
+        // Which parameters this site leaves unsupplied, and their defaults encoded, were
+        // settled when the call was linked to its target.
+        for (final CompiledOp.Param declared : value.params()) {
             vars.shadow(declared.name());
-            final boolean supplied = value.args().stream()
-                    .anyMatch(arg -> arg.name().equals(declared.name()));
-            if (!supplied && declared.defaultValue() != null) {
-                vars.store(declared.name())
-                        .set(1, TypedValue.of(declared.defaultValue()));
+            if (declared.defaultValue() != null) {
+                vars.store(declared.name()).set(1, declared.defaultValue());
             }
         }
         body(target.body(), match, matchCount, content, out, inputBase, ignoreErrors, depth);
@@ -1013,18 +1001,17 @@ final class Body {
             instrument.onMatchContent(null, content);
         }
 
-        // A compile-time fact read as a field — nothing filters the template list per call.
-        final List<CompiledTemplate> candidates = compiled.templates(directive.mode());
+        // A compile-time fact read as a field: the op holds the templates its mode answers to,
+        // bound when the project finished compiling (design 29 §3.2).
+        final List<CompiledTemplate> candidates = op.candidates();
 
         // A recursive apply gets its own scope, so that a nested level's captures cannot leak
         // back into the level that invoked it — and so that they are released on the way out.
         final boolean recursive = directive.recursive();
         if (recursive) {
             vars.push();
-            for (final CompiledTemplate candidate : candidates) {
-                for (final String name : candidate.captureNames()) {
-                    vars.shadow(name);
-                }
+            for (final String name : op.recursiveShadow()) {
+                vars.shadow(name);
             }
         }
 
