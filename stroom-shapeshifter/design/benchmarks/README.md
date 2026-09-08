@@ -7,6 +7,8 @@ One JSON file per JMH run, written automatically by the `jmh` Gradle task of
 named commit, run by `engine-probe-rows.sh` with the gc profiler and that many forks, filed by
 hand — a subset for a decision, not the gate.
 
+The commits worth measuring across, and how to run them, are in [points.md](points.md).
+
 They are checked in on purpose. A throughput figure that exists only in a terminal scrollback
 cannot be compared with the next one, and comparing runs is the entire point:
 [D21](../00-decisions.md) records a case where a single-fork harness moved 25% between runs of
