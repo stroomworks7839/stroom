@@ -1280,9 +1280,18 @@ paid back by unpicking the design. The exits, in the order they would be tried:
 - **Capture elimination (E10).** A group nobody reads need not be copied out or wrapped at all.
   That removes the allocation rather than shrinking it, and it was the prototype's optimiser,
   deliberately unported. The largest win available and the one already designed for.
-- **A lighter tag.** The encoding is one of twenty-odd constants; a byte ordinal, or two
-  interned instances for the UTF-8-compatible class, would take a reference off every value.
-  Measure before believing: the object's size class may not change.
+- **The encoding in the class rather than a field**, which is this codebase's own idiom (D47
+  did it for the model). Not for the reason it first looks: with compressed ordinary object
+  pointers and eight-byte alignment, a twelve-byte header takes one reference to sixteen bytes
+  and both two and three references to twenty-four, so dropping the tag field alone saves
+  nothing. The win is a UTF-8 variant that needs neither field — its UTF-8 form is its own
+  array, so no memo and no tag — which is one field, sixteen bytes, exactly what the ported
+  record cost, on every fixture in the corpus and almost every real feed. A sealed `Bytes`
+  over a one-field UTF-8 class and a three-field encoded one. The risk is the other way and
+  has to be measured, not argued: `utf8()` is monomorphic today and would become bimorphic on
+  the path every read takes, which could cost more than the eight bytes saves; and equality
+  would have to hold across the two classes. The tag is read in exactly two places outside the
+  value itself, so little else would notice.
 - **The memo's field.** A value written straight out never fills it. Splitting the memo off,
   or holding the UTF-8 form only where a consumer asked for it, trades a field for an
   indirection on the text path.
