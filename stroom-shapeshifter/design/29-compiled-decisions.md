@@ -24,9 +24,16 @@ sentence each time: *decide it where it is known, hold the answer on the node.*
 
 **Why now.** E43 measured design 25's tagged value at one to four per cent of the run rows and
 recorded it as the price of the type model. That price is worth naming beside these: several of
-the sites below are of the same order or larger, and none of them buys anything. Fixing the
-value model's shape while the graph still re-reads its configuration per record would be
-treating the smaller problem first.
+the sites below are of the same order or larger, and none of them buys anything.
+
+**But E43 goes first, and §5 says why.** The draft of this design had it the other way, on the
+argument that the value model was the smaller problem. That confuses two questions. *What does
+the tagged value cost?* can be answered at any baseline by building the counterfactual and
+interleaving. *Did we get back to where we were?* can only be answered against the pre-design-25
+point, and that point means something only while the code around it is otherwise unchanged.
+Strip twenty-five per-record decisions out first and the same allocation reads as a larger share
+of a smaller total, so the figure would move without the value moving. Percentages on a shifting
+baseline do not compose.
 
 ## 2. The shape
 
@@ -140,7 +147,8 @@ on the op; pre-split names and pre-encoded tags for the sinks; the prologue's fi
 - **E39.** Conditions resolving authored expressions, and a `matches` condition looking its
   pattern up by text, are the same shape and already owned, with their own measurement.
 - **E43.** The tagged value's size, and whether the encoding moves into the class. §3.3 binds
-  the *factory*; which classes it makes is E43's.
+  the *factory*; which classes it makes is E43's, and E43 lands before phase 1 (§5). The two
+  compose: E43 takes a field off the value, §3.3 takes the branch off the factory.
 - **E10.** Capture elimination is the deferred optimiser and would remove work rather than
   decide it earlier.
 - **Design 10's step rows.** `Tag` and `TakeUntil` re-encoding their text per attempt, and
@@ -149,6 +157,16 @@ on the op; pre-split names and pre-encoded tags for the sinks; the prologue's fi
 ## 5. Phasing
 
 Each phase is gated and audited before the next, and each is measured as §6 says.
+
+**Before phase 1 — E43, measured against the baseline it still has.** The tagged value takes
+the shape design 25's own family already implies and Stroom's `Val` family uses: the conversions
+implemented by each variant rather than switched over in the interface, and `Bytes` split into a
+one-field UTF-8 variant, which is sixteen bytes, what the ported record cost, and a three-field
+encoded one for everything else. Measured twice: interleaved against the head before it, which
+says what the fix wins, and against `a9ca4f2853`, the commit before design 25, which says
+whether the loss is recovered. The second comparison is why this comes first — it is clean now
+and will not be after phase 1. If the fix does not recover it, that is worth knowing before four
+phases of other work make the question unanswerable.
 
 **Phase 1 — the innermost loops.** §3.2's pattern lookup and §3.3's decoder, both in the step
 interpreter; §3.5's matcher and replacement parse in the body's replace. The four hottest sites
@@ -164,8 +182,8 @@ the function name resolved into their compiled ops.
 **Phase 4 — the sinks and the prologue.** §3.4 in full, §3.5's remaining rows.
 
 **Phase 5 — the record.** E12 pointed at what was measured; design 10 §2's table updated for
-the rows this closes; E43 re-read against the new baseline, since the tagged value's share of
-the run rows is worth restating once the surrounding waste is gone.
+the rows this closes; E43 closed or restated, depending on what its own measurement said before
+phase 1.
 
 ## 6. The gate, and the method
 
@@ -195,10 +213,11 @@ Every file under `design/benchmarks`, named as the README there says.
    into their own form now? *Recommended: fix inside.* A compiled step form is design 10's four
    open rows plus a shape ruling of its own, and it should be measured against a clean baseline
    rather than tangled with this.
-3. **The value factory.** Bound here, in phase 2, or held with E43 so the factory and the class
-   split land together? *Recommended: here.* The binding is a per-run constant like the ones
-   beside it; what the factory constructs is a separate question that E43 can answer later
-   without disturbing it.
+3. **E43's place.** Before phase 1 as §5 now has it, or after the hot phases? *Recommended:
+   before*, because the pre-design-25 baseline is the only reference that answers "did we
+   recover it" and it stops meaning that as soon as anything else moves. The factory *binding*
+   stays in phase 2 either way: E43 takes a field off the value, §3.3 takes the branch off the
+   factory, and neither needs the other.
 4. **The order of phases 1 and 2.** Hottest first as written, or the match loop first because
    it is the largest single group? *Recommended: hottest first*, so the earliest measurement is
    the one most likely to show something.

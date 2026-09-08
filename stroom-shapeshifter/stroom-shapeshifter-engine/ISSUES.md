@@ -1301,3 +1301,9 @@ paid back by unpicking the design. The exits, in the order they would be tried:
 Not to be taken by reverting the tag: the byte identity, the sink declaration and the capture's
 cast all rest on it, and the consistency argument the design was ruled on does not weaken
 because the row moved. Owner of the measurement when one of the above is tried.
+
+*Ordering, 2026-09-08:* this is fixed before design 29's phases, not after. The cost of the
+tagged value can be attributed at any baseline by building the counterfactual and interleaving,
+but whether the loss is *recovered* can only be asked against `a9ca4f2853`, the commit before
+design 25, and that comparison means what it says only while the surrounding code is unchanged.
+Design 29 §5 has the order and the reason.
