@@ -1,8 +1,8 @@
 # Design 29 — The compiled graph decides: configuration read once, not per record
 
-*Proposed 2026-09-08, from the survey that followed design 25's full-suite gate; awaiting a
-ruling (D51). Engine only. Touches no golden and no configuration: every change here replaces
-a decision with its own answer.*
+*Proposed 2026-09-08, from the survey that followed design 25's full-suite gate; ruled the same
+day by Jon (D51), every question as recommended. Engine only. Touches no golden and no
+configuration: every change here replaces a decision with its own answer.*
 
 ## 1. Where it stands
 
@@ -277,7 +277,7 @@ So, for every phase here:
 
 Every file under `design/benchmarks`, named as the README there says.
 
-## 7. Questions for the ruling (D51)
+## 7. Questions for the ruling — all four ruled 2026-09-08, each as recommended (D51)
 
 1. **Scope.** All five building phases, or phases 1 to 3 only? *Recommended: all five.* Phases 4
    and 5 are the same idea, and leaving them makes the record say the graph decides when it half

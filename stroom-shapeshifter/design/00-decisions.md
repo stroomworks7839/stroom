@@ -1377,3 +1377,33 @@ boolean or as a date, and a capture nobody casts is never converted. Four answer
 **Consequences:** design 25 builds in its four phases, each audited before the next, gated on
 the corpus, `EncodedInputTest`, §9.3's pins and the capture workloads' compile and run rows.
 No golden moves: every fixture's captures are uncast. The deferral D43 recorded is over.
+
+## D51 — The compiled graph decides: configuration read once, not per record
+
+*Ruled by Jon, 2026-09-08, on design 29, every question as recommended.* A survey of the run
+path found twenty-five places where a question the configuration settles is asked again per
+record, per match, per group, per character or per write — three of them under a comment
+claiming the opposite. One idea in twenty-five places, and the fix is the same each time: a
+field on the compiled node, a strategy bound at run start, or a pre-built structure. Four
+answers:
+
+1. **All five building phases**, not the hot two. Phases 4 and 5 are the same idea and smaller,
+   and phase 4 may close itself on its own measurement.
+2. **The steps are compiled** (phase 2): a compiled form for the twenty-four kinds and the four
+   combinators, so a step can hold its pattern, its decoder, its encoded tag text and its byte
+   table — design 10 §2's remaining step rows close with it. Design 27 ruling 2 chose one
+   interpreter for the *ops* and stands: ops switch over compiled forms, steps over the model.
+3. **The match loop is phase 1**, not the hottest loop, because `csv_header`'s residue from
+   design 25 is live and unexplained and phase 1 is what should explain it. An unanswered
+   figure ages badly, as design 25's did.
+4. **E39's conditions half is phase 4**, its capture half having gone to design 25 phase 3 by
+   this design's argument, with ruling 7's measurement as the phase's opening act rather than a
+   precondition: if the probe says conditions do not matter, the phase closes E39 as measured
+   and accepted instead of building it.
+
+**Consequences:** each phase gated, audited and measured as design 29 §6 says — the full suite
+before any claim about a regression, interleaved rounds so drift cannot masquerade as a delta,
+and a named workload per phase whose failure to move is itself a finding. E10 stays out as a
+branch-pruning concern; the op interpreter stays out because it dispatches on the compiled form
+and has no earlier moment to decide. E43 landed before phase 1 and its residue is phase 1's to
+explain.
