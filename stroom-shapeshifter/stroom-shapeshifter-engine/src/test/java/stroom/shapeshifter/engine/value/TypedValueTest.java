@@ -20,6 +20,8 @@ import stroom.shapeshifter.engine.text.Encoding;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -202,13 +204,50 @@ class TypedValueTest {
         assertThat(value.encoding()).isEqualTo(Encoding.WINDOWS_1252);
         // Text is asked for, decoded by the tag, and computed once.
         assertThat(value.asString()).isEqualTo("é“");
-        assertThat(value.utf8()).isSameAs(value.utf8());
-        assertThat(value.utf8()).isEqualTo("é“".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        // A UTF-8-compatible tag has nothing to compute: the form is the array itself.
+        assertThat(value.asUtf8()).isSameAs(value.asUtf8());
+        assertThat(value.asUtf8())
+                .isEqualTo("é“".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // A UTF-8-compatible feed has nothing to compute and nothing to carry: the form is the
+        // array itself, and the value is the one-field variant (E43).
         final byte[] utf8 = "é".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        assertThat(((TypedValue.Bytes) TypedValue.utf8(utf8)).utf8()).isSameAs(utf8);
-        assertThat(((TypedValue.Bytes) TypedValue.of(utf8, Encoding.AUTO)).utf8()).isSameAs(utf8);
-        assertThat(((TypedValue.Bytes) TypedValue.of(utf8, Encoding.ASCII)).utf8()).isSameAs(utf8);
+        for (final Encoding compatible : List.of(Encoding.UTF_8, Encoding.AUTO, Encoding.ASCII)) {
+            assertThat(TypedValue.of(utf8, compatible))
+                    .as("%s", compatible)
+                    .isInstanceOfSatisfying(TypedValue.Utf8Bytes.class, bytes -> {
+                        assertThat(bytes.asUtf8()).isSameAs(utf8);
+                        // The three collapse: the tag is the transcoding class, not the label
+                        // the author wrote, and nothing in the engine reads it (E43).
+                        assertThat(bytes.encoding()).isEqualTo(Encoding.UTF_8);
+                    });
+        }
+        assertThat(TypedValue.utf8(utf8)).isInstanceOf(TypedValue.Utf8Bytes.class);
+        assertThat(TypedValue.of(read, Encoding.WINDOWS_1252))
+                .isInstanceOfSatisfying(TypedValue.EncodedBytes.class,
+                        bytes -> assertThat(bytes.encoding()).isEqualTo(Encoding.WINDOWS_1252));
+    }
+
+    @Test
+    void bytesAreEqualAcrossTheTwoVariants() {
+        // Every pairing, both ways round, now that equality spans two classes (E43).
+        final byte[] utf8 = "é".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        final TypedValue oneWay = TypedValue.utf8(utf8);
+        final TypedValue sameWay = TypedValue.of("é");
+        final TypedValue otherWay = TypedValue.of(new byte[]{(byte) 0xE9}, Encoding.LATIN_1);
+        final TypedValue alsoOther = TypedValue.of(new byte[]{(byte) 0xE9}, Encoding.WINDOWS_1252);
+
+        assertThat(oneWay).isEqualTo(oneWay).isEqualTo(sameWay).isEqualTo(otherWay);
+        assertThat(sameWay).isEqualTo(oneWay);
+        assertThat(otherWay).isEqualTo(oneWay).isEqualTo(alsoOther);
+        assertThat(alsoOther).isEqualTo(otherWay);
+        assertThat(oneWay.hashCode()).isEqualTo(sameWay.hashCode()).isEqualTo(otherWay.hashCode());
+
+        // Same variant, same tag, same bytes: the short circuit that decodes nothing.
+        final TypedValue raw = TypedValue.of(new byte[]{(byte) 0x93}, Encoding.RAW);
+        assertThat(raw).isEqualTo(TypedValue.of(new byte[]{(byte) 0x93}, Encoding.RAW));
+
+        // Text equality does not cross kinds, as it did not before.
+        assertThat(TypedValue.of("42")).isNotEqualTo(new TypedValue.Integer(42));
+        assertThat(new TypedValue.Integer(42)).isNotEqualTo(TypedValue.of("42"));
     }
 
     @Test

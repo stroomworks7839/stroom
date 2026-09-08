@@ -729,7 +729,7 @@ final class Level {
         }
         final TypedValue cast = Comparisons.cast(value, as);
         if (as == Cast.STRING && cast instanceof TypedValue.Bytes bytes) {
-            bytes.utf8();
+            bytes.asUtf8();
         }
         return cast;
     }

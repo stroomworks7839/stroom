@@ -106,7 +106,7 @@ public final class Comparisons {
             return null;
         }
         if (left instanceof TypedValue.Bytes a && right instanceof TypedValue.Bytes b) {
-            return Arrays.compareUnsigned(a.utf8(), b.utf8());
+            return Arrays.compareUnsigned(a.asUtf8(), b.asUtf8());
         }
         if (isNumeric(left) && isNumeric(right)) {
             if (left instanceof TypedValue.Integer a && right instanceof TypedValue.Integer b) {

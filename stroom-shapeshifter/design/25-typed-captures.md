@@ -80,7 +80,11 @@ untouched*). `normalise` is deleted; `bindCaptures` stores what the match gives 
 **`ASCII`, `AUTO` and `UTF_8` are one class for transcoding.** Today an ASCII-declared feed
 passes bytes above 0x7F through unchanged, the documented garbage-in-garbage-out fast path.
 Kept: a value tagged with any of the three *is* its UTF-8 form, and nothing decodes it by the
-ASCII table on the way to text. The tag still records what was declared.
+ASCII table on the way to text. The tag still records what was declared. *Spent by E43
+(2026-09-08): the three collapse into one variant that carries no tag at all, so a value made
+from an ASCII- or auto-declared feed reports `utf-8`. What is lost is which of the three the
+author wrote, and nothing in the engine reads it — the tag's work is done by the UTF-8 form
+and by the write. An `Instrument` sees the class, not the declaration.*
 
 ## 3. Who reads it
 
@@ -160,7 +164,11 @@ says; a memo per target would be a cache on the value and is not this phase's.
 
 `TypedValue.Bytes` is a final class rather than a record (phase 1): `value`, `encoding`, and
 a `utf8` filled at construction under a UTF-8-compatible tag, else on first use (the run is
-single-threaded; no volatile). `TypedValue.of(byte[])` is
+single-threaded; no volatile). *Superseded by E43 (2026-09-08): `Bytes` is a sealed interface
+over `Utf8Bytes`, which holds the array alone because its UTF-8 form is itself and its encoding
+is its class, and `EncodedBytes`, which keeps the three fields and the lazy memo. The
+conversions moved onto the variants, shared as defaults where the answer is the same.*
+`TypedValue.of(byte[])` is
 gone — a caller must say what its bytes are — and `of(String)` tags UTF-8. `asBytes()` returns
 the bytes as tagged; the places that used it to write use `bytes(sink.encoding())`, and
 the places that used it as "UTF-8 bytes" use `utf8()`. *As built:* the callers of `asBytes()`

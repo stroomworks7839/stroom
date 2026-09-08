@@ -112,7 +112,7 @@ final class CompiledRefs {
                 for (final CompiledRef part : composite.parts()) {
                     final TypedValue resolved = resolveValue(part, match, matchCount, vars);
                     if (resolved != null) {
-                        buffer.writeBytes(resolved.utf8());
+                        buffer.writeBytes(resolved.asUtf8());
                         any = true;
                     }
                 }
@@ -135,7 +135,7 @@ final class CompiledRefs {
                           final int matchCount,
                           final VarRegistry vars) {
         final TypedValue value = resolveValue(ref, match, matchCount, vars);
-        return value == null ? null : value.utf8();
+        return value == null ? null : value.asUtf8();
     }
 
     /** The value of a reference as text, or null. */

@@ -85,7 +85,7 @@ public final class Refs {
                         : text.value().getBytes(StandardCharsets.UTF_8);
                 case RefPart.Capture capture -> {
                     final TypedValue value = lookup(capture, match, matchCount, vars);
-                    yield value == null || value.isEmpty() ? null : value.utf8();
+                    yield value == null || value.isEmpty() ? null : value.asUtf8();
                 }
             };
         }
@@ -97,7 +97,7 @@ public final class Refs {
                 case RefPart.Text text -> text.value().getBytes(StandardCharsets.UTF_8);
                 case RefPart.Capture capture -> {
                     final TypedValue value = lookup(capture, match, matchCount, vars);
-                    yield value == null ? null : value.utf8();
+                    yield value == null ? null : value.asUtf8();
                 }
             };
             if (bytes != null && bytes.length > 0) {
