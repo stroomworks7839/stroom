@@ -173,10 +173,19 @@ The fix wins `csv_header` +2.3% and `progressive` +1.8% against design 25 comple
 holding in all three rounds. Against the commit before design 25, `apache_httpd`, `progressive`
 and `win_sec_xml` are level or better and `csv_header` is still about two per cent down. So the
 value's size is answered — under a UTF-8 feed it is now the shape the ported record had — and
-something else on the delimiter row is not. E43 records it as a residue with two candidates:
-the interface dispatch the fix introduced, and the per-record work §3 surveys. Phase 1 now has
-a question to answer as well as a target, and the `csv_header` figure is the one to watch: it
-was −3.8% at design 25, is −2.0% now, and should reach zero if §3 is the explanation.*
+something else on the delimiter row is not. E43 records it as a residue with two candidates, and
+reading the fixture narrows them. The `csv_header` configuration is five delimiter templates
+writing text; it opens no element, so §3.4's sink work is not in its loop at all. What is in its
+loop is §3.1 — `effective()` and the content-group `instanceof` per field, the match-limit reads
+per template per pass, a `boolean[]` per level entry — and §3.3's factory branch. **Those are
+phase 2, not phase 1**, so this figure is phase 2's to answer and the phases are in the wrong
+order for it. The other candidate is not a survey finding at all: `csv_header` is the
+write-heaviest row in the corpus, five writes per field of which three are literals, and E43
+turned every write's conversion from a final class's method into an interface call over six
+implementations. That it is the one row not to recover is consistent with the dispatch, and the
+survey cannot explain it because it is not a configuration decision. Question 4 of §7 asked
+whether phases should run hottest first; this is an argument for taking phase 2 first instead,
+and for testing the dispatch separately before either.*
 
 **Phase 1 — the innermost loops.** §3.2's pattern lookup and §3.3's decoder, both in the step
 interpreter; §3.5's matcher and replacement parse in the body's replace. The four hottest sites

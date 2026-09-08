@@ -1328,8 +1328,13 @@ level, and the delimiter row keeps about two per cent whose cause is **not estab
 not the value's size — under a UTF-8 feed the value is now exactly the shape the ported record
 had. The candidates are the interface dispatch this change introduced, which the entry warned
 about, and the per-record work design 29 §3 surveys, of which `csv_header`'s loop has more than
-its share. That residue is design 29's to explain, not this entry's: §5's phase 5 says E43 is
-closed or restated once the phases have run, and this is the restatement it will read.
+its share. Reading the fixture narrows it. `csv_header` is five delimiter templates writing text and
+opening no element, so the sinks' per-element work is not in its loop; what is there is design
+29 §3.1's reads of the authored model per field and §3.3's factory branch, which are that
+design's **phase 2**, and the dispatch above, which is no part of it. The residue is design
+29's to explain where it is §3's, and this entry's where it is the dispatch's — §5's phase 5
+says E43 is closed or restated once the phases have run, and this is the restatement it will
+read.
 
 The full suite over all eight workloads, run and compile rows, was taken at both ends the same
 day (`…-1249-a9ca4f2853-full`, `…-1301-f9bcef57af-full`). It agrees on the shape and disagrees
