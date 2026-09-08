@@ -637,9 +637,12 @@ final class Level {
                     effective(compiledTemplate));
             case CompiledMatch.Regex regex ->
                     regexMatch(regex, data, from, to, atCursor, effective(compiledTemplate));
-            case CompiledMatch.Progressive progressive ->
-                    Steps.match(progressive.steps(), data, from, to, compiled.patterns(),
-                            effective(compiledTemplate));
+            case CompiledMatch.Progressive progressive -> {
+                // Which of the compiled readings applies is decided by the run's encoding, which
+                // a byte-order mark settles once at the head of the input.
+                final CompiledMatch.Compilation steps = progressive.forEncoding(effective(compiledTemplate));
+                yield Steps.match(steps.steps(), data, from, to, steps.decoding());
+            }
             case CompiledMatch.All ignored -> new MatchResult(
                     new TypedValue[]{TypedValue.of(Arrays.copyOfRange(data, from, to),
                             effective(compiledTemplate))}, to - from, 0);

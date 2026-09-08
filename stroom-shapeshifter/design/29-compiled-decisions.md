@@ -230,7 +230,8 @@ if it does not, the accounting is wrong somewhere and that is worth knowing befo
 phases.
 
 **Phase 2 — the compiled step.** *Workload:* `progressive`, `regex_lines`. A compiled form for
-the twenty-four step kinds and the four combinators, so that a step can hold what compiling knew:
+the step vocabulary — twenty-three kinds, six of them combinators; `PatternRef` needs none,
+because it is inlined before anything runs — so that a step can hold what compiling knew:
 §3.2's pattern, §3.3's decoder, and §3.6's encoded tag text and byte table. Today
 `CompiledMatch.Progressive` holds the authored steps and its javadoc says "there is nothing to
 compile them into"; design 10 §2's four open step rows say otherwise, and phase 1 of the first
@@ -299,5 +300,79 @@ Every file under `design/benchmarks`, named as the README there says.
 
 ## 8. Record
 
-*To be written as built: the D-number, the commits, what each phase measured, and anything the
-survey said that turned out to be wrong.*
+Ruled D51 on 2026-09-08, all four questions as recommended.
+
+### Phase 1 — the match loop and the write seam
+
+Built and committed at `5dfdabc46f`. `CompiledTemplate` grew from three components to twelve,
+with a static factory that reads the authored model once; `Level` and `Body` read the compiled
+node. **Not yet measured** — it owns `csv_header`'s residue whole, and the figure is still open.
+
+Two things §3 asked for were refused while building it, and the refusals belong in the record:
+
+- **A value factory bound per capture.** The survey wanted the choice of `TypedValue` variant
+  bound at compile time rather than switched per value. E43 had already made that choice a
+  constructor's, and `-XX:+PrintInlining` showed the remaining call site monomorphic and inlined
+  to a field read. There was nothing left to bind.
+- **A per-run decode table on the run.** Tempting because the decoder is a per-run constant, but
+  the run is the wrong owner: two templates can declare two encodings. It became phase 2's
+  `Decoding`, held per compiled match, which is where the constant actually is.
+
+The guards are now walked twice at compile time — once for the flags, once for the ops. That is
+a compile-time cost paid to make a per-record read a field read, and it is the trade this whole
+design is making.
+
+### Phase 2 — the compiled step
+
+Built, tests green, unmeasured. What it added:
+
+- **`match/CompiledStep`** — the sealed compiled vocabulary. Five kinds carry a precomputed
+  answer: `Tag` and `MatchByte` hold their bytes *and* the `TypedValue` they produce, so a tag
+  that matches now allocates nothing at all; `TakeUntil` holds its needle encoded; `Regex` holds
+  its compiled pattern and its own matcher; `TakeWhile` holds a byte table.
+- **`match/Decoding`** — §3.3's decoder, resolved once per encoding into a kind and, for a
+  single-byte feed, its `char[]`. It replaces a per-byte cascade of two identity tests, two
+  predicates, a switch over twenty constants and a `ConcurrentHashMap` lookup.
+- **`match/StepCompiler`** — authored steps to compiled ones.
+- **`Steps`** rewritten to switch over `CompiledStep`, with the `patterns` map parameter gone.
+  `TakeWhile` now picks one of three loops *once* from the decoding's kind; the two tabular
+  readings never decode a byte, and UTF-8 answers the ASCII range from the table.
+
+Three things are worth recording beyond the row itself.
+
+**It lives in `match`, not `compile`.** The obvious home for a compiled form is beside
+`CompiledMatch`, but `compile` already imports `match` for `PatternKey` and `Codecs`, and the
+reverse edge is the package cycle design 27 ruling 8 refused. `StepCompiler` sits there for a
+second reason: the rule for what a character class means is used twice, once to bake a table and
+once to classify a byte the table could not settle, and the two have to be the same rule.
+
+**A byte-order mark can move the encoding after compilation.** Baking the encoding into a step
+means asking which encoding, and for a template that declares none the source's answer can still
+move once: `Run.applyMark` re-declares the source from the input's first bytes. Only a UTF-8 mark
+can, because the other three name transcode families and refuse the run outright. So there are
+exactly two possible readings, both are compiled, and `CompiledMatch.Progressive.forEncoding`
+picks between them on a reference comparison. The survey did not see this; it is the cost of
+moving a decision from run time to compile time, and the honest answer was to compile both rather
+than to keep the decision.
+
+**The step interpreter's tests now compile first.** `StepsTest` built `MatchStep`s and ran them.
+Left alone it would have kept passing while testing nothing about what the compiler bakes, so it
+runs the real `StepCompiler`. Question 2's worry was the ops-versus-steps distinction; the
+distinction held, and the switch is now over compiled forms on both sides.
+
+*The audit* found the mark handling both too eager and untested. Too eager because the second
+reading was compiled whenever the source was not UTF-8, and the default source encoding is
+`auto`, which reads and encodes exactly as UTF-8 — so the common configuration was compiling
+every progressive step twice, with two matchers per regex step, to reach an identical answer. It
+is now compiled only when the mark could say something new, which in practice means a source that
+names a single-byte encoding. Untested because the suite already had
+`byteOrderMarkOverridesWhatTheConfigurationSaid` for a *delimiter* match and nothing for steps;
+with the second reading suppressed the new sibling test fails `[é]` against `[Ã©]`, which is what
+this phase would have silently regressed. Design 10's ledger closed its two step rows here.
+
+Three things the audit checked and found sound, recorded because each was a plausible way to
+break it: there is only one caller of the interpreter, so phase 1's miss did not repeat; the
+shared tag value and the per-node matcher are new mutable state on the graph, and they hold to
+`CompiledProject`'s documented one-run-at-a-time contract that `CompiledMatch.Regex` already
+relied on; and the byte tables agree with the old decode-then-classify on all four readings,
+including the replacement character that `raw` and `ascii` give every byte past 0x7F.

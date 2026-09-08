@@ -16,7 +16,9 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.MatchStep;
+import stroom.shapeshifter.engine.match.CompiledStep;
+import stroom.shapeshifter.engine.match.Decoding;
+import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
@@ -99,17 +101,42 @@ public sealed interface CompiledMatch {
     }
 
     /**
-     * A sequence of steps, with pattern references already resolved.
+     * A sequence of compiled steps and the reading they run under.
      *
-     * <p>The steps are the authored ones: unlike a pattern, there is nothing to compile them
-     * into. What compilation does is resolve {@code PatternRef}s against the project's library
-     * and intern the patterns the regex steps use, so the interpreter has no lookups to do
-     * beyond the one it cannot avoid.
+     * <p>Compilation resolves {@code PatternRef}s against the project's library, then turns each
+     * authored step into a {@link CompiledStep} that already holds whatever it would otherwise
+     * work out per attempt: its encoded literal, its pattern and matcher, its byte table
+     * (design 29 §3.3). The interpreter has no lookups left to do.
+     *
+     * @param steps    the compiled steps, references inlined
+     * @param decoding the encoding they were compiled for, and how bytes read under it
      */
-    record Progressive(List<MatchStep> steps) implements CompiledMatch {
+    record Compilation(List<CompiledStep> steps, Decoding decoding) {
 
-        public Progressive {
+        public Compilation {
             steps = List.copyOf(steps);
+        }
+    }
+
+    /**
+     * A progressive match: its steps compiled, in the one or two readings a run can give them.
+     *
+     * <p>Baking the encoding into the steps means asking which encoding, and for a template that
+     * declares none the answer can still move once: a byte-order mark at the head of the input
+     * re-declares the source. Only a UTF-8 mark can, because the other three name transcode
+     * families and refuse the run outright, so there are exactly two possible answers and both
+     * are compiled here. Which one a run uses is settled by its first three bytes and then never
+     * changes.
+     *
+     * @param source the reading the source's declared encoding gives
+     * @param marked the reading a UTF-8 mark would give, or null when it could not differ —
+     *               the template declared its own encoding, or the source is UTF-8 already
+     */
+    record Progressive(Compilation source, Compilation marked) implements CompiledMatch {
+
+        /** The steps to run under a run's effective encoding. */
+        public Compilation forEncoding(final Encoding effective) {
+            return marked != null && effective == marked.decoding().encoding() ? marked : source;
         }
     }
 

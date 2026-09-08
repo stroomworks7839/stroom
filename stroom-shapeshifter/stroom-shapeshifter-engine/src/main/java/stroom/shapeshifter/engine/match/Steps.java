@@ -17,21 +17,16 @@
 package stroom.shapeshifter.engine.match;
 
 import stroom.shapeshifter.engine.config.Endianness;
-import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.Predicate;
 import stroom.shapeshifter.engine.config.StepRef;
 import stroom.shapeshifter.engine.text.Encoding;
-import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
-import stroom.shapeshifter.regex.BytePattern;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Progressive matching: a sequence of steps, each starting where the last one stopped.
@@ -61,9 +56,6 @@ public final class Steps {
 
     private static final TypedValue NOTHING = TypedValue.utf8(new byte[0]);
 
-    /** Decode tables for the single-byte encodings, one lazy row per encoding. */
-    private static final ConcurrentHashMap<Encoding, char[]> SINGLE_BYTE = new ConcurrentHashMap<>();
-
     private Steps() {
     }
 
@@ -73,31 +65,32 @@ public final class Steps {
      * <p>Group 0 of the result is everything consumed; group {@code i + 1} is step {@code i}'s
      * output. That numbering is what {@code CaptureSource.Step} indexes into.
      *
+     * @param decoding the template's encoding and how bytes read as characters under it, both
+     *                 settled when the match compiled
      * @return the match, or null if any step failed
      */
-    public static MatchResult match(final List<MatchStep> steps,
+    public static MatchResult match(final List<CompiledStep> steps,
                                     final byte[] data,
                                     final int from,
                                     final int to,
-                                    final Map<PatternKey, BytePattern> patterns,
-                                    final Encoding encoding) {
+                                    final Decoding decoding) {
         int pos = 0;
         int highWater = 0;
         final List<TypedValue> outputs = new ArrayList<>(steps.size());
 
-        for (final MatchStep step : steps) {
+        for (final CompiledStep step : steps) {
             // The two seeks that can move backwards are handled here rather than as ordinary
             // steps, because a step reports how far forward it went and cannot express going
             // back. They need the whole input addressable, which is why a configuration using
             // them has to be run whole rather than in buffers.
-            if (step instanceof MatchStep.SeekAbs seek) {
+            if (step instanceof CompiledStep.SeekAbs seek) {
                 final Integer target = count(seek.offset(), outputs);
                 if (target == null || target > to - from) {
                     return null;
                 }
                 pos = target;
                 outputs.add(NOTHING);
-            } else if (step instanceof MatchStep.SeekBack seek) {
+            } else if (step instanceof CompiledStep.SeekBack seek) {
                 final Integer back = count(seek.count(), outputs);
                 if (back == null || back > pos) {
                     return null;
@@ -105,7 +98,7 @@ public final class Steps {
                 pos -= back;
                 outputs.add(NOTHING);
             } else {
-                final Result result = step(step, data, from + pos, to, outputs, List.of(), pos, patterns, encoding);
+                final Result result = step(step, data, from + pos, to, outputs, List.of(), pos, decoding);
                 if (result == null) {
                     return null;
                 }
@@ -118,7 +111,7 @@ public final class Steps {
         // A rewind does not un-read what was read. The match consumes up to the furthest point
         // reached, so the stream never re-reads bytes a seek stepped back over.
         final TypedValue[] groups = new TypedValue[outputs.size() + 1];
-        groups[0] = TypedValue.of(Arrays.copyOfRange(data, from, from + highWater), encoding);
+        groups[0] = TypedValue.of(Arrays.copyOfRange(data, from, from + highWater), decoding.encoding());
         for (int i = 0; i < outputs.size(); i++) {
             groups[i + 1] = outputs.get(i);
         }
@@ -137,50 +130,79 @@ public final class Steps {
      * @param local    outputs from this sequence so far, numbered after the prior ones
      * @param position how far into the whole match this is, which is what {@code Tell} reports
      */
-    private static Result step(final MatchStep step,
+    private static Result step(final CompiledStep step,
                                final byte[] data,
                                final int from,
                                final int to,
                                final List<TypedValue> prior,
                                final List<TypedValue> local,
                                final int position,
-                               final Map<PatternKey, BytePattern> patterns,
-                               final Encoding encoding) {
+                               final Decoding decoding) {
         final int available = to - from;
+        final Encoding encoding = decoding.encoding();
         return switch (step) {
-            case MatchStep.Tag tag -> {
-                // The effective encoding, not UTF-8 by fiat: the compiler encodes Delimiter
-                // literals under the template's charset (E3), and a tag is the same kind of
-                // literal looking for the same kind of bytes.
-                final byte[] bytes = encoding.encode(tag.value());
-                yield startsWith(data, from, to, bytes)
-                        ? new Result(TypedValue.of(bytes, encoding), bytes.length)
-                        : null;
-            }
-            case MatchStep.MatchByte value -> startsWith(data, from, to, value.value())
-                    ? new Result(TypedValue.of(value.value(), encoding), value.value().length)
+            // The bytes a tag looks for and the value it produces are both constant once the
+            // encoding is known, so a tag that matches allocates nothing. The encoding is the
+            // template's, not UTF-8 by fiat: a tag is the same kind of literal as a delimiter,
+            // looking for the same kind of bytes (E3).
+            case CompiledStep.Tag tag -> startsWith(data, from, to, tag.bytes())
+                    ? new Result(tag.value(), tag.bytes().length)
                     : null;
-            case MatchStep.TakeWhile takeWhile -> {
+            case CompiledStep.MatchByte value -> startsWith(data, from, to, value.bytes())
+                    ? new Result(value.value(), value.bytes().length)
+                    : null;
+            case CompiledStep.TakeWhile takeWhile -> {
                 // E5: the predicate classifies characters, not bytes, and a character is what
                 // the effective encoding says it is — a multi-byte UTF-8 letter is a letter,
                 // a windows-1252 0xE9 is a letter under that encoding and a stray byte under
                 // raw. RAW keeps the ASCII reading: bytes with no declared meaning earn none.
                 // D38 rules the regex dialect the same way, so the two vocabularies agree.
+                //
+                // Which of the three loops applies is a property of the encoding, so it is
+                // asked once here rather than once per byte, and the two that have a table
+                // answer from it instead of decoding and then classifying.
+                final boolean[] table = takeWhile.table();
                 int end = from;
-                while (end < to) {
-                    final long decoded = decode(data, end, to, encoding);
-                    if (decoded < 0 || !matches(takeWhile.predicate(), (int) (decoded >>> 8))) {
-                        break;
+                switch (decoding.kind()) {
+                    case ASCII_LIKE, SINGLE_BYTE -> {
+                        while (end < to && table[data[end] & 0xFF]) {
+                            end++;
+                        }
                     }
-                    end += (int) (decoded & 0xFF);
+                    case UTF8 -> {
+                        while (end < to) {
+                            final int b = data[end] & 0xFF;
+                            if (b <= 0x7F) {
+                                if (!table[b]) {
+                                    break;
+                                }
+                                end++;
+                            } else {
+                                final long decoded = decode(data, end, to, decoding);
+                                if (decoded < 0 || !matches(takeWhile.predicate(), (int) (decoded >>> 8))) {
+                                    break;
+                                }
+                                end += (int) (decoded & 0xFF);
+                            }
+                        }
+                    }
+                    case MULTI_BYTE -> {
+                        while (end < to) {
+                            final long decoded = decode(data, end, to, decoding);
+                            if (decoded < 0 || !matches(takeWhile.predicate(), (int) (decoded >>> 8))) {
+                                break;
+                            }
+                            end += (int) (decoded & 0xFF);
+                        }
+                    }
                 }
                 yield end > from
                         ? new Result(TypedValue.of(Arrays.copyOfRange(data, from, end), encoding),
                                 end - from)
                         : null;
             }
-            case MatchStep.TakeUntil takeUntil -> {
-                final byte[] needle = encoding.encode(takeUntil.pattern());
+            case CompiledStep.TakeUntil takeUntil -> {
+                final byte[] needle = takeUntil.needle();
                 if (needle.length == 0) {
                     yield null;
                 }
@@ -192,16 +214,16 @@ public final class Steps {
                 yield new Result(TypedValue.of(Arrays.copyOfRange(data, from, end), encoding),
                         end - from);
             }
-            case MatchStep.TakeBytes takeBytes ->
+            case CompiledStep.TakeBytes takeBytes ->
                     take(count(takeBytes.count(), prior, local), data, from, to, encoding);
-            case MatchStep.TakeN takeN -> take(takeN.count(), data, from, to, encoding);
-            case MatchStep.AnyChar ignored -> {
+            case CompiledStep.TakeN takeN -> take(takeN.count(), data, from, to, encoding);
+            case CompiledStep.AnyChar ignored -> {
                 if (available <= 0) {
                     yield null;
                 }
                 // A character is what the effective encoding says it is — the same decode
                 // TakeWhile uses, so a UTF-16 character is two bytes and a RAW byte is one.
-                final long decoded = decode(data, from, to, encoding);
+                final long decoded = decode(data, from, to, decoding);
                 if (decoded < 0) {
                     yield null;
                 }
@@ -210,12 +232,12 @@ public final class Steps {
                         TypedValue.of(Arrays.copyOfRange(data, from, from + length), encoding),
                         length);
             }
-            case MatchStep.ReadNumeric numeric -> number(numeric, data, from, to);
-            case MatchStep.ReadVarint ignored -> {
+            case CompiledStep.ReadNumeric numeric -> number(numeric, data, from, to);
+            case CompiledStep.ReadVarint ignored -> {
                 final long[] varint = varint(data, from, to);
                 yield varint == null ? null : new Result(unsigned(varint[0]), (int) varint[1]);
             }
-            case MatchStep.ReadVarintZigZag ignored -> {
+            case CompiledStep.ReadVarintZigZag ignored -> {
                 final long[] varint = varint(data, from, to);
                 // ZigZag interleaves positive and negative so that small negatives stay small:
                 // the low bit is the sign, the rest is the magnitude.
@@ -224,13 +246,13 @@ public final class Steps {
                         : new Result(new TypedValue.Integer((varint[0] >>> 1) ^ -(varint[0] & 1)),
                         (int) varint[1]);
             }
-            case MatchStep.Seek seek -> {
+            case CompiledStep.Seek seek -> {
                 final Integer count = count(seek.count(), prior, local);
                 yield count == null || count > available ? null : new Result(NOTHING, count);
             }
             // Reached only inside a combinator, where going backwards cannot be expressed. The
             // top-level sequence handles both seeks itself.
-            case MatchStep.SeekAbs seek -> {
+            case CompiledStep.SeekAbs seek -> {
                 final Integer target = count(seek.offset(), prior, local);
                 if (target == null || target < position) {
                     yield null;
@@ -238,9 +260,9 @@ public final class Steps {
                 final int forward = target - position;
                 yield forward > available ? null : new Result(NOTHING, forward);
             }
-            case MatchStep.SeekBack ignored -> null;
-            case MatchStep.Tell ignored -> new Result(new TypedValue.Integer(position), 0);
-            case MatchStep.Decode decode -> {
+            case CompiledStep.SeekBack ignored -> null;
+            case CompiledStep.Tell ignored -> new Result(new TypedValue.Integer(position), 0);
+            case CompiledStep.Decode decode -> {
                 final byte[] input = bytes(decode.data(), prior, local);
                 if (input == null) {
                     yield null;
@@ -248,7 +270,7 @@ public final class Steps {
                 final byte[] decoded = Codecs.decode(input, decode.codec());
                 yield decoded == null ? null : new Result(TypedValue.of(decoded, encoding), 0);
             }
-            case MatchStep.Encode encode -> {
+            case CompiledStep.Encode encode -> {
                 final byte[] input = bytes(encode.data(), prior, local);
                 if (input == null) {
                     yield null;
@@ -256,13 +278,10 @@ public final class Steps {
                 final byte[] encoded = Codecs.encode(input, encode.codec());
                 yield encoded == null ? null : new Result(TypedValue.of(encoded, encoding), 0);
             }
-            case MatchStep.Regex regex -> {
-                final BytePattern pattern = patterns.get(
-                        PatternKey.of(regex.pattern(), regex.flags(), RegexEncodings.forMatch(encoding)));
-                if (pattern == null) {
-                    throw new IllegalStateException("Pattern was not compiled: " + regex.pattern());
-                }
-                final ByteMatcher matcher = pattern.matcher();
+            case CompiledStep.Regex regex -> {
+                // The pattern was compiled and the matcher built when the step was; neither a
+                // lookup nor an allocation stands between the cursor and the question.
+                final ByteMatcher matcher = regex.matcher();
                 // An atom, like every other step: it matches at the cursor or it fails (E4).
                 if (!matcher.match(data, from, to, Anchoring.ANCHORED)) {
                     yield null;
@@ -270,28 +289,28 @@ public final class Steps {
                 final byte[] matched = matcher.groupBytes(0);
                 yield new Result(TypedValue.of(matched, encoding), matched.length);
             }
-            case MatchStep.Choice choice -> {
-                for (final List<MatchStep> alternative : choice.alternatives()) {
+            case CompiledStep.Choice choice -> {
+                for (final List<CompiledStep> alternative : choice.alternatives()) {
                     final Integer consumed = sequence(
-                            alternative, data, from, to, prior, local, position, patterns, encoding);
+                            alternative, data, from, to, prior, local, position, decoding);
                     if (consumed != null) {
                         yield consumed(data, from, consumed, encoding);
                     }
                 }
                 yield null;
             }
-            case MatchStep.Optional optional -> {
+            case CompiledStep.Optional optional -> {
                 final Integer consumed = sequence(
-                        optional.steps(), data, from, to, prior, local, position, patterns, encoding);
+                        optional.steps(), data, from, to, prior, local, position, decoding);
                 yield consumed(data, from, consumed == null ? 0 : consumed, encoding);
             }
-            case MatchStep.Repeat repeat -> {
+            case CompiledStep.Repeat repeat -> {
                 int total = 0;
                 int iterations = 0;
                 final int max = repeat.max() == null ? Integer.MAX_VALUE : repeat.max();
                 while (iterations < max && from + total < to) {
                     final Integer consumed = sequence(
-                            repeat.steps(), data, from + total, to, prior, local, position + total, patterns, encoding);
+                            repeat.steps(), data, from + total, to, prior, local, position + total, decoding);
                     if (consumed == null || consumed == 0) {
                         break;
                     }
@@ -300,21 +319,19 @@ public final class Steps {
                 }
                 yield iterations >= repeat.min() ? consumed(data, from, total, encoding) : null;
             }
-            case MatchStep.Sequence nested -> {
+            case CompiledStep.Sequence nested -> {
                 final Integer consumed = sequence(
-                        nested.steps(), data, from, to, prior, local, position, patterns, encoding);
+                        nested.steps(), data, from, to, prior, local, position, decoding);
                 yield consumed == null ? null : consumed(data, from, consumed, encoding);
             }
-            case MatchStep.Peek peek -> sequence(
-                    peek.steps(), data, from, to, prior, local, position, patterns, encoding) == null
+            case CompiledStep.Peek peek -> sequence(
+                    peek.steps(), data, from, to, prior, local, position, decoding) == null
                     ? null
                     : new Result(NOTHING, 0);
-            case MatchStep.Not not -> sequence(
-                    not.steps(), data, from, to, prior, local, position, patterns, encoding) == null
+            case CompiledStep.Not not -> sequence(
+                    not.steps(), data, from, to, prior, local, position, decoding) == null
                     ? new Result(NOTHING, 0)
                     : null;
-            case MatchStep.PatternRef ignored -> throw new IllegalStateException(
-                    "Pattern references should have been resolved at compile time");
         };
     }
 
@@ -325,20 +342,19 @@ public final class Steps {
      * and the caller's own — as one flat list. That is the rule a step reference indexes into:
      * output indexes count all step outputs in execution order, at any nesting depth.
      */
-    private static Integer sequence(final List<MatchStep> steps,
+    private static Integer sequence(final List<CompiledStep> steps,
                                     final byte[] data,
                                     final int from,
                                     final int to,
                                     final List<TypedValue> enclosing,
                                     final List<TypedValue> callerLocal,
                                     final int position,
-                                    final Map<PatternKey, BytePattern> patterns,
-                                    final Encoding encoding) {
+                                    final Decoding decoding) {
         final List<TypedValue> prior = concat(enclosing, callerLocal);
         int pos = 0;
         final List<TypedValue> local = new ArrayList<>(steps.size());
-        for (final MatchStep step : steps) {
-            final Result result = step(step, data, from + pos, to, prior, local, position + pos, patterns, encoding);
+        for (final CompiledStep step : steps) {
+            final Result result = step(step, data, from + pos, to, prior, local, position + pos, decoding);
             if (result == null) {
                 return null;
             }
@@ -444,55 +460,70 @@ public final class Steps {
     }
 
     /**
-     * The character at an offset under an encoding, packed as {@code codepoint << 8 | length},
-     * or −1 when the bytes there do not form one. RAW and ASCII stay byte-shaped: values past
-     * 0x7F carry no textual meaning and fail every class except {@code Any}, exactly as the
-     * old byte predicates behaved — {@code Any} never reaches here needing more than length 1.
+     * The character at an offset under the template's reading, packed as
+     * {@code codepoint << 8 | length}, or −1 when the bytes there do not form one.
+     *
+     * <p>Which reading applies was decided when the match compiled ({@link Decoding}); this
+     * switches on that answer rather than re-deriving it. RAW and ASCII stay byte-shaped:
+     * values past 0x7F carry no textual meaning and fail every class except {@code Any},
+     * exactly as the old byte predicates behaved — {@code Any} never reaches here needing more
+     * than length 1.
      */
-    private static long decode(final byte[] data, final int at, final int to, final Encoding encoding) {
+    private static long decode(final byte[] data, final int at, final int to, final Decoding decoding) {
         final int b = data[at] & 0xFF;
-        if (encoding == Encoding.RAW || encoding == Encoding.ASCII) {
-            return b <= 0x7F ? ((long) b << 8) | 1 : ((long) 0xFFFD << 8) | 1;
-        }
-        if (encoding.isUtf8Compatible()) {
-            if (b <= 0x7F) {
-                return ((long) b << 8) | 1;
-            }
-            final int length = characterLength(data[at]);
-            if (length <= 1 || at + length > to) {
-                return -1;
-            }
-            int cp = b & (0x3F >> (length - 1));
-            for (int i = 1; i < length; i++) {
-                if ((data[at + i] & 0xC0) != 0x80) {
-                    return -1;
+        return switch (decoding.kind()) {
+            case ASCII_LIKE -> b <= 0x7F ? ((long) b << 8) | 1 : ((long) 0xFFFD << 8) | 1;
+            case SINGLE_BYTE -> ((long) decoding.table()[b] << 8) | 1;
+            case UTF8 -> {
+                if (b <= 0x7F) {
+                    yield ((long) b << 8) | 1;
                 }
-                cp = (cp << 6) | (data[at + i] & 0x3F);
-            }
-            return ((long) cp << 8) | length;
-        }
-        if (encoding.isSingleByte()) {
-            final char[] table = SINGLE_BYTE.computeIfAbsent(encoding, e -> {
-                final char[] chars = new char[256];
-                final byte[] one = new byte[1];
-                for (int i = 0; i < 256; i++) {
-                    one[0] = (byte) i;
-                    final String text = new String(one, e.charset());
-                    chars[i] = text.isEmpty() ? 0xFFFD : text.charAt(0);
+                final int length = characterLength(data[at]);
+                if (length <= 1 || at + length > to) {
+                    yield -1;
                 }
-                return chars;
-            });
-            return ((long) table[b] << 8) | 1;
-        }
-        // Multi-byte non-UTF-8 encodings (UTF-16, Shift_JIS…): decode one character via the
-        // charset. Correct first, fast when a workload asks.
-        for (int length = 1; length <= Math.min(4, to - at); length++) {
-            final String text = new String(data, at, length, encoding.charset());
-            if (!text.isEmpty() && text.charAt(0) != 0xFFFD) {
-                return ((long) text.codePointAt(0) << 8) | length;
+                int cp = b & (0x3F >> (length - 1));
+                for (int i = 1; i < length; i++) {
+                    if ((data[at + i] & 0xC0) != 0x80) {
+                        yield -1;
+                    }
+                    cp = (cp << 6) | (data[at + i] & 0x3F);
+                }
+                yield ((long) cp << 8) | length;
             }
+            // Multi-byte non-UTF-8 encodings (UTF-16, Shift_JIS…): decode one character via the
+            // charset. Correct first, fast when a workload asks.
+            case MULTI_BYTE -> {
+                for (int length = 1; length <= Math.min(4, to - at); length++) {
+                    final String text = new String(data, at, length, decoding.charset());
+                    if (!text.isEmpty() && text.charAt(0) != 0xFFFD) {
+                        yield ((long) text.codePointAt(0) << 8) | length;
+                    }
+                }
+                yield -1;
+            }
+        };
+    }
+
+    /**
+     * The byte table a {@code take-while} answers from, or null when no byte stands alone under
+     * this reading and every character has to be decoded.
+     *
+     * <p>The compiler's entry into the predicate rules, so that what a table says and what
+     * {@link #matches} says cannot drift apart: there is one statement of what a character class
+     * means, and the table is that statement evaluated 256 times instead of once per byte read.
+     * For UTF-8 only the ASCII range can be settled this way; a lead byte still decodes.
+     */
+    static boolean[] table(final Predicate predicate, final Decoding decoding) {
+        if (decoding.kind() == Decoding.Kind.MULTI_BYTE) {
+            return null;
         }
-        return -1;
+        final boolean[] table = new boolean[256];
+        final int limit = decoding.tabular() ? 256 : 0x80;
+        for (int b = 0; b < limit; b++) {
+            table[b] = matches(predicate, decoding.character(b));
+        }
+        return table;
     }
 
     private static boolean inSet(final Predicate.CharSet set, final char c) {
@@ -548,7 +579,7 @@ public final class Steps {
     // Numbers
     // -----------------------------------------------------------------------------------
 
-    private static Result number(final MatchStep.ReadNumeric numeric, final byte[] data,
+    private static Result number(final CompiledStep.ReadNumeric numeric, final byte[] data,
                                  final int from, final int to) {
         final int size = switch (numeric.numericType()) {
             case SHORT -> 2;

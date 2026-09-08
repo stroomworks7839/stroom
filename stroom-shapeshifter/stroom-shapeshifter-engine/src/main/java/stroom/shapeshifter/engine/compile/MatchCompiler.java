@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.CombinatorPattern;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
@@ -25,8 +24,9 @@ import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
-import stroom.shapeshifter.engine.match.Codecs;
+import stroom.shapeshifter.engine.match.Decoding;
 import stroom.shapeshifter.engine.match.PatternKey;
+import stroom.shapeshifter.engine.match.StepCompiler;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.regex.BytePattern;
@@ -36,7 +36,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -72,24 +71,28 @@ final class MatchCompiler {
      *
      * @param matchEncoding the encoding the template's match vocabulary sees: its own
      *                      declaration, or the source's
+     * @param markEncoding  the encoding a byte-order mark could move this template to, or null
+     *                      when none could — see {@link CompiledMatch.Progressive}
      */
-    CompiledMatch compile(final Template template, final Encoding matchEncoding) {
+    CompiledMatch compile(final Template template,
+                          final Encoding matchEncoding,
+                          final Encoding markEncoding) {
         if (template.guard() != null) {
             collect(template.guard(), template);
         }
         collect(template.body(), template);
-        final List<MatchStep> resolvedSteps;
+        final CompiledMatch.Progressive progressiveSteps;
         if (template.match() instanceof MatchExpression.Progressive progressive) {
             // Resolved, not raw: the steps match the inlined sequence, so a regex
             // reached through a library reference is interned like one written in place.
-            resolvedSteps = resolve(progressive.steps(), new HashSet<>());
-            // Never null here: a transcode-family source is decoded first and a template may
-            // not declare one, so the lowering exists (RegexEncodings.forMatch says why).
-            steps(resolvedSteps, template, RegexEncodings.forMatch(matchEncoding));
+            final List<MatchStep> resolved = resolve(progressive.steps(), new HashSet<>());
+            progressiveSteps = new CompiledMatch.Progressive(
+                    compiledSteps(resolved, template, matchEncoding),
+                    markEncoding == null ? null : compiledSteps(resolved, template, markEncoding));
         } else {
-            resolvedSteps = null;
+            progressiveSteps = null;
         }
-        return compileMatch(template, matchEncoding, resolvedSteps);
+        return compileMatch(template, matchEncoding, progressiveSteps);
     }
 
     /**
@@ -155,40 +158,19 @@ final class MatchCompiler {
         });
     }
 
-    /**
-     * Walk a step sequence for the patterns it uses and the codecs it needs.
-     *
-     * <p>A codec this build cannot apply is refused here rather than returning nothing at match
-     * time, because "no match" and "cannot do that" are different answers and only one of them
-     * is the configuration's fault.
-     */
-    private void steps(final List<MatchStep> steps,
-                       final Template template,
-                       final stroom.shapeshifter.regex.Encoding encoding) {
-        for (final MatchStep step : steps) {
-            switch (step) {
-                case MatchStep.Regex regex ->
-                        intern(PatternKey.of(regex.pattern(), regex.flags(), encoding), template);
-                case MatchStep.Decode decode -> requireCodec(decode.codec(), template);
-                case MatchStep.Encode encode -> requireCodec(encode.codec(), template);
-                case MatchStep.Choice choice ->
-                        choice.alternatives().forEach(alternative -> steps(alternative, template, encoding));
-                case MatchStep.Optional optional -> steps(optional.steps(), template, encoding);
-                case MatchStep.Repeat repeat -> steps(repeat.steps(), template, encoding);
-                case MatchStep.Sequence sequence -> steps(sequence.steps(), template, encoding);
-                case MatchStep.Peek peek -> steps(peek.steps(), template, encoding);
-                case MatchStep.Not not -> steps(not.steps(), template, encoding);
-                default -> {
-                    // The remaining atoms need nothing compiled.
-                }
-            }
-        }
-    }
-
-    private static void requireCodec(final Codec codec, final Template template) {
-        if (!Codecs.isSupported(codec)) {
-            throw ConfigException.notYet(template.name(), codec.name().toLowerCase(Locale.ROOT) + " coding");
-        }
+    /** The same steps compiled for one encoding: its literals, its tables, its patterns. */
+    private CompiledMatch.Compilation compiledSteps(final List<MatchStep> resolved,
+                                                    final Template template,
+                                                    final Encoding encoding) {
+        final Decoding decoding = Decoding.of(encoding);
+        // Interning stays here, so a pattern a step names and one a body names share one
+        // compiled pattern and one failure message.
+        return new CompiledMatch.Compilation(
+                StepCompiler.compile(resolved, template.name(), decoding, key -> {
+                    intern(key, template);
+                    return patterns.get(key);
+                }),
+                decoding);
     }
 
     /**
@@ -239,7 +221,7 @@ final class MatchCompiler {
 
     private CompiledMatch compileMatch(final Template template,
                                        final Encoding matchEncoding,
-                                       final List<MatchStep> resolvedSteps) {
+                                       final CompiledMatch.Progressive progressiveSteps) {
         return switch (template.match()) {
             case MatchExpression.Regex regex -> {
                 final BytePattern pattern;
@@ -266,7 +248,7 @@ final class MatchCompiler {
             case MatchExpression.All ignored -> new CompiledMatch.All();
             case MatchExpression.Source ignored -> new CompiledMatch.Source();
             case MatchExpression.Named ignored -> new CompiledMatch.Named();
-            case MatchExpression.Progressive ignored -> new CompiledMatch.Progressive(resolvedSteps);
+            case MatchExpression.Progressive ignored -> progressiveSteps;
             case MatchExpression.Avro ignored -> throw ConfigException.notYet(template.name(), "Avro decoding");
             case MatchExpression.Parquet ignored -> throw ConfigException.notYet(template.name(), "Parquet decoding");
             case MatchExpression.Protobuf ignored -> throw ConfigException.notYet(template.name(), "Protobuf decoding");

@@ -74,9 +74,13 @@ class EncodedInputTest {
     }
 
     private static String run(final String encoding, final byte[] input) {
+        return runConfig(config(encoding), input);
+    }
+
+    private static String runConfig(final String config, final byte[] input) {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         Shapeshifter.run(
-                Shapeshifter.compile(ProjectReader.read(config(encoding))),
+                Shapeshifter.compile(ProjectReader.read(config)),
                 new ByteArrayInputStream(input),
                 new XmlByteSink(output));
         return output.toString(StandardCharsets.UTF_8);
@@ -116,6 +120,43 @@ class EncodedInputTest {
                 new ByteArrayInputStream(input),
                 new XmlByteSink(output));
         assertThat(output.toString(StandardCharsets.UTF_8)).isEqualTo("[é][é]");
+    }
+
+    @Test
+    void progressiveStepsFollowAByteOrderMarkTheSourceDidNotExpect() {
+        // The sibling of byteOrderMarkOverridesWhatTheConfigurationSaid, for steps rather than a
+        // delimiter. It matters more here: a step is compiled against an encoding — its tags
+        // encoded, its tables built, its values tagged — so a mark that re-declares the source
+        // has to re-choose the compiled form, not just the reading (design 29 phase 2).
+        final String config = """
+                {
+                  "name": "marked", "version": 4,
+                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "windows-1252"},
+                  "templates": [
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                   "mode": "row"}}]},
+                    {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "row",
+                     "match": {"progressive": [
+                       {"Tag": "L:"},
+                       {"TakeUntil": {"pattern": "\\n", "inclusive": false}},
+                       {"Tag": "\\n"}]},
+                     "body": [{"value-of": {"parts": [
+                       {"text": "["}, {"capture": {"group": 2}}, {"text": "]"}]}}]}
+                  ]
+                }
+                """;
+        // 0xC3 0xA9 is é in UTF-8 and Ã© in windows-1252, so the two readings disagree about
+        // what the step captured.
+        final byte[] line = {'L', ':', (byte) 0xC3, (byte) 0xA9, '\n'};
+        assertThat(runConfig(config, line)).isEqualTo("[Ã©]");
+
+        final byte[] marked = new byte[line.length + 3];
+        marked[0] = (byte) 0xEF;
+        marked[1] = (byte) 0xBB;
+        marked[2] = (byte) 0xBF;
+        System.arraycopy(line, 0, marked, 3, line.length);
+        assertThat(runConfig(config, marked)).isEqualTo("[é]");
     }
 
     @Test

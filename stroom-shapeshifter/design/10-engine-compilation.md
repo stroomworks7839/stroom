@@ -50,8 +50,10 @@ candidate, and none may be acted on before a benchmark says which matter (§4):
 dispatch tables, `call-template` resolution. Change 3 (§8): reference strategies, pre-encoded
 literals and `Text` bytes, and pattern-by-text for regex `replace` — though a `matches`
 condition still looks its pattern up by text, so that row stays half-open with conditions (E39).
-Still open: step `Tag`/`TakeUntil` pre-encoding, `TakeWhile` byte tables, compiled
-conditions/guards (E39), capture elimination, and the two rows above.
+Design 29 phase 2: the step vocabulary compiled — `Tag`/`TakeUntil` pre-encoded, `TakeWhile`
+byte tables built, and a step regex holding its pattern and its matcher rather than looking one
+up and allocating the other per attempt.
+Still open: compiled conditions/guards (E39), capture elimination, and the two rows above.
 
 The regex library already proves the end state on its own layer; the engine's job is the same
 move for dispatch, references, bodies and steps. And the shape is **two layers, never three**

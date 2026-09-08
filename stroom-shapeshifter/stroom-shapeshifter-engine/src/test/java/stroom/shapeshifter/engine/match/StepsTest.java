@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -45,11 +44,24 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class StepsTest {
 
-    private static final Map<PatternKey, BytePattern> NO_PATTERNS = Map.of();
-
+    /**
+     * Compile and run, because the interpreter's input is compiled steps: what a tag's bytes are
+     * and what a predicate's table says are the compiler's answers, and a test that wrote them
+     * out by hand would agree with itself rather than with the engine.
+     */
     private static MatchResult run(final List<MatchStep> steps, final String input) {
-        final byte[] data = input.getBytes(StandardCharsets.UTF_8);
-        return Steps.match(steps, data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
+        return run(steps, input.getBytes(StandardCharsets.UTF_8), 0, Encoding.UTF_8);
+    }
+
+    private static MatchResult run(final List<MatchStep> steps,
+                                   final byte[] data,
+                                   final int from,
+                                   final Encoding encoding) {
+        final Decoding decoding = Decoding.of(encoding);
+        return Steps.match(
+                StepCompiler.compile(steps, "test", decoding,
+                        key -> BytePattern.compile(key.text(), key.flags(), key.encoding())),
+                data, from, data.length, decoding);
     }
 
     private static String group(final MatchResult result, final int index) {
@@ -108,14 +120,14 @@ class StepsTest {
         // 0xE9 is é under windows-1252 and a meaningless byte under raw: the same bytes, two
         // encodings, two answers — both of them accurate (E5).
         final byte[] data = {'a', (byte) 0xE9, 'b', ','};
-        final MatchResult latin = Steps.match(
+        final MatchResult latin = run(
                 List.of(new MatchStep.TakeWhile(new Predicate.Alphabetic())),
-                data, 0, data.length, NO_PATTERNS, Encoding.WINDOWS_1252);
+                data, 0, Encoding.WINDOWS_1252);
         assertThat(latin.advance()).isEqualTo(3);
 
-        final MatchResult raw = Steps.match(
+        final MatchResult raw = run(
                 List.of(new MatchStep.TakeWhile(new Predicate.Alphabetic())),
-                data, 0, data.length, NO_PATTERNS, Encoding.RAW);
+                data, 0, Encoding.RAW);
         assertThat(raw.advance()).isEqualTo(1);
     }
 
@@ -129,11 +141,11 @@ class StepsTest {
     @Test
     void numbersReadInBothByteOrders() {
         final byte[] data = {0x01, 0x02, 0x02, 0x01, (byte) 0xFF, (byte) 0xFF};
-        final MatchResult result = Steps.match(List.of(
+        final MatchResult result = run(List.of(
                 new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.BIG),
                 new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.LITTLE),
                 new MatchStep.ReadNumeric(NumericType.SHORT, true, Endianness.BIG)),
-                data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
+                data, 0, Encoding.UTF_8);
 
         assertThat(result.group(1)).isEqualTo(new TypedValue.Integer(0x0102));
         assertThat(result.group(2)).isEqualTo(new TypedValue.Integer(0x0102));
@@ -144,9 +156,9 @@ class StepsTest {
     @Test
     void unsignedLongTooBigForALongBecomesText() {
         final byte[] data = {-1, -1, -1, -1, -1, -1, -1, -1};
-        final MatchResult result = Steps.match(
+        final MatchResult result = run(
                 List.of(new MatchStep.ReadNumeric(NumericType.LONG, false, Endianness.BIG)),
-                data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
+                data, 0, Encoding.UTF_8);
         // The alternative is a silently negative number, which is worse than a string.
         assertThat(result.group(1).asString()).isEqualTo("18446744073709551615");
     }
@@ -154,9 +166,9 @@ class StepsTest {
     @Test
     void varintsReadSevenBitsAtATime() {
         final byte[] data = {(byte) 0xAC, 0x02, 0x03};
-        final MatchResult result = Steps.match(List.of(
+        final MatchResult result = run(List.of(
                 new MatchStep.ReadVarint(), new MatchStep.ReadVarintZigZag()),
-                data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
+                data, 0, Encoding.UTF_8);
         assertThat(result.group(1)).isEqualTo(new TypedValue.Integer(300));
         // ZigZag: 3 encodes -2.
         assertThat(result.group(2)).isEqualTo(new TypedValue.Integer(-2));
@@ -193,10 +205,10 @@ class StepsTest {
     @Test
     void takeBytesUsesAnEarlierStepsValue() {
         final byte[] data = {0x00, 0x03, 'a', 'b', 'c', 'd'};
-        final MatchResult result = Steps.match(List.of(
+        final MatchResult result = run(List.of(
                 new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.BIG),
                 new MatchStep.TakeBytes(new StepRef.StepOutput(0))),
-                data, 0, data.length, NO_PATTERNS, Encoding.UTF_8);
+                data, 0, Encoding.UTF_8);
         assertThat(group(result, 2)).isEqualTo("abc");
         assertThat(result.advance()).isEqualTo(5);
     }
@@ -230,18 +242,15 @@ class StepsTest {
         // A pre-compiled fragment of grammar, usable beside Tag and TakeWhile — which means it
         // matches from the cursor and never skips (E4, ruled 2026-08-21). The pattern here
         // would be found four bytes in by a search; an atom must refuse instead.
-        final Map<PatternKey, BytePattern> patterns = Map.of(
-                PatternKey.of("[0-9]+", stroom.shapeshifter.regex.Encoding.UTF_8),
-                BytePattern.compile("[0-9]+"));
         final byte[] data = "abcd42;".getBytes(StandardCharsets.UTF_8);
-        assertThat(Steps.match(List.of(new MatchStep.Regex("[0-9]+", null)),
-                data, 0, data.length, patterns, Encoding.UTF_8)).isNull();
+        assertThat(run(List.of(new MatchStep.Regex("[0-9]+", null)),
+                data, 0, Encoding.UTF_8)).isNull();
 
         // At the cursor it consumes exactly its match, leaving the next step where it ended.
-        final MatchResult result = Steps.match(List.of(
+        final MatchResult result = run(List.of(
                         new MatchStep.Regex("[0-9]+", null),
                         new MatchStep.Tag(";")),
-                data, 4, data.length, patterns, Encoding.UTF_8);
+                data, 4, Encoding.UTF_8);
         assertThat(result).isNotNull();
         assertThat(result.advance()).isEqualTo(3);
     }

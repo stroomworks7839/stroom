@@ -86,8 +86,17 @@ public final class Compiler {
             refuseCaptures(template);
             final Encoding declared = declaredEncoding(template, transcodeFrom);
             final Encoding matchEncoding = declared == null ? encoding : declared;
+            // A template that declares its own encoding is fixed; one that follows the source
+            // can still be moved once, by a UTF-8 byte-order mark, so its steps are compiled
+            // for that reading too (CompiledMatch.Progressive). Only when the mark would say
+            // something new: AUTO already reads and encodes exactly as UTF-8, and it is the
+            // default, so the common configuration compiles its steps once.
+            final Encoding markEncoding =
+                    declared == null && matchEncoding != Encoding.UTF_8 && matchEncoding != Encoding.AUTO
+                            ? Encoding.UTF_8
+                            : null;
             // The match first: it interns the patterns the body's compiled form resolves against.
-            final CompiledMatch match = matches.compile(template, matchEncoding);
+            final CompiledMatch match = matches.compile(template, matchEncoding, markEncoding);
             templates.add(CompiledTemplate.of(template, match,
                     bodies.compile(template.body()),
                     declared,
