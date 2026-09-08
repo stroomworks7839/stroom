@@ -1342,10 +1342,18 @@ the hierarchy without profiling, and now have two and three. A variant of the he
 `Output.write` a monomorphic fast path — an exact type test for `Utf8Bytes`, whose class is
 final, then its field — was interleaved against the head over three rounds. `csv_header` +1.2%,
 the sign in all three rounds (+2.4, +0.9, +0.2); `apache_httpd` level, as a row that writes
-little per record should be. So the dispatch is **about half to two thirds of the residue** and
-the rest, some 0.8%, is inside the noise and not worth chasing on its own. The variant is not
-committed: buying monomorphism with a special case in the seam is a shape decision, not a
-measurement, and it belongs beside design 29 §3.3's factory binding rather than ahead of it.
+little per record should be. *Withdrawn the same day, and the reading with it.* The interleave
+always ran the head first and the variant second within a round, so anything systematic within a
+round — warming, boost decay — biased one side every time, and the three readings decayed 2.4,
+0.9, 0.2, which is what that looks like. Asked directly rather than benchmarked again:
+`-XX:+PrintInlining` on the delimiter workload shows `Output.write` inlining hot,
+`TypedValue::bytes` devirtualised on a type profile of 4728 counts out of 4728 for `Utf8Bytes`,
+`Encoding.isUtf8Compatible` inlined, and `Utf8Bytes.asUtf8` inlined as an accessor. The whole
+chain is already a field read, so the mechanism the fast path was supposed to remove is not
+there and a type test would buy one guard in place of another. **The dispatch is not the
+residue.** What `csv_header` still owes against the commit before design 25 is unexplained, and
+design 29 phase 1 — the match loop — is what should now explain it. The script in `bin`
+alternates the order within a round since.
 
 The full suite over all eight workloads, run and compile rows, was taken at both ends the same
 day (`…-1249-a9ca4f2853-full`, `…-1301-f9bcef57af-full`). It agrees on the shape and disagrees
