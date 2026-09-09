@@ -85,13 +85,29 @@ final class BodyCompiler {
      * <p>An apply whose mode answers to nothing gets an empty list and matches nothing, and a
      * call naming no template gets null and does nothing — both are what the lookups they
      * replace returned.
+     *
+     * @param templates every compiled template, in authored order — which is all linking needs,
+     *                  so it is what linking is given rather than the graph they belong to
      */
-    void link(final CompiledProject compiled) {
+    void link(final List<CompiledTemplate> templates) {
+        // Built here and discarded here. Linking is the only thing that ever asks a compiled
+        // project which templates answer to a mode or a name, and a graph that kept the indexes
+        // afterwards would be carrying its own scaffolding — and inviting the reading that
+        // something still looks a template up while a record is running. Nothing does.
+        final Map<String, List<CompiledTemplate>> byMode = new HashMap<>();
+        final Map<String, CompiledTemplate> byName = new HashMap<>();
+        for (final CompiledTemplate template : templates) {
+            byMode.computeIfAbsent(template.template().mode(), mode -> new ArrayList<>())
+                    .add(template);
+            // A duplicated name means its first bearer, as the lookup this replaces did.
+            byName.putIfAbsent(template.template().name(), template);
+        }
         for (final CompiledOp.Apply apply : applies) {
-            apply.link(compiled.templates(apply.directive().mode()));
+            // An apply whose mode answers to nothing gets an empty list and matches nothing.
+            apply.link(List.copyOf(byMode.getOrDefault(apply.directive().mode(), List.of())));
         }
         for (final CompiledOp.CallTemplate call : calls) {
-            call.link(compiled.template(call.name()));
+            call.link(byName.get(call.name()));
         }
     }
 
@@ -103,22 +119,22 @@ final class BodyCompiler {
         final List<CompiledOp> ops = new ArrayList<>(body.size());
         for (final OutputNode node : body) {
             final CompiledOp op = switch (node) {
-                case OutputNode.Text text ->
+                case final OutputNode.Text text ->
                         new CompiledOp.Text(TypedValue.of(text.value()));
-                case OutputNode.ValueOf valueOf ->
+                case final OutputNode.ValueOf valueOf ->
                         new CompiledOp.ValueOf(CompiledRef.of(valueOf.select()));
-                case OutputNode.Call value -> call(value);
-                case OutputNode.If value ->
+                case final OutputNode.Call value -> call(value);
+                case final OutputNode.If value ->
                         new CompiledOp.If(value.test(), compile(value.then()));
-                case OutputNode.Choose value -> new CompiledOp.Choose(
+                case final OutputNode.Choose value -> new CompiledOp.Choose(
                         value.when().stream()
                                 .map(branch -> new CompiledOp.When(branch.test(),
                                         compile(branch.body())))
                                 .toList(),
                         compile(value.otherwise()));
-                case OutputNode.Switch value -> new CompiledOp.Switch(
+                case final OutputNode.Switch value -> new CompiledOp.Switch(
                         CompiledRef.of(value.select()), cases(value), compile(value.defaultBody()));
-                case OutputNode.ApplyTemplates apply -> {
+                case final OutputNode.ApplyTemplates apply -> {
                     // Whole-parent-content is the group-0 special case of a local group, so
                     // being a local group is the whole of being locatable.
                     final RefExpression select = apply.directive().select();
@@ -131,9 +147,9 @@ final class BodyCompiler {
                     applies.add(applyOp);
                     yield applyOp;
                 }
-                case OutputNode.EmitError value ->
+                case final OutputNode.EmitError value ->
                         new CompiledOp.EmitError(value.severity(), CompiledRef.of(value.message()));
-                case OutputNode.CallTemplate value -> {
+                case final OutputNode.CallTemplate value -> {
                     final CompiledOp.CallTemplate call = new CompiledOp.CallTemplate(
                             value.name(),
                             value.withParam().stream()
@@ -143,35 +159,35 @@ final class BodyCompiler {
                     calls.add(call);
                     yield call;
                 }
-                case OutputNode.Variable value ->
+                case final OutputNode.Variable value ->
                         new CompiledOp.Variable(value.name(), compile(value.body()));
-                case OutputNode.Element value -> new CompiledOp.Element(
+                case final OutputNode.Element value -> new CompiledOp.Element(
                         value.name(), value.namespace(), value.omitIfEmpty(),
                         compile(value.body()));
-                case OutputNode.Attribute value -> new CompiledOp.Attribute(
+                case final OutputNode.Attribute value -> new CompiledOp.Attribute(
                         value.name(), value.omitIfEmpty(),
                                 compile(value.body()));
-                case OutputNode.Namespace value ->
+                case final OutputNode.Namespace value ->
                         new CompiledOp.Namespace(value.prefix(), value.uri());
-                case OutputNode.ValueMap value -> valueMap(value);
-                case OutputNode.Translate value -> transform(single("translate", value.select()),
+                case final OutputNode.ValueMap value -> valueMap(value);
+                case final OutputNode.Translate value -> transform(single("translate", value.select()),
                         value.name(), inputs ->
                                 Transforms.translate(inputs, value.from(), value.to()));
-                case OutputNode.StringJoin value -> transform(value.select(), value.name(),
+                case final OutputNode.StringJoin value -> transform(value.select(), value.name(),
                         inputs -> Transforms.stringJoin(inputs, value.separator()));
-                case OutputNode.Replace value -> replace(value);
-                case OutputNode.LowerCase value ->
+                case final OutputNode.Replace value -> replace(value);
+                case final OutputNode.LowerCase value ->
                         transform(single("lower-case", value.select()), value.name(),
                                 Transforms::lowerCase);
-                case OutputNode.UpperCase value ->
+                case final OutputNode.UpperCase value ->
                         transform(single("upper-case", value.select()), value.name(),
                                 Transforms::upperCase);
-                case OutputNode.NormalizeSpace value -> transform(
+                case final OutputNode.NormalizeSpace value -> transform(
                         single("normalize-space", value.select()), value.name(),
                                 Transforms::normalizeSpace);
-                case OutputNode.Trim value ->
+                case final OutputNode.Trim value ->
                         transform(single("trim", value.select()), value.name(), Transforms::trim);
-                case OutputNode.Substring value -> {
+                case final OutputNode.Substring value -> {
                     // The version gate (design/17 §7, ruled): 1-based from version 5,
                     // 0-based before — Dispatch.effective's precedent, applied to the base.
                     // A version-5 start below 1 follows XPath's rule: the window is
@@ -194,59 +210,59 @@ final class BodyCompiler {
                             inputs ->
                                     Transforms.substring(inputs, effectiveStart, effectiveLength));
                 }
-                case OutputNode.Tokenize value -> new CompiledOp.Tokenize(
+                case final OutputNode.Tokenize value -> new CompiledOp.Tokenize(
                         CompiledRef.of(single("tokenize", value.select()).getFirst()),
                         value.delimiter(), value.name());
-                case OutputNode.Number value ->
+                case final OutputNode.Number value ->
                         transform(single("number", value.select()), value.name(),
                                 Transforms::number);
-                case OutputNode.Add value ->
+                case final OutputNode.Add value ->
                         arithmetic("add", value.select(), value.name(), Arity.AT_LEAST, 1,
                                 Transforms::add);
-                case OutputNode.Subtract value ->
+                case final OutputNode.Subtract value ->
                         arithmetic("subtract", value.select(), value.name(), Arity.EXACTLY, 2,
                                 Transforms::subtract);
-                case OutputNode.Multiply value ->
+                case final OutputNode.Multiply value ->
                         arithmetic("multiply", value.select(), value.name(), Arity.AT_LEAST, 1,
                                 Transforms::multiply);
-                case OutputNode.Divide value ->
+                case final OutputNode.Divide value ->
                         arithmetic("divide", value.select(), value.name(), Arity.EXACTLY, 2,
                                 Transforms::divide);
-                case OutputNode.Mod value ->
+                case final OutputNode.Mod value ->
                         arithmetic("mod", value.select(), value.name(), Arity.EXACTLY, 2,
                                 Transforms::mod);
-                case OutputNode.Round value ->
+                case final OutputNode.Round value ->
                         arithmetic("round", value.select(), value.name(), Arity.EXACTLY, 1,
                                 Transforms::round);
-                case OutputNode.Floor value ->
+                case final OutputNode.Floor value ->
                         arithmetic("floor", value.select(), value.name(), Arity.EXACTLY, 1,
                                 Transforms::floor);
-                case OutputNode.Ceiling value ->
+                case final OutputNode.Ceiling value ->
                         arithmetic("ceiling", value.select(), value.name(), Arity.EXACTLY, 1,
                                 Transforms::ceiling);
-                case OutputNode.Abs value ->
+                case final OutputNode.Abs value ->
                         arithmetic("abs", value.select(), value.name(), Arity.EXACTLY, 1,
                                 Transforms::abs);
-                case OutputNode.StringLength value ->
+                case final OutputNode.StringLength value ->
                         transform(single("string-length", value.select()), value.name(),
                                 Transforms::stringLength);
-                case OutputNode.SubstringBefore value ->
+                case final OutputNode.SubstringBefore value ->
                         transform(single("substring-before", value.select()), value.name(),
                                 inputs -> Transforms.substringBefore(inputs, value.marker()));
-                case OutputNode.SubstringAfter value ->
+                case final OutputNode.SubstringAfter value ->
                         transform(single("substring-after", value.select()), value.name(),
                                 inputs -> Transforms.substringAfter(inputs, value.marker()));
-                case OutputNode.StartsWith value ->
+                case final OutputNode.StartsWith value ->
                         transform(single("starts-with", value.select()), value.name(),
                                 inputs -> Transforms.startsWith(inputs, value.prefix()));
-                case OutputNode.EndsWith value ->
+                case final OutputNode.EndsWith value ->
                         transform(single("ends-with", value.select()), value.name(),
                                 inputs -> Transforms.endsWith(inputs, value.suffix()));
-                case OutputNode.Contains value ->
+                case final OutputNode.Contains value ->
                         transform(single("contains", value.select()), value.name(),
                                 inputs -> Transforms.contains(inputs, value.substring()));
-                case OutputNode.FormatNumber value -> formatNumber(value);
-                case OutputNode.ParseDate value -> {
+                case final OutputNode.FormatNumber value -> formatNumber(value);
+                case final OutputNode.ParseDate value -> {
                     final Dates.Parser parser = Dates.compileParser(
                             value.pattern(), value.timezone(), value.reference() != null,
                                     "parse-date");
@@ -256,41 +272,41 @@ final class BodyCompiler {
                             parser,
                             value.name());
                 }
-                case OutputNode.Count value ->
+                case final OutputNode.Count value ->
                         new CompiledOp.Fold(value.select(), CompiledOp.FoldKind.COUNT, null,
                                 value.name());
-                case OutputNode.Sum value ->
+                case final OutputNode.Sum value ->
                         new CompiledOp.Fold(value.select(), CompiledOp.FoldKind.SUM, null,
                                 value.name());
-                case OutputNode.Avg value ->
+                case final OutputNode.Avg value ->
                         new CompiledOp.Fold(value.select(), CompiledOp.FoldKind.AVG, null,
                                 value.name());
-                case OutputNode.Min value ->
+                case final OutputNode.Min value ->
                         new CompiledOp.Fold(value.select(), CompiledOp.FoldKind.MIN,
                                 value.as(), value.name());
-                case OutputNode.Max value ->
+                case final OutputNode.Max value ->
                         new CompiledOp.Fold(value.select(), CompiledOp.FoldKind.MAX,
                                 value.as(), value.name());
-                case OutputNode.DistinctValues value ->
+                case final OutputNode.DistinctValues value ->
                         new CompiledOp.DistinctValues(value.select(), value.name());
-                case OutputNode.Sequence value -> new CompiledOp.Sequence(value.name());
-                case OutputNode.Append value ->
+                case final OutputNode.Sequence value -> new CompiledOp.Sequence(value.name());
+                case final OutputNode.Append value ->
                         new CompiledOp.Append(value.name(), CompiledRef.of(value.select()));
-                case OutputNode.Key value -> new CompiledOp.Key(value.name(), value.select(),
+                case final OutputNode.Key value -> new CompiledOp.Key(value.name(), value.select(),
                         value.groupBy() == null ? null : CompiledRef.of(value.groupBy()));
-                case OutputNode.KeyGet value -> new CompiledOp.KeyGet(value.key(),
+                case final OutputNode.KeyGet value -> new CompiledOp.KeyGet(value.key(),
                         CompiledRef.of(value.select()), value.name());
-                case OutputNode.ForEachGroup value -> new CompiledOp.ForEachGroup(value.select(),
+                case final OutputNode.ForEachGroup value -> new CompiledOp.ForEachGroup(value.select(),
                         value.groupBy() == null ? null : CompiledRef.of(value.groupBy()),
                         compile(value.body()));
-                case OutputNode.ForEach value -> new CompiledOp.ForEach(value.select(), value.as(),
+                case final OutputNode.ForEach value -> new CompiledOp.ForEach(value.select(), value.as(),
                         value.sort().stream()
                                 .map(key ->
                                         new CompiledOp.SortKey(CompiledRef.of(key.by()),
                                                 key.order(), key.as()))
                                 .toList(),
                         compile(value.body()));
-                case OutputNode.FormatDate value -> {
+                case final OutputNode.FormatDate value -> {
                     final Dates.Formatter formatter = Dates.compileFormatter(
                             value.pattern(), value.timezone(), "format-date");
                     yield transform(single("format-date", value.select()), value.name(),
@@ -336,7 +352,7 @@ final class BodyCompiler {
             final RefExpression ref = value.select().get(i);
             if (signature.argKinds().get(i) == Kind.SEQUENCE) {
                 final String store = ref.parts().size() == 1
-                                     && ref.parts().getFirst() instanceof RefPart.Capture capture
+                                     && ref.parts().getFirst() instanceof final RefPart.Capture capture
                                      && capture.varId() != null
                         ? capture.varId()
                         : null;

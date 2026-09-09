@@ -110,7 +110,7 @@ public final class Compiler {
                 encoding, transcodeFrom, warnings, functions.used(), structured);
 
         // The bodies were compiled before the templates they name existed; now they do.
-        bodies.link(compiled);
+        bodies.link(compiled.templates());
         return compiled;
     }
 

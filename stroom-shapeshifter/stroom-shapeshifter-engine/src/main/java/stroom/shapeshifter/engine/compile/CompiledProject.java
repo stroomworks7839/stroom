@@ -23,8 +23,6 @@ import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.BytePattern;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -54,12 +52,6 @@ public final class CompiledProject {
     private final List<Message> warnings;
     /** Whether any body carries an element, attribute or namespace instruction (design 22 phase 2). */
     private final boolean structured;
-
-    /** Templates per mode, in authored order; the no-mode templates sit under the null key. */
-    private final Map<String, List<CompiledTemplate>> templatesByMode = new HashMap<>();
-
-    /** The first template of each name — {@code call-template}'s meaning of a name. */
-    private final Map<String, CompiledTemplate> templatesByName = new HashMap<>();
 
     /** How a run begins and ends, settled here rather than per run (design 29 §3.5). */
     private final RootPlan rootPlan;
@@ -97,15 +89,6 @@ public final class CompiledProject {
         this.encoding = encoding;
         this.warnings = List.copyOf(warnings);
         this.structured = structured;
-
-        for (final CompiledTemplate template : this.templates) {
-            templatesByMode
-                    .computeIfAbsent(template.template().mode(), mode -> new ArrayList<>())
-                    .add(template);
-            templatesByName.putIfAbsent(template.template().name(), template);
-        }
-        templatesByMode.replaceAll((mode, list) -> List.copyOf(list));
-
         this.rootPlan = RootPlan.of(project, this.templates);
     }
 
@@ -131,16 +114,6 @@ public final class CompiledProject {
     /** The templates, compiled, in authored order. */
     public List<CompiledTemplate> templates() {
         return templates;
-    }
-
-    /** The templates answering to a mode, in authored order — or none. */
-    public List<CompiledTemplate> templates(final String mode) {
-        return templatesByMode.getOrDefault(mode, List.of());
-    }
-
-    /** The template a name means, or null. A duplicated name means its first bearer. */
-    public CompiledTemplate template(final String name) {
-        return templatesByName.get(name);
     }
 
     /** The registered functions the configuration calls (design 26 §3), each once. */
