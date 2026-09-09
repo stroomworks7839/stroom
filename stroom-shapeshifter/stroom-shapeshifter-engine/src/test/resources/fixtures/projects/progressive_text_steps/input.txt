@@ -1,0 +1,8 @@
+2026-09-09T10:15:32Z host=web01 severity=warn msg=Disk usage at 91 percent on /var pid=4821
+2026-09-09T10:15:33Z host=web01 severity=info msg=Health check passed in 12ms pid=4821
+2026-09-09T10:15:35Z host=web02 severity=error msg=Upstream timeout after 30s pid=5140
+2026-09-09T10:15:36Z host=web02 severity=info msg=Retrying request to cache tier pid=5140
+2026-09-09T10:15:41Z host=db01 severity=warn msg=Replication lag 4200ms pid=2277
+2026-09-09T10:15:44Z host=db01 severity=info msg=Checkpoint complete pid=2277
+2026-09-09T10:15:52Z host=web03 severity=error msg=Connection refused by 10.0.0.14 pid=6033
+2026-09-09T10:15:58Z host=web03 severity=info msg=Worker pool resized to 16 pid=6033

@@ -127,9 +127,12 @@ undertaking for a four per cent regression on a workload that exercises none of 
 **The cause is recorded as not found.** Three hypotheses were tested and refuted, which is worth
 more than a fourth that was not tested at all.
 
-*An aside, since the measurement produced it:* this workload allocates **16.2 MB per 256 KiB of
-input**, sixty-three times the input size. Nothing in design 29 addresses that, and no site in
-its survey is that large.
+*An aside, since the measurement produced it:* this workload **allocates 16.2 MB per op**,
+sixty-three times the 256 KiB it reads — churn, not footprint. The figure is
+`gc.alloc.rate.norm`, bytes allocated per operation, almost all of them dying in the young
+generation: 18 to 30 young collections and 14 to 22 ms of GC across roughly three seconds of
+measurement, under one per cent. The engine's resident memory is still bounded by its buffer.
+Nothing in design 29 addresses that, and no site in its survey is that large.
 
 **What follows.** Two things, and the cheap one first. The suite needs a workload whose steps
 are the text vocabulary — a tag, a take-until, a take-while, a regex step — or phase 2 stays
@@ -138,6 +141,20 @@ not a benchmark run, and it is the only thing that can settle whether phase 2 pa
 Only after it exists is chasing the four per cent worth the box time: if phase 2 wins clearly
 where it applies, the trade is fair and the regression is a footnote; if it wins nowhere, the
 phase is cost without return and should be reconsidered rather than tuned.
+
+**The fixture exists, 2026-09-09.** `projects/progressive_text_steps` and the benchmark row
+`progressive_text`: ten steps over a key-value log line — a regex step for the timestamp, four
+tags, three take-whiles and two take-untils — with a text body light enough that the row reads
+as the step interpreter, which is what `progressive` was for on the binary side. It runs 3032
+records per op with no messages, so the row does the work rather than skipping it quietly under
+`ignore_errors`.
+
+It cannot be run at the earlier points as they stand: `engine-interleave.sh` measures from a
+detached worktree per sha, and the fixture does not exist at `5dfdabc46f` or `d504945cd5`. To
+read phase 2 by it, apply the fixture into both worktrees — it is test resources plus one
+benchmark case, so it patches cleanly — or measure head against a variant that reverts the
+precomputation alone. Until one of those runs, phase 2's only evidence is still a workload it
+does not touch.
 
 ## Points deliberately not on the list
 

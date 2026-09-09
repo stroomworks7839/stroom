@@ -1,0 +1,8 @@
+<event time="2026-09-09T10:15:32Z" host="web01" severity="warn" pid="4821">Disk usage at 91 percent on /var</event>
+<event time="2026-09-09T10:15:33Z" host="web01" severity="info" pid="4821">Health check passed in 12ms</event>
+<event time="2026-09-09T10:15:35Z" host="web02" severity="error" pid="5140">Upstream timeout after 30s</event>
+<event time="2026-09-09T10:15:36Z" host="web02" severity="info" pid="5140">Retrying request to cache tier</event>
+<event time="2026-09-09T10:15:41Z" host="db01" severity="warn" pid="2277">Replication lag 4200ms</event>
+<event time="2026-09-09T10:15:44Z" host="db01" severity="info" pid="2277">Checkpoint complete</event>
+<event time="2026-09-09T10:15:52Z" host="web03" severity="error" pid="6033">Connection refused by 10.0.0.14</event>
+<event time="2026-09-09T10:15:58Z" host="web03" severity="info" pid="6033">Worker pool resized to 16</event>

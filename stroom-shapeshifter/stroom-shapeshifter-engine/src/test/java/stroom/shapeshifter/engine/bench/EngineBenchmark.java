@@ -56,6 +56,10 @@ import java.util.concurrent.TimeUnit;
  * {@code win_sec_xml} parse the same events unanchored and anchored, which is a direct A/B on
  * dispatch cost under {@code (A|B|C)*}; {@code apache_httpd} carries the heaviest bodies,
  * including 209 escaping transforms; {@code progressive} is the step interpreter alone.
+ * {@code progressive_text} is the same interpreter over the other half of its vocabulary —
+ * a tag, a take-while, a take-until and a regex step — which {@code progressive}'s two
+ * binary steps never reach, so without it the text steps are unmeasurable by construction
+ * (design 29 phase 2).
  *
  * <p>{@code compile} is measured too, because a configuration that compiles per stream would be
  * paying it per stream — and because the compilation stage is where the optimisation work is
@@ -73,7 +77,7 @@ public class EngineBenchmark {
     private static final int TARGET_SIZE = 256 * 1024;
 
     @Param({"regex_lines", "csv_header", "ausearch", "apache_httpd",
-            "win_sec", "win_sec_strict", "win_sec_xml", "progressive"})
+            "win_sec", "win_sec_strict", "win_sec_xml", "progressive", "progressive_text"})
     public String workload;
 
     private Project project;
@@ -105,6 +109,9 @@ public class EngineBenchmark {
                 // Binary inputs are addressed whole; the harness and the fixtures do the same.
                 wholeBuffer = true;
             }
+            // Text steps over a text feed, so this one streams as the other text rows do.
+            case "progressive_text" -> streamed("projects/progressive_text_steps/project.json",
+                    FixtureLedger.bytes("projects/progressive_text_steps/input.txt"));
             default -> throw new IllegalArgumentException(workload);
         }
     }
