@@ -180,19 +180,19 @@ final class Body {
               final int depth) {
         for (final CompiledOp op : ops) {
             switch (op) {
-                case CompiledOp.Text text -> out.write(text.value());
-                case CompiledOp.ValueOf valueOf ->
+                case final CompiledOp.Text text -> out.write(text.value());
+                case final CompiledOp.ValueOf valueOf ->
                         CompiledRefs.write(valueOf.ref(), match, matchCount, vars, out);
-                case CompiledOp.Apply apply ->
+                case final CompiledOp.Apply apply ->
                         apply(apply, match, matchCount, content, out, inputBase, ignoreErrors,
                                 depth);
-                case CompiledOp.If value -> {
+                case final CompiledOp.If value -> {
                     if (test(value.test(), match, matchCount)) {
                         body(value.then(), match, matchCount, content, out,
                                 inputBase, ignoreErrors, depth);
                     }
                 }
-                case CompiledOp.Choose value -> {
+                case final CompiledOp.Choose value -> {
                     boolean taken = false;
                     for (final CompiledOp.When branch : value.when()) {
                         if (test(branch.test(), match, matchCount)) {
@@ -207,52 +207,52 @@ final class Body {
                                 inputBase, ignoreErrors, depth);
                     }
                 }
-                case CompiledOp.Switch value -> {
+                case final CompiledOp.Switch value -> {
                     final String selected = textOf(value.select(), match, matchCount);
                     final List<CompiledOp> taken = value.cases().get(selected);
                     body(taken == null ? value.defaultBody() : taken, match, matchCount, content,
                             out, inputBase, ignoreErrors, depth);
                 }
-                case CompiledOp.Variable value ->
+                case final CompiledOp.Variable value ->
                         variable(value, match, matchCount, content, inputBase, ignoreErrors, depth);
-                case CompiledOp.Element value -> {
+                case final CompiledOp.Element value -> {
                     structure(() -> out.sink().startElement(value.name(), value.namespace(),
                             value.omitIfEmpty()),
-                            "element '" + value.name() + "'");
+                            "element", value.name());
                     body(value.body(), match, matchCount, content, out,
                             inputBase, ignoreErrors, depth);
-                    structure(out.sink()::endElement, "element '" + value.name() + "'");
+                    structure(out.sink()::endElement, "element", value.name());
                 }
-                case CompiledOp.Attribute value -> {
+                case final CompiledOp.Attribute value -> {
                     structure(() -> out.sink().startAttribute(value.name(), value.omitIfEmpty()),
-                            "attribute '" + value.name() + "'");
+                            "attribute", value.name());
                     body(value.body(), match, matchCount, content, out,
                             inputBase, ignoreErrors, depth);
-                    structure(out.sink()::endAttribute, "attribute '" + value.name() + "'");
+                    structure(out.sink()::endAttribute, "attribute", value.name());
                 }
-                case CompiledOp.Namespace value ->
+                case final CompiledOp.Namespace value ->
                         structure(() -> out.sink().namespace(value.prefix(), value.uri()),
-                                "namespace '" + value.prefix() + "'");
-                case CompiledOp.CallTemplate value ->
+                                "namespace", value.prefix());
+                case final CompiledOp.CallTemplate value ->
                         callTemplate(value, match, matchCount, content, out, inputBase,
                                 ignoreErrors, depth);
-                case CompiledOp.ValueMap value -> {
+                case final CompiledOp.ValueMap value -> {
                     final String selected = textOf(value.select(), match, matchCount);
                     final TypedValue mapped = value.entries().get(selected);
                     emit(mapped == null ? value.defaultValue() : mapped, value.name(), matchCount,
                             out);
                 }
-                case CompiledOp.Transform value ->
+                case final CompiledOp.Transform value ->
                         transform(value, match, matchCount, out);
-                case CompiledOp.CallFunction value ->
+                case final CompiledOp.CallFunction value ->
                         callFunction(value, match, matchCount, out, inputBase);
-                case CompiledOp.Sequence value -> {
+                case final CompiledOp.Sequence value -> {
                     // Declared here, emptied here: an accumulation that outlived its previous
                     // run would carry the last stream's values into this one.
                     vars.shadow(value.name());
                     vars.store(value.name()).clear();
                 }
-                case CompiledOp.Append value -> {
+                case final CompiledOp.Append value -> {
                     final TypedValue appended = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars);
                     if (appended != null) {
@@ -265,9 +265,9 @@ final class Body {
                         store.set(at, appended);
                     }
                 }
-                case CompiledOp.Fold value -> emit(fold(value), value.name(), matchCount, out);
-                case CompiledOp.DistinctValues value -> distinct(value);
-                case CompiledOp.Tokenize value -> {
+                case final CompiledOp.Fold value -> emit(fold(value), value.name(), matchCount, out);
+                case final CompiledOp.DistinctValues value -> distinct(value);
+                case final CompiledOp.Tokenize value -> {
                     final TypedValue input = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars);
                     if (value.name() == null) {
@@ -283,12 +283,12 @@ final class Body {
                                 : Transforms.split(input, value.delimiter()));
                     }
                 }
-                case CompiledOp.Key value -> {
+                case final CompiledOp.Key value -> {
                     // Built where it is written, so the cost is paid somewhere visible.
                     keyIndexes.put(value.name(), file(value.select(), value.groupBy(),
                             match, matchCount));
                 }
-                case CompiledOp.KeyGet value -> {
+                case final CompiledOp.KeyGet value -> {
                     final TypedValue wanted = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars);
                     final Map<String, Filed> index = keyIndexes.getOrDefault(value.key(), Map.of());
@@ -304,13 +304,13 @@ final class Body {
                             .map(entry -> (TypedValue) new TypedValue.Integer(entry))
                             .toList());
                 }
-                case CompiledOp.ForEachGroup value ->
+                case final CompiledOp.ForEachGroup value ->
                         forEachGroup(value, match, matchCount, content, out,
                                 inputBase, ignoreErrors, depth);
-                case CompiledOp.ForEach value ->
+                case final CompiledOp.ForEach value ->
                         forEach(value, match, matchCount, content, out,
                                 inputBase, ignoreErrors, depth);
-                case CompiledOp.ParseDate value -> {
+                case final CompiledOp.ParseDate value -> {
                     final TypedValue input = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars);
                     TypedValue result = null;
@@ -327,7 +327,7 @@ final class Body {
                     }
                     emit(result, value.name(), matchCount, out);
                 }
-                case CompiledOp.EmitError value -> {
+                case final CompiledOp.EmitError value -> {
                     final String text = CompiledRefs.resolveText(
                             value.message(), match, matchCount, vars);
                     messages.add(new Message(value.severity(), text == null ? "" : text));
@@ -856,11 +856,15 @@ final class Body {
      * which instruction broke it, and a fatal is where a misshapen document stops rather than a
      * half-written one continuing.
      */
-    void structure(final Runnable call, final String instruction) {
+    // The instruction is named in two pieces so that the message is built only when the
+    // structure is actually refused. This runs on every element, attribute and namespace a body
+    // writes, and the refusal is the case that does not happen.
+    void structure(final Runnable call, final String kind, final String name) {
         try {
             call.run();
         } catch (final OutputSink.StructureException e) {
-            messages.add(new Message(Severity.FATAL, "Output structure at " + instruction + ": " + e.getMessage()));
+            messages.add(new Message(Severity.FATAL,
+                    "Output structure at " + kind + " '" + name + "': " + e.getMessage()));
             throw new AbortRun();
         }
     }

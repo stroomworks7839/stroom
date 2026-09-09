@@ -537,3 +537,82 @@ That ruling is the owner's, not this measurement's.
 Profiles and counts: `benchmarks/ph4-conditions-stack-*.txt`. The sampler is JMH's own, so these
 are shares with safepoint bias, not figures — which is enough for a question whose answers are
 0.4% and 7.2%, and would not be enough for a closer one.
+
+### Phase 5 — the sinks and the prologue
+
+Built, tests green, unmeasured — and unmeasurable by the suite as it stands, which was checked
+before building rather than discovered after.
+
+**The workload cannot see this phase either.** A sampled profile of `win_sec_xml`, the row §5
+named for phase 5, is about 40% regex — `NodeTree$StarClass.match` alone is 34% — with
+`Level.dispatch` at 2.8% and `Level.processMatch` at 1.5%. No sink frame appears in the top
+thirty at all: no `XmlByteSink`, no `SaxEventSink`, no `Body.emit`. Unlike phase 2, the workload
+does run the code; it is simply regex-bound, so what the sinks cost is below the noise. Phase 4
+was allowed to close on that finding and this phase is not — §5 gives it no such clause — so it
+was built, and the reading it deserves needs a sink-bound row the suite does not have. That is
+the same gap `progressive_text` filled on the step side, and the same fix would work.
+
+What it closed, all of §3.4 and two of §3.5's three rows:
+
+- **The refusals stopped being described before they are refused.** `current`,
+  `checkNoAttributeOpen` and `resolve` in both structured sinks, and `Body.structure` behind
+  them, took a finished message — `"startElement " + qName`, `"element '" + name + "'"` — built
+  on every element, attribute and namespace written, to describe a refusal that almost never
+  fires. They now take the call and its subject separately and compose where they throw. Ten
+  sites in the sinks, seven in `Body` and `Run`.
+- **The namespace scope is shared until an element declares one.** Both sinks copied the
+  parent's prefix bindings into a fresh `HashMap` per element, including for configurations that
+  declare no namespaces at all. An element now holds the parent's map and copies on its first
+  declaration; `SaxEventSink`'s root bindings became a constant instead of a map rebuilt per root
+  element. Recorded honestly: this one was *also* profiled, under E44's map survey, and does not
+  appear either. It is here because §3.4 lists it and because sharing is strictly less work than
+  copying, not because a number asked for it.
+- **The indent continuation is built only when a tag wraps**, which is the rare case, and the
+  indents themselves are held rather than repeated into a fresh string per tag.
+- **The qualified name is split once.** `SaxEventSink` scanned for the colon twice per element
+  and twice per attribute — `prefixOf` then `localOf`, each finding it again. `QNames` gained
+  forms that take the position the caller has already found.
+- **The prologue is settled at compile time.** `Run.document` re-found the source template by
+  stream filter, re-walked its body for the apply-templates directive, re-filtered the roots by
+  mode and rebuilt the body's split, on every run. None of it depends on the input.
+  `compile/RootPlan` now holds all of it, built once by `CompiledProject`; `Run` reads it. This
+  is the phase's one structural change, and it is invisible to the benchmark by construction —
+  one run per operation — while being per stream in a pipeline processing many.
+
+**One row was not built: `XmlByteSink`'s tags and indents encoded to bytes on every write.** The
+indents are done, as above. The tags are not, and the reason is worth recording rather than
+leaving as an omission. A pre-encoded tag has to come from somewhere that knows the name before
+the run, and the sink is handed a `String` qName by `OutputSink`, whose element, attribute and
+namespace calls are all String-shaped and are implemented by three sinks and used by the
+pipeline. Making the compiled op carry the bytes means changing that interface, which is a
+design's decision and not a phase's. The alternative — a cache from qName to bytes inside the
+sink — would buy the encoding back by adding exactly the run-time map lookup E44 was opened to
+name. Left for E10's successor with the rest of the byte-ownership question.
+
+*The audit* found no correctness defect and three things to fix, all of them in what this phase
+wrote, and all fixed before the phase closed.
+
+- **`RootPlan` carried three components nobody read.** `source`, `directive` and `mode` were
+  needed to *compute* the plan and not to use it; carrying them made the record look like an
+  answer to questions no caller asks. They are locals in `of` now. This is the standard's own
+  rule — delete dead vocabulary rather than wire it up — applied to code written the same day.
+- **The wrap continuation used null to mean "not wrapping".** It was read under
+  `written++ == 0 || !wrap ? " " : continuation`, so the null was unreachable, which is the
+  weakest kind of safe. It is a `separator` now, a space when the tag does not wrap, and the
+  reader at each of the two use sites is `written++ == 0 ? " " : separator`. Same shape of
+  mistake as design 29 phase 2's discarded first attempt, and worth naming twice.
+- **The named refusal was unpinned.** `Body.structure`'s format turned out to be pinned already
+  — `StructureTest` asserts `attribute 'late'`, which is exactly the re-composed message — but
+  `current(call, subject)`'s was not, and it is reachable from three calls.
+  `callsWithNoElementOpenAreRefusedByNameAndSubject` now asserts all three in full.
+
+Two things the audit checked and found sound, recorded because each was a way this could have
+been quietly wrong. **All seven re-composed messages are character-identical to what they
+replaced** — the pieces concatenate in the same order with the same separators, checked against
+the old text rather than assumed. And **the shared scope is covered, not merely reasoned**:
+`SaxEventSinkTest` asserts a child element resolving its parent's *inherited* default namespace,
+and `event_logging_structured` nests under two declarations byte for byte. The reasoning holds
+too — a parent cannot declare a namespace after a child opens, because `namespace()` addresses
+the innermost open element — but the tests are what settle it.
+
+Engine 593, pipeline 154, app 5, checkstyle clean; no golden moved.

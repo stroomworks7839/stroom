@@ -20,14 +20,11 @@ import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
-import stroom.shapeshifter.engine.compile.CompiledMatch;
 import stroom.shapeshifter.engine.compile.CompiledOp;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
+import stroom.shapeshifter.engine.compile.RootPlan;
 import stroom.shapeshifter.engine.config.Dispatch;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
-import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.RunMode;
 import stroom.shapeshifter.engine.function.Services;
 import stroom.shapeshifter.engine.match.MatchResult;
@@ -39,7 +36,6 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * One run of a compiled configuration over one input.
@@ -153,31 +149,16 @@ public final class Run {
     /** The document template: its prologue, the loop over the input where its apply-templates was,
      * its tail. */
     private void document(final InputStream input, final boolean wholeBuffer) {
-        final CompiledTemplate source = compiled.templates().stream()
-                .filter(t -> t.match() instanceof CompiledMatch.Source)
-                .findFirst()
-                .orElse(null);
-
-        // The document template's body is split at its apply-templates: what comes before is
-        // written once at the start, what comes after once at the end, and the apply-templates
-        // itself is the loop over the input. Everything the loop dispatches to is the templates
-        // of the mode it names.
-        final ApplyDirective rootDirective = source == null ? null : applyDirective(source.template());
-        final String rootMode = rootDirective == null ? null : rootDirective.mode();
-        final Dispatch rootDispatch = Dispatch.effective(
-                rootDirective == null ? null : rootDirective.dispatch(), compiled.project());
-        final List<CompiledTemplate> roots = compiled.templates().stream()
-                .filter(t -> !(t.match() instanceof CompiledMatch.Source))
-                .filter(t -> Objects.equals(t.template().mode(), rootMode))
-                .toList();
-
-        // The root level's gate is the configuration's own ignoreErrors — DS3's flag on the
-        // dataSplitter element itself — or the document template's directive saying so.
-        final boolean rootIgnoreErrors = compiled.project().source().ignoreErrors()
-                || (rootDirective != null && rootDirective.ignoreErrors());
+        // Which template is the document, where its apply-templates sits, what the loop
+        // dispatches to and under which dispatch: all settled when the project compiled, because
+        // none of it depends on the input. It was re-derived per run, which is per stream in a
+        // pipeline processing many (design 29 §3.5).
+        final RootPlan plan = compiled.rootPlan();
+        final List<CompiledTemplate> roots = plan.roots();
+        final Dispatch rootDispatch = plan.dispatch();
+        final boolean rootIgnoreErrors = plan.ignoreErrors();
 
         final MatchResult nothing = MatchResult.empty();
-        final RootSplit split = source == null ? RootSplit.NONE : RootSplit.of(source.body());
 
         body.registerCaptures();
 
@@ -185,26 +166,26 @@ public final class Run {
         // way down (design 21 phase 2b: `element records { apply-templates }` is the shape the
         // migration takes, and the sink's deferred start tag is what makes opening-then-looping
         // serialise as if the body had run in one piece).
-        for (int i = 0; i < split.prologues.size(); i++) {
-            body.body(split.prologues.get(i), nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
+        for (int i = 0; i < plan.prologues().size(); i++) {
+            body.body(plan.prologues().get(i), nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
                     0);
-            if (i < split.opened.size()) {
-                final CompiledOp.Element element = split.opened.get(i);
+            if (i < plan.opened().size()) {
+                final CompiledOp.Element element = plan.opened().get(i);
                 body.structure(() -> out.sink().startElement(element.name(), element.namespace(),
                         element.omitIfEmpty()),
-                        "element '" + element.name() + "'");
+                        "element", element.name());
             }
         }
 
         dispatchInput(roots, rootDispatch, rootIgnoreErrors, input, wholeBuffer);
 
         // And what comes after it, closing the opened elements on the way back up.
-        for (int i = split.tails.size() - 1; i >= 0; i--) {
-            body.body(split.tails.get(i), nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
+        for (int i = plan.tails().size() - 1; i >= 0; i--) {
+            body.body(plan.tails().get(i), nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
                     0);
             if (i > 0) {
-                final CompiledOp.Element element = split.opened.get(i - 1);
-                body.structure(out.sink()::endElement, "element '" + element.name() + "'");
+                final CompiledOp.Element element = plan.opened().get(i - 1);
+                body.structure(out.sink()::endElement, "element", element.name());
             }
         }
     }
@@ -278,89 +259,5 @@ public final class Run {
         }
         encoding = mark.encoding();
         body.encoding(encoding);
-    }
-
-    /**
-     * The document template's first {@code apply-templates}, looked for at the top of its body
-     * and inside any {@code element} that encloses it — the same descent {@link RootSplit} makes.
-     */
-    private static ApplyDirective applyDirective(final Template template) {
-        return applyDirective(template.body());
-    }
-
-    private static ApplyDirective applyDirective(final List<OutputNode> body) {
-        for (final OutputNode node : body) {
-            if (node instanceof OutputNode.ApplyTemplates apply) {
-                return apply.directive();
-            }
-            if (node instanceof OutputNode.Element element) {
-                final ApplyDirective inside = applyDirective(element.body());
-                if (inside != null) {
-                    return inside;
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * The document template's body, split around its apply-templates.
-     *
-     * <p>Level 0 is the body itself; each element enclosing the apply adds a level. Running the
-     * prologues in order with each level's element opened after its prologue, then the loop,
-     * then the tails in reverse with each element closed after its tail, is the body run in one
-     * piece with the loop where the apply-templates was. A body with no apply-templates is all
-     * prologue.
-     */
-    private record RootSplit(List<List<CompiledOp>> prologues,
-                             List<CompiledOp.Element> opened,
-                             List<List<CompiledOp>> tails) {
-
-        private static final RootSplit NONE = new RootSplit(List.of(), List.of(), List.of());
-
-        static RootSplit of(final List<CompiledOp> body) {
-            final List<List<CompiledOp>> prologues = new ArrayList<>();
-            final List<CompiledOp.Element> opened = new ArrayList<>();
-            final List<List<CompiledOp>> tails = new ArrayList<>();
-            List<CompiledOp> level = body;
-            while (true) {
-                final int at = indexOfApplyOrEnclosingElement(level);
-                if (at < 0) {
-                    prologues.add(level);
-                    tails.add(List.of());
-                    break;
-                }
-                prologues.add(level.subList(0, at));
-                tails.add(level.subList(at + 1, level.size()));
-                if (level.get(at) instanceof CompiledOp.Element element) {
-                    opened.add(element);
-                    level = element.body();
-                } else {
-                    break;
-                }
-            }
-            return new RootSplit(prologues, opened, tails);
-        }
-
-        private static int indexOfApplyOrEnclosingElement(final List<CompiledOp> body) {
-            for (int i = 0; i < body.size(); i++) {
-                final CompiledOp op = body.get(i);
-                if (op instanceof CompiledOp.Apply
-                    || (op instanceof CompiledOp.Element element && containsApply(element.body()))) {
-                    return i;
-                }
-            }
-            return -1;
-        }
-
-        private static boolean containsApply(final List<CompiledOp> body) {
-            for (final CompiledOp op : body) {
-                if (op instanceof CompiledOp.Apply
-                    || (op instanceof CompiledOp.Element element && containsApply(element.body()))) {
-                    return true;
-                }
-            }
-            return false;
-        }
     }
 }

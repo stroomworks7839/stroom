@@ -234,4 +234,21 @@ class XmlByteSinkTest {
         assertThatThrownBy(() -> new XmlByteSink(new ByteArrayOutputStream()).endAttribute())
                 .hasMessageContaining("no attribute open");
     }
+
+    /**
+     * The refusals name the call and its subject. They are composed where they are thrown rather
+     * than built on every write (design 29 phase 5), so what the reader sees is worth pinning.
+     */
+    @Test
+    void callsWithNoElementOpenAreRefusedByNameAndSubject() {
+        assertThatThrownBy(() -> sink.namespace("p", "urn:p"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("namespace p with no element open");
+        assertThatThrownBy(() -> sink.startAttribute("a"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("attribute a with no element open");
+        assertThatThrownBy(sink::endElement)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("endElement with no element open");
+    }
 }

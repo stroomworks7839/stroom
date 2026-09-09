@@ -68,7 +68,7 @@ public final class SaxEventSink implements OutputSink {
 
     @Override
     public void startElement(final String qName, final String namespace, final boolean omitIfEmpty) {
-        checkNoAttributeOpen("startElement " + qName);
+        checkNoAttributeOpen("startElement", qName);
         flushCarry();
         final Element parent = open.peek();
         if (parent == null && documentEnded) {
@@ -88,7 +88,7 @@ public final class SaxEventSink implements OutputSink {
 
     @Override
     public void namespace(final String prefix, final String uri) {
-        final Element element = current("namespace " + prefix);
+        final Element element = current("namespace", prefix);
         if (element.started) {
             throw new StructureException(
                     "namespace '" + prefix + "' arrived after the content of <" + element.qName + "> had begun");
@@ -98,13 +98,18 @@ public final class SaxEventSink implements OutputSink {
 
     private static void declare(final Element element, final String prefix, final String uri) {
         element.declarations.add(new String[]{prefix, uri});
+        if (!element.ownsScope) {
+            // The first declaration buys the copy; until then the parent's map is the answer.
+            element.scope = new HashMap<>(element.scope);
+            element.ownsScope = true;
+        }
         element.scope.put(prefix, uri);
     }
 
     @Override
     public void startAttribute(final String qName, final boolean omitIfEmpty) {
-        final Element element = current("attribute " + qName);
-        checkNoAttributeOpen("startAttribute " + qName);
+        final Element element = current("attribute", qName);
+        checkNoAttributeOpen("startAttribute", qName);
         if (element.started) {
             throw new StructureException(
                     "attribute '" + qName + "' arrived after the content of <" + element.qName + "> had begun");
@@ -127,7 +132,7 @@ public final class SaxEventSink implements OutputSink {
     @Override
     public void endElement() {
         final Element element = current("endElement");
-        checkNoAttributeOpen("endElement " + element.qName);
+        checkNoAttributeOpen("endElement", element.qName);
         flushCarry();
         if (!element.started && element.omitIfEmpty
             && element.declarations.isEmpty() && element.attributes.isEmpty()) {
@@ -221,39 +226,57 @@ public final class SaxEventSink implements OutputSink {
         for (final String[] declaration : element.declarations) {
             events.make(() -> handler.startPrefixMapping(declaration[0], declaration[1]));
         }
-        element.uri = resolve(element, QNames.prefixOf(element.qName), "element " + element.qName);
-        element.localName = QNames.localOf(element.qName);
+        // The name is split once, here, rather than twice — prefixOf and localOf each scanned
+        // for the colon, for the element and again for every attribute.
+        final int elementColon = element.qName.indexOf(':');
+        element.uri = resolve(element, QNames.prefixOf(element.qName, elementColon),
+                "element", element.qName);
+        element.localName = QNames.localOf(element.qName, elementColon);
         final AttributesImpl attributes = new AttributesImpl();
         for (final String[] attribute : element.attributes) {
-            final String prefix = QNames.prefixOf(attribute[0]);
+            final int colon = attribute[0].indexOf(':');
+            final String prefix = QNames.prefixOf(attribute[0], colon);
             // An unprefixed attribute is in no namespace, whatever the default namespace is.
-            final String uri = prefix.isEmpty() ? "" : resolve(element, prefix, "attribute " + attribute[0]);
-            attributes.addAttribute(uri, QNames.localOf(attribute[0]), attribute[0], "CDATA",
+            final String uri = prefix.isEmpty()
+                    ? ""
+                    : resolve(element, prefix, "attribute", attribute[0]);
+            attributes.addAttribute(uri, QNames.localOf(attribute[0], colon), attribute[0], "CDATA",
                     attribute[1]);
         }
         events.make(() ->
                 handler.startElement(element.uri, element.localName, element.qName, attributes));
     }
 
-    private static String resolve(final Element element, final String prefix, final String what) {
+    // The subject travels in two pieces for the same reason the guards' does: this runs per
+    // element and per prefixed attribute, and the refusal it describes is the rare case.
+    private static String resolve(final Element element,
+                                  final String prefix,
+                                  final String kind,
+                                  final String name) {
         final String uri = element.scope.get(prefix);
         if (uri == null) {
-            throw new StructureException(what + " uses prefix '" + prefix + "', which is not bound in scope");
+            throw new StructureException(
+                    kind + " " + name + " uses prefix '" + prefix + "', which is not bound in scope");
         }
         return uri;
     }
 
-    private static Map<String, String> rootScope() {
-        final Map<String, String> scope = new HashMap<>();
-        scope.put("", "");
-        scope.put("xml", XML_NS);
-        return scope;
-    }
+    /** The bindings every document starts with: no prefix is no namespace, and xml is fixed. */
+    private static final Map<String, String> ROOT_SCOPE = Map.of("", "", "xml", XML_NS);
 
     // -----------------------------------------------------------------------------------
     // Plumbing
     // -----------------------------------------------------------------------------------
 
+    private Element current(final String call, final String subject) {
+        final Element element = open.peek();
+        if (element == null) {
+            throw new StructureException(call + " " + subject + " with no element open");
+        }
+        return element;
+    }
+
+    /** The same, for the one call that names no subject. */
     private Element current(final String call) {
         final Element element = open.peek();
         if (element == null) {
@@ -262,9 +285,12 @@ public final class SaxEventSink implements OutputSink {
         return element;
     }
 
-    private void checkNoAttributeOpen(final String call) {
+    // As in XmlByteSink: the call and its subject travel separately, so the description of a
+    // refusal that almost never fires is not concatenated on every structural write.
+    private void checkNoAttributeOpen(final String call, final String subject) {
         if (attribute != null) {
-            throw new StructureException(call + " while attribute '" + attribute.qName + "' is open");
+            throw new StructureException(
+                    call + " " + subject + " while attribute '" + attribute.qName + "' is open");
         }
     }
 
@@ -278,7 +304,9 @@ public final class SaxEventSink implements OutputSink {
         private final String qName;
         private final Element parent;
         private final boolean omitIfEmpty;
-        private final Map<String, String> scope;
+        /** Shared with the parent until this element declares a prefix of its own. */
+        private Map<String, String> scope;
+        private boolean ownsScope;
         private final List<String[]> declarations = new ArrayList<>();
         private final List<String[]> attributes = new ArrayList<>();
         private boolean started;
@@ -289,7 +317,7 @@ public final class SaxEventSink implements OutputSink {
             this.qName = qName;
             this.parent = parent;
             this.omitIfEmpty = omitIfEmpty;
-            this.scope = new HashMap<>(parent == null ? rootScope() : parent.scope);
+            this.scope = parent == null ? ROOT_SCOPE : parent.scope;
         }
     }
 

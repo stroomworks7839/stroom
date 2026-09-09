@@ -62,6 +62,9 @@ public final class XmlByteSink implements OutputSink {
     private static final int LINE_LENGTH = 80;
     private static final int INDENT = 3;
 
+    /** Indents for every depth a document is likely to reach; see {@link #spaces(int)}. */
+    private static final String[] INDENTS = indents();
+
     /**
      * How the bytes are laid out. {@link #INDENTED} is Saxon's: children on their own lines at
      * three per level, long start tags wrapped, whitespace between elements the indenter's.
@@ -99,7 +102,7 @@ public final class XmlByteSink implements OutputSink {
 
     @Override
     public void startElement(final String qName, final String namespace, final boolean omitIfEmpty) {
-        checkNoAttributeOpen("startElement " + qName);
+        checkNoAttributeOpen("startElement", qName);
         flushCarry();
         final Element parent = open.peek();
         // The parent is not started here: a child that turns out to be omitted must leave the
@@ -118,7 +121,7 @@ public final class XmlByteSink implements OutputSink {
 
     @Override
     public void namespace(final String prefix, final String uri) {
-        final Element element = current("namespace " + prefix);
+        final Element element = current("namespace", prefix);
         if (element.started) {
             throw new StructureException(
                     "namespace '" + prefix + "' arrived after the content of <" + element.qName + "> had begun");
@@ -128,13 +131,19 @@ public final class XmlByteSink implements OutputSink {
 
     private static void declare(final Element element, final String prefix, final String uri) {
         element.declarations.add(new String[]{prefix, uri});
+        if (!element.ownsScope) {
+            // The first declaration is what buys the copy; until then the parent's map is the
+            // answer and sharing it is safe, because an element only ever adds to its own.
+            element.scope = new HashMap<>(element.scope);
+            element.ownsScope = true;
+        }
         element.scope.put(prefix, uri);
     }
 
     @Override
     public void startAttribute(final String qName, final boolean omitIfEmpty) {
-        final Element element = current("attribute " + qName);
-        checkNoAttributeOpen("startAttribute " + qName);
+        final Element element = current("attribute", qName);
+        checkNoAttributeOpen("startAttribute", qName);
         if (element.started) {
             throw new StructureException(
                     "attribute '" + qName + "' arrived after the content of <" + element.qName + "> had begun");
@@ -157,7 +166,7 @@ public final class XmlByteSink implements OutputSink {
     @Override
     public void endElement() {
         final Element element = current("endElement");
-        checkNoAttributeOpen("endElement " + element.qName);
+        checkNoAttributeOpen("endElement", element.qName);
         flushCarry();
         settleWhitespace(element);
         if (!element.started) {
@@ -272,15 +281,20 @@ public final class XmlByteSink implements OutputSink {
         tag.append('<').append(element.qName);
 
         final boolean wrap = indented() && saxonAttributeLength(element) > LINE_LENGTH;
-        final String continuation = "\n" + spaces((element.level - 1) * INDENT + element.qName.length() + 2);
+        // What separates one attribute from the next: a space, or — when the tag wraps — a
+        // newline and the alignment under the first. Only a wrapped tag builds the second, which
+        // is the rare case, and an unwrapped tag then needs no test of its own below.
+        final String separator = wrap
+                ? "\n" + spaces((element.level - 1) * INDENT + element.qName.length() + 2)
+                : " ";
         int written = 0;
         for (final String[] declaration : element.declarations) {
-            tag.append(written++ == 0 || !wrap ? " " : continuation)
+            tag.append(written++ == 0 ? " " : separator)
                     .append(declaration[0].isEmpty() ? "xmlns" : "xmlns:" + declaration[0])
                     .append("=\"").append(escapeAttribute(declaration[1])).append('"');
         }
         for (final String[] attribute : element.attributes) {
-            tag.append(written++ == 0 || !wrap ? " " : continuation)
+            tag.append(written++ == 0 ? " " : separator)
                     .append(attribute[0]).append("=\"").append(escapeAttribute(attribute[1])).append('"');
         }
         tag.append(selfClose ? "/>" : ">");
@@ -346,6 +360,19 @@ public final class XmlByteSink implements OutputSink {
     // Plumbing
     // -----------------------------------------------------------------------------------
 
+    // The call and its subject travel separately so that the message is built where it is
+    // thrown. These two run per element, per attribute and per namespace, and the refusal they
+    // describe almost never fires; concatenating its description first made every structural
+    // write pay for the one that does not happen.
+    private Element current(final String call, final String subject) {
+        final Element element = open.peek();
+        if (element == null) {
+            throw new StructureException(call + " " + subject + " with no element open");
+        }
+        return element;
+    }
+
+    /** The same, for the one call that names no subject. */
     private Element current(final String call) {
         final Element element = open.peek();
         if (element == null) {
@@ -354,9 +381,10 @@ public final class XmlByteSink implements OutputSink {
         return element;
     }
 
-    private void checkNoAttributeOpen(final String call) {
+    private void checkNoAttributeOpen(final String call, final String subject) {
         if (attribute != null) {
-            throw new StructureException(call + " while attribute '" + attribute.qName + "' is open");
+            throw new StructureException(
+                    call + " " + subject + " while attribute '" + attribute.qName + "' is open");
         }
     }
 
@@ -378,8 +406,24 @@ public final class XmlByteSink implements OutputSink {
         return layout == Layout.INDENTED;
     }
 
+    /**
+     * An indent of {@code n} spaces.
+     *
+     * <p>Held rather than built. Every indented start tag and every indented end tag asks for
+     * one, the depths a document reaches are few and small, and {@code " ".repeat(n)} allocated
+     * a fresh string for each. Depths past the table are still built, because a document deep
+     * enough to reach it has larger problems than this allocation.
+     */
     private static String spaces(final int n) {
-        return " ".repeat(n);
+        return n < INDENTS.length ? INDENTS[n] : " ".repeat(n);
+    }
+
+    private static String[] indents() {
+        final String[] indents = new String[64];
+        for (int n = 0; n < indents.length; n++) {
+            indents[n] = " ".repeat(n);
+        }
+        return indents;
     }
 
     private static final class Element {
@@ -388,8 +432,14 @@ public final class XmlByteSink implements OutputSink {
         private final int level;
         private final Element parent;
         private final boolean omitIfEmpty;
-        /** Prefix bindings in scope here: the parent's, plus this element's own declarations. */
-        private final Map<String, String> scope;
+        /**
+         * Prefix bindings in scope here: the parent's, plus this element's own declarations.
+         * Shared with the parent until this element declares one of its own, because most
+         * elements declare none and a configuration with no namespaces at all would otherwise
+         * copy an empty map per element.
+         */
+        private Map<String, String> scope;
+        private boolean ownsScope;
         private final List<String[]> declarations = new ArrayList<>();
         private final List<String[]> attributes = new ArrayList<>();
         private boolean started;
@@ -402,7 +452,7 @@ public final class XmlByteSink implements OutputSink {
             this.level = level;
             this.parent = parent;
             this.omitIfEmpty = omitIfEmpty;
-            this.scope = new HashMap<>(parent == null ? Map.of() : parent.scope);
+            this.scope = parent == null ? Map.of() : parent.scope;
         }
     }
 

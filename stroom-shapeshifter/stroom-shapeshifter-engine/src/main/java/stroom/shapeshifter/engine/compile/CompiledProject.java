@@ -61,6 +61,9 @@ public final class CompiledProject {
     /** The first template of each name — {@code call-template}'s meaning of a name. */
     private final Map<String, CompiledTemplate> templatesByName = new HashMap<>();
 
+    /** How a run begins and ends, settled here rather than per run (design 29 §3.5). */
+    private final RootPlan rootPlan;
+
     /**
      * Build the graph.
      *
@@ -102,6 +105,8 @@ public final class CompiledProject {
             templatesByName.putIfAbsent(template.template().name(), template);
         }
         templatesByMode.replaceAll((mode, list) -> List.copyOf(list));
+
+        this.rootPlan = RootPlan.of(project, this.templates);
     }
 
     /**
@@ -111,6 +116,11 @@ public final class CompiledProject {
      */
     public boolean structured() {
         return structured;
+    }
+
+    /** How a run begins and ends: the prologue, the loop's roots and dispatch, the tails. */
+    public RootPlan rootPlan() {
+        return rootPlan;
     }
 
     /** The authored configuration. */

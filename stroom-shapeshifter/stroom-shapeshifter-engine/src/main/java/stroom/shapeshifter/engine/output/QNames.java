@@ -24,13 +24,25 @@ final class QNames {
 
     /** The prefix before the colon, or the empty string for an unprefixed name. */
     static String prefixOf(final String qName) {
-        final int colon = qName.indexOf(':');
-        return colon < 0 ? "" : qName.substring(0, colon);
+        return prefixOf(qName, qName.indexOf(':'));
     }
 
     /** The local part after the colon, or the whole name when there is none. */
     static String localOf(final String qName) {
-        final int colon = qName.indexOf(':');
+        return localOf(qName, qName.indexOf(':'));
+    }
+
+    // A caller that wants both halves has already found the colon, and the two-argument forms let
+    // it say so rather than scanning the name a second time. The colon is the caller's to find,
+    // which is why these take it rather than caching it: the sinks hold the name, not this class.
+
+    /** The prefix, given a colon position already found — negative for an unprefixed name. */
+    static String prefixOf(final String qName, final int colon) {
+        return colon < 0 ? "" : qName.substring(0, colon);
+    }
+
+    /** The local part, given a colon position already found — negative for an unprefixed name. */
+    static String localOf(final String qName, final int colon) {
         return colon < 0 ? qName : qName.substring(colon + 1);
     }
 }
