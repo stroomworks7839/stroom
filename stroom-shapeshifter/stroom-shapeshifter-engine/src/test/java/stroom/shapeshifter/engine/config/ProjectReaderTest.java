@@ -57,7 +57,7 @@ class ProjectReaderTest {
                 tests.add(DynamicTest.dynamicTest(fixture.id(), () -> roundTrip(path)));
             }
         }
-        assertThat(tests).as("the corpus must contain configurations to check").hasSize(50);
+        assertThat(tests).as("the corpus must contain configurations to check").hasSize(51);
         return tests;
     }
 

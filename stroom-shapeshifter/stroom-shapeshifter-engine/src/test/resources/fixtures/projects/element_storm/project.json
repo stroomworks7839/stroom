@@ -1,0 +1,404 @@
+{
+  "name": "element_storm",
+  "version": 1,
+  "source": {
+    "buffer_size": 20000,
+    "ignore_errors": false,
+    "encoding": "utf-8"
+  },
+  "templates": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "root",
+      "match": "source",
+      "body": [
+        {
+          "element": {
+            "name": "events",
+            "namespace": null,
+            "omit-if-empty": false,
+            "body": [
+              {
+                "apply-templates": {
+                  "select": {
+                    "parts": [
+                      {
+                        "capture": {
+                          "var_id": null,
+                          "group": 0,
+                          "match_index": null
+                        }
+                      }
+                    ]
+                  },
+                  "mode": "lines",
+                  "max_depth": 64
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "line",
+      "mode": "lines",
+      "match": {
+        "regex": {
+          "pattern": "([^|\\n]*)\\|([^|\\n]*)\\|([^|\\n]*)\\|([^|\\n]*)\\|([^|\\n]*)\\|([^|\\n]*)\\|([^|\\n]*)\\|([^|\\n]*)\\|([^|\\n]*)\\|([^|\\n]*)\\n",
+          "flags": {
+            "case_insensitive": false,
+            "dot_all": false
+          },
+          "advance": 0
+        }
+      },
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "element": {
+            "name": "event",
+            "namespace": null,
+            "omit-if-empty": false,
+            "body": [
+              {
+                "element": {
+                  "name": "time",
+                  "namespace": null,
+                  "omit-if-empty": false,
+                  "body": [
+                    {
+                      "attribute": {
+                        "name": "at",
+                        "omit-if-empty": false,
+                        "body": [
+                          {
+                            "text": "1"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value-of": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": null,
+                              "group": 1,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "element": {
+                  "name": "host",
+                  "namespace": null,
+                  "omit-if-empty": false,
+                  "body": [
+                    {
+                      "attribute": {
+                        "name": "at",
+                        "omit-if-empty": false,
+                        "body": [
+                          {
+                            "text": "2"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value-of": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": null,
+                              "group": 2,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "element": {
+                  "name": "user",
+                  "namespace": null,
+                  "omit-if-empty": false,
+                  "body": [
+                    {
+                      "attribute": {
+                        "name": "at",
+                        "omit-if-empty": false,
+                        "body": [
+                          {
+                            "text": "3"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value-of": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": null,
+                              "group": 3,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "element": {
+                  "name": "method",
+                  "namespace": null,
+                  "omit-if-empty": false,
+                  "body": [
+                    {
+                      "attribute": {
+                        "name": "at",
+                        "omit-if-empty": false,
+                        "body": [
+                          {
+                            "text": "4"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value-of": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": null,
+                              "group": 4,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "element": {
+                  "name": "path",
+                  "namespace": null,
+                  "omit-if-empty": false,
+                  "body": [
+                    {
+                      "attribute": {
+                        "name": "at",
+                        "omit-if-empty": false,
+                        "body": [
+                          {
+                            "text": "5"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value-of": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": null,
+                              "group": 5,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "element": {
+                  "name": "status",
+                  "namespace": null,
+                  "omit-if-empty": false,
+                  "body": [
+                    {
+                      "attribute": {
+                        "name": "at",
+                        "omit-if-empty": false,
+                        "body": [
+                          {
+                            "text": "6"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value-of": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": null,
+                              "group": 6,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "element": {
+                  "name": "bytes",
+                  "namespace": null,
+                  "omit-if-empty": false,
+                  "body": [
+                    {
+                      "attribute": {
+                        "name": "at",
+                        "omit-if-empty": false,
+                        "body": [
+                          {
+                            "text": "7"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value-of": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": null,
+                              "group": 7,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "element": {
+                  "name": "agent",
+                  "namespace": null,
+                  "omit-if-empty": false,
+                  "body": [
+                    {
+                      "attribute": {
+                        "name": "at",
+                        "omit-if-empty": false,
+                        "body": [
+                          {
+                            "text": "8"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value-of": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": null,
+                              "group": 8,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "element": {
+                  "name": "encoding",
+                  "namespace": null,
+                  "omit-if-empty": false,
+                  "body": [
+                    {
+                      "attribute": {
+                        "name": "at",
+                        "omit-if-empty": false,
+                        "body": [
+                          {
+                            "text": "9"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value-of": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": null,
+                              "group": 9,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "element": {
+                  "name": "region",
+                  "namespace": null,
+                  "omit-if-empty": false,
+                  "body": [
+                    {
+                      "attribute": {
+                        "name": "at",
+                        "omit-if-empty": false,
+                        "body": [
+                          {
+                            "text": "10"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value-of": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": null,
+                              "group": 10,
+                              "match_index": null
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

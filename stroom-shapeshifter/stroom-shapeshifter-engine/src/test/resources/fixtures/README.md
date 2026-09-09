@@ -22,7 +22,7 @@ so when a phase of the port makes one work the build breaks until the line is pr
   configurations; four (003, 007, 009, 019) are structured — element, attribute, namespace —
   because a text configuration cannot trim as DS3 does or wrap as Saxon does, and those four
   are the migration's output, which this family's bodies always were.
-- **`projects/`** — 32 end-to-end fixtures with their own inputs and expected output. Three
+- **`projects/`** — 33 end-to-end fixtures with their own inputs and expected output. Three
   need Avro, Parquet or Protobuf and are skipped while those are deferred (D33).
 
   Four more, `text_003…019`, are the text-output forms of the four structured natives, with
@@ -38,9 +38,11 @@ so when a phase of the port makes one work the build breaks until the line is pr
   choose `/>` over `>` after the loop. Read them beside the structured natives for the cost
   D40 moved into the sink.
 
-  Six more sit beside them, each written to hold a feature the rest of the corpus cannot
+  Seven more sit beside them, each written to hold a feature the rest of the corpus cannot
   reach: `win_sec_strict`, `strict_kv`, `classify_alerts` and
-  `lexer_tokens` for D36/E20's dispatch modes, `progressive_text_steps` for the step
+  `lexer_tokens` for D36/E20's dispatch modes, `element_storm` for the sinks under load —
+  a cheap match and twenty-one structural writes per record, where the corpus's other
+  structured fixtures spend their time matching — `progressive_text_steps` for the step
   vocabulary's text half — a tag, a take-while, a take-until and a regex step, which the
   four binary `progressive_*` fixtures never reach — and `log_sessions` for design/16 and /17 —
   iteration, grouping, keys, folds and value computation over delimited log lines. That last

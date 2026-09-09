@@ -1,0 +1,74 @@
+<events>
+   <event>
+      <time at="1">2026-09-09T10:15:32Z</time>
+      <host at="2">web01</host>
+      <user at="3">alice</user>
+      <method at="4">GET</method>
+      <path at="5">/a/index.html</path>
+      <status at="6">200</status>
+      <bytes at="7">1200</bytes>
+      <agent at="8">Mozilla</agent>
+      <encoding at="9">gzip</encoding>
+      <region at="10">uk</region>
+   </event>
+   <event>
+      <time at="1">2026-09-09T10:15:33Z</time>
+      <host at="2">web02</host>
+      <user at="3">bob</user>
+      <method at="4">POST</method>
+      <path at="5">/a/login</path>
+      <status at="6">401</status>
+      <bytes at="7">340</bytes>
+      <agent at="8">Safari</agent>
+      <encoding at="9">none</encoding>
+      <region at="10">us</region>
+   </event>
+   <event>
+      <time at="1">2026-09-09T10:15:35Z</time>
+      <host at="2">web01</host>
+      <user at="3">carol</user>
+      <method at="4">GET</method>
+      <path at="5">/a/report.pdf</path>
+      <status at="6">200</status>
+      <bytes at="7">58000</bytes>
+      <agent at="8">Chrome</agent>
+      <encoding at="9">br</encoding>
+      <region at="10">de</region>
+   </event>
+   <event>
+      <time at="1">2026-09-09T10:15:36Z</time>
+      <host at="2">web03</host>
+      <user at="3">dave</user>
+      <method at="4">GET</method>
+      <path at="5">/a/ping</path>
+      <status at="6">204</status>
+      <bytes at="7">0</bytes>
+      <agent at="8">curl</agent>
+      <encoding at="9">none</encoding>
+      <region at="10">fr</region>
+   </event>
+   <event>
+      <time at="1">2026-09-09T10:15:41Z</time>
+      <host at="2">web02</host>
+      <user at="3">erin</user>
+      <method at="4">PUT</method>
+      <path at="5">/a/bulk.csv</path>
+      <status at="6">201</status>
+      <bytes at="7">72000</bytes>
+      <agent at="8">Firefox</agent>
+      <encoding at="9">gzip</encoding>
+      <region at="10">uk</region>
+   </event>
+   <event>
+      <time at="1">2026-09-09T10:15:44Z</time>
+      <host at="2">web01</host>
+      <user at="3">frank</user>
+      <method at="4">GET</method>
+      <path at="5">/a/index.html</path>
+      <status at="6">200</status>
+      <bytes at="7">980</bytes>
+      <agent at="8">Mozilla</agent>
+      <encoding at="9">gzip</encoding>
+      <region at="10">es</region>
+   </event>
+</events>

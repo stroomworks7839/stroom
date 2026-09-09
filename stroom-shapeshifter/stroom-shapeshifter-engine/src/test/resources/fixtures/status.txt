@@ -78,6 +78,7 @@ projects/text_019_single_line_split            PASS      design 21 phase 3: the 
 projects/text_007_regex_dotall_exact          PASS      a text configuration reaching Stroom's golden: trim, omit-if-empty, escaping and Saxon's wrap arithmetic written as instructions
 projects/text_021_trimmed_values_exact        PASS      a text configuration reaching Stroom's golden: trimmed and omitted attributes, the root closed by a record count
 projects/text_022_empty_input_exact           PASS      a text configuration reaching Stroom's golden: the empty root self-closed by a record count
+projects/element_storm                        PASS      the sinks under load: a one-pass match and twenty-one structural writes per record (design 29 phase 5)
 projects/event_logging_structured             PASS      design 21 phase 2b: hand-written structured emitters — element, attribute, namespace — to event-logging:3, Saxon-shaped bytes
 projects/classify_alerts                      PASS      D36/E20: classify — every matching template runs once, nothing consumes
 projects/lexer_tokens                         PASS      D36/E20: lexer — maximal munch, => beats the first-listed =

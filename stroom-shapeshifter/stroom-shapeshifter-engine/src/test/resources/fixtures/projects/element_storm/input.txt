@@ -1,0 +1,6 @@
+2026-09-09T10:15:32Z|web01|alice|GET|/a/index.html|200|1200|Mozilla|gzip|uk
+2026-09-09T10:15:33Z|web02|bob|POST|/a/login|401|340|Safari|none|us
+2026-09-09T10:15:35Z|web01|carol|GET|/a/report.pdf|200|58000|Chrome|br|de
+2026-09-09T10:15:36Z|web03|dave|GET|/a/ping|204|0|curl|none|fr
+2026-09-09T10:15:41Z|web02|erin|PUT|/a/bulk.csv|201|72000|Firefox|gzip|uk
+2026-09-09T10:15:44Z|web01|frank|GET|/a/index.html|200|980|Mozilla|gzip|es

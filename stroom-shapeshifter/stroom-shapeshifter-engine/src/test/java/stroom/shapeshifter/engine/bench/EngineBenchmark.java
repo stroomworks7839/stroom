@@ -23,6 +23,7 @@ import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.fixture.FixtureLedger;
+import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -42,6 +43,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -59,7 +61,9 @@ import java.util.concurrent.TimeUnit;
  * {@code progressive_text} is the same interpreter over the other half of its vocabulary —
  * a tag, a take-while, a take-until and a regex step — which {@code progressive}'s two
  * binary steps never reach, so without it the text steps are unmeasurable by construction
- * (design 29 phase 2).
+ * (design 29 phase 2). {@code log_sessions} is the reference-heavy row: its matching is a
+ * delimiter split and its work is iteration, grouping, keys and sequences, so what it measures
+ * is variable resolution and the engine's own iteration variables (design 30).
  *
  * <p>{@code compile} is measured too, because a configuration that compiles per stream would be
  * paying it per stream — and because the compilation stage is where the optimisation work is
@@ -77,7 +81,8 @@ public class EngineBenchmark {
     private static final int TARGET_SIZE = 256 * 1024;
 
     @Param({"regex_lines", "csv_header", "ausearch", "apache_httpd",
-            "win_sec", "win_sec_strict", "win_sec_xml", "progressive", "progressive_text"})
+            "win_sec", "win_sec_strict", "win_sec_xml", "progressive", "progressive_text",
+            "log_sessions", "element_storm"})
     public String workload;
 
     private Project project;
@@ -112,6 +117,17 @@ public class EngineBenchmark {
             // Text steps over a text feed, so this one streams as the other text rows do.
             case "progressive_text" -> streamed("projects/progressive_text_steps/project.json",
                     FixtureLedger.bytes("projects/progressive_text_steps/input.txt"));
+            // References, and the frames behind them: five iterations, a grouping, four keys and
+            // four sequences over delimited lines whose matching is trivial. The row where a
+            // variable lookup is the work rather than a rounding error (design 30 §5).
+            case "log_sessions" -> streamed("projects/log_sessions/project.json",
+                    FixtureLedger.bytes("projects/log_sessions/input.txt"));
+            // The sinks under load: one one-pass regex per record, then twenty-one element,
+            // attribute and namespace calls. win_sec_xml writes structure too, but spends 40% of
+            // itself in the regex engine, so what the sinks cost is below its noise (design 29
+            // phase 5, which was built unmeasured for want of this row).
+            case "element_storm" -> streamed("projects/element_storm/project.json",
+                    FixtureLedger.bytes("projects/element_storm/input.txt"));
             default -> throw new IllegalArgumentException(workload);
         }
     }
@@ -152,7 +168,7 @@ public class EngineBenchmark {
     @Benchmark
     public long run(final Blackhole blackhole) {
         final long[] position = {0};
-        final OutputSink sink = new OutputSink() {
+        final OutputSink counting = new OutputSink() {
             @Override
             public void write(final byte[] data, final int offset, final int length) {
                 position[0] += length;
@@ -164,6 +180,24 @@ public class EngineBenchmark {
                 return position[0];
             }
         };
+        // A bare sink refuses structure — its startElement throws — so a configuration that
+        // writes elements has to be given a sink that carries them, exactly as the harness and
+        // the pipeline do. Every row here was a text one until element_storm, which is why the
+        // structured sinks were absent from this benchmark rather than merely quiet in it.
+        final OutputSink sink = compiled.structured()
+                ? new XmlByteSink(new OutputStream() {
+                    @Override
+                    public void write(final int b) {
+                        position[0]++;
+                    }
+
+                    @Override
+                    public void write(final byte[] data, final int offset, final int length) {
+                        position[0] += length;
+                        blackhole.consume(data);
+                    }
+                })
+                : counting;
         final List<Message> messages = wholeBuffer
                 ? Shapeshifter.runWhole(compiled, input, sink)
                 : Shapeshifter.run(compiled, new ByteArrayInputStream(input), sink);
