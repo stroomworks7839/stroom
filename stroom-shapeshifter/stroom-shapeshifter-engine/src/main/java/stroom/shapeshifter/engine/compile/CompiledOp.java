@@ -18,13 +18,13 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.value.Dates;
+import stroom.shapeshifter.engine.value.Replacer;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
 
@@ -348,6 +348,21 @@ public sealed interface CompiledOp {
                      Dates.Parser parser,
                      String name) implements CompiledOp {
 
+    }
+
+    /**
+     * Replace by regex (design 29 phase 3).
+     *
+     * <p>Its own instruction rather than a {@link Transform}, for {@link ParseDate}'s reason: it
+     * holds a compiled thing — a {@link Replacer}, which is a matcher and a replacement already
+     * parsed into literals and group indices — and a {@code Transform} would carry it inside a
+     * closure where nothing can see it. An instruction that holds compiled state should say so.
+     */
+    record Replace(List<CompiledRef> select, String name, Replacer replacer) implements CompiledOp {
+
+        public Replace {
+            select = List.copyOf(select);
+        }
     }
 
     /** Declare a sequence and empty it (design/16 §9). */

@@ -477,7 +477,7 @@ final class BodyCompiler {
     }
 
     /** A regex replace closes over its compiled pattern; a literal one over its text. */
-    private CompiledOp.Transform replace(final OutputNode.Replace value) {
+    private CompiledOp replace(final OutputNode.Replace value) {
         single("replace", value.select());
         if (!value.isRegex()) {
             return transform(value.select(), value.name(),
@@ -489,13 +489,13 @@ final class BodyCompiler {
         if (pattern == null) {
             throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
         }
-        // One replacer per instruction, holding its matcher and its parsed replacement; the
-        // transform closes over it rather than rebuilding both per call.
-        final Replacer replacer = new Replacer(pattern, value.replacement());
-        return transform(value.select(), value.name(),
-                inputs -> inputs.isEmpty()
-                        ? null
-                        : TypedValue.of(replacer.replace(inputs.getFirst().asString())));
+        // One replacer per instruction, holding its matcher and its parsed replacement, and
+        // held by the op rather than closed over by one, so what the instruction runs is visible
+        // on it (design 30).
+        return new CompiledOp.Replace(
+                value.select().stream().map(CompiledRef::of).toList(),
+                value.name(),
+                new Replacer(pattern, value.replacement()));
     }
 
     /** True if an expression is exactly "group 0 of this match, whichever one that is". */

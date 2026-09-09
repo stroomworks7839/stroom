@@ -63,6 +63,11 @@ public final class Replacer {
         this.pieces = parse(replacement, pattern);
     }
 
+    /** The pattern this replacer runs, which is the one the compiler resolved for it. */
+    public BytePattern pattern() {
+        return matcher.pattern();
+    }
+
     /**
      * Replace every match of the pattern, expanding group references in the replacement.
      *

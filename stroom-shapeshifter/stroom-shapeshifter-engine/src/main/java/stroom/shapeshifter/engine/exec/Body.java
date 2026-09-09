@@ -244,6 +244,14 @@ final class Body {
                 }
                 case final CompiledOp.Transform value ->
                         transform(value, match, matchCount, out);
+                case final CompiledOp.Replace value -> {
+                    final List<TypedValue> inputs = inputs(value.select(), match, matchCount);
+                    emit(inputs.isEmpty()
+                                    ? null
+                                    : TypedValue.of(value.replacer()
+                                            .replace(inputs.getFirst().asString())),
+                            value.name(), matchCount, out);
+                }
                 case final CompiledOp.CallFunction value ->
                         callFunction(value, match, matchCount, out, inputBase);
                 case final CompiledOp.Sequence value -> {
@@ -421,13 +429,7 @@ final class Body {
         final List<CompiledRef> select = op.select();
         final String name = op.name();
         final Function<List<TypedValue>, TypedValue> function = op.function();
-        final List<TypedValue> inputs = new ArrayList<>(select.size());
-        for (final CompiledRef ref : select) {
-            final TypedValue resolved = CompiledRefs.resolveValue(ref, match, matchCount, vars);
-            if (resolved != null) {
-                inputs.add(resolved);
-            }
-        }
+        final List<TypedValue> inputs = inputs(select, match, matchCount);
         if (op.numericKind() != null && strictValues && !warnedNumeric.contains(op)) {
             // A present value with no numeric reading — a missing field is normal and stays
             // quiet; a value that is there and is not a number is the evidence strict_values
@@ -443,6 +445,20 @@ final class Body {
             }
         }
         emit(function.apply(inputs), name, matchCount, out);
+    }
+
+    /** The selects an instruction reads, resolved; an absent one contributes nothing. */
+    private List<TypedValue> inputs(final List<CompiledRef> select,
+                                    final MatchResult match,
+                                    final int matchCount) {
+        final List<TypedValue> inputs = new ArrayList<>(select.size());
+        for (final CompiledRef ref : select) {
+            final TypedValue resolved = CompiledRefs.resolveValue(ref, match, matchCount, vars);
+            if (resolved != null) {
+                inputs.add(resolved);
+            }
+        }
+        return inputs;
     }
 
     /** A short, printable slice of an offending value for the strict_values message. */

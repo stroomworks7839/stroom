@@ -57,11 +57,9 @@ class CompilerWalksTest {
                 {"for-each": {"select": "s", "body": [
                    {"replace": {"select": [{"parts": [{"capture": {"var_id": "s", "group": 0}}]}],
                                 "pattern": "x+", "replacement": "y", "is_regex": true}}]}}""");
-        // Nothing holds a map of patterns any more, so the interning is not observable as a
-        // key — it is observable because compiling succeeded. A pattern the collector missed
-        // makes BodyCompiler.replace throw when it looks the compiled form up, which is the
-        // failure this test is for.
-        assertThat(compiled.templates()).isNotEmpty();
+        // The pattern reached the instruction that runs it, which is what interning was for
+        // and which the map this replaces could never show.
+        assertThat(patternsIn(compiled)).containsExactly("x+");
     }
 
     @Test
@@ -73,11 +71,11 @@ class CompilerWalksTest {
                            "then": [{"text": "!"}]}}]}}""");
         // Stronger than the map this replaces: the pattern reached the node that runs it, which
         // is what interning was for.
-        assertThat(matchPatterns(compiled)).containsExactly("z+");
+        assertThat(patternsIn(compiled)).containsExactly("z+");
     }
 
-    /** Every pattern a compiled condition holds, found by walking the bodies that carry them. */
-    private static List<String> matchPatterns(final CompiledProject compiled) {
+    /** Every pattern a compiled instruction holds, by walking the bodies that carry them. */
+    private static List<String> patternsIn(final CompiledProject compiled) {
         final List<String> found = new ArrayList<>();
         for (final CompiledTemplate template : compiled.templates()) {
             collect(template.body(), found);
@@ -92,6 +90,7 @@ class CompilerWalksTest {
                     collect(value.test(), found);
                     collect(value.then(), found);
                 }
+                case final CompiledOp.Replace value -> found.add(value.replacer().pattern().pattern());
                 case final CompiledOp.ForEach value -> collect(value.body(), found);
                 case final CompiledOp.Variable value -> collect(value.body(), found);
                 default -> {
