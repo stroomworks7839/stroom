@@ -551,11 +551,22 @@ before building rather than discovered after.
 **The workload cannot see this phase either.** A sampled profile of `win_sec_xml`, the row §5
 named for phase 5, is about 40% regex — `NodeTree$StarClass.match` alone is 34% — with
 `Level.dispatch` at 2.8% and `Level.processMatch` at 1.5%. No sink frame appears in the top
-thirty at all: no `XmlByteSink`, no `SaxEventSink`, no `Body.emit`. Unlike phase 2, the workload
-does run the code; it is simply regex-bound, so what the sinks cost is below the noise. Phase 4
-was allowed to close on that finding and this phase is not — §5 gives it no such clause — so it
-was built, and the reading it deserves needs a sink-bound row the suite does not have. That is
-the same gap `progressive_text` filled on the step side, and the same fix would work.
+thirty at all: no `XmlByteSink`, no `SaxEventSink`, no `Body.emit`. Phase 4 was allowed to close
+on a finding like that and this phase is not — §5 gives it no such clause — so it was built, and
+the reading it deserves needs a sink-bound row the suite does not have. That is the same gap
+`progressive_text` filled on the step side, and the same fix would work.
+
+*Corrected 2026-09-09, when that row was built.* The paragraph above first said `win_sec_xml`
+"does run the code; it is simply regex-bound, so what the sinks cost is below the noise". **That
+was wrong, and the truth is worse.** No benchmark row ran the structured sinks at all. Every
+fixture in the suite writes its XML as *text*, `EngineBenchmark` handed the run a bare
+`OutputSink` whose `startElement` throws, and a configuration that writes elements would have
+aborted on its first one. The profile showed no sink frames because no sink code executed — not
+because it was quiet. The benchmark now gives a structured configuration an `XmlByteSink`, as
+the harness and the pipeline always did, and `element_storm` is the row that exercises it: one
+one-pass regex per record and twenty-one structural writes. The lesson is §9's, one turn sharper:
+a row is evidence only about the code it exercises, and "the profile shows nothing" has two
+readings — cheap, or absent — which only checking tells apart.
 
 What it closed, all of §3.4 and two of §3.5's three rows:
 

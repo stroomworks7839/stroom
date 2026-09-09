@@ -34,16 +34,25 @@ is identical to phase 3's.*
 Three measurements are outstanding. They are listed together because they share a cause — a row
 that does not exercise a change measures it at zero — and design 29 §9 is the write-up.
 
-1. **Phase 2 against phase 1, on `progressive_text`.** Points 4 and 5. The row exists as of
-   2026-09-09 and has never been run at either point, so phase 2's *gain* is still unmeasured
-   while its 4.2% cost is measured in full. `engine-interleave.sh` runs from a detached worktree
-   per sha and the fixture is at neither, so this needs the fixture patched into both — it is
-   test resources plus one benchmark case — or head measured against a variant that reverts the
-   precomputation alone.
-2. **Phase 5 on a sink-bound row, which does not exist.** Point 7. `win_sec_xml` is regex-bound,
-   so the suite has no row where the sinks are more than noise. Needs a fixture whose bodies
-   write many elements per record over cheap matching, in the shape `progressive_text` took for
-   the step vocabulary.
+1. **Phase 2 against phase 1, on `progressive_text`.** Points 4 and 5. **Ready to run:** both
+   worktrees carry the row as of 2026-09-09, back-patched by
+   `bin/engine-backpatch-fixture.sh`, which copies the fixture and adds the benchmark case to an
+   older checkout — a row added after a point can still be measured at it. The script rebuilds
+   the worktree's test classes too, because `engine-interleave.sh` runs JMH against whatever is
+   already compiled and a stale build gives an *empty result table* rather than an error.
+
+   *A hint, not a reading.* Two sequential unwarmed runs put phase 1 at 1130 ops/s and phase 2 at
+   1342 — the direction phase 2 predicted for itself and never got to show. Two iterations, no
+   interleaving and across runs, which is exactly the shape of evidence this file exists to
+   distrust: the same commit has read 1.8% apart on identical code. It is recorded so the
+   interleaved run has a prior to confirm or embarrass, and for no other purpose.
+2. **Phase 5 on a sink-bound row.** Point 7. The row exists as of 2026-09-09 —
+   `element_storm`, one one-pass regex per record and twenty-one structural writes — and it had
+   to come with a fix to the harness. Every other fixture writes its XML as *text*, and
+   `EngineBenchmark` handed the run a bare `OutputSink` whose `startElement` throws, so **no row
+   had ever exercised `XmlByteSink` or `SaxEventSink` at all**. `win_sec_xml` was recorded as
+   regex-bound, which was true and beside the point: the sinks were not in its path. A structured
+   configuration now gets an `XmlByteSink`, as the harness and the pipeline always did.
 3. **Points 8, 9 and 10, as controls.** The cheapest of the three and the least likely to say
    anything: 8 and 9 move work into compilation and neither should touch a run row, and 10
    changes where an object is held rather than what runs. If one does move, the reading is
