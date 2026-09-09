@@ -5,9 +5,10 @@ day by the owner (D51), every question as recommended. Engine only. Touches no g
 configuration: every change here replaces a decision with its own answer.*
 
 *Complete 2026-09-09: five building phases built, gated and audited, and the record written (§8).
-Two of them are unmeasured and say so — the suite has no row that exercises phase 2's vocabulary
-at the points that would judge it, and none that is sink-bound for phase 5. §9 is what the
-measuring taught, which outlasts what was built.*
+**Both phases that closed unmeasured are now measured** — phase 2 wins 20.3% on the step
+vocabulary and phase 5 wins 35.8% on a sink-bound row, each six interleaved rounds out of six —
+once the suite gained rows that run the code they change. §9 is what the measuring taught, which
+outlasts what was built.*
 
 ## 1. Where it stands
 
@@ -356,13 +357,18 @@ disagree. That recovers 2.6%, six of six. A flatter variant recovered the rest b
 `Decoding` and an `Encoding` that had to agree, in the seam that decides how every captured
 value is tagged; it was discarded, and about 1.4% is the priced cost of that safety.
 
-**What the measurement does not say is whether the phase buys anything**, because no workload
-in the suite runs the vocabulary it optimised. `progressive`'s match is `ReadVarint` then
+**What that measurement did not say is whether the phase buys anything**, because no workload
+in the suite ran the vocabulary it optimised. `progressive`'s match is `ReadVarint` then
 `TakeBytes`, and `regex_lines` is a regex *template*, not a regex *step* — so the phase's five
-precomputed answers are all unexercised while its overhead is measured in full. The suite
-gained `progressive_text` on 2026-09-09 to close that hole; the row has not been read at these
-points yet, and until it is, this phase is unjudged rather than judged badly. The full record
-is in `benchmarks/points.md`.
+precomputed answers were all unexercised while its overhead was measured in full.
+
+**Measured 2026-09-09, on a row built for it: +20.3%, six interleaved rounds out of six, no
+overlap.** `progressive_text` runs the text vocabulary — a tag, three take-whiles, two
+take-untils and a regex step — and phase 2 is worth a fifth of that row. The same run re-read
+the cost on `progressive` at −3.9%, so the trade is one reading rather than two from two nights:
+**a fifth gained where the phase applies, against a twenty-fifth lost where it does not**, and
+`CompiledSteps` has since recovered two thirds of the loss. The phase's own record above said it
+"bought nothing measurable". It bought a great deal; the suite could not see it.
 
 What it added:
 
@@ -548,8 +554,15 @@ are shares with safepoint bias, not figures — which is enough for a question w
 Built, tests green, unmeasured — and unmeasurable by the suite as it stands, which was checked
 before building rather than discovered after.
 
-**The workload cannot see this phase either.** A sampled profile of `win_sec_xml`, the row §5
-named for phase 5, is about 40% regex — `NodeTree$StarClass.match` alone is 34% — with
+**Measured 2026-09-09: +35.8%, six interleaved rounds out of six, no overlap** — on
+`element_storm`, a row built the same day, whose worst phase-5 round beats the best round before
+it by 31%. The control in the same run is `win_sec_xml` at +0.03% with mixed signs and
+overlapping distributions: the row that does not run the sinks does not move, which is what makes
+the 35.8% the sinks rather than drift.
+
+*What follows is the record as it stood before that, kept because how the phase came to be built
+unmeasured is the useful part.* **The workload could not see this phase.** A sampled profile of
+`win_sec_xml`, the row §5 named for phase 5, is about 40% regex — `NodeTree$StarClass.match` alone is 34% — with
 `Level.dispatch` at 2.8% and `Level.processMatch` at 1.5%. No sink frame appears in the top
 thirty at all: no `XmlByteSink`, no `SaxEventSink`, no `Body.emit`. Phase 4 was allowed to close
 on a finding like that and this phase is not — §5 gives it no such clause — so it was built, and
@@ -658,11 +671,13 @@ Written 2026-09-09. No code; five entries and one table.
 ## 9. What this design learned about measuring, which outlasts what it built
 
 Three of the five phases could not be judged by the workload named for them, for three different
-reasons, and the sequence is the useful part.
+reasons, and the sequence is the useful part. *Two of the three were judged on 2026-09-09, once
+rows that run their code existed: phase 2 is worth +20.3% and phase 5 +35.8%. Neither phase
+changed. The suite did.*
 
 **Phase 2 was built and then measured at zero**, because `progressive`'s two binary steps
 exercise none of the five precomputed answers it added, while paying the cost of the indirection
-it introduced. The suite gained `progressive_text` afterwards.
+it introduced. The suite gained `progressive_text` afterwards, and the phase then read +20.3%.
 
 **Phase 4 measured first and did not build.** Counting the conditions path took an afternoon and
 found that the workloads §5 had named for it evaluate no `matches` condition at all. The row
@@ -670,8 +685,11 @@ that heads E39 runs on one workload in the suite, 624 times per operation, and a
 profile.
 
 **Phase 5 measured first and built anyway**, because §5 gave it no clause to close on and its
-sites are hygiene as much as speed. Its workload is regex-bound: the sinks are real work and
-they sit below the noise of a row that spends 40% of itself in `NodeTree$StarClass.match`.
+sites are hygiene as much as speed. Its workload was recorded as regex-bound; it was worse than
+that, and the difference matters. No row exercised the structured sinks *at all* — the benchmark
+handed the run a sink whose `startElement` throws, and every fixture wrote its XML as text. The
+profile showed no sink frames because none ran. Given a row that does run them, the phase reads
++35.8%.
 
 The rule that falls out is not "measure first" — everyone says that, and design 25 said it too.
 It is that **a benchmark row is evidence only about the code it exercises**, and that whether it
@@ -679,6 +697,12 @@ exercises a change is a question with a cheap, exact answer: count the calls. In
 `Conditions.evaluate` and reverting it took under an hour and settled a phase. Every phase here
 that went wrong went wrong by assuming a row would see something, and every one that went right
 asked.
+
+The sharper form, which only the second reading could show: **a row that does not exercise a
+change does not measure it at zero, it measures nothing at all — and in a results table those
+are the same picture.** Two phases sat recorded as worthless and as unmeasurable while being
+worth a fifth and a third of the rows that run them. What is expensive is not the box time; it
+is a suite whose silence cannot be told apart from an answer.
 
 Two smaller things worth keeping. **Inlining removes a call, not a dependent load** — phase 2's
 4.2% survived a probe that showed every hop inlining as an accessor, and was recovered by

@@ -29,10 +29,13 @@ keeping, and so is one that did not.
 *Design 29 phase 4 is deliberately not a point: it measured and built nothing, so the code at it
 is identical to phase 3's.*
 
-## What is owed, and why each is owed
+## What was owed — all of it settled 2026-09-09 evening
 
-Three measurements are outstanding. They are listed together because they share a cause — a row
-that does not exercise a change measures it at zero — and design 29 §9 is the write-up.
+Three measurements were outstanding, listed together because they shared a cause: a row that does
+not exercise a change measures it at zero. All three ran on the evening of 2026-09-09 and the
+readings are below. **Phase 2 is worth +20.3%, phase 5 +35.8%, and the three controls moved
+nothing a record does.** What follows is why each was owed, kept because the reasons are the
+useful part.
 
 1. **Phase 2 against phase 1, on `progressive_text`.** Points 4 and 5. **Ready to run:** both
    worktrees carry the row as of 2026-09-09, back-patched by
@@ -55,12 +58,14 @@ that does not exercise a change measures it at zero — and design 29 §9 is the
    configuration now gets an `XmlByteSink`, as the harness and the pipeline always did.
 3. **Points 8, 9 and 10, as controls.** The cheapest of the three and the least likely to say
    anything: 8 and 9 move work into compilation and neither should touch a run row, and 10
-   changes where an object is held rather than what runs. If one does move, the reading is
-   drift unless it repeats under interleaving. Point 9 is the most interesting, because
-   compiling a condition tree is new work at compile time and `apache_httpd` is the
-   configuration with the most conditions to walk; point 10 is the one that could say something
-   about dispatch, since it removes an implementation from `Transform.function`'s call site on
-   the workload that runs 209 replaces per record.
+   changes where an object is held rather than what runs. Point 9 was expected to show a compile
+   cost on `apache_httpd`; point 10 was the one that could say something about dispatch.
+
+   *Read 2026-09-09.* No run row moved. Point 9's predicted compile cost did not appear —
+   `apache_httpd` moved −0.2%. Point 10's dispatch question came back zero. The one thing that
+   did move was point 8's compile rows, upward across six workloads, which is the constructor
+   doing less. Two of the three predictions were wrong in the direction of "nothing happened",
+   which is the cheapest way to be wrong.
 
 The first two are the ones that decide whether design 29 phases 2 and 5 stay as written. The
 third is a control.
@@ -244,6 +249,107 @@ read phase 2 by it, apply the fixture into both worktrees — it is test resourc
 benchmark case, so it patches cleanly — or measure head against a variant that reverts the
 precomputation alone. Until one of those runs, phase 2's only evidence is still a workload it
 does not touch.
+
+## The reading, 2026-09-09 evening — the two rows that were missing
+
+Both of design 29's unmeasured phases are measured, on rows built the same day for the purpose.
+Six interleaved rounds each, order alternating within every round, box idle.
+
+### Phase 2 pays for itself, and the trade is a single reading
+
+`5dfdabc46f` against `d504945cd5`, both rows in one run so the cost and the gain are not two
+readings from two nights:
+
+| workload | r1 | r2 | r3 | r4 | r5 | r6 | mean | signs |
+|---|---|---|---|---|---|---|---|---|
+| `progressive_text` | +16.7% | +20.4% | +22.4% | +20.9% | +20.2% | +21.4% | **+20.3%** | `++++++` |
+| `progressive` | −3.1% | −3.4% | −3.2% | −4.9% | −5.3% | −3.3% | **−3.9%** | `------` |
+
+Six of six on both, and neither pair of distributions overlaps: `progressive_text`'s worst phase-2
+round is 1354.80 against phase 1's best of 1160.52, and `progressive`'s worst is 341.67 against
+363.95. **Phase 2 wins 20.3% on the vocabulary it optimised and costs 3.9% on the one it does
+not.**
+
+That settles a question open since 2026-09-08, and it settles it the other way from how it read
+then. The phase was recorded as "cost without return" on the strength of two workloads that ran
+none of its five precomputed answers. The return was always there; the suite could not see it.
+Note also that the 3.9% cost measured here is the *original* phase 2 — these points predate
+`c2ee907c1b`, whose `CompiledSteps` recovered 2.6 of it — so what stands at head is roughly a
+point and a third against twenty.
+
+### Phase 5 moves the row that can see it, and not the one that cannot
+
+`fe7680e7f2` against `50203a9d46`:
+
+| workload | r1 | r2 | r3 | r4 | r5 | r6 | mean | signs |
+|---|---|---|---|---|---|---|---|---|
+| `element_storm` | +31.0% | +38.4% | +37.2% | +33.7% | +40.5% | +34.1% | **+35.8%** | `++++++` |
+| `win_sec_xml` | +0.8% | −0.0% | −0.6% | −0.0% | +0.5% | −0.5% | **+0.03%** | `+---+-` |
+
+`element_storm` is six of six with no overlap — its worst phase-5 round beats the best round
+before it by 31%. `win_sec_xml` moves by three hundredths of a per cent with mixed signs and
+overlapping distributions, which is what a row that does not run the code should do.
+
+**The second row is the more useful half of that table.** It is the control: if the sink changes
+had somehow moved `win_sec_xml` too, the reading would have been drift or a harness artefact
+rather than the sinks. It did not, so the 35.8% is the sinks.
+
+*Files:* `ph2text-r*-{5dfdabc46f,d504945cd5}-run.json`,
+`ph5sink-r*-{fe7680e7f2,50203a9d46}-run.json`.
+
+### What this says about the method rather than the code
+
+Two phases were built, gated, audited and recorded as unmeasured or worthless. Both were worth
+20% and 36% on the work they actually change. Nothing about either phase changed in between —
+what changed is that the suite gained a row that runs the code. Design 29 §9 drew the rule from
+the failures; this is the same rule with the sign flipped, and the more convincing half of it:
+**a row that does not exercise a change does not measure it at zero, it measures nothing at all,
+and the two are indistinguishable in a results table.**
+
+### The controls, 19:23 to 20:27 — points 7 to 10, eleven rows, run and compile
+
+The full suite at four adjacent points, every one run with **head's benchmark class and
+fixtures**, so only the engine differs between them. Read as the step from each point to the
+next, against the two readings' own error intervals combined.
+
+**No run row moved.** Thirty-three steps; three exceeded their own intervals — `ausearch` −1.9%,
+`element_storm` +2.5%, `win_sec` +4.9% — all inside the ±3.3% drift envelope this file measured
+on 2026-09-08 except the last, which is barely outside its own ±4.7%. None repeats at another
+point. **Points 8, 9 and 10 change nothing a record does, which is what all three predicted of
+themselves.**
+
+Two of those three flags are worth naming as a demonstration rather than a finding.
+`element_storm` moved +2.5% across point 10 and has no `replace` instruction and no transform of
+any kind; `element_storm` moved +2.7% on the compile row across point 9 and has no conditions.
+Neither can be causal. A single flagged cell is a coin landing on its edge, and the file's own
+rule — take the sign across interleaved rounds — exists because of exactly this.
+
+**Point 8's compile rows moved, upward, coherently.** `progressive` +4.6%, `win_sec` +3.4%,
+`log_sessions` +2.7%, `ausearch` +1.7%, `regex_lines` +1.5%, `progressive_text` +1.4% — six rows
+in the same direction, which is what taking two map builds out of `CompiledProject`'s constructor
+should do. In absolute terms it is 23 nanoseconds on `progressive` and about 90 microseconds on
+`win_sec`, once per configuration. The point was recorded as "nothing should move"; nothing a
+record does moved, and the thing that was made cheaper got cheaper.
+
+**Point 9's predicted compile cost did not appear.** The row said compilation now walks the
+condition trees and `apache_httpd` has the most to walk, so that was where to look.
+`apache_httpd`'s compile row moved **−0.2%** from point 8 to point 9, inside noise. Compiling
+every condition in the corpus's most condition-heavy configuration costs nothing measurable.
+
+**Point 10 answers a question two rulings settled by argument.** Design 27 ruling 2 and design 29
+§4 both reasoned that an interface call over many implementations is megamorphic and gives up
+inlining, and used that to keep an interpreter's `switch`. Point 10 takes one implementation out
+of `Transform.function`'s call site, on `apache_httpd`, which runs 209 replaces per record. Its
+run row moved **−1.0%, inside ±1.7%**. So removing an implementation from that site is worth
+nothing measurable there.
+
+That is one implementation out of about thirty, so it is weak evidence and should not be read as
+overturning either ruling — the rulings' *conclusion* (leave the interpreter alone) is supported,
+while their *mechanism* (the call site is expensive) now has its first measurement and it is
+zero. The honest statement is that this shape of change is not where the engine's cost is, which
+is the same thing every measurement in this file has said.
+
+*Files:* `2026-09-09-19{23,39,55}-*-full.json`, `2026-09-09-2011-b4b61bbb68-full.json`.
 
 ## Points deliberately not on the list
 
