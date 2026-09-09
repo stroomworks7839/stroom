@@ -1,0 +1,292 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/dev1/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# JMH version: 1.37
+# VM version: JDK 25.0.3, OpenJDK 64-Bit Server VM, 25.0.3+9-LTS
+# VM invoker: /home/dev1/.sdkman/candidates/java/25.0.3-tem/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: stroom.shapeshifter.engine.bench.EngineBenchmark.run
+# Parameters: (workload = ausearch)
+
+# Run progress: 0.00% complete, ETA 00:00:24
+# Fork: 1 of 1
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/dev1/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 228.144 ops/s
+# Warmup Iteration   2: 264.507 ops/s
+# Warmup Iteration   3: 266.161 ops/s
+Iteration   1: 260.376 ops/s
+                 stack: <delayed till summary>
+
+Iteration   2: 263.595 ops/s
+                 stack: <delayed till summary>
+
+Iteration   3: 261.344 ops/s
+                 stack: <delayed till summary>
+
+Iteration   4: 264.256 ops/s
+                 stack: <delayed till summary>
+
+Iteration   5: 262.159 ops/s
+                 stack: <delayed till summary>
+
+
+
+Result "stroom.shapeshifter.engine.bench.EngineBenchmark.run":
+  262.346 ±(99.9%) 6.127 ops/s [Average]
+  (min, avg, max) = (260.376, 262.346, 264.256), stdev = 1.591
+  CI (99.9%): [256.219, 268.473] (assumes normal distribution)
+
+Secondary result "stroom.shapeshifter.engine.bench.EngineBenchmark.run:stack":
+Stack profiler:
+
+....[Thread state distributions]....................................................................
+ 66.7%         RUNNABLE
+ 33.3%         TIMED_WAITING
+
+....[Thread state: RUNNABLE]........................................................................
+ 33.3%  50.0% <stack is empty, everything is filtered?>
+  6.0%   9.0% stroom.shapeshifter.engine.exec.Level.processMatch
+  3.6%   5.4% stroom.shapeshifter.regex.internal.NodeTree$GroupTail.match
+  3.1%   4.7% stroom.shapeshifter.regex.internal.NodeTree$StarClass.scan
+  3.0%   4.5% stroom.shapeshifter.engine.exec.CompiledRefs.resolve
+  2.9%   4.3% stroom.shapeshifter.engine.exec.Level.regexMatch
+  2.5%   3.8% stroom.shapeshifter.engine.exec.Level.match
+  2.1%   3.2% java.util.HashMap.getNode
+  1.8%   2.7% stroom.shapeshifter.engine.match.Splitter.split
+  1.4%   2.1% stroom.shapeshifter.engine.exec.Body.body
+  0.9%   1.4% stroom.shapeshifter.engine.exec.Level.runBody
+  0.8%   1.2% stroom.shapeshifter.engine.exec.Level.bindCaptures
+  0.7%   1.1% stroom.shapeshifter.regex.internal.NodeTree$ByteSeq.match
+  0.6%   0.9% stroom.shapeshifter.regex.internal.NodeTree$OneChar.match
+  0.5%   0.7% java.lang.String.<init>
+  0.4%   0.7% stroom.shapeshifter.regex.internal.NodeTree$CountedClass.match
+  0.4%   0.6% stroom.shapeshifter.engine.exec.Level.dispatch
+  0.3%   0.4% stroom.shapeshifter.engine.match.Splitter.splitOnByte
+  0.3%   0.4% stroom.shapeshifter.engine.exec.CompiledRefs.lookup
+  0.2%   0.3% stroom.shapeshifter.engine.exec.Body.apply
+  0.2%   0.3% stroom.shapeshifter.engine.exec.Conditions.operand
+  0.2%   0.3% stroom.shapeshifter.engine.exec.Conditions.lambda$evaluate$1
+  0.2%   0.2% java.lang.invoke.DirectMethodHandle$Holder.invokeStatic
+  0.2%   0.2% stroom.shapeshifter.engine.exec.Body.test
+  0.1%   0.2% java.util.Spliterator.getExactSizeIfKnown
+  0.1%   0.2% java.lang.String.encode
+  0.1%   0.2% stroom.shapeshifter.regex.internal.NodeTree$Assert.match
+  0.1%   0.2% java.util.ImmutableCollections$ListItr.next
+  0.1%   0.2% stroom.shapeshifter.regex.internal.NodeTree$StarClass.match
+  0.1%   0.1% java.util.ArrayList.clear
+  0.5%   0.8% <other>
+
+....[Thread state: TIMED_WAITING]...................................................................
+ 33.3% 100.0% java.lang.Object.wait0
+
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.3, OpenJDK 64-Bit Server VM, 25.0.3+9-LTS
+# VM invoker: /home/dev1/.sdkman/candidates/java/25.0.3-tem/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: stroom.shapeshifter.engine.bench.EngineBenchmark.run
+# Parameters: (workload = win_sec_strict)
+
+# Run progress: 33.33% complete, ETA 00:00:17
+# Fork: 1 of 1
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/dev1/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 31.805 ops/s
+# Warmup Iteration   2: 38.352 ops/s
+# Warmup Iteration   3: 39.318 ops/s
+Iteration   1: 38.993 ops/s
+                 stack: <delayed till summary>
+
+Iteration   2: 38.860 ops/s
+                 stack: <delayed till summary>
+
+Iteration   3: 38.270 ops/s
+                 stack: <delayed till summary>
+
+Iteration   4: 39.299 ops/s
+                 stack: <delayed till summary>
+
+Iteration   5: 39.849 ops/s
+                 stack: <delayed till summary>
+
+
+
+Result "stroom.shapeshifter.engine.bench.EngineBenchmark.run":
+  39.054 ±(99.9%) 2.234 ops/s [Average]
+  (min, avg, max) = (38.270, 39.054, 39.849), stdev = 0.580
+  CI (99.9%): [36.820, 41.289] (assumes normal distribution)
+
+Secondary result "stroom.shapeshifter.engine.bench.EngineBenchmark.run:stack":
+Stack profiler:
+
+....[Thread state distributions]....................................................................
+ 66.7%         RUNNABLE
+ 33.3%         TIMED_WAITING
+
+....[Thread state: RUNNABLE]........................................................................
+ 33.3%  50.0% <stack is empty, everything is filtered?>
+  7.2%  10.8% stroom.shapeshifter.regex.ByteMatcher.attempt
+  5.3%   8.0% stroom.shapeshifter.regex.internal.NodeTree$OneChar.match
+  5.1%   7.6% stroom.shapeshifter.regex.internal.NodeTree$GroupTail.match
+  3.9%   5.8% stroom.shapeshifter.engine.exec.Level.dispatch
+  3.3%   4.9% stroom.shapeshifter.regex.internal.NodeTree$Loop.anotherIteration
+  2.4%   3.6% stroom.shapeshifter.regex.internal.FancyBacktracker.attempt
+  1.2%   1.8% stroom.shapeshifter.regex.internal.PlanRunner.run
+  0.5%   0.8% java.util.HashMap.getNode
+  0.5%   0.7% stroom.shapeshifter.regex.internal.NodeTree$Machine.search
+  0.4%   0.6% stroom.shapeshifter.engine.exec.Body.body
+  0.4%   0.6% java.util.ArrayList.clear
+  0.3%   0.5% java.util.ImmutableCollections$ListItr.next
+  0.3%   0.4% stroom.shapeshifter.engine.exec.Level.regexMatch
+  0.3%   0.4% java.lang.String.<init>
+  0.2%   0.3% java.lang.StringLatin1.replace
+  0.2%   0.3% stroom.shapeshifter.engine.exec.Level.processMatch
+  0.2%   0.3% stroom.shapeshifter.engine.exec.Level.report
+  0.2%   0.3% stroom.shapeshifter.regex.internal.ReverseScanner.findStart
+  0.1%   0.2% java.lang.String.replace
+  0.1%   0.2% stroom.shapeshifter.regex.internal.NodeTree$ByteSeq.match
+  0.1%   0.2% stroom.shapeshifter.engine.exec.Level.bindCaptures
+  0.1%   0.1% stroom.shapeshifter.engine.exec.Store.set
+  0.1%   0.1% stroom.shapeshifter.engine.exec.Refs.lookup
+  0.1%   0.1% stroom.shapeshifter.engine.output.XmlByteSink.write
+  0.1%   0.1% stroom.shapeshifter.engine.compile.BodyCompiler.lambda$compile$2
+  0.1%   0.1% stroom.shapeshifter.engine.exec.Body.emit
+  0.1%   0.1% java.lang.invoke.DirectMethodHandle$Holder.invokeStatic
+  0.1%   0.1% stroom.shapeshifter.engine.exec.Conditions.operand
+  0.0%   0.1% stroom.shapeshifter.engine.exec.Level.guards
+  0.7%   1.0% <other>
+
+....[Thread state: TIMED_WAITING]...................................................................
+ 33.3% 100.0% java.lang.Object.wait0
+
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.3, OpenJDK 64-Bit Server VM, 25.0.3+9-LTS
+# VM invoker: /home/dev1/.sdkman/candidates/java/25.0.3-tem/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: stroom.shapeshifter.engine.bench.EngineBenchmark.run
+# Parameters: (workload = apache_httpd)
+
+# Run progress: 66.67% complete, ETA 00:00:08
+# Fork: 1 of 1
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/dev1/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 119.320 ops/s
+# Warmup Iteration   2: 158.553 ops/s
+# Warmup Iteration   3: 164.758 ops/s
+Iteration   1: 163.609 ops/s
+                 stack: <delayed till summary>
+
+Iteration   2: 163.884 ops/s
+                 stack: <delayed till summary>
+
+Iteration   3: 168.579 ops/s
+                 stack: <delayed till summary>
+
+Iteration   4: 163.425 ops/s
+                 stack: <delayed till summary>
+
+Iteration   5: 166.402 ops/s
+                 stack: <delayed till summary>
+
+
+
+Result "stroom.shapeshifter.engine.bench.EngineBenchmark.run":
+  165.180 ±(99.9%) 8.669 ops/s [Average]
+  (min, avg, max) = (163.425, 165.180, 168.579), stdev = 2.251
+  CI (99.9%): [156.511, 173.849] (assumes normal distribution)
+
+Secondary result "stroom.shapeshifter.engine.bench.EngineBenchmark.run:stack":
+Stack profiler:
+
+....[Thread state distributions]....................................................................
+ 66.7%         RUNNABLE
+ 33.3%         TIMED_WAITING
+
+....[Thread state: RUNNABLE]........................................................................
+ 33.3%  50.0% <stack is empty, everything is filtered?>
+  5.8%   8.7% java.util.HashMap.getNode
+  3.3%   4.9% stroom.shapeshifter.engine.value.Transforms.translate
+  3.0%   4.4% stroom.shapeshifter.engine.exec.Store.set
+  2.3%   3.5% java.util.ImmutableCollections$ListItr.next
+  2.2%   3.3% java.lang.String.<init>
+  1.9%   2.9% stroom.shapeshifter.regex.internal.NodeTree$ByteSeq.match
+  1.8%   2.7% stroom.shapeshifter.engine.exec.Body.emit
+  1.4%   2.1% stroom.shapeshifter.engine.exec.Level.processMatch
+  1.2%   1.8% stroom.shapeshifter.engine.exec.Body.body
+  1.1%   1.6% stroom.shapeshifter.engine.exec.Level.bindCaptures
+  1.0%   1.4% stroom.shapeshifter.engine.exec.Level.regexMatch
+  0.8%   1.3% java.lang.String.getBytes
+  0.8%   1.2% java.lang.invoke.DirectMethodHandle$Holder.invokeStatic
+  0.7%   1.1% java.util.Spliterator.getExactSizeIfKnown
+  0.6%   1.0% stroom.shapeshifter.engine.match.Splitter.split
+  0.5%   0.7% stroom.shapeshifter.engine.exec.Refs.lookup
+  0.4%   0.6% stroom.shapeshifter.regex.internal.NodeTree$OneChar.match
+  0.4%   0.6% stroom.shapeshifter.regex.internal.PlanRunner.run
+  0.4%   0.5% stroom.shapeshifter.engine.exec.Body.test
+  0.4%   0.5% java.util.ArrayList.clear
+  0.3%   0.5% stroom.shapeshifter.engine.exec.Conditions.lambda$evaluate$0
+  0.3%   0.4% stroom.shapeshifter.engine.exec.Body.variable
+  0.3%   0.4% java.util.stream.StreamOpFlag.fromCharacteristics
+  0.3%   0.4% stroom.shapeshifter.engine.exec.VarRegistry.get
+  0.3%   0.4% stroom.shapeshifter.regex.internal.NodeTree$StarClass.scan
+  0.2%   0.3% stroom.shapeshifter.engine.exec.Conditions.evaluate
+  0.2%   0.2% java.util.stream.ReferencePipeline.forEachWithCancel
+  0.1%   0.2% jdk.internal.util.ArraysSupport.mismatch
+  0.1%   0.2% stroom.shapeshifter.engine.output.XmlByteSink.write
+  1.5%   2.3% <other>
+
+....[Thread state: TIMED_WAITING]...................................................................
+ 33.3% 100.0% java.lang.Object.wait0
+
+
+
+# Run complete. Total time: 00:00:25
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                      (workload)   Mode  Cnt    Score   Error  Units
+EngineBenchmark.run              ausearch  thrpt    5  262.346 ± 6.127  ops/s
+EngineBenchmark.run:stack        ausearch  thrpt           NaN            ---
+EngineBenchmark.run        win_sec_strict  thrpt    5   39.054 ± 2.234  ops/s
+EngineBenchmark.run:stack  win_sec_strict  thrpt           NaN            ---
+EngineBenchmark.run          apache_httpd  thrpt    5  165.180 ± 8.669  ops/s
+EngineBenchmark.run:stack    apache_httpd  thrpt           NaN            ---

@@ -1,7 +1,7 @@
 # Design 29 — The compiled graph decides: configuration read once, not per record
 
 *Proposed 2026-09-08, from the survey that followed design 25's full-suite gate; ruled the same
-day by Jon (D51), every question as recommended. Engine only. Touches no golden and no
+day by the owner (D51), every question as recommended. Engine only. Touches no golden and no
 configuration: every change here replaces a decision with its own answer.*
 
 ## 1. Where it stands
@@ -491,3 +491,49 @@ One residual risk, named rather than fixed: an apply that is never linked would 
 silently rather than fail, because an empty candidate list is also the right answer for a mode
 nothing answers to. There is exactly one place that builds a `CompiledProject`, and it links
 immediately afterwards, so nothing today can reach that state.
+
+### Phase 4 — conditions
+
+**Closed on its own measurement, 2026-09-09, without being built.** §5 said this phase opens
+with the measurement design 27 ruling 7 asked for rather than assuming it, and that either
+outcome is a result. The measurement says compiling conditions does not matter.
+
+The counting came first, because it is exact and free. Temporary instrumentation on
+`Conditions.evaluate` and `Refs`, reverted afterwards, over each workload's own 256 KiB
+operation:
+
+| workload | evaluations | of which `matches` | `Refs` resolutions |
+|---|---|---|---|
+| `apache_httpd` | 31,488 | 624 | 24,960 |
+| `win_sec`, `win_sec_strict` | 5,568 | 0 | 4,872 |
+| `ausearch` | 2,730 | 0 | 2,170 |
+| `win_sec_xml` | 2,652 | 0 | 2,312 |
+| `regex_lines`, `progressive`, `progressive_text` | 0 | 0 | 0 |
+
+Then the share, by sampled stacks: **0.4% of `win_sec_strict` and 0.7% of `ausearch`** — the two
+workloads this phase named — and about **3.5% of `apache_httpd`**, which it did not.
+
+**The named workloads were the wrong ones again, and this time it was caught before building.**
+Phase 2's lesson was that `progressive` and `regex_lines` exercise none of what phase 2
+optimised; here `win_sec_strict` and `ausearch` evaluate no `matches` condition at all, so the
+row that heads E39 — a pattern looked up by its text on every evaluation — runs on exactly one
+workload in the suite, 624 times per operation, and appears in no profile. A phase whose
+workloads cannot see it would have been built and then measured at zero, exactly as phase 2 was.
+The difference is that the design ordered the measurement first for this phase, and it paid.
+
+**What the measurement found instead is bigger and is not E39's.** The largest single frame under
+conditions on `apache_httpd` is `VarRegistry.get` walking the scope stack with a `HashMap` lookup
+per level, reached through `Refs.lookup`. It is about 7.2% of that row — and 4.7 of those points
+are reached through `CompiledRefs`, the *compiled* path that bodies and captures already use. So
+the cost is in finding the store a reference names, not in resolving the reference, and
+compiling conditions would have collected under a third of it. Filed as E44, unassigned: the fix
+is a compiled reference that holds its store or a slot index, and it needs a compile-time model
+of a scope stack that is pushed and popped at run time, which is a design rather than a phase.
+
+E39 is `deferred` rather than `resolved`: the performance case is closed, but the two-resolver
+seam it also names is a hygiene argument, and ruling 7 tied only the measurement to this phase.
+That ruling is the owner's, not this measurement's.
+
+Profiles and counts: `benchmarks/ph4-conditions-stack-*.txt`. The sampler is JMH's own, so these
+are shares with safepoint bias, not figures — which is enough for a question whose answers are
+0.4% and 7.2%, and would not be enough for a closer one.

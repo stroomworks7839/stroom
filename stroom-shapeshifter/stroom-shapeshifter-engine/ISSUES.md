@@ -922,7 +922,7 @@ and carries the stopgap from its phase 0.
 
 ---
 
-## What Stroom integration needs (opened 2026-08-28, Jon)
+## What Stroom integration needs (opened 2026-08-28, the owner)
 
 Three capabilities the engine does not have and a Stroom deployment will want. Each needs a
 design before code; each is recorded here so the shape of the gap is written down rather than
@@ -1189,8 +1189,35 @@ delivered; the byte sink's indentation stays its own); or an explicit escape —
 declares itself content; or leave it, and accept that this shape of Stroom pipeline cannot be
 reproduced. Until ruled, `FullPipelineTest` pins the text golden without its newlines. *(Ruled the same day; see above.)*
 
-### E39 — Conditions resolve the authored expression at run time **`open` 2026-09-06; narrowed
-to conditions 2026-09-07.** Bodies and, since design 25 phase 3, capture bindings resolve
+### E39 — Conditions resolve the authored expression at run time
+**`deferred` 2026-09-09, measured and accepted (design 29 phase 4).** Design 27 ruling 7 kept
+both resolvers until compiling conditions was *measured* to matter. It was measured, and on
+the two workloads design 29 named for the phase it does not: the conditions path is **0.4% of
+`win_sec_strict`** and **0.7% of `ausearch`** by sampled stacks. On `apache_httpd`, which the
+phase did not name and which evaluates conditions twelve times more densely, it reaches about
+**3.5%** — and more than two thirds of that is a variable-name lookup the *compiled* resolver
+pays too, so compiling conditions would not collect it (see E44). The pattern-lookup-by-text
+row that heads this entry runs 624 times per operation on `apache_httpd` and on no other
+workload, and does not appear in any profile.
+
+Counted exactly, per 256 KiB operation, by temporary instrumentation reverted afterwards:
+
+| workload | `Conditions.evaluate` | of which `matches` | `Refs` resolutions |
+|---|---|---|---|
+| `apache_httpd` | 31,488 | 624 | 24,960 |
+| `win_sec`, `win_sec_strict` | 5,568 | 0 | 4,872 |
+| `ausearch` | 2,730 | 0 | 2,170 |
+| `win_sec_xml` | 2,652 | 0 | 2,312 |
+| `regex_lines`, `progressive`, `progressive_text` | 0 | 0 | 0 |
+
+So the performance case for compiling conditions is closed: it is not there. What is *not*
+settled by this measurement is the structural half — two resolvers for one question, which is
+a hygiene argument and stays open as a ruling rather than a measurement. Reopen this entry if
+that ruling goes the other way, or if a configuration appears whose conditions are its hot
+path. Profiles: `design/benchmarks/ph4-conditions-stack-*.txt`; the sampler is JMH's own and
+carries safepoint bias, so read these as shares, not as figures.
+
+Original text (found open): Bodies and, since design 25 phase 3, capture bindings resolve
 compiled references (`CompiledRefs`, design 10's third change); `Conditions` still resolves the
 authored `RefExpression` through `Refs` on every evaluation, and a `matches` condition looks its
 pattern up by text. Design 10 §2's row, left half open there and named as the two-resolver seam
@@ -1359,3 +1386,60 @@ The full suite over all eight workloads, run and compile rows, was taken at both
 day (`…-1249-a9ca4f2853-full`, `…-1301-f9bcef57af-full`). It agrees on the shape and disagrees
 on the size — `csv_header` −4.5%, `regex_lines` −4.0% on an interval of ±35 — which is what a
 sequential pair does and why the interleaved rounds are the reading to believe.
+
+### E44 — A variable's store is found by name, through a map per scope, on every resolution
+**`open` 2026-09-09.** Found by design 29 phase 4's measurement, which was looking at conditions
+and found this underneath them. `VarRegistry.get` walks the scope stack from the innermost
+outwards doing a `HashMap` lookup at each level, and both resolvers call it per resolution:
+`Refs.lookup` for conditions, and `CompiledRefs.lookup` — the *compiled* path — for bodies and
+captures. On `apache_httpd` that lookup is about **7.2%** of sampled run time, and **4.7 of those
+7.2 points are on the compiled path**, so it is not E39's and compiling conditions would not
+have collected it. On `ausearch` the same shape reads about 5.6% including compiled capture
+resolution; on `win_sec_strict` it is 0.4%, because that row is regex-bound.
+
+This is design 10's third change carried one step short: the *reference* is compiled, and the
+*store it names* is still found by string at run time. A compiled reference could hold the store
+itself, or an index into a run's slot array, instead of a name to look up.
+
+The reason it is an entry rather than a fix is that scoping is dynamic: `push`/`pop` run per body
+and per for-each, and a name resolves to the innermost scope that happens to hold it, so an index
+is only sound if the compiler models the lexical nesting and can prove the same slot is meant
+every time. That is a design's worth of work, and design 29 §4 rules capture elimination out of
+that design for a related reason. Owner: unassigned; the natural home is E10's successor design
+or one of its own.
+
+Profiles: `design/benchmarks/ph4-conditions-stack-apache-lines8.txt`.
+
+**Every map in the engine was then read, to find whether this is one case or a class of them.**
+It is close to one case. The rule the survey applied: a map consulted at run time is a defect
+only when its *key is already known at compile time*, because then the compiled model could hold
+the answer instead. Three sites qualify.
+
+| Site | Key | Frequency | Reading |
+|---|---|---|---|
+| `VarRegistry.get` via `Refs.lookup` and `CompiledRefs.lookup` | a variable name, authored | 24,960/op on `apache_httpd` | this entry — 7.2% there, 4.7 of it on the compiled path |
+| `Conditions.java:78` — `patterns.get(PatternKey.ofValue(...))` | a pattern's **text**, authored | 624/op on `apache_httpd`, 0 elsewhere | invisible in the profile; a consistency defect, not a cost — see below |
+| `Body.keyIndexes` — `put(name)` / `getOrDefault(key)` | a key's name, authored | only `key`/`key-get` configurations, none in the suite | same shape, no measured cost; the *inner* index is data-keyed and must stay a map |
+
+The pattern one is worth naming even though it costs nothing measurable, because it is the last
+place in the engine that finds a compiled pattern at run time. `CompiledMatch.Regex` has held its
+pattern since design 10; `CompiledStep.Regex` holds its pattern *and* its matcher since design 29
+phase 2; `BodyCompiler` resolves the replace pattern at compile time since phase 3. Conditions
+alone still hash the pattern's text — and allocate a `PatternKey` to do it — on every evaluation,
+against a map whose entry `MatchCompiler` interned at compile time from the same text. One line
+of compiled state would close it and make the rule "a compiled node holds its pattern" true
+without exception.
+
+**Read and cleared**, recorded so the next survey need not repeat them: `Switch.cases`,
+`ValueMap.entries`, the grouping maps in `Body.file`, `FunctionRuntime.state` and the pipeline's
+function caches are all keyed by *data*, which is what a map is for; `templatesByMode`,
+`templatesByName`, `MatchCompiler.patterns`, `Encoding.BY_LABEL`, `RegexEncodings.CACHE`,
+`UnicodeClasses.CACHE`, `Lowering.library` and `ByteForm.inverse` are consulted at compile time
+only — phase 3 closed the first two, and `BodyCompiler` is now their only caller. Named-group
+resolution looked like a candidate (`BytePattern.groupIndex` is a linear `List.indexOf`) and is
+not: `Replacer` resolves it at compile time and nothing calls the by-name form at run time.
+
+One suspicion was raised and refuted rather than left hanging: the two structured sinks build
+each element's namespace scope with `new HashMap<>(parent.scope)`, an allocation and a copy per
+element written, which looked like a per-element cost on the XML row. It does not appear in a
+sampled profile of `win_sec_xml` at all. Not a finding.

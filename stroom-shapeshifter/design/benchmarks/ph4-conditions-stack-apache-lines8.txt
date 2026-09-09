@@ -1,0 +1,440 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/dev1/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# JMH version: 1.37
+# VM version: JDK 25.0.3, OpenJDK 64-Bit Server VM, 25.0.3+9-LTS
+# VM invoker: /home/dev1/.sdkman/candidates/java/25.0.3-tem/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: stroom.shapeshifter.engine.bench.EngineBenchmark.run
+# Parameters: (workload = apache_httpd)
+
+# Run progress: 0.00% complete, ETA 00:00:08
+# Fork: 1 of 1
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/dev1/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 128.926 ops/s
+# Warmup Iteration   2: 164.178 ops/s
+# Warmup Iteration   3: 163.827 ops/s
+Iteration   1: 166.228 ops/s
+                 stack: <delayed till summary>
+
+Iteration   2: 167.321 ops/s
+                 stack: <delayed till summary>
+
+Iteration   3: 165.847 ops/s
+                 stack: <delayed till summary>
+
+Iteration   4: 165.896 ops/s
+                 stack: <delayed till summary>
+
+Iteration   5: 159.789 ops/s
+                 stack: <delayed till summary>
+
+
+
+Result "stroom.shapeshifter.engine.bench.EngineBenchmark.run":
+  165.016 ±(99.9%) 11.482 ops/s [Average]
+  (min, avg, max) = (159.789, 165.016, 167.321), stdev = 2.982
+  CI (99.9%): [153.534, 176.498] (assumes normal distribution)
+
+Secondary result "stroom.shapeshifter.engine.bench.EngineBenchmark.run:stack":
+Stack profiler:
+
+....[Thread state distributions]....................................................................
+ 66.7%         RUNNABLE
+ 33.3%         TIMED_WAITING
+
+....[Thread state: RUNNABLE]........................................................................
+ 33.3%  50.0% <stack is empty, everything is filtered?>
+  1.9%   2.9% stroom.shapeshifter.engine.value.Transforms.translate
+              stroom.shapeshifter.engine.compile.BodyCompiler.lambda$compile$2
+              stroom.shapeshifter.engine.compile.BodyCompiler$$Lambda/0x000000001a11ce68.apply
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+
+  1.7%   2.5% java.util.HashMap.getNode
+              java.util.HashMap.get
+              stroom.shapeshifter.engine.exec.VarRegistry.get
+              stroom.shapeshifter.engine.exec.Refs.lookup
+              stroom.shapeshifter.engine.exec.CompiledRefs.lookup
+              stroom.shapeshifter.engine.exec.CompiledRefs.resolveValue
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+
+  1.7%   2.5% stroom.shapeshifter.engine.exec.Store.set
+              stroom.shapeshifter.engine.exec.Body.emit
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+
+  1.5%   2.2% java.util.HashMap.getNode
+              java.util.HashMap.get
+              stroom.shapeshifter.engine.exec.VarRegistry.get
+              stroom.shapeshifter.engine.exec.Refs.lookup
+              stroom.shapeshifter.engine.exec.CompiledRefs.lookup
+              stroom.shapeshifter.engine.exec.CompiledRefs.write
+              stroom.shapeshifter.engine.exec.CompiledRefs.write
+              stroom.shapeshifter.engine.exec.Body.body
+
+  1.3%   2.0% stroom.shapeshifter.engine.exec.Level.bindCaptures
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.dispatch
+              stroom.shapeshifter.engine.exec.Body.apply
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+
+  1.3%   1.9% stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.dispatch
+              stroom.shapeshifter.engine.exec.Body.apply
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+
+  1.1%   1.7% stroom.shapeshifter.engine.exec.Level.regexMatch
+              stroom.shapeshifter.engine.exec.Level.match
+              stroom.shapeshifter.engine.exec.Level.dispatch
+              stroom.shapeshifter.engine.exec.Body.apply
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+
+  1.0%   1.6% java.util.HashMap.getNode
+              java.util.HashMap.get
+              stroom.shapeshifter.engine.exec.VarRegistry.get
+              stroom.shapeshifter.engine.exec.Refs.lookup
+              stroom.shapeshifter.engine.exec.Refs.lookup
+              stroom.shapeshifter.engine.exec.Refs.resolveValue
+              stroom.shapeshifter.engine.exec.Conditions.operand
+              stroom.shapeshifter.engine.exec.Conditions.evaluate
+
+  0.8%   1.2% java.lang.String.<init>
+              java.lang.String.<init>
+              stroom.shapeshifter.engine.value.TypedValue$Bytes.asString
+              stroom.shapeshifter.engine.value.Transforms.translate
+              stroom.shapeshifter.engine.compile.BodyCompiler.lambda$compile$2
+              stroom.shapeshifter.engine.compile.BodyCompiler$$Lambda/0x000000001a11ce68.apply
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+
+  0.8%   1.2% stroom.shapeshifter.engine.exec.Body.emit
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+
+  0.8%   1.1% stroom.shapeshifter.engine.value.Transforms.translate
+              stroom.shapeshifter.engine.compile.BodyCompiler.lambda$compile$2
+              stroom.shapeshifter.engine.compile.BodyCompiler$$Lambda/0x000000001a11ce68.apply
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+
+  0.8%   1.1% java.util.ArrayList.grow
+              java.util.ArrayList.add
+              java.util.ArrayList.add
+              stroom.shapeshifter.engine.exec.Store.set
+              stroom.shapeshifter.engine.exec.Body.emit
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+
+  0.7%   1.1% stroom.shapeshifter.regex.internal.NodeTree$ByteSeq.match
+              stroom.shapeshifter.regex.internal.NodeTree$GroupTail.match
+              stroom.shapeshifter.regex.internal.NodeTree$StarClass.match
+              stroom.shapeshifter.regex.internal.NodeTree$GroupHead.match
+              stroom.shapeshifter.regex.internal.NodeTree$ByteSeq.match
+              stroom.shapeshifter.regex.internal.NodeTree$GroupTail.match
+              stroom.shapeshifter.regex.internal.NodeTree$StarClass.match
+              stroom.shapeshifter.regex.internal.NodeTree$OneChar.match
+
+  0.7%   1.1% stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+              stroom.shapeshifter.engine.exec.Run.document
+              stroom.shapeshifter.engine.exec.Run.run
+
+  0.7%   1.0% java.util.ImmutableCollections$ListItr.next
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+              stroom.shapeshifter.engine.exec.Run.document
+
+  0.6%   0.9% stroom.shapeshifter.engine.match.Splitter.split
+              stroom.shapeshifter.engine.exec.Level.match
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+              stroom.shapeshifter.engine.exec.Run.document
+              stroom.shapeshifter.engine.exec.Run.run
+              stroom.shapeshifter.engine.exec.Run.stream
+              stroom.shapeshifter.engine.Shapeshifter.run
+
+  0.6%   0.9% java.util.HashMap.getNode
+              java.util.HashMap.get
+              stroom.shapeshifter.engine.exec.VarRegistry.get
+              stroom.shapeshifter.engine.exec.Refs.lookup
+              stroom.shapeshifter.engine.exec.Refs.lookup
+              stroom.shapeshifter.engine.exec.Refs.resolve
+              stroom.shapeshifter.engine.exec.Refs.resolveText
+              stroom.shapeshifter.engine.exec.Conditions.text
+
+  0.6%   0.9% stroom.shapeshifter.regex.internal.NodeTree$ByteSeq.match
+              stroom.shapeshifter.regex.internal.NodeTree$StarClass.match
+              stroom.shapeshifter.regex.internal.NodeTree$OneChar.match
+              stroom.shapeshifter.regex.internal.NodeTree$OneChar.match
+              stroom.shapeshifter.regex.internal.NodeTree$GroupTail.match
+              stroom.shapeshifter.regex.internal.NodeTree$OneChar.match
+              stroom.shapeshifter.regex.internal.NodeTree$OneChar.match
+              stroom.shapeshifter.regex.internal.NodeTree$OneChar.match
+
+  0.5%   0.8% java.lang.String.getBytes
+              stroom.shapeshifter.engine.value.TypedValue.of
+              stroom.shapeshifter.engine.value.Transforms.translate
+              stroom.shapeshifter.engine.compile.BodyCompiler.lambda$compile$2
+              stroom.shapeshifter.engine.compile.BodyCompiler$$Lambda/0x000000001a11ce68.apply
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+
+  0.5%   0.8% stroom.shapeshifter.engine.value.Transforms.translate
+              stroom.shapeshifter.engine.compile.BodyCompiler.lambda$compile$2
+              stroom.shapeshifter.engine.compile.BodyCompiler$$Lambda/0x000000001a11ce68.apply
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+
+  0.5%   0.7% stroom.shapeshifter.engine.exec.Store.set
+              stroom.shapeshifter.engine.exec.Level.bindCaptures
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.dispatch
+              stroom.shapeshifter.engine.exec.Body.apply
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+
+  0.4%   0.6% stroom.shapeshifter.regex.internal.PlanRunner.run
+              stroom.shapeshifter.regex.ByteMatcher.attempt
+              stroom.shapeshifter.regex.ByteMatcher.run
+              stroom.shapeshifter.regex.ByteMatcher.match
+              stroom.shapeshifter.engine.exec.Level.regexMatch
+              stroom.shapeshifter.engine.exec.Level.match
+              stroom.shapeshifter.engine.exec.Level.dispatch
+              stroom.shapeshifter.engine.exec.Body.apply
+
+  0.4%   0.6% java.util.Spliterator.getExactSizeIfKnown
+              java.util.stream.AbstractPipeline.copyIntoWithCancel
+              java.util.stream.AbstractPipeline.copyInto
+              java.util.stream.AbstractPipeline.wrapAndCopyInto
+              java.util.stream.MatchOps$MatchOp.evaluateSequential
+              java.util.stream.MatchOps$MatchOp.evaluateSequential
+              java.util.stream.AbstractPipeline.evaluate
+              java.util.stream.ReferencePipeline.allMatch
+
+  0.4%   0.6% java.util.ImmutableCollections$ListItr.next
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+              stroom.shapeshifter.engine.exec.Run.document
+              stroom.shapeshifter.engine.exec.Run.run
+
+  0.4%   0.5% stroom.shapeshifter.engine.exec.CompiledRefs.lookup
+              stroom.shapeshifter.engine.exec.CompiledRefs.resolveValue
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+
+  0.3%   0.5% stroom.shapeshifter.engine.exec.Body.emit
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+              stroom.shapeshifter.engine.exec.Run.document
+
+  0.3%   0.5% stroom.shapeshifter.engine.exec.Store.set
+              stroom.shapeshifter.engine.exec.Body.emit
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+
+  0.3%   0.5% java.lang.invoke.DirectMethodHandle$Holder.invokeStatic
+              java.lang.invoke.Invokers$Holder.linkToTargetMethod
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+              stroom.shapeshifter.engine.exec.Run.document
+
+  0.3%   0.5% stroom.shapeshifter.regex.internal.NodeTree$ByteSeq.match
+              stroom.shapeshifter.regex.internal.NodeTree$GroupTail.match
+              stroom.shapeshifter.regex.internal.NodeTree$StarClass.match
+              stroom.shapeshifter.regex.internal.NodeTree$OneChar.match
+              stroom.shapeshifter.regex.internal.NodeTree$GroupHead.match
+              stroom.shapeshifter.regex.internal.NodeTree$Assert.match
+              stroom.shapeshifter.regex.internal.NodeTree$Machine.search
+              stroom.shapeshifter.regex.ByteMatcher.runLinear
+
+  0.3%   0.4% java.util.ArrayList.clear
+              stroom.shapeshifter.engine.exec.Store.clear
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.dispatch
+              stroom.shapeshifter.engine.exec.Body.apply
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+
+  0.3%   0.4% stroom.shapeshifter.engine.exec.Conditions.lambda$evaluate$0
+              stroom.shapeshifter.engine.exec.Conditions$$Lambda/0x000000001a133390.test
+              java.util.stream.MatchOps$1MatchSink.accept
+              java.util.AbstractList$RandomAccessSpliterator.tryAdvance
+              java.util.stream.ReferencePipeline.forEachWithCancel
+              java.util.stream.AbstractPipeline.copyIntoWithCancel
+              java.util.stream.AbstractPipeline.copyInto
+              java.util.stream.AbstractPipeline.wrapAndCopyInto
+
+  0.3%   0.4% java.util.ImmutableCollections$ListItr.next
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+
+  0.3%   0.4% java.util.stream.StreamOpFlag.fromCharacteristics
+              java.util.stream.StreamSupport.stream
+              java.util.Collection.stream
+              stroom.shapeshifter.engine.exec.Conditions.evaluate
+              stroom.shapeshifter.engine.exec.Body.test
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+
+  0.3%   0.4% stroom.shapeshifter.engine.value.Transforms.translate
+              stroom.shapeshifter.engine.compile.BodyCompiler.lambda$compile$2
+              stroom.shapeshifter.engine.compile.BodyCompiler$$Lambda/0x000000001a11ce68.apply
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.variable
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+
+  0.3%   0.4% stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+              stroom.shapeshifter.engine.exec.Run.document
+
+  0.3%   0.4% java.util.HashMap.getNode
+              java.util.HashMap.get
+              stroom.shapeshifter.engine.exec.VarRegistry.get
+              stroom.shapeshifter.engine.exec.VarRegistry.entry
+              stroom.shapeshifter.engine.exec.VarRegistry.store
+              stroom.shapeshifter.engine.exec.Body.emit
+              stroom.shapeshifter.engine.exec.Body.transform
+              stroom.shapeshifter.engine.exec.Body.body
+
+  0.3%   0.4% java.lang.invoke.DirectMethodHandle$Holder.invokeStatic
+              java.lang.invoke.Invokers$Holder.linkToTargetMethod
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+
+  0.3%   0.4% stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+              stroom.shapeshifter.engine.exec.Run.document
+              stroom.shapeshifter.engine.exec.Run.run
+              stroom.shapeshifter.engine.exec.Run.stream
+              stroom.shapeshifter.engine.Shapeshifter.run
+              stroom.shapeshifter.engine.Shapeshifter.run
+
+  0.3%   0.4% stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Body.variable
+              stroom.shapeshifter.engine.exec.Body.body
+              stroom.shapeshifter.engine.exec.Level.runBody
+              stroom.shapeshifter.engine.exec.Level.processMatch
+              stroom.shapeshifter.engine.exec.Level.stream
+              stroom.shapeshifter.engine.exec.Run.dispatchInput
+              stroom.shapeshifter.engine.exec.Run.document
+
+  7.6%  11.3% <other>
+
+....[Thread state: TIMED_WAITING]...................................................................
+ 33.3% 100.0% java.lang.Object.wait0
+              java.lang.Object.wait
+              java.lang.ref.ReferenceQueue.remove0
+              java.lang.ref.ReferenceQueue.remove
+              jdk.internal.ref.CleanerImpl.run
+              java.lang.Thread.runWith
+              java.lang.Thread.run
+              jdk.internal.misc.InnocuousThread.run
+
+
+
+
+# Run complete. Total time: 00:00:08
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                    (workload)   Mode  Cnt    Score    Error  Units
+EngineBenchmark.run        apache_httpd  thrpt    5  165.016 ± 11.482  ops/s
+EngineBenchmark.run:stack  apache_httpd  thrpt           NaN             ---
