@@ -1,6 +1,6 @@
 # Design 28 — The model classifies its instructions: holders, bindings, transforms, leaves
 
-*Proposed 2026-09-06, from design 27's exit review (§5.6). Ruled the same day by Jon (D47),
+*Proposed 2026-09-06, from design 27's exit review (§5.6). Ruled the same day by the owner (D47),
 every question in §5 as recommended: four classifications, the `Regexed` marker, `Containers`
 goes, `BodyCompiler`'s switch stays.*
 

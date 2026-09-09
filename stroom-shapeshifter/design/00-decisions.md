@@ -988,7 +988,7 @@ changes.
 
 ## D37 — Complete inputs only: the streaming surface retires
 
-**Ruled by Jon, 2026-08-24.** The regex library supports byte arrays and byte slices —
+**Ruled by the owner, 2026-08-24.** The regex library supports byte arrays and byte slices —
 complete views, always — and the streaming machinery (`StreamMatcher`, growing
 `ByteWindow`s, `MatchOutcome.NEED_MORE_INPUT`, the `complete` flag threaded through every
 engine, the `edge`/`hitEnd` latches) retires. The project began as a streams-of-data
@@ -1039,7 +1039,7 @@ Suites green both modules, 524 tests.
 
 ## D38 — Undecodable bytes are matchable by nothing: strictness is the semantics, leniency is composition
 
-**Ruled by Jon, 2026-08-28.** A character construct — a class, a literal, a dot — matches
+**Ruled by the owner, 2026-08-28.** A character construct — a class, a literal, a dot — matches
 only well-formed characters of the pattern's encoding. Bytes that are not part of one are
 matchable by no character construct: not by `.`, not by a negated class, not by anything
 spelled in code points. Matches are byte spans over the input as given. The engine
@@ -1077,7 +1077,7 @@ rejected on measured grounds: it forfeits the memchr, and buffer CSV lives there
 
 ## D39 — The context bound is the array's end: the `contextEnd` seam is deleted
 
-**Ruled by Jon, 2026-09-03**, on the recommendation in regex design 07 Phase 6. The question
+**Ruled by the owner, 2026-09-03**, on the recommendation in regex design 07 Phase 6. The question
 was whether to keep `contextEnd` — the per-engine bound on the one-byte look past the region
 end that decides whether a region ends mid-character — as a seam through which a caller could
 one day pass a *tighter* bound than the array's length (a reused buffer's stale tail), or to
@@ -1130,7 +1130,7 @@ tree's rows flat.
 
 ## D40 — Output bridges to SAX by parsing; structured emitters come second, and the sink interprets bytes by container — the bridge superseded by D42
 
-**Ruled by Jon, 2026-09-03**, eleven rulings in [design 20 §10](20-sax-output.md), on a draft
+**Ruled by the owner, 2026-09-03**, eleven rulings in [design 20 §10](20-sax-output.md), on a draft
 written 2026-08-28. The question was how an engine whose native output is bytes-that-happen-to-be-XML
 meets a pipeline that consumes SAX events, and what that does to the instruction vocabulary,
 the goldens and the editor's trace.
@@ -1164,7 +1164,7 @@ never needed. E31 proceeds; E15, `blocked` on D10 since 2026-08-17, unblocks.
 
 ## D41 — Stroom is the source of truth: the legacy goldens are stroom-pipeline's own, and ds-rs is retired
 
-**Ruled by Jon, 2026-09-03**, on design 21 phase 1's finding that the vendored legacy goldens
+**Ruled by the owner, 2026-09-03**, on design 21 phase 1's finding that the vendored legacy goldens
 were ds-rs's re-serialisation of DS3's events rather than Stroom's bytes — unwrapped where
 Saxon wraps, and untrimmed on 007 and 009 where `DS3Parser` has trimmed since 2019. The ruling:
 ignore the vendored goldens; the Stroom codebase is the source of truth; whitespace that is a
@@ -1279,7 +1279,7 @@ two package cycles the plan had accepted.*
 *Superseded in part by [D48](#d48--template_ref-is-removed), 2026-09-07: the first ruling, and
 its pin, went with the form; the second stands.*
 
-*Ruled by Jon, 2026-09-06, on design 27's exit review (E41, E42).* Two definitions the code
+*Ruled by the owner, 2026-09-06, on design 27's exit review (E41, E42).* Two definitions the code
 had left implicit:
 
 - **`template_ref` on `apply-templates`** is shorthand for an apply whose level holds the named
@@ -1298,7 +1298,7 @@ reusable templates, when it comes, is D11's import-time resolution and needs no 
 
 ## D47 — The model classifies its instructions
 
-*Ruled by Jon, 2026-09-06, on design 28, every question as recommended.* `OutputNode` gains
+*Ruled by the owner, 2026-09-06, on design 28, every question as recommended.* `OutputNode` gains
 four sealed sub-interfaces — `Holder` (holds bodies), `Binding` (may bind a name), `Transform`
 (a binding with a select list) and `Leaf` — and a `Regexed` marker outside the permits clause
 for an instruction whose text is a pattern the compiler interns. A classification, not a layer:
@@ -1315,7 +1315,7 @@ day, design 28 §6: no regression, `csv_header`'s compile row +12%.*
 
 ## D48 — `template_ref` is removed
 
-*Ruled by Jon, 2026-09-07.* The `template_ref` option on `apply-templates` goes: the field on
+*Ruled by the owner, 2026-09-07.* The `template_ref` option on `apply-templates` goes: the field on
 `ApplyDirective`, its reading and writing, the compiler's name and reserved-mode checks, the
 graph's registration of a one-template mode, the run's reading of the mode through it, and the
 pin. It was carried over from the ported
@@ -1336,7 +1336,7 @@ first-wins dispatch on a shared name — go with it.
 
 ## D49 — The numeric kinds are named as XSLT 2.0 names them: `integer` and `double`
 
-*Ruled by Jon, 2026-09-07.* `TypedValue.Int` is `TypedValue.Integer` and `TypedValue.Real`
+*Ruled by the owner, 2026-09-07.* `TypedValue.Int` is `TypedValue.Integer` and `TypedValue.Real`
 is `TypedValue.Double`, and the cast vocabulary gains `integer` and `double` beside `number`.
 The kinds themselves do not change: a whole number held in a `long`, a fractional one held
 in a `double`, promotion within the one numeric kind as design 17 §8 says. The names were
@@ -1357,7 +1357,7 @@ lands (D50; *landed 2026-09-07*). No configuration in the corpus names a kind, s
 
 ## D50 — A capture declares its kind, once, on a compiled capture
 
-*Ruled by Jon, 2026-09-07, on design 25 §9, every question as recommended.* A capture
+*Ruled by the owner, 2026-09-07, on design 25 §9, every question as recommended.* A capture
 binding takes `as`, the cast vocabulary of D49, applied once at bind by the casting table: an
 author says which captures are read as text, as a whole number, as a fractional one, as a
 boolean or as a date, and a capture nobody casts is never converted. Four answers:
@@ -1380,7 +1380,7 @@ No golden moves: every fixture's captures are uncast. The deferral D43 recorded 
 
 ## D51 — The compiled graph decides: configuration read once, not per record
 
-*Ruled by Jon, 2026-09-08, on design 29, every question as recommended.* A survey of the run
+*Ruled by the owner, 2026-09-08, on design 29, every question as recommended.* A survey of the run
 path found twenty-five places where a question the configuration settles is asked again per
 record, per match, per group, per character or per write — three of them under a comment
 claiming the opposite. One idea in twenty-five places, and the fix is the same each time: a

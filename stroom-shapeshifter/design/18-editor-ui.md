@@ -1,6 +1,6 @@
 # The editor: navigating templated execution through its trace
 
-Status: **draft — the frame/variable model in §5 was agreed 2026-08-25 (Jon), replacing
+Status: **draft — the frame/variable model in §5 was agreed 2026-08-25 (the owner), replacing
 this draft's original privileged input/output panes; the superseded framing is kept in
 §5.10 as a record of why it failed. Phasing (§6) and the §9 questions remain open.**
 Written 2026-08-25 from three surveys: the the prototype Leptos editor as it actually shipped,
@@ -231,12 +231,12 @@ template; content: the whole buffer). Every frame has:
   - They began as an "output vars" section, which read as though the frame had *produced*
     them the way it produced output. But a capture is what the pattern pulled out of the
     input — the raw material the body then spends.
-  - So they moved to the template panel, under the match (2026-08-27, Jon: "the template
+  - So they moved to the template panel, under the match (2026-08-27, the owner: "the template
     is producing the captures in the matcher"). True — of the **declaration**. What the
     line actually showed was the **value**, which is the frame's, not the template's; and
     it left a row in the bottom-left lighting a span in the top-left, the same diagonal
     the output pane had just been moved to avoid.
-  - So they now sit in the variables pane (2026-08-28, Jon: "a single area for the user to
+  - So they now sit in the variables pane (2026-08-28, the owner: "a single area for the user to
     look at to discover all variables in scope"), with the declaration's home settled
     separately: names are edited in the pattern workbench, with the groups they name.
 
@@ -254,7 +254,7 @@ panes reorganise around the frame.
 
 ### 5.3 The dispatch breadcrumb — the crux widget
 
-**Back and forward sit at its head** (2026-08-28, Jon: "when navigating I feel myself
+**Back and forward sit at its head** (2026-08-28, the owner: "when navigating I feel myself
 wanting to navigate back and forward with some form of history support"). The crumb
 answers *where am I*, which is ancestry; it cannot answer *where was I*. Select a template
 in the nav panel and the crumb rewrites around a different frame with nothing pointing
@@ -286,7 +286,7 @@ parent frame*. This one widget is the whole navigation model:
   body's dispatch rows are the richer version of the same move.
 
 Two stepper scopes exist: *within this parent* and *across the whole input* (jump to the
-next match of this template anywhere, skipping parents with none). Per Jon's concern
+next match of this template anywhere, skipping parents with none). Per the owner's concern
 (2026-08-26) that a pair of arrows on every segment competes with the one stepper that
 matters, the within-parent controls are **demoted, not deleted**: the `i/n` counts stay
 always visible (information without load), a segment's ◀ ▶ arrows appear only on hover,
@@ -329,7 +329,7 @@ permanent fill once a group or step is **pinned** by a click — click-to-pin re
 old default-everything-tinted state, so looking at one group's structure no longer means
 fighting the other nine for attention.
 
-**The content pane: one permanent mark, one transient** (2026-08-28, Jon's scheme,
+**The content pane: one permanent mark, one transient** (2026-08-28, the owner's scheme,
 replacing four permanent channels that were answering two questions between them). What
 was there — a solid underline per match, a dotted underline per capture, a tint per
 capture, an inset band for root-level matches, and a translucent fill on hover — had grown
@@ -357,7 +357,7 @@ consumed *and* the output it wrote. That third link is what makes the removal a
 simplification rather than a loss; the information did not go away, it stopped being drawn
 all the time.
 
-**A point and a click are about the match at *this* level** (2026-08-28, Jon). The box you
+**A point and a click are about the match at *this* level** (2026-08-28, the owner). The box you
 see is the **immediate child template's**, in that template's own colour, however deep the
 pointer happens to be inside it; clicking steps into that child, one level at a time. The
 old behaviour — mark and descend into the deepest match under the pointer — let you skip
@@ -372,7 +372,7 @@ at a match lights **the template row that made it, the dispatch row that reached
 the output that very match wrote** — the last keyed by frame, not by template, so hovering
 the third record in the input outlines that record's `<Event>` block and no other.
 
-**Any of the four lights the other three** (completed 2026-08-28, after Jon found the one
+**Any of the four lights the other three** (completed 2026-08-28, after the owner found the one
 edge that was missing: the output lit the template that produced it, and stopped there,
 never reaching back to the bytes that template consumed). A dispatched region of output
 knows the child frame that wrote it, and that frame's match is on screen, so the loop
@@ -411,7 +411,7 @@ reading fights the thing it's meant to point at, the lesson the earlier own-high
 design had already learned the hard way).
 
 **One region per card, and one key behind both the colour and the highlight** (refined
-2026-08-27 after Jon exercised the rule at every level of the second prototype and found
+2026-08-27 after the owner exercised the rule at every level of the second prototype and found
 three ways it broke). The rule above is right; the first implementation of it computed
 *colour* by walking body cards and *hover* by walking frames, and the two drifted apart
 wherever the tree was deeper or flatter than the case they were written against:
@@ -440,7 +440,7 @@ one. Deliberately a whole-run fact and not a per-frame one, so a card's swatch h
 stable colour as you step between frames; a swatch that changed colour underneath you
 while stepping would be reporting the frame, not the card.
 
-**A dispatch is coloured by the template it dispatched into** (2026-08-28, Jon: the
+**A dispatch is coloured by the template it dispatched into** (2026-08-28, the owner: the
 dispatch rows carry a swatch each, "but only the outer apply-templates is coloured and
 highlighted in the output window"). The rows were promising a link the output never made
 good on. The fix is the rule the conditionals had already established one level down: **a
@@ -505,7 +505,7 @@ thing naming them, and until now three of the four were named only in an `aria-l
 which is a name for a screen reader and for nobody else. TEMPLATE's title doubles as the
 template's identity line (§5.6).
 
-**Read them top-left, top-right, bottom-left, bottom-right** (Jon, 2026-08-28): the input,
+**Read them top-left, top-right, bottom-left, bottom-right** (the owner, 2026-08-28): the input,
 the variables drawn out of it, the template that consumes them, the output it wrote. Each
 *row* is a hover-linked pair, and that is the whole highlighting topology:
 
@@ -515,7 +515,7 @@ the variables drawn out of it, the template that consumes them, the output it wr
 | bottom — definition and result | the instructions | the bytes they wrote | hovering an instruction lights its output region; hovering a region lights the instruction, and for a dispatch its child-template row too |
 
 **Highlighting is a set of requests, not a pile of toggles** (2026-08-28, found from
-Jon: "the parent apply-templates row does not highlight the output"). It did — and then
+the owner: "the parent apply-templates row does not highlight the output"). It did — and then
 stopped, because several surfaces can point at overlapping things at once and each one was
 switching the class on and off for itself. Hovering an apply card lights everything it
 dispatched; moving the pointer onto a dispatch row *inside* that card and off again then
@@ -534,7 +534,7 @@ the side that works; the mockups now assert all four directions rather than desc
 them.
 
 **Hover in the byte panes is delegated to the pane, and a line gap holds** (2026-08-28,
-Jon: "multi-line text flickers on hover because you often move the mouse across lines and
+the owner: "multi-line text flickers on hover because you often move the mouse across lines and
 there are gaps between lines"). An inline span that wraps is several line fragments, and
 the leading between them belongs to no element: pointing at a three-line run and moving
 down it fires leave and enter at every crossing, so the highlight blinks once per line —
@@ -591,7 +591,7 @@ each thing sits in, and the rule now is adjacency to whatever it is a statement 
   output is coloured and highlighted per body card (§5.4), the body and its output are
   one thought, and they were sitting in opposite corners — hovering a card meant tracking
   a highlight diagonally across the window. Now the highlight appears a few centimetres
-  from the card that caused it. (Jon, 2026-08-27: "it is formed from the instructions and
+  from the card that caused it. (the owner, 2026-08-27: "it is formed from the instructions and
   highlights when instructions are highlighted".)
 - **The variables take the vacated top-right**, beside the content they are drawn from.
   They had been stacked under the content renderer, squeezing the one view here that
@@ -646,7 +646,7 @@ at least say where it lives.
 
 ### 5.6 The template strip and the pattern workbench
 
-**The strip's header is its pane title** (2026-08-28, Jon). The row that used to sit above
+**The strip's header is its pane title** (2026-08-28, the owner). The row that used to sit above
 it — swatch, name, mode, dispatched-from, and the whole-input stepper at its right — was
 mostly restating what the breadcrumb and the highlighted nav row already say. Mostly: a
 template with **no matches** appears nowhere in the crumb, which shows the *cursor's*
@@ -700,7 +700,7 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   dangerous — the honest fix is for there to be nothing to discard. Retargeting the
   workbench to a new subject flushes the outgoing one first, and closing (the title
   bar's ✕, or Escape) is a final flush, not a decision between two outcomes — matching
-  Jon's observation that pattern editing is, in this respect, no different from editing
+  the owner's observation that pattern editing is, in this respect, no different from editing
   a template inline. The one thing this defers rather than answers is regret: there is
   no per-field Cancel here the way body-card edits have (§5.6's body editor), so a
   genuine mistake needs a **global undo** to be recoverable — which this design does
@@ -774,7 +774,7 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   one: the model underneath is a card list either way, so it can be revisited without
   touching anything else.) Any body edit marks the trace stale until the next run.
 
-  **The card itself is the target: click to edit, or to follow** (2026-08-27, Jon: "the
+  **The card itself is the target: click to edit, or to follow** (2026-08-27, the owner: "the
   instructions should be editable when you click them or followed if they are sub
   templates"). Reaching for a hover-revealed pen to open the thing you are already
   pointing at is a step that earns nothing. The one split is by kind, and it falls out of
@@ -801,7 +801,7 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   string, with the card's one-line summary composed from them — which is the point, since
   a summary that is the source of truth cannot be edited as structure.
 
-  **Editing commits live, and Escape reverts** (2026-08-28, Jon's ruling, replacing the
+  **Editing commits live, and Escape reverts** (2026-08-28, the owner's ruling, replacing the
   ✓/✕ pair each editor used to carry). Everything else in this editor already committed
   live — the workbench, the guard and limits, the pattern — so the card editors were the
   exception, and their two glyphs were small enough to be a WCAG target-size failure into
@@ -1005,7 +1005,7 @@ profiler exists to answer "which template, and why", not "how fast".
 
 ### 5.9 Accessibility, and the two things it changed
 
-Reviewed 2026-08-28, at Jon's prompt. The design is dense, hover-driven and carries
+Reviewed 2026-08-28, at the owner's prompt. The design is dense, hover-driven and carries
 meaning in colour, so this is not a coat of paint at the end — two findings changed the
 design itself, and the rest is scaffolding the mockups now carry so the GWT build inherits
 it rather than retrofits it.
@@ -1193,7 +1193,7 @@ breadcrumb moves within the record.
 
 ## 9. Rulings
 
-Put to Jon and ruled 2026-08-28. Three went against the draft recommendation (Q2, Q4,
+Put to the owner and ruled 2026-08-28. Three went against the draft recommendation (Q2, Q4,
 Q6); those are the ones that changed the design, and each is worked through where it
 lands rather than only recorded here.
 
@@ -1220,7 +1220,7 @@ mechanics:
 | Q13 | How far should dragging an instruction go? | **Within a list, and into or out of a branch** — the move you want when something should become conditional. Keyboard equivalents are mandatory, not optional (§5.6). |
 | Q14 | What should Back/Forward restore? | **Frame + selected template** (§5.3), so a nav-panel click is undoable. |
 | Q16 | Should a point and a click in the content pane mean the deepest match, or the one at this level? | **This level**, in the immediate child template's colour, so the structure is discovered by descending it (§5.4). Ctrl-click keeps the deep jump. |
-| Q15 | What should the content pane draw permanently — it had four channels answering two questions? | **The capture tint, and nothing else** (§5.4): a faint dotted rule in the same colour covers whitespace captures, match extents are revealed by pointing at them or at their template, and nothing fills. Jon's scheme; my own proposal had kept depth-graded match lines, which was still two channels for one question. |
+| Q15 | What should the content pane draw permanently — it had four channels answering two questions? | **The capture tint, and nothing else** (§5.4): a faint dotted rule in the same colour covers whitespace captures, match extents are revealed by pointing at them or at their template, and nothing fills. The owner's scheme; my own proposal had kept depth-graded match lines, which was still two channels for one question. |
 
 One question the mockup answered by building rather than asking, and worth a ruling if you
 disagree with it: §5.6's conditionals now render their branches as **nested card lists**

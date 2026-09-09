@@ -33,7 +33,7 @@ import java.util.List;
  * ({@link Words#assertionHolds}) and a reversed walk visits the same positions, so an
  * {@code END_INPUT} that led the reversed program is simply evaluated at the seed position.
  *
- * <h2>What v1 refuses (Jon's ruling, 2026-08-24)</h2>
+ * <h2>What v1 refuses (the owner's ruling, 2026-08-24)</h2>
  * Reversal must reach byte level. A literal's bytes reverse trivially — even multi-byte
  * UTF-8, since exact bytes are consumed in exact reverse order — but a non-ASCII character
  * class compiles to a lead-byte-first tree whose reversal is the part rust-regex calls

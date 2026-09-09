@@ -299,7 +299,7 @@
 
   /* ---------- the two byte panes: the value in, the value out ----------
      Neither carries chrome — no heading, no inset box, no border but the splitters that
-     bound them (2026-08-28, Jon: "the content window no longer needs a title any more
+     bound them (2026-08-28, the owner: "the content window no longer needs a title any more
      than the output window does"). Each holds exactly one value, so the pane is the box,
      and the pair reads as one kind of thing on opposite corners of the layout. They take
      the page background like every other workspace pane: giving these two the control
@@ -311,7 +311,7 @@
   .content-box, .out-box { padding: 8px 12px; background: transparent; min-height: 100%;
     font-family: var(--mono-font); font-size: 13px; }
   .content-box { white-space: pre-wrap; word-break: break-all; line-height: 2.1; }
-  /* The content pane carries ONE permanent mark and one transient one (2026-08-28, Jon's
+  /* The content pane carries ONE permanent mark and one transient one (2026-08-28, the owner's
      scheme, replacing four permanent channels answering two questions).
 
      Permanent: the **capture tint**. A capture colours its own text, at every depth, so
@@ -342,7 +342,7 @@
   .gap.hot { outline-color: var(--error-c); }
   /* One highlight vocabulary, and it does not matter which end you point from: the span
      you are hovering and the span something else is pointing at get the same coloured
-     outline, in the same weight, fading in and out the same way (2026-08-28, Jon — the
+     outline, in the same weight, fading in and out the same way (2026-08-28, the owner — the
      outline was appearing only when the variables pane pointed at it, and an instant
      outline flickers as the pointer crosses nested spans). An outline never affects
      layout, so it can be declared permanently and transparent and only change colour:
@@ -1897,7 +1897,7 @@ function siblings(m) {   // same-template siblings under the same parent frame
 function isDescendant(m, of) { for (let x = m; x; x = x.parent) if (x === of) return true; return false; }
 /* ---- navigation history ----
    The breadcrumb shows ancestry, which is not the same question as "where have I been"
-   (2026-08-28, Jon). Select a template in the nav panel and the crumb rewrites around a
+   (2026-08-28, the owner). Select a template in the nav panel and the crumb rewrites around a
    different frame, with nothing pointing back at the one you were reading; descend three
    levels chasing a value and the way back is a series of guesses. So navigation states
    are recorded and walkable: back and forward over (frame, selected template), which are
@@ -2128,7 +2128,7 @@ function renderStrip() {
   const onFrame = cursor.tpl === selTpl;   // annotations only when a frame of this template is selected
 
   /* The TEMPLATE pane's title, which is also the template's identity line (2026-08-28,
-     Jon). The header row this replaces was mostly saying what the crumb and the
+     the owner). The header row this replaces was mostly saying what the crumb and the
      highlighted nav row already say — with one exception worth keeping: a template with
      NO matches appears nowhere in the crumb, which shows the cursor's ancestry, so this
      is the only place that names it and says where it could be dispatched from. The
@@ -2225,7 +2225,7 @@ function renderStrip() {
 }
 
 /* --- body cards: display, click-to-edit / click-to-follow, reorder, delete --- */
-/* An instruction is opened by clicking it (2026-08-27, Jon: "the instructions should be
+/* An instruction is opened by clicking it (2026-08-27, the owner: "the instructions should be
    editable when you click them or followed if they are sub templates"). The pen survives
    as an explicit affordance, but the card itself is the target — with one split by kind:
    an `apply` card is a *dispatch site*, so clicking it FOLLOWS, descending into the frame
@@ -2410,7 +2410,7 @@ function dispatchChips(node, onFrame) {
 }
 
 /* Editing commits live, like everything else in this editor — the workbench, the guard
-   and limits, the pattern (2026-08-28, Jon's ruling). The ✓/✕ pair the card editors used
+   and limits, the pattern (2026-08-28, the owner's ruling). The ✓/✕ pair the card editors used
    to carry was the odd one out, and small enough to be a WCAG target-size failure into
    the bargain. What Cancel was really protecting is `choose`'s branch list: half-finished
    structure must not reach the model. So the card is snapshotted when it opens and
@@ -2563,7 +2563,7 @@ function cardActions(path) {
 }
 
 /* ---- per-kind instruction editors ----
-   Every instruction kind gets an editor shaped like the instruction (2026-08-27, Jon:
+   Every instruction kind gets an editor shaped like the instruction (2026-08-27, the owner:
    "there are no sensible editors for instructions like choice or value-of"). One
    free-text box per card was only ever honest for `text`, and not even there — it made
    you type JSON escapes to emit a newline. What each kind actually needs:
@@ -2781,7 +2781,7 @@ function renderAddMenu(list, prefix) {
 function renderContentBox(frame) {
   const box = el("div", "content-box");
   renderFrameContent(box, frame);
-  /* What a point and a click mean in this pane, revised 2026-08-28 (Jon): both are about
+  /* What a point and a click mean in this pane, revised 2026-08-28 (the owner): both are about
      the match at THIS level — the direct child of the frame you are on — and not the
      deepest match the pointer happens to be inside. The box you see is the immediate
      child template's, in that template's own colour; clicking steps into it, one level at
@@ -2925,7 +2925,7 @@ function renderInVars() {
 }
 
 /* --- variables pane: everything in scope at this frame, innermost first ---
-   (2026-08-28, Jon: "a single area for the user to look at to discover all variables in
+   (2026-08-28, the owner: "a single area for the user to look at to discover all variables in
    scope, i.e. the local scope captured from the open template and the outer scope or
    global scope variables and parameters".) It reads as a debugger's Variables pane:
    this match's own bindings, then what its children stored, then what it inherited from
@@ -3060,7 +3060,7 @@ function renderOutVars() {
        card — the body below is doing the writing, so its own swatches are what should
        show. For text a DISPATCH produced, it's the child template's own identity colour,
        the one it already wears in the nav list, the crumb and the dispatch row (revised
-       2026-08-28, Jon: the dispatch rows had swatches that appeared nowhere in the
+       2026-08-28, the owner: the dispatch rows had swatches that appeared nowhere in the
        output). An apply card is a container, like a conditional: it writes nothing
        itself, so it holds no colour of its own and delegates to what it dispatched.
        Two palettes now share this pane, and they mean two different things — capture
@@ -3167,7 +3167,7 @@ function focusable(node, label, onHot) {
    belongs to no element at all. Point at a run of output three lines tall, move down it,
    and the browser fires mouseleave and mouseenter at every crossing: the highlight blinks
    once per line, worst on exactly the multi-line runs you most want to follow (2026-08-28,
-   Jon). Transitions soften it and cannot fix it — the state really is being lost.
+   the owner). Transitions soften it and cannot fix it — the state really is being lost.
    So hover in the two byte panes is delegated to the pane and asked as a question about
    position: which spans is the pointer inside NOW? A gap between lines answers "none",
    and none is read as "hold what you had" rather than "clear" — the highlight changes
@@ -3206,7 +3206,7 @@ function delegateHover(box, classes, on, off) {
    implementation — each one switching a class on and off — loses that. Hovering an apply
    card lights everything it dispatched; moving the pointer onto a dispatch row inside it
    and off again then switched OFF that template's share, because the row's release knew
-   nothing about the card still asking for it (2026-08-28, Jon: "the parent apply-templates
+   nothing about the card still asking for it (2026-08-28, the owner: "the parent apply-templates
    row does not highlight the output"). So each source registers a named request for a set
    of selectors, and one applier recomputes the union: a release only darkens what nothing
    else is asking for. Everything below is a request; nothing toggles .hot directly. */
@@ -3238,7 +3238,7 @@ function outputHotFor(el, on) {
     sels.push(`[data-card="${path}"]`);
     if (viaTpl) sels.push(`[data-disp="${path}:${viaTpl}"]`);
   }
-  /* and back to the input (2026-08-28, Jon: the chain from the output to the input was
+  /* and back to the input (2026-08-28, the owner: the chain from the output to the input was
      the one edge missing). A dispatched region was written by a child frame, and that
      frame consumed bytes you can see: light the match span it came from, and the template
      row that names it — the same set the input's own hover lights, so the loop closes
@@ -3256,7 +3256,7 @@ function setCapRowHot(i, on) {
   setHot(`caprow:${i}`, on, [`[data-varcap="${cursor.id}:${i}"]`]);
 }
 
-/* The third link, and the one that ties the panes together (2026-08-28, Jon): point at a
+/* The third link, and the one that ties the panes together (2026-08-28, the owner): point at a
    template — a dispatch row inside an apply card, or a row in the navigation panel — and
    the bytes it consumed light in the content pane as well as the output it wrote. It is
    the same question the data already answers ("what made this?") asked from the template's

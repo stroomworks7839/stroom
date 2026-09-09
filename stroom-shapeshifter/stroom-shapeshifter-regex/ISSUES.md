@@ -31,7 +31,7 @@ deleted. What remains in this file is the accepted-cost record and the one open 
 
 ## Accepted costs — measured, kept, and why
 
-**The search split costs the tree's bounded-tail rows ~20% (`accepted`, ruled by Jon
+**The search split costs the tree's bounded-tail rows ~20% (`accepted`, ruled by the owner
 2026-09-04).** `NodeTree.Machine.search` at 330 bytecodes did not inline; split to 255 it does,
 into `runPinnedTree`/`run`/`match`, and the phase-3 cliff cost went with that — tree
 `anchored_miss` +11%, weblog's tree-routed patterns +5–7%. The end-anchored `BOUNDED_MISS` /
@@ -180,7 +180,7 @@ the hot loops, none applied because each changes a measured method's shape:
   tree `anchored_hit` −5.4%, tree `BOUNDED_*` −5.5/−7.5%, simulate `line_miss` −7.7%
   (the row's fourth ±8% flip this week). Bracketing full pair
   `2026-08-26-0039`/`-0236-*-edge-*-full.json`; per-commit files `*-edge-<sha>-*.json`.
-  The tree's hit trade **ruled kept by Jon (2026-08-26)**: the wins are mechanism, the
+  The tree's hit trade **ruled kept by the owner (2026-08-26)**: the wins are mechanism, the
   costs are the layout coin, and real workloads are miss-dominated.
 - The anchor gates' `at < to &&` exemption survives its deleted reason (the edge
   iteration's bookkeeping); dropping it only forces one doomed attempt fewer on

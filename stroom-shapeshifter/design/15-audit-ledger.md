@@ -42,7 +42,7 @@ but both had already written their edits. The tree compiles and 437 tests pass (
 
 ## Fixed in batch 4 (`dd438cad83`) — the rulings of 2026-08-21
 
-Jon ruled three of the six queued decisions; each is applied with its regression pinned.
+The owner ruled three of the six queued decisions; each is applied with its regression pinned.
 
 - [fixed] ds3 children() — sibling expressions now share one mode and one dispatch, as they already did at the root and inside a group. Decision 6. `003`'s messages golden regenerated: eleven to one, and the surviving message is a true one (the first record's stray `----`, which the configuration's own `^----\n` cannot match once the split has stripped the newline). The output golden did not move a byte, which was the stop condition. E1's closing text corrected — it had called the eleven "true errors" (HIGH).
 - [fixed] compile/Compiler — call-template targets and apply-templates template refs are resolved against the templates that exist, and an unresolved name is a ConfigException naming both the referrer and the missing template. Decision 3. Pinned by `EngineBehaviourTest.refusesACallToATemplateThatDoesNotExist` (med).
@@ -60,7 +60,7 @@ Suite after batch 5: 440 tests, 0 failures (189 regex, 251 engine, 3 skipped).
 
 ## Second-pass audit of the regex module's diff (`6a04a82138`, benchmark guard `08459a5c50`)
 
-Jon asked how much the regex library was being touched, and then for an audit of the day's
+The owner asked how much the regex library was being touched, and then for an audit of the day's
 changes to it before benchmarking them. Every modified regex file was re-read line by line;
 the two findings were in the newest work, not the fixers'.
 
@@ -180,7 +180,7 @@ idea was not pursued).
 - [pending] Strict-level line-anchor lint misses the root level when no document template
   exists (low).
 - [decision] Lax-level unanchored eater consumes a searched-past prefix with no skip report —
-  report, or extend the licence comment (low, D34-adjacent; Jon's call when it next
+  report, or extend the licence comment (low, D34-adjacent; the owner's call when it next
   surfaces).
 
 **Still open — regex module:** moved to the module's own
@@ -190,7 +190,7 @@ costs). One half-item was dropped as unreconstructable: "literal single-byte Cha
 inversion undocumented" — its acceptance-surface half is fixed in parseClassExpression, and
 no concrete referent for the inversion half survived re-reading.
 
-## Decisions surfaced (for Jon) — all six ruled, 2026-08-21/22
+## Decisions surfaced (for the owner) — all six ruled, 2026-08-21/22
 
 1. **E22** — ruled: the prototype parity no longer binds and exotic encodings are external concerns;
    fallbacks deleted, refusal made uniform. Resolved in ISSUES.md (batch 5).
