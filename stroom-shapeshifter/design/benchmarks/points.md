@@ -103,7 +103,7 @@ step interpreter, and every one of phase 2's precomputed answers is for the *tex
 The suite has no row where a tag, a take-until, a take-while or a regex step runs hot, so the
 work phase 2 did is unmeasured by construction while its overhead is measured.
 
-### The probe, 21:0x — three hypotheses, all wrong, cause not found
+### The probe, 21:17 to 21:21 — three hypotheses, all wrong, cause not found
 
 Asked the compiler rather than the benchmark (E43's rule). `-XX:+PrintInlining` on
 `progressive` at both commits, then `-prof gc`:
@@ -124,8 +124,9 @@ of six. What is left is the kind of cause that needs `perf` or `PrintAssembly` �
 the type-switch call site in a hot 1646-byte method that grew by 67 bytes. That is a large
 undertaking for a four per cent regression on a workload that exercises none of the feature.
 
-**The cause is recorded as not found.** Three hypotheses were tested and refuted, which is worth
-more than a fourth that was not tested at all.
+**The probe found no cause, and it was right not to guess one.** Three hypotheses were tested
+and refuted, which is worth more than a fourth that was not tested at all. The cause was found
+twenty minutes later by removing a candidate rather than by reading the compiler — see below.
 
 *An aside, since the measurement produced it:* this workload **allocates 16.2 MB per op**,
 sixty-three times the 256 KiB it reads — churn, not footprint. The figure is
@@ -133,6 +134,53 @@ sixty-three times the 256 KiB it reads — churn, not footprint. The figure is
 generation: 18 to 30 young collections and 14 to 22 ms of GC across roughly three seconds of
 measurement, under one per cent. The engine's resident memory is still bounded by its buffer.
 Nothing in design 29 addresses that, and no site in its survey is that large.
+
+### The variant, 21:44 to 21:59 — the cause is the load chain
+
+The probe exonerated the calls, so the next candidate was the *loads behind* them. Phase 1 took
+the step list straight off `Progressive` and carried the encoding as a parameter, already in a
+register; phase 2 walks `Progressive -> Compilation -> Decoding -> Encoding` on every match
+attempt. Inlining removes a call. It cannot remove a dependent load, which is why the probe
+could report every hop as an inlined accessor and the cost still be real.
+
+A variant removing exactly that and nothing else — the common reading's steps and decoding
+directly on `Progressive`, the mark as the rare branch, the encoding a parameter again —
+interleaved against phase 2 over six rounds, `progressive`:
+
+| | r1 | r2 | r3 | r4 | r5 | r6 | mean | signs |
+|---|---|---|---|---|---|---|---|---|
+| phase 2 | 329.88 | 334.56 | 342.48 | 345.55 | 338.87 | 348.21 | 339.92 | |
+| variant | 361.28 | 359.51 | 360.80 | 360.96 | 361.25 | 350.81 | 359.10 | `++++++` |
+
+Six of six, and the distributions do not overlap: phase 2's best round is 348.21, the variant's
+worst 350.81. **The regression is the load chain**, and the lesson pairs with E43's: E43 said do
+not assume a virtual call costs when the compiler devirtualises it; this says do not assume an
+inlined accessor is free when it is a hop in a chain.
+
+One caution about size. The variant's 359.10 sits on phase 1's 361.10, which reads as a full
+recovery — but those two numbers come from different runs, and phase 2 itself read 346.08 in the
+interleave above and 339.92 here, a 1.8% gap on identical code. The *sign* is interleaved and
+sound; "recovers all of it" is a cross-run inference and should be read as "recovers most of it".
+
+### The tidy shape, 22:48 to 23:01 — two hops of the three, and what that costs
+
+The variant was a fudge: `match(..., Decoding, Encoding)` passed two things that must agree, so a
+caller could mistag every value in the seam that decides tagging, and `marked()` returned null to
+mean "read my own fields instead". Replaced by `match/CompiledSteps`, one flat object per reading
+built from the steps and the reading alone, deriving the encoding from it so the two cannot
+disagree. That collapses two of the three hops and keeps one, `Progressive -> CompiledSteps`.
+Interleaved against the head of the day, `32e7840450`:
+
+| | r1 | r2 | r3 | r4 | r5 | r6 | mean | signs |
+|---|---|---|---|---|---|---|---|---|
+| head | 342.00 | 344.09 | 343.96 | 347.00 | 340.78 | 345.98 | 343.97 | |
+| tidy | 355.61 | 351.90 | 354.59 | 350.59 | 352.47 | 351.36 | 352.75 | `++++++` |
+
+Six of six, non-overlapping, **+2.6%**. Against the fudge's recovery of the whole 4.2% that is
+about 1.4% per hop, and it prices the seam: roughly 1.4% is what it costs to have an interface
+whose two halves cannot contradict each other. Kept deliberately at `c2ee907c1b` — a wrong tag
+is a wrong answer, and 1.4% is not worth buying one. The fudge and the tidy shape were never
+measured head to head, so that 1.4% is inferred rather than read.
 
 **What follows.** Two things, and the cheap one first. The suite needs a workload whose steps
 are the text vocabulary — a tag, a take-until, a take-while, a regex step — or phase 2 stays

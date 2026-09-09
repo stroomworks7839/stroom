@@ -220,6 +220,13 @@ the dispatch and the rest is inside the noise. The variant is not committed — 
 monomorphism with a special case in the seam is a shape decision, and the seam is phase 1's to
 rebuild, so it goes in there or not at all (E43, 2026-09-08).*
 
+*The residue is closed, read 2026-09-08 evening. `csv_header` sits at −0.8% against
+`a9ca4f2853`, inside a drift envelope the same night measured at ±3.3% on run rows, having
+been −2.9% at design 25 and −1.5% after E43. **Which phase closed it cannot be said**: every
+step between the points is smaller than the noise, so the arc answers the question the design
+asked — is design 25's cost recovered — without attributing the recovery. That is the honest
+reading and it is the one E43 gets.*
+
 **Phase 1 — the match loop and the write seam.** *Workload:* `csv_header`, `win_sec`. §3.1 in
 full; §3.2's mode lookup; §3.3's effective encoding, value factory and write seam. After this
 the match loop holds no `Template` reference, the run's encoding is resolved once, and the
@@ -306,7 +313,14 @@ Ruled D51 on 2026-09-08, all four questions as recommended.
 
 Built and committed at `5dfdabc46f`. `CompiledTemplate` grew from three components to twelve,
 with a static factory that reads the authored model once; `Level` and `Body` read the compiled
-node. **Not yet measured** — it owns `csv_header`'s residue whole, and the figure is still open.
+node.
+
+**Measured 2026-09-08 evening, and the question it was ordered first to answer is answered.**
+`csv_header` is back inside the drift envelope and design 25's cost is fully recovered. What
+phase 1 does *not* get is the credit: the per-phase steps are all smaller than the box's own
+±3.3%, so the recovery is the arc's rather than any one phase's. Ruling 3 put this phase first
+because an unanswered figure ages badly; the figure is answered, and the ordering did its job
+even though the attribution it hoped for is not available.
 
 Two things §3 asked for were refused while building it, and the refusals belong in the record:
 
@@ -324,7 +338,28 @@ design is making.
 
 ### Phase 2 — the compiled step
 
-Built, tests green, unmeasured. What it added:
+Built and committed at `d504945cd5`. **Measured, and it is the phase that cost rather than
+paid** — 4.2% on `progressive`, six interleaved rounds out of six, distributions not
+overlapping. The cause is not the step vocabulary at all: it is the load chain
+`Progressive -> Compilation -> Decoding -> Encoding`, walked per match attempt, where phase 1
+read the steps straight off `Progressive` and carried the encoding in a parameter.
+`-XX:+PrintInlining` reported every hop as an inlined accessor and identical inlining
+decisions at both commits, which is exactly the trap: inlining removes a call, not a dependent
+load. Fixed at `c2ee907c1b` by `match/CompiledSteps`, one flat object per reading holding the
+steps, the reading and the encoding, deriving the third from the second so they cannot
+disagree. That recovers 2.6%, six of six. A flatter variant recovered the rest but passed a
+`Decoding` and an `Encoding` that had to agree, in the seam that decides how every captured
+value is tagged; it was discarded, and about 1.4% is the priced cost of that safety.
+
+**What the measurement does not say is whether the phase buys anything**, because no workload
+in the suite runs the vocabulary it optimised. `progressive`'s match is `ReadVarint` then
+`TakeBytes`, and `regex_lines` is a regex *template*, not a regex *step* — so the phase's five
+precomputed answers are all unexercised while its overhead is measured in full. The suite
+gained `progressive_text` on 2026-09-09 to close that hole; the row has not been read at these
+points yet, and until it is, this phase is unjudged rather than judged badly. The full record
+is in `benchmarks/points.md`.
+
+What it added:
 
 - **`match/CompiledStep`** — the sealed compiled vocabulary. Five kinds carry a precomputed
   answer: `Tag` and `MatchByte` hold their bytes *and* the `TypedValue` they produce, so a tag
@@ -379,8 +414,19 @@ including the replacement character that `raw` and `ascii` give every byte past 
 
 ### Phase 3 — the body's ops
 
-Built, tests green, unmeasured. Nine sites, the largest count of any phase and the smallest
-each. All nine closed:
+Built and committed at `32e7840450`. Nine sites, the largest count of any phase and the
+smallest each.
+
+**Measured 2026-09-08 evening: `apache_httpd` +0.7%, inside the envelope.** That is the small
+move this phase predicted for itself, on the grounds that design 10 §2 blames that workload on
+transforms working in `String`, which phase 3 does not change. The prediction held, weakly,
+and nothing regressed. The compile rows for `progressive` and `csv_header` fell 9.9% and 8.8%,
+traceable to phases 2 and 3 putting tables, encoded literals and matchers where there was no
+work before — and it does not matter: those two configurations compile in 0.36 and 1.40 µs,
+so the fall is forty and a hundred and thirty nanoseconds, once per configuration. The five
+workloads whose compilation costs milliseconds all moved within ±2%.
+
+The nine, all closed:
 
 - **The two source flags** (§3.3) are fields on `Body`, read when the run's body is built rather
   than per arithmetic transform and per append.
