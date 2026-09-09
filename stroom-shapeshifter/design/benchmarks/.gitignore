@@ -1,0 +1,8 @@
+# Raw JIT dumps are evidence for a day, not a record. A -XX:+PrintInlining run over one
+# workload is about a megabyte, and what it settled belongs in points.md in a paragraph —
+# the design 29 phase 2 probe is the worked example: three hypotheses refuted, all of it
+# said in eight lines. Keep them locally while a question is open; do not carry them.
+probe-*.log
+
+# Everything else here is carried deliberately and is small: the full-suite and interleave
+# JSONs, the GC logs behind the allocation figures, and the sampled stack profiles.
