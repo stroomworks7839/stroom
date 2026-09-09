@@ -16,18 +16,16 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.compile.CompiledCondition;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.match.MatchResult;
-import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;
-import stroom.shapeshifter.regex.BytePattern;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Deciding whether a condition holds.
@@ -45,18 +43,13 @@ public final class Conditions {
     private Conditions() {
     }
 
-    /**
-     * Evaluate a condition.
-     *
-     * @param patterns the project's compiled patterns, keyed by their text
-     */
-    public static boolean evaluate(final Condition condition,
+    /** Evaluate a compiled condition. */
+    public static boolean evaluate(final CompiledCondition condition,
                                    final MatchResult match,
                                    final int matchCount,
-                                   final VarRegistry vars,
-                                   final Map<PatternKey, BytePattern> patterns) {
+                                   final VarRegistry vars) {
         return switch (condition) {
-            case Condition.Compare value -> {
+            case final CompiledCondition.Compare value -> {
                 final TypedValue left = operand(value.left(), match, matchCount, vars);
                 final TypedValue right = operand(value.right(), match, matchCount, vars);
                 final Integer order = Comparisons.compare(left, right);
@@ -74,38 +67,34 @@ public final class Conditions {
                         case GE -> order >= 0;
                     };
             }
-            case Condition.Matches value -> {
-                final BytePattern pattern = patterns.get(PatternKey.ofValue(value.pattern()));
-                if (pattern == null) {
-                    throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
-                }
-                yield pattern.matcher().find(
-                        text(value.select(), match, matchCount, vars)
-                                .getBytes(StandardCharsets.UTF_8));
-            }
-            case Condition.Contains value ->
+            // The pattern is the node's own: compiled when the condition was, not found by
+            // hashing its text on every evaluation (design 30).
+            case final CompiledCondition.Matches value -> value.pattern().matcher().find(
+                    text(value.select(), match, matchCount, vars)
+                            .getBytes(StandardCharsets.UTF_8));
+            case final CompiledCondition.Contains value ->
                     text(value.select(), match, matchCount, vars).contains(value.substring());
-            case Condition.StartsWith value ->
+            case final CompiledCondition.StartsWith value ->
                     text(value.select(), match, matchCount, vars).startsWith(value.prefix());
-            case Condition.And value -> value.conditions().stream()
-                    .allMatch(child -> evaluate(child, match, matchCount, vars, patterns));
-            case Condition.Or value -> value.conditions().stream()
-                    .anyMatch(child -> evaluate(child, match, matchCount, vars, patterns));
-            case Condition.Not value ->
-                    !evaluate(value.condition(), match, matchCount, vars, patterns);
+            case final CompiledCondition.And value -> value.conditions().stream()
+                    .allMatch(child -> evaluate(child, match, matchCount, vars));
+            case final CompiledCondition.Or value -> value.conditions().stream()
+                    .anyMatch(child -> evaluate(child, match, matchCount, vars));
+            case final CompiledCondition.Not value ->
+                    !evaluate(value.condition(), match, matchCount, vars);
             // Set by the iteration (design/16 §4.3). Outside a
             // for-each nothing sets __position, so both read false — E21's hazard, which the
             // compiler now warns about rather than leaving to be discovered.
-            case Condition.IsFirst ignored -> {
+            case final CompiledCondition.IsFirst ignored -> {
                 final Long position = engineNumber(vars, EngineVars.POSITION);
                 yield position != null && position == 1L;
             }
-            case Condition.IsLast ignored -> {
+            case final CompiledCondition.IsLast ignored -> {
                 final Long position = engineNumber(vars, EngineVars.POSITION);
                 final Long last = engineNumber(vars, EngineVars.LAST);
                 yield position != null && position.equals(last);
             }
-            case Condition.Exists value -> {
+            case final CompiledCondition.Exists value -> {
                 final byte[] resolved = Refs.resolve(value.select(), match, matchCount, vars);
                 yield resolved != null && resolved.length > 0;
             }
@@ -141,10 +130,10 @@ public final class Conditions {
                     operand.as());
         }
         final TypedValue value = switch (operand.literal()) {
-            case Condition.Literal.Text text -> TypedValue.of(text.value());
-            case Condition.Literal.Whole whole -> new TypedValue.Integer(whole.value());
-            case Condition.Literal.Fractional fraction -> new TypedValue.Double(fraction.value());
-            case Condition.Literal.Truth truth -> new TypedValue.Bool(truth.value());
+            case final Condition.Literal.Text text -> TypedValue.of(text.value());
+            case final Condition.Literal.Whole whole -> new TypedValue.Integer(whole.value());
+            case final Condition.Literal.Fractional fraction -> new TypedValue.Double(fraction.value());
+            case final Condition.Literal.Truth truth -> new TypedValue.Bool(truth.value());
         };
         return Comparisons.cast(value, operand.as());
     }

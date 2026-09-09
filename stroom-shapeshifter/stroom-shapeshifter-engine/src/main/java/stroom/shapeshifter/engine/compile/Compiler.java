@@ -100,13 +100,15 @@ public final class Compiler {
             templates.add(CompiledTemplate.of(template, match,
                     bodies.compile(template.body()),
                     declared,
-                    CompiledCapture.compile(template.captures())));
+                    CompiledCapture.compile(template.captures()),
+                    // The guard's patterns were interned by the match compile above.
+                    CompiledCondition.of(template.guard(), matches.patterns())));
         }
         final List<TemplateUses> uses = TemplateUses.of(project);
         TemplateUses.resolveNames(project, uses);
         TemplateUses.lintDispatch(project, templates, uses, warnings);
         final boolean structured = bodyChecks(project, warnings);
-        final CompiledProject compiled = new CompiledProject(project, templates, matches.patterns(),
+        final CompiledProject compiled = new CompiledProject(project, templates,
                 encoding, transcodeFrom, warnings, functions.used(), structured);
 
         // The bodies were compiled before the templates they name existed; now they do.

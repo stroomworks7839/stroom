@@ -124,11 +124,12 @@ final class BodyCompiler {
                 case final OutputNode.ValueOf valueOf ->
                         new CompiledOp.ValueOf(CompiledRef.of(valueOf.select()));
                 case final OutputNode.Call value -> call(value);
-                case final OutputNode.If value ->
-                        new CompiledOp.If(value.test(), compile(value.then()));
+                case final OutputNode.If value -> new CompiledOp.If(
+                        CompiledCondition.of(value.test(), patterns), compile(value.then()));
                 case final OutputNode.Choose value -> new CompiledOp.Choose(
                         value.when().stream()
-                                .map(branch -> new CompiledOp.When(branch.test(),
+                                .map(branch -> new CompiledOp.When(
+                                        CompiledCondition.of(branch.test(), patterns),
                                         compile(branch.body())))
                                 .toList(),
                         compile(value.otherwise()));

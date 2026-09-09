@@ -51,7 +51,7 @@ import java.util.Set;
  * @param contentGroup the group a match hands its body: the field for a delimiter template,
  *                     which is group 1, and the whole match for every other
  * @param onlyMatch    the match indices whose bodies run, or null for all of them
- * @param guarded      whether the template has a guard to evaluate on the way into a level
+ * @param guard        the compiled guard to evaluate on the way into a level, or null
  * @param clearNames   the captures whose stores a first match clears: every binding but a
  *                     key-value one, which names its own. The compiler's array, never written;
  *                     handed out rather than copied because the run iterates it per record
@@ -67,7 +67,7 @@ public record CompiledTemplate(Template template,
                                boolean consume,
                                int contentGroup,
                                Set<Integer> onlyMatch,
-                               boolean guarded,
+                               CompiledCondition guard,
                                String[] clearNames,
                                String[] captureNames) {
 
@@ -86,7 +86,8 @@ public record CompiledTemplate(Template template,
                                final CompiledMatch match,
                                final List<CompiledOp> body,
                                final Encoding encoding,
-                               final List<CompiledCapture> captures) {
+                               final List<CompiledCapture> captures,
+                               final CompiledCondition guard) {
         final List<String> clear = new ArrayList<>();
         final List<String> named = new ArrayList<>();
         for (final CaptureBinding capture : template.captures()) {
@@ -102,7 +103,7 @@ public record CompiledTemplate(Template template,
                 // is the whole match. The group that carries the delimiter too is not it.
                 template.match() instanceof MatchExpression.Delimiter ? 1 : 0,
                 template.matchLimits().onlyMatch(),
-                template.guard() != null,
+                guard,
                 clear.toArray(String[]::new),
                 named.toArray(String[]::new));
     }

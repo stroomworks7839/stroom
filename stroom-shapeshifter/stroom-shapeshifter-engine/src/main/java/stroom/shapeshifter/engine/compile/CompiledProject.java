@@ -19,12 +19,9 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
-import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.text.Encoding;
-import stroom.shapeshifter.regex.BytePattern;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * A configuration ready to run — the executable graph, and the second of the only two layers
@@ -42,7 +39,6 @@ public final class CompiledProject {
 
     private final Project project;
     private final List<CompiledTemplate> templates;
-    private final Map<PatternKey, BytePattern> patterns;
     private final Encoding encoding;
 
     /** The source encoding a whole-source transcode decodes from, or null for none. */
@@ -61,9 +57,6 @@ public final class CompiledProject {
      *
      * @param project   the authored configuration
      * @param templates its templates, compiled, in their authored order
-     * @param patterns  every pattern the templates use except a regex match's own — bodies',
-     *                  conditions' and progressive steps' — compiled once and keyed by text,
-     *                  flags and encoding
      * @param encoding  the encoding its input is matched in: the declared one, or UTF-8 when a
      *                  transcode-family source is decoded first; a byte-order mark on the input
      *                  may still override it
@@ -75,7 +68,6 @@ public final class CompiledProject {
      */
     public CompiledProject(final Project project,
                            final List<CompiledTemplate> templates,
-                           final Map<PatternKey, BytePattern> patterns,
                            final Encoding encoding,
                            final Encoding transcodeFrom,
                            final List<Message> warnings,
@@ -85,7 +77,6 @@ public final class CompiledProject {
         this.functions = List.copyOf(functions);
         this.project = project;
         this.templates = List.copyOf(templates);
-        this.patterns = Map.copyOf(patterns);
         this.encoding = encoding;
         this.warnings = List.copyOf(warnings);
         this.structured = structured;
@@ -124,11 +115,6 @@ public final class CompiledProject {
     /** The encoding the input stream is transcoded from before matching, or null. */
     public Encoding transcodeFrom() {
         return transcodeFrom;
-    }
-
-    /** The interned patterns, keyed by text, flags and encoding. */
-    public Map<PatternKey, BytePattern> patterns() {
-        return patterns;
     }
 
     /** The encoding the input is matched in: the declared one, or UTF-8 when the source is transcoded first. */

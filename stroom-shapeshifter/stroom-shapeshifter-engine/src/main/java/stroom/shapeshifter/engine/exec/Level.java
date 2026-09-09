@@ -21,7 +21,6 @@ import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.compile.CompiledCapture;
 import stroom.shapeshifter.engine.compile.CompiledMatch;
-import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Dispatch;
@@ -56,7 +55,6 @@ import java.util.Set;
  */
 final class Level {
 
-    private final CompiledProject compiled;
     private final Instrument instrument;
     private final List<Message> messages;
     private final VarRegistry vars;
@@ -66,13 +64,11 @@ final class Level {
     /** The run's encoding in force, taken on every entry; the same value throughout a run. */
     private Encoding encoding;
 
-    Level(final CompiledProject compiled,
-          final Instrument instrument,
+    Level(final Instrument instrument,
           final List<Message> messages,
           final VarRegistry vars,
           final FunctionRuntime functions,
           final Body body) {
-        this.compiled = compiled;
         this.instrument = instrument;
         this.messages = messages;
         this.vars = vars;
@@ -501,7 +497,7 @@ final class Level {
     private boolean[] guards(final List<CompiledTemplate> templates) {
         boolean any = false;
         for (final CompiledTemplate candidate : templates) {
-            if (candidate.guarded()) {
+            if (candidate.guard() != null) {
                 any = true;
                 break;
             }
@@ -512,9 +508,9 @@ final class Level {
         final boolean[] allowed = new boolean[templates.size()];
         for (int i = 0; i < templates.size(); i++) {
             final CompiledTemplate candidate = templates.get(i);
-            allowed[i] = !candidate.guarded()
-                         || Conditions.evaluate(candidate.template().guard(),
-                    MatchResult.empty(), 1, vars, compiled.patterns());
+            allowed[i] = candidate.guard() == null
+                         || Conditions.evaluate(candidate.guard(),
+                    MatchResult.empty(), 1, vars);
         }
         return allowed;
     }

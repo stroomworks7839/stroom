@@ -44,8 +44,9 @@ import java.util.function.Function;
  * is the parent's whole content. The transform instructions collapse to one instruction
  * holding its function, parameters already bound.
  *
- * <p>Conditions stay authored and are evaluated by {@code Conditions}: their patterns are
- * interned here, and compiling them further is design 10 §2's open row (design 27 §2.7).
+ * <p>Conditions are compiled too, since design 30: a {@code matches} test holds the pattern
+ * it runs rather than the text to look one up by. Their references are not — that is E39,
+ * deferred on design 29 phase 4's measurement.
  */
 public sealed interface CompiledOp {
 
@@ -63,7 +64,7 @@ public sealed interface CompiledOp {
     }
 
     /** Run a body if a condition holds. */
-    record If(Condition test, List<CompiledOp> then) implements CompiledOp {
+    record If(CompiledCondition test, List<CompiledOp> then) implements CompiledOp {
 
     }
 
@@ -73,7 +74,7 @@ public sealed interface CompiledOp {
     }
 
     /** One branch of a {@link Choose}. */
-    record When(Condition test, List<CompiledOp> body) {
+    record When(CompiledCondition test, List<CompiledOp> body) {
 
     }
 
@@ -91,18 +92,6 @@ public sealed interface CompiledOp {
 
     }
 
-    /**
-     * Match templates against some content.
-     *
-     * @param directive          the authored directive — mode, limits, gates
-     * @param select             the content reference, compiled
-     * @param wholeParentContent whether the select means "the content this template is working
-     *                           on", which is passed straight through rather than re-resolved
-     * @param locatable          whether the dispatched content is still part of the input, and
-     *                           can therefore be pointed at
-     * @param dispatch           how the dispatched level runs — the directive's word, the
-     *                           source default, or the version default, resolved once (D36)
-     */
     final class Apply implements CompiledOp {
 
         private final ApplyDirective directive;
@@ -113,6 +102,18 @@ public sealed interface CompiledOp {
         private List<CompiledTemplate> candidates = List.of();
         private String[] recursiveShadow = EMPTY_NAMES;
 
+        /**
+         * Match templates against some content.
+         *
+         * @param directive          the authored directive — mode, limits, gates
+         * @param select             the content reference, compiled
+         * @param wholeParentContent whether the select means "the content this template is working
+         *                           on", which is passed straight through rather than re-resolved
+         * @param locatable          whether the dispatched content is still part of the input, and
+         *                           can therefore be pointed at
+         * @param dispatch           how the dispatched level runs — the directive's word, the
+         *                           source default, or the version default, resolved once (D36)
+         */
         Apply(final ApplyDirective directive,
               final CompiledRef select,
               final boolean wholeParentContent,

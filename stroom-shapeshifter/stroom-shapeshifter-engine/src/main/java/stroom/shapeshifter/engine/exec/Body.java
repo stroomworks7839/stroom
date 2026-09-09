@@ -20,13 +20,13 @@ import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.engine.compile.CompiledCondition;
 import stroom.shapeshifter.engine.compile.CompiledOp;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.CompiledRef;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
@@ -138,7 +138,7 @@ final class Body {
         this.maxSequenceEntries = compiled.project().source().maxSequenceEntries();
         // this escapes before the constructor ends; the level's constructor only stores it,
         // and the class is final, so nothing reads through it before the run starts.
-        this.level = new Level(compiled, instrument, messages, vars, functions, this);
+        this.level = new Level(instrument, messages, vars, functions, this);
     }
 
     /** The level this body applies templates through, which the run dispatches the root into. */
@@ -340,10 +340,10 @@ final class Body {
         }
     }
 
-    private boolean test(final Condition condition,
+    private boolean test(final CompiledCondition condition,
                          final MatchResult match,
                          final int matchCount) {
-        return Conditions.evaluate(condition, match, matchCount, vars, compiled.patterns());
+        return Conditions.evaluate(condition, match, matchCount, vars);
     }
 
     private String textOf(final CompiledRef ref, final MatchResult match, final int matchCount) {

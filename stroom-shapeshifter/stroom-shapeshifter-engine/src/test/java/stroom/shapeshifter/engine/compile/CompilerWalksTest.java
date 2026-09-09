@@ -18,10 +18,11 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
-import stroom.shapeshifter.engine.match.PatternKey;
-import stroom.shapeshifter.regex.Encoding;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -56,7 +57,11 @@ class CompilerWalksTest {
                 {"for-each": {"select": "s", "body": [
                    {"replace": {"select": [{"parts": [{"capture": {"var_id": "s", "group": 0}}]}],
                                 "pattern": "x+", "replacement": "y", "is_regex": true}}]}}""");
-        assertThat(compiled.patterns()).containsKey(PatternKey.of("x+", Encoding.UTF_8));
+        // Nothing holds a map of patterns any more, so the interning is not observable as a
+        // key — it is observable because compiling succeeded. A pattern the collector missed
+        // makes BodyCompiler.replace throw when it looks the compiled form up, which is the
+        // failure this test is for.
+        assertThat(compiled.templates()).isNotEmpty();
     }
 
     @Test
@@ -66,7 +71,48 @@ class CompilerWalksTest {
                    {"if": {"test": {"matches": {"select": {"parts": [{"capture": {"var_id": "s", "group": 0}}]},
                                                 "pattern": "z+"}},
                            "then": [{"text": "!"}]}}]}}""");
-        assertThat(compiled.patterns()).containsKey(PatternKey.of("z+", Encoding.UTF_8));
+        // Stronger than the map this replaces: the pattern reached the node that runs it, which
+        // is what interning was for.
+        assertThat(matchPatterns(compiled)).containsExactly("z+");
+    }
+
+    /** Every pattern a compiled condition holds, found by walking the bodies that carry them. */
+    private static List<String> matchPatterns(final CompiledProject compiled) {
+        final List<String> found = new ArrayList<>();
+        for (final CompiledTemplate template : compiled.templates()) {
+            collect(template.body(), found);
+        }
+        return found;
+    }
+
+    private static void collect(final List<CompiledOp> body, final List<String> found) {
+        for (final CompiledOp op : body) {
+            switch (op) {
+                case final CompiledOp.If value -> {
+                    collect(value.test(), found);
+                    collect(value.then(), found);
+                }
+                case final CompiledOp.ForEach value -> collect(value.body(), found);
+                case final CompiledOp.Variable value -> collect(value.body(), found);
+                default -> {
+                    // Only the shapes this test builds need walking.
+                }
+            }
+        }
+    }
+
+    private static void collect(final CompiledCondition condition, final List<String> found) {
+        switch (condition) {
+            case final CompiledCondition.Matches value -> found.add(value.pattern().pattern());
+            case final CompiledCondition.And value -> value.conditions()
+                    .forEach(child -> collect(child, found));
+            case final CompiledCondition.Or value -> value.conditions()
+                    .forEach(child -> collect(child, found));
+            case final CompiledCondition.Not value -> collect(value.condition(), found);
+            default -> {
+                // No pattern to find.
+            }
+        }
     }
 
     @Test
