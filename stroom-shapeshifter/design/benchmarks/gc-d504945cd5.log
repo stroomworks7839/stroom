@@ -1,0 +1,120 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/dev1/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# JMH version: 1.37
+# VM version: JDK 25.0.3, OpenJDK 64-Bit Server VM, 25.0.3+9-LTS
+# VM invoker: /home/dev1/.sdkman/candidates/java/25.0.3-tem/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 3 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: stroom.shapeshifter.engine.bench.EngineBenchmark.run
+# Parameters: (workload = progressive)
+
+# Run progress: 0.00% complete, ETA 00:00:12
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/dev1/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 317.377 ops/s
+# Warmup Iteration   2: 348.207 ops/s
+# Warmup Iteration   3: 348.874 ops/s
+Iteration   1: 351.009 ops/s
+                 gc.alloc.rate:      5422.777 MB/sec
+                 gc.alloc.rate.norm: 16203435.795 B/op
+                 gc.count:           10.000 counts
+                 gc.time:            6.000 ms
+
+Iteration   2: 351.497 ops/s
+                 gc.alloc.rate:      5430.277 MB/sec
+                 gc.alloc.rate.norm: 16203435.795 B/op
+                 gc.count:           11.000 counts
+                 gc.time:            6.000 ms
+
+Iteration   3: 349.600 ops/s
+                 gc.alloc.rate:      5400.877 MB/sec
+                 gc.alloc.rate.norm: 16203436.000 B/op
+                 gc.count:           10.000 counts
+                 gc.time:            6.000 ms
+
+
+# Run progress: 50.00% complete, ETA 00:00:06
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/dev1/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 307.214 ops/s
+# Warmup Iteration   2: 330.350 ops/s
+# Warmup Iteration   3: 331.640 ops/s
+Iteration   1: 333.370 ops/s
+                 gc.alloc.rate:      5150.363 MB/sec
+                 gc.alloc.rate.norm: 16203436.862 B/op
+                 gc.count:           10.000 counts
+                 gc.time:            7.000 ms
+
+Iteration   2: 332.637 ops/s
+                 gc.alloc.rate:      5138.793 MB/sec
+                 gc.alloc.rate.norm: 16203437.021 B/op
+                 gc.count:           9.000 counts
+                 gc.time:            7.000 ms
+
+Iteration   3: 331.894 ops/s
+                 gc.alloc.rate:      5127.424 MB/sec
+                 gc.alloc.rate.norm: 16203437.084 B/op
+                 gc.count:           10.000 counts
+                 gc.time:            7.000 ms
+
+
+
+Result "stroom.shapeshifter.engine.bench.EngineBenchmark.run":
+  341.668 ±(99.9%) 27.837 ops/s [Average]
+  (min, avg, max) = (331.894, 341.668, 351.497), stdev = 9.927
+  CI (99.9%): [313.831, 369.505] (assumes normal distribution)
+
+Secondary result "stroom.shapeshifter.engine.bench.EngineBenchmark.run:gc.alloc.rate":
+  5278.419 ±(99.9%) 430.037 MB/sec [Average]
+  (min, avg, max) = (5127.424, 5278.419, 5430.277), stdev = 153.355
+  CI (99.9%): [4848.382, 5708.456] (assumes normal distribution)
+
+Secondary result "stroom.shapeshifter.engine.bench.EngineBenchmark.run:gc.alloc.rate.norm":
+  16203436.426 ±(99.9%) 1.753 B/op [Average]
+  (min, avg, max) = (16203435.795, 16203436.426, 16203437.084), stdev = 0.625
+  CI (99.9%): [16203434.673, 16203438.180] (assumes normal distribution)
+
+Secondary result "stroom.shapeshifter.engine.bench.EngineBenchmark.run:gc.count":
+  60.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (9.000, 10.000, 11.000), stdev = 0.632
+  CI (99.9%): [60.000, 60.000] (assumes normal distribution)
+
+Secondary result "stroom.shapeshifter.engine.bench.EngineBenchmark.run:gc.time":
+  39.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (6.000, 6.500, 7.000), stdev = 0.548
+  CI (99.9%): [39.000, 39.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:00:12
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                (workload)   Mode  Cnt         Score     Error   Units
+EngineBenchmark.run                     progressive  thrpt    6       341.668 ±  27.837   ops/s
+EngineBenchmark.run:gc.alloc.rate       progressive  thrpt    6      5278.419 ± 430.037  MB/sec
+EngineBenchmark.run:gc.alloc.rate.norm  progressive  thrpt    6  16203436.426 ±   1.753    B/op
+EngineBenchmark.run:gc.count            progressive  thrpt    6        60.000            counts
+EngineBenchmark.run:gc.time             progressive  thrpt    6        39.000                ms
