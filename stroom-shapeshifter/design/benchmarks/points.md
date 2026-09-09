@@ -21,8 +21,33 @@ keeping, and so is one that did not.
 | 4 | `5dfdabc46f` | 2026-09-08 | Design 29 phase 1, the match loop | Owns `csv_header`'s unexplained two per cent. |
 | 5 | `d504945cd5` | 2026-09-08 | Design 29 phase 2, the compiled step | The first phase expected to *win* rather than to recover: a per-character decoder cascade and a per-attempt encode, pattern lookup and matcher allocation all removed. `progressive` and `regex_lines` are its rows; a compile row moving here would be the doubled step tree. |
 | 6 | `32e7840450` | 2026-09-08 | Design 29 phase 3, the body's ops | `apache_httpd`'s row: nine sites, the largest of them the regex replace holding its matcher and its parsed replacement, at 209 replaces per record. Design 10 §2 measured change 3 moving this workload only 12% and blamed transforms working in `String`, which this does not change — so a small move here is the expected result, and a large one would mean the blame was wrong. |
+| 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
+| 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
 
-*Rows to add as they land: phase 4 (conditions), phase 5 (the sinks and the prologue).*
+*Design 29 phase 4 is deliberately not a point: it measured and built nothing, so the code at it
+is identical to phase 3's.*
+
+## What is owed, and why each is owed
+
+Three measurements are outstanding. They are listed together because they share a cause — a row
+that does not exercise a change measures it at zero — and design 29 §9 is the write-up.
+
+1. **Phase 2 against phase 1, on `progressive_text`.** Points 4 and 5. The row exists as of
+   2026-09-09 and has never been run at either point, so phase 2's *gain* is still unmeasured
+   while its 4.2% cost is measured in full. `engine-interleave.sh` runs from a detached worktree
+   per sha and the fixture is at neither, so this needs the fixture patched into both — it is
+   test resources plus one benchmark case — or head measured against a variant that reverts the
+   precomputation alone.
+2. **Phase 5 on a sink-bound row, which does not exist.** Point 7. `win_sec_xml` is regex-bound,
+   so the suite has no row where the sinks are more than noise. Needs a fixture whose bodies
+   write many elements per record over cheap matching, in the shape `progressive_text` took for
+   the step vocabulary.
+3. **Point 8, on the compile rows.** The cheapest of the three and the least likely to say
+   anything: run rows should be untouched, and if one moves, the reading is drift unless it
+   repeats under interleaving.
+
+The first two are the ones that decide whether design 29 phases 2 and 5 stay as written. The
+third is a control.
 
 ## The reading, 2026-09-08 evening
 
