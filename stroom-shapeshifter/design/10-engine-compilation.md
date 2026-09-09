@@ -30,21 +30,21 @@ compiles properly:
 Everything else executes off the *authored* model, per match. Each row is a compilation
 candidate, and none may be acted on before a benchmark says which matter (§4):
 
-| Interpreted per use | The cost, concretely | The prototype's answer |
-|---|---|---|
-| Mode dispatch: `apply()` filters the whole template list by mode **on every call** | O(all templates) per dispatch, per match — `win_sec` runs a 57-template level once per record | pre-computed index lists per mode |
-| Reference resolution: `Refs` walks `RefExpression` parts every time | per-part dispatch, and **literal text is re-encoded to UTF-8 on every write** | `RefStrategy` classification: `SimpleLocal` / `SimpleRemote` / `LiteralBytes` (pre-encoded) / `Complex` |
-| `OutputNode.Text` and every `sink.write(String)` | `String.getBytes` per write | pre-encoded bytes on the compiled node |
-| Body/condition pattern lookup by pattern *text* | string hash per `matches`/regex-`replace` evaluation | `compiled_idx` — an array index |
-| `call-template` | linear name search per call | resolved at compile time |
-| Step atoms: `Tag`/`TakeUntil` text | `.getBytes` **per match attempt** | pre-encoded bytes per compiled step |
-| `TakeWhile` predicates | switch dispatch per byte | 256-entry boolean lookup table |
-| Conditions and guards | config-tree walk per evaluation | compiled once |
-| Captures | every group copied out of the buffer whether or not anything reads it | unused-capture elimination + dead-branch pruning (the E10 optimiser, deliberately unported during the port) |
-| `^`-anchored patterns dispatched as **unanchored searches** | a failing anchored template scans the whole remaining region instead of testing one position — ~55 times per element in `win_sec_xml` | detect start-anchored patterns at compile time and dispatch them `Anchoring.ANCHORED` *(added from the baseline, §5)* |
-| `ByteMatcher` allocated per match attempt | allocation on the hottest call the engine makes | a matcher held as a *field* of the compiled node — structure, not a cache *(added from the baseline, §5)* |
-| Unanchored `(?m)^` patterns each scan the region per dispatch pass | a level of N multiline templates scans the same bytes up to N times per pass — `win_sec`'s whole 5.8 MiB/s story (§8) | none — the prototype had the same cost. A compiled dispatch could know these patterns only match at line starts and find the next `\n` once for the level *(added after change 3)* |
-| Transform functions work in `String` | every transform resolves bytes → `String`, transforms, re-encodes — `apache_httpd` runs 209 string-level replaces per record, and this is why change 3 moved it only 12% (§8) | none — the prototype transformed strings too. Byte-level transforms, or at least single-conversion pipelines, would be new ground *(added after change 3)* |
+| Interpreted per use | The cost, concretely | The prototype's answer | Status |
+|---|---|---|---|
+| Mode dispatch: `apply()` filters the whole template list by mode **on every call** | O(all templates) per dispatch, per match — `win_sec` runs a 57-template level once per record | pre-computed index lists per mode | **closed** — change 2's dispatch indexes; design 29 phase 1 took the mode off the authored node and phase 3 off the apply op |
+| Reference resolution: `Refs` walks `RefExpression` parts every time | per-part dispatch, and **literal text is re-encoded to UTF-8 on every write** | `RefStrategy` classification: `SimpleLocal` / `SimpleRemote` / `LiteralBytes` (pre-encoded) / `Complex` | **part closed** — change 3 classified them, design 25 phase 3 compiled capture bindings; conditions still walk the authored form, deferred as measured (E39), and the store *behind* the reference is found by name at run time (E44) |
+| `OutputNode.Text` and every `sink.write(String)` | `String.getBytes` per write | pre-encoded bytes on the compiled node | **closed for body literals** — change 3; the sinks' own tags are still encoded per write, and design 29 phase 5 records why it stopped there |
+| Body/condition pattern lookup by pattern *text* | string hash per `matches`/regex-`replace` evaluation | `compiled_idx` — an array index | **body closed** — design 29 phase 3 holds the matcher on the compiled replace; the condition half is deferred as measured (E39), where it runs 624 times per operation on one workload and shows in no profile |
+| `call-template` | linear name search per call | resolved at compile time | **closed** — design 29 phase 3 resolves the target at compile time |
+| Step atoms: `Tag`/`TakeUntil` text | `.getBytes` **per match attempt** | pre-encoded bytes per compiled step | **closed** — design 29 phase 2: `Tag` and `MatchByte` hold their bytes *and* the value they produce, `TakeUntil` its needle encoded |
+| `TakeWhile` predicates | switch dispatch per byte | 256-entry boolean lookup table | **closed** — design 29 phase 2 bakes the table, and the decoding picks one of three loops once per match rather than per byte |
+| Conditions and guards | config-tree walk per evaluation | compiled once | **deferred, measured** — E39. Design 29 phase 4 measured the conditions path at 0.4% of `win_sec_strict` and 0.7% of `ausearch` and did not build it |
+| Captures | every group copied out of the buffer whether or not anything reads it | unused-capture elimination + dead-branch pruning (the E10 optimiser, deliberately unported during the port) | **open** — E10, and design 29 §4 rules it out of that design deliberately |
+| `^`-anchored patterns dispatched as **unanchored searches** | a failing anchored template scans the whole remaining region instead of testing one position — ~55 times per element in `win_sec_xml` | detect start-anchored patterns at compile time and dispatch them `Anchoring.ANCHORED` *(added from the baseline, §5)* | **closed** — change 1, retired by change 4 when the regex library learned to exit early on its own knowledge |
+| `ByteMatcher` allocated per match attempt | allocation on the hottest call the engine makes | a matcher held as a *field* of the compiled node — structure, not a cache *(added from the baseline, §5)* | **closed** — change 1 on the match side, design 29 phase 3 on the body side, where `apache_httpd` runs 209 replaces per record |
+| Unanchored `(?m)^` patterns each scan the region per dispatch pass | a level of N multiline templates scans the same bytes up to N times per pass — `win_sec`'s whole 5.8 MiB/s story (§8) | none — the prototype had the same cost. A compiled dispatch could know these patterns only match at line starts and find the next `\n` once for the level *(added after change 3)* | **open** — no answer here or in the prototype; `win_sec` is still the row it costs |
+| Transform functions work in `String` | every transform resolves bytes → `String`, transforms, re-encodes — `apache_httpd` runs 209 string-level replaces per record, and this is why change 3 moved it only 12% (§8) | none — the prototype transformed strings too. Byte-level transforms, or at least single-conversion pipelines, would be new ground *(added after change 3)* | **open** — the byte-ownership question, named as E10's successor by design 29 phase 6 |
 
 **Resolved so far** — change 1 (§6): anchored dispatch, matcher as field. Change 2 (§7): mode
 dispatch tables, `call-template` resolution. Change 3 (§8): reference strategies, pre-encoded
@@ -62,6 +62,21 @@ The regex library already proves the end state on its own layer; the engine's jo
 move for dispatch, references, bodies and steps. And the shape is **two layers, never three**
 ([D35](00-decisions.md)) — settled 2026-08-20 after a false start that imported `BytePattern`'s
 shared-immutable contract up a level where nothing needs it. The `Project` is the model the user edits; the
+*Status column added 2026-09-09, when [design 29](29-compiled-decisions.md) closed the arc that
+began here.* Of the thirteen rows, seven are closed, one is closed in part, two are deferred on
+a measurement rather than an opinion, and three stay open. The deferrals are the interesting
+ones and the reason the column says "measured" rather than "later": design 29 phase 4 counted
+the conditions path at 31,488 evaluations per operation on `apache_httpd` and 2,730 on
+`ausearch`, then profiled it at 0.4% and 0.7% of the two workloads its own phase had named, and
+declined to build what this table had listed since August. What that phase found instead — the
+store behind a reference is located by walking a scope stack of hash maps, on the *compiled*
+path as much as the authored one — is E44, and it is larger than the row it was looking at.
+
+The three that stay open are one question wearing three hats. Captures are copied out whether or
+not anything reads them; transforms convert bytes to `String` and back; and the sinks encode
+their tags per write. All three are about who owns bytes and when they are copied, which is
+E10's ground and is named as this arc's successor rather than a fourteenth row here.
+
 `CompiledProject` **is the executable graph**, and matchers and stores are *fields of its
 nodes* — structure, not a cache, because nothing is looked up when state has an owner. The
 sharing that actually matters, pattern compilation, already lives in the immutable
@@ -328,8 +343,8 @@ templates cannot match a line that starts with this byte, and asks them anyway.
 
 That is a new §2-style row, recorded now so it is not rediscovered:
 
-| Interpreted per use | The cost, concretely | The compiled answer |
-|---|---|---|
+| Interpreted per use | The cost, concretely | The compiled answer | Status |
+|---|---|---|---|
 | Strict/lexer dispatch tries **every template at every position** | ~57 anchored attempts per line in `win_sec_strict`, most refuted by the first byte | *Was:* a first-byte candidate table on the compiled level, needing the library to publish a pattern's first-byte set. *Corrected 2026-09-04:* the library can refute these itself — its scan plan's `ANCHORED` entry fills the slot array and enters the runner before its first op says no, with its own `firstBytes` table unread on that path (regex 07 Phase 5). One lookup there makes a refuted attempt a byte read, with nothing published and nothing engine-side; the candidate table returns to the list only if the per-call scaffolding is what remains after that |
 
 **The clean rerun spoke (`2026-08-21-1323`, load 1.43, drift controls 0.96–0.97): strict is

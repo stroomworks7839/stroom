@@ -259,11 +259,21 @@ time with a clear message; their three fixtures stay vendored and are reported a
 The prototype's own default-features build skips the same three.
 
 ### E10 — The compile-time optimiser
-**`deferred`.**
+**`deferred` — and named as design 29's successor, 2026-09-09 (phase 6).**
 
 The prototype eliminates unused captures and prunes statically-false branches. It changes work, not
 output, and D33 ruled out performance work during the port. Its fourteen tests are not ported
 either. Revisit alongside E12.
+
+*Why it is next.* Design 29 moved every decision it could from run time to compile time and then
+stopped at a wall it could name: the three rows still open in design 10 §2 are captures copied
+whether or not anything reads them, transforms that convert bytes to `String` and back, and
+sinks that encode their tags per write. Those are one question — who owns bytes, and when is a
+copy made — and design 29 §4 ruled capture elimination out of *that* design on the grounds that
+it removes work rather than deciding it earlier. It is the largest measured allocation the
+engine makes (E43's row: 5 to 18 MB per operation of churn, `progressive` at 62× its own input),
+and it is the exit E43 lists first. E44's compiled reference — one that holds its store rather
+than looking it up by name — belongs to the same design or to one beside it.
 
 ### E11 — `RecordingInstrument`
 **`deferred`.**
@@ -297,7 +307,19 @@ now exits early for input-anchored patterns on its own parsed knowledge (its
 06-performance-plan §1, an issue this port surfaced), and the engine asks the one honest
 unanchored question — DS3's own shape — for 0–5% on the previously fast-pathed rows.
 [10-engine-compilation.md §9](../design/10-engine-compilation.md) closes the arc; the next
-choice stands: attack `win_sec`'s scan cost, or price E13 buffer-spanning.** `EngineBenchmark` runs seven
+choice stands: attack `win_sec`'s scan cost, or price E13 buffer-spanning.**
+
+*Where the story is now, 2026-09-09.* The engine has one, and it is written down rather than
+remembered. [Design 29](../design/29-compiled-decisions.md) §8 records five phases, each gated
+and audited, with what each was measured to be worth; `design/benchmarks/points.md` holds the
+readings, the drift envelope they have to clear, and the method — the full suite at each point,
+interleaved rounds where a difference matters, and the compiler asked directly where the
+question is about inlining. Design 10 §2's gap list now carries a status per row. Two things
+that story says are worth repeating here, because they are about the *benchmark* rather than the
+engine: a workload that does not exercise a change measures it at zero, which happened to phase 2
+and was caught before building in phases 4 and 5; and a difference smaller than the box's own
+drift is not a reading, which is why three of the arc's phases are recorded as unattributed
+rather than credited. `EngineBenchmark` runs seven
 whole configurations over 256 KiB of repeated real records, five forks, results to
 `design/benchmarks/` — the regex module's discipline. The status it measures against, and the
 gap list of what is interpreted rather than compiled, is
@@ -1294,7 +1316,24 @@ or refuse it at compile time as ruling 10 refused the `field` capture source, un
 defined. Until ruled, the skip stands and the comment says what it is.
 
 ### E43 — The tagged value costs one to four per cent on the run rows
-**`open` 2026-09-08.** Design 25's `Bytes` carries the encoding its bytes are in and a memo of
+**`resolved` 2026-09-09, and restated rather than simply closed (design 29 phase 6).** The cost
+is recovered: `csv_header`, the worst row, reads −0.8% against `a9ca4f2853` — the commit before
+design 25 — on a night whose drift envelope was ±3.3%, having been −2.9% at design 25 and −1.5%
+after this entry's own fix. Every other run row is level or better.
+
+**What cannot be said is which change recovered it.** The fix below (the split `Bytes`, taken as
+the second exit) is measured and real: +2.3% on `csv_header` and +1.8% on `progressive` against
+design 25 complete, the sign holding in all three rounds. The rest closed across design 29's
+phases, and every per-phase step is smaller than the envelope, so no phase can claim it. Design
+29 §5 ordered phase 1 first precisely to explain this figure, and the honest outcome is that the
+arc answered the question — is design 25's cost recovered — without answering the attribution.
+That is a real result and not a failure of measurement: an interleaved control can price a
+change against its own neighbour, and none of these steps was large enough for one to separate.
+
+The entry stays below in full, because the exits it lists are still the exits, and the first of
+them is now this arc's named successor (E10).
+
+*Found open 2026-09-08:* Design 25's `Bytes` carries the encoding its bytes are in and a memo of
 their UTF-8 form: three fields where the ported record had one, allocated per group per match,
 which is the engine's hottest allocation (design 10's row — every captured group is copied out
 of the buffer whether or not anything reads it). The full suite reads the whole design at one

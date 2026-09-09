@@ -4,6 +4,11 @@
 day by the owner (D51), every question as recommended. Engine only. Touches no golden and no
 configuration: every change here replaces a decision with its own answer.*
 
+*Complete 2026-09-09: five building phases built, gated and audited, and the record written (§8).
+Two of them are unmeasured and say so — the suite has no row that exercises phase 2's vocabulary
+at the points that would judge it, and none that is sink-bound for phase 5. §9 is what the
+measuring taught, which outlasts what was built.*
+
 ## 1. Where it stands
 
 D35 says the `CompiledProject` **is** the executable graph, and design 10 §1 says what that
@@ -616,3 +621,55 @@ too — a parent cannot declare a namespace after a child opens, because `namesp
 the innermost open element — but the tests are what settle it.
 
 Engine 593, pipeline 154, app 5, checkstyle clean; no golden moved.
+
+### Phase 6 — the record
+
+Written 2026-09-09. No code; five entries and one table.
+
+- **Design 10 §2's gap list carries a status per row.** Thirteen rows: seven closed, one closed
+  in part, two deferred on a measurement, three open. The table has been the list of what this
+  engine interprets rather than compiles since August, and it now says which of that is still
+  true.
+- **E43 is resolved and restated.** The cost is recovered — `csv_header` at −0.8% against the
+  commit before design 25, against a ±3.3% envelope — and **which change recovered it cannot be
+  said**, because every per-phase step is smaller than the envelope. §5 ordered phase 1 first to
+  explain that figure. The arc answered the question it asked and not the attribution it hoped
+  for, and the entry says so rather than crediting a phase.
+- **E39 is deferred**, closed by phase 4's own measurement rather than by building it.
+- **E44 is open**, and is the thing phase 4 found while measuring something else.
+- **E10 is named as the successor**, with the reason written into it: the three rows design 10
+  §2 still shows open are one question — who owns bytes, and when is a copy made — and design 29
+  §4 ruled capture elimination out of *this* design because it removes work rather than deciding
+  it earlier.
+- **E12 points at what was measured.** The engine has a performance story now, in §8 here and in
+  `benchmarks/points.md`.
+
+## 9. What this design learned about measuring, which outlasts what it built
+
+Three of the five phases could not be judged by the workload named for them, for three different
+reasons, and the sequence is the useful part.
+
+**Phase 2 was built and then measured at zero**, because `progressive`'s two binary steps
+exercise none of the five precomputed answers it added, while paying the cost of the indirection
+it introduced. The suite gained `progressive_text` afterwards.
+
+**Phase 4 measured first and did not build.** Counting the conditions path took an afternoon and
+found that the workloads §5 had named for it evaluate no `matches` condition at all. The row
+that heads E39 runs on one workload in the suite, 624 times per operation, and appears in no
+profile.
+
+**Phase 5 measured first and built anyway**, because §5 gave it no clause to close on and its
+sites are hygiene as much as speed. Its workload is regex-bound: the sinks are real work and
+they sit below the noise of a row that spends 40% of itself in `NodeTree$StarClass.match`.
+
+The rule that falls out is not "measure first" — everyone says that, and design 25 said it too.
+It is that **a benchmark row is evidence only about the code it exercises**, and that whether it
+exercises a change is a question with a cheap, exact answer: count the calls. Instrumenting
+`Conditions.evaluate` and reverting it took under an hour and settled a phase. Every phase here
+that went wrong went wrong by assuming a row would see something, and every one that went right
+asked.
+
+Two smaller things worth keeping. **Inlining removes a call, not a dependent load** — phase 2's
+4.2% survived a probe that showed every hop inlining as an accessor, and was recovered by
+flattening the chain those accessors walked. And **a difference smaller than the box's drift is
+not a reading**: the same commit measured twice, five and a half hours apart, moved up to 3.3%.
