@@ -24,6 +24,7 @@ import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.engine.match.CompiledSteps;
 import stroom.shapeshifter.engine.match.Decoding;
 import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.match.StepCompiler;
@@ -61,7 +62,9 @@ final class MatchCompiler {
         this.project = project;
     }
 
-    /** Every pattern interned so far, keyed by text, flags and encoding. */
+    /**
+     * Every pattern interned so far, keyed by text, flags and encoding.
+     */
     Map<PatternKey, BytePattern> patterns() {
         return patterns;
     }
@@ -82,13 +85,15 @@ final class MatchCompiler {
         }
         collect(template.body(), template);
         final CompiledMatch.Progressive progressiveSteps;
-        if (template.match() instanceof MatchExpression.Progressive progressive) {
+        if (template.match() instanceof final MatchExpression.Progressive progressive) {
             // Resolved, not raw: the steps match the inlined sequence, so a regex
             // reached through a library reference is interned like one written in place.
             final List<MatchStep> resolved = resolve(progressive.steps(), new HashSet<>());
             progressiveSteps = new CompiledMatch.Progressive(
                     compiledSteps(resolved, template, matchEncoding),
-                    markEncoding == null ? null : compiledSteps(resolved, template, markEncoding));
+                    markEncoding == null
+                            ? null
+                            : compiledSteps(resolved, template, markEncoding));
         } else {
             progressiveSteps = null;
         }
@@ -106,24 +111,23 @@ final class MatchCompiler {
     private void collect(final List<OutputNode> body, final Template template) {
         for (final OutputNode node : body) {
             // An instruction with a pattern of its own says so on the model (D47).
-            if (node instanceof OutputNode.Regexed regexed && regexed.isRegex()) {
+            if (node instanceof final OutputNode.Regexed regexed && regexed.isRegex()) {
                 intern(PatternKey.ofValue(regexed.pattern()), template);
             }
             switch (node) {
-                case OutputNode.If value -> collect(value.test(), template);
-                case OutputNode.Choose value ->
-                        value.when().forEach(branch -> collect(branch.test(), template));
-                case OutputNode.Holder ignored -> {
+                case final OutputNode.If value -> collect(value.test(), template);
+                case final OutputNode.Choose value -> value.when().forEach(branch -> collect(branch.test(), template));
+                case final OutputNode.Holder ignored -> {
                     // No condition of its own; its bodies are walked below.
                 }
-                case OutputNode.Binding ignored -> {
+                case final OutputNode.Binding ignored -> {
                     // No condition.
                 }
-                case OutputNode.Leaf ignored -> {
+                case final OutputNode.Leaf ignored -> {
                     // No condition.
                 }
             }
-            if (node instanceof OutputNode.Holder holder) {
+            if (node instanceof final OutputNode.Holder holder) {
                 for (final List<OutputNode> nested : holder.bodies()) {
                     collect(nested, template);
                 }
@@ -131,16 +135,15 @@ final class MatchCompiler {
         }
     }
 
-    /** A body's and a condition's patterns run over resolved values: {@link PatternKey#ofValue}. */
+    /**
+     * A body's and a condition's patterns run over resolved values: {@link PatternKey#ofValue}.
+     */
     private void collect(final Condition condition, final Template template) {
         switch (condition) {
-            case Condition.Matches matches ->
-                    intern(PatternKey.ofValue(matches.pattern()), template);
-            case Condition.And value ->
-                    value.conditions().forEach(child -> collect(child, template));
-            case Condition.Or value ->
-                    value.conditions().forEach(child -> collect(child, template));
-            case Condition.Not value -> collect(value.condition(), template);
+            case final Condition.Matches matches -> intern(PatternKey.ofValue(matches.pattern()), template);
+            case final Condition.And value -> value.conditions().forEach(child -> collect(child, template));
+            case final Condition.Or value -> value.conditions().forEach(child -> collect(child, template));
+            case final Condition.Not value -> collect(value.condition(), template);
             default -> {
                 // Everything else compares values rather than matching patterns.
             }
@@ -158,14 +161,16 @@ final class MatchCompiler {
         });
     }
 
-    /** The same steps compiled for one encoding: its literals, its tables, its patterns. */
-    private CompiledMatch.Compilation compiledSteps(final List<MatchStep> resolved,
-                                                    final Template template,
-                                                    final Encoding encoding) {
+    /**
+     * The same steps compiled for one encoding: its literals, its tables, its patterns.
+     */
+    private CompiledSteps compiledSteps(final List<MatchStep> resolved,
+                                        final Template template,
+                                        final Encoding encoding) {
         final Decoding decoding = Decoding.of(encoding);
         // Interning stays here, so a pattern a step names and one a body names share one
         // compiled pattern and one failure message.
-        return new CompiledMatch.Compilation(
+        return new CompiledSteps(
                 StepCompiler.compile(resolved, template.name(), decoding, key -> {
                     intern(key, template);
                     return patterns.get(key);
@@ -180,7 +185,7 @@ final class MatchCompiler {
      * references left, only the steps they stood for (D8).
      *
      * <p>{@code inProgress} is what stops a pattern that refers to itself, directly or round a
-     * longer loop, from inlining for ever. It is unwound on the way out rather than accumulated,
+     * longer loop, from inlining forever. It is unwound on the way out rather than accumulated,
      * so a pattern used twice in different branches is fine — only a pattern reached from inside
      * itself is a cycle.
      */
@@ -188,7 +193,7 @@ final class MatchCompiler {
         final List<MatchStep> resolved = new ArrayList<>(steps.size());
         for (final MatchStep step : steps) {
             final MatchStep inlined = switch (step) {
-                case MatchStep.PatternRef reference -> {
+                case final MatchStep.PatternRef reference -> {
                     if (!inProgress.add(reference.pattern())) {
                         throw new ConfigException(
                                 "Pattern " + reference.pattern() + " refers to itself");
@@ -202,16 +207,14 @@ final class MatchCompiler {
                     inProgress.remove(reference.pattern());
                     yield new MatchStep.Sequence(inner);
                 }
-                case MatchStep.Choice choice -> new MatchStep.Choice(
+                case final MatchStep.Choice choice -> new MatchStep.Choice(
                         choice.alternatives().stream().map(a -> resolve(a, inProgress)).toList());
-                case MatchStep.Optional optional ->
-                        new MatchStep.Optional(resolve(optional.steps(), inProgress));
-                case MatchStep.Repeat repeat -> new MatchStep.Repeat(
+                case final MatchStep.Optional optional -> new MatchStep.Optional(resolve(optional.steps(), inProgress));
+                case final MatchStep.Repeat repeat -> new MatchStep.Repeat(
                         resolve(repeat.steps(), inProgress), repeat.min(), repeat.max());
-                case MatchStep.Sequence sequence ->
-                        new MatchStep.Sequence(resolve(sequence.steps(), inProgress));
-                case MatchStep.Peek peek -> new MatchStep.Peek(resolve(peek.steps(), inProgress));
-                case MatchStep.Not not -> new MatchStep.Not(resolve(not.steps(), inProgress));
+                case final MatchStep.Sequence sequence -> new MatchStep.Sequence(resolve(sequence.steps(), inProgress));
+                case final MatchStep.Peek peek -> new MatchStep.Peek(resolve(peek.steps(), inProgress));
+                case final MatchStep.Not not -> new MatchStep.Not(resolve(not.steps(), inProgress));
                 default -> step;
             };
             resolved.add(inlined);
@@ -223,7 +226,7 @@ final class MatchCompiler {
                                        final Encoding matchEncoding,
                                        final CompiledMatch.Progressive progressiveSteps) {
         return switch (template.match()) {
-            case MatchExpression.Regex regex -> {
+            case final MatchExpression.Regex regex -> {
                 final BytePattern pattern;
                 try {
                     pattern = BytePattern.compile(regex.pattern(), PatternKey.flags(regex.flags()),
@@ -240,18 +243,20 @@ final class MatchCompiler {
                 }
                 yield new CompiledMatch.Regex(pattern, regex.advance());
             }
-            case MatchExpression.Delimiter delimiter -> new CompiledMatch.Delimiter(
+            case final MatchExpression.Delimiter delimiter -> new CompiledMatch.Delimiter(
                     encode(delimiter.delimiter(), matchEncoding),
                     encode(delimiter.escape(), matchEncoding),
                     encode(delimiter.containerStart(), matchEncoding),
                     encode(delimiter.containerEnd(), matchEncoding));
-            case MatchExpression.All ignored -> new CompiledMatch.All();
-            case MatchExpression.Source ignored -> new CompiledMatch.Source();
-            case MatchExpression.Named ignored -> new CompiledMatch.Named();
-            case MatchExpression.Progressive ignored -> progressiveSteps;
-            case MatchExpression.Avro ignored -> throw ConfigException.notYet(template.name(), "Avro decoding");
-            case MatchExpression.Parquet ignored -> throw ConfigException.notYet(template.name(), "Parquet decoding");
-            case MatchExpression.Protobuf ignored -> throw ConfigException.notYet(template.name(), "Protobuf decoding");
+            case final MatchExpression.All ignored -> new CompiledMatch.All();
+            case final MatchExpression.Source ignored -> new CompiledMatch.Source();
+            case final MatchExpression.Named ignored -> new CompiledMatch.Named();
+            case final MatchExpression.Progressive ignored -> progressiveSteps;
+            case final MatchExpression.Avro ignored -> throw ConfigException.notYet(template.name(), "Avro decoding");
+            case final MatchExpression.Parquet ignored ->
+                    throw ConfigException.notYet(template.name(), "Parquet decoding");
+            case final MatchExpression.Protobuf ignored ->
+                    throw ConfigException.notYet(template.name(), "Protobuf decoding");
         };
     }
 
@@ -261,6 +266,8 @@ final class MatchCompiler {
      * tag cannot disagree about the bytes of one text (design 19 phase 0).
      */
     private static byte[] encode(final String text, final Encoding encoding) {
-        return text == null ? null : encoding.encode(text);
+        return text == null
+                ? null
+                : encoding.encode(text);
     }
 }

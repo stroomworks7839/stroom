@@ -49,7 +49,9 @@ import java.util.List;
  */
 public final class Steps {
 
-    /** What a step produced, and how much input it ate doing so. */
+    /**
+     * What a step produced, and how much input it ate doing so.
+     */
     private record Result(TypedValue output, int consumed) {
 
     }
@@ -65,15 +67,16 @@ public final class Steps {
      * <p>Group 0 of the result is everything consumed; group {@code i + 1} is step {@code i}'s
      * output. That numbering is what {@code CaptureSource.Step} indexes into.
      *
-     * @param decoding the template's encoding and how bytes read as characters under it, both
-     *                 settled when the match compiled
+     * @param program the compiled steps and the reading they run under
      * @return the match, or null if any step failed
      */
-    public static MatchResult match(final List<CompiledStep> steps,
+    public static MatchResult match(final CompiledSteps program,
                                     final byte[] data,
                                     final int from,
-                                    final int to,
-                                    final Decoding decoding) {
+                                    final int to) {
+        final List<CompiledStep> steps = program.steps();
+        final Decoding decoding = program.decoding();
+        final Encoding encoding = program.encoding();
         int pos = 0;
         int highWater = 0;
         final List<TypedValue> outputs = new ArrayList<>(steps.size());
@@ -83,14 +86,14 @@ public final class Steps {
             // steps, because a step reports how far forward it went and cannot express going
             // back. They need the whole input addressable, which is why a configuration using
             // them has to be run whole rather than in buffers.
-            if (step instanceof CompiledStep.SeekAbs seek) {
+            if (step instanceof final CompiledStep.SeekAbs seek) {
                 final Integer target = count(seek.offset(), outputs);
                 if (target == null || target > to - from) {
                     return null;
                 }
                 pos = target;
                 outputs.add(NOTHING);
-            } else if (step instanceof CompiledStep.SeekBack seek) {
+            } else if (step instanceof final CompiledStep.SeekBack seek) {
                 final Integer back = count(seek.count(), outputs);
                 if (back == null || back > pos) {
                     return null;
@@ -98,7 +101,8 @@ public final class Steps {
                 pos -= back;
                 outputs.add(NOTHING);
             } else {
-                final Result result = step(step, data, from + pos, to, outputs, List.of(), pos, decoding);
+                final Result result = step(step, data, from + pos, to, outputs, List.of(), pos,
+                        decoding, encoding);
                 if (result == null) {
                     return null;
                 }
@@ -111,7 +115,7 @@ public final class Steps {
         // A rewind does not un-read what was read. The match consumes up to the furthest point
         // reached, so the stream never re-reads bytes a seek stepped back over.
         final TypedValue[] groups = new TypedValue[outputs.size() + 1];
-        groups[0] = TypedValue.of(Arrays.copyOfRange(data, from, from + highWater), decoding.encoding());
+        groups[0] = TypedValue.of(Arrays.copyOfRange(data, from, from + highWater), encoding);
         for (int i = 0; i < outputs.size(); i++) {
             groups[i + 1] = outputs.get(i);
         }
@@ -137,21 +141,21 @@ public final class Steps {
                                final List<TypedValue> prior,
                                final List<TypedValue> local,
                                final int position,
-                               final Decoding decoding) {
+                               final Decoding decoding,
+                               final Encoding encoding) {
         final int available = to - from;
-        final Encoding encoding = decoding.encoding();
         return switch (step) {
             // The bytes a tag looks for and the value it produces are both constant once the
             // encoding is known, so a tag that matches allocates nothing. The encoding is the
             // template's, not UTF-8 by fiat: a tag is the same kind of literal as a delimiter,
             // looking for the same kind of bytes (E3).
-            case CompiledStep.Tag tag -> startsWith(data, from, to, tag.bytes())
+            case final CompiledStep.Tag tag -> startsWith(data, from, to, tag.bytes())
                     ? new Result(tag.value(), tag.bytes().length)
                     : null;
-            case CompiledStep.MatchByte value -> startsWith(data, from, to, value.bytes())
+            case final CompiledStep.MatchByte value -> startsWith(data, from, to, value.bytes())
                     ? new Result(value.value(), value.bytes().length)
                     : null;
-            case CompiledStep.TakeWhile takeWhile -> {
+            case final CompiledStep.TakeWhile takeWhile -> {
                 // E5: the predicate classifies characters, not bytes, and a character is what
                 // the effective encoding says it is — a multi-byte UTF-8 letter is a letter,
                 // a windows-1252 0xE9 is a letter under that encoding and a stray byte under
@@ -198,10 +202,10 @@ public final class Steps {
                 }
                 yield end > from
                         ? new Result(TypedValue.of(Arrays.copyOfRange(data, from, end), encoding),
-                                end - from)
+                        end - from)
                         : null;
             }
-            case CompiledStep.TakeUntil takeUntil -> {
+            case final CompiledStep.TakeUntil takeUntil -> {
                 final byte[] needle = takeUntil.needle();
                 if (needle.length == 0) {
                     yield null;
@@ -210,14 +214,16 @@ public final class Steps {
                 if (found < 0) {
                     yield null;
                 }
-                final int end = takeUntil.inclusive() ? found + needle.length : found;
+                final int end = takeUntil.inclusive()
+                        ? found + needle.length
+                        : found;
                 yield new Result(TypedValue.of(Arrays.copyOfRange(data, from, end), encoding),
                         end - from);
             }
-            case CompiledStep.TakeBytes takeBytes ->
+            case final CompiledStep.TakeBytes takeBytes ->
                     take(count(takeBytes.count(), prior, local), data, from, to, encoding);
-            case CompiledStep.TakeN takeN -> take(takeN.count(), data, from, to, encoding);
-            case CompiledStep.AnyChar ignored -> {
+            case final CompiledStep.TakeN takeN -> take(takeN.count(), data, from, to, encoding);
+            case final CompiledStep.AnyChar ignored -> {
                 if (available <= 0) {
                     yield null;
                 }
@@ -232,53 +238,63 @@ public final class Steps {
                         TypedValue.of(Arrays.copyOfRange(data, from, from + length), encoding),
                         length);
             }
-            case CompiledStep.ReadNumeric numeric -> number(numeric, data, from, to);
-            case CompiledStep.ReadVarint ignored -> {
+            case final CompiledStep.ReadNumeric numeric -> number(numeric, data, from, to);
+            case final CompiledStep.ReadVarint ignored -> {
                 final long[] varint = varint(data, from, to);
-                yield varint == null ? null : new Result(unsigned(varint[0]), (int) varint[1]);
+                yield varint == null
+                        ? null
+                        : new Result(unsigned(varint[0]), (int) varint[1]);
             }
-            case CompiledStep.ReadVarintZigZag ignored -> {
+            case final CompiledStep.ReadVarintZigZag ignored -> {
                 final long[] varint = varint(data, from, to);
                 // ZigZag interleaves positive and negative so that small negatives stay small:
                 // the low bit is the sign, the rest is the magnitude.
                 yield varint == null
                         ? null
                         : new Result(new TypedValue.Integer((varint[0] >>> 1) ^ -(varint[0] & 1)),
-                        (int) varint[1]);
+                                (int) varint[1]);
             }
-            case CompiledStep.Seek seek -> {
+            case final CompiledStep.Seek seek -> {
                 final Integer count = count(seek.count(), prior, local);
-                yield count == null || count > available ? null : new Result(NOTHING, count);
+                yield count == null || count > available
+                        ? null
+                        : new Result(NOTHING, count);
             }
             // Reached only inside a combinator, where going backwards cannot be expressed. The
             // top-level sequence handles both seeks itself.
-            case CompiledStep.SeekAbs seek -> {
+            case final CompiledStep.SeekAbs seek -> {
                 final Integer target = count(seek.offset(), prior, local);
                 if (target == null || target < position) {
                     yield null;
                 }
                 final int forward = target - position;
-                yield forward > available ? null : new Result(NOTHING, forward);
+                yield forward > available
+                        ? null
+                        : new Result(NOTHING, forward);
             }
-            case CompiledStep.SeekBack ignored -> null;
-            case CompiledStep.Tell ignored -> new Result(new TypedValue.Integer(position), 0);
-            case CompiledStep.Decode decode -> {
+            case final CompiledStep.SeekBack ignored -> null;
+            case final CompiledStep.Tell ignored -> new Result(new TypedValue.Integer(position), 0);
+            case final CompiledStep.Decode decode -> {
                 final byte[] input = bytes(decode.data(), prior, local);
                 if (input == null) {
                     yield null;
                 }
                 final byte[] decoded = Codecs.decode(input, decode.codec());
-                yield decoded == null ? null : new Result(TypedValue.of(decoded, encoding), 0);
+                yield decoded == null
+                        ? null
+                        : new Result(TypedValue.of(decoded, encoding), 0);
             }
-            case CompiledStep.Encode encode -> {
+            case final CompiledStep.Encode encode -> {
                 final byte[] input = bytes(encode.data(), prior, local);
                 if (input == null) {
                     yield null;
                 }
                 final byte[] encoded = Codecs.encode(input, encode.codec());
-                yield encoded == null ? null : new Result(TypedValue.of(encoded, encoding), 0);
+                yield encoded == null
+                        ? null
+                        : new Result(TypedValue.of(encoded, encoding), 0);
             }
-            case CompiledStep.Regex regex -> {
+            case final CompiledStep.Regex regex -> {
                 // The pattern was compiled and the matcher built when the step was; neither a
                 // lookup nor an allocation stands between the cursor and the question.
                 final ByteMatcher matcher = regex.matcher();
@@ -289,47 +305,58 @@ public final class Steps {
                 final byte[] matched = matcher.groupBytes(0);
                 yield new Result(TypedValue.of(matched, encoding), matched.length);
             }
-            case CompiledStep.Choice choice -> {
+            case final CompiledStep.Choice choice -> {
                 for (final List<CompiledStep> alternative : choice.alternatives()) {
                     final Integer consumed = sequence(
-                            alternative, data, from, to, prior, local, position, decoding);
+                            alternative, data, from, to, prior, local, position, decoding, encoding);
                     if (consumed != null) {
                         yield consumed(data, from, consumed, encoding);
                     }
                 }
                 yield null;
             }
-            case CompiledStep.Optional optional -> {
+            case final CompiledStep.Optional optional -> {
                 final Integer consumed = sequence(
-                        optional.steps(), data, from, to, prior, local, position, decoding);
-                yield consumed(data, from, consumed == null ? 0 : consumed, encoding);
+                        optional.steps(), data, from, to, prior, local, position, decoding, encoding);
+                yield consumed(data,
+                        from,
+                        consumed == null
+                                ? 0
+                                : consumed,
+                        encoding);
             }
-            case CompiledStep.Repeat repeat -> {
+            case final CompiledStep.Repeat repeat -> {
                 int total = 0;
                 int iterations = 0;
-                final int max = repeat.max() == null ? Integer.MAX_VALUE : repeat.max();
+                final int max = repeat.max() == null
+                        ? Integer.MAX_VALUE
+                        : repeat.max();
                 while (iterations < max && from + total < to) {
                     final Integer consumed = sequence(
-                            repeat.steps(), data, from + total, to, prior, local, position + total, decoding);
+                            repeat.steps(), data, from + total, to, prior, local, position + total, decoding, encoding);
                     if (consumed == null || consumed == 0) {
                         break;
                     }
                     total += consumed;
                     iterations++;
                 }
-                yield iterations >= repeat.min() ? consumed(data, from, total, encoding) : null;
+                yield iterations >= repeat.min()
+                        ? consumed(data, from, total, encoding)
+                        : null;
             }
-            case CompiledStep.Sequence nested -> {
+            case final CompiledStep.Sequence nested -> {
                 final Integer consumed = sequence(
-                        nested.steps(), data, from, to, prior, local, position, decoding);
-                yield consumed == null ? null : consumed(data, from, consumed, encoding);
+                        nested.steps(), data, from, to, prior, local, position, decoding, encoding);
+                yield consumed == null
+                        ? null
+                        : consumed(data, from, consumed, encoding);
             }
-            case CompiledStep.Peek peek -> sequence(
-                    peek.steps(), data, from, to, prior, local, position, decoding) == null
+            case final CompiledStep.Peek peek -> sequence(
+                    peek.steps(), data, from, to, prior, local, position, decoding, encoding) == null
                     ? null
                     : new Result(NOTHING, 0);
-            case CompiledStep.Not not -> sequence(
-                    not.steps(), data, from, to, prior, local, position, decoding) == null
+            case final CompiledStep.Not not -> sequence(
+                    not.steps(), data, from, to, prior, local, position, decoding, encoding) == null
                     ? new Result(NOTHING, 0)
                     : null;
         };
@@ -349,12 +376,14 @@ public final class Steps {
                                     final List<TypedValue> enclosing,
                                     final List<TypedValue> callerLocal,
                                     final int position,
-                                    final Decoding decoding) {
+                                    final Decoding decoding,
+                                    final Encoding encoding) {
         final List<TypedValue> prior = concat(enclosing, callerLocal);
         int pos = 0;
         final List<TypedValue> local = new ArrayList<>(steps.size());
         for (final CompiledStep step : steps) {
-            final Result result = step(step, data, from + pos, to, prior, local, position + pos, decoding);
+            final Result result = step(step, data, from + pos, to, prior, local, position + pos,
+                    decoding, encoding);
             if (result == null) {
                 return null;
             }
@@ -405,7 +434,9 @@ public final class Steps {
                 count);
     }
 
-    /** A step reference: a number written down, or one an earlier step produced. */
+    /**
+     * A step reference: a number written down, or one an earlier step produced.
+     */
     private static Integer count(final StepRef reference, final List<TypedValue> outputs) {
         return count(reference, outputs, List.of());
     }
@@ -414,14 +445,16 @@ public final class Steps {
                                  final List<TypedValue> prior,
                                  final List<TypedValue> local) {
         return switch (reference) {
-            case StepRef.Literal literal -> literal.value();
-            case StepRef.StepOutput output -> {
+            case final StepRef.Literal literal -> literal.value();
+            case final StepRef.StepOutput output -> {
                 final TypedValue value = at(output.index(), prior, local);
                 if (value == null) {
                     yield null;
                 }
                 final Double number = value.asNumber();
-                yield number == null || number < 0 ? null : (int) (double) number;
+                yield number == null || number < 0
+                        ? null
+                        : (int) (double) number;
             }
         };
     }
@@ -429,9 +462,11 @@ public final class Steps {
     private static byte[] bytes(final StepRef reference,
                                 final List<TypedValue> prior,
                                 final List<TypedValue> local) {
-        if (reference instanceof StepRef.StepOutput output) {
+        if (reference instanceof final StepRef.StepOutput output) {
             final TypedValue value = at(output.index(), prior, local);
-            return value == null ? null : value.asBytes();
+            return value == null
+                    ? null
+                    : value.asBytes();
         }
         // A literal is a count, not content; there is nothing for a codec to work on.
         return null;
@@ -442,20 +477,24 @@ public final class Steps {
             return prior.get(index);
         }
         final int offset = index - prior.size();
-        return offset < local.size() ? local.get(offset) : null;
+        return offset < local.size()
+                ? local.get(offset)
+                : null;
     }
 
-    /** Predicates classify decoded codepoints; the encoding story lives at {@link #decode}. */
+    /**
+     * Predicates classify decoded codepoints; the encoding story lives at {@link #decode}.
+     */
     private static boolean matches(final Predicate predicate, final int codepoint) {
         return switch (predicate) {
-            case Predicate.Alphabetic ignored -> Character.isLetter(codepoint);
-            case Predicate.Alphanumeric ignored -> Character.isLetterOrDigit(codepoint);
-            case Predicate.Numeric ignored -> Character.isDigit(codepoint);
-            case Predicate.Whitespace ignored -> Character.isWhitespace(codepoint);
-            case Predicate.NonWhitespace ignored -> !Character.isWhitespace(codepoint);
-            case Predicate.Any ignored -> true;
-            case Predicate.Custom custom -> codepoint <= Character.MAX_VALUE
-                                            && inSet(custom.charSet(), (char) codepoint);
+            case final Predicate.Alphabetic ignored -> Character.isLetter(codepoint);
+            case final Predicate.Alphanumeric ignored -> Character.isLetterOrDigit(codepoint);
+            case final Predicate.Numeric ignored -> Character.isDigit(codepoint);
+            case final Predicate.Whitespace ignored -> Character.isWhitespace(codepoint);
+            case final Predicate.NonWhitespace ignored -> !Character.isWhitespace(codepoint);
+            case final Predicate.Any ignored -> true;
+            case final Predicate.Custom custom -> codepoint <= Character.MAX_VALUE
+                                                  && inSet(custom.charSet(), (char) codepoint);
         };
     }
 
@@ -472,7 +511,9 @@ public final class Steps {
     private static long decode(final byte[] data, final int at, final int to, final Decoding decoding) {
         final int b = data[at] & 0xFF;
         return switch (decoding.kind()) {
-            case ASCII_LIKE -> b <= 0x7F ? ((long) b << 8) | 1 : ((long) 0xFFFD << 8) | 1;
+            case ASCII_LIKE -> b <= 0x7F
+                    ? ((long) b << 8) | 1
+                    : ((long) 0xFFFD << 8) | 1;
             case SINGLE_BYTE -> ((long) decoding.table()[b] << 8) | 1;
             case UTF8 -> {
                 if (b <= 0x7F) {
@@ -519,7 +560,9 @@ public final class Steps {
             return null;
         }
         final boolean[] table = new boolean[256];
-        final int limit = decoding.tabular() ? 256 : 0x80;
+        final int limit = decoding.tabular()
+                ? 256
+                : 0x80;
         for (int b = 0; b < limit; b++) {
             table[b] = matches(predicate, decoding.character(b));
         }
@@ -539,7 +582,9 @@ public final class Steps {
         return set.negated() != present;
     }
 
-    /** How many bytes the UTF-8 character starting with this byte occupies. */
+    /**
+     * How many bytes the UTF-8 character starting with this byte occupies.
+     */
     private static int characterLength(final byte first) {
         final int b = first & 0xFF;
         if (b < 0x80) {
@@ -593,14 +638,22 @@ public final class Steps {
         final boolean big = numeric.endian() == Endianness.BIG;
         long raw = 0;
         for (int i = 0; i < size; i++) {
-            final int b = data[from + (big ? i : size - 1 - i)] & 0xFF;
+            final int b = data[from + (big
+                    ? i
+                    : size - 1 - i)] & 0xFF;
             raw = (raw << 8) | b;
         }
 
         final TypedValue value = switch (numeric.numericType()) {
-            case SHORT -> new TypedValue.Integer(numeric.signed() ? (short) raw : raw);
-            case INT -> new TypedValue.Integer(numeric.signed() ? (int) raw : raw);
-            case LONG -> numeric.signed() ? new TypedValue.Integer(raw) : unsigned(raw);
+            case SHORT -> new TypedValue.Integer(numeric.signed()
+                    ? (short) raw
+                    : raw);
+            case INT -> new TypedValue.Integer(numeric.signed()
+                    ? (int) raw
+                    : raw);
+            case LONG -> numeric.signed()
+                    ? new TypedValue.Integer(raw)
+                    : unsigned(raw);
             case FLOAT -> new TypedValue.Double(Float.intBitsToFloat((int) raw));
             case DOUBLE -> new TypedValue.Double(Double.longBitsToDouble(raw));
         };

@@ -268,19 +268,19 @@ public final class BytePattern {
     /** A short rendering of a composition, for {@link #explain()} and error messages. */
     private static String describe(final Matcher matcher) {
         return switch (matcher) {
-            case Matcher.Tag tag -> "tag(" + tag.text() + ")";
-            case Matcher.Characters characters -> "takeWhile(" + characters.classExpression() + ")";
-            case Matcher.Until until -> "takeUntil(" + Character.toString(until.codePoint()) + ")";
-            case Matcher.Regex regex -> "regex(" + regex.pattern() + ")";
-            case Matcher.Ref ref -> ref.name();
-            case Matcher.Labelled labelled -> describe(labelled.body()) + " as " + labelled.label();
-            case Matcher.Sequence sequence -> sequence.items().stream()
+            case final Matcher.Tag tag -> "tag(" + tag.text() + ")";
+            case final Matcher.Characters characters -> "takeWhile(" + characters.classExpression() + ")";
+            case final Matcher.Until until -> "takeUntil(" + Character.toString(until.codePoint()) + ")";
+            case final Matcher.Regex regex -> "regex(" + regex.pattern() + ")";
+            case final Matcher.Ref ref -> ref.name();
+            case final Matcher.Labelled labelled -> describe(labelled.body()) + " as " + labelled.label();
+            case final Matcher.Sequence sequence -> sequence.items().stream()
                     .map(BytePattern::describe)
                     .collect(Collectors.joining(", ", "sequence(", ")"));
-            case Matcher.Choice choice -> choice.alternatives().stream()
+            case final Matcher.Choice choice -> choice.alternatives().stream()
                     .map(BytePattern::describe)
                     .collect(Collectors.joining(", ", "choice(", ")"));
-            case Matcher.Repeat repeat -> "repeat(" + describe(repeat.body()) + ")";
+            case final Matcher.Repeat repeat -> "repeat(" + describe(repeat.body()) + ")";
         };
     }
 

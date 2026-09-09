@@ -16,15 +16,12 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.match.CompiledStep;
-import stroom.shapeshifter.engine.match.Decoding;
+import stroom.shapeshifter.engine.match.CompiledSteps;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.LeadingAnchor;
-
-import java.util.List;
 
 /**
  * A match expression with everything it needs already worked out.
@@ -71,51 +68,43 @@ public sealed interface CompiledMatch {
             this.matcher = pattern.matcher();
         }
 
-        /** The compiled pattern. */
+        /**
+         * The compiled pattern.
+         */
         public BytePattern pattern() {
             return pattern;
         }
 
-        /** Which group's end the cursor lands on, or 0 for the end of the whole match. */
+        /**
+         * Which group's end the cursor lands on, or 0 for the end of the whole match.
+         */
         public int advance() {
             return advance;
         }
 
-        /** How this node asks its question — the library's published fact, not a sniff. */
+        /**
+         * How this node asks its question — the library's published fact, not a sniff.
+         */
         public Anchoring anchoring() {
             return anchoring;
         }
 
-        /** This node's matcher. */
+        /**
+         * This node's matcher.
+         */
         public ByteMatcher matcher() {
             return matcher;
         }
     }
 
-    /** A delimiter and its friends, encoded to bytes once; escape and the container pair are null when undeclared. */
+    /**
+     * A delimiter and its friends, encoded to bytes once; escape and the container pair are null when undeclared.
+     */
     record Delimiter(byte[] delimiter,
                      byte[] escape,
                      byte[] containerStart,
                      byte[] containerEnd) implements CompiledMatch {
 
-    }
-
-    /**
-     * A sequence of compiled steps and the reading they run under.
-     *
-     * <p>Compilation resolves {@code PatternRef}s against the project's library, then turns each
-     * authored step into a {@link CompiledStep} that already holds whatever it would otherwise
-     * work out per attempt: its encoded literal, its pattern and matcher, its byte table
-     * (design 29 §3.3). The interpreter has no lookups left to do.
-     *
-     * @param steps    the compiled steps, references inlined
-     * @param decoding the encoding they were compiled for, and how bytes read under it
-     */
-    record Compilation(List<CompiledStep> steps, Decoding decoding) {
-
-        public Compilation {
-            steps = List.copyOf(steps);
-        }
     }
 
     /**
@@ -132,25 +121,35 @@ public sealed interface CompiledMatch {
      * @param marked the reading a UTF-8 mark would give, or null when it could not differ —
      *               the template declared its own encoding, or the source is UTF-8 already
      */
-    record Progressive(Compilation source, Compilation marked) implements CompiledMatch {
+    record Progressive(CompiledSteps source, CompiledSteps marked) implements CompiledMatch {
 
-        /** The steps to run under a run's effective encoding. */
-        public Compilation forEncoding(final Encoding effective) {
-            return marked != null && effective == marked.decoding().encoding() ? marked : source;
+        /**
+         * The steps and reading to run under a run's effective encoding.
+         */
+        public CompiledSteps forEncoding(final Encoding effective) {
+            return marked != null && effective == marked.encoding()
+                    ? marked
+                    : source;
         }
     }
 
-    /** Consume everything given. */
+    /**
+     * Consume everything given.
+     */
     record All() implements CompiledMatch {
 
     }
 
-    /** The document itself. Never enters the match loop; the run handles it. */
+    /**
+     * The document itself. Never enters the match loop; the run handles it.
+     */
     record Source() implements CompiledMatch {
 
     }
 
-    /** Invocable only by name. Never matches. */
+    /**
+     * Invocable only by name. Never matches.
+     */
     record Named() implements CompiledMatch {
 
     }

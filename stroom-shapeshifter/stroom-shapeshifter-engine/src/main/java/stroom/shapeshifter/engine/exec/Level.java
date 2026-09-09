@@ -631,23 +631,19 @@ final class Level {
             return null;
         }
         return switch (compiledTemplate.match()) {
-            case CompiledMatch.Delimiter delimiter -> Splitter.split(data, from, to,
+            case final CompiledMatch.Delimiter delimiter -> Splitter.split(data, from, to,
                     delimiter.delimiter(), delimiter.escape(),
                     delimiter.containerStart(), delimiter.containerEnd(),
                     effective(compiledTemplate));
-            case CompiledMatch.Regex regex ->
+            case final CompiledMatch.Regex regex ->
                     regexMatch(regex, data, from, to, atCursor, effective(compiledTemplate));
-            case CompiledMatch.Progressive progressive -> {
-                // Which of the compiled readings applies is decided by the run's encoding, which
-                // a byte-order mark settles once at the head of the input.
-                final CompiledMatch.Compilation steps = progressive.forEncoding(effective(compiledTemplate));
-                yield Steps.match(steps.steps(), data, from, to, steps.decoding());
-            }
-            case CompiledMatch.All ignored -> new MatchResult(
+            case final CompiledMatch.Progressive progressive -> Steps.match(
+                    progressive.forEncoding(effective(compiledTemplate)), data, from, to);
+            case final CompiledMatch.All ignored -> new MatchResult(
                     new TypedValue[]{TypedValue.of(Arrays.copyOfRange(data, from, to),
                             effective(compiledTemplate))}, to - from, 0);
-            case CompiledMatch.Source ignored -> null;
-            case CompiledMatch.Named ignored -> null;
+            case final CompiledMatch.Source ignored -> null;
+            case final CompiledMatch.Named ignored -> null;
         };
     }
 
@@ -687,7 +683,7 @@ final class Level {
                               final MatchResult match,
                               final int matchCount) {
         for (final CompiledCapture capture : compiledTemplate.captures()) {
-            if (capture.source() instanceof CompiledCapture.Source.KeyValue keyValue) {
+            if (capture.source() instanceof final CompiledCapture.Source.KeyValue keyValue) {
                 // The name is computed too; nothing binds under the declared one.
                 final String key = CompiledRefs.resolveText(keyValue.key(), match, matchCount, vars);
                 if (key != null) {
@@ -707,12 +703,12 @@ final class Level {
             // A capture is a slice of the input, stored as the match tagged it: nothing is
             // transcoded until a consumer asks for text (design 25).
             final TypedValue read = switch (capture.source()) {
-                case CompiledCapture.Source.Group group -> match.group(group.group());
-                case CompiledCapture.Source.Select select -> {
+                case final CompiledCapture.Source.Group group -> match.group(group.group());
+                case final CompiledCapture.Source.Select select -> {
                     final byte[] bytes = CompiledRefs.resolve(select.ref(), match, matchCount, vars);
                     yield bytes == null ? null : TypedValue.utf8(bytes);
                 }
-                case CompiledCapture.Source.KeyValue ignored ->
+                case final CompiledCapture.Source.KeyValue ignored ->
                         throw new IllegalStateException("key-value bound above");
             };
             final TypedValue value = cast(read, capture.as());
@@ -741,7 +737,7 @@ final class Level {
             return value;
         }
         final TypedValue cast = Comparisons.cast(value, as);
-        if (as == Cast.STRING && cast instanceof TypedValue.Bytes bytes) {
+        if (as == Cast.STRING && cast instanceof final TypedValue.Bytes bytes) {
             bytes.asUtf8();
         }
         return cast;

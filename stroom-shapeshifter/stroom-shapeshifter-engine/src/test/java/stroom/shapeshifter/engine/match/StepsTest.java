@@ -59,14 +59,16 @@ class StepsTest {
                                    final Encoding encoding) {
         final Decoding decoding = Decoding.of(encoding);
         return Steps.match(
-                StepCompiler.compile(steps, "test", decoding,
-                        key -> BytePattern.compile(key.text(), key.flags(), key.encoding())),
-                data, from, data.length, decoding);
+                new CompiledSteps(StepCompiler.compile(steps, "test", decoding,
+                        key -> BytePattern.compile(key.text(), key.flags(), key.encoding())), decoding),
+                data, from, data.length);
     }
 
     private static String group(final MatchResult result, final int index) {
         final TypedValue value = result.group(index);
-        return value == null ? "" : new String(value.asBytes(), StandardCharsets.UTF_8);
+        return value == null
+                ? ""
+                : new String(value.asBytes(), StandardCharsets.UTF_8);
     }
 
     // -----------------------------------------------------------------------------------
@@ -142,9 +144,9 @@ class StepsTest {
     void numbersReadInBothByteOrders() {
         final byte[] data = {0x01, 0x02, 0x02, 0x01, (byte) 0xFF, (byte) 0xFF};
         final MatchResult result = run(List.of(
-                new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.BIG),
-                new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.LITTLE),
-                new MatchStep.ReadNumeric(NumericType.SHORT, true, Endianness.BIG)),
+                        new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.BIG),
+                        new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.LITTLE),
+                        new MatchStep.ReadNumeric(NumericType.SHORT, true, Endianness.BIG)),
                 data, 0, Encoding.UTF_8);
 
         assertThat(result.group(1)).isEqualTo(new TypedValue.Integer(0x0102));
@@ -160,14 +162,16 @@ class StepsTest {
                 List.of(new MatchStep.ReadNumeric(NumericType.LONG, false, Endianness.BIG)),
                 data, 0, Encoding.UTF_8);
         // The alternative is a silently negative number, which is worse than a string.
-        assertThat(result.group(1).asString()).isEqualTo("18446744073709551615");
+        final TypedValue value = result.group(1);
+        assertThat(value).isNotNull();
+        assertThat(value.asString()).isEqualTo("18446744073709551615");
     }
 
     @Test
     void varintsReadSevenBitsAtATime() {
         final byte[] data = {(byte) 0xAC, 0x02, 0x03};
         final MatchResult result = run(List.of(
-                new MatchStep.ReadVarint(), new MatchStep.ReadVarintZigZag()),
+                        new MatchStep.ReadVarint(), new MatchStep.ReadVarintZigZag()),
                 data, 0, Encoding.UTF_8);
         assertThat(result.group(1)).isEqualTo(new TypedValue.Integer(300));
         // ZigZag: 3 encodes -2.
@@ -206,8 +210,8 @@ class StepsTest {
     void takeBytesUsesAnEarlierStepsValue() {
         final byte[] data = {0x00, 0x03, 'a', 'b', 'c', 'd'};
         final MatchResult result = run(List.of(
-                new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.BIG),
-                new MatchStep.TakeBytes(new StepRef.StepOutput(0))),
+                        new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.BIG),
+                        new MatchStep.TakeBytes(new StepRef.StepOutput(0))),
                 data, 0, Encoding.UTF_8);
         assertThat(group(result, 2)).isEqualTo("abc");
         assertThat(result.advance()).isEqualTo(5);
@@ -292,14 +296,14 @@ class StepsTest {
         // take 3 bytes) — the second of which a depth-2 step could not see when the recursion
         // dropped its parent's outputs and handed down only the grandparent's.
         final MatchResult result = run(List.of(
-                new MatchStep.TakeWhile(new Predicate.Numeric()),
-                new MatchStep.Tag(":"),
-                new MatchStep.Sequence(List.of(
                         new MatchStep.TakeWhile(new Predicate.Numeric()),
                         new MatchStep.Tag(":"),
                         new MatchStep.Sequence(List.of(
-                                new MatchStep.TakeBytes(new StepRef.StepOutput(2)),
-                                new MatchStep.TakeBytes(new StepRef.StepOutput(0))))))),
+                                new MatchStep.TakeWhile(new Predicate.Numeric()),
+                                new MatchStep.Tag(":"),
+                                new MatchStep.Sequence(List.of(
+                                        new MatchStep.TakeBytes(new StepRef.StepOutput(2)),
+                                        new MatchStep.TakeBytes(new StepRef.StepOutput(0))))))),
                 "3:2:aabbbZ");
 
         assertThat(result).isNotNull();
