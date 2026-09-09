@@ -23,6 +23,7 @@ keeping, and so is one that did not.
 | 6 | `32e7840450` | 2026-09-08 | Design 29 phase 3, the body's ops | `apache_httpd`'s row: nine sites, the largest of them the regex replace holding its matcher and its parsed replacement, at 209 replaces per record. Design 10 §2 measured change 3 moving this workload only 12% and blamed transforms working in `String`, which this does not change — so a small move here is the expected result, and a large one would mean the blame was wrong. |
 | 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
 | 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
+| 9 | `8d0fd1cd65` | 2026-09-09 | Design 30: conditions compiled, the pattern map off the graph | A `matches` test holds its `BytePattern` instead of hashing the pattern's text per evaluation, and `Conditions.evaluate` stops taking the map — so it is no longer threaded into every guard evaluation on every template on every record. **624 evaluations per operation on `apache_httpd` and none anywhere else**, invisible in a sampled profile, so the run rows should not move. Compilation now walks the condition trees, so the compile rows are where a change would show. |
 
 *Design 29 phase 4 is deliberately not a point: it measured and built nothing, so the code at it
 is identical to phase 3's.*
@@ -42,9 +43,11 @@ that does not exercise a change measures it at zero — and design 29 §9 is the
    so the suite has no row where the sinks are more than noise. Needs a fixture whose bodies
    write many elements per record over cheap matching, in the shape `progressive_text` took for
    the step vocabulary.
-3. **Point 8, on the compile rows.** The cheapest of the three and the least likely to say
-   anything: run rows should be untouched, and if one moves, the reading is drift unless it
-   repeats under interleaving.
+3. **Points 8 and 9, on the compile rows.** The cheapest of the three and the least likely to
+   say anything: both move work into compilation and neither should touch a run row. If one
+   does, the reading is drift unless it repeats under interleaving. Point 9 is the more
+   interesting of the two, because compiling a condition tree is new work at compile time and
+   `apache_httpd` is the configuration with the most conditions to walk.
 
 The first two are the ones that decide whether design 29 phases 2 and 5 stay as written. The
 third is a control.
