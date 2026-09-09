@@ -27,6 +27,7 @@ import stroom.shapeshifter.regex.ByteMatcher;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Progressive matching: a sequence of steps, each starting where the last one stopped.
@@ -302,7 +303,9 @@ public final class Steps {
                 if (!matcher.match(data, from, to, Anchoring.ANCHORED)) {
                     yield null;
                 }
-                final byte[] matched = matcher.groupBytes(0);
+                // Group 0 is the whole match: present whenever match() said yes, so the
+                // check states an invariant rather than handling a case.
+                final byte[] matched = Objects.requireNonNull(matcher.groupBytes(0));
                 yield new Result(TypedValue.of(matched, encoding), matched.length);
             }
             case final CompiledStep.Choice choice -> {

@@ -128,10 +128,8 @@ final class Level {
         final boolean[] allowed = guards(templates);
 
         int cursor = from;
-        boolean matched = true;
 
-        while (cursor < to && matched) {
-            matched = false;
+        while (cursor < to) {
             int winner = -1;
             MatchResult match = null;
             for (int i = 0; i < templates.size(); i++) {
@@ -176,7 +174,6 @@ final class Level {
             if (candidate.consume()) {
                 processEater(candidate, match, out, inputBase, ignoreErrors, depth);
                 cursor += match.advance();
-                matched = true;
                 continue;
             }
 
@@ -184,7 +181,6 @@ final class Level {
             processMatch(candidate, match, counts[winner], data, cursor,
                     locate(inputBase, cursor - from), out, ignoreErrors, depth, true);
             cursor += match.advance();
-            matched = true;
             // The choice re-opens from the first template.
         }
 

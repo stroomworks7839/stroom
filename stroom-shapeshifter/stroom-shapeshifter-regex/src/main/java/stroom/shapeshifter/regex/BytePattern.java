@@ -608,7 +608,7 @@ public final class BytePattern {
             sb.append("accel:   reverse start-finder (")
                     .append(reverse.size()).append(" instructions)\n");
         }
-        if (nfa == null && tree != null) {
+        if (plan == null && nfa == null) {
             sb.append("tier:    ").append(tier()).append(" (").append(engine().description())
                     .append(", ").append(tree.nodeCount()).append(" nodes)\n");
             return sb.toString();
