@@ -204,7 +204,7 @@ final class Body {
      * call. One arm per instruction, so the method is as long as the instruction set (design 27
      * §2.2).
      */
-    void body(final List<CompiledOp> ops,
+    void body(final CompiledOp[] ops,
               final MatchResult match,
               final int matchCount,
               final byte[] content,
@@ -249,7 +249,7 @@ final class Body {
      * leaves here is {@link AbortRun}, which the run catches at the top and does not continue
      * from, so nothing is left to read a register that was not put back.
      */
-    private void run(final List<CompiledOp> ops) {
+    private void run(final CompiledOp[] ops) {
         for (final CompiledOp op : ops) {
             switch (op) {
                 case final CompiledOp.Text value -> text(value);
@@ -311,7 +311,7 @@ final class Body {
 
     private void switchOn(final CompiledOp.Switch op) {
         final String selected = textOf(op.select(), match, matchCount);
-        final List<CompiledOp> taken = op.cases().get(selected);
+        final CompiledOp[] taken = op.cases().get(selected);
         run(taken == null ? op.defaultBody() : taken);
     }
 

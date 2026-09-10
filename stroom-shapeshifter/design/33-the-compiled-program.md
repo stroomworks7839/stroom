@@ -235,9 +235,36 @@ defect; catching at the call keeps the instruction named correctly, and leaves a
 other instruction to reach `Run`, which reports it without naming one — which is what it did
 before.
 
-**Phase 2 — the ops as an array.** `List<CompiledOp>` becomes `CompiledOp[]`, with the type
-switch still in place. Measure against phase 1. This is the collection half, and it is separable
-from the dispatch by construction — which is the point of doing it on its own.
+**Phase 2 — the ops as an array. Built 2026-09-10.** `List<CompiledOp>` becomes `CompiledOp[]`
+wherever a body is executed — `If.then`, `When.body`, `Choose.otherwise` and `Choose.when` (now
+`When[]`), `Switch.cases` and `defaultBody`, `Variable.body`, `Element.body`, `Attribute.body`,
+`ForEach.body`, `ForEachGroup.body`, `CompiledTemplate.body`, and `RootPlan`'s prologues and
+tails — with the type switch still in place. Eight files, +36/−35.
+
+*The indicators, which are not a benchmark:* on `log_sessions`, `java.util.List::…` calls failing
+to inline with "no static binding" fall from **252 to 236**, and mentions of
+`ImmutableCollections$ListItr` from **31 to 18**. The iterator and the interface calls are off
+the body path; the rest of the `List` traffic is stores, captures, sort keys and function
+arguments, which is not this change's business.
+
+*And it confirms 1b's constraint rather than escaping it:* `run()` is **589** bytes, against 591
+before. Removing the collection did not shrink the switch, because what holds it near 590 is the
+26-entry jump table and its casts.
+
+**The audit found one real cost.** `BodyCompiler.compile` used to return `List.copyOf(ops)`,
+which was **immutable** — a write threw. An array cannot be immutable in Java, so a guarantee
+that was a type is now a rule. It matters because a compiled project outlives the runs that use
+it and is shared between them (D35): a run that wrote into a body would be editing every later
+run's program. Nothing writes to one — checked — and the rule is written into `CompiledOp`'s own
+javadoc rather than left to be discovered. `CompiledTemplate` keeps its defensive copy, as
+`body.clone()`; `RootPlan` keeps `List.copyOf` on the outer lists, its inner arrays shared exactly
+as its inner lists were.
+
+*Two smaller findings, both benign.* Record `equals` and `hashCode` on the body-carrying records
+are now identity-based, which nothing depends on — the one `Set<CompiledOp.Transform>` is built
+on an `IdentityHashMap` deliberately and no test compares a compiled op by value. And
+`RootPlanner` slices with `Arrays.copyOfRange` where it used `subList`: a copy rather than a
+view, at compile time only, which also stops a slice retaining the whole level.
 
 **Phase 3 — C, the program.** The derived `int[]` of codes, and `switch (codes[pc])`, on `Body`
 first. Measure against phase 2, so what is being measured is the dispatch and nothing else.

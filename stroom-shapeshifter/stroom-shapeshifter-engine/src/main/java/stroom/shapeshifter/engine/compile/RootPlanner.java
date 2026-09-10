@@ -26,6 +26,7 @@ import stroom.shapeshifter.engine.graph.CompiledTemplate;
 import stroom.shapeshifter.engine.graph.RootPlan;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -67,20 +68,20 @@ final class RootPlanner {
         if (source == null) {
             return new RootPlan(dispatch, roots, ignoreErrors, List.of(), List.of(), List.of());
         }
-        final List<List<CompiledOp>> prologues = new ArrayList<>();
+        final List<CompiledOp[]> prologues = new ArrayList<>();
         final List<CompiledOp.Element> opened = new ArrayList<>();
-        final List<List<CompiledOp>> tails = new ArrayList<>();
-        List<CompiledOp> level = source.body();
+        final List<CompiledOp[]> tails = new ArrayList<>();
+        CompiledOp[] level = source.body();
         while (true) {
             final int at = indexOfApplyOrEnclosingElement(level);
             if (at < 0) {
                 prologues.add(level);
-                tails.add(List.of());
+                tails.add(new CompiledOp[0]);
                 break;
             }
-            prologues.add(level.subList(0, at));
-            tails.add(level.subList(at + 1, level.size()));
-            if (level.get(at) instanceof final CompiledOp.Element element) {
+            prologues.add(Arrays.copyOfRange(level, 0, at));
+            tails.add(Arrays.copyOfRange(level, at + 1, level.length));
+            if (level[at] instanceof final CompiledOp.Element element) {
                 opened.add(element);
                 level = element.body();
             } else {
@@ -109,9 +110,9 @@ final class RootPlanner {
         return null;
     }
 
-    private static int indexOfApplyOrEnclosingElement(final List<CompiledOp> body) {
-        for (int i = 0; i < body.size(); i++) {
-            final CompiledOp op = body.get(i);
+    private static int indexOfApplyOrEnclosingElement(final CompiledOp[] body) {
+        for (int i = 0; i < body.length; i++) {
+            final CompiledOp op = body[i];
             if (op instanceof CompiledOp.Apply
                 || (op instanceof final CompiledOp.Element element && containsApply(element.body()))) {
                 return i;
@@ -120,7 +121,7 @@ final class RootPlanner {
         return -1;
     }
 
-    private static boolean containsApply(final List<CompiledOp> body) {
+    private static boolean containsApply(final CompiledOp[] body) {
         for (final CompiledOp op : body) {
             if (op instanceof CompiledOp.Apply
                 || (op instanceof final CompiledOp.Element element && containsApply(element.body()))) {
