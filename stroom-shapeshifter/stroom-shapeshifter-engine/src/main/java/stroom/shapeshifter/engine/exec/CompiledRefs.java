@@ -44,6 +44,12 @@ import java.util.List;
  */
 final class CompiledRefs {
 
+    /**
+     * "The last value there is", which a store answers from its own contents and a frame
+     * answers by having only one. Outside any store's index range by construction.
+     */
+    private static final int LAST = Integer.MIN_VALUE;
+
     private CompiledRefs() {
     }
 
@@ -166,6 +172,76 @@ final class CompiledRefs {
     }
 
     /**
+     * One value out of a name's stores, under an index rule already resolved to a number.
+     *
+     * <p>Since design 30 phase 6 there is one resolver, so this is no longer shared with an
+     * authored twin — it is simply how an index rule reads a store.
+     */
+    private static TypedValue indexed(final List<Store> stores,
+                              final int group,
+                              final Integer index,
+                              final int matchCount) {
+        if (stores == null || group >= stores.size()) {
+            return null;
+        }
+        final Store store = stores.get(group);
+        if (index == null) {
+            return store.latest();
+        }
+        if (index == LAST) {
+            final int last = store.lastIndex();
+            return store.get(last < 0 ? matchCount : last);
+        }
+        return store.get(index);
+    }
+
+    /**
+     * A framed value under the same rule.
+     *
+     * <p>What a frame replaced was a store holding one value, at index one, in a list of one. So
+     * a reference reads it when it asks for the latest, for the last, or for index one, and reads
+     * nothing otherwise — which is what indexing past a single-valued store already did.
+     */
+    private static TypedValue framed(final TypedValue value, final int group, final Integer index) {
+        if (group != 0 || value == null) {
+            return null;
+        }
+        return index == null || index == LAST || index == 1 ? value : null;
+    }
+
+    /** The three index forms that need no variable. */
+    private static Integer rule(final int index,
+                                final boolean isOffset,
+                                final boolean isLast,
+                                final int matchCount) {
+        if (isLast) {
+            return LAST;
+        }
+        return isOffset ? matchCount + index : index;
+    }
+
+    /** The most recent value a name's stores hold, or null. */
+    private static TypedValue latest(final List<Store> stores) {
+        return stores == null || stores.isEmpty() ? null : stores.getFirst().latest();
+    }
+
+    /**
+     * The whole number a value holds, for the index rule that reads one at run time.
+     *
+     * <p>Absent or non-numeric reads as <b>the first match</b>: the conservative answer, since
+     * match indexes count from one.
+     */
+    private static int number(final TypedValue value) {
+        if (value != null) {
+            final Double count = value.asNumber();
+            if (count != null && count >= 0) {
+                return (int) (double) count;
+            }
+        }
+        return 1;
+    }
+
+    /**
      * A variable's value by slot, group and index rule, or null.
      *
      * <p>No name is resolved here and no map is consulted: the slot was decided when the
@@ -178,7 +254,7 @@ final class CompiledRefs {
         // Nothing to index is nothing to resolve the rule for, and absent is the common case.
         return stores == null
                 ? null
-                : Refs.indexed(stores, remote.group(),
+                : indexed(stores, remote.group(),
                         index(remote.matchIndex(), matchCount, vars), matchCount);
     }
 
@@ -192,14 +268,21 @@ final class CompiledRefs {
         final TypedValue value = vars.frames().value(context.var());
         return value == null
                 ? null
-                : Refs.framed(value, context.group(), index(context.matchIndex(), matchCount, vars));
+                : framed(value, context.group(), index(context.matchIndex(), matchCount, vars));
     }
 
     /**
-     * Which value a compiled index rule means.
+     * Which value an index rule means: null for the most recent, {@link #LAST} for the last
+     * there is, or a match index.
      *
-     * <p>The rule's own three forms are shared with the authored resolver; the fourth reads the
-     * index out of another variable, and <em>which</em> variable — a registry slot or an
+     * <p>Four ways to say it, and they exist because four things genuinely need saying: read the
+     * index out of another variable at run time, take the last one there is, count relative to
+     * the match being processed, or name it outright. The relative form is the one that makes a
+     * header row line up with a data row — the engine's own {@code __match_count} threads the
+     * column number through. Nothing makes the four exclusive, so the order they are asked in is
+     * behaviour.
+     *
+     * <p>The fourth reads another variable, and <em>which</em> variable — a registry slot or an
      * execution frame — was settled when the reference compiled.
      */
     private static Integer index(final CompiledIndex rule,
@@ -209,11 +292,11 @@ final class CompiledRefs {
             return null;
         }
         if (rule.varContext() != null) {
-            return Refs.number(vars.frames().value(rule.varContext()));
+            return number(vars.frames().value(rule.varContext()));
         }
         if (rule.varRef() != null) {
-            return Refs.number(Refs.latest(vars.get(rule.varRef())));
+            return number(latest(vars.get(rule.varRef())));
         }
-        return Refs.rule(rule.index(), rule.isOffset(), rule.isLast(), matchCount);
+        return rule(rule.index(), rule.isOffset(), rule.isLast(), matchCount);
     }
 }

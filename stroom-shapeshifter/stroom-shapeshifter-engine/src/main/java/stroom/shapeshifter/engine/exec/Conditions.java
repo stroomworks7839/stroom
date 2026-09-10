@@ -17,9 +17,9 @@
 package stroom.shapeshifter.engine.exec;
 
 import stroom.shapeshifter.engine.compile.CompiledCondition;
-import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.engine.compile.CompiledOperand;
+import stroom.shapeshifter.engine.compile.CompiledRef;
 import stroom.shapeshifter.engine.config.EngineVars;
-import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;
@@ -94,7 +94,8 @@ public final class Conditions {
                 yield position != null && position.equals(last);
             }
             case final CompiledCondition.Exists value -> {
-                final byte[] resolved = Refs.resolve(value.select(), match, matchCount, vars);
+                final byte[] resolved =
+                        CompiledRefs.resolve(value.select(), match, matchCount, vars);
                 yield resolved != null && resolved.length > 0;
             }
         };
@@ -106,30 +107,29 @@ public final class Conditions {
         return value == null ? null : value.asInteger();
     }
 
-    private static String text(final RefExpression expression,
+    private static String text(final CompiledRef ref,
                                final MatchResult match,
                                final int matchCount,
                                final VarRegistry vars) {
-        final String resolved = Refs.resolveText(expression, match, matchCount, vars);
+        final String resolved = CompiledRefs.resolveText(ref, match, matchCount, vars);
         return resolved == null ? "" : resolved;
     }
 
-    /** One side of a comparison: resolve or materialise, then the explicit cast, if any. */
-    private static TypedValue operand(final Condition.Operand operand,
+    /**
+     * One side of a comparison.
+     *
+     * <p>A literal is already made and already cast — both are constant, and doing them per
+     * evaluation is what design 30 phase 6 stopped. A reference resolves and then takes its
+     * declared cast, which is not constant and cannot move.
+     */
+    private static TypedValue operand(final CompiledOperand operand,
                                       final MatchResult match,
                                       final int matchCount,
                                       final VarRegistry vars) {
-        if (operand.ref() != null) {
-            return Comparisons.cast(
-                    Refs.resolveValue(operand.ref(), match, matchCount, vars),
-                    operand.as());
-        }
-        final TypedValue value = switch (operand.literal()) {
-            case final Condition.Literal.Text text -> TypedValue.of(text.value());
-            case final Condition.Literal.Whole whole -> new TypedValue.Integer(whole.value());
-            case final Condition.Literal.Fractional fraction -> new TypedValue.Double(fraction.value());
-            case final Condition.Literal.Truth truth -> new TypedValue.Bool(truth.value());
-        };
-        return Comparisons.cast(value, operand.as());
+        return operand.ref() == null
+                ? operand.literal()
+                : Comparisons.cast(
+                        CompiledRefs.resolveValue(operand.ref(), match, matchCount, vars),
+                        operand.as());
     }
 }

@@ -17,7 +17,6 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.Condition;
-import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.regex.BytePattern;
 
@@ -40,33 +39,39 @@ import java.util.Map;
  * the run: {@code Conditions.evaluate} no longer takes one, so nothing threads it through a
  * guard evaluation on every template on every record.
  *
- * <p><b>What this deliberately does not compile</b> is the references. A condition still resolves
- * its {@link RefExpression} operands through {@code Refs}, walking the authored form, because
- * design 29 phase 4 measured that path at 0.4% of {@code win_sec_strict} and 0.7% of
- * {@code ausearch} and E39 is deferred on that measurement. Compiling the tree does not reopen
- * it; the refs travel unchanged.
+ * <p><b>The references are compiled too, since design 30 phase 6.</b> They were not, and the
+ * reason was that design 29 phase 4 measured the path at 0.4% of {@code win_sec_strict} and 0.7%
+ * of {@code ausearch}, which is not a reason to move anything. What changed is not the
+ * measurement: once phase 5 made a name a slot, a condition walking the authored form was the
+ * last place in the engine that resolved a name by string while a record ran — the defect this
+ * design exists to remove. With it gone the engine has one reference resolver rather than two,
+ * and {@code Refs} is deleted.
+ *
+ * <p>A {@code Compare}'s operands are {@link CompiledOperand}s, which finishes a literal at
+ * compile time: the authored form allocated its value and applied its cast on every evaluation,
+ * and both are constant.
  */
 public sealed interface CompiledCondition {
 
     /** Two operands compared, each a reference or a literal, each with its declared cast. */
     record Compare(Condition.Compare.Op op,
-                   Condition.Operand left,
-                   Condition.Operand right) implements CompiledCondition {
+                   CompiledOperand left,
+                   CompiledOperand right) implements CompiledCondition {
 
     }
 
     /** A value matched against a pattern this node holds. */
-    record Matches(RefExpression select, BytePattern pattern) implements CompiledCondition {
+    record Matches(CompiledRef select, BytePattern pattern) implements CompiledCondition {
 
     }
 
     /** A value containing a substring. */
-    record Contains(RefExpression select, String substring) implements CompiledCondition {
+    record Contains(CompiledRef select, String substring) implements CompiledCondition {
 
     }
 
     /** A value starting with a prefix. */
-    record StartsWith(RefExpression select, String prefix) implements CompiledCondition {
+    record StartsWith(CompiledRef select, String prefix) implements CompiledCondition {
 
     }
 
@@ -92,7 +97,7 @@ public sealed interface CompiledCondition {
     }
 
     /** Whether there was a value at all, which is not the same question as what it equals. */
-    record Exists(RefExpression select) implements CompiledCondition {
+    record Exists(CompiledRef select) implements CompiledCondition {
 
     }
 
@@ -120,36 +125,27 @@ public sealed interface CompiledCondition {
                                 final VarNames names) {
         return switch (condition) {
             case null -> null;
-            case final Condition.Compare value -> {
-                intern(value.left(), names);
-                intern(value.right(), names);
-                yield new Compare(value.op(), value.left(), value.right());
-            }
+            case final Condition.Compare value -> new Compare(value.op(),
+                    CompiledOperand.of(value.left(), names),
+                    CompiledOperand.of(value.right(), names));
             case final Condition.Matches value -> {
-                names.intern(value.select());
                 final BytePattern pattern = patterns.get(PatternKey.ofValue(value.pattern()));
                 if (pattern == null) {
                     // The match compiler interns every pattern a condition names, including the
                     // ones nested in a body; a miss here means it stopped walking somewhere.
                     throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
                 }
-                yield new Matches(value.select(), pattern);
+                yield new Matches(CompiledRef.of(value.select(), names), pattern);
             }
-            case final Condition.Contains value -> {
-                names.intern(value.select());
-                yield new Contains(value.select(), value.substring());
-            }
-            case final Condition.StartsWith value -> {
-                names.intern(value.select());
-                yield new StartsWith(value.select(), value.prefix());
-            }
+            case final Condition.Contains value ->
+                    new Contains(CompiledRef.of(value.select(), names), value.substring());
+            case final Condition.StartsWith value ->
+                    new StartsWith(CompiledRef.of(value.select(), names), value.prefix());
             case final Condition.And value -> new And(all(value.conditions(), patterns, names));
             case final Condition.Or value -> new Or(all(value.conditions(), patterns, names));
             case final Condition.Not value -> new Not(of(value.condition(), patterns, names));
-            case final Condition.Exists value -> {
-                names.intern(value.select());
-                yield new Exists(value.select());
-            }
+            case final Condition.Exists value ->
+                    new Exists(CompiledRef.of(value.select(), names));
             case final Condition.IsFirst ignored -> new IsFirst();
             case final Condition.IsLast ignored -> new IsLast();
         };
@@ -159,23 +155,5 @@ public sealed interface CompiledCondition {
                                                final Map<PatternKey, BytePattern> patterns,
                                                final VarNames names) {
         return conditions.stream().map(child -> of(child, patterns, names)).toList();
-    }
-
-    /**
-     * Intern the names an operand reads, so the table means every name the configuration
-     * mentions rather than every name a compiled node holds.
-     *
-     * <p>A condition still resolves the <em>authored</em> expression (E39 owns that seam), so
-     * these names never reach a {@link CompiledRef}: the guard looks the name up by string while
-     * the record runs. <b>That is safe without this</b>, and the reason is worth stating because
-     * it is not obvious — whatever <i>writes</i> a name interns it, and the compiler refuses a
-     * read of a name nothing writes, so a guard's name is always in the table already. Where it
-     * is not, both the write and the read go through the <em>same</em> run-time map and agree on
-     * the slot they invent. Interning here is completeness, not correctness.
-     */
-    private static void intern(final Condition.Operand operand, final VarNames names) {
-        if (operand != null) {
-            names.intern(operand.ref());
-        }
     }
 }

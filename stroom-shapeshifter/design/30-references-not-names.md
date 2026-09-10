@@ -40,7 +40,7 @@ Every map in the engine, the regex library and the pipeline was read for E44. Fo
 | `CompiledProject.templatesByMode`, `templatesByName` | a mode or template name, authored | link time only | **closed** — §9 phase 1 |
 | `Conditions` — `patterns.get(PatternKey.ofValue(...))` | a pattern's **text**, authored | 624 per operation on `apache_httpd`, none elsewhere | **closed** — §9 phase 2 |
 | `VarRegistry.get`, via `Refs.lookup` and `CompiledRefs.lookup` | a variable name, authored | 24,960 resolutions per operation on `apache_httpd` | **open** — §5, and the reason this design is not finished |
-| `Body.keyIndexes` — `put(name)` / `getOrDefault(key)` | a key's name, authored | only `key`/`key-get` configurations, none in the suite | **open**, unmeasured; the *inner* index is data-keyed and stays a map |
+| `Body.keyIndexes` — `put(name)` / `getOrDefault(key)` | a key's name, authored | `log_sessions` runs two `key` and one `key-get`; no other workload | **open** — and after phase 6 it is the *only* one left. The *inner* index is data-keyed and stays a map |
 
 **Read and cleared**, recorded so the next survey need not repeat the walk: `Switch.cases`,
 `ValueMap.entries`, the grouping maps in `Body.file`, `FunctionRuntime.state` and the pipeline's
@@ -52,9 +52,12 @@ it at compile time and nothing calls the by-name form at run time.
 
 ## 4. What this does not touch
 
-- **The references inside a condition.** A compiled condition still resolves its
-  `RefExpression` operands through `Refs`. That is E39's other half, deferred on design 29 phase
-  4's measurement of 0.4% and 0.7%, and compiling the condition *tree* does not reopen it.
+- **The references inside a condition.** ~~A compiled condition still resolves its
+  `RefExpression` operands through `Refs`.~~ *Held until 2026-09-10, when phase 5 changed the
+  argument rather than the measurement: those references became the last run-time name
+  resolution whose key the compiler knew. §6 phase 6 is the design.* The reasoning that kept it
+  here was sound and is worth keeping in the record — compiling the condition tree does not by
+  itself reopen the refs, and 0.4% to 0.7% is not a reason to move them.
 - **Nodes that run themselves.** The obvious follow-on to a compiled condition is
   `CompiledCondition.evaluate(...)` on each record, retiring the switch. *Ruled against, 2026-09-09,
   for two reasons and not the one usually given.* First, evaluating needs `VarRegistry`,
@@ -412,17 +415,58 @@ and interning is designed against what is left.
 second by absolute lookups removed.
 
 **Phase 6 — the conditions' references** (E39's other half), which phase 5 turned from a
-performance question into a structural one. *This design's goal is now one map away.* Every
-run-time string lookup left outside a key-value capture is a condition resolving an **authored**
+performance question into a structural one. *This design's goal is one map away.* Every run-time
+string lookup left outside a key-value capture is a condition resolving an **authored**
 expression: 19,440 per operation on `apache_httpd`, 8,792 on `log_sessions`, 4,872 on
-`win_sec_strict`. That is a map keyed by something the compiler knew, which is the exact defect
-§1 names. Closing it takes `apache_httpd` to zero and leaves only `ausearch`'s 14,140, which are
-data. Design 29 §4 and §4 above both deferred this on a 0.4%-to-0.7% measurement; the reason to
-do it now is not speed, and the count is the argument.
+`win_sec_strict`, 2,170 on `ausearch`. That is a map keyed by something the compiler knew, which
+is the exact defect §1 names. Design 29 §4 and §4 above both deferred it on a 0.4%-to-0.7%
+measurement; the measurement still holds and is no longer the argument.
 
-**Phase 7 — the key index**, if it is still worth it. `log_sessions` became a benchmark row on
-2026-09-09, so it is measurable now where it was not; whether it is worth measuring is phase 5's
-number to decide, and phase 5 removed the traffic that would have made it look expensive.
+*The design, 2026-09-10.*
+
+**What it is.** `CompiledCondition` already mirrors the authored vocabulary kind for kind and
+holds its own `BytePattern` (phase 2). It still holds authored `RefExpression`s, so
+`Conditions.evaluate` calls `Refs` — the resolver that walks the authored form and finds a
+variable by name. Each of those becomes a `CompiledRef`, and a `Compare`'s two operands become a
+new `CompiledOperand`.
+
+**A literal operand stops being built per evaluation.** `Condition.Operand` is a reference *or* a
+literal, and the literal case allocates a `TypedValue` and applies its declared cast on every
+evaluation. Both are constant. `CompiledOperand` holds the materialised, already-cast value, so
+the run reads a field. That is a second prize the count did not predict, and it is on the same
+path: `apache_httpd` evaluates 24 `equals` conditions per record.
+
+**Literal text inside a reference stops being encoded per evaluation** for the same reason —
+`CompiledRef.Bytes` holds a UTF-8 value made once, where `Refs` called `getBytes` each time.
+
+**And `Refs` is deleted.** It has exactly three callers, all in `Conditions`. With those gone the
+engine has **one** reference resolver rather than two, which is the structural prize and is worth
+more than the microseconds: the seam design 25 phase 3 opened and E39 has owned since closes, and
+`CompiledRefs` stops being "the other one".
+
+**What this does not do**, still: give `CompiledCondition` an `evaluate` method. §4's second
+bullet refuses that for the package-cycle reason and phase 6 does not reopen it — the vocabulary
+stays in `compile`, the run state stays in `exec`, and the interpreter's switch stays where
+design 27 ruling 2 put it.
+
+**The correctness risk, checked before building rather than after.** The two resolvers must agree
+on the *type* a value carries, or a comparison could change answer. They do: a literal text part
+resolves through `Refs` to `TypedValue.utf8(bytes)` and through `CompiledRefs` to
+`TypedValue.of(text)`, and both are a `Utf8Bytes`. Verified in `TypedValue` rather than assumed.
+
+**The gate.** The suites, and an interleaved reading on `apache_httpd` — 19,440 of the remaining
+lookups are its — with `element_storm` as the control, since it evaluates no conditions either.
+The expected outcome is stated first, per §7: the path measures at 0.4% to 0.7%, so **the run
+rows should barely move**, and the claim being made is structural. If `apache_httpd` moves more
+than the envelope, the literal operands are why and that should be said rather than assumed.
+
+**Phase 7 — the key index**, which after phase 6 is **the last run-time lookup on a key the
+compiler knew**. `Body.keyIndexes` hashes a key's *name*: `Key.name` on the write,
+`KeyGet.key` on the read. Both are authored strings and both should be what every other name in
+the engine now is. `log_sessions` runs two `key` instructions and one `key-get`, so unlike when
+this was written there is a workload that exercises it — and it was exercising it all along while
+the phase 5 probe read zero, because that probe watched the variable registry and this map is not
+part of it. Small: two fields, and the interning already exists.
 
 **Phase 8 — the record.** E44 closed or restated; design 10 §2's reference-resolution row
 updated; §3's cleared list carried into the ledger so the next survey starts from it.
@@ -478,10 +522,16 @@ whether the count was right. Phase 3 is nothing but that.
    slot array is flat with no threshold. Recorded because it is an assumption about
    configurations this repository has not seen rather than a measurement, and a production
    configuration an order of magnitude wider would want rechecking rather than a surprise.
-10. **The conditions' references, once more.** *Not yet ruled.* Deferred twice on the ground that
-    the path measures at 0.4% to 0.7%, which is still true and is no longer the question. After
-    phase 5 they are the **only** run-time name resolution left whose key the compiler knew, and
-    this design's stated aim is that no such map survives. §6 phase 6 is the proposal.
+10. **The conditions' references, once more.** *Ruled 2026-09-10: compile them*, and built the
+    same day (§9 phase 6). Deferred twice on the ground that the path measures at 0.4% to 0.7%,
+    which was still true and was not the question — after phase 5 they were the only run-time name
+    resolution left whose key the compiler knew. E39 is closed on the structural half it had
+    itself left open. *The measurement it was deferred on turned out to under-describe the
+    change*: it covered `Refs` resolution and not the literal operands beside it, which is why
+    §9's record spends more words on the prediction than on the result.
+11. **The key index** (§3's fourth site, §6 phase 7). *Not yet ruled.* It is now the only
+    run-time lookup left on a key the compiler knew, and the claim that design 30's goal is met
+    should not be made until it is closed or refused.
 
 ## 9. Record
 
@@ -783,3 +833,77 @@ as a deferred optimisation. It is now this design's last loose end, so they carr
 `apache_httpd` **+15.9%** (4/4, +12.9 to +19.1) and `log_sessions` **+11.9%** (4/4, +9.1 to
 +16.5), against a control at −0.2%. Both hold; the earlier figures are not restated as improved,
 because the difference is inside what the rounds themselves spread.
+
+### Phase 6 — the conditions resolve compiled references
+
+`CompiledCondition` holds `CompiledRef`s, a `Compare`'s operands are `CompiledOperand`s, and
+**`Refs` is deleted**: it had exactly three callers, all in `Conditions`, and with them gone the
+engine has one reference resolver rather than two. That is what E39 said would happen when it was
+done, and it closes design 10 §2's reference-resolution row, open since that design was written.
+
+A literal operand is finished when it compiles. The authored form allocated its `TypedValue` and
+applied its declared cast on every evaluation, and both are constant — safe to move because
+`Comparisons.cast` reads only the value and the cast, with no zone or locale, and its date reading
+requires an explicit offset. A compact constructor refuses a literal that still carries a cast, so
+the invariant cannot rot into a cast the run silently ignores.
+
+#### The prediction was wrong, and the reason is not the one phase 4 taught
+
+§6 stated the expectation before the run, as §7 requires: the path measures at 0.4% to 0.7%, so
+**the run rows should barely move**. `apache_httpd` moved about **7%**.
+
+Counted afterwards, per 256 KiB operation:
+
+| workload | condition evaluations | literal operands | ref operands |
+|---|---|---|---|
+| `apache_httpd` | 31,488 | **13,920** | 13,920 |
+| `win_sec_strict` | 5,568 | 4,872 | 4,872 |
+| `log_sessions` | 4,396 | 4,396 | 4,396 |
+| `ausearch` | 2,730 | 2,170 | 2,170 |
+
+Every comparison in the corpus is a reference against a literal, so `apache_httpd` was allocating
+13,920 values and running 13,920 casts per operation for things that never change.
+
+**The 0.4%-to-0.7% figure is a sampled share of `Refs` resolution.** The literal side was never in
+`Refs` — it was in `Conditions.operand` — so the measurement predicted from never covered half the
+work the change touches. Its *scope* was narrower than the change.
+
+That is the mirror of phase 4's error rather than a repeat of it. There the measurement was right
+and it was read as a share where volume was needed. Here it was read correctly and was measuring
+the wrong extent. Both feel like "the count predicted it" failing, and neither is: **check that
+the number being predicted from covers everything the change touches**, which is a different
+question from whether it is the right kind of number.
+
+#### What this does not finish, said plainly
+
+Phase 6 removes the last run-time lookup on a compiler-known key **that the corpus exercises**.
+It does not remove the last one that exists. `Body.keyIndexes` still hashes a key's *name* —
+`Key.name` on the write and `KeyGet.key` on the read, both authored strings — and the phase 5
+probe read zero for every workload because it instrumented the variable registry, which that map
+is not part of. `log_sessions` runs two `key` instructions and one `key-get`, so the site is
+exercised and was simply not being watched.
+
+**That is design 29 §9's rule arriving a third time**, and the third time was in a probe rather
+than a benchmark: an instrument that does not cover a thing reports nothing about it, and nothing
+reads as zero. Phase 7 is the site, and unlike when §6 was written there is a workload that runs
+it.
+
+*The maps that remain, and are meant to.* Every other run-time map in the engine is keyed by
+data, which §1 exempts: `VarRegistry`'s table extended with key-value capture names read from the
+input (14,140 per operation on `ausearch`), a `switch`'s selected value, a value map's subject,
+and the grouping and key indexes keyed by the key's value. `FunctionRuntime.state` is an
+extension function's own state bag rather than engine dispatch. The compile-time tables —
+`MatchCompiler.patterns`, `MatcherLibrary.definitions`, `Encoding.BY_LABEL`, the unicode and
+regex-encoding caches — are not consulted while a record runs.
+
+#### Two findings surfaced rather than folded in
+
+**E45** — a `matches` condition resolves its subject to a `String` and immediately re-encodes it
+for a byte matcher that already had the bytes, 624 times per operation on `apache_httpd`. Left
+because it is not only an optimisation: the round trip is lossy, so malformed bytes reach the
+pattern as U+FFFD rather than as themselves, and which is correct is a ruling about what a
+`matches` test sees. D38 points at the direct path; nothing in the corpus distinguishes them, so
+it needs a fixture and a decision rather than a quiet fix inside a change about names.
+
+**E46** — `and` and `or` allocate a stream and a capturing lambda per evaluation. Pre-existing and
+unmeasured, recorded because it sits on the path this phase has just claimed to improve.

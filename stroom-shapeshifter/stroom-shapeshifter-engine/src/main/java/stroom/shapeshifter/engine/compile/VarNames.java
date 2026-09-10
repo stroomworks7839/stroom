@@ -17,7 +17,6 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.EngineVars;
-import stroom.shapeshifter.engine.config.RefExpression;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -91,27 +90,6 @@ public final class VarNames {
             out[i] = intern(names[i]);
         }
         return out;
-    }
-
-    /**
-     * Intern every name an authored expression reads, without compiling it.
-     *
-     * <p>For the one resolver that still walks the authored form: a condition's operands. It is
-     * completeness rather than correctness — {@code CompiledCondition.intern} says why — and it
-     * is what lets {@link #all()} mean "every name this configuration mentions".
-     */
-    public void intern(final RefExpression expression) {
-        if (expression == null) {
-            return;
-        }
-        for (final RefExpression.RefPart part : expression.parts()) {
-            if (part instanceof final RefExpression.RefPart.Capture capture) {
-                intern(capture.varId());
-                if (capture.matchIndex() != null) {
-                    intern(capture.matchIndex().varRef());
-                }
-            }
-        }
     }
 
     /** The name if the configuration mentions it, or null — the run's one string lookup. */

@@ -1212,6 +1212,25 @@ declares itself content; or leave it, and accept that this shape of Stroom pipel
 reproduced. Until ruled, `FullPipelineTest` pins the text golden without its newlines. *(Ruled the same day; see above.)*
 
 ### E39 — Conditions resolve the authored expression at run time
+**`resolved` 2026-09-10, design 30 phase 6 — on the structural half this entry left open, not
+on the measurement.** `CompiledCondition` holds `CompiledRef`s and a `Compare`'s operands are
+`CompiledOperand`s, so `Conditions` resolves through `CompiledRefs`; **`Refs` is deleted** and
+the engine has one reference resolver, which is what this entry said would happen when it was
+done. A `Compare`'s literal operand is also finished at compile time — it was allocating a
+`TypedValue` and applying its declared cast on every evaluation, and both are constant.
+
+*What changed was the argument, not the measurement.* The figures below still stand: the path is
+0.4% of `win_sec_strict` and 0.7% of `ausearch`, and that is not a reason to move anything. The
+reason is that design 30 phase 5 made every other name in the engine a slot, leaving a condition
+the **only** place that resolved a name by string while a record ran. Counted after phase 6, per
+256 KiB operation: `apache_httpd` 0, `log_sessions` 0, `win_sec_strict` 0, `element_storm` 0, and
+`ausearch` 14,140 — every one of those a key-value capture's name read out of the data, which
+design 30 §1 exempts because its key *is* data. The entry's own words: "two resolvers for one
+question, which is a hygiene argument and stays open as a ruling rather than a measurement."
+The ruling went that way.
+
+*The measurement that opened it, kept:*
+
 **`deferred` 2026-09-09, measured and accepted (design 29 phase 4).** Design 27 ruling 7 kept
 both resolvers until compiling conditions was *measured* to matter. It was measured, and on
 the two workloads design 29 named for the phase it does not: the conditions path is **0.4% of
@@ -1251,6 +1270,35 @@ design 25 phase 3 (D50, `fe0849b7b2`): a compiled capture is where the declared 
 the `select` and key-value sources compile with it and `Level` no longer calls `Refs`. What
 remains is conditions: `Conditions` and the lookup `CompiledRefs` shares are `Refs`' callers,
 and this entry owns their measurement.*
+
+### E45 — A `matches` condition decodes its subject and re-encodes it
+**`open` 2026-09-10, found auditing design 30 phase 6.** `Conditions.evaluate` resolves a
+`matches` subject to a `String` and immediately calls `getBytes(UTF_8)` to hand it to a
+`BytePattern`. The resolver already returns UTF-8 bytes, so the round trip is a `String`
+allocation and a re-encode per evaluation — 624 per operation on `apache_httpd` and none
+elsewhere — and design 25's whole thesis is that a value is not decoded until a consumer asks
+for text. A byte matcher is not such a consumer.
+
+**Not fixed with phase 6, because it is not only an optimisation.** The round trip is lossy: a
+malformed byte sequence decodes to U+FFFD and re-encodes as `EF BF BD`, so the pattern currently
+sees substitution characters where the input had undecodable bytes. Passing the bytes through
+would show it the input. D38 ruled that undecodable bytes match nothing, which points at the
+direct path being the right one — but that is a ruling about what a `matches` test sees, and it
+should be made deliberately rather than arrive inside a change about name resolution. Whoever
+takes this should say which behaviour is intended and add a fixture with malformed input, since
+nothing in the corpus currently distinguishes them.
+
+### E46 — `and` and `or` allocate a stream and a capturing lambda per evaluation
+**`open` 2026-09-10, found auditing design 30 phase 6.** `Conditions.evaluate` runs its `and` and
+`or` arms through `Stream.allMatch` and `anyMatch` over a lambda capturing the match, the match
+count and the registry, so each evaluation of a composite condition allocates. A plain loop over
+the list would not, and short-circuiting is the same either way.
+
+Pre-existing rather than introduced, and unmeasured — recorded because it sits on the path phase
+6 has just claimed to have improved, and because leaving it unsaid would let the next profile of
+that path look like a surprise. Design 30 §7's rule applies before it is built: count the
+evaluations first. The figures E39 carries are the starting point (31,488 condition evaluations
+per operation on `apache_httpd`), but they do not say how many are composites.
 
 ### E40 — The three sinks duplicate the carry splice, the SAX call and the qname rule
 **`resolved` 2026-09-06, the same day.** `Utf8.Carry` owns the bytes a sink holds back between
