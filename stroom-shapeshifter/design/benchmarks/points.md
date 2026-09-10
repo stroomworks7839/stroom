@@ -24,10 +24,12 @@ keeping, and so is one that did not.
 | 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
 | 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
 | 9 | `8d0fd1cd65` | 2026-09-09 | Design 30: conditions compiled, the pattern map off the graph | A `matches` test holds its `BytePattern` instead of hashing the pattern's text per evaluation, and `Conditions.evaluate` stops taking the map — so it is no longer threaded into every guard evaluation on every template on every record. **624 evaluations per operation on `apache_httpd` and none anywhere else**, invisible in a sampled profile, so the run rows should not move. Compilation now walks the condition trees, so the compile rows are where a change would show. |
+| 11 | `b1647fbc0e` | 2026-09-10 | Design 30 phase 4: the engine's variables leave the registry for execution frames | The first point on this list with a **measured claim already attached**: +12.1% on `ausearch` and +9.7% on `log_sessions` over four interleaved rounds, which is why it needs the full suite. A targeted reading on four rows cannot see a cost spread thinly across the other seven, and that is exactly what went unseen until design 25 §7 found it. Two things to look for: the eight rows this reading did not touch, and the compile rows, since `ReferenceCheck` gained a refusal that runs over every binding in a configuration. |
 | 10 | `b4b61bbb68` | 2026-09-09 | A regex replace is its own instruction, holding its replacer | The narrowest point on the list, and recorded as a control rather than a claim: the same `Replacer` is built at the same moment and called the same number of times, held by a record instead of captured by a lambda. `apache_httpd` runs 209 replaces per record, so if a megamorphic `Transform.function` call site were costing anything, taking one implementation out of it is where that would show — and if nothing moves, that is the answer to the same question. |
 
 *Design 29 phase 4 is deliberately not a point: it measured and built nothing, so the code at it
-is identical to phase 3's.*
+is identical to phase 3's. Design 30 phase 3 is not a point for the same reason — it is a
+counting, and its result is the section below rather than a commit worth measuring across.*
 
 ## What was owed — all of it settled 2026-09-09 evening
 
@@ -350,6 +352,90 @@ zero. The honest statement is that this shape of change is not where the engine'
 is the same thing every measurement in this file has said.
 
 *Files:* `2026-09-09-19{23,39,55}-*-full.json`, `2026-09-09-2011-b4b61bbb68-full.json`.
+
+## The counting, 2026-09-09 — a measurement with no benchmark in it
+
+Design 30 phase 3 is the first entry here that is not a throughput reading. It is a **count**,
+taken by instrumentation that was reverted the same hour, over each workload's own 256 KiB
+operation, and it exists because design 29 §9's rule cuts both ways: if a row that does not
+exercise a change measures nothing, then the way to avoid building the wrong thing is to count
+what a change would touch **before** building it.
+
+| workload | resolutions/op | engine vars | scopes open at resolution | found at innermost |
+|---|---|---|---|---|
+| `log_sessions` | 246,266 | 25.0% | 1:30% 2:14% 3:45% 4:11% | 83% |
+| `apache_httpd` | 143,828 | 5.9% | 1:97% 2:3% | 97% |
+| `ausearch` | 86,948 | 72.4% | 1:100% | 100% |
+| `win_sec_strict` | 55,707 | 22.8% | 1:98% 2:2% | 98% |
+| `element_storm` | 7,320 | 100% | 1:100% | 100% |
+
+It cost an hour and it **retired an exit and reordered the other two**, which no throughput
+reading on this page has managed.
+
+**The walk was not the cost.** `VarRegistry.get` searches outwards through a stack of hash maps,
+and the 7.2% E44 measured on `apache_httpd` was read as the walk. It is not: four of five rows
+resolve essentially everything with one scope open, and even `log_sessions` — five iterations
+and a grouping — finds 83% at the innermost. Lexical addressing, which buys the walk, was struck
+out on this number alone. Also counted, because it had been raised as the thing that might make
+lexical addressing impossible: **no body is ever run at more than one depth**, 0 of 10, 18, 26,
+31 and 58. It was possible. It was simply not worth it.
+
+**The engine variables' share is the finding, and it is nothing like uniform.** They are 5.9% of
+`apache_httpd` — the row that produced the 7.2% and prompted the whole design — and 72.4% of
+`ausearch` and 100% of `element_storm`. On those two the traffic is almost entirely
+`__match_count` and `__match_idx`, which `Level` *writes* per counted match. `element_storm`'s
+configuration reads neither: all 7,320 of its resolutions are bookkeeping nothing consumes. That
+is not a lookup to make faster, it is a lookup to delete, and it is what design 30 phase 4
+builds.
+
+**The lesson is the cheap one.** A profile says where the time is; it does not say what shape
+the work has. An hour of counting moved the design's first exit from the one worth 5.9% on the
+row that prompted it to the one that removes the traffic outright — and no benchmark run would
+have said so, because both exits make the same row faster by an amount neither can distinguish
+from drift.
+
+## The frame model, 2026-09-10 — where a count's *share* and its *volume* disagree
+
+Design 30 phase 4, four interleaved rounds against `e7c6ed43ba`, order alternated within each
+round. A **targeted daytime reading** on four rows, not the full-suite gate: it says what this
+phase did to these rows and nothing about the other seven, which is tonight's point.
+
+| workload | median | range | rounds agreeing |
+|---|---|---|---|
+| `ausearch` | **+12.1%** | +4.7 to +19.4 | 4/4 faster |
+| `log_sessions` | **+9.7%** | +4.9 to +12.3 | 4/4 faster |
+| `element_storm` | +1.4% | −1.0 to +3.7 | 3/4, inside the ±3.3% envelope |
+| `apache_httpd` | +1.7% | −3.2 to +4.3 | 2/4 either way, no sign |
+
+Two results and two non-results, and the non-results are reported as non-results.
+
+**The interesting part is that the counting page above got the ranking wrong with its own
+numbers.** The counting ranked these rows by the engine variables' *share* of the resolutions,
+which put `element_storm` (100%) first and `log_sessions` (25%) third. Measured, `log_sessions`
+gained ten per cent and `element_storm` gained nothing. Multiply the share by the volume — the
+same instrumentation, one arithmetic step further — and the prediction is almost exact:
+
+| workload | engine-variable resolutions per operation | measured |
+|---|---|---|
+| `ausearch` | 62,950 | +12.1% |
+| `log_sessions` | 61,566 | +9.7% |
+| `win_sec_strict` | 12,701 | not read here |
+| `apache_httpd` | 8,485 | no sign |
+| `element_storm` | 7,320 | inside the envelope |
+
+Two rows at ~62,000 moved by ~10%; three rows at 7,000–13,000 did not move. `element_storm` is
+100% engine variables because it resolves almost nothing at all — 7,320 per operation, a
+thirtieth of `log_sessions` — and spends its time on 21 structural writes per record through the
+sink instead.
+
+**So the rule the counting entry drew needs its second half.** Counting before building was
+right and is what retired an exit. But a share is a ratio, and a ratio cannot say how much work
+there is to remove: **rank by the absolute count, and use the share only to say what fraction of
+a row's own resolution traffic a change touches.** Design 29 §9's rule was that a row which does
+not exercise a change measures nothing; this is its neighbour — a row can exercise a change
+completely and still have nothing worth measuring in it.
+
+*Files:* `d30ph4-r{1..4}-e7c6ed43ba-run.json` against `d30ph4-r{1..4}-frames-run.json`.
 
 ## Points deliberately not on the list
 
