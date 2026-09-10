@@ -24,6 +24,7 @@ keeping, and so is one that did not.
 | 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
 | 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
 | 9 | `8d0fd1cd65` | 2026-09-09 | Design 30: conditions compiled, the pattern map off the graph | A `matches` test holds its `BytePattern` instead of hashing the pattern's text per evaluation, and `Conditions.evaluate` stops taking the map — so it is no longer threaded into every guard evaluation on every template on every record. **624 evaluations per operation on `apache_httpd` and none anywhere else**, invisible in a sampled profile, so the run rows should not move. Compilation now walks the condition trees, so the compile rows are where a change would show. |
+| 15 | `c8aa548398` | 2026-09-10 | E45: a `matches` condition sees the value's bytes rather than a decoding of them | **A behaviour change first and a point second**, which is why it is here rather than folded into 14: undecodable bytes now match nothing, as D38 ruled. What it should show is a `String` and an array no longer allocated per evaluation, 624 times per operation on `apache_httpd` and on no other workload — so `apache_httpd`'s run row is the only one that can move, and the rest of the suite is the check that a behaviour change touched nothing else. |
 | 14 | `739ecb5f8e` | 2026-09-10 | Design 30 phase 7: a key's index is found by slot, and no engine map is keyed by anything the compiler knew | **Recorded as a control, and as the arc's closing point.** The site it changes runs three times per record on `log_sessions` and nowhere else, so nothing should move — which is worth knowing, because the last change recorded as "nothing should move" (point 8) moved six compile rows coherently upward. The compile rows are where to look: `VarNames` now interns two namespaces. If a run row moves here, something is wrong rather than fast. |
 | 13 | `4e04988298` | 2026-09-10 | Design 30 phase 6: the conditions resolve compiled references, and `Refs` is deleted | Recorded with its prediction already refuted, which is the reason to run it properly: it was expected to move nothing (E39's 0.4% to 0.7%) and `apache_httpd` moved about 7% on a targeted reading, because the measurement predicted from covered `Refs` and not the literal operands beside it. So the size of this change is not yet known on any row but that one. The engine also lost a whole class here, so the compile rows and every workload with conditions are both worth reading. |
 | 12 | `351fb05d1b` | 2026-09-10 | Design 30 phase 5: a variable's name becomes a slot, and the registry an array | **The largest measured change on this list**, and the one most worth the full suite: +15.9% on `apache_httpd` and +11.9% on `log_sessions` on a targeted reading, which says nothing about the other nine rows. It touches every body, every capture and every condition, so a cost spread thinly is exactly the shape it could hide. Three things to look for: the eight rows the targeted reading did not cover; the **compile** rows, since interning happens while a configuration compiles and `ReferenceCheck` also gained a refusal in point 11; and `ausearch`, whose names come from the data and which measured flat rather than faster — a full-suite reading is the check that flat is what it stayed. |
@@ -501,10 +502,10 @@ re-reading after the double-lookup fix; `d30ph5audit-r{1..4}-*` for the re-read 
 ## Tonight's set — 2026-09-10
 
 The list above is the whole arc since design 25 and is not what to run tonight. **Today's work is
-points 11 to 14, over one floor:**
+points 11 to 15, over one floor:**
 
 ```
-engine-bench-points.sh full b4b61bbb68 b1647fbc0e 351fb05d1b 4e04988298 739ecb5f8e
+engine-bench-points.sh full b4b61bbb68 b1647fbc0e 351fb05d1b 4e04988298 739ecb5f8e c8aa548398
 ```
 
 **The floor is point 10, `b4b61bbb68`** — the last state of 2026-09-09 in *code*. The commit
@@ -512,10 +513,11 @@ above it, `e7c6ed43ba`, is a record: design text and benchmark JSONs, with an en
 its parent's, so measuring it would spend a quarter of an hour reproducing point 10. That is this
 page's own rule about document-only commits, and this is the first time it has decided anything.
 
-Five points is about an hour and a quarter at full-suite fidelity. What each is for is in its
+Six points is about an hour and a half at full-suite fidelity. What each is for is in its
 row; read as the step from the floor to each point in turn, the four of them are one arc — phase
 4 moved `ausearch` and `element_storm`, phase 5 moved `apache_httpd` and `log_sessions`, phase
-6's size is unknown on nine of the eleven rows, and phase 7 should move nothing.
+6's size is unknown on nine of the eleven rows, phase 7 should move nothing, and point 15 can
+move `apache_httpd` alone or nothing at all.
 
 Between the floor and point 14 the engine stopped resolving every name a configuration uses at
 run time: `log_sessions` went from 246,266 name resolutions per operation to none at all, and
