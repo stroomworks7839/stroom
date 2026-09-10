@@ -273,7 +273,8 @@ copy made — and design 29 §4 ruled capture elimination out of *that* design o
 it removes work rather than deciding it earlier. It is the largest measured allocation the
 engine makes (E43's row: 5 to 18 MB per operation of churn, `progressive` at 62× its own input),
 and it is the exit E43 lists first. E44's compiled reference — one that holds its store rather
-than looking it up by name — belongs to the same design or to one beside it.
+than looking it up by name — was the design beside it, and design 30 built it; the allocation
+question this entry is about is untouched by that and stands as written.
 
 ### E11 — `RecordingInstrument`
 **`deferred`.**
@@ -1543,58 +1544,82 @@ on the size — `csv_header` −4.5%, `regex_lines` −4.0% on an interval of ±
 sequential pair does and why the interleaved rounds are the reading to believe.
 
 ### E44 — A variable's store is found by name, through a map per scope, on every resolution
-**`open` 2026-09-09.** Found by design 29 phase 4's measurement, which was looking at conditions
-and found this underneath them. `VarRegistry.get` walks the scope stack from the innermost
-outwards doing a `HashMap` lookup at each level, and both resolvers call it per resolution:
-`Refs.lookup` for conditions, and `CompiledRefs.lookup` — the *compiled* path — for bodies and
-captures. On `apache_httpd` that lookup is about **7.2%** of sampled run time, and **4.7 of those
-7.2 points are on the compiled path**, so it is not E39's and compiling conditions would not
-have collected it. On `ausearch` the same shape reads about 5.6% including compiled capture
-resolution; on `win_sec_strict` it is 0.4%, because that row is regex-bound.
+**`resolved` 2026-09-10 by design 30, phases 4 to 7.** A compiled reference now holds a slot
+number, and the registry is an array indexed by it.
 
-This is design 10's third change carried one step short: the *reference* is compiled, and the
-*store it names* is still found by string at run time. A compiled reference could hold the store
-itself, or an index into a run's slot array, instead of a name to look up.
+*The finding, kept because the next survey should be able to read what the shape looked like
+before it was closed.* `VarRegistry.get` walked the scope stack from the innermost outwards doing
+a `HashMap` lookup at each level, and both resolvers called it per resolution: `Refs.lookup` for
+conditions, and `CompiledRefs.lookup` — the *compiled* path — for bodies and captures. On
+`apache_httpd` that lookup was about **7.2%** of sampled run time, and **4.7 of those 7.2 points
+were on the compiled path**, so it was not E39's and compiling conditions would not have
+collected it. On `ausearch` the same shape read about 5.6% including compiled capture resolution;
+on `win_sec_strict` it was 0.4%, because that row is regex-bound. It was design 10's third change
+carried one step short: the *reference* was compiled, and the *store it named* was still found by
+string at run time.
 
-The reason it is an entry rather than a fix is that scoping is dynamic: `push`/`pop` run per body
-and per for-each, and a name resolves to the innermost scope that happens to hold it, so an index
-is only sound if the compiler models the lexical nesting and can prove the same slot is meant
-every time. That is a design's worth of work, and design 29 §4 rules capture elimination out of
-that design for a related reason. Owner: unassigned; the natural home is E10's successor design
-or one of its own.
+*What made it an entry rather than a fix*, and what turned out to answer it. The objection was
+that scoping is dynamic — `push`/`pop` run per body and per for-each, and a name resolves to the
+innermost scope that happens to hold it, so an index is only sound if the compiler can prove the
+same slot is meant every time. Design 30 §5.5 resolved that without proving lexical nesting: a
+name interns to a slot **globally**, one slot per name for the whole configuration, and the
+dynamic part moves into an undo log that `pop` replays. Shadowing is then a write to a slot the
+scope records, not a second map. Names the compiler never saw — a key-value capture's, out of the
+input — extend the table on first use and copy it once, so a data-derived name costs the same one
+lookup a compiled one used to.
 
-Profiles: `design/benchmarks/ph4-conditions-stack-apache-lines8.txt`.
+**Measured**, full suite, six interleaved rounds with the order alternated within each round:
+`apache_httpd` **+13.9%** (6/6 faster, +13.2 to +15.7) and `log_sessions` **+11.8%** (5/6, −1.3
+to +15.1), against `element_storm` as a control at −1.8 to +1.5. Re-measured over four more
+rounds after phase 5's audit, because the audit changed hot-path code: **+15.9%** and **+11.9%**,
+both 4/4, against a control at −0.2%. The earlier figures are not restated as improved — the
+difference is inside what the rounds themselves spread. Phase 6 then moved `apache_httpd` about
+another **7%** against a stated prediction that it would barely move, because the literal operands
+it also compiles were never in the path the 0.4%-to-0.7% profile covered. `apache_httpd` is the
+largest gain the design produced, on the row that opened this entry.
 
-**Every map in the engine was then read, to find whether this is one case or a class of them.**
-It is close to one case. The rule the survey applied: a map consulted at run time is a defect
-only when its *key is already known at compile time*, because then the compiled model could hold
-the answer instead. Three sites qualify.
+`ausearch` measures flat, and the right answer for it *is* flat: its names genuinely arrive as
+strings from the input, so the lookup is irreducible and the slot indirection is added after it.
+That is the boundary of the design's own rule, and what the data-key exemption costs where the
+data-keyed path is the whole workload.
 
-| Site | Key | Frequency | Reading |
-|---|---|---|---|
-| `VarRegistry.get` via `Refs.lookup` and `CompiledRefs.lookup` | a variable name, authored | 24,960/op on `apache_httpd` | this entry — 7.2% there, 4.7 of it on the compiled path |
-| `Conditions.java:78` — `patterns.get(PatternKey.ofValue(...))` | a pattern's **text**, authored | 624/op on `apache_httpd`, 0 elsewhere | invisible in the profile; a consistency defect, not a cost — see below |
-| `Body.keyIndexes` — `put(name)` / `getOrDefault(key)` | a key's name, authored | only `key`/`key-get` configurations, none in the suite | same shape, no measured cost; the *inner* index is data-keyed and must stay a map |
+**The lookups themselves**, counted per 256 KiB operation by temporary instrumentation: phase 5
+took `apache_httpd` from 140,892 to 19,440, `log_sessions` from 252,553 to 8,792,
+`win_sec_strict` from 45,023 to 4,872 and `ausearch` from 24,022 to 16,310. Everything left was a
+condition resolving an *authored* expression, which phase 6 removed. What remains in the engine
+is `ausearch`'s 14,140 key-value capture names per operation, every one of them read out of the
+input.
 
-The pattern one is worth naming even though it costs nothing measurable, because it is the last
-place in the engine that finds a compiled pattern at run time. `CompiledMatch.Regex` has held its
-pattern since design 10; `CompiledStep.Regex` holds its pattern *and* its matcher since design 29
-phase 2; `BodyCompiler` resolves the replace pattern at compile time since phase 3. Conditions
-alone still hash the pattern's text — and allocate a `PatternKey` to do it — on every evaluation,
-against a map whose entry `MatchCompiler` interned at compile time from the same text. One line
-of compiled state would close it and make the rule "a compiled node holds its pattern" true
-without exception.
+**The survey's other three sites are closed too**, each in its own phase: `templatesByMode` and
+`templatesByName` at link time (phase 1); `Conditions`' `patterns.get(PatternKey.ofValue(...))`,
+which hashed a pattern's *text* on every evaluation against a map the compiler had already
+interned (phase 2, and it makes "a compiled node holds its pattern" true without exception);
+`Body.keyIndexes`, the last authored-key lookup, whose *inner* index is data-keyed and stays a
+map (phase 7).
 
-**Read and cleared**, recorded so the next survey need not repeat them: `Switch.cases`,
-`ValueMap.entries`, the grouping maps in `Body.file`, `FunctionRuntime.state` and the pipeline's
-function caches are all keyed by *data*, which is what a map is for; `templatesByMode`,
-`templatesByName`, `MatchCompiler.patterns`, `Encoding.BY_LABEL`, `RegexEncodings.CACHE`,
-`UnicodeClasses.CACHE`, `Lowering.library` and `ByteForm.inverse` are consulted at compile time
-only — phase 3 closed the first two, and `BodyCompiler` is now their only caller. Named-group
-resolution looked like a candidate (`BytePattern.groupIndex` is a linear `List.indexOf`) and is
+**What remains, read rather than probed, so the next survey starts from here.** Within the engine
+every run-time map lookup that is left is keyed by *data*, which is what a map is for:
+`VarRegistry`'s extended table (a capture's name from the input), `Switch.cases` (the selected
+value), `ValueMap.entries` (the subject), the grouping index in `Body.file` and a key's inner
+index, and `FunctionRuntime.state` — a state bag published to extension authors rather than
+engine dispatch. Consulted at compile time only, and therefore not candidates:
+`MatchCompiler.patterns`, `MatcherLibrary.definitions`, `Encoding.BY_LABEL`,
+`RegexEncodings.CACHE`, `UnicodeClasses.CACHE`, `Lowering.library`, `ByteForm.inverse`, and the
+interner's own table (`Interner` in `compile`, handing `Names` to the graph). Named-group
+resolution looked like a candidate — `BytePattern.groupIndex` is a linear `List.indexOf` — and is
 not: `Replacer` resolves it at compile time and nothing calls the by-name form at run time.
+
+**The claim carries a boundary, because the last time it was made without one it was wrong by
+exactly one site.** It is "within the engine". The pipeline's extension functions keep
+string-keyed maps by contract — `FunctionContext.state()` *is* a `Map<String, Object>` in the
+published interface, and `stroom:get`, `stroom:meta` and `stroom:dictionary` look up whatever
+argument they are handed, which may well be a literal the compiler knew. Those are an interface
+for extension authors, not the compiled model.
 
 One suspicion was raised and refuted rather than left hanging: the two structured sinks build
 each element's namespace scope with `new HashMap<>(parent.scope)`, an allocation and a copy per
 element written, which looked like a per-element cost on the XML row. It does not appear in a
 sampled profile of `win_sec_xml` at all. Not a finding.
+
+Profiles: `design/benchmarks/ph4-conditions-stack-apache-lines8.txt`. Design:
+`design/30-references-not-names.md`.

@@ -4,8 +4,11 @@
 found something larger underneath them. Engine only. Touches no golden and no configuration:
 every change here replaces a lookup with the thing it was looking up.*
 
-*Three of its four maps are closed as of the same day (§9). The fourth — the variable store — is
-off the table by ruling until it is counted properly, and §5 is what that counting is for.*
+*All four of its maps are closed, and the design is done as of 2026-09-10 (§9). Three went on
+the first day; the fourth — the variable store, the one the design was opened for — needed the
+counting §5 ruled it could not proceed without, and then the frame model and the interner that
+§5.2 and §5.5 designed. It is worth **+15.9%** on `apache_httpd` and **+11.9%** on
+`log_sessions`. E44 in the engine's ledger carries the closing record.*
 
 ## 1. Where it stands
 
@@ -39,7 +42,7 @@ Every map in the engine, the regex library and the pipeline was read for E44. Fo
 |---|---|---|---|
 | `CompiledProject.templatesByMode`, `templatesByName` | a mode or template name, authored | link time only | **closed** — §9 phase 1 |
 | `Conditions` — `patterns.get(PatternKey.ofValue(...))` | a pattern's **text**, authored | 624 per operation on `apache_httpd`, none elsewhere | **closed** — §9 phase 2 |
-| `VarRegistry.get`, via `Refs.lookup` and `CompiledRefs.lookup` | a variable name, authored | 24,960 resolutions per operation on `apache_httpd` | **open** — §5, and the reason this design is not finished |
+| `VarRegistry.get`, via `Refs.lookup` and `CompiledRefs.lookup` | a variable name, authored | 24,960 resolutions per operation on `apache_httpd` | **closed** — §9 phases 4 and 5; the registry is an array and `Refs` is deleted |
 | `Body.keyIndexes` — `put(name)` / `getOrDefault(key)` | a key's name, authored | `log_sessions` runs two `key` and one `key-get`; no other workload | **closed** — §9 phase 7. The *inner* index is data-keyed and stays a map |
 
 **Read and cleared**, recorded so the next survey need not repeat the walk: `Switch.cases`,
@@ -463,8 +466,13 @@ than the envelope, the literal operands are why and that should be said rather t
 **Phase 7 — the key index. Done 2026-09-10; §9 is the record.** It was the last run-time lookup
 on a key the compiler knew, and it is now an array indexed by slot.
 
-**Phase 8 — the record.** E44 closed or restated; design 10 §2's reference-resolution row
-updated; §3's cleared list carried into the ledger so the next survey starts from it.
+**Phase 8 — the record. Done 2026-09-10.** E44 is resolved rather than merely closed: the entry
+keeps the finding, because a survey that reads it later should be able to see the shape before it
+was closed, and adds what closed it, the readings, the counted lookups phase by phase, and §3's
+cleared list together with §9 phase 7's residual table — so the next survey starts from a written
+list rather than repeating the walk. Design 10 §2's reference-resolution row was updated in phase
+6 and names phase 5 for the store behind the reference. §2's fourth row above moves to closed
+with the other three, which is the last thing in this document that still said open.
 
 ## 7. The gate, and the method
 
@@ -936,8 +944,9 @@ probed, because after this phase there is nothing left to count:
 | `FunctionRuntime.state` | whatever an extension function chooses | a state bag published to extension authors, not engine dispatch |
 
 Everything else — `MatchCompiler.patterns`, `MatcherLibrary.definitions`, `Encoding.BY_LABEL`, the
-unicode and regex-encoding caches, `VarNames` itself — is consulted while a configuration
-compiles and not while a record runs.
+unicode and regex-encoding caches, and the interner's own table (`Interner` in `compile`, which
+hands `Names` to the graph) — is consulted while a configuration compiles and not while a record
+runs.
 
 **The qualifier is "within the engine", and it is not a hedge.** The pipeline's extension
 functions keep string-keyed maps by contract: `FunctionContext.state()` *is* a
