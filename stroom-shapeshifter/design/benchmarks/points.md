@@ -538,6 +538,96 @@ arc to read, and no pair of adjacent points shows it.**
 Points 0 to 10 are yesterday's and earlier, already measured at the time, and are kept for
 reading rather than for running.
 
+## The reading — the 2026-09-10 set, run 19:08 to 21:33
+
+*Nine points, full suite, one floor. Every point completed; the box was idle throughout and no
+build ran during a measurement. JSONs: `2026-09-10-19{08,24,40,56}`, `2026-09-10-20{12,28,44}`,
+`2026-09-10-21{01,17}-*-full.json`.*
+
+**The arc, floor to point 18, run rows.** This is the day, and it is the number to keep:
+
+| workload | from the floor | covered by a daytime reading? |
+|---|---|---|
+| `progressive` | **+35.9%** | no |
+| `csv_header` | **+31.3%** | no |
+| `apache_httpd` | +25.5% | yes |
+| `log_sessions` | +23.4% | yes |
+| `ausearch` | +21.1% | yes |
+| `regex_lines` | +19.8% | no |
+| `progressive_text` | +6.2% | no |
+| `win_sec_xml` | +4.7% | no |
+| `win_sec` | +4.5% | no |
+| `win_sec_strict` | +4.1% | yes |
+| `element_storm` | +0.9% | yes |
+
+**(1) The rows nobody was watching hold the two largest gains.** The daytime readings only ever
+covered `apache_httpd`, `log_sessions`, `ausearch`, `win_sec_strict` and `element_storm`. Of the
+six they never touched, `progressive` gained **+35.9%** and `csv_header` **+31.3%** — more than
+any row the work was tuned against. Almost all of it arrives at **point 11**, design 30 phase 4,
+in one step: `progressive` +36.7%, `regex_lines` +20.7%, `csv_header` +18.3%. That point's
+attached claim was "+12.1% on `ausearch` and +9.7% on `log_sessions`", and the full suite says
+`ausearch` was +15.9% and that the frame model was worth **three times more** on a row it never
+measured. This is the case for the full suite, made by the suite, and it is the second time it
+has been made — design 25 §7 is the first.
+
+**(2) The compile rows moved, downward, and coherently.** Against a compile-row noise band of
+about ±1.5% (what `element_storm` and `regex_lines` show across all eight points), three rows are
+outside it from the floor: `progressive` **−11.6%**, `log_sessions` **−9.1%**, `csv_header`
+**−7.7%**. Compilation got slower where the day added work to it — interning, the two namespaces
+in `VarNames`, the `ReferenceCheck` refusal. That is what the points predicted would show there,
+and it is the price of the run-row arc above: paid once per configuration, against a pool that
+compiles once per encoding (design 32).
+
+**Point 18's own prediction is refuted in direction.** It said the compile rows were where
+anything would show and that "a *drop* there is as interesting as a rise, since the derivation
+happens once now instead of once per apply site". Compilation got **slower**: `progressive` −5.0,
+`csv_header` −3.6, `progressive_text` −2.6, `log_sessions` −1.9 across that one step, four rows
+coherently downward and three of them outside the noise band. Reordering `Compiler` so linking
+precedes graph construction did not pay for itself at compile time. **This is point 8's
+phenomenon a second time** — a change recorded as "nothing should move" moving the compile rows
+together — and it is now happened twice, so it is a pattern rather than an incident: *a
+structural change to the compiler moves the compile rows even when it changes no arithmetic.*
+
+**(3) `ausearch` is flat where it was predicted flat.** +0.5% across phase 5, +2.5% across phase
+6 — both inside what §(4) below establishes as this protocol's resolution. Its +21.1% from the
+floor is phase 4's, taken in one step at point 11, which is where the frame model was predicted
+to reach it. Nothing here is the shape of the regression it caught in September's phase 5 draft.
+
+**(4) The three controls moved, and that is this set's most useful result.** Points 14, 16 and 18
+are file moves and a compile reorder; they cannot change a run row. They did:
+
+| control step | largest run-row move | median run-row move |
+|---|---|---|
+| 13 → 14 | **4.2%** (`ausearch`) | 0.6% |
+| 15 → 16 | **3.1%** (`regex_lines`) | 0.6% |
+| 17 → 18 | **2.2%** (`win_sec_strict`) | 0.6% |
+
+So a sequential full-suite reading of this kind resolves about **±4% on a single row**, while
+most rows sit at 0.6%. Nothing was wrong with the code at 14, 16 or 18; what moved was the
+protocol. That is the empirical version of this page's own rule — *where a difference matters,
+interleave rather than trusting the sequence* — and it means **the adjacent-step column is not
+readable below about four points, and the arc from the floor is.**
+
+**(5) Point 15's one permitted row moved least.** E45 removes a `String` and an array per
+evaluation, 624 times per operation, on `apache_httpd` and nowhere else. `apache_httpd` moved
+**+0.6%** across that step while `ausearch` moved +3.3% and `win_sec` −2.1% — rows the change
+cannot touch. The honest reading is not "E45 was worth 0.6%": it is that 624 allocations per
+operation are **below this protocol's resolution**, and the rows that moved more are the noise
+floor of §(4) making itself visible. E45 stands on D38's ruling, which is where it always stood.
+
+**(6) Point 17's two permitted rows also moved least.** `progressive` +0.5% and
+`progressive_text` −0.8%, against `win_sec_strict` at +3.4% in the same step. Turning
+`forEncoding(effective(candidate))` from a call into a field read on every progressive match is
+not visible here. And the compile rows did **not** move at 17 in the way the point warned would
+want explaining — `progressive`'s compile went −6.0 to −6.6, inside the band. The prediction that
+the second reading was never built for this corpus holds.
+
+**What this set changes about how the next one is run.** Three controls cost about forty-five
+minutes of the two and a quarter hours and bought the only thing that makes the rest legible: a
+measured resolution. Keep them. But a point whose claim is smaller than four points on one row —
+15 and 17 were both such points — cannot be settled this way at all, and should be read with
+`PrintInlining` or an interleaved pair instead of being given a slot in the evening set.
+
 ## Points deliberately not on the list
 
 The intermediate commits of design 25 — its phase 1, 2 and 3 and their audits, and the splitter
