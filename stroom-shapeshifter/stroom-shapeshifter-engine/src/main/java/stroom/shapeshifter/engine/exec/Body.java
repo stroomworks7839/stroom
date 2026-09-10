@@ -130,6 +130,33 @@ final class Body {
      */
     private final Level level;
 
+    // The interpreter's registers (design 33 phase 1b). These were eight parameters threaded
+    // through every arm; each arm now reads the one it needs, which is what takes the switch
+    // itself under the JIT's inlining threshold — twenty-six one-argument calls rather than
+    // twenty-six eight-argument ones. Set and restored by body(), so a nested dispatch cannot
+    // leave the body around it reading someone else's state.
+
+    /** The match a body is running against. */
+    private MatchResult match;
+
+    /** Which match this is, which is the index a produced value binds at. */
+    private int matchCount;
+
+    /** The bytes this body's template matched, which an apply may hand down whole. */
+    private byte[] content;
+
+    /** Where output goes, which a variable redirects into a buffer of its own. */
+    private Output out;
+
+    /** The offset of {@link #content} in the input, or {@code UNLOCATABLE}. */
+    private long inputBase;
+
+    /** Whether the enclosing dispatch is inside an error-ignoring container. */
+    private boolean ignoreErrors;
+
+    /** How deep the apply chain is, against the directive's limit. */
+    private int depth;
+
     Body(final CompiledProject compiled,
          final Instrument instrument,
          final List<Message> messages,
@@ -185,176 +212,233 @@ final class Body {
               final long inputBase,
               final boolean ignoreErrors,
               final int depth) {
+        final MatchResult savedMatch = this.match;
+        final int savedMatchCount = this.matchCount;
+        final byte[] savedContent = this.content;
+        final Output savedOut = this.out;
+        final long savedInputBase = this.inputBase;
+        final boolean savedIgnoreErrors = this.ignoreErrors;
+        final int savedDepth = this.depth;
+
+        this.match = match;
+        this.matchCount = matchCount;
+        this.content = content;
+        this.out = out;
+        this.inputBase = inputBase;
+        this.ignoreErrors = ignoreErrors;
+        this.depth = depth;
+
+        run(ops);
+
+        this.match = savedMatch;
+        this.matchCount = savedMatchCount;
+        this.content = savedContent;
+        this.out = savedOut;
+        this.inputBase = savedInputBase;
+        this.ignoreErrors = savedIgnoreErrors;
+        this.depth = savedDepth;
+    }
+
+    /**
+     * Run a body in the state already set — the interpreter's loop.
+     *
+     * <p>An instruction that runs a nested body in the same state calls this; only one that
+     * changes the state — a variable redirecting output — goes back through {@link #body}.
+     *
+     * <p>The restore in {@link #body} is not in a {@code finally}. The only exception that
+     * leaves here is {@link AbortRun}, which the run catches at the top and does not continue
+     * from, so nothing is left to read a register that was not put back.
+     */
+    private void run(final List<CompiledOp> ops) {
         for (final CompiledOp op : ops) {
             switch (op) {
-                case final CompiledOp.Text text -> out.write(text.value());
-                case final CompiledOp.ValueOf valueOf ->
-                        CompiledRefs.write(valueOf.ref(), match, matchCount, vars, out);
-                case final CompiledOp.Apply apply ->
-                        apply(apply, match, matchCount, content, out, inputBase, ignoreErrors,
-                                depth);
-                case final CompiledOp.If value -> {
-                    if (test(value.test(), match, matchCount)) {
-                        body(value.then(), match, matchCount, content, out,
-                                inputBase, ignoreErrors, depth);
-                    }
-                }
-                case final CompiledOp.Choose value -> {
-                    boolean taken = false;
-                    for (final CompiledOp.When branch : value.when()) {
-                        if (test(branch.test(), match, matchCount)) {
-                            body(branch.body(), match, matchCount, content, out,
-                                    inputBase, ignoreErrors, depth);
-                            taken = true;
-                            break;
-                        }
-                    }
-                    if (!taken) {
-                        body(value.otherwise(), match, matchCount, content, out,
-                                inputBase, ignoreErrors, depth);
-                    }
-                }
-                case final CompiledOp.Switch value -> {
-                    final String selected = textOf(value.select(), match, matchCount);
-                    final List<CompiledOp> taken = value.cases().get(selected);
-                    body(taken == null ? value.defaultBody() : taken, match, matchCount, content,
-                            out, inputBase, ignoreErrors, depth);
-                }
-                case final CompiledOp.Variable value ->
-                        variable(value, match, matchCount, content, inputBase, ignoreErrors, depth);
-                case final CompiledOp.Element value -> {
-                    structure(() -> out.sink().startElement(value.name(), value.namespace(),
-                            value.omitIfEmpty()),
-                            "element", value.name());
-                    body(value.body(), match, matchCount, content, out,
-                            inputBase, ignoreErrors, depth);
-                    structure(out.sink()::endElement, "element", value.name());
-                }
-                case final CompiledOp.Attribute value -> {
-                    structure(() -> out.sink().startAttribute(value.name(), value.omitIfEmpty()),
-                            "attribute", value.name());
-                    body(value.body(), match, matchCount, content, out,
-                            inputBase, ignoreErrors, depth);
-                    structure(out.sink()::endAttribute, "attribute", value.name());
-                }
-                case final CompiledOp.Namespace value ->
-                        structure(() -> out.sink().namespace(value.prefix(), value.uri()),
-                                "namespace", value.prefix());
-                case final CompiledOp.CallTemplate value ->
-                        callTemplate(value, match, matchCount, content, out, inputBase,
-                                ignoreErrors, depth);
-                case final CompiledOp.ValueMap value -> {
-                    final String selected = textOf(value.select(), match, matchCount);
-                    final TypedValue mapped = value.entries().get(selected);
-                    emit(mapped == null ? value.defaultValue() : mapped, value.name(), matchCount,
-                            out);
-                }
-                case final CompiledOp.Transform value ->
-                        transform(value, match, matchCount, out);
-                case final CompiledOp.Replace value -> {
-                    final List<TypedValue> inputs = inputs(value.select(), match, matchCount);
-                    emit(inputs.isEmpty()
-                                    ? null
-                                    : TypedValue.of(value.replacer()
-                                            .replace(inputs.getFirst().asString())),
-                            value.name(), matchCount, out);
-                }
-                case final CompiledOp.CallFunction value ->
-                        callFunction(value, match, matchCount, out, inputBase);
-                case final CompiledOp.Sequence value -> {
-                    // Declared here, emptied here: an accumulation that outlived its previous
-                    // run would carry the last stream's values into this one.
-                    vars.shadow(value.name());
-                    vars.store(value.name()).clear();
-                }
-                case final CompiledOp.Append value -> {
-                    final TypedValue appended = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars);
-                    if (appended != null) {
-                        guardAccumulation(value.name());
-                        // Absent appends nothing rather than a hole: in a dense sequence an
-                        // index is a position, so a gap would mean nothing at all.
-                        final Store store = vars.store(value.name());
-                        final int at = Math.max(1, store.lastIndex() + 1);
-                        guardSequenceSize(value.name(), at);
-                        store.set(at, appended);
-                    }
-                }
-                case final CompiledOp.Fold value -> emit(fold(value), value.name(), matchCount, out);
+                case final CompiledOp.Text value -> text(value);
+                case final CompiledOp.ValueOf value -> valueOf(value);
+                case final CompiledOp.Apply value -> apply(value);
+                case final CompiledOp.If value -> ifThen(value);
+                case final CompiledOp.Choose value -> choose(value);
+                case final CompiledOp.Switch value -> switchOn(value);
+                case final CompiledOp.Variable value -> variable(value);
+                case final CompiledOp.Element value -> element(value);
+                case final CompiledOp.Attribute value -> attribute(value);
+                case final CompiledOp.Namespace value -> namespace(value);
+                case final CompiledOp.CallTemplate value -> callTemplate(value);
+                case final CompiledOp.ValueMap value -> valueMap(value);
+                case final CompiledOp.Transform value -> transform(value);
+                case final CompiledOp.Replace value -> replace(value);
+                case final CompiledOp.CallFunction value -> callFunction(value);
+                case final CompiledOp.Sequence value -> sequence(value);
+                case final CompiledOp.Append value -> append(value);
+                case final CompiledOp.Fold value -> fold(value);
                 case final CompiledOp.DistinctValues value -> distinct(value);
-                case final CompiledOp.Tokenize value -> {
-                    final TypedValue input = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars);
-                    if (value.name() == null) {
-                        if (input != null) {
-                            // Written straight out, it keeps the joined rendering it always had.
-                            out.write(Transforms.tokenize(List.of(input), value.delimiter()));
-                        }
-                    } else {
-                        // Nothing to split is the empty sequence, which a walk runs over zero
-                        // times. Leaving the name alone would walk the last record's pieces.
-                        bindDense(value.name(), input == null
-                                ? List.of()
-                                : Transforms.split(input, value.delimiter()));
-                    }
-                }
-                case final CompiledOp.Key value -> {
-                    // Built where it is written, so the cost is paid somewhere visible.
-                    keyIndexes.set(value.name().slot(), file(value.select(), value.groupBy(),
-                            match, matchCount));
-                }
-                case final CompiledOp.KeyGet value -> {
-                    final TypedValue wanted = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars);
-                    final Map<String, Filed> built = keyIndexes.get(value.key().slot());
-                    // A key-get before its key has run reads an empty index, which binds an
-                    // empty sequence — the same non-answer as a value with no entry.
-                    final Map<String, Filed> index = built == null ? Map.of() : built;
-                    // A value with no entry binds an empty sequence, which a walk runs over
-                    // zero times — the same non-answer XSLT's key() gives, not an error.
-                    // An absent lookup value finds the entries that had no key — the same
-                    // symmetry grouping uses, where absence is a group rather than an
-                    // exclusion. XSLT would return empty for key('k', ()); this engine treats
-                    // "no value" as a value one can ask about, consistently.
-                    final Filed filed = index.get(wanted == null ? null : wanted.asString());
-                    final List<Integer> found = filed == null ? List.of() : filed.members();
-                    bindDense(value.name(), found.stream()
-                            .map(entry -> (TypedValue) new TypedValue.Integer(entry))
-                            .toList());
-                }
-                case final CompiledOp.ForEachGroup value ->
-                        forEachGroup(value, match, matchCount, content, out,
-                                inputBase, ignoreErrors, depth);
-                case final CompiledOp.ForEach value ->
-                        forEach(value, match, matchCount, content, out,
-                                inputBase, ignoreErrors, depth);
-                case final CompiledOp.ParseDate value -> {
-                    final TypedValue input = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars);
-                    TypedValue result = null;
-                    if (input != null) {
-                        // The reference is a date read like any other (design/17 §9.2): a
-                        // captured field today, D10's context seam tomorrow. Absent when the
-                        // pattern needs it means an absent result, never a guessed year.
-                        final TypedValue reference = value.reference() == null
-                                ? null
-                                : Comparisons.cast(CompiledRefs.resolveValue(
-                                        value.reference(), match, matchCount, vars), Cast.DATE);
-                        result = Dates.parse(value.parser(), input.asString(),
-                                (TypedValue.Instant) reference);
-                    }
-                    emit(result, value.name(), matchCount, out);
-                }
-                case final CompiledOp.EmitError value -> {
-                    final String text = CompiledRefs.resolveText(
-                            value.message(), match, matchCount, vars);
-                    messages.add(new Message(value.severity(), text == null ? "" : text));
-                    if (value.severity() == Severity.FATAL) {
-                        // The message is recorded; the run ends here (D36).
-                        throw new AbortRun();
-                    }
-                }
+                case final CompiledOp.Tokenize value -> tokenize(value);
+                case final CompiledOp.Key value -> key(value);
+                case final CompiledOp.KeyGet value -> keyGet(value);
+                case final CompiledOp.ForEachGroup value -> forEachGroup(value);
+                case final CompiledOp.ForEach value -> forEach(value);
+                case final CompiledOp.ParseDate value -> parseDate(value);
+                case final CompiledOp.EmitError value -> emitError(value);
             }
+        }
+    }
+
+    /** Write a literal, which the sink encodes. */
+    private void text(final CompiledOp.Text op) {
+        out.write(op.value());
+    }
+
+    /** Write what a reference resolves to. */
+    private void valueOf(final CompiledOp.ValueOf op) {
+        CompiledRefs.write(op.ref(), match, matchCount, vars, out);
+    }
+
+    private void ifThen(final CompiledOp.If op) {
+        if (test(op.test(), match, matchCount)) {
+            run(op.then());
+        }
+    }
+
+    /** The first branch whose test holds, or the otherwise. */
+    private void choose(final CompiledOp.Choose op) {
+        for (final CompiledOp.When branch : op.when()) {
+            if (test(branch.test(), match, matchCount)) {
+                run(branch.body());
+                return;
+            }
+        }
+        run(op.otherwise());
+    }
+
+    private void switchOn(final CompiledOp.Switch op) {
+        final String selected = textOf(op.select(), match, matchCount);
+        final List<CompiledOp> taken = op.cases().get(selected);
+        run(taken == null ? op.defaultBody() : taken);
+    }
+
+    private void element(final CompiledOp.Element op) {
+        // Read once: the close has to reach the sink the open went to, and a variable inside the
+        // body redirects the register while it runs.
+        final Output sink = out;
+        structure(() -> sink.sink().startElement(op.name(), op.namespace(), op.omitIfEmpty()),
+                "element", op.name());
+        run(op.body());
+        structure(sink.sink()::endElement, "element", op.name());
+    }
+
+    private void attribute(final CompiledOp.Attribute op) {
+        final Output sink = out;
+        structure(() -> sink.sink().startAttribute(op.name(), op.omitIfEmpty()),
+                "attribute", op.name());
+        run(op.body());
+        structure(sink.sink()::endAttribute, "attribute", op.name());
+    }
+
+    private void namespace(final CompiledOp.Namespace op) {
+        structure(() -> out.sink().namespace(op.prefix(), op.uri()), "namespace", op.prefix());
+    }
+
+    private void valueMap(final CompiledOp.ValueMap op) {
+        final String selected = textOf(op.select(), match, matchCount);
+        final TypedValue mapped = op.entries().get(selected);
+        emit(mapped == null ? op.defaultValue() : mapped, op.name(), matchCount, out);
+    }
+
+    private void replace(final CompiledOp.Replace op) {
+        final List<TypedValue> inputs = inputs(op.select(), match, matchCount);
+        emit(inputs.isEmpty()
+                        ? null
+                        : TypedValue.of(op.replacer().replace(inputs.getFirst().asString())),
+                op.name(), matchCount, out);
+    }
+
+    /**
+     * Declared here, emptied here: an accumulation that outlived its previous run would carry
+     * the last stream's values into this one.
+     */
+    private void sequence(final CompiledOp.Sequence op) {
+        vars.shadow(op.name());
+        vars.store(op.name()).clear();
+    }
+
+    private void append(final CompiledOp.Append op) {
+        final TypedValue appended =
+                CompiledRefs.resolveValue(op.select(), match, matchCount, vars);
+        if (appended != null) {
+            guardAccumulation(op.name());
+            // Absent appends nothing rather than a hole: in a dense sequence an index is a
+            // position, so a gap would mean nothing at all.
+            final Store store = vars.store(op.name());
+            final int at = Math.max(1, store.lastIndex() + 1);
+            guardSequenceSize(op.name(), at);
+            store.set(at, appended);
+        }
+    }
+
+    private void fold(final CompiledOp.Fold op) {
+        emit(folded(op), op.name(), matchCount, out);
+    }
+
+    private void tokenize(final CompiledOp.Tokenize op) {
+        final TypedValue input = CompiledRefs.resolveValue(op.select(), match, matchCount, vars);
+        if (op.name() == null) {
+            if (input != null) {
+                // Written straight out, it keeps the joined rendering it always had.
+                out.write(Transforms.tokenize(List.of(input), op.delimiter()));
+            }
+        } else {
+            // Nothing to split is the empty sequence, which a walk runs over zero times.
+            // Leaving the name alone would walk the last record's pieces.
+            bindDense(op.name(), input == null
+                    ? List.of()
+                    : Transforms.split(input, op.delimiter()));
+        }
+    }
+
+    /** Built where it is written, so the cost is paid somewhere visible. */
+    private void key(final CompiledOp.Key op) {
+        keyIndexes.set(op.name().slot(), file(op.select(), op.groupBy(), match, matchCount));
+    }
+
+    private void keyGet(final CompiledOp.KeyGet op) {
+        final TypedValue wanted = CompiledRefs.resolveValue(op.select(), match, matchCount, vars);
+        final Map<String, Filed> built = keyIndexes.get(op.key().slot());
+        // A key-get before its key has run reads an empty index, which binds an empty
+        // sequence — the same non-answer as a value with no entry.
+        final Map<String, Filed> index = built == null ? Map.of() : built;
+        // A value with no entry binds an empty sequence, which a walk runs over zero times —
+        // the same non-answer XSLT's key() gives, not an error. An absent lookup value finds
+        // the entries that had no key — the same symmetry grouping uses, where absence is a
+        // group rather than an exclusion. XSLT would return empty for key('k', ()); this
+        // engine treats "no value" as a value one can ask about, consistently.
+        final Filed filed = index.get(wanted == null ? null : wanted.asString());
+        final List<Integer> found = filed == null ? List.of() : filed.members();
+        bindDense(op.name(), found.stream()
+                .map(entry -> (TypedValue) new TypedValue.Integer(entry))
+                .toList());
+    }
+
+    private void parseDate(final CompiledOp.ParseDate op) {
+        final TypedValue input = CompiledRefs.resolveValue(op.select(), match, matchCount, vars);
+        TypedValue result = null;
+        if (input != null) {
+            // The reference is a date read like any other (design/17 §9.2): a captured field
+            // today, D10's context seam tomorrow. Absent when the pattern needs it means an
+            // absent result, never a guessed year.
+            final TypedValue reference = op.reference() == null
+                    ? null
+                    : Comparisons.cast(CompiledRefs.resolveValue(
+                            op.reference(), match, matchCount, vars), Cast.DATE);
+            result = Dates.parse(op.parser(), input.asString(), (TypedValue.Instant) reference);
+        }
+        emit(result, op.name(), matchCount, out);
+    }
+
+    private void emitError(final CompiledOp.EmitError op) {
+        final String text = CompiledRefs.resolveText(op.message(), match, matchCount, vars);
+        messages.add(new Message(op.severity(), text == null ? "" : text));
+        if (op.severity() == Severity.FATAL) {
+            // The message is recorded; the run ends here (D36).
+            throw new AbortRun();
         }
     }
 
@@ -374,11 +458,7 @@ final class Body {
      * and absence null, sequences handed over whole; the runtime makes the call and says what
      * a skipped, failed or erroring call means; the result is written or bound like any value.
      */
-    private void callFunction(final CompiledOp.CallFunction op,
-                              final MatchResult match,
-                              final int matchCount,
-                              final Output out,
-                              final long inputBase) {
+    private void callFunction(final CompiledOp.CallFunction op) {
         final FunctionDefinition definition = op.definition();
         if (functions.skippedInPreview(definition)) {
             emit(null, op.name(), matchCount, out);
@@ -432,10 +512,7 @@ final class Body {
      * two of which one is blank. And a function returning nothing writes nothing — which is what
      * makes a join of no values disappear instead of leaving a stray separator.
      */
-    private void transform(final CompiledOp.Transform op,
-                           final MatchResult match,
-                           final int matchCount,
-                           final Output out) {
+    private void transform(final CompiledOp.Transform op) {
         final List<CompiledRef> select = op.select();
         final VarName name = op.name();
         final Function<List<TypedValue>, TypedValue> function = op.function();
@@ -577,7 +654,7 @@ final class Body {
      * a mean of nothing is not a number, and returning zero for it would be a number that
      * looks like an answer.
      */
-    private TypedValue fold(final CompiledOp.Fold op) {
+    private TypedValue folded(final CompiledOp.Fold op) {
         final List<TypedValue> values = entries(op.select());
         return switch (op.kind()) {
             case COUNT -> new TypedValue.Integer(values.size());
@@ -676,14 +753,7 @@ final class Body {
      * author write a count into the opening tag — the {@code adjacent_groups} fixture's
      * trailing-empty-group case.
      */
-    private void forEachGroup(final CompiledOp.ForEachGroup op,
-                              final MatchResult match,
-                              final int matchCount,
-                              final byte[] content,
-                              final Output out,
-                              final long inputBase,
-                              final boolean ignoreErrors,
-                              final int depth) {
+    private void forEachGroup(final CompiledOp.ForEachGroup op) {
         final List<Store> stores = vars.get(op.select());
         if (stores == null || stores.isEmpty()) {
             return;
@@ -708,8 +778,7 @@ final class Body {
                     .toList());
             vars.frames().groupKey(group.key());
             vars.frames().groupSize(indices.size());
-            body(op.body(), match, matchCount, content, out,
-                    inputBase, ignoreErrors, depth);
+            run(op.body());
         }
         vars.frames().popGroup();
         vars.pop();
@@ -731,9 +800,7 @@ final class Body {
      */
     private List<Integer> sorted(final CompiledOp.ForEach op,
                                  final List<Integer> populated,
-                                 final Store store,
-                                 final MatchResult match,
-                                 final int matchCount) {
+                                 final Store store) {
         final int keyCount = op.sort().size();
         final TypedValue[][] keys = new TypedValue[populated.size()][keyCount];
 
@@ -822,14 +889,7 @@ final class Body {
      * <p>The iteration runs in its own scope, so the bindings do not outlive it and a nested
      * {@code for-each} shadows rather than overwrites the one around it.
      */
-    private void forEach(final CompiledOp.ForEach op,
-                         final MatchResult match,
-                         final int matchCount,
-                         final byte[] content,
-                         final Output out,
-                         final long inputBase,
-                         final boolean ignoreErrors,
-                         final int depth) {
+    private void forEach(final CompiledOp.ForEach op) {
         final List<Store> stores = vars.get(op.select());
         if (stores == null || stores.isEmpty()) {
             return;
@@ -846,7 +906,7 @@ final class Body {
         }
         final List<Integer> order = op.sort().isEmpty()
                 ? populated
-                : sorted(op, populated, store, match, matchCount);
+                : sorted(op, populated, store);
 
         vars.push();
         if (op.as() != null) {
@@ -865,8 +925,7 @@ final class Body {
             if (op.as() != null) {
                 vars.store(op.as()).set(1, store.get(index));
             }
-            body(op.body(), match, matchCount, content, out,
-                    inputBase, ignoreErrors, depth);
+            run(op.body());
         }
         vars.frames().popIteration();
         vars.pop();
@@ -901,13 +960,7 @@ final class Body {
      * the text it wrote becomes the value. If it did neither, the variable is cleared rather
      * than left holding the previous record's value.
      */
-    private void variable(final CompiledOp.Variable value,
-                          final MatchResult match,
-                          final int matchCount,
-                          final byte[] content,
-                          final long inputBase,
-                          final boolean ignoreErrors,
-                          final int depth) {
+    private void variable(final CompiledOp.Variable value) {
         vars.push();
         vars.shadow(value.name());
 
@@ -943,14 +996,7 @@ final class Body {
      * <p>Parameters live in their own scope, so a call cannot leave its arguments behind for the
      * next one. Declared parameters the caller did not supply take their defaults.
      */
-    private void callTemplate(final CompiledOp.CallTemplate value,
-                              final MatchResult match,
-                              final int matchCount,
-                              final byte[] content,
-                              final Output out,
-                              final long inputBase,
-                              final boolean ignoreErrors,
-                              final int depth) {
+    private void callTemplate(final CompiledOp.CallTemplate value) {
         final CompiledTemplate target = value.target();
         if (target == null) {
             return;
@@ -982,7 +1028,7 @@ final class Body {
                 vars.store(declared.name()).set(1, declared.defaultValue());
             }
         }
-        body(target.body(), match, matchCount, content, out, inputBase, ignoreErrors, depth);
+        run(target.body());
         vars.pop();
     }
 
@@ -994,14 +1040,7 @@ final class Body {
      * level of the named mode, dispatched as ordered choice, with the directive's
      * {@code ignoreErrors} as the level's reporting gate.
      */
-    private void apply(final CompiledOp.Apply op,
-                       final MatchResult match,
-                       final int matchCount,
-                       final byte[] parentContent,
-                       final Output out,
-                       final long parentBase,
-                       final boolean inheritedIgnoreErrors,
-                       final int depth) {
+    private void apply(final CompiledOp.Apply op) {
         final ApplyDirective directive = op.directive();
         if (depth >= directive.maxDepth()) {
             return;
@@ -1013,18 +1052,18 @@ final class Body {
         // child templates, which is what turns a CSV header's last column name into "what\n".
         // So the content the parent already selected is passed straight through — and whether
         // that is what the select means was decided at compile time.
-        final byte[] content = op.wholeParentContent()
-                ? parentContent
+        final byte[] applied = op.wholeParentContent()
+                ? content
                 : CompiledRefs.resolve(op.select(), match, matchCount, vars);
-        if (content == null || content.length == 0) {
+        if (applied == null || applied.length == 0) {
             return;
         }
 
         // Content taken straight from the parent, or from one of its groups, is still part of
         // the input and can be pointed at. Content built from a variable cannot be.
-        final long childBase = op.locatable() ? parentBase : Instrument.UNLOCATABLE;
+        final long childBase = op.locatable() ? inputBase : Instrument.UNLOCATABLE;
         if (childBase == Instrument.UNLOCATABLE) {
-            instrument.onMatchContent(null, content);
+            instrument.onMatchContent(null, applied);
         }
 
         // A compile-time fact read as a field: the op holds the templates its mode answers to,
@@ -1040,8 +1079,8 @@ final class Body {
 
         // DS3 inherits ignoreErrors down the tree: a level inside an ignoring container is
         // gated even when its own directive says nothing.
-        level.dispatch(candidates, content, 0, content.length, out, childBase,
-                inheritedIgnoreErrors || directive.ignoreErrors(), depth + 1, op.dispatch(), encoding);
+        level.dispatch(candidates, applied, 0, applied.length, out, childBase,
+                ignoreErrors || directive.ignoreErrors(), depth + 1, op.dispatch(), encoding);
 
         if (recursive) {
             vars.pop();

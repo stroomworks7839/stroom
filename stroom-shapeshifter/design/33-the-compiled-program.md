@@ -127,6 +127,84 @@ method, so the arms become `case final CompiledOp.Text text -> text(text);`. A s
 that dissolves the giant method and nothing else. Measure it against the same floor. Whatever it
 gains is the *inlining* half, and it is available whichever dispatch wins.
 
+*The prediction, written before the run, as this project's benchmark page requires.* Asking the
+compiler first: `Body::body` goes from **1,596 bytes to 758** — halved, and still over
+`FreqInlineSize` at 325, so it is still a method the JIT will not inline. `Body$$TypeSwitch` is
+untouched at 389 bytes and still refuses to inline, and the count of "already compiled into a big
+method" across a `log_sessions` run falls only from 62 to 57. So the mechanism §5 assumed —
+lifting the budget exhaustion — is *not* what B delivers. What it can still deliver is different:
+C2 inlines only the arms a workload actually executes (`text` at 9 bytes and `valueOf` at 17 both
+inline hot), so the compiled hot path shrinks even though the bytecode does not.
+
+**Predicted: a small gain on `log_sessions`, one to three points, and less than design 31 phase
+2's +5.64%.** If B lands near zero, the +5.64% was dispatch and phase 3 should collect it. If B
+lands near +5.64%, the dispatch was never the problem and phase 3 can be dropped — which is §7's
+first bullet, and the outcome this design should be happiest to find.
+
+### Phase 1's result, 2026-09-10: the prediction held and the design's premise did not
+
+*Six interleaved rounds against `8b49ffd3ec`, order alternated within each round.*
+
+| workload | median | range | agreed | body ops per operation |
+|---|---|---|---|---|
+| `log_sessions` | **+2.35%** | +0.76 to +3.18 | **6/6 faster** | 111,211 |
+| `element_storm` | **−2.22%** | −5.17 to −0.71 | **6/6 slower** | 150,060 |
+| `apache_httpd` | +0.15% | −0.85 to +0.86 | 3/6 — flat | 56,402 |
+| `win_sec_strict` | +0.11% | −0.78 to +1.27 | 4/6 — flat | 11,834 |
+
+**The prediction was right about `log_sessions`** — one to three points, and less than design 31
+phase 2's +5.64% — which attributes roughly 40% of that figure to the method split and leaves the
+rest to the dispatch and the registers. **It said nothing about `element_storm`, which lost 2.22%
+with every round agreeing.** Six rounds on either side of zero is not drift.
+
+**Why, from `PrintInlining` rather than from reasoning.** `Body::element` is **66 bytes** — a
+fifth of `FreqInlineSize` — and fails to inline with "already compiled into a big method". The
+budget exhaustion this phase existed to remove did not lift; it **moved**, off `CompiledRefs
+::write` and onto the extracted arms. `element_storm`'s two hot instructions are `Element` and
+`Attribute`, so code that had been inline inside `body` became a call that often is not, and the
+`structure()` lambda that escape analysis had been scalar-replacing now escapes — 76,860 times per
+operation on that row.
+
+**What that establishes, and it changes this design's shape.** `Body::body` is still 758 bytes
+after extraction, and what keeps it there is not the dispatch: it is **26 arms each passing eight
+arguments**. An `int` switch would be no smaller. So phase 3 cannot fix this either, and design 31
+phase 2 was small — 130 bytes — for a reason this design had assigned to the wrong cause: not
+because the ops carried their own dispatch, but because the eight parameters had become
+**registers**, leaving each arm a one-argument call.
+
+**A phase is therefore inserted, and it is the one that isolates the parameters.**
+
+**Phase 1b — the registers.** Keep the type switch and keep `List<CompiledOp>`; collapse the eight
+parameters into fields of `Body`, saved and restored by the entry as design 31 phase 2 did.
+
+*The estimate written here first — "twenty-six one-argument calls is roughly 200 bytes, which is
+under the threshold" — was wrong, and the check it prescribed is what caught it.* Built, the
+entry `body()` is **130 bytes** and inlines; the loop `run()` is **591**, still over
+`FreqInlineSize` and still "hot method too big". A 26-entry `tableswitch` table plus 26 casts and
+calls does not fit under 325 however few arguments each call takes. Design 31 phase 2's loop was
+37 bytes because it contained **no switch at all**, which is the part of that result this design
+had not accounted for: some of what looked like the register change was the absence of the table.
+
+`element` and `attribute` still fail inside `run` with "already compiled into a big method", once
+each where phase 1 showed twice — the exhaustion halved rather than lifted.
+
+**1b was built, gated at 1,157 tests, and deliberately not benchmarked.** The check that was
+written to decide whether the reading was worth taking said no, and the owner stopped the run on
+the same ground. That is the rule working rather than being skipped: half an hour of box time
+would have produced a number whose mechanism had already been refuted, and the project has spent
+enough evenings measuring things whose explanation arrived afterwards.
+
+*What this establishes independently of the benchmark:* **no arrangement of a 26-arm switch is
+inlinable**, whatever it switches on and however many arguments its arms take. Phase 3's `int`
+dispatch will not change that either. If an inlinable interpreter loop is worth having, the only
+shape that delivers one is a loop with no switch in it — which is what design 31 built and what
+this design rejected on other grounds.
+
+*Phase 1's own disposition is undecided and deliberately so.* It is +2.35 and −2.22 on the two
+rows that execute the most instructions, which is not a change worth keeping for itself. It is
+kept in the tree as phase 1b's base, because 1b's shrinkage only works on top of it, and the pair
+must be measured together as well as apart.
+
 **Phase 2 — the ops as an array.** `List<CompiledOp>` becomes `CompiledOp[]`, with the type
 switch still in place. Measure against phase 1. This is the collection half, and it is separable
 from the dispatch by construction — which is the point of doing it on its own.
