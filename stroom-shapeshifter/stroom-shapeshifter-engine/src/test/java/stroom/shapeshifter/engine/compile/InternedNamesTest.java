@@ -19,7 +19,8 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
-import stroom.shapeshifter.engine.graph.VarNames;
+import stroom.shapeshifter.engine.graph.Names;
+import stroom.shapeshifter.engine.graph.VarName;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
@@ -59,20 +60,30 @@ class InternedNamesTest {
     }
 
     @Test
-    void namesCloseWhenTheConfigurationHasCompiled() {
-        final VarNames names = new VarNames();
-        names.intern("while compiling");
-        names.freeze();
-
-        // A run sized its slot array from this table, so a name interned afterwards would have a
-        // slot past the end of it. Loud rather than silent.
-        assertThatThrownBy(() -> names.intern("while running"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("while running");
+    void finishedTableCannotGrow() {
+        // This used to assert that interning after compilation threw. It cannot happen now:
+        // assigning slots is the compiler's Interner, which hands over a Names and is discarded,
+        // so there is nothing left to intern into. What survives is worth pinning — a run sizes
+        // its slot arrays from these counts, so a name added afterwards would index past the end
+        // of every one of them.
+        final Names names = compiled().names();
+        assertThatThrownBy(() -> names.all().put("late", new VarName("late", 99)))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    private static String run(final String name) {
-        final String json = """
+    @Test
+    void everyTableHoldsTheGroupSlot() {
+        // The interpreter binds __group whether or not a configuration reads it, and Body reads
+        // group() without asking whether it is there. The interner interns it in a field
+        // initialiser; this is the same thing said where a hand-built table would break it.
+        assertThat(compiled().names().group()).isNotNull();
+        assertThatThrownBy(() -> new Names(java.util.Map.of(), java.util.Map.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** A configuration binding one name, which a guard is the only thing to read. */
+    private static String json(final String name) {
+        return """
                 {"name": "t", "version": 5,
                  "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
                  "templates": [
@@ -92,9 +103,17 @@ class InternedNamesTest {
                             "value": "match me"}},
                           "then": [{"text": "yes"}]}}]}}]}]}
                 """.formatted(name);
+    }
+
+    /** The same minimal configuration the cases above run, compiled. */
+    private static stroom.shapeshifter.engine.graph.CompiledProject compiled() {
+        return Shapeshifter.compile(ProjectReader.read(json("kept")));
+    }
+
+    private static String run(final String name) {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         final List<Message> messages = Shapeshifter.run(
-                Shapeshifter.compile(ProjectReader.read(json)),
+                Shapeshifter.compile(ProjectReader.read(json(name))),
                 new ByteArrayInputStream("match me\n".getBytes(StandardCharsets.UTF_8)),
                 new XmlByteSink(out));
         assertThat(messages).noneMatch(m -> m.severity().ordinal() >= stroom.shapeshifter.engine

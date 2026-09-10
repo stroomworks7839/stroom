@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
-import stroom.shapeshifter.engine.graph.VarNames;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 import org.junit.jupiter.api.Test;
@@ -35,6 +35,20 @@ import static org.assertj.core.api.Assertions.assertThat;
  * data stays a number until something writes it, rather than being rendered and parsed again.
  */
 class StoreTest {
+
+    /**
+     * A name table as the compiler would have built one: slot 0 is always {@code __group}, which
+     * the interpreter binds whether or not a configuration reads it.
+     */
+    private static Names table(final VarName... names) {
+        final java.util.Map<String, VarName> byName = new java.util.HashMap<>();
+        byName.put(stroom.shapeshifter.engine.config.EngineVars.GROUP.varName(),
+                new VarName(stroom.shapeshifter.engine.config.EngineVars.GROUP.varName(), 0));
+        for (final VarName name : names) {
+            byName.put(name.name(), name);
+        }
+        return new Names(byName, java.util.Map.of());
+    }
 
     private static TypedValue text(final String value) {
         return TypedValue.of(value);
@@ -158,9 +172,8 @@ class StoreTest {
     @Test
     void innerScopesShadowOuterOnesAndReleaseOnTheWayOut() {
         // The table is what the compiler would have handed the run: a name is a slot in it.
-        final VarNames names = new VarNames();
-        final VarName name = names.intern("name");
-        final VarRegistry vars = new VarRegistry(names);
+        final VarName name = new VarName("name", 1);
+        final VarRegistry vars = new VarRegistry(table(name));
         vars.store(name).set(0, text("outer"));
 
         vars.push();
@@ -180,9 +193,8 @@ class StoreTest {
         // outer one — which is what a name shadowed twice has to come back to. It matters
         // because a recursive apply shadows every candidate's capture names, and two candidates
         // can declare the same one.
-        final VarNames names = new VarNames();
-        final VarName name = names.intern("name");
-        final VarRegistry vars = new VarRegistry(names);
+        final VarName name = new VarName("name", 1);
+        final VarRegistry vars = new VarRegistry(table(name));
         vars.store(name).set(0, text("outer"));
 
         vars.push();
@@ -198,9 +210,8 @@ class StoreTest {
 
     @Test
     void nestedScopesUnwindOneAtATime() {
-        final VarNames names = new VarNames();
-        final VarName name = names.intern("name");
-        final VarRegistry vars = new VarRegistry(names);
+        final VarName name = new VarName("name", 1);
+        final VarRegistry vars = new VarRegistry(table(name));
         vars.store(name).set(0, text("outer"));
 
         vars.push();
@@ -218,9 +229,8 @@ class StoreTest {
 
     @Test
     void nameFirstWrittenInsideAScopeDoesNotSurviveIt() {
-        final VarNames names = new VarNames();
-        final VarName name = names.intern("name");
-        final VarRegistry vars = new VarRegistry(names);
+        final VarName name = new VarName("name", 1);
+        final VarRegistry vars = new VarRegistry(table(name));
 
         vars.push();
         vars.store(name).set(0, text("local"));
@@ -234,10 +244,9 @@ class StoreTest {
     void pushingShadowsTheNamesTheCompilerSettled() {
         // Every push in the interpreter knows its shadow set before the run starts, so the two
         // operations are one call over a compile-time array.
-        final VarNames names = new VarNames();
-        final VarName first = names.intern("first");
-        final VarName second = names.intern("second");
-        final VarRegistry vars = new VarRegistry(names);
+        final VarName first = new VarName("first", 1);
+        final VarName second = new VarName("second", 2);
+        final VarRegistry vars = new VarRegistry(table(first, second));
         vars.store(first).set(0, text("outer one"));
         vars.store(second).set(0, text("outer two"));
 
@@ -255,8 +264,7 @@ class StoreTest {
         // A key-value capture binds under a name from the input. One the configuration never
         // mentions is kept rather than dropped: nothing can read it, but a capture has to keep
         // operating for something outside the run to present it.
-        final VarNames names = new VarNames();
-        final VarRegistry vars = new VarRegistry(names);
+        final VarRegistry vars = new VarRegistry(table());
 
         vars.store("from the data").set(0, text("value"));
 
@@ -268,9 +276,8 @@ class StoreTest {
     void nameTheConfigurationMentionsIsTheSameSlotEitherWay() {
         // The failure this guards: a capture writing by name and a reference reading by slot
         // must land on the same variable, or the read is of the wrong slot and says nothing.
-        final VarNames names = new VarNames();
-        final VarName name = names.intern("shared");
-        final VarRegistry vars = new VarRegistry(names);
+        final VarName name = new VarName("shared", 1);
+        final VarRegistry vars = new VarRegistry(table(name));
 
         vars.store("shared").set(0, text("written by name"));
 
@@ -279,9 +286,8 @@ class StoreTest {
 
     @Test
     void writeWithoutShadowingReachesTheScopeThatHoldsTheName() {
-        final VarNames names = new VarNames();
-        final VarName name = names.intern("name");
-        final VarRegistry vars = new VarRegistry(names);
+        final VarName name = new VarName("name", 1);
+        final VarRegistry vars = new VarRegistry(table(name));
         vars.store(name).set(0, text("outer"));
 
         vars.push();

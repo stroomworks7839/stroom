@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
-import stroom.shapeshifter.engine.graph.VarNames;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,7 +64,7 @@ public final class VarRegistry {
     /** Not bound by any scope. */
     private static final int UNBOUND = -1;
 
-    private final VarNames names;
+    private final Names names;
 
     /** Every slot's current binding, by {@link VarName#slot()}. */
     private final List<List<Store>> slots = new ArrayList<>();
@@ -87,7 +87,7 @@ public final class VarRegistry {
 
     private final Frames frames = new Frames();
 
-    public VarRegistry(final VarNames names) {
+    public VarRegistry(final Names names) {
         this.names = names;
         this.owner = new int[names.size()];
         Arrays.fill(owner, UNBOUND);

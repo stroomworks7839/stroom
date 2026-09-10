@@ -30,7 +30,6 @@ import stroom.shapeshifter.engine.graph.CompiledOp;
 import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.graph.CompiledTemplate;
 import stroom.shapeshifter.engine.graph.VarName;
-import stroom.shapeshifter.engine.graph.VarNames;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
 
@@ -120,7 +119,7 @@ public final class Compiler {
         // Names are interned as the graph is built, by whatever compiles a node that names a
         // variable — the same shape the match compiler interns patterns with, and no second
         // walk to keep in step with the first (design 30 §5.5).
-        final VarNames names = new VarNames();
+        final Interner names = new Interner();
         final MatchCompiler matches = new MatchCompiler(project);
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
@@ -143,15 +142,14 @@ public final class Compiler {
         TemplateUses.resolveNames(project, uses);
         TemplateUses.lintDispatch(project, templates, uses, warnings);
         final boolean structured = bodyChecks(project, warnings);
-        final CompiledProject compiled = new CompiledProject(project, templates,
-                encoding, transcodeFrom, warnings, functions.used(), structured, names,
+        // The bodies were compiled before the templates they name existed; now they do. This
+        // runs before the graph is built rather than after, because linking interns the last
+        // names — a call's parameters — and the table handed to the graph has to be the finished
+        // one. The old order took the table first and closed it afterwards with a flag.
+        bodies.link(templates);
+        return new CompiledProject(project, templates,
+                encoding, transcodeFrom, warnings, functions.used(), structured, names.names(),
                 RootPlanner.plan(project, templates));
-
-        // The bodies were compiled before the templates they name existed; now they do. Linking
-        // interns the last names — a call's parameters — so the table closes after it.
-        bodies.link(compiled.templates());
-        names.freeze();
-        return compiled;
     }
 
     /** What a template's captures alone can be wrong about. */
@@ -267,7 +265,7 @@ public final class Compiler {
                                              final Encoding encoding,
                                              final List<CompiledCapture> captures,
                                              final CompiledCondition guard,
-                                             final VarNames names) {
+                                             final Interner names) {
         final List<VarName> clear = new ArrayList<>();
         final List<VarName> named = new ArrayList<>();
         for (final CaptureBinding capture : template.captures()) {

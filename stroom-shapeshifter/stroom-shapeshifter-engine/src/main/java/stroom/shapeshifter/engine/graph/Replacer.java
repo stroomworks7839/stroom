@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.value;
+package stroom.shapeshifter.engine.graph;
 
+import stroom.shapeshifter.engine.value.Numbers;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
@@ -39,7 +40,18 @@ import java.util.List;
  * for groups.
  *
  * <p>The matcher is a field, so a replacer belongs to one compiled instruction and runs under
- * the graph's one-run-at-a-time contract, exactly as {@code CompiledMatch.Regex} does.
+ * the graph's one-run-at-a-time contract, exactly as {@link CompiledMatch.Regex} does.
+ *
+ * <p>It lives with the graph, not with the values, because that is what it is: the compiled form
+ * of a {@code replace} instruction, held by {@link CompiledOp.Replace} and built by the compiler.
+ * It was in {@code value} until 2026-09-10, where the package said something about it that was
+ * not true.
+ *
+ * <p>It does reach back for one thing — {@link Numbers#index} reads a replacement's {@code $1} as
+ * a number, and doing that correctly is more than {@code Integer.parseInt} (that class explains
+ * why). {@code graph} depends on {@code value} anyway, for the typed values compiled nodes carry;
+ * what moving this cost was making {@code Numbers} public, which is the honest price and is
+ * recorded rather than hidden.
  */
 public final class Replacer {
 

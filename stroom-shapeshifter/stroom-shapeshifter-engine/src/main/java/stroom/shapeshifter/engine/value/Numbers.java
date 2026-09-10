@@ -31,7 +31,7 @@ package stroom.shapeshifter.engine.value;
  * {@code Long.valueOf} and {@code Double.valueOf} accept and reject, which
  * {@code TypedValueParseEquivalenceTest} asserts by differential comparison rather than by example.
  */
-final class Numbers {
+public final class Numbers {
 
     private Numbers() {
     }
@@ -42,7 +42,7 @@ final class Numbers {
      * {@link Character#digit} rather than an ASCII range check, because Java reads non-ASCII
      * digits here and a performance fix must not quietly stop.
      */
-    static Long whole(final String text) {
+    public static Long whole(final String text) {
         if (text.isEmpty()) {
             return null;
         }
@@ -100,7 +100,7 @@ final class Numbers {
     }
 
     /** A whole number that fits an {@code int}, or -1 — for group indexes and the like. */
-    static int index(final String text) {
+    public static int index(final String text) {
         final Long value = whole(text);
         return value == null || value < 0 || value > Integer.MAX_VALUE ? -1 : (int) (long) value;
     }

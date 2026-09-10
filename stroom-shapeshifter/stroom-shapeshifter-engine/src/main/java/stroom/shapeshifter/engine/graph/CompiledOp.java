@@ -23,15 +23,11 @@ import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.value.Dates;
-import stroom.shapeshifter.engine.value.Replacer;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
 
-import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -134,15 +130,9 @@ public sealed interface CompiledOp {
          * collected as they are made and linked when the list is complete, rather than found
          * again by walking the compiled bodies, so no nesting can hide one.
          */
-        public void link(final List<CompiledTemplate> candidates) {
+        public void link(final List<CompiledTemplate> candidates, final VarName[] recursiveShadow) {
             this.candidates = candidates;
-            // Deduplicated: two candidates declaring the same capture name would otherwise
-            // shadow it twice at every push, which is correct but is work done twice.
-            final Set<VarName> shadow = new LinkedHashSet<>();
-            for (final CompiledTemplate candidate : candidates) {
-                shadow.addAll(Arrays.asList(candidate.captureNames()));
-            }
-            this.recursiveShadow = shadow.toArray(EMPTY_NAMES);
+            this.recursiveShadow = recursiveShadow;
         }
 
         /** The authored directive — mode, limits, gates. */

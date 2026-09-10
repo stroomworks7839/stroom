@@ -22,7 +22,6 @@ import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.graph.CompiledIndex;
 import stroom.shapeshifter.engine.graph.CompiledRef;
-import stroom.shapeshifter.engine.graph.VarNames;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 /**
@@ -43,7 +42,7 @@ final class RefCompiler {
     }
 
     /** Decide an expression's strategy, interning every name it reads. */
-    static CompiledRef compile(final RefExpression expression, final VarNames names) {
+    static CompiledRef compile(final RefExpression expression, final Interner names) {
         if (expression == null || expression.parts().isEmpty()) {
             return new CompiledRef.Empty();
         }
@@ -57,7 +56,7 @@ final class RefCompiler {
         return new CompiledRef.Composite(parts);
     }
 
-    private static CompiledRef part(final RefPart part, final VarNames names) {
+    private static CompiledRef part(final RefPart part, final Interner names) {
         return switch (part) {
             case final RefPart.Text text -> new CompiledRef.Bytes(TypedValue.of(text.value()));
             case final RefPart.Capture capture -> {
@@ -81,7 +80,7 @@ final class RefCompiler {
      * may be one of the engine's own — {@code $heading[$__match_count]} is the common shape — so
      * which of the two places holds it is decided here as well.
      */
-    static CompiledIndex index(final MatchIndex matchIndex, final VarNames names) {
+    static CompiledIndex index(final MatchIndex matchIndex, final Interner names) {
         if (matchIndex == null) {
             return null;
         }

@@ -30,12 +30,11 @@ import stroom.shapeshifter.engine.function.Signature;
 import stroom.shapeshifter.engine.graph.CompiledOp;
 import stroom.shapeshifter.engine.graph.CompiledRef;
 import stroom.shapeshifter.engine.graph.CompiledTemplate;
+import stroom.shapeshifter.engine.graph.Replacer;
 import stroom.shapeshifter.engine.graph.VarName;
-import stroom.shapeshifter.engine.graph.VarNames;
 import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.Dates;
-import stroom.shapeshifter.engine.value.Replacer;
 import stroom.shapeshifter.engine.value.Transforms;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
@@ -43,10 +42,13 @@ import stroom.shapeshifter.regex.BytePattern;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -62,7 +64,7 @@ final class BodyCompiler {
     private final Functions functions;
 
     /** Every variable name, interned as the ops that name one are built (design 30 phase 5). */
-    private final VarNames names;
+    private final Interner names;
 
     /**
      * The ops that cannot be finished until every template has compiled, collected as they are
@@ -83,7 +85,7 @@ final class BodyCompiler {
     BodyCompiler(final Map<PatternKey, BytePattern> patterns,
                  final Project project,
                  final Functions functions,
-                 final VarNames names) {
+                 final Interner names) {
         this.patterns = patterns;
         this.project = project;
         this.functions = functions;
@@ -115,7 +117,9 @@ final class BodyCompiler {
         }
         for (final CompiledOp.Apply apply : applies) {
             // An apply whose mode answers to nothing gets an empty list and matches nothing.
-            apply.link(List.copyOf(byMode.getOrDefault(apply.directive().mode(), List.of())));
+            final List<CompiledTemplate> candidates =
+                    List.copyOf(byMode.getOrDefault(apply.directive().mode(), List.of()));
+            apply.link(candidates, recursiveShadow(candidates));
         }
         for (final CompiledOp.CallTemplate call : calls) {
             final CompiledTemplate target = byName.get(call.name());
@@ -554,5 +558,23 @@ final class BodyCompiler {
                             : null));
         }
         return declared;
+    }
+
+    /**
+     * Every capture name a recursive apply shadows, flattened once across its candidates.
+     *
+     * <p>Deduplicated: two candidates declaring the same capture name would otherwise shadow it
+     * twice at every push, which is correct — the undo log unwinds in reverse — but is work done
+     * twice.
+     *
+     * <p>Computed here rather than by the op, for the same reason a call site's parameters are:
+     * the graph holds what it was given (design 27 §2.5.1).
+     */
+    private static VarName[] recursiveShadow(final List<CompiledTemplate> candidates) {
+        final Set<VarName> shadow = new LinkedHashSet<>();
+        for (final CompiledTemplate candidate : candidates) {
+            shadow.addAll(Arrays.asList(candidate.captureNames()));
+        }
+        return shadow.toArray(CompiledOp.EMPTY_NAMES);
     }
 }

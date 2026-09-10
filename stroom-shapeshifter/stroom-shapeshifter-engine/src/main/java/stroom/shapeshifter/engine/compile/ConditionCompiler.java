@@ -19,7 +19,6 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.graph.CompiledCondition;
 import stroom.shapeshifter.engine.graph.CompiledOperand;
-import stroom.shapeshifter.engine.graph.VarNames;
 import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;
@@ -55,7 +54,7 @@ final class ConditionCompiler {
      */
     static CompiledCondition compile(final Condition condition,
                                      final Map<PatternKey, BytePattern> patterns,
-                                     final VarNames names) {
+                                     final Interner names) {
         return switch (condition) {
             case null -> null;
             case final Condition.Compare value -> new CompiledCondition.Compare(value.op(),
@@ -90,7 +89,7 @@ final class ConditionCompiler {
 
     private static List<CompiledCondition> all(final List<Condition> conditions,
                                                final Map<PatternKey, BytePattern> patterns,
-                                               final VarNames names) {
+                                               final Interner names) {
         return conditions.stream().map(child -> compile(child, patterns, names)).toList();
     }
 
@@ -103,7 +102,7 @@ final class ConditionCompiler {
      * what it was per evaluation too — a comparison that cannot be made is false, {@code ne}
      * included (design/17 §8).
      */
-    private static CompiledOperand operand(final Condition.Operand operand, final VarNames names) {
+    private static CompiledOperand operand(final Condition.Operand operand, final Interner names) {
         if (operand.ref() != null) {
             return new CompiledOperand(
                     RefCompiler.compile(operand.ref(), names), null, operand.as());

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.value;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.regex.BytePattern;
 

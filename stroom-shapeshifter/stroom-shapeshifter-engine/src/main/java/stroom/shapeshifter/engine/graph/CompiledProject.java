@@ -60,7 +60,7 @@ public final class CompiledProject {
      * name resolved when the configuration compiled. It is here because a run needs to know
      * how many slots to allocate before it starts.
      */
-    private final VarNames names;
+    private final Names names;
 
     /**
      * Build the graph.
@@ -83,7 +83,7 @@ public final class CompiledProject {
                            final List<Message> warnings,
                            final List<FunctionDefinition> functions,
                            final boolean structured,
-                           final VarNames names,
+                           final Names names,
                            final RootPlan rootPlan) {
         this.names = names;
         this.transcodeFrom = transcodeFrom;
@@ -111,7 +111,7 @@ public final class CompiledProject {
     }
 
     /** Every variable name the configuration uses, each with its slot. */
-    public VarNames names() {
+    public Names names() {
         return names;
     }
 

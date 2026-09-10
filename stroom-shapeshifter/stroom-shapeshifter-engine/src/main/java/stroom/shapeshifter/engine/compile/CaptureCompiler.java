@@ -18,7 +18,6 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.graph.CompiledCapture;
-import stroom.shapeshifter.engine.graph.VarNames;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +30,7 @@ final class CaptureCompiler {
 
     /** The compiled form of a template's bindings, in their authored order. */
     static List<CompiledCapture> compile(final List<CaptureBinding> captures,
-                                         final VarNames names) {
+                                         final Interner names) {
         final List<CompiledCapture> compiled = new ArrayList<>(captures.size());
         for (final CaptureBinding capture : captures) {
             final CompiledCapture.Source source = switch (capture.select()) {
