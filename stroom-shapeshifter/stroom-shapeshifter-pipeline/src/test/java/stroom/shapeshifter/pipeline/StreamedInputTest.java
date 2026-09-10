@@ -18,9 +18,9 @@ package stroom.shapeshifter.pipeline;
 
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
 import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.ds3.Ds3Migration;
+import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.output.SaxEventSink;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
@@ -52,7 +52,7 @@ public record CompiledOperand(CompiledRef ref, TypedValue literal, Cast as) {
     }
 
     /** Compile one side of a comparison. */
-    static CompiledOperand of(final Condition.Operand operand, final VarNames names) {
+    public static CompiledOperand of(final Condition.Operand operand, final VarNames names) {
         if (operand.ref() != null) {
             return new CompiledOperand(CompiledRef.of(operand.ref(), names), null, operand.as());
         }

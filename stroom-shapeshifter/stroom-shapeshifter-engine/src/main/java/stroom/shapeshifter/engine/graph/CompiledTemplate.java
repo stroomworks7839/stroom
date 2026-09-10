@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.MatchExpression;
@@ -82,7 +82,7 @@ public record CompiledTemplate(Template template,
      * (design 29 §3.1, D51). The model stays the model, carried for names, identifiers and
      * messages; the loop reads the fields beside it.
      */
-    static CompiledTemplate of(final Template template,
+    public static CompiledTemplate of(final Template template,
                                final CompiledMatch match,
                                final List<CompiledOp> body,
                                final Encoding encoding,

@@ -29,10 +29,13 @@
  * the face: the {@code Shapeshifter} facade, {@code Message} and {@code Severity},
  * {@code Instrument}, the {@code OutputSink} contract, {@code PatternInfo}. {@code config} is
  * the model a user edits, and {@code config.json} its wire form; {@code ds3} migrates DS3's.
- * {@code compile} turns the model into the executable graph. {@code value} holds what a match
+ * {@code graph} is the executable graph — the vocabulary a configuration compiles <i>to</i> —
+ * and {@code compile} is the passes that build it, which is a split drawn on 2026-09-10 after
+ * both halves had shared a package since the port. {@code value} holds what a match
  * captures and a body computes with, and depends on nothing above the model; {@code match}
  * holds what a match produces and the two ways of matching that are not a regex, and depends
- * on {@code value}; {@code exec} is one run over the graph, and depends on both; {@code output}
+ * on {@code value}; {@code exec} is one run over the graph, and depends on it and not on the
+ * compiler that built it; {@code output}
  * is the sinks a run writes to; {@code text} is the encodings; {@code function} is the
  * extension-function contract. A value knows nothing of a match, a match nothing of a run.
  */

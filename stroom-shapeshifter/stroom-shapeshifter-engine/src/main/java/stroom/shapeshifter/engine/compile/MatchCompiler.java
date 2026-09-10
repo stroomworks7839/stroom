@@ -24,6 +24,7 @@ import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.engine.graph.CompiledMatch;
 import stroom.shapeshifter.engine.match.CompiledSteps;
 import stroom.shapeshifter.engine.match.Decoding;
 import stroom.shapeshifter.engine.match.PatternKey;

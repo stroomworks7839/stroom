@@ -15,7 +15,12 @@
  */
 
 /**
- * Compilation: turning an authored {@code Project} into something ready to run.
+ * Compilation: turning an authored {@code Project} into the executable graph.
+ *
+ * <p><b>The passes live here; what they build lives in {@code graph}</b> (2026-09-10). This
+ * package reads the authored model and writes the compiled one, and depends on both. Nothing in
+ * {@code graph} depends on anything here, which is what makes a graph a value rather than a
+ * thing with a history.
  *
  * <p>Patterns are compiled, delimiters pre-encoded, and everything the match loop needs is
  * inlined onto the template that needs it, so the hot path has no lookups to do. Compilation is
@@ -35,3 +40,5 @@
  * facade depend on it, and nothing below it does (design 27 §2.5).
  */
 package stroom.shapeshifter.engine.compile;
+
+import stroom.shapeshifter.engine.graph.CompiledProject;

@@ -16,10 +16,10 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.compile.CompiledCondition;
-import stroom.shapeshifter.engine.compile.CompiledOperand;
-import stroom.shapeshifter.engine.compile.CompiledRef;
 import stroom.shapeshifter.engine.config.EngineVars;
+import stroom.shapeshifter.engine.graph.CompiledCondition;
+import stroom.shapeshifter.engine.graph.CompiledOperand;
+import stroom.shapeshifter.engine.graph.CompiledRef;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;

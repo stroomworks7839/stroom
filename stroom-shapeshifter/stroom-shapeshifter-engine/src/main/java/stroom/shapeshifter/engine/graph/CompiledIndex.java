@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
@@ -48,7 +48,7 @@ public record CompiledIndex(int index,
                             EngineVars varContext) {
 
     /** Compile an authored index rule, or null when the reference carries none. */
-    static CompiledIndex of(final MatchIndex matchIndex, final VarNames names) {
+    public static CompiledIndex of(final MatchIndex matchIndex, final VarNames names) {
         if (matchIndex == null) {
             return null;
         }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.match.CompiledSteps;
 import stroom.shapeshifter.engine.text.Encoding;

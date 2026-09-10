@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.Cast;
@@ -116,7 +116,7 @@ public sealed interface CompiledOp {
          * @param dispatch           how the dispatched level runs — the directive's word, the
          *                           source default, or the version default, resolved once (D36)
          */
-        Apply(final ApplyDirective directive,
+        public Apply(final ApplyDirective directive,
               final CompiledRef select,
               final boolean wholeParentContent,
               final boolean locatable,
@@ -136,7 +136,7 @@ public sealed interface CompiledOp {
          * collected as they are made and linked when the list is complete, rather than found
          * again by walking the compiled bodies, so no nesting can hide one.
          */
-        void link(final List<CompiledTemplate> candidates) {
+        public void link(final List<CompiledTemplate> candidates) {
             this.candidates = candidates;
             // Deduplicated: two candidates declaring the same capture name would otherwise
             // shadow it twice at every push, which is correct but is work done twice.
@@ -199,7 +199,7 @@ public sealed interface CompiledOp {
         private CompiledTemplate target;
         private List<Param> params = List.of();
 
-        CallTemplate(final String name, final List<Arg> args) {
+        public CallTemplate(final String name, final List<Arg> args) {
             this.name = name;
             this.args = args;
         }
@@ -215,7 +215,7 @@ public sealed interface CompiledOp {
          * @param target the template named, or null when the name resolves to none, which is
          *               not an error here: the call does nothing at run time
          */
-        void link(final CompiledTemplate target, final VarNames names) {
+        public void link(final CompiledTemplate target, final VarNames names) {
             this.target = target;
             if (target == null) {
                 return;

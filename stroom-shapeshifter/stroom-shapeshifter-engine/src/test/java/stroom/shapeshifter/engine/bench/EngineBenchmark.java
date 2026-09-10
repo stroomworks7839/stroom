@@ -19,10 +19,10 @@ package stroom.shapeshifter.engine.bench;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.fixture.FixtureLedger;
+import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.openjdk.jmh.annotations.Benchmark;

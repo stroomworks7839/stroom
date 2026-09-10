@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression;
@@ -78,7 +78,7 @@ public sealed interface CompiledRef {
     }
 
     /** Decide an expression's strategy, interning every name it reads. */
-    static CompiledRef of(final RefExpression expression, final VarNames names) {
+    public static CompiledRef of(final RefExpression expression, final VarNames names) {
         if (expression == null || expression.parts().isEmpty()) {
             return new Empty();
         }

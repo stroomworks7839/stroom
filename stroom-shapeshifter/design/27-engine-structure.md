@@ -157,6 +157,16 @@ op's signature or into the op, which is the per-run mirror D35 refuted. The grap
 execution" through its `CompiledTemplate` and `CompiledProject` entry points; the ops are its
 instruction set.
 
+*Reopened 2026-09-10 by design 31, and this section is why it took three years of phases to be
+reopenable.* The argument here has two halves and only one has survived: the **run-state** half —
+that ops running themselves puts run state into every signature or into the op — is answered by a
+single context object, which is a parameter and not the per-run mirror D35 refused. The
+**dispatch** half was never measured; its one control (benchmark point 10) turned out to exercise
+the mechanism twice per record rather than 209 times, and the switch compiles to a JDK
+type-test chain feeding a `tableswitch` rather than to the jump table the argument assumed. What
+made it *possible* to reopen is §2.5.1's split: the reason a `run` method could not be written was
+the package edge, and that edge is now somewhere else.
+
 ### 2.3 `compile` after the split
 
 | Class | Purpose |
@@ -207,6 +217,37 @@ built (phase 6) the churn also reached the benchmark module and the app tests, a
 test and benchmark files that construct the byte sink by name under ruling 8. All of it is
 import churn, which is why the moves are one phase of their own (phase 6) and not mixed into a
 hot-path commit.
+
+### 2.5.1 The split this one did not make, made 2026-09-10
+
+*A later note on §2.5's table, which is otherwise left as it was written.*
+
+`engine.compile` held two things: the passes, and the vocabulary they build. Design 30's phases
+made that visible — five phases of putting compile-time facts onto compiled nodes, and each time
+the node and the pass that filled it sat in the same package, so nothing said which was which.
+The vocabulary is now **`engine.graph`**, and `engine.compile` is the passes alone.
+
+**It described what was already true.** No compiled class named a compiler class, and `exec`
+imported none of the seven passes; the layering existed and only the package was missing. What it
+buys is that the boundary can be enforced rather than remembered — and one thing that was true and
+invisible is now visible: **`exec` does not depend on `compile` at all.** The interpreter and the
+compiler are disjoint siblings over a shared graph.
+
+**Ruling 8's cycle stays removed, and by a better mechanism.** That ruling refused an edge from
+the compiled vocabulary back into the run and spent a phase taking one out at the import level.
+The refusal now holds by construction: `graph` names neither `compile` nor `exec`, so there is no
+edge to reinstate by accident. It also converts design 31's central obstacle into a non-problem —
+an instruction can be given a `run` method against a context declared in `graph` and implemented
+in `exec`, with the graph never naming the interpreter, which is what §4 of that design had
+costed as ceremony.
+
+*Two things it did not do, named so they are not mistaken for oversights.* The seven
+`of`/`compile` factories stayed on the graph and were widened to public rather than moved into
+the compiler: they take the authored model and return a graph, and name no compiler, so they are
+the seam rather than a leak — but "the compiler builds the model, the model does not build
+itself" would move them. And `CompiledStep`/`CompiledSteps` remain in `engine.match`, because
+`graph` reaches into `match` and the reverse edge is this ruling's own cycle; separating them
+means splitting `match` as well, which is a change of its own.
 
 ### 2.6 What does not move
 

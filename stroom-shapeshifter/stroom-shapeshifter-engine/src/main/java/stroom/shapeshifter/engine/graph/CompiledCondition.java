@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.match.PatternKey;
@@ -120,7 +120,7 @@ public sealed interface CompiledCondition {
      * @param patterns  every pattern the configuration compiled, by key
      * @return the compiled form, or null when there was no condition
      */
-    static CompiledCondition of(final Condition condition,
+    public static CompiledCondition of(final Condition condition,
                                 final Map<PatternKey, BytePattern> patterns,
                                 final VarNames names) {
         return switch (condition) {

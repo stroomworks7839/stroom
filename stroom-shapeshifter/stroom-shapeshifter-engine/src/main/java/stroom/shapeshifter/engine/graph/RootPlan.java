@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode;
@@ -62,7 +62,7 @@ public record RootPlan(Dispatch dispatch,
     }
 
     /** Settle the plan for a compiled configuration. */
-    static RootPlan of(final Project project, final List<CompiledTemplate> templates) {
+    public static RootPlan of(final Project project, final List<CompiledTemplate> templates) {
         final CompiledTemplate source = templates.stream()
                 .filter(t -> t.match() instanceof CompiledMatch.Source)
                 .findFirst()

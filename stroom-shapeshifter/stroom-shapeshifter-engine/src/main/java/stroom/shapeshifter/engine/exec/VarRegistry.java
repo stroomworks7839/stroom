@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.compile.VarName;
-import stroom.shapeshifter.engine.compile.VarNames;
+import stroom.shapeshifter.engine.graph.VarName;
+import stroom.shapeshifter.engine.graph.VarNames;
 
 import java.util.ArrayList;
 import java.util.Arrays;

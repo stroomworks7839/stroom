@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.Cast;
@@ -55,7 +55,7 @@ public record CompiledCapture(VarName name, Source source, Cast as) {
     }
 
     /** The compiled form of a template's bindings, in their authored order. */
-    static List<CompiledCapture> compile(final List<CaptureBinding> captures,
+    public static List<CompiledCapture> compile(final List<CaptureBinding> captures,
                                         final VarNames names) {
         final List<CompiledCapture> compiled = new ArrayList<>(captures.size());
         for (final CaptureBinding capture : captures) {

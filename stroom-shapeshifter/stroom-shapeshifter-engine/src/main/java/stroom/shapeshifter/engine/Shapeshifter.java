@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine;
 
-import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.Compiler;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Project;
@@ -24,6 +23,7 @@ import stroom.shapeshifter.engine.exec.Run;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.function.RunMode;
 import stroom.shapeshifter.engine.function.Services;
+import stroom.shapeshifter.engine.graph.CompiledProject;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;

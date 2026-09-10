@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 /**
  * A key's name, and the slot the run keeps its index in (design 30 phase 7).

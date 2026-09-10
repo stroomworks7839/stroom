@@ -16,9 +16,9 @@
 
 package stroom.shapeshifter.engine;
 
-import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;

@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.compile.CompiledIndex;
-import stroom.shapeshifter.engine.compile.CompiledRef;
+import stroom.shapeshifter.engine.graph.CompiledIndex;
+import stroom.shapeshifter.engine.graph.CompiledRef;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.value.TypedValue;
 

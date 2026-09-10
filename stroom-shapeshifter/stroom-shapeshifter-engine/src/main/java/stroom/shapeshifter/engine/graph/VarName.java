@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 /**
  * A variable's name, and the slot the run keeps it in (design 30 phase 5).

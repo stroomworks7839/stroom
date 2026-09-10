@@ -17,11 +17,13 @@
 package stroom.shapeshifter.engine.value;
 
 import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.graph.CompiledCondition;
+import stroom.shapeshifter.engine.graph.CompiledProject;
+import stroom.shapeshifter.engine.graph.VarNames;
 import stroom.shapeshifter.engine.match.MatchResult;
 
 import org.junit.jupiter.api.Test;
@@ -164,10 +166,10 @@ class CompareSpineTest {
         // No match, no variables: every reference is absent. No patterns either — the spine is
         // comparisons, and a compiled condition only needs the map for a matches test. The name
         // table is the one compiling the condition fills, and a run needs it to size its slots.
-        final stroom.shapeshifter.engine.compile.VarNames names =
-                new stroom.shapeshifter.engine.compile.VarNames();
+        final stroom.shapeshifter.engine.graph.VarNames names =
+                new stroom.shapeshifter.engine.graph.VarNames();
         return stroom.shapeshifter.engine.exec.Conditions.evaluate(
-                stroom.shapeshifter.engine.compile.CompiledCondition.of(condition,
+                stroom.shapeshifter.engine.graph.CompiledCondition.of(condition,
                         java.util.Map.of(), names),
                 MatchResult.empty(), 1,
                 new stroom.shapeshifter.engine.exec.VarRegistry(names));

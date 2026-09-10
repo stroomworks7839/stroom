@@ -18,6 +18,10 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.graph.CompiledCondition;
+import stroom.shapeshifter.engine.graph.CompiledOp;
+import stroom.shapeshifter.engine.graph.CompiledProject;
+import stroom.shapeshifter.engine.graph.CompiledTemplate;
 
 import org.junit.jupiter.api.Test;
 

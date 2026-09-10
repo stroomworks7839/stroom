@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.compile;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.EngineVars;
 
@@ -104,7 +104,7 @@ public final class VarNames {
      * can be in different templates — so the slot is assigned by whichever arrives first, exactly
      * as a variable's is.
      */
-    KeyName internKey(final String name) {
+    public KeyName internKey(final String name) {
         if (name == null) {
             return null;
         }
@@ -118,7 +118,7 @@ public final class VarNames {
     }
 
     /** No more names: the configuration has compiled, and the count is now a run's array size. */
-    void freeze() {
+    public void freeze() {
         frozen = true;
     }
 

@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.graph.VarNames;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;

@@ -22,6 +22,12 @@ import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
+import stroom.shapeshifter.engine.graph.CompiledCapture;
+import stroom.shapeshifter.engine.graph.CompiledCondition;
+import stroom.shapeshifter.engine.graph.CompiledMatch;
+import stroom.shapeshifter.engine.graph.CompiledProject;
+import stroom.shapeshifter.engine.graph.CompiledTemplate;
+import stroom.shapeshifter.engine.graph.VarNames;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
 

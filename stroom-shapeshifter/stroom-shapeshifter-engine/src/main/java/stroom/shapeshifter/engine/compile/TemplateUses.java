@@ -23,6 +23,8 @@ import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.engine.graph.CompiledMatch;
+import stroom.shapeshifter.engine.graph.CompiledTemplate;
 import stroom.shapeshifter.regex.LeadingAnchor;
 
 import java.util.ArrayList;
