@@ -63,6 +63,109 @@ public sealed interface CompiledOp {
     /** Shared empty, so an unlinked or capture-free apply allocates no array. */
     VarName[] EMPTY_NAMES = new VarName[0];
 
+    // The opcodes (design 33 phase 3). An instruction's kind as an int, so that an interpreter
+    // dispatches on a jump table rather than on a chain of type tests: a pattern switch over a
+    // sealed type compiles to `instanceof` per arm, in case order, behind a generated method the
+    // JIT will not inline at this many arms. Design 33 §2 is the measurement.
+    //
+    // **They are contiguous from zero, and must stay so.** javac emits a `tableswitch` for a
+    // dense set of case constants and a `lookupswitch` — a binary search — for a sparse one, so
+    // a gap here would quietly turn the dispatch back into a search. OpcodesTest holds both this
+    // and the completeness of {@link #codeOf}.
+
+    /** @see Text */
+    int OP_TEXT = 0;
+    /** @see ValueOf */
+    int OP_VALUE_OF = 1;
+    /** @see Apply */
+    int OP_APPLY = 2;
+    /** @see If */
+    int OP_IF = 3;
+    /** @see Choose */
+    int OP_CHOOSE = 4;
+    /** @see Switch */
+    int OP_SWITCH = 5;
+    /** @see Variable */
+    int OP_VARIABLE = 6;
+    /** @see Element */
+    int OP_ELEMENT = 7;
+    /** @see Attribute */
+    int OP_ATTRIBUTE = 8;
+    /** @see Namespace */
+    int OP_NAMESPACE = 9;
+    /** @see CallTemplate */
+    int OP_CALL_TEMPLATE = 10;
+    /** @see ValueMap */
+    int OP_VALUE_MAP = 11;
+    /** @see Transform */
+    int OP_TRANSFORM = 12;
+    /** @see Replace */
+    int OP_REPLACE = 13;
+    /** @see CallFunction */
+    int OP_CALL_FUNCTION = 14;
+    /** @see Sequence */
+    int OP_SEQUENCE = 15;
+    /** @see Append */
+    int OP_APPEND = 16;
+    /** @see Fold */
+    int OP_FOLD = 17;
+    /** @see DistinctValues */
+    int OP_DISTINCT_VALUES = 18;
+    /** @see Tokenize */
+    int OP_TOKENIZE = 19;
+    /** @see Key */
+    int OP_KEY = 20;
+    /** @see KeyGet */
+    int OP_KEY_GET = 21;
+    /** @see ForEachGroup */
+    int OP_FOR_EACH_GROUP = 22;
+    /** @see ForEach */
+    int OP_FOR_EACH = 23;
+    /** @see ParseDate */
+    int OP_PARSE_DATE = 24;
+    /** @see EmitError */
+    int OP_EMIT_ERROR = 25;
+
+    /**
+     * This instruction's opcode.
+     *
+     * <p>The type switch survives here and runs <b>once per instruction at link time</b>, which
+     * is what lets the run dispatch on an int. It is a switch expression over a sealed type, so
+     * javac requires it to be exhaustive: a twenty-seventh kind fails to compile in this method
+     * rather than at run time, which is the check a hand-written table would have lost.
+     */
+    static int codeOf(final CompiledOp op) {
+        return switch (op) {
+            case Text ignored -> OP_TEXT;
+            case ValueOf ignored -> OP_VALUE_OF;
+            case Apply ignored -> OP_APPLY;
+            case If ignored -> OP_IF;
+            case Choose ignored -> OP_CHOOSE;
+            case Switch ignored -> OP_SWITCH;
+            case Variable ignored -> OP_VARIABLE;
+            case Element ignored -> OP_ELEMENT;
+            case Attribute ignored -> OP_ATTRIBUTE;
+            case Namespace ignored -> OP_NAMESPACE;
+            case CallTemplate ignored -> OP_CALL_TEMPLATE;
+            case ValueMap ignored -> OP_VALUE_MAP;
+            case Transform ignored -> OP_TRANSFORM;
+            case Replace ignored -> OP_REPLACE;
+            case CallFunction ignored -> OP_CALL_FUNCTION;
+            case Sequence ignored -> OP_SEQUENCE;
+            case Append ignored -> OP_APPEND;
+            case Fold ignored -> OP_FOLD;
+            case DistinctValues ignored -> OP_DISTINCT_VALUES;
+            case Tokenize ignored -> OP_TOKENIZE;
+            case Key ignored -> OP_KEY;
+            case KeyGet ignored -> OP_KEY_GET;
+            case ForEachGroup ignored -> OP_FOR_EACH_GROUP;
+            case ForEach ignored -> OP_FOR_EACH;
+            case ParseDate ignored -> OP_PARSE_DATE;
+            case EmitError ignored -> OP_EMIT_ERROR;
+        };
+    }
+
+
 
     /** Write a literal: a UTF-8-tagged value; the sink's encoding decides its bytes (design 25). */
     record Text(TypedValue value) implements CompiledOp {
@@ -75,17 +178,17 @@ public sealed interface CompiledOp {
     }
 
     /** Run a body if a condition holds. */
-    record If(CompiledCondition test, CompiledOp[] then) implements CompiledOp {
+    record If(CompiledCondition test, CompiledBody then) implements CompiledOp {
 
     }
 
     /** Run the first branch whose condition holds. */
-    record Choose(When[] when, CompiledOp[] otherwise) implements CompiledOp {
+    record Choose(When[] when, CompiledBody otherwise) implements CompiledOp {
 
     }
 
     /** One branch of a {@link Choose}. */
-    record When(CompiledCondition test, CompiledOp[] body) {
+    record When(CompiledCondition test, CompiledBody body) {
 
     }
 
@@ -98,8 +201,8 @@ public sealed interface CompiledOp {
      *                   also reaches
      */
     record Switch(CompiledRef select,
-                  Map<String, CompiledOp[]> cases,
-                  CompiledOp[] defaultBody) implements CompiledOp {
+                  Map<String, CompiledBody> cases,
+                  CompiledBody defaultBody) implements CompiledOp {
 
     }
 
@@ -261,18 +364,18 @@ public sealed interface CompiledOp {
     }
 
     /** Bind a variable to what a nested body writes. */
-    record Variable(VarName name, CompiledOp[] body) implements CompiledOp {
+    record Variable(VarName name, CompiledBody body) implements CompiledOp {
 
     }
 
     /** Design 20's structural instructions, bracketing their bodies with the sink's calls. */
-    record Element(String name, String namespace, boolean omitIfEmpty, CompiledOp[] body)
+    record Element(String name, String namespace, boolean omitIfEmpty, CompiledBody body)
             implements CompiledOp {
 
     }
 
     /** An attribute on the enclosing element, its value the body's text; omitted if empty when asked. */
-    record Attribute(String name, boolean omitIfEmpty, CompiledOp[] body) implements CompiledOp {
+    record Attribute(String name, boolean omitIfEmpty, CompiledBody body) implements CompiledOp {
 
     }
 
@@ -374,14 +477,14 @@ public sealed interface CompiledOp {
     record ForEach(VarName select,
                    VarName as,
                    List<SortKey> sort,
-                   CompiledOp[] body) implements CompiledOp {
+                   CompiledBody body) implements CompiledOp {
 
     }
 
     /** Group a sequence's entries, running a body per group (design/16 §6). */
     record ForEachGroup(VarName select,
                         CompiledRef groupBy,
-                        CompiledOp[] body) implements CompiledOp {
+                        CompiledBody body) implements CompiledOp {
 
     }
 

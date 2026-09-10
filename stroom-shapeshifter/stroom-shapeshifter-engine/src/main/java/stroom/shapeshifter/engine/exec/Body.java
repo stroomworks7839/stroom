@@ -26,6 +26,7 @@ import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
+import stroom.shapeshifter.engine.graph.CompiledBody;
 import stroom.shapeshifter.engine.graph.CompiledCapture;
 import stroom.shapeshifter.engine.graph.CompiledCondition;
 import stroom.shapeshifter.engine.graph.CompiledOp;
@@ -204,7 +205,7 @@ final class Body {
      * call. One arm per instruction, so the method is as long as the instruction set (design 27
      * §2.2).
      */
-    void body(final CompiledOp[] ops,
+    void body(final CompiledBody ops,
               final MatchResult match,
               final int matchCount,
               final byte[] content,
@@ -249,35 +250,38 @@ final class Body {
      * leaves here is {@link AbortRun}, which the run catches at the top and does not continue
      * from, so nothing is left to read a register that was not put back.
      */
-    private void run(final CompiledOp[] ops) {
-        for (final CompiledOp op : ops) {
-            switch (op) {
-                case final CompiledOp.Text value -> text(value);
-                case final CompiledOp.ValueOf value -> valueOf(value);
-                case final CompiledOp.Apply value -> apply(value);
-                case final CompiledOp.If value -> ifThen(value);
-                case final CompiledOp.Choose value -> choose(value);
-                case final CompiledOp.Switch value -> switchOn(value);
-                case final CompiledOp.Variable value -> variable(value);
-                case final CompiledOp.Element value -> element(value);
-                case final CompiledOp.Attribute value -> attribute(value);
-                case final CompiledOp.Namespace value -> namespace(value);
-                case final CompiledOp.CallTemplate value -> callTemplate(value);
-                case final CompiledOp.ValueMap value -> valueMap(value);
-                case final CompiledOp.Transform value -> transform(value);
-                case final CompiledOp.Replace value -> replace(value);
-                case final CompiledOp.CallFunction value -> callFunction(value);
-                case final CompiledOp.Sequence value -> sequence(value);
-                case final CompiledOp.Append value -> append(value);
-                case final CompiledOp.Fold value -> fold(value);
-                case final CompiledOp.DistinctValues value -> distinct(value);
-                case final CompiledOp.Tokenize value -> tokenize(value);
-                case final CompiledOp.Key value -> key(value);
-                case final CompiledOp.KeyGet value -> keyGet(value);
-                case final CompiledOp.ForEachGroup value -> forEachGroup(value);
-                case final CompiledOp.ForEach value -> forEach(value);
-                case final CompiledOp.ParseDate value -> parseDate(value);
-                case final CompiledOp.EmitError value -> emitError(value);
+    private void run(final CompiledBody body) {
+        final int[] codes = body.codes();
+        final CompiledOp[] ops = body.ops();
+        for (int pc = 0; pc < codes.length; pc++) {
+            switch (codes[pc]) {
+                case CompiledOp.OP_TEXT -> text((CompiledOp.Text) ops[pc]);
+                case CompiledOp.OP_VALUE_OF -> valueOf((CompiledOp.ValueOf) ops[pc]);
+                case CompiledOp.OP_APPLY -> apply((CompiledOp.Apply) ops[pc]);
+                case CompiledOp.OP_IF -> ifThen((CompiledOp.If) ops[pc]);
+                case CompiledOp.OP_CHOOSE -> choose((CompiledOp.Choose) ops[pc]);
+                case CompiledOp.OP_SWITCH -> switchOn((CompiledOp.Switch) ops[pc]);
+                case CompiledOp.OP_VARIABLE -> variable((CompiledOp.Variable) ops[pc]);
+                case CompiledOp.OP_ELEMENT -> element((CompiledOp.Element) ops[pc]);
+                case CompiledOp.OP_ATTRIBUTE -> attribute((CompiledOp.Attribute) ops[pc]);
+                case CompiledOp.OP_NAMESPACE -> namespace((CompiledOp.Namespace) ops[pc]);
+                case CompiledOp.OP_CALL_TEMPLATE -> callTemplate((CompiledOp.CallTemplate) ops[pc]);
+                case CompiledOp.OP_VALUE_MAP -> valueMap((CompiledOp.ValueMap) ops[pc]);
+                case CompiledOp.OP_TRANSFORM -> transform((CompiledOp.Transform) ops[pc]);
+                case CompiledOp.OP_REPLACE -> replace((CompiledOp.Replace) ops[pc]);
+                case CompiledOp.OP_CALL_FUNCTION -> callFunction((CompiledOp.CallFunction) ops[pc]);
+                case CompiledOp.OP_SEQUENCE -> sequence((CompiledOp.Sequence) ops[pc]);
+                case CompiledOp.OP_APPEND -> append((CompiledOp.Append) ops[pc]);
+                case CompiledOp.OP_FOLD -> fold((CompiledOp.Fold) ops[pc]);
+                case CompiledOp.OP_DISTINCT_VALUES -> distinct((CompiledOp.DistinctValues) ops[pc]);
+                case CompiledOp.OP_TOKENIZE -> tokenize((CompiledOp.Tokenize) ops[pc]);
+                case CompiledOp.OP_KEY -> key((CompiledOp.Key) ops[pc]);
+                case CompiledOp.OP_KEY_GET -> keyGet((CompiledOp.KeyGet) ops[pc]);
+                case CompiledOp.OP_FOR_EACH_GROUP -> forEachGroup((CompiledOp.ForEachGroup) ops[pc]);
+                case CompiledOp.OP_FOR_EACH -> forEach((CompiledOp.ForEach) ops[pc]);
+                case CompiledOp.OP_PARSE_DATE -> parseDate((CompiledOp.ParseDate) ops[pc]);
+                case CompiledOp.OP_EMIT_ERROR -> emitError((CompiledOp.EmitError) ops[pc]);
+                default -> throw new IllegalStateException("Opcode " + codes[pc]);
             }
         }
     }
@@ -311,7 +315,7 @@ final class Body {
 
     private void switchOn(final CompiledOp.Switch op) {
         final String selected = textOf(op.select(), match, matchCount);
-        final CompiledOp[] taken = op.cases().get(selected);
+        final CompiledBody taken = op.cases().get(selected);
         run(taken == null ? op.defaultBody() : taken);
     }
 

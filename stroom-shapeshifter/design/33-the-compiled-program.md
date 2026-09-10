@@ -266,8 +266,37 @@ on an `IdentityHashMap` deliberately and no test compares a compiled op by value
 `RootPlanner` slices with `Arrays.copyOfRange` where it used `subList`: a copy rather than a
 view, at compile time only, which also stops a slice retaining the whole level.
 
-**Phase 3 — C, the program.** The derived `int[]` of codes, and `switch (codes[pc])`, on `Body`
-first. Measure against phase 2, so what is being measured is the dispatch and nothing else.
+**Phase 3 — C, the program. Built 2026-09-10.** The derived `int[]` of codes, and
+`switch (codes[pc])`, on `Body`. Measured against phase 2, so what is measured is the dispatch
+and nothing else.
+
+*What it is:* `CompiledOp` gains 26 `OP_*` constants, contiguous from zero, and
+`codeOf(CompiledOp)` — a switch expression over the sealed type, so javac still refuses a 27th
+kind that is not mapped. `CompiledBody(int[] codes, CompiledOp[] ops)` is the program;
+`CompiledBody.of` derives every code from its own op, `slice` gives `RootPlanner` its prologue and
+tail, and `EMPTY` is shared. `Body.run` reads `codes[pc]` and casts `ops[pc]`.
+
+*The dispatch is now a jump table, from `javap` rather than from hope:* `tableswitch { // 0 to
+25 }` where phase 2 had an `invokedynamic` to a generated `typeSwitch`, and `Body$$TypeSwitch`
+has left the inlining log entirely — **4 mentions before, 0 after**. No `instanceof` chain, no
+un-inlinable bootstrap method, and the order the arms are written in stops being a performance
+property.
+
+*It does not make the loop inlinable, exactly as phase 1b said:* `run` is **532** bytes against
+589, still "hot method too big". The table plus 26 casts is that size, and no arrangement of a
+26-arm switch escapes it.
+
+**What was given up, and what holds it now.** A sealed type switch is exhaustive by javac's rule;
+an `int` switch is not, and a sparse set of constants would turn the `tableswitch` into a
+`lookupswitch` — a binary search wearing the same syntax. `OpcodesTest` holds three properties:
+the codes are dense from zero, every permitted kind has a constant named after it, and there are
+no constants without a kind. All three are sabotage-verified.
+
+*The residual, which no test covers.* Nothing proves `codeOf` returns the <i>right</i> constant
+for a given type — only that the names line up. A genuine mis-mapping would survive all three
+tests. What catches it is the cast in the interpreter's arm: the wrong arm receives the wrong
+operand type and throws immediately on that instruction's first execution. That is a run-time
+guard where the sealed switch gave a compile-time one, and it is this design's honest price.
 
 *Three phases for three effects, because design 31 phase 2 changed two at once and could not
 attribute what it measured.* That is this design's whole procedural lesson from its predecessor,

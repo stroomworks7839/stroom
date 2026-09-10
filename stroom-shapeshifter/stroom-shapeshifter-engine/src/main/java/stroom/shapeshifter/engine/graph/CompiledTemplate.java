@@ -57,7 +57,7 @@ import java.util.Set;
  */
 public record CompiledTemplate(Template template,
                                CompiledMatch match,
-                               CompiledOp[] body,
+                               CompiledBody body,
                                Encoding encoding,
                                List<CompiledCapture> captures,
                                int maxMatch,
@@ -69,7 +69,6 @@ public record CompiledTemplate(Template template,
                                VarName[] captureNames) {
 
     public CompiledTemplate {
-        body = body.clone();
         captures = List.copyOf(captures);
     }
 }
