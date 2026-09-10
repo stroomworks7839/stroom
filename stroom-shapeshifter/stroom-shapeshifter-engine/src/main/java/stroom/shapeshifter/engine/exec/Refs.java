@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
@@ -134,6 +135,13 @@ public final class Refs {
                              final MatchIndex matchIndex,
                              final int matchCount,
                              final VarRegistry vars) {
+        // A condition still resolves the authored expression (E39 owns that seam), so the name
+        // is classified here rather than at compile time. The compiled form does not come
+        // through this arm: it holds a CompiledRef.Context and reads the frame directly.
+        final EngineVars engine = EngineVars.byName(varId);
+        if (engine != null && engine.framed()) {
+            return framed(engine, group, matchIndex, matchCount, vars);
+        }
         final List<Store> stores = vars.get(varId);
         if (stores == null || group >= stores.size()) {
             return null;
@@ -141,6 +149,50 @@ public final class Refs {
         final Store store = stores.get(group);
         final Integer index = matchIndex(matchIndex, store, matchCount, vars);
         return index == null ? store.latest() : store.get(index);
+    }
+
+    /**
+     * An engine variable under a reference's index rule (design 30 phase 4).
+     *
+     * <p>What a frame replaced was a store holding one value, at index one, in a list of one.
+     * So a reference reads it when it asks for the latest, for the last, or for index one, and
+     * reads nothing otherwise — which is what indexing past a single-valued store already did.
+     */
+    static TypedValue framed(final EngineVars engine,
+                             final int group,
+                             final MatchIndex matchIndex,
+                             final int matchCount,
+                             final VarRegistry vars) {
+        if (group != 0) {
+            return null;
+        }
+        final TypedValue value = vars.frames().value(engine);
+        return value == null || !atIndexOne(matchIndex, matchCount, vars) ? null : value;
+    }
+
+    /**
+     * Whether an index rule picks index one, the only index a framed variable ever had.
+     *
+     * <p>The four forms are tested in {@link #matchIndex}'s order, not in a tidier one: nothing
+     * makes them mutually exclusive, so which is asked first is behaviour.
+     */
+    private static boolean atIndexOne(final MatchIndex matchIndex,
+                                      final int matchCount,
+                                      final VarRegistry vars) {
+        if (matchIndex == null) {
+            return true;
+        }
+        if (matchIndex.varRef() != null) {
+            return indexFrom(matchIndex.varRef(), vars) == 1;
+        }
+        if (matchIndex.isLast()) {
+            // The store held one value, so its last index was one.
+            return true;
+        }
+        if (matchIndex.isOffset()) {
+            return matchCount + matchIndex.index() == 1;
+        }
+        return matchIndex.index() == 1;
     }
 
     /**
@@ -160,20 +212,7 @@ public final class Refs {
             return null;
         }
         if (matchIndex.varRef() != null) {
-            final List<Store> stores = vars.get(matchIndex.varRef());
-            if (stores != null && !stores.isEmpty()) {
-                final TypedValue value = stores.getFirst().latest();
-                if (value != null) {
-                    final Double number = value.asNumber();
-                    if (number != null && number >= 0) {
-                        return (int) (double) number;
-                    }
-                }
-            }
-            // The first match — the conservative read when the index variable is absent or
-            // holds nothing numeric. Match indexes count from one, so 1 is the earliest value
-            // a store can hold.
-            return 1;
+            return indexFrom(matchIndex.varRef(), vars);
         }
         if (matchIndex.isLast()) {
             final int last = store.lastIndex();
@@ -183,5 +222,31 @@ public final class Refs {
             return matchCount + matchIndex.index();
         }
         return matchIndex.index();
+    }
+
+    /**
+     * The whole number a name currently holds, for the index rule that reads one at run time.
+     *
+     * <p>The name may be the engine's — {@code $var[$__match_count]} is how a heading captured
+     * on one match is read beside a value captured on another — so this asks the frames before
+     * the registry. Absent or non-numeric reads as <b>the first match</b>: the conservative
+     * answer, since match indexes count from one.
+     */
+    private static int indexFrom(final String varRef, final VarRegistry vars) {
+        final EngineVars engine = EngineVars.byName(varRef);
+        final TypedValue value;
+        if (engine != null && engine.framed()) {
+            value = vars.frames().value(engine);
+        } else {
+            final List<Store> stores = vars.get(varRef);
+            value = stores == null || stores.isEmpty() ? null : stores.getFirst().latest();
+        }
+        if (value != null) {
+            final Double number = value.asNumber();
+            if (number != null && number >= 0) {
+                return (int) (double) number;
+            }
+        }
+        return 1;
     }
 }

@@ -85,6 +85,14 @@ final class CompiledRefs {
                 out.write(value);
                 return true;
             }
+            case CompiledRef.Context context -> {
+                final TypedValue value = lookup(context, matchCount, vars);
+                if (value == null || value.isEmpty()) {
+                    return false;
+                }
+                out.write(value);
+                return true;
+            }
         }
     }
 
@@ -126,6 +134,10 @@ final class CompiledRefs {
                 final TypedValue value = lookup(remote, matchCount, vars);
                 return value == null || value.isEmpty() ? null : value;
             }
+            case CompiledRef.Context context -> {
+                final TypedValue value = lookup(context, matchCount, vars);
+                return value == null || value.isEmpty() ? null : value;
+            }
         }
     }
 
@@ -152,5 +164,15 @@ final class CompiledRefs {
                                      final int matchCount,
                                      final VarRegistry vars) {
         return Refs.lookup(remote.varId(), remote.group(), remote.matchIndex(), matchCount, vars);
+    }
+
+    /**
+     * A context value, read from the frame that holds it. No name is resolved here: which frame
+     * was settled when the reference compiled (design 30 phase 4).
+     */
+    private static TypedValue lookup(final CompiledRef.Context context,
+                                     final int matchCount,
+                                     final VarRegistry vars) {
+        return Refs.framed(context.var(), context.group(), context.matchIndex(), matchCount, vars);
     }
 }

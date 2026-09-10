@@ -129,6 +129,30 @@ final class ReferenceCheck {
     }
 
     /**
+     * Note that a name is bound, refusing the engine's own.
+     *
+     * <p>Every binding — a capture, a parameter, a variable, a transform's target, a
+     * {@code for-each}'s {@code as} — comes through here, so the refusal is stated once rather
+     * than at eleven sites. It exists because design 30 phase 4 moved the engine's variables
+     * into execution frames: a binding named {@code __index} would still write the registry,
+     * while every reference to that name now reads the frame, so the value would be written and
+     * unreadable. Before the frames it was worse rather than better — the binding landed on the
+     * engine's own store and the counter it clobbered stayed clobbered for the rest of the run.
+     *
+     * <p>Refused rather than warned, on this class's own precedent: a name that cannot be read
+     * is the configuration that "appears to work and quietly reads absence for ever".
+     */
+    private void bind(final String name) {
+        if (EngineVars.byName(name) != null) {
+            throw new ConfigException("Template '" + templateName + "' binds '" + name
+                    + "', which is one of the names the engine sets for itself. Nothing could"
+                    + " read it: a reference to that name reads the engine's value. Choose"
+                    + " another name.");
+        }
+        writable.add(name);
+    }
+
+    /**
      * Walk one template, once, in authored order, before {@link #report()}: guard, then
      * captures, then body, which is the order that decides which of two unknown names a
      * template reports.
@@ -151,7 +175,7 @@ final class ReferenceCheck {
             condition(template.guard());
         }
         for (final CaptureBinding capture : template.captures()) {
-            writable.add(capture.name());
+            bind(capture.name());
             captureNames.add(capture.name());
             switch (capture.select()) {
                 case CaptureBinding.CaptureSource.Select select -> read(select.select());
@@ -169,7 +193,7 @@ final class ReferenceCheck {
             }
         }
         for (final Template.ParamDecl declared : template.param()) {
-            writable.add(declared.name());
+            bind(declared.name());
         }
         body(template.body());
     }
@@ -209,19 +233,19 @@ final class ReferenceCheck {
                 read(value.directive().select());
                 inApplySelect = false;
                 for (final OutputNode.Param param : value.directive().withParam()) {
-                    writable.add(param.name());
+                    bind(param.name());
                     read(param.value());
                 }
             }
             case OutputNode.CallTemplate value -> {
                 callsByTemplate.computeIfAbsent(templateName, name -> new LinkedHashSet<>()).add(value.name());
                 for (final OutputNode.Param param : value.withParam()) {
-                    writable.add(param.name());
+                    bind(param.name());
                     read(param.value());
                 }
             }
             case OutputNode.Variable value -> {
-                writable.add(value.name());
+                bind(value.name());
                 body(value.body());
             }
             case OutputNode.Element value -> body(value.body());
@@ -245,11 +269,11 @@ final class ReferenceCheck {
             case OutputNode.Transform value -> transform(value.select(), value.name());
             case OutputNode.Sequence value -> {
                 declaredSequences.add(value.name());
-                writable.add(value.name());
+                bind(value.name());
             }
             case OutputNode.Append value -> {
                 appendTargets.add(new NamedUse(templateName, value.name()));
-                writable.add(value.name());
+                bind(value.name());
                 read(value.select());
             }
             // The folds name a sequence rather than referencing one, so they join the
@@ -272,7 +296,7 @@ final class ReferenceCheck {
             case OutputNode.KeyGet value -> {
                 keyUses.add(new NamedUse(templateName, value.key()));
                 read(value.select());
-                writable.add(value.name());
+                bind(value.name());
             }
             case OutputNode.ForEachGroup value -> {
                 sequenceUses.add(new NamedUse(templateName, value.select()));
@@ -291,14 +315,14 @@ final class ReferenceCheck {
                 // Walking __group is only meaningful inside a grouping, and the sequence
                 // check cannot see that: __group is writable everywhere, being a name the
                 // engine sets.
-                if (EngineVars.GROUP.equals(value.select()) && groupDepth == 0) {
+                if (EngineVars.GROUP.varName().equals(value.select()) && groupDepth == 0) {
                     warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                            + "' walks " + EngineVars.GROUP + " outside any"
+                            + "' walks " + EngineVars.GROUP.varName() + " outside any"
                             + " for-each-group, where nothing sets it."));
                 }
                 sequenceUses.add(new NamedUse(templateName, value.select()));
                 if (value.as() != null) {
-                    writable.add(value.as());
+                    bind(value.as());
                 }
                 // The sort keys are evaluated with __index bound, so they count as inside
                 // the iteration: a key reading it is correct, not the lint's hazard.
@@ -316,7 +340,7 @@ final class ReferenceCheck {
     private void fold(final String select, final String name) {
         sequenceUses.add(new NamedUse(templateName, select));
         if (name != null) {
-            writable.add(name);
+            bind(name);
         }
     }
 
@@ -324,7 +348,7 @@ final class ReferenceCheck {
     private void transform(final List<RefExpression> select, final String name) {
         select.forEach(this::read);
         if (name != null) {
-            writable.add(name);
+            bind(name);
         }
     }
 
@@ -477,7 +501,8 @@ final class ReferenceCheck {
      * it names the record, which is known — and is how a key reaches a parallel store.
      */
     private void sortKeyPositional(final String name) {
-        if (EngineVars.POSITION.equals(name) || EngineVars.LAST.equals(name)) {
+        if (EngineVars.POSITION.varName().equals(name)
+            || EngineVars.LAST.varName().equals(name)) {
             warnings.add(new Message(Severity.WARNING, "Template '" + templateName
                     + "' reads " + name + " in a sort key, which decides the order: this"
                     + " entry has no position until the keys have been compared, so this"

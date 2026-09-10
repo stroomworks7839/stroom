@@ -627,21 +627,20 @@ final class Body {
             return members;
         }
         final Store store = stores.getFirst();
-        vars.push();
-        vars.shadow(EngineVars.INDEX);
+        vars.frames().pushIteration();
         for (int index = 0; index < store.size(); index++) {
             final TypedValue entry = store.get(index);
             if (entry == null) {
                 continue;
             }
-            vars.store(EngineVars.INDEX).set(1, new TypedValue.Integer(index));
+            vars.frames().index(index);
             final TypedValue key = groupBy == null
                     ? entry
                     : CompiledRefs.resolveValue(groupBy, match, matchCount, vars);
             members.computeIfAbsent(key == null ? null : key.asString(),
                     ignored -> new Filed(key, new ArrayList<>())).members().add(index);
         }
-        vars.pop();
+        vars.frames().popIteration();
         return members;
     }
 
@@ -687,25 +686,22 @@ final class Body {
             return;
         }
 
+        // The members are a sequence, so they stay a store and are shadowed like one; the key
+        // and the size are scalars the group frame holds (design 30 phase 4).
         vars.push();
-        vars.shadow(EngineVars.GROUP);
-        vars.shadow(EngineVars.GROUP_KEY);
-        vars.shadow(EngineVars.GROUP_SIZE);
+        vars.shadow(EngineVars.GROUP.varName());
+        vars.frames().pushGroup();
         for (final Filed group : members.values()) {
             final List<Integer> indices = group.members();
-            bindDense(EngineVars.GROUP, indices.stream()
+            bindDense(EngineVars.GROUP.varName(), indices.stream()
                     .map(index -> (TypedValue) new TypedValue.Integer(index))
                     .toList());
-            final TypedValue key = group.key();
-            if (key == null) {
-                vars.store(EngineVars.GROUP_KEY).clear();
-            } else {
-                vars.store(EngineVars.GROUP_KEY).set(1, key);
-            }
-            vars.store(EngineVars.GROUP_SIZE).set(1, new TypedValue.Integer(indices.size()));
+            vars.frames().groupKey(group.key());
+            vars.frames().groupSize(indices.size());
             body(op.body(), match, matchCount, content, out,
                     inputBase, ignoreErrors, depth);
         }
+        vars.frames().popGroup();
         vars.pop();
     }
 
@@ -735,15 +731,15 @@ final class Body {
         if (op.as() != null) {
             vars.shadow(op.as());
         }
-        vars.shadow(EngineVars.INDEX);
-        // __position and __last are deliberately *not* shadowed here: this walk's scope has
-        // not been pushed, so they resolve to an *enclosing* walk's position, which is a real
-        // value and legitimately readable, as everywhere else in the scoping model. The
-        // compiler still warns, because reading them here is far more likely to mean "this
-        // entry's position", which is what does not exist.
+        // __position and __last are deliberately left alone here: this walk's frame binds only
+        // the index, so they inherit an *enclosing* walk's position, which is a real value and
+        // legitimately readable, as everywhere else in the scoping model. The compiler still
+        // warns, because reading them here is far more likely to mean "this entry's position",
+        // which is what does not exist.
+        vars.frames().pushIteration();
         for (int i = 0; i < populated.size(); i++) {
             final int index = populated.get(i);
-            vars.store(EngineVars.INDEX).set(1, new TypedValue.Integer(index));
+            vars.frames().index(index);
             if (op.as() != null) {
                 vars.store(op.as()).set(1, store.get(index));
             }
@@ -755,6 +751,7 @@ final class Body {
                 keys[i][k] = Comparisons.cast(raw, key.as() == null ? Cast.STRING : key.as());
             }
         }
+        vars.frames().popIteration();
         vars.pop();
 
         final List<Integer> positions = new ArrayList<>(populated.size());
@@ -845,24 +842,23 @@ final class Body {
         if (op.as() != null) {
             vars.shadow(op.as());
         }
-        vars.shadow(EngineVars.INDEX);
-        vars.shadow(EngineVars.POSITION);
-        vars.shadow(EngineVars.LAST);
+        vars.frames().pushIteration();
         // Known before the first body runs, which is what makes a last-entry test cheap and
         // correct (the adjacent_groups fixture's trailing-empty-group case).
-        vars.store(EngineVars.LAST).set(1, new TypedValue.Integer(order.size()));
+        vars.frames().last(order.size());
         for (int position = 0; position < order.size(); position++) {
             // Position follows the ordering; the index still points at the record, so a key
             // that reordered the walk does not disturb what a body reads (design/16 §5).
             final int index = order.get(position);
-            vars.store(EngineVars.INDEX).set(1, new TypedValue.Integer(index));
-            vars.store(EngineVars.POSITION).set(1, new TypedValue.Integer(position + 1L));
+            vars.frames().index(index);
+            vars.frames().position(position + 1L);
             if (op.as() != null) {
                 vars.store(op.as()).set(1, store.get(index));
             }
             body(op.body(), match, matchCount, content, out,
                     inputBase, ignoreErrors, depth);
         }
+        vars.frames().popIteration();
         vars.pop();
     }
 

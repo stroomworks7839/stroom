@@ -25,7 +25,6 @@ import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 /**
  * Deciding whether a condition holds.
@@ -101,13 +100,9 @@ public final class Conditions {
         };
     }
 
-    /** An engine variable's current whole-number value, or null when nothing has set it. */
-    private static Long engineNumber(final VarRegistry vars, final String name) {
-        final List<Store> stores = vars.get(name);
-        if (stores == null || stores.isEmpty()) {
-            return null;
-        }
-        final TypedValue value = stores.getFirst().latest();
+    /** An engine variable's current whole-number value, or null when its frame is not open. */
+    private static Long engineNumber(final VarRegistry vars, final EngineVars var) {
+        final TypedValue value = vars.frames().value(var);
         return value == null ? null : value.asInteger();
     }
 

@@ -24,7 +24,6 @@ import stroom.shapeshifter.engine.compile.CompiledMatch;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Dispatch;
-import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.match.Splitter;
@@ -219,8 +218,7 @@ final class Level {
                     + "' failed to match from the start of the content. Skipped: ["
                     + preview(data, cursor, cursor + match.matchStart()) + "]"));
         }
-        vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Integer(matchCount - 1));
-        vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Integer(matchCount));
+        vars.frames().match(matchCount);
         final Set<Integer> onlyMatch = candidate.onlyMatch();
         final boolean wanted = onlyMatch == null || onlyMatch.contains(matchCount);
         if (wanted) {
@@ -475,8 +473,7 @@ final class Level {
             if (depth == 0) {
                 functions.countRecord();
             }
-            vars.store(EngineVars.MATCH_INDEX).set(1, new TypedValue.Integer(0));
-            vars.store(EngineVars.MATCH_COUNT).set(1, new TypedValue.Integer(1));
+            vars.frames().match(1);
             runBody(candidate, match, 1, out, inputBase, ignoreErrors, depth);
         }
     }

@@ -34,13 +34,24 @@ import java.util.Map;
  *
  * <p>Each name maps to a <i>list</i> of stores, indexed by capture group. Group 0 is where
  * ordinary captures land; the wider list is what lets a variable carry a whole match's groups.
+ *
+ * <p>What is in here is the <b>author's</b> names. The engine's own variables were here too,
+ * until design 30 phase 4 gave them the {@link Frames} they had always been — three frames the
+ * scope stack was nesting by shadowing eight names at every push. The one exception is
+ * {@code __group}, which is a sequence rather than a scalar and so is a store like any other.
  */
 public final class VarRegistry {
 
     private final List<Map<String, List<Store>>> scopes = new ArrayList<>();
+    private final Frames frames = new Frames();
 
     public VarRegistry() {
         scopes.add(new HashMap<>());
+    }
+
+    /** The engine's own variables, which are frames rather than names. */
+    public Frames frames() {
+        return frames;
     }
 
     /** Enter a new scope. */

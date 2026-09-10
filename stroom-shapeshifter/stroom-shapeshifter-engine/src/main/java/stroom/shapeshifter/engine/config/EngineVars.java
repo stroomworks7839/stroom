@@ -16,7 +16,11 @@
 
 package stroom.shapeshifter.engine.config;
 
+import java.util.Arrays;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * The variables the engine sets itself, named once.
@@ -31,39 +35,75 @@ import java.util.Set;
  * nothing writes reads as absent for ever, which is exactly what E21 deleted the
  * {@code is-first}/{@code is-last} conditions for — so the grouping names arrive with
  * grouping, not before it (design/16 §14.3).
+ *
+ * <p>These are <b>values rather than strings</b> (design 30 phase 4) because a reference that
+ * names one is compiled into a read of the frame that holds it, and a compiled read has to say
+ * <i>which</i>. {@link #byName(String)} is the one place a name becomes the thing, and it runs
+ * when a configuration compiles.
  */
-public final class EngineVars {
-
-    private EngineVars() {
-    }
+public enum EngineVars {
 
     /** How many times the current template has matched, 1-based. */
-    public static final String MATCH_COUNT = "__match_count";
+    MATCH_COUNT("__match_count", true),
 
     /** The same count, 0-based, for the XSLT-shaped reading. */
-    public static final String MATCH_INDEX = "__match_idx";
+    MATCH_INDEX("__match_idx", true),
 
     /** Within a {@code for-each}: the current entry's <b>store index</b> (design/16 §4.3). */
-    public static final String INDEX = "__index";
+    INDEX("__index", true),
 
     /** Within a {@code for-each}: the 1-based position in this iteration. */
-    public static final String POSITION = "__position";
+    POSITION("__position", true),
 
     /** Within a {@code for-each}: how many entries the iteration will run. */
-    public static final String LAST = "__last";
+    LAST("__last", true),
 
     /** Within a {@code for-each-group}: the key this group was formed on. */
-    public static final String GROUP_KEY = "__group_key";
+    GROUP_KEY("__group_key", true),
 
-    /** Within a {@code for-each-group}: the members, as a dense sequence of store indices. */
-    public static final String GROUP = "__group";
+    /**
+     * Within a {@code for-each-group}: the members, as a dense sequence of store indices.
+     *
+     * <p><b>The one that is not framed.</b> Every other name here is a scalar the engine
+     * overwrites; this one is a sequence that is walked, indexed and folded exactly as an
+     * authored sequence is, so it stays a store in the registry, which is what it is.
+     */
+    GROUP("__group", false),
 
     /** Within a {@code for-each-group}: how many members — known before the group opens. */
-    public static final String GROUP_SIZE = "__group_size";
+    GROUP_SIZE("__group_size", true);
+
+    private final String varName;
+    private final boolean framed;
+
+    EngineVars(final String varName, final boolean framed) {
+        this.varName = varName;
+        this.framed = framed;
+    }
+
+    /** The name an author writes, without the sigil. */
+    public String varName() {
+        return varName;
+    }
+
+    /**
+     * Whether the run holds this in an execution frame rather than in the variable registry.
+     * True for every scalar; false for {@link #GROUP}, which is a sequence.
+     */
+    public boolean framed() {
+        return framed;
+    }
+
+    private static final Map<String, EngineVars> BY_NAME = Arrays.stream(values())
+            .collect(Collectors.toMap(EngineVars::varName, Function.identity()));
+
+    /** The engine variable a name means, or null if the name is the author's own. */
+    public static EngineVars byName(final String name) {
+        return name == null ? null : BY_NAME.get(name);
+    }
 
     /** Every name the engine sets, for the compiler's refusal to treat as writable. */
-    public static final Set<String> ALL = Set.of(
-            MATCH_COUNT, MATCH_INDEX, INDEX, POSITION, LAST, GROUP_KEY, GROUP, GROUP_SIZE);
+    public static final Set<String> ALL = Set.copyOf(BY_NAME.keySet());
 
     /**
      * The names only an iteration sets. Read outside one they are absent, and absence is
@@ -72,9 +112,9 @@ public final class EngineVars {
      * with the same failure mode already draw a lint (E21's hazard); these draw the same one.
      */
     public static final Set<String> ITERATION_ONLY =
-            Set.of(INDEX, POSITION, LAST);
+            Set.of(INDEX.varName, POSITION.varName, LAST.varName);
 
     /** The names only a grouping sets, which carry the same hazard outside one. */
     public static final Set<String> GROUP_ONLY =
-            Set.of(GROUP_KEY, GROUP, GROUP_SIZE);
+            Set.of(GROUP_KEY.varName, GROUP.varName, GROUP_SIZE.varName);
 }

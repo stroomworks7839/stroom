@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
@@ -53,6 +54,25 @@ public sealed interface CompiledRef {
 
     }
 
+    /**
+     * One value out of the execution context: a frame read rather than a name (design 30
+     * phase 4).
+     *
+     * <p>Named for where the value comes from, as {@link LocalGroup} and {@link RemoteVar} are
+     * — the run's context, rather than the current match or a variable. That it is the engine
+     * which writes it is true and is not the distinction the other kinds are drawn on.
+     *
+     * <p>Which frame is a compile-time fact, and was already being treated as one — the
+     * compiler's {@code ReferenceCheck} warns about reading {@code __position} outside a
+     * {@code for-each} precisely because it knows. This carries the same knowledge into the run
+     * instead of resolving the name against the scope stack on every read. The index rule
+     * travels because an author may still write one; a scalar answers to index one and to
+     * nothing else, which is what the store holding it did.
+     */
+    record Context(EngineVars var, int group, MatchIndex matchIndex) implements CompiledRef {
+
+    }
+
     /** Several parts, concatenated. Each element is one of the three shapes above. */
     record Composite(CompiledRef[] parts) implements CompiledRef {
 
@@ -76,9 +96,15 @@ public sealed interface CompiledRef {
     private static CompiledRef part(final RefPart part) {
         return switch (part) {
             case RefPart.Text text -> new Bytes(TypedValue.of(text.value()));
-            case RefPart.Capture capture -> capture.varId() == null
-                    ? new LocalGroup(capture.group())
-                    : new RemoteVar(capture.varId(), capture.group(), capture.matchIndex());
+            case RefPart.Capture capture -> {
+                if (capture.varId() == null) {
+                    yield new LocalGroup(capture.group());
+                }
+                final EngineVars engine = EngineVars.byName(capture.varId());
+                yield engine != null && engine.framed()
+                        ? new Context(engine, capture.group(), capture.matchIndex())
+                        : new RemoteVar(capture.varId(), capture.group(), capture.matchIndex());
+            }
         };
     }
 }
