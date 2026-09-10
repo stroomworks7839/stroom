@@ -658,6 +658,75 @@ interleaved rounds on four rows; the sequential protocol resolves about ±4% on 
 the 2026-09-10 reading, §4), so a change claiming less than that cannot be settled here whatever
 its slot.
 
+## The reading — design 33, run 2026-09-10 23:15 to 2026-09-11 00:35
+
+*Five points over point 18 as the floor. All completed, box idle, no failures. There is **no
+control point in this set** — every point changes code — so the ±4% single-row resolution the
+2026-09-10 set measured is carried over as an estimate rather than re-established.*
+
+| workload | 19 arms+registers | 20 no lambda | 21 arrays | 22 opcodes |
+|---|---|---|---|---|
+| `apache_httpd` | −1.2 | −0.8 | **+7.2** | **+8.0** |
+| `log_sessions` | +0.8 | −0.4 | +4.5 | **+5.2** |
+| `regex_lines` | −8.6 | −5.7 | +3.9 | **+5.0** |
+| `csv_header` | −4.2 | −6.2 | +6.2 | **+4.9** |
+| `ausearch` | +0.1 | −2.5 | +0.8 | +3.7 |
+| `element_storm` | +0.1 | +0.6 | +2.7 | +2.2 |
+| `win_sec` | +0.1 | +0.2 | +1.0 | +1.2 |
+| `win_sec_strict` | −1.4 | −1.2 | +0.8 | +0.3 |
+| `win_sec_xml` | −1.7 | −0.9 | −1.3 | −0.3 |
+| `progressive_text` | −2.0 | −3.1 | −2.0 | −1.0 |
+| `progressive` | −8.7 | −9.6 | −8.6 | **−11.4** |
+
+### The arrays are the result, and they answer the question the set was run to answer
+
+**Point 21 is where everything moves.** `apache_httpd` goes −0.8 → +7.2 in that one step,
+`csv_header` −6.2 → +6.2, `regex_lines` −5.7 → +3.9, `log_sessions` −0.4 → +4.5. Nothing else in
+the set does anything on that scale. That step is `List<CompiledOp>` becoming `CompiledOp[]` and
+**nothing else** — the type switch is still in place at 21 — so what paid is the collection, not
+the dispatch.
+
+**Point 22 adds a little and is not the story.** +0.8 on `apache_httpd`, +0.7 on `log_sessions`,
++1.1 on `regex_lines`, +2.9 on `ausearch`, and −1.3 on `csv_header`. Most of those are inside the
+noise estimate; the jump table is worth having and it is worth about a point.
+
+**So the rollout question has an answer.** Of the three mechanisms design 33 conflated — the
+un-inlinable chain, the linear scan, and the `List` interface calls — it is the **third** that
+paid, and it is the one that applies everywhere: `Level` walking its templates 569,199 times per
+operation on `win_sec_strict`, `CompiledSteps.steps` 104,862 times on `progressive`,
+`Transform.select`, `And`/`Or.conditions`, `CompiledTemplate.captures`. Arrays before opcodes,
+and opcodes only where a switch is large.
+
+### `progressive` is down 11.4% and it is not explained
+
+It was **−8.7% at point 19 and never recovers**: −9.6, −8.6, −11.4. That is far outside the noise
+estimate and consistent across four independent readings, so it is real. The prediction attached
+to points 19 and 22 was that `progressive` and `progressive_text` should be *flat*, since the step
+interpreter is untouched by every phase here. They are not flat, and `progressive` is the worst
+row in the set.
+
+**A mechanism was proposed and does not survive its own check.** The obvious candidate is point
+1b's register save and restore, which costs fourteen field operations per `body()` call and is
+therefore paid per *instruction* on a row whose bodies hold one instruction — and `progressive`
+runs 52,431 bodies for 52,431 ops, exactly one each. But `progressive_text` has the same ratio of
+one op per body and lost only 2.0, while `regex_lines` has three and lost 8.6. The correlation
+that would make the story work is not there, so it is recorded as a hypothesis that failed rather
+than as the explanation.
+
+| workload | ops per body | point 19 |
+|---|---|---|
+| `progressive_text` | 1.0 | −2.0 |
+| `progressive` | 1.0 | **−8.7** |
+| `regex_lines` | 3.0 | **−8.6** |
+| `apache_httpd` | 13.3 | −1.2 |
+| `log_sessions` | 26.2 | +0.8 |
+| `element_storm` | 40.9 | +0.1 |
+
+**What that costs the design, said plainly:** design 33's net across the corpus is +8.0, +5.2,
++5.0 and +4.9 on the four body-heavy text rows and **−11.4 on the row that is the step
+interpreter's own**. Rolling this approach out further before `progressive` is understood would
+be building on an unexplained regression, which is the thing this page exists to prevent.
+
 ## Points deliberately not on the list
 
 The intermediate commits of design 25 — its phase 1, 2 and 3 and their audits, and the splitter
