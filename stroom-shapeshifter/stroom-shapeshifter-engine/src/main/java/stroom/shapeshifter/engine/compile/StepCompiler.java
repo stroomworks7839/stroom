@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.match;
+package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.MatchStep;
+import stroom.shapeshifter.engine.graph.CompiledStep;
+import stroom.shapeshifter.engine.match.Codecs;
+import stroom.shapeshifter.engine.match.Decoding;
+import stroom.shapeshifter.engine.match.PatternKey;
+import stroom.shapeshifter.engine.match.Predicates;
 import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
@@ -85,7 +90,7 @@ public final class StepCompiler {
                 case MatchStep.MatchByte value -> new CompiledStep.MatchByte(
                         value.value(), TypedValue.of(value.value(), decoding.encoding()));
                 case MatchStep.TakeWhile takeWhile -> new CompiledStep.TakeWhile(
-                        takeWhile.predicate(), Steps.table(takeWhile.predicate(), decoding));
+                        takeWhile.predicate(), Predicates.table(takeWhile.predicate(), decoding));
                 case MatchStep.TakeUntil takeUntil -> new CompiledStep.TakeUntil(
                         decoding.encoding().encode(takeUntil.pattern()), takeUntil.inclusive());
                 case MatchStep.TakeBytes takeBytes -> new CompiledStep.TakeBytes(takeBytes.count());

@@ -91,12 +91,15 @@ decide is the interface's *shape*, which is a real design question rather than a
 §7's test still applies to it: every method on it should be called by more than one instruction,
 or it has become the per-run mirror wearing a parameter list.
 
-One thing the split did **not** put in `graph`: `CompiledStep` and `CompiledSteps` are compiled
-vocabulary that stays in `match`, because `graph` reaches into `match` and the reverse edge is
-ruling 8's cycle again. `Steps` is 32 of this design's 89 arms, so whichever way §4's interface is
-shaped has to work for a package that cannot import it. **That is now the sharpest constraint on
-the design, and it is a better one than the cycle was**, because it is about the vocabulary rather
-than about where files sit.
+*This section said, when it was written, that `CompiledStep` and `CompiledSteps` would stay in
+`match` and that `Steps` — 32 of this design's 89 arms — would therefore be interpreted from a
+package that could not import the context. That constraint is gone too*, and by the same
+discovery: `match` was holding primitives, vocabulary, a pass and an interpreter at once. The
+vocabulary is in `graph`, `StepCompiler` is in `compile`, and **`Steps` is in `exec` beside the
+other interpreters**. All 89 arms are now in packages that can see a context declared in `graph`.
+
+So this design has no structural obstacle left. What decides it is §3's measurement and nothing
+else, which is the position it should have been in from the start.
 
 ## 5. `Switch.cases`, which prompted this and is a different problem
 

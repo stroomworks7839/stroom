@@ -28,7 +28,6 @@ import stroom.shapeshifter.engine.graph.CompiledTemplate;
 import stroom.shapeshifter.engine.graph.VarName;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.match.Splitter;
-import stroom.shapeshifter.engine.match.Steps;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;

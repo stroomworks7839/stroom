@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.match;
+package stroom.shapeshifter.engine.exec;
 
 import stroom.shapeshifter.engine.config.Endianness;
-import stroom.shapeshifter.engine.config.Predicate;
 import stroom.shapeshifter.engine.config.StepRef;
+import stroom.shapeshifter.engine.graph.CompiledStep;
+import stroom.shapeshifter.engine.graph.CompiledSteps;
+import stroom.shapeshifter.engine.match.Codecs;
+import stroom.shapeshifter.engine.match.Decoding;
+import stroom.shapeshifter.engine.match.MatchResult;
+import stroom.shapeshifter.engine.match.Predicates;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.Anchoring;
@@ -184,7 +189,7 @@ public final class Steps {
                                 end++;
                             } else {
                                 final long decoded = decode(data, end, to, decoding);
-                                if (decoded < 0 || !matches(takeWhile.predicate(), (int) (decoded >>> 8))) {
+                                if (decoded < 0 || !Predicates.matches(takeWhile.predicate(), (int) (decoded >>> 8))) {
                                     break;
                                 }
                                 end += (int) (decoded & 0xFF);
@@ -194,7 +199,7 @@ public final class Steps {
                     case MULTI_BYTE -> {
                         while (end < to) {
                             final long decoded = decode(data, end, to, decoding);
-                            if (decoded < 0 || !matches(takeWhile.predicate(), (int) (decoded >>> 8))) {
+                            if (decoded < 0 || !Predicates.matches(takeWhile.predicate(), (int) (decoded >>> 8))) {
                                 break;
                             }
                             end += (int) (decoded & 0xFF);
@@ -486,22 +491,6 @@ public final class Steps {
     }
 
     /**
-     * Predicates classify decoded codepoints; the encoding story lives at {@link #decode}.
-     */
-    private static boolean matches(final Predicate predicate, final int codepoint) {
-        return switch (predicate) {
-            case final Predicate.Alphabetic ignored -> Character.isLetter(codepoint);
-            case final Predicate.Alphanumeric ignored -> Character.isLetterOrDigit(codepoint);
-            case final Predicate.Numeric ignored -> Character.isDigit(codepoint);
-            case final Predicate.Whitespace ignored -> Character.isWhitespace(codepoint);
-            case final Predicate.NonWhitespace ignored -> !Character.isWhitespace(codepoint);
-            case final Predicate.Any ignored -> true;
-            case final Predicate.Custom custom -> codepoint <= Character.MAX_VALUE
-                                                  && inSet(custom.charSet(), (char) codepoint);
-        };
-    }
-
-    /**
      * The character at an offset under the template's reading, packed as
      * {@code codepoint << 8 | length}, or −1 when the bytes there do not form one.
      *
@@ -547,42 +536,6 @@ public final class Steps {
                 yield -1;
             }
         };
-    }
-
-    /**
-     * The byte table a {@code take-while} answers from, or null when no byte stands alone under
-     * this reading and every character has to be decoded.
-     *
-     * <p>The compiler's entry into the predicate rules, so that what a table says and what
-     * {@link #matches} says cannot drift apart: there is one statement of what a character class
-     * means, and the table is that statement evaluated 256 times instead of once per byte read.
-     * For UTF-8 only the ASCII range can be settled this way; a lead byte still decodes.
-     */
-    static boolean[] table(final Predicate predicate, final Decoding decoding) {
-        if (decoding.kind() == Decoding.Kind.MULTI_BYTE) {
-            return null;
-        }
-        final boolean[] table = new boolean[256];
-        final int limit = decoding.tabular()
-                ? 256
-                : 0x80;
-        for (int b = 0; b < limit; b++) {
-            table[b] = matches(predicate, decoding.character(b));
-        }
-        return table;
-    }
-
-    private static boolean inSet(final Predicate.CharSet set, final char c) {
-        boolean present = set.chars().contains(c);
-        if (!present) {
-            for (final Predicate.CharSet.Range range : set.ranges()) {
-                if (c >= range.from() && c <= range.to()) {
-                    present = true;
-                    break;
-                }
-            }
-        }
-        return set.negated() != present;
     }
 
     /**

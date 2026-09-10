@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.match;
+package stroom.shapeshifter.engine.graph;
 
+import stroom.shapeshifter.engine.match.Decoding;
 import stroom.shapeshifter.engine.text.Encoding;
 
 import java.util.List;

@@ -259,10 +259,22 @@ absence each case is about survives.
 What is left is `graph`'s dependency on `config`, and that is D35 rather than a leak: a compiled
 node *carries* the authored one for names, identifiers and messages, and reads it nowhere.
 
-*One thing deliberately not done*, named so it is not mistaken for an oversight:
-`CompiledStep`/`CompiledSteps` remain in `engine.match`, because `graph` reaches into `match` and
-the reverse edge is this ruling's own cycle; separating them means splitting `match` as well,
-which is a change of its own.
+**And `match` was four packages too**, which is the part worth keeping. `CompiledStep` and
+`CompiledSteps` were left there when the graph was drawn, on the ground that `graph` reaches into
+`match` so the reverse edge would be this ruling's own cycle. The ground was real and the
+diagnosis was wrong: `match` held compiled vocabulary, the pass that built it (`StepCompiler`),
+the interpreter that ran it (`Steps`) *and* the primitives — and the only thing making the cycle
+was `StepCompiler` calling `Steps.table`, a compiler entry point sitting on a runner, invisible
+while both were in one package.
+
+`Predicates` is that shared statement now, in `match`, where both the compiler and the run can
+reach it — which is what its own javadoc had always said it was for: the table *is* `matches`
+evaluated 256 times, and the two must not drift. With it separated the rest followed:
+`CompiledStep`/`CompiledSteps` to `graph`, `StepCompiler` to `compile`, `Steps` to `exec`, and
+`match` left holding primitives that depend on nothing above `value`.
+
+So the shape is uniform, and says itself: **primitives in `match`, vocabulary in `graph`, passes
+in `compile`, running in `exec`.** No package holds two of those.
 
 ### 2.6 What does not move
 

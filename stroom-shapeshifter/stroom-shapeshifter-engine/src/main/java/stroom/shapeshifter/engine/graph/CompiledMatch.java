@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.match.CompiledSteps;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;

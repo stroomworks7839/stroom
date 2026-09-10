@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.match;
+package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.Endianness;
@@ -22,6 +22,10 @@ import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.NumericType;
 import stroom.shapeshifter.engine.config.Predicate;
 import stroom.shapeshifter.engine.config.StepRef;
+import stroom.shapeshifter.engine.exec.Steps;
+import stroom.shapeshifter.engine.graph.CompiledSteps;
+import stroom.shapeshifter.engine.match.Decoding;
+import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
@@ -41,6 +45,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * here — including, deliberately, the <b>absence</b> of backtracking, which is the property that
  * would silently change if these steps were ever lowered onto
  * {@code stroom.shapeshifter.regex.comb} and compiled into a real pattern.
+ *
+ * <p>It lives beside the compiler rather than beside {@code Steps}, which is in {@code exec},
+ * because it needs both halves and this is the only package that can see them: the passes are
+ * package-private and only {@code Compiler} is the compiler's face (2026-09-10).
  */
 class StepsTest {
 

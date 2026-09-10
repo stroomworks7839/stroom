@@ -15,17 +15,26 @@
  */
 
 /**
- * Matching: what a template's match produces, and the two ways of matching that are not a
- * regex.
+ * The matching primitives: what a match produces, and the pieces everything that makes one
+ * shares.
  *
  * <p>{@code MatchResult} is what any match produced — the groups, how far the cursor moves,
- * where the match began. {@code Steps} is progressive matching, a sequence of steps each
- * starting where the last stopped, which is what a regex cannot do; {@code Codecs} recode the
- * bytes a step produced for the steps after it; {@code Splitter} splits on a delimiter with
- * quoting and escaping, the CSV problem generalised; {@code PatternKey} is what an interned
- * pattern is looked up by, built here at match time and by the compiler at compile time. This
- * package depends on the values, the configuration's step vocabulary, the text encodings and
- * the regex library; the run depends on it, and so does the compiler, for the key and for the
- * codecs it refuses (design 27 §2.5).
+ * where the match began. {@code Splitter} splits on a delimiter with quoting and escaping, the
+ * CSV problem generalised. {@code Codecs} recode the bytes a step produced for the steps after
+ * it, and {@code Decoding} is how bytes become characters under a template's reading.
+ * {@code PatternKey} is what an interned pattern is looked up by, built here and by the
+ * compiler. {@code Predicates} is what a character class means, said once because two packages
+ * need the answer: the compiler builds a byte table from it and the run classifies codepoints
+ * with it, and a table that disagreed with the predicate would be a silent wrong match.
+ *
+ * <p><b>It depends on nothing above {@code value}</b>, which is what makes it a layer of
+ * primitives rather than a stage of the pipeline. Everything above reaches in: the graph for its
+ * readings, the compiler for keys and codecs, the run for results and predicates.
+ *
+ * <p>Until 2026-09-10 it held three more things — the compiled step vocabulary, the pass that
+ * built it and the interpreter that ran it. Four layers in one package, which is why the step
+ * vocabulary looked stuck here behind a package cycle; it was not, and they are {@code graph},
+ * {@code compile} and {@code exec} now. Progressive matching, and why a regex cannot express it,
+ * is explained on {@code exec.Steps} where it went.
  */
 package stroom.shapeshifter.engine.match;

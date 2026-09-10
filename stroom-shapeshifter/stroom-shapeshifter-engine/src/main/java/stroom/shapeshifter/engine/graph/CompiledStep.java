@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.engine.match;
+package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.Endianness;
@@ -32,13 +32,13 @@ import java.util.List;
  * A step with everything it needs already worked out — the step vocabulary's answer to
  * {@code CompiledMatch}, and design 10 §2's remaining rows (design 29 §3.3, D51).
  *
- * <p><b>It lives here rather than in {@code graph}, which is where compiled vocabulary went on
- * 2026-09-10, and that is an exception worth naming rather than glossing.</b> The dependency
- * runs one way: {@code graph} reaches into {@code match} for {@link PatternKey} and
- * {@link Codecs}, so moving the step vocabulary the other way would be the package cycle design
- * 27 ruling 8 refused — the same reason it did not live beside the compiler before. Fixing it
- * properly means splitting {@code match} too, into the matching primitives and the compiled step
- * vocabulary that uses them, which is a change of its own and not this one's.
+ * <p>It lived in {@code match} until 2026-09-10, beside the interpreter that runs it, and the
+ * reason given was a package cycle: the step vocabulary could not move because the compiler
+ * already reached into {@code match}. The reason was real and the diagnosis was wrong —
+ * {@code match} held four things at once, and separating them dissolved it. The vocabulary is
+ * here, the pass that builds it is {@code StepCompiler} in {@code compile}, the interpreter that
+ * runs it is {@code Steps} in {@code exec}, and what stayed in {@code match} is the primitives
+ * all three share.
  *
  * <p>There is one kind here for all but one of {@link MatchStep}'s: {@code PatternRef} has no
  * compiled form, because {@code MatchCompiler} inlines the pattern it names and nothing is left
