@@ -395,12 +395,12 @@ public sealed interface CompiledOp {
     }
 
     /** Build a random-access index over a sequence (design/16 §8). */
-    record Key(String name, VarName select, CompiledRef groupBy) implements CompiledOp {
+    record Key(KeyName name, VarName select, CompiledRef groupBy) implements CompiledOp {
 
     }
 
     /** Look one value up in a key, binding the entries it names. */
-    record KeyGet(String key, CompiledRef select, VarName name) implements CompiledOp {
+    record KeyGet(KeyName key, CompiledRef select, VarName name) implements CompiledOp {
 
     }
 

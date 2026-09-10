@@ -298,9 +298,10 @@ final class BodyCompiler {
                 case final OutputNode.Sequence value -> new CompiledOp.Sequence(names.intern(value.name()));
                 case final OutputNode.Append value ->
                         new CompiledOp.Append(names.intern(value.name()), CompiledRef.of(value.select(), names));
-                case final OutputNode.Key value -> new CompiledOp.Key(value.name(), names.intern(value.select()),
+                case final OutputNode.Key value -> new CompiledOp.Key(
+                        names.internKey(value.name()), names.intern(value.select()),
                         value.groupBy() == null ? null : CompiledRef.of(value.groupBy(), names));
-                case final OutputNode.KeyGet value -> new CompiledOp.KeyGet(value.key(),
+                case final OutputNode.KeyGet value -> new CompiledOp.KeyGet(names.internKey(value.key()),
                         CompiledRef.of(value.select(), names), names.intern(value.name()));
                 case final OutputNode.ForEachGroup value -> new CompiledOp.ForEachGroup(
                         names.intern(value.select()),

@@ -40,7 +40,7 @@ Every map in the engine, the regex library and the pipeline was read for E44. Fo
 | `CompiledProject.templatesByMode`, `templatesByName` | a mode or template name, authored | link time only | **closed** — §9 phase 1 |
 | `Conditions` — `patterns.get(PatternKey.ofValue(...))` | a pattern's **text**, authored | 624 per operation on `apache_httpd`, none elsewhere | **closed** — §9 phase 2 |
 | `VarRegistry.get`, via `Refs.lookup` and `CompiledRefs.lookup` | a variable name, authored | 24,960 resolutions per operation on `apache_httpd` | **open** — §5, and the reason this design is not finished |
-| `Body.keyIndexes` — `put(name)` / `getOrDefault(key)` | a key's name, authored | `log_sessions` runs two `key` and one `key-get`; no other workload | **open** — and after phase 6 it is the *only* one left. The *inner* index is data-keyed and stays a map |
+| `Body.keyIndexes` — `put(name)` / `getOrDefault(key)` | a key's name, authored | `log_sessions` runs two `key` and one `key-get`; no other workload | **closed** — §9 phase 7. The *inner* index is data-keyed and stays a map |
 
 **Read and cleared**, recorded so the next survey need not repeat the walk: `Switch.cases`,
 `ValueMap.entries`, the grouping maps in `Body.file`, `FunctionRuntime.state` and the pipeline's
@@ -460,13 +460,8 @@ The expected outcome is stated first, per §7: the path measures at 0.4% to 0.7%
 rows should barely move**, and the claim being made is structural. If `apache_httpd` moves more
 than the envelope, the literal operands are why and that should be said rather than assumed.
 
-**Phase 7 — the key index**, which after phase 6 is **the last run-time lookup on a key the
-compiler knew**. `Body.keyIndexes` hashes a key's *name*: `Key.name` on the write,
-`KeyGet.key` on the read. Both are authored strings and both should be what every other name in
-the engine now is. `log_sessions` runs two `key` instructions and one `key-get`, so unlike when
-this was written there is a workload that exercises it — and it was exercising it all along while
-the phase 5 probe read zero, because that probe watched the variable registry and this map is not
-part of it. Small: two fields, and the interning already exists.
+**Phase 7 — the key index. Done 2026-09-10; §9 is the record.** It was the last run-time lookup
+on a key the compiler knew, and it is now an array indexed by slot.
 
 **Phase 8 — the record.** E44 closed or restated; design 10 §2's reference-resolution row
 updated; §3's cleared list carried into the ledger so the next survey starts from it.
@@ -529,9 +524,9 @@ whether the count was right. Phase 3 is nothing but that.
     itself left open. *The measurement it was deferred on turned out to under-describe the
     change*: it covered `Refs` resolution and not the literal operands beside it, which is why
     §9's record spends more words on the prediction than on the result.
-11. **The key index** (§3's fourth site, §6 phase 7). *Not yet ruled.* It is now the only
-    run-time lookup left on a key the compiler knew, and the claim that design 30's goal is met
-    should not be made until it is closed or refused.
+11. **The key index** (§3's fourth site, §6 phase 7). *Ruled 2026-09-10: close it*, and built the
+    same day. With it gone the claim §8 ruling 7 set as the goal can be made, **for the engine**
+    — and the qualifier is the point, since the last time it was made without one it was wrong.
 
 ## 9. Record
 
@@ -907,3 +902,75 @@ it needs a fixture and a decision rather than a quiet fix inside a change about 
 
 **E46** — `and` and `or` allocate a stream and a capturing lambda per evaluation. Pre-existing and
 unmeasured, recorded because it sits on the path this phase has just claimed to improve.
+
+### Phase 7 — the key index
+
+`compile/KeyName`, a second interner on `VarNames`, and `Body.keyIndexes` becomes a list indexed
+by slot. `CompiledOp.Key` and `CompiledOp.KeyGet` hold a `KeyName` where they held a string.
+
+**A separate type from `VarName`, deliberately.** Keys are their own namespace — the compiler
+keeps a separate declared set for them, and a key and a variable may share a name without meaning
+the same thing — so they get their own table and their own slot space. Two slot numbers indexing
+different arrays should not share a type: getting them the wrong way round would read a real index
+and answer confidently, which is the failure this design keeps trying to make impossible.
+
+*Small, and only findable because of a question.* This was §3's fourth site, listed on the first
+day and carried through five phases as "open, unmeasured", and the phase 5 probe read **zero
+lookups on every workload** while `log_sessions` was running two `key` instructions and a
+`key-get` throughout. The probe instrumented the variable registry, and this map was not part of
+it. Design 29 §9's rule for a third time, and the first time it caught an *instrument* rather than
+a benchmark row: a probe that does not cover a thing reports nothing about it, and nothing reads
+as zero.
+
+#### The goal, stated with the qualifier that makes it true
+
+**Within the engine, every run-time map lookup that remains is keyed by data.** Read rather than
+probed, because after this phase there is nothing left to count:
+
+| site | key | why it stays |
+|---|---|---|
+| `VarRegistry`'s extended table | a key-value capture's name, from the input | 14,140 per operation on `ausearch`; §1 exempts a data key, and §8 ruling 8 keeps the binding |
+| `Switch.cases` | the selected value | data |
+| `ValueMap.entries` | the subject value | data |
+| the grouping index in `Body.file`, and a key's inner index | the grouping or key value | data |
+| `FunctionRuntime.state` | whatever an extension function chooses | a state bag published to extension authors, not engine dispatch |
+
+Everything else — `MatchCompiler.patterns`, `MatcherLibrary.definitions`, `Encoding.BY_LABEL`, the
+unicode and regex-encoding caches, `VarNames` itself — is consulted while a configuration
+compiles and not while a record runs.
+
+**The qualifier is "within the engine", and it is not a hedge.** The pipeline's extension
+functions keep string-keyed maps by contract: `FunctionContext.state()` *is* a
+`Map<String, Object>` in the published interface, and `stroom:get`, `stroom:meta` and
+`stroom:dictionary` look up whatever argument they are handed, which may well be a literal the
+compiler knew. §3 cleared those as out of scope on the first day and that still holds — they are
+an interface for extension authors rather than the compiled model. But the claim has to carry the
+boundary, because the last time it was made without one it was wrong by exactly one site.
+
+#### The audit, 2026-09-10
+
+**A tooling assumption that was wrong, and had been all session.** Two imports in `Body` were
+dead — `KeyName`, which the code never names because it only calls `.slot()` on a returned value,
+and `HashMap`, left behind when `keyIndexes` stopped being one. Neither was reported, because
+**this project's checkstyle has no `UnusedImports` rule**, and several times across phases 4 to 7
+"checkstyle passed" was taken as evidence that an import sweep was unnecessary. It was not
+evidence of anything. Swept all 28 files changed today: those two were the only ones, so nothing
+else was left behind, but the reasoning that said so was unfounded rather than lucky.
+
+**The key/key-get agreement is guarded, and that was proved rather than assumed.** If a `key` and
+a `key-get` interned into different slots the lookup would read an unbuilt index, bind an empty
+sequence, and produce no output — silently, because an empty sequence is a legitimate answer.
+Breaking the interning deliberately fails four tests: three key cases in `SequenceIterationTest`
+and the `log_sessions` golden. So the guard exists and no new test was needed — which is the
+opposite conclusion from phase 6's audit, reached the same way.
+
+**Two tidyings.** `VarNames`' class javadoc promised "every name" and then described only
+variables, so it now says there are two namespaces and why they carry different types. And the
+frozen check was written out twice, once per interner; it is one method.
+
+**Checked and clear.** `internKey` runs before `Compiler.freeze()`, since keys are interned while
+bodies compile and linking is what closes the table. A `key-get` whose `key` has not run yet reads
+a null slot and gets `Map.of()`, which is what `getOrDefault` gave it. The list is per run and
+sized from the frozen count, and a configuration with no keys allocates an empty one and never
+indexes it. `internKey` is package-private where `intern` had to be public for a test — tighter,
+and worth keeping that way.

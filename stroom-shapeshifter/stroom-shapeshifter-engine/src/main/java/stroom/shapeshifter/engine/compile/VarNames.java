@@ -23,12 +23,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Every variable name a configuration uses, each given a slot (design 30 phase 5).
+ * Every name a configuration uses, each given a slot (design 30 phases 5 and 7).
  *
  * <p>Names are interned as the graph is built rather than by a walk of their own: whatever
- * compiles a node that names a variable asks for the {@link VarName}, and the first ask assigns
- * the slot. That is the same shape the match compiler interns patterns with, and it means there
- * is no second walk to keep in step with the first (E27).
+ * compiles a node that names something asks for the {@link VarName} or {@link KeyName}, and the
+ * first ask assigns the slot. That is the same shape the match compiler interns patterns with,
+ * and it means there is no second walk to keep in step with the first (E27).
+ *
+ * <p><b>Two namespaces, two slot spaces.</b> Variables and keys are separate here because they
+ * are separate in the language — the compiler keeps its own declared set for keys, and a key and
+ * a variable may share a name without meaning the same thing. They therefore index different
+ * arrays at run time, and carry different types so that they cannot be indexed into each
+ * other's.
  *
  * <p><b>The map is consulted at run time, and that is the rule holding rather than failing.</b>
  * A key-value capture reads its own name out of the data — DS3's shape where a field's name and
@@ -43,6 +49,13 @@ import java.util.Map;
 public final class VarNames {
 
     private final Map<String, VarName> byName = new HashMap<>();
+
+    /**
+     * Keys, which are their own namespace: the compiler keeps a separate declared set for them,
+     * and a key and a variable may share a name without meaning the same thing. Two tables, so
+     * two slot spaces, so two arrays that cannot be indexed into each other.
+     */
+    private final Map<String, KeyName> keysByName = new HashMap<>();
 
     /**
      * {@code __group} is interned first and always, because the interpreter binds it whether
@@ -68,14 +81,40 @@ public final class VarNames {
         if (name == null) {
             return null;
         }
+        refuseIfFrozen(name);
+        return byName.computeIfAbsent(name, key -> new VarName(key, byName.size()));
+    }
+
+    /**
+     * A compiled project outlives the runs that use it (D35), and each of those sized its slot
+     * arrays from these tables. A name interned now would have a slot past the end of every one
+     * of them, so this is loud rather than silent.
+     */
+    private void refuseIfFrozen(final String name) {
         if (frozen) {
-            // A compiled project outlives the runs that use it (D35), and each of those sized
-            // its slot array from this table. A name interned now would have a slot past the end
-            // of every one of them, so this is loud rather than silent.
             throw new IllegalStateException(
                     "Names are interned while a configuration compiles, not while it runs: " + name);
         }
-        return byName.computeIfAbsent(name, key -> new VarName(key, byName.size()));
+    }
+
+    /**
+     * The interned key, assigning a slot if this is the first sight of it.
+     *
+     * <p>A {@code key-get} may compile before the {@code key} that builds what it reads — they
+     * can be in different templates — so the slot is assigned by whichever arrives first, exactly
+     * as a variable's is.
+     */
+    KeyName internKey(final String name) {
+        if (name == null) {
+            return null;
+        }
+        refuseIfFrozen(name);
+        return keysByName.computeIfAbsent(name, key -> new KeyName(key, keysByName.size()));
+    }
+
+    /** How many key indexes a run needs room for. */
+    public int keyCount() {
+        return keysByName.size();
     }
 
     /** No more names: the configuration has compiled, and the count is now a run's array size. */

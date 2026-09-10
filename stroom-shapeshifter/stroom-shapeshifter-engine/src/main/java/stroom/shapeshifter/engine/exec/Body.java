@@ -44,7 +44,6 @@ import stroom.shapeshifter.engine.value.TypedValue;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -87,8 +86,13 @@ final class Body {
      * Index staleness is a property of every index-carrying
      * sequence here, not of keys — scoping is what usually hides it, and a key steps outside
      * that. No case needs a key to outlive its sequence, so nothing is built to prevent it.
+     *
+     * <p><b>By slot rather than by name</b> since design 30 phase 7. A key was found by hashing
+     * its name, which was the last run-time lookup in the engine on a key the compiler already
+     * knew. The <i>inner</i> index stays a map and should: it is keyed by the key's value, which
+     * is data, and §1 is about keys the compiler knew rather than about maps.
      */
-    private final Map<String, Map<String, Filed>> keyIndexes = new HashMap<>();
+    private final List<Map<String, Filed>> keyIndexes;
 
     /**
      * The arithmetic sites that have already drawn a strict_values warning this run — once
@@ -133,6 +137,10 @@ final class Body {
          final Encoding encoding) {
         this.compiled = compiled;
         this.vars = new VarRegistry(compiled.names());
+        this.keyIndexes = new ArrayList<>(compiled.names().keyCount());
+        for (int i = 0; i < compiled.names().keyCount(); i++) {
+            keyIndexes.add(null);
+        }
         this.groupMembers = compiled.names().group();
         this.instrument = instrument;
         this.messages = messages;
@@ -297,13 +305,16 @@ final class Body {
                 }
                 case final CompiledOp.Key value -> {
                     // Built where it is written, so the cost is paid somewhere visible.
-                    keyIndexes.put(value.name(), file(value.select(), value.groupBy(),
+                    keyIndexes.set(value.name().slot(), file(value.select(), value.groupBy(),
                             match, matchCount));
                 }
                 case final CompiledOp.KeyGet value -> {
                     final TypedValue wanted = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars);
-                    final Map<String, Filed> index = keyIndexes.getOrDefault(value.key(), Map.of());
+                    final Map<String, Filed> built = keyIndexes.get(value.key().slot());
+                    // A key-get before its key has run reads an empty index, which binds an
+                    // empty sequence — the same non-answer as a value with no entry.
+                    final Map<String, Filed> index = built == null ? Map.of() : built;
                     // A value with no entry binds an empty sequence, which a walk runs over
                     // zero times — the same non-answer XSLT's key() gives, not an error.
                     // An absent lookup value finds the entries that had no key — the same
