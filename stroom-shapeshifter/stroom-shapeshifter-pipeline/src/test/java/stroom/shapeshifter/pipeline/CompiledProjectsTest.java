@@ -85,6 +85,68 @@ class CompiledProjectsTest {
     }
 
     @Test
+    void markOutranksTheDeclaration() throws Exception {
+        // "The input is better evidence than the declaration" — the engine's rule since before
+        // design 32, and it survives phase 4. What changed is where it is applied: before the
+        // graph is compiled, so the regexes and delimiters follow the mark too. Only progressive
+        // steps ever did, which is the asymmetry design 32 §2 exists to close.
+        final ShapeshifterReader reader =
+                (ShapeshifterReader) new ShapeshifterParserFactory(project("iso-8859-1")).getParser();
+        assertThat(reader.choose(marked(0xEF, 0xBB, 0xBF)).project().encoding())
+                .isEqualTo(Encoding.UTF_8);
+    }
+
+    @Test
+    void transcodeFamilyMarkBecomesATranscodeRatherThanARefusal() throws Exception {
+        // A UTF-16 mark used to stop the run: the regex library has no lowering for it, and the
+        // message told the author to declare it so the stream would be transcoded whole. Settling
+        // the encoding first does that for them — the graph is compiled to read UTF-8 and knows
+        // what it transcodes from.
+        final ShapeshifterReader reader =
+                (ShapeshifterReader) new ShapeshifterParserFactory(project("auto")).getParser();
+        final var chosen = reader.choose(marked(0xFF, 0xFE)).project();
+        assertThat(chosen.transcodeFrom()).isEqualTo(Encoding.UTF_16LE);
+        assertThat(chosen.encoding()).isEqualTo(Encoding.UTF_8);
+    }
+
+    @Test
+    void declaredSourceCostsFourBytesRatherThanAWindow() throws Exception {
+        // The engine streams and never holds its input whole (design 23). Sniffing a window up
+        // front would break that for every run, including the ones with nothing to sniff — so a
+        // mark is looked for in four bytes, and a declaration answers without reading more.
+        final Counting counting = new Counting("2026-09-10 GET /index.html 200\n".repeat(500));
+        final ShapeshifterReader reader =
+                (ShapeshifterReader) new ShapeshifterParserFactory(project("utf-8")).getParser();
+        reader.choose(counting);
+        assertThat(counting.taken).isLessThanOrEqualTo(4);
+    }
+
+    /** A stream that says how much was taken from it. */
+    private static final class Counting extends ByteArrayInputStream {
+
+        private int taken;
+
+        private Counting(final String text) {
+            super(text.getBytes(StandardCharsets.UTF_8));
+        }
+
+        @Override
+        public synchronized int read(final byte[] b, final int off, final int len) {
+            final int got = super.read(b, off, len);
+            taken += Math.max(0, got);
+            return got;
+        }
+    }
+
+    private static InputStream marked(final int... mark) {
+        final byte[] head = new byte[mark.length + 4];
+        for (int i = 0; i < mark.length; i++) {
+            head[i] = (byte) mark[i];
+        }
+        return new ByteArrayInputStream(head);
+    }
+
+    @Test
     void sniffingConsumesNothing() {
         // The engine must see the input from its first byte. If the window were taken from the
         // stream, every run under an undeclared encoding would silently lose its first 8 KiB.

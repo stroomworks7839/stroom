@@ -241,10 +241,57 @@ overlap, so the answer would be right by luck. Giving the candidate list a home 
 configuration is its own change, and until it has one, phases 1 and 2's multi-byte work is built
 and idle.
 
-**Phase 4 — remove the dual reading.** `marked`, `forEncoding`, `markEncoding`, `applyMark`, and
-`Body.encoding`'s setter. This is the phase that pays for itself in deletions, and it must come
-last: while a run can still move its encoding, the dual reading is load-bearing for the one match
-kind that has it.
+**Phase 4 — remove the dual reading. Done 2026-09-10.** `CompiledMatch.Progressive` carries one
+`CompiledSteps` where it carried `source` and `marked`; `forEncoding` and `markEncoding` are gone,
+so the step compiler runs once; `Body.encoding`'s setter is gone, and a run's reading is fixed at
+construction. `applyMark` keeps the two jobs that were never about switching — skipping the mark's
+bytes, and refusing a transcode-family mark that reaches the window.
+
+#### The rule survived; where it applies moved
+
+Two tests failed, and they were the point of the phase:
+`byteOrderMarkOverridesWhatTheConfigurationSaid` and
+`progressiveStepsFollowAByteOrderMarkTheSourceDidNotExpect`, both pinning **"the input is better
+evidence than the declaration"**.
+
+*The first attempt reversed that* — declaration wins, mark warned about — and it was wrong. The
+pool makes a better answer available: `ShapeshifterReader.choose` honours a mark **over** a
+declaration, and because the graph is then compiled for it, the regexes and delimiters follow it
+too. Only progressive steps ever did. **So the rule is kept and §2's asymmetry is closed, rather
+than the rule being traded away to close it.**
+
+A consequence worth having: a **UTF-16 mark stops being a refusal**. It used to abort the run with
+a message telling the author to declare the encoding so the stream would be transcoded whole;
+settling the encoding first does that for them, and the graph compiles to read UTF-8 knowing what
+it transcodes from.
+
+#### Two regressions, both caught by tests written for other things
+
+**Sniffing pulled 8 KiB before the run started**, which `StreamedInputTest` caught: the engine
+streams and never holds its input whole (design 23), and that was broken for *every* run —
+including the ones with nothing to sniff. A mark is at most three bytes, so `choose` reads
+**four**, a declaration answers without reading more, and only an undeclared *and* unmarked stream
+costs a window.
+
+**And that window was a blocking read**, which `FilterRunTest` caught by stalling against the
+filter's pipe: a slow producer would have waited on a window that never filled. It is one read of
+what is readily there now, which the sniffer already handles, since a short prefix is an outcome
+it knows.
+
+#### The audit
+
+**The rule change was unpinned, and a comment claimed otherwise.** The rewritten engine test
+pointed at `CompiledProjectsTest` for the mark-beats-declaration behaviour, and that class had no
+mention of marks at all. Three tests cover it now — the mark outranking a declaration, the
+UTF-16 mark becoming a transcode, and a declared source costing four bytes measured with a
+counting stream — and the first was checked by sabotage: reverting to the first attempt fails it
+and nothing else.
+
+**A null in a diagnostic.** The disagreement warning interpolated the declaration, which can be
+absent, so it would have read "the source is declared null". It names what the graph was
+*compiled to read* instead — always known, where a declaration is not — since that path is
+reachable through the engine's own API by a caller who settled the encoding differently from the
+mark. Both messages are pinned now; before phase 3 neither was.
 
 ## 8. What would make this a mistake
 

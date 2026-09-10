@@ -132,26 +132,58 @@ public class ShapeshifterReader extends AbstractParser {
      * stream reset, so the engine sees the input from its first byte exactly as before.
      */
     Chosen choose(final InputStream input) throws IOException {
-        final String declared = compiled.project().source().encoding();
-        final Encoding named = declared == null ? null : Encoding.fromLabel(declared);
-        if (named != null && named != Encoding.AUTO) {
-            return new Chosen(compiled.forEncoding(named), input);
-        }
         final InputStream buffered = input.markSupported()
                 ? input
                 : new BufferedInputStream(input, EncodingSniffer.WINDOW + 1);
         buffered.mark(EncodingSniffer.WINDOW + 1);
-        final byte[] window = new byte[EncodingSniffer.WINDOW];
-        final int read = Math.max(0, buffered.readNBytes(window, 0, window.length));
-        buffered.reset();
+        try {
+            return new Chosen(compiled.forEncoding(reading(buffered)), buffered);
+        } finally {
+            buffered.reset();
+        }
+    }
+
+    /**
+     * The reading this stream should be compiled for, taking as little of it as will answer.
+     *
+     * <p><b>How much is read matters as much as what is decided.</b> The engine streams its
+     * input and never holds it whole (design 23), and pulling a window up front to sniff would
+     * break that for every run — including the ones that did not need sniffing at all. So:
+     *
+     * <ul>
+     *   <li><b>Four bytes</b> settle whether there is a byte-order mark, which is the longest one
+     *       there is plus a byte. A mark outranks the declaration — "the input is better evidence"
+     *       — and now the whole graph follows it, where before only progressive steps could.</li>
+     *   <li><b>A declaration</b> answers without reading any more. An author who has said what
+     *       the feed is has already paid for this, and their run should not.</li>
+     *   <li><b>Only an undeclared, unmarked stream</b> costs a window, because only it has a
+     *       question left. Even then it is one read of what is readily there rather than a block
+     *       until the window fills, which a slow producer — the filter's pipe — would feel.</li>
+     * </ul>
+     */
+    private Encoding reading(final InputStream buffered) throws IOException {
+        final byte[] head = new byte[4];
+        final int got = Math.max(0, buffered.readNBytes(head, 0, head.length));
+        final Encoding.ByteOrderMark mark = Encoding.detectByteOrderMark(head);
+        if (mark != null && mark.length() <= got) {
+            return mark.encoding();
+        }
+        final String declared = compiled.project().source().encoding();
+        final Encoding named = declared == null ? null : Encoding.fromLabel(declared);
+        if (named != null && named != Encoding.AUTO) {
+            return named;
+        }
         // No multi-byte candidates, and that is a gap rather than a decision. The sniffer can
         // recognise Shift_JIS, EUC-JP, GBK, GB18030, Big5 and EUC-KR by their byte grammars, but
         // which of them a feed might carry is a deployment's knowledge and there is nowhere in
         // the source configuration to say it — passing all six would be worse than passing none,
         // because their grammars overlap and the answer would be right by luck (design 32 §5).
-        // Giving the list a home in the configuration is its own change.
-        final EncodingSniffer.Sniff sniff = EncodingSniffer.sniff(window, read, Encoding.UTF_8);
-        return new Chosen(compiled.forEncoding(sniff.encoding()), buffered);
+        final byte[] window = new byte[EncodingSniffer.WINDOW];
+        System.arraycopy(head, 0, window, 0, got);
+        final int more = got < window.length
+                ? Math.max(0, buffered.read(window, got, window.length - got))
+                : 0;
+        return EncodingSniffer.sniff(window, got + more, Encoding.UTF_8).encoding();
     }
 
     /**

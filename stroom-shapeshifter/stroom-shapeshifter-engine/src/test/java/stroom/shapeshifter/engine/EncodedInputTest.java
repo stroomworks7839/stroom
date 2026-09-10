@@ -77,6 +77,21 @@ class EncodedInputTest {
         return runConfig(config(encoding), input);
     }
 
+    /**
+     * Run a configuration compiled <b>for a reading</b> (design 32): the caller settles the
+     * encoding, because a graph carries it in every pattern, delimiter and step and cannot follow
+     * the input to another one.
+     */
+    private static String runFor(final String config, final byte[] input, final Encoding source) {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read(config),
+                        stroom.shapeshifter.engine.function.FunctionRegistry.EMPTY, source),
+                new ByteArrayInputStream(input),
+                new XmlByteSink(output));
+        return output.toString(StandardCharsets.UTF_8);
+    }
+
     private static String runConfig(final String config, final byte[] input) {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         Shapeshifter.run(
@@ -123,11 +138,15 @@ class EncodedInputTest {
     }
 
     @Test
-    void progressiveStepsFollowAByteOrderMarkTheSourceDidNotExpect() {
-        // The sibling of byteOrderMarkOverridesWhatTheConfigurationSaid, for steps rather than a
-        // delimiter. It matters more here: a step is compiled against an encoding — its tags
-        // encoded, its tables built, its values tagged — so a mark that re-declares the source
-        // has to re-choose the compiled form, not just the reading (design 29 phase 2).
+    void progressiveStepsReadUnderTheEncodingTheGraphWasCompiledFor() {
+        // This pinned the engine re-choosing a compiled form mid-run when a mark re-declared the
+        // source — steps were compiled twice, and only steps, so a mark moved a progressive
+        // template and left every regex and delimiter template on the old reading. Design 32
+        // removed the machinery and the asymmetry with it: a graph is compiled for one reading.
+        //
+        // So a mark is the *caller's* to act on, before compiling, which the pipeline now does —
+        // see CompiledProjectsTest. Here, over the raw engine API, the caller is the test, and
+        // this is what settling the encoding first looks like from the inside.
         final String config = """
                 {
                   "name": "marked", "version": 4,
@@ -151,12 +170,15 @@ class EncodedInputTest {
         final byte[] line = {'L', ':', (byte) 0xC3, (byte) 0xA9, '\n'};
         assertThat(runConfig(config, line)).isEqualTo("[Ã©]");
 
+        // The same bytes, compiled for the reading the mark names: the steps read them as UTF-8,
+        // and so would a regex or a delimiter in the same configuration, which is the half that
+        // never worked before.
         final byte[] marked = new byte[line.length + 3];
         marked[0] = (byte) 0xEF;
         marked[1] = (byte) 0xBB;
         marked[2] = (byte) 0xBF;
         System.arraycopy(line, 0, marked, 3, line.length);
-        assertThat(runConfig(config, marked)).isEqualTo("[é]");
+        assertThat(runFor(config, marked, Encoding.UTF_8)).isEqualTo("[é]");
     }
 
     @Test
@@ -184,9 +206,11 @@ class EncodedInputTest {
     }
 
     @Test
-    void byteOrderMarkOverridesWhatTheConfigurationSaid() {
-        // The input is better evidence than the declaration: a UTF-8 mark means UTF-8 whatever
-        // the configuration was expecting.
+    void markedInputReadsAsItsMarkOnceTheGraphIsCompiledForIt() {
+        // "The input is better evidence than the declaration" — still the rule, and the pipeline
+        // still applies it (CompiledProjectsTest). What moved is where: a mark is acted on before
+        // compiling, so the whole graph follows it, rather than mid-run where only progressive
+        // steps could.
         final byte[] utf8 = "café".getBytes(StandardCharsets.UTF_8);
         final byte[] input = new byte[utf8.length + 3];
         input[0] = (byte) 0xEF;
@@ -194,7 +218,7 @@ class EncodedInputTest {
         input[2] = (byte) 0xBF;
         System.arraycopy(utf8, 0, input, 3, utf8.length);
 
-        assertThat(run("iso-8859-1", input)).isEqualTo("[café]");
+        assertThat(runFor(config("iso-8859-1"), input, Encoding.UTF_8)).isEqualTo("[café]");
     }
 
     @Test

@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
@@ -107,29 +106,22 @@ public sealed interface CompiledMatch {
     }
 
     /**
-     * A progressive match: its steps compiled, in the one or two readings a run can give them.
+     * A progressive match: its steps compiled, for the reading the configuration compiled under.
      *
-     * <p>Baking the encoding into the steps means asking which encoding, and for a template that
-     * declares none the answer can still move once: a byte-order mark at the head of the input
-     * re-declares the source. Only a UTF-8 mark can, because the other three name transcode
-     * families and refuse the run outright, so there are exactly two possible answers and both
-     * are compiled here. Which one a run uses is settled by its first three bytes and then never
-     * changes.
+     * <p>Baking the encoding into the steps means asking which encoding, and until design 32 the
+     * answer could still move once — a byte-order mark at the head of the input re-declared the
+     * source, so two readings were compiled and a run picked between them per match. That was
+     * only ever half a fix: <b>only progressive matching carried the second reading</b>, while a
+     * regex or delimiter template kept the one it compiled with, so a mark moved some of a
+     * configuration and not the rest.
      *
-     * @param source the reading the source's declared encoding gives
-     * @param marked the reading a UTF-8 mark would give, or null when it could not differ —
-     *               the template declared its own encoding, or the source is UTF-8 already
+     * <p>The encoding is settled before anything compiles now, so there is one reading and no
+     * choosing.
+     *
+     * @param steps the compiled steps, under the reading the graph was compiled for
      */
-    record Progressive(CompiledSteps source, CompiledSteps marked) implements CompiledMatch {
+    record Progressive(CompiledSteps steps) implements CompiledMatch {
 
-        /**
-         * The steps and reading to run under a run's effective encoding.
-         */
-        public CompiledSteps forEncoding(final Encoding effective) {
-            return marked != null && effective == marked.encoding()
-                    ? marked
-                    : source;
-        }
     }
 
     /**

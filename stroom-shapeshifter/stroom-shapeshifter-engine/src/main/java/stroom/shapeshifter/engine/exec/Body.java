@@ -158,11 +158,6 @@ final class Body {
         return level;
     }
 
-    /** The run's encoding in force, once a byte-order mark has settled it. */
-    void encoding(final Encoding encoding) {
-        this.encoding = encoding;
-    }
-
     /** Whether the root reads its input in pieces whose counters restart; set by the run before the loop. */
     void chunkedRoot(final boolean chunkedRoot) {
         this.chunkedRoot = chunkedRoot;

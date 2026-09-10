@@ -241,21 +241,26 @@ public final class Run {
     }
 
     /**
-     * What a byte-order mark at the front of the input means for the run. A UTF-8 mark is
-     * skipped and confirms the encoding. A UTF-16 mark names an encoding the regex library has
-     * no lowering for: such a source is transcoded whole to UTF-8 before the window ever sees
-     * it (design 19 phase 6), so a mark reaching the window means the source was declared as
-     * something else, and the run is refused by name rather than matching UTF-8 machines
-     * against UTF-16 bytes.
+     * What a byte-order mark at the front of the input means for the run.
+     *
+     * <p><b>It no longer means a change of encoding</b> (design 32 phase 4). The reading was
+     * settled before the configuration compiled, and every pattern, delimiter and step carries
+     * it — so a mark cannot move a run without leaving most of the graph behind. It used to move
+     * one match kind and not the other two, which is the defect design 32 removes rather than an
+     * ability being given up.
+     *
+     * <p>What a mark still does is get <em>skipped</em>, which the caller does with its length,
+     * and get checked. A transcode-family mark refuses the run: such a source is decoded whole to
+     * UTF-8 before the window sees it (design 19 phase 6), so a mark reaching here means the
+     * stream was not, and matching UTF-8 machines against UTF-16 bytes is worse than stopping.
+     * A mark that merely disagrees with an explicit declaration is the author's contradiction to
+     * resolve, so it is said and the declaration is kept — the run was compiled for it, and
+     * saying nothing would leave a reader wondering why their mark had no effect.
      */
     private void applyMark(final Encoding.ByteOrderMark mark) {
+        final String declared = compiled.project().source().encoding();
+        final boolean undeclared = declared == null || Encoding.fromLabel(declared) == Encoding.AUTO;
         if (RegexEncodings.needsTranscode(mark.encoding())) {
-            // The *declaration*, not the reading in force. Since design 32 phase 3 the encoding
-            // is settled before compiling, so an undeclared source arrives here reading as UTF-8
-            // — and telling its author it "is declared utf-8" would be a lie about their
-            // configuration, which is the one thing this message exists to talk about.
-            final String declared = compiled.project().source().encoding();
-            final boolean undeclared = declared == null || Encoding.fromLabel(declared) == Encoding.AUTO;
             messages.add(new Message(Severity.FATAL, "The input begins with a " + mark.encoding().label()
                     + " byte-order mark, but the source "
                     + (undeclared ? "declares no encoding" : "is declared " + declared)
@@ -263,7 +268,16 @@ public final class Run {
                     + " on the source so the stream is transcoded whole"));
             throw new AbortRun();
         }
-        encoding = mark.encoding();
-        body.encoding(encoding);
+        if (mark.encoding() != encoding) {
+            // What the graph was compiled for, which is always known — where a declaration is
+            // not: this can be reached through the engine's own API, by a caller that settled
+            // the encoding itself and settled it differently from the mark.
+            messages.add(new Message(Severity.WARNING, "The input begins with a "
+                    + mark.encoding().label() + " byte-order mark, but this configuration is"
+                    + " compiled to read " + encoding.label()
+                    + (undeclared ? "" : ", which the source declares")
+                    + ": the mark is skipped and " + encoding.label() + " used. Settle the"
+                    + " encoding against the input before compiling to follow the mark."));
+        }
     }
 }

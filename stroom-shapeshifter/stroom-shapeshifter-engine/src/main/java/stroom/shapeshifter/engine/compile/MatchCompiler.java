@@ -73,13 +73,11 @@ final class MatchCompiler {
      * Intern a template's patterns and compile its match, in that order.
      *
      * @param matchEncoding the encoding the template's match vocabulary sees: its own
-     *                      declaration, or the source's
-     * @param markEncoding  the encoding a byte-order mark could move this template to, or null
-     *                      when none could — see {@link CompiledMatch.Progressive}
+     *                      declaration, or the source's — and there is only one, since design 32
+     *                      settles the encoding before anything compiles
      */
     CompiledMatch compile(final Template template,
-                          final Encoding matchEncoding,
-                          final Encoding markEncoding) {
+                          final Encoding matchEncoding) {
         if (template.guard() != null) {
             collect(template.guard(), template);
         }
@@ -90,10 +88,7 @@ final class MatchCompiler {
             // reached through a library reference is interned like one written in place.
             final List<MatchStep> resolved = resolve(progressive.steps(), new HashSet<>());
             progressiveSteps = new CompiledMatch.Progressive(
-                    compiledSteps(resolved, template, matchEncoding),
-                    markEncoding == null
-                            ? null
-                            : compiledSteps(resolved, template, markEncoding));
+                    compiledSteps(resolved, template, matchEncoding));
         } else {
             progressiveSteps = null;
         }

@@ -627,7 +627,7 @@ final class Level {
             case final CompiledMatch.Regex regex ->
                     regexMatch(regex, data, from, to, atCursor, effective(compiledTemplate));
             case final CompiledMatch.Progressive progressive -> Steps.match(
-                    progressive.forEncoding(effective(compiledTemplate)), data, from, to);
+                    progressive.steps(), data, from, to);
             case final CompiledMatch.All ignored -> new MatchResult(
                     new TypedValue[]{TypedValue.of(Arrays.copyOfRange(data, from, to),
                             effective(compiledTemplate))}, to - from, 0);
