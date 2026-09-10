@@ -20,12 +20,13 @@ keeping, and so is one that did not.
 | 3 | `f9bcef57af` | 2026-09-08 | E43, the value's encoding in its class | The one-field UTF-8 variant. Won back most of it; `csv_header` did not recover. |
 | 4 | `5dfdabc46f` | 2026-09-08 | Design 29 phase 1, the match loop | Owns `csv_header`'s unexplained two per cent. |
 | 5 | `d504945cd5` | 2026-09-08 | Design 29 phase 2, the compiled step | The first phase expected to *win* rather than to recover: a per-character decoder cascade and a per-attempt encode, pattern lookup and matcher allocation all removed. `progressive` and `regex_lines` are its rows; a compile row moving here would be the doubled step tree. |
-| 6 | `32e7840450` | 2026-09-08 | Design 29 phase 3, the body's ops | `apache_httpd`'s row: nine sites, the largest of them the regex replace holding its matcher and its parsed replacement, at 209 replaces per record. Design 10 §2 measured change 3 moving this workload only 12% and blamed transforms working in `String`, which this does not change — so a small move here is the expected result, and a large one would mean the blame was wrong. |
+| 6 | `32e7840450` | 2026-09-08 | Design 29 phase 3, the body's ops | `apache_httpd`'s row: nine sites, the largest of them the regex replace holding its matcher and its parsed replacement. (The "209 replaces per record" this row originally carried is corrected below: they are `translate` ops, and this workload runs two regex replaces.) Design 10 §2 measured change 3 moving this workload only 12% and blamed transforms working in `String`, which this does not change — so a small move here is the expected result, and a large one would mean the blame was wrong. |
 | 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
 | 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
 | 9 | `8d0fd1cd65` | 2026-09-09 | Design 30: conditions compiled, the pattern map off the graph | A `matches` test holds its `BytePattern` instead of hashing the pattern's text per evaluation, and `Conditions.evaluate` stops taking the map — so it is no longer threaded into every guard evaluation on every template on every record. **624 evaluations per operation on `apache_httpd` and none anywhere else**, invisible in a sampled profile, so the run rows should not move. Compilation now walks the condition trees, so the compile rows are where a change would show. |
+| 12 | `351fb05d1b` | 2026-09-10 | Design 30 phase 5: a variable's name becomes a slot, and the registry an array | **The largest measured change on this list**, and the one most worth the full suite: +15.9% on `apache_httpd` and +11.9% on `log_sessions` on a targeted reading, which says nothing about the other nine rows. It touches every body, every capture and every condition, so a cost spread thinly is exactly the shape it could hide. Three things to look for: the eight rows the targeted reading did not cover; the **compile** rows, since interning happens while a configuration compiles and `ReferenceCheck` also gained a refusal in point 11; and `ausearch`, whose names come from the data and which measured flat rather than faster — a full-suite reading is the check that flat is what it stayed. |
 | 11 | `b1647fbc0e` | 2026-09-10 | Design 30 phase 4: the engine's variables leave the registry for execution frames | The first point on this list with a **measured claim already attached**: +12.1% on `ausearch` and +9.7% on `log_sessions` over four interleaved rounds, which is why it needs the full suite. A targeted reading on four rows cannot see a cost spread thinly across the other seven, and that is exactly what went unseen until design 25 §7 found it. Two things to look for: the eight rows this reading did not touch, and the compile rows, since `ReferenceCheck` gained a refusal that runs over every binding in a configuration. |
-| 10 | `b4b61bbb68` | 2026-09-09 | A regex replace is its own instruction, holding its replacer | The narrowest point on the list, and recorded as a control rather than a claim: the same `Replacer` is built at the same moment and called the same number of times, held by a record instead of captured by a lambda. `apache_httpd` runs 209 replaces per record, so if a megamorphic `Transform.function` call site were costing anything, taking one implementation out of it is where that would show — and if nothing moves, that is the answer to the same question. |
+| 10 | `b4b61bbb68` | 2026-09-09 | A regex replace is its own instruction, holding its replacer | The narrowest point on the list, and recorded as a control rather than a claim: the same `Replacer` is built at the same moment and called the same number of times, held by a record instead of captured by a lambda. `apache_httpd` was believed to run 209 replaces per record, so if a megamorphic `Transform.function` call site were costing anything, taking one implementation out of it was where that would show. **It runs two** — see the correction below, which is why this point answers less than it was recorded as answering. |
 
 *Design 29 phase 4 is deliberately not a point: it measured and built nothing, so the code at it
 is identical to phase 3's. Design 30 phase 3 is not a point for the same reason — it is a
@@ -338,18 +339,30 @@ condition trees and `apache_httpd` has the most to walk, so that was where to lo
 `apache_httpd`'s compile row moved **−0.2%** from point 8 to point 9, inside noise. Compiling
 every condition in the corpus's most condition-heavy configuration costs nothing measurable.
 
-**Point 10 answers a question two rulings settled by argument.** Design 27 ruling 2 and design 29
-§4 both reasoned that an interface call over many implementations is megamorphic and gives up
-inlining, and used that to keep an interpreter's `switch`. Point 10 takes one implementation out
-of `Transform.function`'s call site, on `apache_httpd`, which runs 209 replaces per record. Its
-run row moved **−1.0%, inside ±1.7%**. So removing an implementation from that site is worth
-nothing measurable there.
+**Point 10 answers a question two rulings settled by argument — or rather, it does not.**
+Design 27 ruling 2 and design 29 §4 both reasoned that an interface call over many
+implementations is megamorphic and gives up inlining, and used that to keep an interpreter's
+`switch`. Point 10 takes one implementation out of `Transform.function`'s call site on
+`apache_httpd`, and its run row moved **−1.0%, inside ±1.7%**.
 
-That is one implementation out of about thirty, so it is weak evidence and should not be read as
-overturning either ruling — the rulings' *conclusion* (leave the interpreter alone) is supported,
-while their *mechanism* (the call site is expensive) now has its first measurement and it is
-zero. The honest statement is that this shape of change is not where the engine's cost is, which
-is the same thing every measurement in this file has said.
+> **Corrected 2026-09-10.** This paragraph said `apache_httpd` "runs 209 replaces per record",
+> and it does not. The configuration holds **244 `translate` ops and two `replace` ops**. The 209
+> figure is the count of *escaping* instructions — `translate` of `& " < >` into entities, bound
+> to `__esc_0` … `__esc_208` — and `translate` does its substitution with `String.replace`, which
+> allocates no matcher and never reaches `Replacer`. The number was right about string-level
+> replacement work and wrong about the instruction, and every later use of it narrowed it to the
+> regex `replace` without rechecking. Found while answering a question about why this
+> configuration has 239 distinct variable names; 209 of them are those escape temporaries.
+>
+> So **point 10 measured almost nothing**, and its result should be read that way: taking one
+> implementation out of a call site that runs twice per record cannot say whether that call site
+> is expensive. The rulings' *conclusion* — leave the interpreter alone — is untouched, and their
+> *mechanism* still has no measurement. The workload that would test it is one with hundreds of
+> genuine regex `replace` calls per record, which the corpus does not have.
+
+That the reading survived four rounds of interleaving and a careful write-up says something about
+where these mistakes live: not in the measurement, which was fine, but in the sentence that says
+what was measured. The counting entry above exists for the same reason.
 
 *Files:* `2026-09-09-19{23,39,55}-*-full.json`, `2026-09-09-2011-b4b61bbb68-full.json`.
 
@@ -436,6 +449,52 @@ not exercise a change measures nothing; this is its neighbour — a row can exer
 completely and still have nothing worth measuring in it.
 
 *Files:* `d30ph4-r{1..4}-e7c6ed43ba-run.json` against `d30ph4-r{1..4}-frames-run.json`.
+
+## Names become slots, 2026-09-10 — and the row that measures nothing measures the box
+
+Design 30 phase 5, six interleaved rounds against `68fb1a592a`. A targeted daytime reading on
+five rows; the full suite is the point on the list above.
+
+| workload | map lookups per operation | median | range | rounds |
+|---|---|---|---|---|
+| `apache_httpd` | 140,892 → 19,440 | **+13.9%** | +13.2 to +15.7 | 6/6 faster |
+| `log_sessions` | 252,553 → 8,792 | **+11.8%** | −1.3 to +15.1 | 5/6 faster |
+| `win_sec_strict` | 45,023 → 4,872 | +1.3% | +0.9 to +3.7 | 6/6, inside the envelope |
+| `ausearch` | 24,022 → 16,310 | −0.4% | −2.3 to +2.2 | flat, against a −0.6% control |
+| `element_storm` | 0 → 0 | **control** | −1.8 to +1.5 | flat, as it must be |
+
+`apache_httpd` is the largest gain design 30 has produced, on the row that started it. **The
+count predicted both movers by absolute lookups removed** — the ranking that was wrong when read
+as a share in phase 4, and right twice since. `win_sec_strict` is recorded as no measurable
+change despite six rounds agreeing in sign: six agreeing rounds inside the envelope are still
+inside the envelope.
+
+**A row that cannot be affected is worth a slot in the run.** `element_storm` does no registry
+work at all — phase 4 took every one of its resolutions into execution frames — so whatever it
+reads on a registry change is the box, not the code. That earned its keep immediately. On the
+first attempt at this reading it swung **−11.4%** in round one and **+6.2%** in round two, an
+eighteen-point spread on a row that cannot move, which is what said the run was worthless and
+sent it back to a settled box. On the good run it holds within ±1.8%, and it is what licenses
+calling `win_sec_strict` flat and `ausearch` unchanged.
+
+So, beside "count before building" and "rank by the absolute count": **measure a change to a
+subsystem alongside a row that does not use that subsystem, in the same run.** Design 30 acquired
+such a row by accident and it has now caught one worthless reading and settled two verdicts.
+
+**And measuring caught a defect the suites could not.** The first shape of this phase consulted
+the compiled name table and *then* a separate map of names read from the data — two lookups where
+the previous code did one, on exactly the names a key-value configuration resolves most.
+`ausearch` went from 24,022 lookups per operation to about 30,450 and measured as a regression;
+one map instead of two took it to 16,310, below where it started. Every test passed throughout.
+It was a benchmark row, read against a control, that said the change was wrong.
+
+**Re-read after the audit**, which changed hot-path code and so invalidated the table above as a
+description of what is in the tree. Four more rounds: `apache_httpd` **+15.9%** (4/4, +12.9 to
++19.1), `log_sessions` **+11.9%** (4/4, +9.1 to +16.5), control at −0.2%. Both movers hold, and
+the higher medians are not claimed as an improvement — they are inside what the rounds spread.
+
+*Files:* `d30ph5-r{1..6}-{68fb1a592a,slots}-run.json`; `d30ph5fix-r{1..6}-*` for the `ausearch`
+re-reading after the double-lookup fix; `d30ph5audit-r{1..4}-*` for the re-read after the audit.
 
 ## Points deliberately not on the list
 

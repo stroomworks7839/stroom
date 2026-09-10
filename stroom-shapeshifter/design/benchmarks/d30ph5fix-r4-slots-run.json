@@ -1,0 +1,140 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "stroom.shapeshifter.engine.bench.EngineBenchmark.run",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "/home/dev1/.sdkman/candidates/java/25.0.3-tem/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "25.0.3",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "25.0.3+9-LTS",
+        "warmupIterations" : 3,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "workload" : "ausearch"
+        },
+        "primaryMetric" : {
+            "score" : 330.3064236492133,
+            "scoreError" : 16.35218797363808,
+            "scoreConfidence" : [
+                313.9542356755752,
+                346.65861162285137
+            ],
+            "scorePercentiles" : {
+                "0.0" : 310.30428568961673,
+                "50.0" : 332.05906282896905,
+                "90.0" : 348.5012563992941,
+                "95.0" : 349.14029927205166,
+                "99.0" : 349.14029927205166,
+                "99.9" : 349.14029927205166,
+                "99.99" : 349.14029927205166,
+                "99.999" : 349.14029927205166,
+                "99.9999" : 349.14029927205166,
+                "100.0" : 349.14029927205166
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    349.14029927205166,
+                    345.11800366047913,
+                    348.0752278174557,
+                    346.6414974704106,
+                    347.7096335960477
+                ],
+                [
+                    310.53476457907675,
+                    311.6290243442596,
+                    312.18805848779243,
+                    310.30428568961673,
+                    312.1899136902709
+                ],
+                [
+                    332.95927352720656,
+                    331.6266894937703,
+                    331.7043025312129,
+                    332.05906282896905,
+                    332.71631774957876
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "stroom.shapeshifter.engine.bench.EngineBenchmark.run",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "/home/dev1/.sdkman/candidates/java/25.0.3-tem/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "25.0.3",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "25.0.3+9-LTS",
+        "warmupIterations" : 3,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "workload" : "element_storm"
+        },
+        "primaryMetric" : {
+            "score" : 150.72673843243166,
+            "scoreError" : 3.07094075680413,
+            "scoreConfidence" : [
+                147.65579767562753,
+                153.7976791892358
+            ],
+            "scorePercentiles" : {
+                "0.0" : 146.2699076515983,
+                "50.0" : 150.37450416733412,
+                "90.0" : 155.1028029126269,
+                "95.0" : 156.02866197624897,
+                "99.0" : 156.02866197624897,
+                "99.9" : 156.02866197624897,
+                "99.99" : 156.02866197624897,
+                "99.999" : 156.02866197624897,
+                "99.9999" : 156.02866197624897,
+                "100.0" : 156.02866197624897
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    156.02866197624897,
+                    152.32365706759816,
+                    154.48556353687889,
+                    152.75898344455746,
+                    154.06971902490224
+                ],
+                [
+                    150.37450416733412,
+                    149.32612687834236,
+                    151.2249787888313,
+                    150.24070690485314,
+                    151.3821366853792
+                ],
+                [
+                    147.9965906631301,
+                    147.1792831332093,
+                    149.97117583795992,
+                    146.2699076515983,
+                    147.2690807256511
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+
