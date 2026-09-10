@@ -138,7 +138,7 @@ public final class Run {
             messages.add(new Message(Severity.FATAL, "Reading the input failed: " + e.getCause()));
         } catch (final OutputSink.StructureException e) {
             // A write the sink could not place — text at document level on the event sink is
-            // the case — rather than a structural call, which structure() has already named.
+            // the case — rather than a structural call, which the body has already named.
             // The same rule as above: a misplaced write is the run's last message, not an
             // exception through the caller.
             messages.add(new Message(Severity.FATAL, "Output structure: " + e.getMessage()));
@@ -171,9 +171,12 @@ public final class Run {
                     0);
             if (i < plan.opened().size()) {
                 final CompiledOp.Element element = plan.opened().get(i);
-                body.structure(() -> out.sink().startElement(element.name(), element.namespace(),
-                        element.omitIfEmpty()),
-                        "element", element.name());
+                try {
+                    out.sink().startElement(element.name(), element.namespace(),
+                            element.omitIfEmpty());
+                } catch (final OutputSink.StructureException e) {
+                    body.refused("element", element.name(), e);
+                }
             }
         }
 
@@ -185,7 +188,11 @@ public final class Run {
                     0);
             if (i > 0) {
                 final CompiledOp.Element element = plan.opened().get(i - 1);
-                body.structure(out.sink()::endElement, "element", element.name());
+                try {
+                    out.sink().endElement();
+                } catch (final OutputSink.StructureException e) {
+                    body.refused("element", element.name(), e);
+                }
             }
         }
     }

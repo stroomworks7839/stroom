@@ -205,6 +205,36 @@ rows that execute the most instructions, which is not a change worth keeping for
 kept in the tree as phase 1b's base, because 1b's shrinkage only works on top of it, and the pair
 must be measured together as well as apart.
 
+### The structural refusal stops being a closure, 2026-09-10
+
+*Found by phase 1's regression rather than looked for, and separable from the rest of this
+design: it is an allocation question, not a dispatch one.*
+
+`Body.structure(Runnable, kind, name)` wrapped every `startElement`, `endElement`,
+`startAttribute`, `endAttribute` and `namespace` call so that the sink's structural refusal became
+the run's last message naming the instruction that broke it. **That shape is right** — the sink
+knows the rule, the body knows the instruction, and deferring means the message is built only on
+the path that is refused. It is also free *when it inlines*, and `PrintInlining` showed
+`structure` (52 bytes) inlining at five of its ten sites and failing at the other five.
+
+It is now a `try`/`catch` at each call, with the message built by a `refused(kind, name, e)`
+helper. Identical message, identical semantics, no capturing lambda.
+
+**Measured before the change was kept, as the gate for it:** `element_storm` allocated
+**42,376,495.8 B/op** and now allocates **38,921,390.2** — **−3,455,105 bytes per operation,
+−8.2%**. That row writes 40,260 elements and 36,600 attributes, at two capturing sites each, so
+153,720 lambdas per operation at about 22.5 bytes apiece. The estimate offered beforehand as a
+*ceiling* — "at most 3.7 MB" — turned out to be the actual figure, which means escape analysis
+was scalar-replacing approximately none of them.
+
+**The catch is at each call rather than around the interpreter's loop, and that is not
+stylistic.** A loop-level handler would enclose the nested body an element runs, so a *text*
+placement the sink refuses three levels down would be caught by the enclosing element's handler
+and reported as that element's fault. The version first proposed in conversation had exactly that
+defect; catching at the call keeps the instruction named correctly, and leaves a refusal from any
+other instruction to reach `Run`, which reports it without naming one — which is what it did
+before.
+
 **Phase 2 — the ops as an array.** `List<CompiledOp>` becomes `CompiledOp[]`, with the type
 switch still in place. Measure against phase 1. This is the collection half, and it is separable
 from the dispatch by construction — which is the point of doing it on its own.

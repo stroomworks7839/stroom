@@ -319,22 +319,40 @@ final class Body {
         // Read once: the close has to reach the sink the open went to, and a variable inside the
         // body redirects the register while it runs.
         final Output sink = out;
-        structure(() -> sink.sink().startElement(op.name(), op.namespace(), op.omitIfEmpty()),
-                "element", op.name());
+        try {
+            sink.sink().startElement(op.name(), op.namespace(), op.omitIfEmpty());
+        } catch (final OutputSink.StructureException e) {
+            refused("element", op.name(), e);
+        }
         run(op.body());
-        structure(sink.sink()::endElement, "element", op.name());
+        try {
+            sink.sink().endElement();
+        } catch (final OutputSink.StructureException e) {
+            refused("element", op.name(), e);
+        }
     }
 
     private void attribute(final CompiledOp.Attribute op) {
         final Output sink = out;
-        structure(() -> sink.sink().startAttribute(op.name(), op.omitIfEmpty()),
-                "attribute", op.name());
+        try {
+            sink.sink().startAttribute(op.name(), op.omitIfEmpty());
+        } catch (final OutputSink.StructureException e) {
+            refused("attribute", op.name(), e);
+        }
         run(op.body());
-        structure(sink.sink()::endAttribute, "attribute", op.name());
+        try {
+            sink.sink().endAttribute();
+        } catch (final OutputSink.StructureException e) {
+            refused("attribute", op.name(), e);
+        }
     }
 
     private void namespace(final CompiledOp.Namespace op) {
-        structure(() -> out.sink().namespace(op.prefix(), op.uri()), "namespace", op.prefix());
+        try {
+            out.sink().namespace(op.prefix(), op.uri());
+        } catch (final OutputSink.StructureException e) {
+            refused("namespace", op.prefix(), e);
+        }
     }
 
     private void valueMap(final CompiledOp.ValueMap op) {
@@ -932,22 +950,31 @@ final class Body {
     }
 
     /**
-     * A structural call, with the sink's refusal turned into the run's last message. The sink
-     * knows the rule (an attribute after content, a close with nothing open); the body knows
-     * which instruction broke it, and a fatal is where a misshapen document stops rather than a
-     * half-written one continuing.
+     * A structural refusal, turned into the run's last message. The sink knows the rule (an
+     * attribute after content, a close with nothing open); the body knows which instruction
+     * broke it, and a fatal is where a misshapen document stops rather than a half-written one
+     * continuing.
+     *
+     * <p>The refusal is caught at each call rather than around the interpreter's loop, and the
+     * difference is not stylistic. A loop-level handler would enclose the nested body an element
+     * or attribute runs, so a <i>text</i> placement the sink refuses three levels down would be
+     * caught by the enclosing element's handler and reported as that element's fault. Catching at
+     * the call keeps the instruction named correct, and leaves a refusal from any other
+     * instruction to reach the run, which reports it without naming one (design 33).
+     *
+     * <p>This took a {@link Runnable} until 2026-09-10, so that the message was built only on the
+     * path that is refused. That reads correctly and costs nothing when it inlines — and
+     * {@code PrintInlining} showed it inlining at five of its ten sites and failing at the other
+     * five, at which point the capturing lambda is a real allocation on the one workload that
+     * writes 76,860 elements and attributes per operation. The message is still built only when
+     * refused, because building it is what this method is.
      */
-    // The instruction is named in two pieces so that the message is built only when the
-    // structure is actually refused. This runs on every element, attribute and namespace a body
-    // writes, and the refusal is the case that does not happen.
-    void structure(final Runnable call, final String kind, final String name) {
-        try {
-            call.run();
-        } catch (final OutputSink.StructureException e) {
-            messages.add(new Message(Severity.FATAL,
-                    "Output structure at " + kind + " '" + name + "': " + e.getMessage()));
-            throw new AbortRun();
-        }
+    void refused(final String kind,
+                         final String name,
+                         final OutputSink.StructureException e) {
+        messages.add(new Message(Severity.FATAL,
+                "Output structure at " + kind + " '" + name + "': " + e.getMessage()));
+        throw new AbortRun();
     }
 
     /**
