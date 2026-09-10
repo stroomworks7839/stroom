@@ -24,6 +24,7 @@ import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.function.RunMode;
 import stroom.shapeshifter.engine.function.Services;
 import stroom.shapeshifter.engine.graph.CompiledProject;
+import stroom.shapeshifter.engine.text.Encoding;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -55,6 +56,18 @@ public final class Shapeshifter {
      */
     public static CompiledProject compile(final Project project, final FunctionRegistry registry) {
         return Compiler.compile(project, registry);
+    }
+
+    /**
+     * Compile a configuration <b>for a reading</b> (design 32): the encoding is settled against
+     * the input before anything compiles, because a compiled model carries its reading in every
+     * pattern, delimiter and step. {@code auto} is refused — it is an instruction, and this takes
+     * an answer.
+     */
+    public static CompiledProject compile(final Project project,
+                                          final FunctionRegistry registry,
+                                          final Encoding source) {
+        return Compiler.compile(project, registry, source);
     }
 
     /**

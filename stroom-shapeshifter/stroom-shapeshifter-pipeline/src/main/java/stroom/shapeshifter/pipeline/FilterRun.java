@@ -97,10 +97,12 @@ final class FilterRun {
 
     private void run() {
         try {
+            final ShapeshifterReader.Chosen chosen = reader.choose(pipe.reader());
             final InputLocations locations = new InputLocations();
-            final InputLocations.LineIndex lines = new InputLocations.LineIndex(pipe.reader());
+            final InputLocations.LineIndex lines = new InputLocations.LineIndex(chosen.stream());
             locations.bound(lines);
-            messages = reader.runInto(lines, locations, new Enqueuer(locations, lines));
+            messages = reader.runInto(chosen.project(), lines, locations,
+                    new Enqueuer(locations, lines));
         } catch (final Throwable t) {
             failure = t;
             // The writer may be blocked on a full pipe; it must find out.

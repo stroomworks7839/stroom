@@ -72,20 +72,51 @@ public final class Compiler {
     /**
      * Compile a configuration against the functions it may call (design 26 §3): an unknown name
      * or a wrong arity is a {@link ConfigException}, by name.
+     *
+     * <p>The source's declared encoding is used, and {@code auto} resolves to UTF-8 — because
+     * there is no input here to look at, and design 32 §6 ruled UTF-8 the default. A caller that
+     * <em>has</em> the input should settle the encoding itself and use
+     * {@link #compile(Project, FunctionRegistry, Encoding)}.
      */
     public static CompiledProject compile(final Project project, final FunctionRegistry registry) {
+        final Encoding declared = encoding(project.source().encoding());
+        return compile(project, registry, declared == Encoding.AUTO ? Encoding.UTF_8 : declared);
+    }
+
+    /**
+     * Compile a configuration <b>for a reading</b> (design 32).
+     *
+     * <p>A compiled model is compiled for one encoding: its patterns are interned under keys that
+     * carry it, its delimiters are pre-encoded, its steps are compiled for a decoding. So the
+     * encoding is settled before anything here runs, and this refuses {@link Encoding#AUTO}
+     * rather than accepting an instruction where a reading belongs.
+     *
+     * <p>That refusal is the invariant, not a formality: {@code AUTO} reaching a compiler is how
+     * a graph ends up unable to say what it was built for, which is the defect design 32 exists
+     * to remove. The orchestration resolves it — from the declaration, or by sniffing the input —
+     * and pools a model per reading it needs.
+     *
+     * @param source the reading the input is in; never {@code AUTO}
+     */
+    public static CompiledProject compile(final Project project,
+                                          final FunctionRegistry registry,
+                                          final Encoding source) {
+        if (source == Encoding.AUTO) {
+            throw new ConfigException("A configuration is compiled for a reading, and 'auto' is "
+                                      + "an instruction rather than one: settle the encoding "
+                                      + "against the input before compiling (design 32)");
+        }
         final Functions functions = new Functions(registry);
-        final Encoding sourceEncoding = encoding(project.source().encoding());
         // A transcode-family source (design 19 phase 6) is decoded whole to UTF-8 before the
         // window machinery sees it, so everything below compiles as a UTF-8 feed: delimiters,
         // steps, regexes, capture decoding. Spans are offsets into the transcoded bytes —
         // design 19 §4.0's accepted trade for the encodings that never preserved offsets anyway.
-        final Encoding transcodeFrom = RegexEncodings.needsTranscode(sourceEncoding)
-                ? sourceEncoding
+        final Encoding transcodeFrom = RegexEncodings.needsTranscode(source)
+                ? source
                 : null;
         final Encoding encoding = transcodeFrom != null
                 ? Encoding.UTF_8
-                : sourceEncoding;
+                : source;
         // Names are interned as the graph is built, by whatever compiles a node that names a
         // variable — the same shape the match compiler interns patterns with, and no second
         // walk to keep in step with the first (design 30 §5.5).

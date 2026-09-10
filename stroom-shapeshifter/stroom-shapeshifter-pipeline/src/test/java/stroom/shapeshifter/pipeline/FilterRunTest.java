@@ -20,6 +20,7 @@ import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
 import stroom.pipeline.writer.TextWriter;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.text.Encoding;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
@@ -251,8 +252,10 @@ class FilterRunTest {
      */
     @Test
     void textConfigurationStreamsCharactersAndCarriesTheSameValuesAsTheStructuredOne() throws Exception {
-        assertThat(reader(USERS).compiled().structured()).isTrue();
-        assertThat(reader(USERS_AS_TEXT).compiled().structured()).isFalse();
+        // The pool compiles on demand now, so ask it for the reading these fixtures are in.
+        assertThat(reader(USERS).compiled().forEncoding(Encoding.UTF_8).structured()).isTrue();
+        assertThat(reader(USERS_AS_TEXT).compiled().forEncoding(Encoding.UTF_8).structured())
+                .isFalse();
 
         // Enough records that the pipe fills many times over: delivery before the end is then
         // forced by back-pressure, not left to whether the worker's thread was scheduled first.
@@ -362,9 +365,11 @@ class FilterRunTest {
     void workerThatDiesUnblocksTheWriterAndSurfacesAtTheJoin() throws Exception {
         final ShapeshifterReader failing = new ShapeshifterReader(reader(USERS_AS_TEXT).compiled()) {
             @Override
-            List<stroom.shapeshifter.engine.Message> runInto(final InputLocations.LineIndex lines,
-                                                             final InputLocations locations,
-                                                             final ContentHandler handler) {
+            List<stroom.shapeshifter.engine.Message> runInto(
+                    final stroom.shapeshifter.engine.graph.CompiledProject compiled,
+                    final InputLocations.LineIndex lines,
+                    final InputLocations locations,
+                    final ContentHandler handler) {
                 throw new IllegalStateException("the engine fell over");
             }
         };

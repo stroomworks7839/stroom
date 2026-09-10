@@ -212,10 +212,34 @@ Every non-`ASSUMED` verdict over the corpus is now correct. **The lesson is desi
 again**: the unit tests were written from what I imagined the inputs looked like, and the corpus
 had a six-byte binary in it that no imagined case resembled.
 
-**Phase 3 — settle before compiling.** `Compiler.compile` takes a concrete encoding and refuses
-`AUTO`; the factory owns a pool and compiles per encoding on demand; the reader sniffs at `parse`
-and asks for the graph it needs. `Encoding.AUTO` stops reaching the compiler at all, and the
-refusal is what proves it.
+**Phase 3 — settle before compiling. Done 2026-09-10.** `Compiler.compile(project, registry,
+source)` refuses `AUTO` — the invariant made loud rather than conventional. `CompiledProjects` is
+the pool; `ShapeshifterParserFactory` owns it and `ShapeshifterReader.choose` settles the reading
+when a stream arrives, because a parser is handed out before any byte exists. The declaration wins
+where there is one; otherwise the head is sniffed, buffered and reset so **nothing is consumed** —
+two tests pin that, one with an input five times the window, since getting it wrong would silently
+eat the first 8 KiB of every undeclared run.
+
+The two older overloads still resolve the declaration with `auto` → UTF-8, so every existing
+caller is unchanged: **phase 3 moves when the encoding is settled, not what anything reads.**
+Compilation also became lazy, which falls out of the pool — a configuration never parsed with is
+never compiled, where the factory's constructor used to compile regardless.
+
+*The audit found one regression and one gap.*
+
+**`compiled.encoding()` was `auto` for an undeclared source and is now `utf-8`**, which is the
+point of the phase — but `Run.applyMark` built its refusal from it, so a source that declared
+nothing was being told it "is declared utf-8". A message whose whole value is describing the
+author's configuration was describing something else. It reads the declaration now, and
+`MarkRefusalMessageTest` pins it: **1,149 tests had not noticed, because nothing pinned that
+message at all.**
+
+**The multi-byte grammars are unreachable.** The wiring passes no candidates, because which
+encodings a feed might carry is a deployment's knowledge and there is nowhere in the source
+configuration to say it. Passing all six would be worse than passing none — their grammars
+overlap, so the answer would be right by luck. Giving the candidate list a home in the
+configuration is its own change, and until it has one, phases 1 and 2's multi-byte work is built
+and idle.
 
 **Phase 4 — remove the dual reading.** `marked`, `forEncoding`, `markEncoding`, `applyMark`, and
 `Body.encoding`'s setter. This is the phase that pays for itself in deletions, and it must come

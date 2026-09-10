@@ -17,10 +17,8 @@
 package stroom.shapeshifter.pipeline;
 
 import stroom.pipeline.xml.converter.ParserFactory;
-import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
-import stroom.shapeshifter.engine.graph.CompiledProject;
 
 import org.xml.sax.XMLReader;
 
@@ -34,7 +32,7 @@ import org.xml.sax.XMLReader;
  */
 public class ShapeshifterParserFactory implements ParserFactory {
 
-    private final CompiledProject compiled;
+    private final CompiledProjects compiled;
 
     public ShapeshifterParserFactory(final Project project) {
         this(project, FunctionRegistry.EMPTY);
@@ -42,9 +40,16 @@ public class ShapeshifterParserFactory implements ParserFactory {
 
     /** Compile against the functions the configuration may call (design 26). */
     public ShapeshifterParserFactory(final Project project, final FunctionRegistry registry) {
-        this.compiled = Shapeshifter.compile(project, registry);
+        this.compiled = new CompiledProjects(project, registry);
     }
 
+    /**
+     * A parser over the pool rather than over one compiled model (design 32 §4.1).
+     *
+     * <p>This is handed out before any byte of the input exists, so it cannot be the place a
+     * reading is chosen — the reader sniffs when a stream arrives and asks the pool then. A run
+     * still sees exactly one immutable graph; what moved is when it is picked.
+     */
     @Override
     public XMLReader getParser() {
         return new ShapeshifterReader(compiled);

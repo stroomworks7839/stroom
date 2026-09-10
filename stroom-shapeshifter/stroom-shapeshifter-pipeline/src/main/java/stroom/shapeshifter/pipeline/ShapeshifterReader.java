@@ -26,6 +26,8 @@ import stroom.shapeshifter.engine.function.Services;
 import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.output.CharacterSink;
 import stroom.shapeshifter.engine.output.SaxEventSink;
+import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.text.EncodingSniffer;
 import stroom.util.shared.Severity;
 
 import org.xml.sax.ContentHandler;
@@ -36,6 +38,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.helpers.LocatorImpl;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -74,12 +77,12 @@ public class ShapeshifterReader extends AbstractParser {
     private static final int EXCERPT_LENGTH = 200;
     private static final Locator UNLOCATED = unlocated();
 
-    private final CompiledProject compiled;
+    private final CompiledProjects compiled;
     // Design 26: what this document's run makes reachable to its functions, and how it is run.
     private Services services = Services.NONE;
     private RunMode mode = RunMode.NORMAL;
 
-    public ShapeshifterReader(final CompiledProject compiled) {
+    public ShapeshifterReader(final CompiledProjects compiled) {
         this.compiled = Objects.requireNonNull(compiled, "compiled");
     }
 
@@ -93,8 +96,8 @@ public class ShapeshifterReader extends AbstractParser {
         this.mode = Objects.requireNonNull(mode, "mode");
     }
 
-    /** The configuration this parser runs. */
-    public CompiledProject compiled() {
+    /** The configurations this parser runs, one per reading (design 32 §4.1). */
+    public CompiledProjects compiled() {
         return compiled;
     }
 
@@ -104,7 +107,51 @@ public class ShapeshifterReader extends AbstractParser {
         // byte stream as it is, a reader encoded to UTF-8 as it is read.
         final InputStream stream = streamOf(input);
         checkEncoding(input);
-        parseLive(stream);
+        final Chosen chosen = choose(stream);
+        parseLive(chosen);
+    }
+
+    /**
+     * The model this stream should run under, and the stream with nothing taken from it.
+     *
+     * @param project the configuration compiled for the reading the input turned out to be in
+     * @param stream  the same input, buffered so that sniffing it consumed nothing
+     */
+    record Chosen(CompiledProject project, InputStream stream) {
+
+    }
+
+    /**
+     * Settle the reading before the model is chosen (design 32 §4.1).
+     *
+     * <p>A parser is handed out before any byte exists, so this is the first moment an encoding
+     * can be known. The declaration wins when there is one — an author who has said what the feed
+     * is should not be second-guessed — and otherwise the head of the stream is sniffed.
+     *
+     * <p><b>Nothing is consumed.</b> The stream is buffered and marked, the window read, and the
+     * stream reset, so the engine sees the input from its first byte exactly as before.
+     */
+    Chosen choose(final InputStream input) throws IOException {
+        final String declared = compiled.project().source().encoding();
+        final Encoding named = declared == null ? null : Encoding.fromLabel(declared);
+        if (named != null && named != Encoding.AUTO) {
+            return new Chosen(compiled.forEncoding(named), input);
+        }
+        final InputStream buffered = input.markSupported()
+                ? input
+                : new BufferedInputStream(input, EncodingSniffer.WINDOW + 1);
+        buffered.mark(EncodingSniffer.WINDOW + 1);
+        final byte[] window = new byte[EncodingSniffer.WINDOW];
+        final int read = Math.max(0, buffered.readNBytes(window, 0, window.length));
+        buffered.reset();
+        // No multi-byte candidates, and that is a gap rather than a decision. The sniffer can
+        // recognise Shift_JIS, EUC-JP, GBK, GB18030, Big5 and EUC-KR by their byte grammars, but
+        // which of them a feed might carry is a deployment's knowledge and there is nowhere in
+        // the source configuration to say it — passing all six would be worse than passing none,
+        // because their grammars overlap and the answer would be right by luck (design 32 §5).
+        // Giving the list a home in the configuration is its own change.
+        final EncodingSniffer.Sniff sniff = EncodingSniffer.sniff(window, read, Encoding.UTF_8);
+        return new Chosen(compiled.forEncoding(sniff.encoding()), buffered);
     }
 
     /**
@@ -115,15 +162,16 @@ public class ShapeshifterReader extends AbstractParser {
      * collects them and the events cannot wait. A text run has no root to end its document, so
      * the sink is told when the run is over.
      */
-    private void parseLive(final InputStream input) throws SAXException {
+    private void parseLive(final Chosen chosen) throws SAXException {
         final ContentHandler target = getContentHandler();
         if (target == null) {
             throw new SAXException("No content handler set");
         }
         final InputLocations locations = new InputLocations();
-        final InputLocations.LineIndex lines = new InputLocations.LineIndex(input);
+        final InputLocations.LineIndex lines = new InputLocations.LineIndex(chosen.stream());
         locations.bound(lines);
-        reportAll(runInto(lines, locations, new LiveLocatingHandler(target, locations, lines)));
+        reportAll(runInto(chosen.project(), lines, locations,
+                new LiveLocatingHandler(target, locations, lines)));
     }
 
     /**
@@ -134,7 +182,8 @@ public class ShapeshifterReader extends AbstractParser {
      * is the run's last message, in the words the engine uses for a refusal mid-run, rather than
      * an exception that would carry the messages away with it (phase 1 audit).
      */
-    List<Message> runInto(final InputLocations.LineIndex lines,
+    List<Message> runInto(final CompiledProject compiled,
+                          final InputLocations.LineIndex lines,
                           final InputLocations locations,
                           final ContentHandler handler) {
         // This run's own service: where an offset is, over the same line index that locates

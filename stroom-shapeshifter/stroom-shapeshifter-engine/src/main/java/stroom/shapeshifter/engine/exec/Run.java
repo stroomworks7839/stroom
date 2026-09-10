@@ -250,9 +250,15 @@ public final class Run {
      */
     private void applyMark(final Encoding.ByteOrderMark mark) {
         if (RegexEncodings.needsTranscode(mark.encoding())) {
+            // The *declaration*, not the reading in force. Since design 32 phase 3 the encoding
+            // is settled before compiling, so an undeclared source arrives here reading as UTF-8
+            // — and telling its author it "is declared utf-8" would be a lie about their
+            // configuration, which is the one thing this message exists to talk about.
+            final String declared = compiled.project().source().encoding();
+            final boolean undeclared = declared == null || Encoding.fromLabel(declared) == Encoding.AUTO;
             messages.add(new Message(Severity.FATAL, "The input begins with a " + mark.encoding().label()
                     + " byte-order mark, but the source "
-                    + (encoding == Encoding.AUTO ? "declares no encoding" : "is declared " + encoding.label())
+                    + (undeclared ? "declares no encoding" : "is declared " + declared)
                     + ": declare " + mark.encoding().label()
                     + " on the source so the stream is transcoded whole"));
             throw new AbortRun();
