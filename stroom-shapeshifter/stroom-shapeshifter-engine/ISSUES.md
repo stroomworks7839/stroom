@@ -1272,6 +1272,30 @@ remains is conditions: `Conditions` and the lookup `CompiledRefs` shares are `Re
 and this entry owns their measurement.*
 
 ### E45 — A `matches` condition decodes its subject and re-encodes it
+**`resolved` 2026-09-10 — on D38's ground, and the round trip turned out to be breaking a
+ruling rather than merely wasting work.** `Conditions` hands the pattern the value's bytes.
+
+*The check that was owed first said the question was real.* Nothing validates a UTF-8 feed's
+bytes: `TypedValue.of(bytes, encoding)` wraps them as read, so an ordinary log with a truncated
+write or a stray byte puts undecodable bytes in a `Utf8Bytes`. And the behaviour was pinned before
+it was changed, which is what made it worth doing: over an input of one `0xFF` byte, the pattern
+`^.$` **matched** — the byte had become U+FFFD, and a replacement character is a character. D38
+says undecodable bytes match nothing. `MalformedBytesTest` pins both directions, and **no golden
+moved**, so nothing in the corpus depended on the substitution.
+
+*What it also removes*, and what the entry was originally about: a `String` and an array allocated
+per evaluation, 624 times per operation on `apache_httpd` and nowhere else.
+
+**`contains` and `starts-with` still decode**, deliberately: a `matches` test runs a byte pattern,
+while those compare text against authored text, so they still see a replacement character where
+the input had an undecodable byte. Making them byte operations would be *equivalent* for
+well-formed input — UTF-8 is self-synchronising, so byte containment and character containment
+agree — and stricter for the rest, which is the same ruling again on two more instructions.
+**Left as the follow-on**, unruled, because it should be decided rather than inherited from what
+one change happened to touch.
+
+*Original text (found open):*
+
 **`open` 2026-09-10, found auditing design 30 phase 6.** `Conditions.evaluate` resolves a
 `matches` subject to a `String` and immediately calls `getBytes(UTF_8)` to hand it to a
 `BytePattern`. The resolver already returns UTF-8 bytes, so the round trip is a `String`
@@ -1281,12 +1305,56 @@ for text. A byte matcher is not such a consumer.
 
 **Not fixed with phase 6, because it is not only an optimisation.** The round trip is lossy: a
 malformed byte sequence decodes to U+FFFD and re-encodes as `EF BF BD`, so the pattern currently
-sees substitution characters where the input had undecodable bytes. Passing the bytes through
-would show it the input. D38 ruled that undecodable bytes match nothing, which points at the
-direct path being the right one — but that is a ruling about what a `matches` test sees, and it
-should be made deliberately rather than arrive inside a change about name resolution. Whoever
-takes this should say which behaviour is intended and add a fixture with malformed input, since
-nothing in the corpus currently distinguishes them.
+sees substitution characters where the input had undecodable bytes.
+
+*Reframed 2026-09-10, having first framed it wrongly.* This entry originally implied that a
+`matches` test should see what a template's `match` regex sees, which is **feed bytes**. It should
+not, and the engine already says so: `PatternKey.ofValue` compiles a value pattern for UTF-8
+always, because "a value's internal form is UTF-8 whatever the feed's encoding, so the compilation
+is the UTF-8 one; only the match vocabulary sees feed bytes" (design 19 phase 3). The two paths are
+separated deliberately, and consistency between them is not an argument for anything.
+
+**What survives is narrower, and is one question.** `EncodedBytes.asUtf8()` transcodes, so for a
+non-UTF-8 feed the round trip is provably a no-op — decode, to text, to UTF-8, to text, to UTF-8,
+lands in the same place. `Utf8Bytes.asUtf8()` returns its array unvalidated. So the round trip
+changes exactly one case: **malformed bytes on a UTF-8-compatible feed**, where it silently
+substitutes. Which makes the question:
+
+> Does `Utf8Bytes` guarantee well-formed UTF-8, or does it hold what was read and call it UTF-8?
+
+`TypedValue.of(bytes, encoding)` wraps a UTF-8-compatible feed's bytes without validating, so
+today it is the second: the "internal form is UTF-8" line is an assumption rather than an
+invariant. If it were meant to hold, this round trip is pure waste and its removal changes nothing
+— but then something should be validating, and nothing is. If it is not meant to hold, the round
+trip is sanitising a value on one path and not on others, and D38's "undecodable bytes match
+nothing" says a pattern should not be handed a substitution character to match against; leniency
+arriving by accident is what that ruling refuses.
+
+**Recommended: pass the bytes through**, on D38's ground rather than on any consistency argument.
+Before that, one cheap thing worth knowing, because it may dissolve the question entirely: *can a
+malformed sequence actually reach a `Utf8Bytes`?* UTF-8 is self-synchronising, so delimiter
+splitting cannot cut a character; a byte-offset `substring` or a truncated input could. If it
+cannot happen, this is a free deletion and not a behaviour decision at all. Either way it needs a
+fixture with malformed input, since nothing in the corpus distinguishes the two behaviours.
+
+### E47 — A `matches` condition allocates a matcher per evaluation
+**`open` 2026-09-10, found auditing E45's fix.** `Conditions` calls
+`value.pattern().matcher()` on every evaluation, and `BytePattern.matcher()` is
+`new ByteMatcher(this)`. So a `matches` test allocates a matcher per record — 624 per operation
+on `apache_httpd`, the same order as the `String` and array that E45 just removed from the very
+same line.
+
+**Design 10's change 1 was exactly this**, "a matcher held as a *field* of the compiled node", and
+it is held everywhere else it was applied: `CompiledMatch.Regex` has one, and `Replacer` has one,
+whose javadoc explains that a matcher as a field is safe because a replacer "runs under the
+graph's one-run-at-a-time contract". `CompiledCondition.Matches` holds the `BytePattern` and
+stops there — design 30 phase 2 gave it the pattern, which was that phase's subject, and the
+matcher was not noticed.
+
+So the fix is to hold the matcher, on the same contract that lets `Replacer` hold one, and the
+work is one field. Not folded into E45 because that entry was a *behaviour* ruling and this is an
+allocation: keeping them apart keeps the reason each was done legible, and this one wants its own
+count first (§7's rule) since 624 per operation on one workload may well measure at nothing.
 
 ### E46 — `and` and `or` allocate a stream and a capturing lambda per evaluation
 **`open` 2026-09-10, found auditing design 30 phase 6.** `Conditions.evaluate` runs its `and` and

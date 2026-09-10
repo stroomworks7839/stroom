@@ -24,7 +24,6 @@ import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;
 
-import java.nio.charset.StandardCharsets;
 
 /**
  * Deciding whether a condition holds.
@@ -38,6 +37,9 @@ import java.nio.charset.StandardCharsets;
  * all, which is a different question from whether the value equals something.
  */
 public final class Conditions {
+
+    /** Absent resolves to nothing, which is what an empty subject says to a matcher. */
+    private static final byte[] EMPTY = new byte[0];
 
     private Conditions() {
     }
@@ -68,9 +70,26 @@ public final class Conditions {
             }
             // The pattern is the node's own: compiled when the condition was, not found by
             // hashing its text on every evaluation (design 30).
-            case final CompiledCondition.Matches value -> value.pattern().matcher().find(
-                    text(value.select(), match, matchCount, vars)
-                            .getBytes(StandardCharsets.UTF_8));
+            //
+            // The subject is the value's bytes, not its text. Decoding and re-encoding used to
+            // sit here, and did two things: it allocated a String and an array per evaluation,
+            // and it substituted U+FFFD for anything undecodable — handing the pattern a
+            // character to match where the input had none. D38 ruled that undecodable bytes
+            // match nothing, and a value pattern already compiles for UTF-8 whatever the feed's
+            // encoding (PatternKey.ofValue), so the value's own UTF-8 form is what it wants
+            // (E45).
+            case final CompiledCondition.Matches value -> {
+                final byte[] subject =
+                        CompiledRefs.resolve(value.select(), match, matchCount, vars);
+                yield value.pattern().matcher().find(subject == null ? EMPTY : subject);
+            }
+            // These two decode, where matches above does not, and the difference is the
+            // instruction rather than an oversight: a matches test runs a byte pattern, while
+            // contains and starts-with compare text against authored text. So they still see a
+            // replacement character where the input had an undecodable byte. Making them byte
+            // operations would be equivalent for well-formed input — UTF-8 is self-synchronising,
+            // so byte containment and character containment agree — and stricter for the rest;
+            // E45 carries it as the follow-on rather than assuming it.
             case final CompiledCondition.Contains value ->
                     text(value.select(), match, matchCount, vars).contains(value.substring());
             case final CompiledCondition.StartsWith value ->
