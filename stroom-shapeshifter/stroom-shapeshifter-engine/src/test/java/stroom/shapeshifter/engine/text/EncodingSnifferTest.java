@@ -238,6 +238,37 @@ class EncodingSnifferTest {
     }
 
     @Test
+    void binaryWithoutNulIsStillBinary() {
+        // This is the corpus's own progressive_varint_zigzag fixture, all six bytes of it. It
+        // carries no NUL, so the NUL rule misses it, and two of its bytes fall in Shift_JIS's
+        // half-width katakana range — so before the audit it was reported as Shift_JIS, DEDUCED,
+        // off six bytes. Two thirds of it is control bytes, which no text is.
+        final Sniff sniff = sniffAll(bytes(0x01, 0x02, 0xC7, 0x01, 0xC8, 0x01));
+        assertThat(sniff.encoding()).isEqualTo(Encoding.RAW);
+        assertThat(sniff.because()).contains("control");
+    }
+
+    @Test
+    void tabsNewlinesAndFormFeedsAreText() {
+        // The control rule must not catch ordinary text: a file of tab-separated lines is a
+        // quarter control bytes by the naive count.
+        final Sniff sniff = sniff("a\tb\tc\r\nd\te\tf\r\ng\th\ti\r\n");
+        assertThat(sniff.encoding()).isEqualTo(FALLBACK);
+        assertThat(sniff.certainty()).isEqualTo(Certainty.ASSUMED);
+    }
+
+    @Test
+    void grammarNeedsTheSequencesItExistsFor() {
+        // Not violating a grammar is not evidence of being in it. These bytes never leave the
+        // single-byte ranges, so no multi-byte encoding has been demonstrated — and claiming one
+        // from that is how six bytes of binary became DEDUCED Shift_JIS.
+        final Sniff sniff = EncodingSniffer.sniff(bytes('h', 'i', 0xC7, 'x', 'y', 'z'), 6,
+                java.util.List.of(Encoding.SHIFT_JIS), FALLBACK);
+        assertThat(sniff.encoding()).isEqualTo(FALLBACK);
+        assertThat(sniff.certainty()).isEqualTo(Certainty.ASSUMED);
+    }
+
+    @Test
     void grammarsRejectAsWellAsAccept() {
         // Added by the audit. Every other test here would pass if a grammar simply returned
         // true for everything — "fits its own output" and "several fit" both survive that. This

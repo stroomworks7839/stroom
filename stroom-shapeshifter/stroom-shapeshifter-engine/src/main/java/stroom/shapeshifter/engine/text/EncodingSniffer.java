@@ -174,6 +174,13 @@ public final class EncodingSniffer {
             return new Sniff(Encoding.RAW, Certainty.DEDUCED,
                     "a NUL byte, which text does not contain");
         }
+        if (mostlyControl(window, limit)) {
+            // NUL is the usual tell and is not the only one. A varint fixture in this repo's own
+            // corpus carries none and is two thirds control bytes, which no text is — found by
+            // running the corpus rather than by reasoning about it.
+            return new Sniff(Encoding.RAW, Certainty.DEDUCED,
+                    "mostly control bytes, which text does not contain");
+        }
         final Utf8 utf8 = readUtf8(window, limit);
         if (utf8 == Utf8.INVALID) {
             // UTF-8 is asked before the candidate list, and outranks it, because the evidence is
@@ -211,6 +218,27 @@ public final class EncodingSniffer {
         // is a window rather than the whole input, so it cannot even promise the rest is ASCII.
         return new Sniff(fallback, Certainty.ASSUMED,
                 "nothing above 0x7F in the window, which every encoding reads alike");
+    }
+
+    /**
+     * Whether the window is more control bytes than text plausibly is.
+     *
+     * <p>Tab, newline, carriage return and form feed are text; the rest of C0 is not, and real
+     * text carries almost none of it. A fifth is far above what a text file reaches and far
+     * below what binary usually does.
+     */
+    private static boolean mostlyControl(final byte[] window, final int length) {
+        if (length == 0) {
+            return false;
+        }
+        int control = 0;
+        for (int i = 0; i < length; i++) {
+            final int b = window[i] & 0xFF;
+            if (b < 0x20 && b != '\t' && b != '\n' && b != '\r' && b != 0x0C) {
+                control++;
+            }
+        }
+        return control * 5 > length;
     }
 
     private static boolean hasNul(final byte[] window, final int length) {
@@ -368,6 +396,7 @@ public final class EncodingSniffer {
      * reason the UTF-8 read stops there: the window is a prefix.
      */
     private static boolean fits(final Encoding encoding, final byte[] window, final int length) {
+        int multiByte = 0;
         int i = 0;
         while (i < length) {
             final int b = window[i] & 0xFF;
@@ -386,14 +415,22 @@ public final class EncodingSniffer {
             };
             if (taken == 0) {
                 // Cut by the window's edge; the rest of the input would settle it.
-                return true;
+                return multiByte > 0;
             }
             if (taken < 0) {
                 return false;
             }
+            if (taken > 1) {
+                multiByte++;
+            }
             i += taken;
         }
-        return true;
+        // Not violating a grammar is not evidence of being in it: ASCII violates none of them,
+        // and so does a handful of bytes that happen to fall in a single-byte range. A window
+        // has to actually contain the multi-byte sequences the encoding exists for. Six bytes
+        // of a varint stream fitted Shift_JIS's half-width katakana range and were called
+        // DEDUCED before this — found by running the corpus, and absurd on its face.
+        return multiByte > 0;
     }
 
     /** Shift_JIS: half-width katakana stand alone, and trail bytes reach into the ASCII range. */

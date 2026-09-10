@@ -109,23 +109,41 @@ than pick a text encoding that will mojibake. Worth stating plainly: **`RAW` is 
 for binary, not a failure mode** — a configuration matching a JPEG's structure wants bytes, and
 every byte being a character is exactly what it needs.
 
-## 6. The default, which is the part with a trap in it
+## 6. The default: UTF-8
 
-Today `AUTO` reads as UTF-8. Three candidates, and the trade is not obvious:
+*Ruled 2026-09-10 — phase 2 — and the corpus was read before it was ruled rather than after.*
 
-- **UTF-8.** Right for modern input, and it is what `AUTO` already does. But undecodable bytes are
-  a real case — E45 was resolved on that ground the same day — so a UTF-8 default has to have an
-  answer for input that is *mostly* UTF-8 and occasionally not.
-- **Windows-1252 or Latin-1.** Never fails: every byte maps to a code point. That is the trap.
+The three candidates, and the trade:
+
+- **UTF-8.** Right for modern input, and what `AUTO` already does. It has to have an answer for
+  input that is *mostly* UTF-8 and occasionally not, which E45 gave the same day: undecodable
+  bytes match nothing.
+- **Windows-1252 or Latin-1.** Never fails: every byte maps to a code point. **That is the trap.**
   A wrong answer that cannot fail is worse than one that can, because nothing downstream can tell
-  it went wrong, and the mojibake reaches the index.
-- **RAW.** Never fails and never pretends: no byte claims to be a character it is not. The cost is
-  that character classes and case-insensitivity stop meaning anything above 0x7F.
+  it went wrong and the mojibake reaches the index.
+- **RAW.** Never fails and never pretends. The cost is that character classes and
+  case-insensitivity stop meaning anything above 0x7F.
 
-*No recommendation yet, deliberately.* This one wants the corpus looked at before it is answered —
-what the real DS3 configurations declare, and what their inputs actually are. The
-regex-corpus entry has been waiting on real configurations since 2026-08-27, and this is a second
-question that would be answered by the same material.
+**UTF-8, on three grounds.**
+
+*It is what the corpus expects.* Every configuration in the fixture set declares `auto` (36) or
+`utf-8` (15); not one declares a single-byte encoding, and no template overrides at all. Whatever
+the deployments turn out to hold, nothing here asks for anything else.
+
+*It is what the corpus contains.* Sniffing all 55 inputs: 5 binary — every `.bin` fixture, all
+answered `RAW` — 2 deduced UTF-8, and 48 that carry nothing above 0x7F and so read as the
+fallback. **There is not one input in the corpus that a single-byte default would serve better.**
+
+*And it makes the wiring a structural change rather than a behavioural one.* `AUTO` reads as UTF-8
+today, so a UTF-8 fallback means phase 3 moves *when* the encoding is settled without moving
+*what* anything reads. That is worth a great deal on a change that touches every pattern,
+delimiter and step in the compiler, and it is the difference between one risk and two.
+
+**What would reopen it.** A deployment whose feeds are genuinely Latin-1 or Windows-1252 and
+which cannot declare it. The answer then is still not to change the default — it is that such a
+feed *should* declare, and the sniffer's `ASSUMED` is the engine saying it does not know. Design
+30 phase 3 has the shape of the counter-argument if one arrives: count first, and if the assumed
+case is common and wrong in the field, that is a measurement rather than a preference.
 
 ## 7. Phasing
 
@@ -174,8 +192,25 @@ first page, and a test pins it.
 U+00FF carries no NULs and cannot be told from other two-byte data by structure; and single-byte
 encodings are not told apart at all, which is §6's open question rather than an omission.
 
-**Phase 2 — the ruling on §6**, the default, which is the owner's and is not a code change. §4 is
-ruled already.
+**Phase 2 — the ruling on §6. Done 2026-09-10: UTF-8**, on the corpus rather than on taste. §4
+was ruled already.
+
+*It was not only a ruling.* Reading the corpus to ground it ran the sniffer over all 55 inputs and
+found a phase 1 defect no unit test had: the six-byte `progressive_varint_zigzag` fixture,
+`01 02 C7 01 C8 01`, was reported as **Shift_JIS, DEDUCED**, because two of its bytes fall in the
+half-width katakana range and nothing else objected. Two fixes, both in phase 1's code and both
+tested:
+
+- **A grammar now needs the sequences it exists for.** Not violating a grammar is not evidence of
+  being in it — ASCII violates none of them. A window must actually contain multi-byte sequences
+  before an encoding can claim it.
+- **Binary detection is not only NUL.** That fixture carries none and is two thirds control bytes,
+  which no text is. The rule caught a second binary too — `protobuf_events` had been reading as
+  text.
+
+Every non-`ASSUMED` verdict over the corpus is now correct. **The lesson is design 29 §9's
+again**: the unit tests were written from what I imagined the inputs looked like, and the corpus
+had a six-byte binary in it that no imagined case resembled.
 
 **Phase 3 — settle before compiling.** `Compiler.compile` takes a concrete encoding and refuses
 `AUTO`; the factory owns a pool and compiles per encoding on demand; the reader sniffs at `parse`
