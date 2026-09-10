@@ -16,12 +16,14 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.compile.CompiledIndex;
 import stroom.shapeshifter.engine.compile.CompiledRef;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * Resolving compiled references — {@link Refs} with the interpretation already done.
@@ -31,10 +33,14 @@ import java.nio.charset.StandardCharsets;
  * call: literal text is a value made at compile time, written as its own array by a UTF-8
  * sink (design 25), and the shape of the expression is a dispatch, not a walk.
  *
- * <p>Two resolvers stay, by design: bodies and capture bindings resolve compiled references
- * here, while {@code Conditions} still resolves the authored expression through {@code Refs},
- * because compiling conditions is design 10 §2's open performance row and shape follows
- * measurement there (design 27 §2.7, E39; the captures came here with design 25 phase 3).
+ * <p>Two resolvers stay, and after design 30 phase 5 the second one is the design's last loose
+ * end rather than a deferred optimisation. Bodies and capture bindings resolve compiled
+ * references here, by <b>slot</b>; {@code Conditions} still resolves the authored expression
+ * through {@code Refs}, by <b>name</b>. That was deferred on a measurement — design 10 §2's open
+ * performance row, at 0.4% to 0.7% (design 27 §2.7, E39) — and the measurement still holds. What
+ * changed is that it is now the only run-time name lookup left whose key the compiler knew:
+ * 19,440 per operation on {@code apache_httpd}, 8,792 on {@code log_sessions}. Design 30 §6
+ * phase 6 is the proposal, and its argument is the count rather than the clock.
  */
 final class CompiledRefs {
 
@@ -52,24 +58,24 @@ final class CompiledRefs {
                          final VarRegistry vars,
                          final Output out) {
         switch (ref) {
-            case CompiledRef.Empty ignored -> {
+            case final CompiledRef.Empty ignored -> {
                 return false;
             }
-            case CompiledRef.Bytes bytes -> {
+            case final CompiledRef.Bytes bytes -> {
                 if (bytes.value().isEmpty()) {
                     return false;
                 }
                 out.write(bytes.value());
                 return true;
             }
-            case CompiledRef.Composite composite -> {
+            case final CompiledRef.Composite composite -> {
                 boolean wrote = false;
                 for (final CompiledRef part : composite.parts()) {
                     wrote |= write(part, match, matchCount, vars, out);
                 }
                 return wrote;
             }
-            case CompiledRef.LocalGroup group -> {
+            case final CompiledRef.LocalGroup group -> {
                 final TypedValue value = match.group(group.group());
                 if (value == null || value.isEmpty()) {
                     return false;
@@ -77,7 +83,7 @@ final class CompiledRefs {
                 out.write(value);
                 return true;
             }
-            case CompiledRef.RemoteVar remote -> {
+            case final CompiledRef.RemoteVar remote -> {
                 final TypedValue value = lookup(remote, matchCount, vars);
                 if (value == null || value.isEmpty()) {
                     return false;
@@ -85,7 +91,7 @@ final class CompiledRefs {
                 out.write(value);
                 return true;
             }
-            case CompiledRef.Context context -> {
+            case final CompiledRef.Context context -> {
                 final TypedValue value = lookup(context, matchCount, vars);
                 if (value == null || value.isEmpty()) {
                     return false;
@@ -100,7 +106,7 @@ final class CompiledRefs {
      * The value of a reference with its type preserved, or null if it resolves to nothing.
      *
      * <p>Only a single capture can carry a type (design/17 §3.1): literal text and a
-     * multi-part composite are strings by construction. A captured value carries its own
+     * multipart composite are strings by construction. A captured value carries its own
      * encoding (design 25), so nothing here converts.
      */
     static TypedValue resolveValue(final CompiledRef ref,
@@ -108,13 +114,13 @@ final class CompiledRefs {
                                    final int matchCount,
                                    final VarRegistry vars) {
         switch (ref) {
-            case CompiledRef.Empty ignored -> {
+            case final CompiledRef.Empty ignored -> {
                 return null;
             }
-            case CompiledRef.Bytes bytes -> {
+            case final CompiledRef.Bytes bytes -> {
                 return bytes.value().isEmpty() ? null : bytes.value();
             }
-            case CompiledRef.Composite composite -> {
+            case final CompiledRef.Composite composite -> {
                 final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                 boolean any = false;
                 for (final CompiledRef part : composite.parts()) {
@@ -126,15 +132,15 @@ final class CompiledRefs {
                 }
                 return any ? TypedValue.utf8(buffer.toByteArray()) : null;
             }
-            case CompiledRef.LocalGroup group -> {
+            case final CompiledRef.LocalGroup group -> {
                 final TypedValue value = match.group(group.group());
                 return value == null || value.isEmpty() ? null : value;
             }
-            case CompiledRef.RemoteVar remote -> {
+            case final CompiledRef.RemoteVar remote -> {
                 final TypedValue value = lookup(remote, matchCount, vars);
                 return value == null || value.isEmpty() ? null : value;
             }
-            case CompiledRef.Context context -> {
+            case final CompiledRef.Context context -> {
                 final TypedValue value = lookup(context, matchCount, vars);
                 return value == null || value.isEmpty() ? null : value;
             }
@@ -159,20 +165,55 @@ final class CompiledRefs {
         return bytes == null ? null : new String(bytes, StandardCharsets.UTF_8);
     }
 
-    /** A variable's value by name, group and match index, or null. */
+    /**
+     * A variable's value by slot, group and index rule, or null.
+     *
+     * <p>No name is resolved here and no map is consulted: the slot was decided when the
+     * reference compiled (design 30 phase 5).
+     */
     private static TypedValue lookup(final CompiledRef.RemoteVar remote,
                                      final int matchCount,
                                      final VarRegistry vars) {
-        return Refs.lookup(remote.varId(), remote.group(), remote.matchIndex(), matchCount, vars);
+        final List<Store> stores = vars.get(remote.varId());
+        // Nothing to index is nothing to resolve the rule for, and absent is the common case.
+        return stores == null
+                ? null
+                : Refs.indexed(stores, remote.group(),
+                        index(remote.matchIndex(), matchCount, vars), matchCount);
     }
 
     /**
-     * A context value, read from the frame that holds it. No name is resolved here: which frame
-     * was settled when the reference compiled (design 30 phase 4).
+     * A context value, read from the frame that holds it. Which frame was settled when the
+     * reference compiled (design 30 phase 4).
      */
     private static TypedValue lookup(final CompiledRef.Context context,
                                      final int matchCount,
                                      final VarRegistry vars) {
-        return Refs.framed(context.var(), context.group(), context.matchIndex(), matchCount, vars);
+        final TypedValue value = vars.frames().value(context.var());
+        return value == null
+                ? null
+                : Refs.framed(value, context.group(), index(context.matchIndex(), matchCount, vars));
+    }
+
+    /**
+     * Which value a compiled index rule means.
+     *
+     * <p>The rule's own three forms are shared with the authored resolver; the fourth reads the
+     * index out of another variable, and <em>which</em> variable — a registry slot or an
+     * execution frame — was settled when the reference compiled.
+     */
+    private static Integer index(final CompiledIndex rule,
+                                 final int matchCount,
+                                 final VarRegistry vars) {
+        if (rule == null) {
+            return null;
+        }
+        if (rule.varContext() != null) {
+            return Refs.number(vars.frames().value(rule.varContext()));
+        }
+        if (rule.varRef() != null) {
+            return Refs.number(Refs.latest(vars.get(rule.varRef())));
+        }
+        return Refs.rule(rule.index(), rule.isOffset(), rule.isLast(), matchCount);
     }
 }

@@ -18,7 +18,6 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression;
-import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.value.TypedValue;
 
@@ -50,7 +49,7 @@ public sealed interface CompiledRef {
     }
 
     /** One group of a named variable, with the reference's index rule. */
-    record RemoteVar(String varId, int group, MatchIndex matchIndex) implements CompiledRef {
+    record RemoteVar(VarName varId, int group, CompiledIndex matchIndex) implements CompiledRef {
 
     }
 
@@ -69,7 +68,7 @@ public sealed interface CompiledRef {
      * travels because an author may still write one; a scalar answers to index one and to
      * nothing else, which is what the store holding it did.
      */
-    record Context(EngineVars var, int group, MatchIndex matchIndex) implements CompiledRef {
+    record Context(EngineVars var, int group, CompiledIndex matchIndex) implements CompiledRef {
 
     }
 
@@ -78,32 +77,33 @@ public sealed interface CompiledRef {
 
     }
 
-    /** Decide an expression's strategy. */
-    static CompiledRef of(final RefExpression expression) {
+    /** Decide an expression's strategy, interning every name it reads. */
+    static CompiledRef of(final RefExpression expression, final VarNames names) {
         if (expression == null || expression.parts().isEmpty()) {
             return new Empty();
         }
         if (expression.parts().size() == 1) {
-            return part(expression.parts().getFirst());
+            return part(expression.parts().getFirst(), names);
         }
         final CompiledRef[] parts = new CompiledRef[expression.parts().size()];
         for (int i = 0; i < parts.length; i++) {
-            parts[i] = part(expression.parts().get(i));
+            parts[i] = part(expression.parts().get(i), names);
         }
         return new Composite(parts);
     }
 
-    private static CompiledRef part(final RefPart part) {
+    private static CompiledRef part(final RefPart part, final VarNames names) {
         return switch (part) {
-            case RefPart.Text text -> new Bytes(TypedValue.of(text.value()));
-            case RefPart.Capture capture -> {
+            case final RefPart.Text text -> new Bytes(TypedValue.of(text.value()));
+            case final RefPart.Capture capture -> {
                 if (capture.varId() == null) {
                     yield new LocalGroup(capture.group());
                 }
+                final CompiledIndex index = CompiledIndex.of(capture.matchIndex(), names);
                 final EngineVars engine = EngineVars.byName(capture.varId());
                 yield engine != null && engine.framed()
-                        ? new Context(engine, capture.group(), capture.matchIndex())
-                        : new RemoteVar(capture.varId(), capture.group(), capture.matchIndex());
+                        ? new Context(engine, capture.group(), index)
+                        : new RemoteVar(names.intern(capture.varId()), capture.group(), index);
             }
         };
     }

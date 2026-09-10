@@ -53,6 +53,16 @@ public final class CompiledProject {
     private final RootPlan rootPlan;
 
     /**
+     * Every variable name the configuration uses, each with its slot (design 30 phase 5).
+     *
+     * <p>This one <b>is</b> read while a record runs, and deliberately: a key-value capture
+     * takes its name from the data, so that site has a string and needs a slot. Every other
+     * name resolved when the configuration compiled. It is here because a run needs to know
+     * how many slots to allocate before it starts.
+     */
+    private final VarNames names;
+
+    /**
      * Build the graph.
      *
      * @param project   the authored configuration
@@ -72,7 +82,9 @@ public final class CompiledProject {
                            final Encoding transcodeFrom,
                            final List<Message> warnings,
                            final List<FunctionDefinition> functions,
-                           final boolean structured) {
+                           final boolean structured,
+                           final VarNames names) {
+        this.names = names;
         this.transcodeFrom = transcodeFrom;
         this.functions = List.copyOf(functions);
         this.project = project;
@@ -95,6 +107,11 @@ public final class CompiledProject {
     /** How a run begins and ends: the prologue, the loop's roots and dispatch, the tails. */
     public RootPlan rootPlan() {
         return rootPlan;
+    }
+
+    /** Every variable name the configuration uses, each with its slot. */
+    public VarNames names() {
+        return names;
     }
 
     /** The authored configuration. */

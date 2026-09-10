@@ -55,6 +55,9 @@ final class BodyCompiler {
     private final Project project;
     private final Functions functions;
 
+    /** Every variable name, interned as the ops that name one are built (design 30 phase 5). */
+    private final VarNames names;
+
     /**
      * The ops that cannot be finished until every template has compiled, collected as they are
      * built (design 29 §3.2).
@@ -73,10 +76,12 @@ final class BodyCompiler {
      */
     BodyCompiler(final Map<PatternKey, BytePattern> patterns,
                  final Project project,
-                 final Functions functions) {
+                 final Functions functions,
+                 final VarNames names) {
         this.patterns = patterns;
         this.project = project;
         this.functions = functions;
+        this.names = names;
     }
 
     /**
@@ -107,7 +112,7 @@ final class BodyCompiler {
             apply.link(List.copyOf(byMode.getOrDefault(apply.directive().mode(), List.of())));
         }
         for (final CompiledOp.CallTemplate call : calls) {
-            call.link(byName.get(call.name()));
+            call.link(byName.get(call.name()), names);
         }
     }
 
@@ -122,26 +127,26 @@ final class BodyCompiler {
                 case final OutputNode.Text text ->
                         new CompiledOp.Text(TypedValue.of(text.value()));
                 case final OutputNode.ValueOf valueOf ->
-                        new CompiledOp.ValueOf(CompiledRef.of(valueOf.select()));
+                        new CompiledOp.ValueOf(CompiledRef.of(valueOf.select(), names));
                 case final OutputNode.Call value -> call(value);
                 case final OutputNode.If value -> new CompiledOp.If(
-                        CompiledCondition.of(value.test(), patterns), compile(value.then()));
+                        CompiledCondition.of(value.test(), patterns, names), compile(value.then()));
                 case final OutputNode.Choose value -> new CompiledOp.Choose(
                         value.when().stream()
                                 .map(branch -> new CompiledOp.When(
-                                        CompiledCondition.of(branch.test(), patterns),
+                                        CompiledCondition.of(branch.test(), patterns, names),
                                         compile(branch.body())))
                                 .toList(),
                         compile(value.otherwise()));
                 case final OutputNode.Switch value -> new CompiledOp.Switch(
-                        CompiledRef.of(value.select()), cases(value), compile(value.defaultBody()));
+                        CompiledRef.of(value.select(), names), cases(value), compile(value.defaultBody()));
                 case final OutputNode.ApplyTemplates apply -> {
                     // Whole-parent-content is the group-0 special case of a local group, so
                     // being a local group is the whole of being locatable.
                     final RefExpression select = apply.directive().select();
                     final CompiledOp.Apply applyOp = new CompiledOp.Apply(
                             apply.directive(),
-                            CompiledRef.of(select),
+                            CompiledRef.of(select, names),
                             isWholeParentContent(select),
                             isLocalGroup(select),
                             Dispatch.effective(apply.directive().dispatch(), project));
@@ -149,19 +154,19 @@ final class BodyCompiler {
                     yield applyOp;
                 }
                 case final OutputNode.EmitError value ->
-                        new CompiledOp.EmitError(value.severity(), CompiledRef.of(value.message()));
+                        new CompiledOp.EmitError(value.severity(), CompiledRef.of(value.message(), names));
                 case final OutputNode.CallTemplate value -> {
                     final CompiledOp.CallTemplate call = new CompiledOp.CallTemplate(
                             value.name(),
                             value.withParam().stream()
-                                    .map(param -> new CompiledOp.Arg(param.name(),
-                                            CompiledRef.of(param.value())))
+                                    .map(param -> new CompiledOp.Arg(names.intern(param.name()),
+                                            CompiledRef.of(param.value(), names)))
                                     .toList());
                     calls.add(call);
                     yield call;
                 }
                 case final OutputNode.Variable value ->
-                        new CompiledOp.Variable(value.name(), compile(value.body()));
+                        new CompiledOp.Variable(names.intern(value.name()), compile(value.body()));
                 case final OutputNode.Element value -> new CompiledOp.Element(
                         value.name(), value.namespace(), value.omitIfEmpty(),
                         compile(value.body()));
@@ -212,8 +217,8 @@ final class BodyCompiler {
                                     Transforms.substring(inputs, effectiveStart, effectiveLength));
                 }
                 case final OutputNode.Tokenize value -> new CompiledOp.Tokenize(
-                        CompiledRef.of(single("tokenize", value.select()).getFirst()),
-                        value.delimiter(), value.name());
+                        CompiledRef.of(single("tokenize", value.select()).getFirst(), names),
+                        value.delimiter(), names.intern(value.name()));
                 case final OutputNode.Number value ->
                         transform(single("number", value.select()), value.name(),
                                 Transforms::number);
@@ -268,42 +273,44 @@ final class BodyCompiler {
                             value.pattern(), value.timezone(), value.reference() != null,
                                     "parse-date");
                     yield new CompiledOp.ParseDate(
-                            CompiledRef.of(single("parse-date", value.select()).getFirst()),
-                            value.reference() == null ? null : CompiledRef.of(value.reference()),
+                            CompiledRef.of(single("parse-date", value.select()).getFirst(), names),
+                            value.reference() == null ? null : CompiledRef.of(value.reference(), names),
                             parser,
-                            value.name());
+                            names.intern(value.name()));
                 }
                 case final OutputNode.Count value ->
-                        new CompiledOp.Fold(value.select(), CompiledOp.FoldKind.COUNT, null,
-                                value.name());
+                        new CompiledOp.Fold(names.intern(value.select()), CompiledOp.FoldKind.COUNT, null,
+                                names.intern(value.name()));
                 case final OutputNode.Sum value ->
-                        new CompiledOp.Fold(value.select(), CompiledOp.FoldKind.SUM, null,
-                                value.name());
+                        new CompiledOp.Fold(names.intern(value.select()), CompiledOp.FoldKind.SUM, null,
+                                names.intern(value.name()));
                 case final OutputNode.Avg value ->
-                        new CompiledOp.Fold(value.select(), CompiledOp.FoldKind.AVG, null,
-                                value.name());
+                        new CompiledOp.Fold(names.intern(value.select()), CompiledOp.FoldKind.AVG, null,
+                                names.intern(value.name()));
                 case final OutputNode.Min value ->
-                        new CompiledOp.Fold(value.select(), CompiledOp.FoldKind.MIN,
-                                value.as(), value.name());
+                        new CompiledOp.Fold(names.intern(value.select()), CompiledOp.FoldKind.MIN,
+                                value.as(), names.intern(value.name()));
                 case final OutputNode.Max value ->
-                        new CompiledOp.Fold(value.select(), CompiledOp.FoldKind.MAX,
-                                value.as(), value.name());
+                        new CompiledOp.Fold(names.intern(value.select()), CompiledOp.FoldKind.MAX,
+                                value.as(), names.intern(value.name()));
                 case final OutputNode.DistinctValues value ->
-                        new CompiledOp.DistinctValues(value.select(), value.name());
-                case final OutputNode.Sequence value -> new CompiledOp.Sequence(value.name());
+                        new CompiledOp.DistinctValues(names.intern(value.select()), names.intern(value.name()));
+                case final OutputNode.Sequence value -> new CompiledOp.Sequence(names.intern(value.name()));
                 case final OutputNode.Append value ->
-                        new CompiledOp.Append(value.name(), CompiledRef.of(value.select()));
-                case final OutputNode.Key value -> new CompiledOp.Key(value.name(), value.select(),
-                        value.groupBy() == null ? null : CompiledRef.of(value.groupBy()));
+                        new CompiledOp.Append(names.intern(value.name()), CompiledRef.of(value.select(), names));
+                case final OutputNode.Key value -> new CompiledOp.Key(value.name(), names.intern(value.select()),
+                        value.groupBy() == null ? null : CompiledRef.of(value.groupBy(), names));
                 case final OutputNode.KeyGet value -> new CompiledOp.KeyGet(value.key(),
-                        CompiledRef.of(value.select()), value.name());
-                case final OutputNode.ForEachGroup value -> new CompiledOp.ForEachGroup(value.select(),
-                        value.groupBy() == null ? null : CompiledRef.of(value.groupBy()),
+                        CompiledRef.of(value.select(), names), names.intern(value.name()));
+                case final OutputNode.ForEachGroup value -> new CompiledOp.ForEachGroup(
+                        names.intern(value.select()),
+                        value.groupBy() == null ? null : CompiledRef.of(value.groupBy(), names),
                         compile(value.body()));
-                case final OutputNode.ForEach value -> new CompiledOp.ForEach(value.select(), value.as(),
+                case final OutputNode.ForEach value -> new CompiledOp.ForEach(
+                        names.intern(value.select()), names.intern(value.as()),
                         value.sort().stream()
                                 .map(key ->
-                                        new CompiledOp.SortKey(CompiledRef.of(key.by()),
+                                        new CompiledOp.SortKey(CompiledRef.of(key.by(), names),
                                                 key.order(), key.as()))
                                 .toList(),
                         compile(value.body()));
@@ -348,7 +355,7 @@ final class BodyCompiler {
                                       + ", but the call has " + written);
         }
         final List<CompiledRef> select = new ArrayList<>(written);
-        final List<String> sequences = new ArrayList<>(written);
+        final List<VarName> sequences = new ArrayList<>(written);
         for (int i = 0; i < written; i++) {
             final RefExpression ref = value.select().get(i);
             if (signature.argKinds().get(i) == Kind.SEQUENCE) {
@@ -363,22 +370,23 @@ final class BodyCompiler {
                                               + " is a sequence and must name a variable,"
                                               + " whose every entry it receives");
                 }
-                sequences.add(store);
+                sequences.add(names.intern(store));
                 select.add(null);
             } else {
                 sequences.add(null);
-                select.add(CompiledRef.of(ref));
+                select.add(CompiledRef.of(ref, names));
             }
         }
         return new CompiledOp.CallFunction(definition, functions.slot(definition.name()),
-                select, sequences, value.name());
+                select, sequences, names.intern(value.name()));
     }
 
-    private static CompiledOp.Transform transform(final List<RefExpression> select,
-                                                  final String name,
-                                                  final Function<List<TypedValue>, TypedValue> function) {
-        return new CompiledOp.Transform(select.stream().map(CompiledRef::of).toList(), name,
-                function, null);
+    private CompiledOp.Transform transform(final List<RefExpression> select,
+                                           final String name,
+                                           final Function<List<TypedValue>, TypedValue> function) {
+        return new CompiledOp.Transform(
+                select.stream().map(ref -> CompiledRef.of(ref, names)).toList(),
+                names.intern(name), function, null);
     }
 
     /**
@@ -390,7 +398,7 @@ final class BodyCompiler {
      * @param arity the required select count, exactly or at least: {@code add} and
      *              {@code multiply} fold, and take {@code count} as a minimum
      */
-    private static CompiledOp.Transform arithmetic(final String what,
+    private CompiledOp.Transform arithmetic(final String what,
                                                    final List<RefExpression> select,
                                                    final String name,
                                                    final Arity arity,
@@ -403,12 +411,14 @@ final class BodyCompiler {
                                       + ", but has " + select.size());
         }
         final int expected = select.size();
-        return new CompiledOp.Transform(select.stream().map(CompiledRef::of).toList(), name,
+        return new CompiledOp.Transform(
+                select.stream().map(ref -> CompiledRef.of(ref, names)).toList(),
+                names.intern(name),
                 inputs -> inputs.size() == expected ? function.apply(inputs) : null, what);
     }
 
     /** A format-number closes over its picture, compiled once and refused at compile time. */
-    private static CompiledOp.Transform formatNumber(final OutputNode.FormatNumber value) {
+    private CompiledOp.Transform formatNumber(final OutputNode.FormatNumber value) {
         final DecimalFormat format;
         try {
             format = new DecimalFormat(value.picture(),
@@ -464,7 +474,7 @@ final class BodyCompiler {
      * nothing, because the scan could not tell "mapped to null" from "not mapped" — so such an
      * entry holds the default here, and the two stay indistinguishable.
      */
-    private static CompiledOp.ValueMap valueMap(final OutputNode.ValueMap value) {
+    private CompiledOp.ValueMap valueMap(final OutputNode.ValueMap value) {
         final TypedValue defaultValue = TypedValue.of(
                 value.defaultValue() == null ? "" : value.defaultValue());
         final Map<String, TypedValue> entries = new HashMap<>();
@@ -472,8 +482,8 @@ final class BodyCompiler {
             entries.putIfAbsent(entry.from(),
                     entry.to() == null ? defaultValue : TypedValue.of(entry.to()));
         }
-        return new CompiledOp.ValueMap(CompiledRef.of(value.select()), Map.copyOf(entries),
-                defaultValue, value.name());
+        return new CompiledOp.ValueMap(CompiledRef.of(value.select(), names), Map.copyOf(entries),
+                defaultValue, names.intern(value.name()));
     }
 
     /** A regex replace closes over its compiled pattern; a literal one over its text. */
@@ -493,15 +503,15 @@ final class BodyCompiler {
         // held by the op rather than closed over by one, so what the instruction runs is visible
         // on it (design 30).
         return new CompiledOp.Replace(
-                value.select().stream().map(CompiledRef::of).toList(),
-                value.name(),
+                value.select().stream().map(ref -> CompiledRef.of(ref, names)).toList(),
+                names.intern(value.name()),
                 new Replacer(pattern, value.replacement()));
     }
 
     /** True if an expression is exactly "group 0 of this match, whichever one that is". */
     private static boolean isWholeParentContent(final RefExpression expression) {
         return expression.parts().size() == 1
-               && expression.parts().getFirst() instanceof RefPart.Capture capture
+               && expression.parts().getFirst() instanceof final RefPart.Capture capture
                && capture.varId() == null
                && capture.group() == 0
                && capture.matchIndex() == null;
@@ -510,7 +520,7 @@ final class BodyCompiler {
     /** True if an expression is one group of this match, wherever that group came from. */
     private static boolean isLocalGroup(final RefExpression expression) {
         return expression.parts().size() == 1
-               && expression.parts().getFirst() instanceof RefPart.Capture capture
+               && expression.parts().getFirst() instanceof final RefPart.Capture capture
                && capture.varId() == null
                && capture.matchIndex() == null;
     }

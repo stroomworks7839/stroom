@@ -77,11 +77,15 @@ public final class Compiler {
         final Encoding encoding = transcodeFrom != null
                 ? Encoding.UTF_8
                 : sourceEncoding;
+        // Names are interned as the graph is built, by whatever compiles a node that names a
+        // variable — the same shape the match compiler interns patterns with, and no second
+        // walk to keep in step with the first (design 30 §5.5).
+        final VarNames names = new VarNames();
         final MatchCompiler matches = new MatchCompiler(project);
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
 
-        final BodyCompiler bodies = new BodyCompiler(matches.patterns(), project, functions);
+        final BodyCompiler bodies = new BodyCompiler(matches.patterns(), project, functions, names);
         for (final Template template : project.templates()) {
             refuseCaptures(template);
             final Encoding declared = declaredEncoding(template, transcodeFrom);
@@ -100,19 +104,22 @@ public final class Compiler {
             templates.add(CompiledTemplate.of(template, match,
                     bodies.compile(template.body()),
                     declared,
-                    CompiledCapture.compile(template.captures()),
+                    CompiledCapture.compile(template.captures(), names),
                     // The guard's patterns were interned by the match compile above.
-                    CompiledCondition.of(template.guard(), matches.patterns())));
+                    CompiledCondition.of(template.guard(), matches.patterns(), names),
+                    names));
         }
         final List<TemplateUses> uses = TemplateUses.of(project);
         TemplateUses.resolveNames(project, uses);
         TemplateUses.lintDispatch(project, templates, uses, warnings);
         final boolean structured = bodyChecks(project, warnings);
         final CompiledProject compiled = new CompiledProject(project, templates,
-                encoding, transcodeFrom, warnings, functions.used(), structured);
+                encoding, transcodeFrom, warnings, functions.used(), structured, names);
 
-        // The bodies were compiled before the templates they name existed; now they do.
+        // The bodies were compiled before the templates they name existed; now they do. Linking
+        // interns the last names — a call's parameters — so the table closes after it.
         bodies.link(compiled.templates());
+        names.freeze();
         return compiled;
     }
 

@@ -22,6 +22,7 @@ import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.compile.CompiledCapture;
 import stroom.shapeshifter.engine.compile.CompiledMatch;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
+import stroom.shapeshifter.engine.compile.VarName;
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.Template;
@@ -208,7 +209,7 @@ final class Level {
         }
         final Template template = candidate.template();
         if (matchCount == 1) {
-            for (final String name : candidate.clearNames()) {
+            for (final VarName name : candidate.clearNames()) {
                 vars.store(name).clear();
             }
         }
@@ -703,7 +704,7 @@ final class Level {
             final TypedValue value = cast(read, capture.as());
             final Store store = vars.store(capture.name());
             if (value != null) {
-                instrument.onCapture(compiledTemplate.template().id(), capture.name(), value,
+                instrument.onCapture(compiledTemplate.template().id(), capture.name().name(), value,
                         matchCount);
             }
             if (value == null) {

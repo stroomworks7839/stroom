@@ -30,8 +30,10 @@ import stroom.shapeshifter.regex.BytePattern;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -51,7 +53,7 @@ import java.util.function.Function;
 public sealed interface CompiledOp {
 
     /** Shared empty, so an unlinked or capture-free apply allocates no array. */
-    String[] EMPTY_NAMES = new String[0];
+    VarName[] EMPTY_NAMES = new VarName[0];
 
     /** Write a literal: a UTF-8-tagged value; the sink's encoding decides its bytes (design 25). */
     record Text(TypedValue value) implements CompiledOp {
@@ -100,7 +102,7 @@ public sealed interface CompiledOp {
         private final boolean locatable;
         private final Dispatch dispatch;
         private List<CompiledTemplate> candidates = List.of();
-        private String[] recursiveShadow = EMPTY_NAMES;
+        private VarName[] recursiveShadow = EMPTY_NAMES;
 
         /**
          * Match templates against some content.
@@ -136,7 +138,9 @@ public sealed interface CompiledOp {
          */
         void link(final List<CompiledTemplate> candidates) {
             this.candidates = candidates;
-            final List<String> shadow = new ArrayList<>();
+            // Deduplicated: two candidates declaring the same capture name would otherwise
+            // shadow it twice at every push, which is correct but is work done twice.
+            final Set<VarName> shadow = new LinkedHashSet<>();
             for (final CompiledTemplate candidate : candidates) {
                 shadow.addAll(Arrays.asList(candidate.captureNames()));
             }
@@ -177,7 +181,7 @@ public sealed interface CompiledOp {
         }
 
         /** Every capture name a recursive apply shadows, flattened once across the candidates. */
-        public String[] recursiveShadow() {
+        public VarName[] recursiveShadow() {
             return recursiveShadow;
         }
     }
@@ -211,16 +215,16 @@ public sealed interface CompiledOp {
          * @param target the template named, or null when the name resolves to none, which is
          *               not an error here: the call does nothing at run time
          */
-        void link(final CompiledTemplate target) {
+        void link(final CompiledTemplate target, final VarNames names) {
             this.target = target;
             if (target == null) {
                 return;
             }
             final List<Param> declared = new ArrayList<>();
             for (final Template.ParamDecl parameter : target.template().param()) {
-                final boolean supplied = args.stream()
-                        .anyMatch(arg -> arg.name().equals(parameter.name()));
-                declared.add(new Param(parameter.name(),
+                final VarName name = names.intern(parameter.name());
+                final boolean supplied = args.stream().anyMatch(arg -> arg.name().equals(name));
+                declared.add(new Param(name,
                         !supplied && parameter.defaultValue() != null
                                 ? TypedValue.of(parameter.defaultValue())
                                 : null));
@@ -256,17 +260,17 @@ public sealed interface CompiledOp {
      * @param defaultValue the value to bind, encoded once — or null when this call supplies the
      *                     parameter itself, or the declaration has no default
      */
-    record Param(String name, TypedValue defaultValue) {
+    record Param(VarName name, TypedValue defaultValue) {
 
     }
 
     /** One argument of a {@link CallTemplate}. */
-    record Arg(String name, CompiledRef value) {
+    record Arg(VarName name, CompiledRef value) {
 
     }
 
     /** Bind a variable to what a nested body writes. */
-    record Variable(String name, List<CompiledOp> body) implements CompiledOp {
+    record Variable(VarName name, List<CompiledOp> body) implements CompiledOp {
 
     }
 
@@ -298,7 +302,7 @@ public sealed interface CompiledOp {
     record ValueMap(CompiledRef select,
                     Map<String, TypedValue> entries,
                     TypedValue defaultValue,
-                    String name) implements CompiledOp {
+                    VarName name) implements CompiledOp {
 
     }
 
@@ -313,8 +317,8 @@ public sealed interface CompiledOp {
     record CallFunction(FunctionDefinition definition,
                         int slot,
                         List<CompiledRef> select,
-                        List<String> sequences,
-                        String name) implements CompiledOp {
+                        List<VarName> sequences,
+                        VarName name) implements CompiledOp {
 
     }
 
@@ -328,7 +332,7 @@ public sealed interface CompiledOp {
      *                    {@code strict_values} diagnostic (design/17 §10) — or null
      */
     record Transform(List<CompiledRef> select,
-                     String name,
+                     VarName name,
                      Function<List<TypedValue>, TypedValue> function,
                      String numericKind) implements CompiledOp {
 
@@ -346,7 +350,7 @@ public sealed interface CompiledOp {
     record ParseDate(CompiledRef select,
                      CompiledRef reference,
                      Dates.Parser parser,
-                     String name) implements CompiledOp {
+                     VarName name) implements CompiledOp {
 
     }
 
@@ -358,7 +362,7 @@ public sealed interface CompiledOp {
      * parsed into literals and group indices — and a {@code Transform} would carry it inside a
      * closure where nothing can see it. An instruction that holds compiled state should say so.
      */
-    record Replace(List<CompiledRef> select, String name, Replacer replacer) implements CompiledOp {
+    record Replace(List<CompiledRef> select, VarName name, Replacer replacer) implements CompiledOp {
 
         public Replace {
             select = List.copyOf(select);
@@ -366,37 +370,37 @@ public sealed interface CompiledOp {
     }
 
     /** Declare a sequence and empty it (design/16 §9). */
-    record Sequence(String name) implements CompiledOp {
+    record Sequence(VarName name) implements CompiledOp {
 
     }
 
     /** Add a value to a declared sequence, at its next free index. */
-    record Append(String name, CompiledRef select) implements CompiledOp {
+    record Append(VarName name, CompiledRef select) implements CompiledOp {
 
     }
 
     /** Walk a sequence, running a body per populated entry (design/16 §4). */
-    record ForEach(String select,
-                   String as,
+    record ForEach(VarName select,
+                   VarName as,
                    List<SortKey> sort,
                    List<CompiledOp> body) implements CompiledOp {
 
     }
 
     /** Group a sequence's entries, running a body per group (design/16 §6). */
-    record ForEachGroup(String select,
+    record ForEachGroup(VarName select,
                         CompiledRef groupBy,
                         List<CompiledOp> body) implements CompiledOp {
 
     }
 
     /** Build a random-access index over a sequence (design/16 §8). */
-    record Key(String name, String select, CompiledRef groupBy) implements CompiledOp {
+    record Key(String name, VarName select, CompiledRef groupBy) implements CompiledOp {
 
     }
 
     /** Look one value up in a key, binding the entries it names. */
-    record KeyGet(String key, CompiledRef select, String name) implements CompiledOp {
+    record KeyGet(String key, CompiledRef select, VarName name) implements CompiledOp {
 
     }
 
@@ -416,12 +420,12 @@ public sealed interface CompiledOp {
      * authoring time, and at run time there is only "read the sequence, fold it, write or
      * bind the result".
      */
-    record Fold(String select, FoldKind kind, Cast as, String name) implements CompiledOp {
+    record Fold(VarName select, FoldKind kind, Cast as, VarName name) implements CompiledOp {
 
     }
 
     /** The distinct entries of a sequence, bound as a dense one. */
-    record DistinctValues(String select, String name) implements CompiledOp {
+    record DistinctValues(VarName select, VarName name) implements CompiledOp {
 
     }
 
@@ -430,7 +434,7 @@ public sealed interface CompiledOp {
      * name now means binding <b>N</b> values, which a transform's single result cannot do —
      * design/17 §16.4's ruling.
      */
-    record Tokenize(CompiledRef select, String delimiter, String name) implements CompiledOp {
+    record Tokenize(CompiledRef select, String delimiter, VarName name) implements CompiledOp {
 
     }
 }

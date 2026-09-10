@@ -33,6 +33,12 @@ import java.util.List;
  * {@link CompiledRefs} instead (design 25 phase 3 took the captures), and E39 owns the seam
  * between the two.
  *
+ * <p><b>This is the side that still works in names.</b> Since design 30 phase 5 a compiled
+ * reference holds the slot it means, so the registry answers it from an array; a condition
+ * arrives with a string and pays a lookup to find the slot. Everything after that — the group,
+ * the index rule, absence — is shared with the compiled resolver rather than written twice, and
+ * the two methods that are not shared are the two that turn a name into stores.
+ *
  * <p><b>Empty is absent.</b> A part that resolves to nothing writes nothing, and an expression
  * whose parts all resolve to nothing has no value at all rather than an empty one. That is what
  * lets a configuration ask whether a field exists.
@@ -43,6 +49,12 @@ import java.util.List;
  */
 public final class Refs {
 
+    /**
+     * "The last value there is", which a store answers from its own contents and a frame
+     * answers by having only one. Outside any store's index range by construction.
+     */
+    static final int LAST = Integer.MIN_VALUE;
+
     private Refs() {
     }
 
@@ -50,7 +62,7 @@ public final class Refs {
      * The value of an expression with its type preserved, or null if it resolves to nothing.
      *
      * <p>Only a single-part capture reference can carry a type (design/17 §3.1): literal text
-     * and a multi-part expression are strings by construction. A captured value carries its
+     * and a multipart expression are strings by construction. A captured value carries its
      * own encoding (design 25), so nothing here converts.
      */
     public static TypedValue resolveValue(final RefExpression expression,
@@ -61,7 +73,7 @@ public final class Refs {
             return null;
         }
         if (expression.parts().size() == 1
-            && expression.parts().getFirst() instanceof RefPart.Capture capture) {
+            && expression.parts().getFirst() instanceof final RefPart.Capture capture) {
             final TypedValue value = lookup(capture, match, matchCount, vars);
             return value == null || value.isEmpty() ? null : value;
         }
@@ -81,10 +93,10 @@ public final class Refs {
         // One part is the common shape by a wide margin, and it can answer without copying.
         if (expression.parts().size() == 1) {
             return switch (expression.parts().getFirst()) {
-                case RefPart.Text text -> text.value().isEmpty()
+                case final RefPart.Text text -> text.value().isEmpty()
                         ? null
                         : text.value().getBytes(StandardCharsets.UTF_8);
-                case RefPart.Capture capture -> {
+                case final RefPart.Capture capture -> {
                     final TypedValue value = lookup(capture, match, matchCount, vars);
                     yield value == null || value.isEmpty() ? null : value.asUtf8();
                 }
@@ -95,8 +107,8 @@ public final class Refs {
         boolean any = false;
         for (final RefPart part : expression.parts()) {
             final byte[] bytes = switch (part) {
-                case RefPart.Text text -> text.value().getBytes(StandardCharsets.UTF_8);
-                case RefPart.Capture capture -> {
+                case final RefPart.Text text -> text.value().getBytes(StandardCharsets.UTF_8);
+                case final RefPart.Capture capture -> {
                     final TypedValue value = lookup(capture, match, matchCount, vars);
                     yield value == null ? null : value.asUtf8();
                 }
@@ -129,122 +141,122 @@ public final class Refs {
         return lookup(capture.varId(), capture.group(), capture.matchIndex(), matchCount, vars);
     }
 
-    /** A group of a named variable, under a reference's index rule. Shared with the compiled form. */
-    static TypedValue lookup(final String varId,
-                             final int group,
-                             final MatchIndex matchIndex,
-                             final int matchCount,
-                             final VarRegistry vars) {
-        // A condition still resolves the authored expression (E39 owns that seam), so the name
-        // is classified here rather than at compile time. The compiled form does not come
-        // through this arm: it holds a CompiledRef.Context and reads the frame directly.
+    /** A group of a named variable, under a reference's index rule. */
+    private static TypedValue lookup(final String varId,
+                                     final int group,
+                                     final MatchIndex matchIndex,
+                                     final int matchCount,
+                                     final VarRegistry vars) {
+        // A condition still resolves the authored expression, so the name is classified and
+        // looked up here rather than at compile time — E39's seam, and the reason this method
+        // exists at all beside CompiledRefs' own.
         final EngineVars engine = EngineVars.byName(varId);
         if (engine != null && engine.framed()) {
-            return framed(engine, group, matchIndex, matchCount, vars);
+            final TypedValue value = vars.frames().value(engine);
+            // The index rule is resolved only once there is something to index, which is what
+            // the walk this replaced did: it may read another variable, and "empty is absent"
+            // makes the absent case the common one.
+            return value == null
+                    ? null
+                    : framed(value, group, indexOf(matchIndex, matchCount, vars));
         }
         final List<Store> stores = vars.get(varId);
+        return stores == null
+                ? null
+                : indexed(stores, group, indexOf(matchIndex, matchCount, vars), matchCount);
+    }
+
+    /**
+     * One value out of a name's stores, under an index rule already resolved to a number.
+     *
+     * <p>Shared with the compiled resolver: the two differ in how a name becomes stores, and in
+     * nothing after that.
+     */
+    static TypedValue indexed(final List<Store> stores,
+                              final int group,
+                              final Integer index,
+                              final int matchCount) {
         if (stores == null || group >= stores.size()) {
             return null;
         }
         final Store store = stores.get(group);
-        final Integer index = matchIndex(matchIndex, store, matchCount, vars);
-        return index == null ? store.latest() : store.get(index);
+        if (index == null) {
+            return store.latest();
+        }
+        if (index == LAST) {
+            final int last = store.lastIndex();
+            return store.get(last < 0 ? matchCount : last);
+        }
+        return store.get(index);
     }
 
     /**
-     * An engine variable under a reference's index rule (design 30 phase 4).
+     * A framed value under the same rule.
      *
-     * <p>What a frame replaced was a store holding one value, at index one, in a list of one.
-     * So a reference reads it when it asks for the latest, for the last, or for index one, and
-     * reads nothing otherwise — which is what indexing past a single-valued store already did.
+     * <p>What a frame replaced was a store holding one value, at index one, in a list of one. So
+     * a reference reads it when it asks for the latest, for the last, or for index one, and reads
+     * nothing otherwise — which is what indexing past a single-valued store already did.
      */
-    static TypedValue framed(final EngineVars engine,
-                             final int group,
-                             final MatchIndex matchIndex,
-                             final int matchCount,
-                             final VarRegistry vars) {
-        if (group != 0) {
+    static TypedValue framed(final TypedValue value, final int group, final Integer index) {
+        if (group != 0 || value == null) {
             return null;
         }
-        final TypedValue value = vars.frames().value(engine);
-        return value == null || !atIndexOne(matchIndex, matchCount, vars) ? null : value;
+        return index == null || index == LAST || index == 1 ? value : null;
     }
 
     /**
-     * Whether an index rule picks index one, the only index a framed variable ever had.
-     *
-     * <p>The four forms are tested in {@link #matchIndex}'s order, not in a tidier one: nothing
-     * makes them mutually exclusive, so which is asked first is behaviour.
-     */
-    private static boolean atIndexOne(final MatchIndex matchIndex,
-                                      final int matchCount,
-                                      final VarRegistry vars) {
-        if (matchIndex == null) {
-            return true;
-        }
-        if (matchIndex.varRef() != null) {
-            return indexFrom(matchIndex.varRef(), vars) == 1;
-        }
-        if (matchIndex.isLast()) {
-            // The store held one value, so its last index was one.
-            return true;
-        }
-        if (matchIndex.isOffset()) {
-            return matchCount + matchIndex.index() == 1;
-        }
-        return matchIndex.index() == 1;
-    }
-
-    /**
-     * Which of a variable's values a reference means, or null for "the most recent".
+     * Which value an authored index rule means: null for the most recent, {@link #LAST} for the
+     * last there is, or a match index.
      *
      * <p>Four ways to say it, and they exist because four things genuinely need saying: read the
      * index out of another variable at runtime, take the last one there is, count relative to the
      * match being processed, or name it outright. The relative form is the one that makes a
      * header row line up with a data row — the engine's own {@code __match_count} threads the
-     * column number through.
+     * column number through. Nothing makes the four exclusive, so the order they are asked in is
+     * behaviour.
      */
-    private static Integer matchIndex(final MatchIndex matchIndex,
-                                      final Store store,
-                                      final int matchCount,
-                                      final VarRegistry vars) {
+    private static Integer indexOf(final MatchIndex matchIndex,
+                                   final int matchCount,
+                                   final VarRegistry vars) {
         if (matchIndex == null) {
             return null;
         }
         if (matchIndex.varRef() != null) {
-            return indexFrom(matchIndex.varRef(), vars);
+            final EngineVars engine = EngineVars.byName(matchIndex.varRef());
+            return number(engine != null && engine.framed()
+                    ? vars.frames().value(engine)
+                    : latest(vars.get(matchIndex.varRef())));
         }
-        if (matchIndex.isLast()) {
-            final int last = store.lastIndex();
-            return last < 0 ? matchCount : last;
+        return rule(matchIndex.index(), matchIndex.isOffset(), matchIndex.isLast(), matchCount);
+    }
+
+    /** The three forms that need no variable, shared with the compiled resolver. */
+    static Integer rule(final int index,
+                        final boolean isOffset,
+                        final boolean isLast,
+                        final int matchCount) {
+        if (isLast) {
+            return LAST;
         }
-        if (matchIndex.isOffset()) {
-            return matchCount + matchIndex.index();
-        }
-        return matchIndex.index();
+        return isOffset ? matchCount + index : index;
+    }
+
+    /** The most recent value a name's stores hold, or null. */
+    static TypedValue latest(final List<Store> stores) {
+        return stores == null || stores.isEmpty() ? null : stores.getFirst().latest();
     }
 
     /**
-     * The whole number a name currently holds, for the index rule that reads one at run time.
+     * The whole number a value holds, for the index rule that reads one at run time.
      *
-     * <p>The name may be the engine's — {@code $var[$__match_count]} is how a heading captured
-     * on one match is read beside a value captured on another — so this asks the frames before
-     * the registry. Absent or non-numeric reads as <b>the first match</b>: the conservative
-     * answer, since match indexes count from one.
+     * <p>Absent or non-numeric reads as <b>the first match</b>: the conservative answer, since
+     * match indexes count from one.
      */
-    private static int indexFrom(final String varRef, final VarRegistry vars) {
-        final EngineVars engine = EngineVars.byName(varRef);
-        final TypedValue value;
-        if (engine != null && engine.framed()) {
-            value = vars.frames().value(engine);
-        } else {
-            final List<Store> stores = vars.get(varRef);
-            value = stores == null || stores.isEmpty() ? null : stores.getFirst().latest();
-        }
+    static int number(final TypedValue value) {
         if (value != null) {
-            final Double number = value.asNumber();
-            if (number != null && number >= 0) {
-                return (int) (double) number;
+            final Double count = value.asNumber();
+            if (count != null && count >= 0) {
+                return (int) (double) count;
             }
         }
         return 1;

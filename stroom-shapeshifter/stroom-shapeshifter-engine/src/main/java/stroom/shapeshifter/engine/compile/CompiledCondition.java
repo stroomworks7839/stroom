@@ -116,12 +116,17 @@ public sealed interface CompiledCondition {
      * @return the compiled form, or null when there was no condition
      */
     static CompiledCondition of(final Condition condition,
-                                final Map<PatternKey, BytePattern> patterns) {
+                                final Map<PatternKey, BytePattern> patterns,
+                                final VarNames names) {
         return switch (condition) {
             case null -> null;
-            case final Condition.Compare value ->
-                    new Compare(value.op(), value.left(), value.right());
+            case final Condition.Compare value -> {
+                intern(value.left(), names);
+                intern(value.right(), names);
+                yield new Compare(value.op(), value.left(), value.right());
+            }
             case final Condition.Matches value -> {
+                names.intern(value.select());
                 final BytePattern pattern = patterns.get(PatternKey.ofValue(value.pattern()));
                 if (pattern == null) {
                     // The match compiler interns every pattern a condition names, including the
@@ -130,19 +135,47 @@ public sealed interface CompiledCondition {
                 }
                 yield new Matches(value.select(), pattern);
             }
-            case final Condition.Contains value -> new Contains(value.select(), value.substring());
-            case final Condition.StartsWith value -> new StartsWith(value.select(), value.prefix());
-            case final Condition.And value -> new And(all(value.conditions(), patterns));
-            case final Condition.Or value -> new Or(all(value.conditions(), patterns));
-            case final Condition.Not value -> new Not(of(value.condition(), patterns));
-            case final Condition.Exists value -> new Exists(value.select());
+            case final Condition.Contains value -> {
+                names.intern(value.select());
+                yield new Contains(value.select(), value.substring());
+            }
+            case final Condition.StartsWith value -> {
+                names.intern(value.select());
+                yield new StartsWith(value.select(), value.prefix());
+            }
+            case final Condition.And value -> new And(all(value.conditions(), patterns, names));
+            case final Condition.Or value -> new Or(all(value.conditions(), patterns, names));
+            case final Condition.Not value -> new Not(of(value.condition(), patterns, names));
+            case final Condition.Exists value -> {
+                names.intern(value.select());
+                yield new Exists(value.select());
+            }
             case final Condition.IsFirst ignored -> new IsFirst();
             case final Condition.IsLast ignored -> new IsLast();
         };
     }
 
     private static List<CompiledCondition> all(final List<Condition> conditions,
-                                               final Map<PatternKey, BytePattern> patterns) {
-        return conditions.stream().map(child -> of(child, patterns)).toList();
+                                               final Map<PatternKey, BytePattern> patterns,
+                                               final VarNames names) {
+        return conditions.stream().map(child -> of(child, patterns, names)).toList();
+    }
+
+    /**
+     * Intern the names an operand reads, so the table means every name the configuration
+     * mentions rather than every name a compiled node holds.
+     *
+     * <p>A condition still resolves the <em>authored</em> expression (E39 owns that seam), so
+     * these names never reach a {@link CompiledRef}: the guard looks the name up by string while
+     * the record runs. <b>That is safe without this</b>, and the reason is worth stating because
+     * it is not obvious — whatever <i>writes</i> a name interns it, and the compiler refuses a
+     * read of a name nothing writes, so a guard's name is always in the table already. Where it
+     * is not, both the write and the read go through the <em>same</em> run-time map and agree on
+     * the slot they invent. Interning here is completeness, not correctness.
+     */
+    private static void intern(final Condition.Operand operand, final VarNames names) {
+        if (operand != null) {
+            names.intern(operand.ref());
+        }
     }
 }

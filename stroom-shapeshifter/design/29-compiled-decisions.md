@@ -139,7 +139,7 @@ scope until an element declares something; hoist the continuation inside its own
 
 | Site | What is redone | Hotness | Phase |
 |---|---|---|---|
-| `value/Transforms.java:436` | a fresh `ByteMatcher` allocated per `replace` call | per replace — `apache_httpd` runs 209 per record | 3 |
+| `value/Transforms.java:436` | a fresh `ByteMatcher` allocated per `replace` call | per replace — *this row said `apache_httpd` runs 209 per record; corrected 2026-09-10, it runs **two**, and the 209 are `translate` ops, which use `String.replace`* | 3 |
 | `value/Transforms.java:447` | the replacement string's `$1`, `${name}` and `$$` syntax re-parsed character by character | per match of that replace | 3 |
 | `exec/Body.java:244` | `ValueMap` linear-scans the authored entries with `String.equals`, then re-encodes the mapped literal | per value-map | 3 |
 | `exec/Body.java:202` | `Switch` linear-scans its cases | per switch | 3 |
@@ -448,8 +448,9 @@ The nine, all closed:
   values are encoded once rather than per record.
 - **The regex replace** (§3.5) became `value/Replacer`: a compiled instruction holding its
   pattern's matcher and its replacement already parsed into literals and group indices. This is
-  design 10's change 1 — the matcher as a field — finally carried to the body side, where
-  `apache_httpd` runs 209 replaces per record. The replacement's `$1`, `${name}` and `$$` syntax
+  design 10's change 1 — the matcher as a field — finally carried to the body side. *This said
+  `apache_httpd` runs 209 replaces per record; corrected 2026-09-10, it runs two — the 209 are
+  `translate` escaping ops, which never reach `Replacer`.* The replacement's `$1`, `${name}` and `$$` syntax
   was being re-parsed character by character *per match*, and each group re-resolved from its
   name; both are now compile-time work.
 - **The apply's mode, the call's target and the function's binding** (§3.2) are held by the ops

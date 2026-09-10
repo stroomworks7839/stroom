@@ -20,17 +20,16 @@ import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.engine.compile.CompiledCapture;
 import stroom.shapeshifter.engine.compile.CompiledCondition;
 import stroom.shapeshifter.engine.compile.CompiledOp;
 import stroom.shapeshifter.engine.compile.CompiledProject;
 import stroom.shapeshifter.engine.compile.CompiledRef;
 import stroom.shapeshifter.engine.compile.CompiledTemplate;
-import stroom.shapeshifter.engine.config.CaptureBinding;
+import stroom.shapeshifter.engine.compile.VarName;
 import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
-import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
@@ -69,7 +68,10 @@ final class Body {
     private final Instrument instrument;
     private final List<Message> messages;
     private final FunctionRuntime functions;
-    private final VarRegistry vars = new VarRegistry();
+    private final VarRegistry vars;
+
+    /** The slot a grouping binds its members to, which is a name the interpreter binds itself. */
+    private final VarName groupMembers;
 
     /**
      * The built key indexes, in their own namespace (design/16 §8) — a key and a sequence may
@@ -130,6 +132,8 @@ final class Body {
          final FunctionRuntime functions,
          final Encoding encoding) {
         this.compiled = compiled;
+        this.vars = new VarRegistry(compiled.names());
+        this.groupMembers = compiled.names().group();
         this.instrument = instrument;
         this.messages = messages;
         this.functions = functions;
@@ -158,8 +162,8 @@ final class Body {
 
     /** Register every capture the configuration declares, so each has a store from the start. */
     void registerCaptures() {
-        for (final Template template : compiled.project().templates()) {
-            for (final CaptureBinding capture : template.captures()) {
+        for (final CompiledTemplate template : compiled.templates()) {
+            for (final CompiledCapture capture : template.captures()) {
                 vars.register(capture.name());
             }
         }
@@ -380,7 +384,7 @@ final class Body {
         final List<TypedValue> raw = new ArrayList<>(written);
         final List<List<TypedValue>> sequences = new ArrayList<>(written);
         for (int i = 0; i < written; i++) {
-            final String store = op.sequences().get(i);
+            final VarName store = op.sequences().get(i);
             if (store != null) {
                 raw.add(null);
                 values.add(null);
@@ -427,7 +431,7 @@ final class Body {
                            final int matchCount,
                            final Output out) {
         final List<CompiledRef> select = op.select();
-        final String name = op.name();
+        final VarName name = op.name();
         final Function<List<TypedValue>, TypedValue> function = op.function();
         final List<TypedValue> inputs = inputs(select, match, matchCount);
         if (op.numericKind() != null && strictValues && !warnedNumeric.contains(op)) {
@@ -478,7 +482,7 @@ final class Body {
      * the same thing.
      */
     private void emit(final TypedValue value,
-                      final String name,
+                      final VarName name,
                       final int matchCount,
                       final Output out) {
         if (name == null) {
@@ -510,7 +514,7 @@ final class Body {
      * read site distinguishes a capture store from a per-record binding — it is named here
      * rather than left for someone to find.
      */
-    private void guardAccumulation(final String name) {
+    private void guardAccumulation(final VarName name) {
         if (chunkedRoot) {
             messages.add(new Message(Severity.FATAL, "Appends to sequence '" + name + "' under "
                     + "a classify or any root: the input is read in pieces whose counters "
@@ -521,7 +525,7 @@ final class Body {
     }
 
     /** The size a sequence may not exceed, and the stop when it does. */
-    private void guardSequenceSize(final String name, final int size) {
+    private void guardSequenceSize(final VarName name, final int size) {
         final int limit = maxSequenceEntries;
         if (size > limit) {
             messages.add(new Message(Severity.FATAL, "Sequence '" + name + "' exceeded "
@@ -533,7 +537,7 @@ final class Body {
     }
 
     /** The populated entries of a named sequence, in ascending index order, or empty. */
-    private List<TypedValue> entries(final String name) {
+    private List<TypedValue> entries(final VarName name) {
         final List<Store> stores = vars.get(name);
         if (stores == null || stores.isEmpty()) {
             return List.of();
@@ -550,7 +554,7 @@ final class Body {
     }
 
     /** Bind values as a dense sequence, indexed from one — position, with no holes. */
-    private void bindDense(final String name, final List<TypedValue> values) {
+    private void bindDense(final VarName name, final List<TypedValue> values) {
         guardSequenceSize(name, values.size());
         final Store store = vars.store(name);
         store.clear();
@@ -617,7 +621,7 @@ final class Body {
      * {@code __index} bound, so a key can name a parallel store: "these records, by their
      * category" is said by indexing positions rather than values.
      */
-    private Map<String, Filed> file(final String select,
+    private Map<String, Filed> file(final VarName select,
                                     final CompiledRef groupBy,
                                     final MatchResult match,
                                     final int matchCount) {
@@ -689,11 +693,11 @@ final class Body {
         // The members are a sequence, so they stay a store and are shadowed like one; the key
         // and the size are scalars the group frame holds (design 30 phase 4).
         vars.push();
-        vars.shadow(EngineVars.GROUP.varName());
+        vars.shadow(groupMembers);
         vars.frames().pushGroup();
         for (final Filed group : members.values()) {
             final List<Integer> indices = group.members();
-            bindDense(EngineVars.GROUP.varName(), indices.stream()
+            bindDense(groupMembers, indices.stream()
                     .map(index -> (TypedValue) new TypedValue.Integer(index))
                     .toList());
             vars.frames().groupKey(group.key());
@@ -1025,10 +1029,7 @@ final class Body {
         // back into the level that invoked it — and so that they are released on the way out.
         final boolean recursive = directive.recursive();
         if (recursive) {
-            vars.push();
-            for (final String name : op.recursiveShadow()) {
-                vars.shadow(name);
-            }
+            vars.push(op.recursiveShadow());
         }
 
         // DS3 inherits ignoreErrors down the tree: a level inside an ignoring container is

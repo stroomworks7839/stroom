@@ -206,6 +206,186 @@ count decides is what to do about the *rest*.
    engine: no body in any measured workload runs at more than one depth, and 83% to 100% of
    resolutions never leave the innermost scope.
 
+### 5.5 Phase 5's design: a name is a slot, and a scope is not an object
+
+*Built 2026-09-10; §9 phase 5 is the record.*
+
+*Written 2026-09-10, from three questions raised after phase 4 landed: should a scope be a type
+rather than a raw map, should `push` hand that type back so a caller can shadow on it directly,
+and should names become compile-time objects carrying an index so the registry can be an array.
+The aim behind them is explicit — **no map in the compiled runtime whose key the compiler
+already knew** — and it is the right aim. What follows is what the code says about how to reach
+it, including one place where the first two questions and the third pull in opposite
+directions.*
+
+#### What the research found
+
+**Every push's shadow set is a compile-time constant.** There are six pushes, and the observation
+that prompted this is not just true but stronger than it was put:
+
+| site | what it shadows | known when? |
+|---|---|---|
+| `forEachGroup` | `__group` | a constant |
+| `forEach`, `sorted` | the loop's `as`, or nothing | on the op |
+| `variable` | the variable's name | on the op |
+| `callTemplate` | every argument's name, then every unsupplied parameter's | on the op, the parameters settled at link time |
+| `apply`, when recursive | `recursiveShadow`, already a precomputed array | at link time |
+
+So the pairing is not "a push is usually followed by shadows" — it is **"a push shadows a set the
+compiler can hand it"**. Two sites shadow the empty set (`forEach` and `sorted` with no `as`),
+which is why the strict reading of the observation fails and the stronger one still holds.
+
+**Exactly one name in the whole engine is not known until a record runs.** A key-value capture
+resolves its own name out of the data (`Level.bindCaptures`), which is the DS3 shape where a
+field's name and its value are both read from the input. Everywhere else — every op, every
+capture, every reference — the name is authored. That single site is what stops the registry
+being *only* an array, and it is also the site this design's own rule (§1) exempts: its key is
+data, and a map is what a data key is for.
+
+**The name counts are small.** Distinct name-ish strings per configuration across the fixture
+corpus: median **8**, and the largest is `apache_httpd` at **239**. *Ruled 2026-09-10 that real
+configurations are the same order — a few hundred at most* — so the slot array is allocated flat,
+with no threshold and no second code path.
+
+`apache_httpd`'s 239 is worth breaking down, because it is not a large configuration and reading
+it as one would size this wrongly. **Thirty** of those names are the author's — `clientIP`,
+`url`, `status`, `monthStr` and the rest. The other **209 are `__esc_0` … `__esc_208`**,
+temporaries holding one escaping step each: a `translate` of `& " < >` into their entities, bound
+and then read once. So the widest configuration in the corpus is a small one with a long tail of
+generated single-use temporaries, which is a shape the flat array handles for nothing — 239 slots
+is under two kilobytes, once per run — and which is also **where the "209 replaces per record"
+error came from** (`benchmarks/points.md`, corrected the same day: they are `translate` ops, and
+this workload runs two regex replaces).
+
+#### The shape: one array, and an undo log
+
+The obvious reading of "an array instead of a map" is an array per scope, and it is the wrong
+one. A scope would have to be `N` wide to be indexable, so every push would allocate and clear
+239 slots on `apache_httpd` to hold the one or two names it actually shadows — worse than the
+`HashMap` it replaces — and reads would still walk outwards.
+
+The shape that fits what §5.3 counted is **one array for the whole run, plus an undo log**:
+
+- `List<Store>[] current`, sized to the configuration's name count, allocated once per run.
+  **A read is `current[slot]`.** No hash, and no walk — which matters because §5.3 found 83% to
+  100% of resolutions were already at the innermost scope, so the walk was never the cost and an
+  array-per-scope design would have bought the wrong thing.
+- `push` records a mark: the height of the undo stack.
+- `shadow(slot)` pushes `(slot, current[slot])` onto the undo stack and installs a fresh entry.
+- `pop` unwinds to the mark **in reverse**, restoring each saved value.
+- A write to a name nothing holds — today's `entry` creating in the innermost scope — is the same
+  operation as a shadow, so it undoes the same way.
+
+Reverse unwinding is what makes a name shadowed twice in one scope safe, which matters because
+`Apply.recursiveShadow` flattens the capture names of every candidate template and duplicates are
+likely; the intermediate save is restored, then the outer one, and the outer one is what is left.
+Deduplicating that array at link time is free and should be done anyway.
+
+#### So a `Scope` type is the thing this deletes
+
+The first two questions want a `Scope` object, with `push` returning it so a caller shadows on it
+directly. That is a genuine improvement to what is there now — but the array-and-undo-log shape
+**has no per-scope object at all**: a scope is a mark, an `int`. Building `Scope` first would be
+building the thing phase 5 removes.
+
+What survives from those two questions is better than the wrapper, and it is the combined
+primitive the first finding licenses:
+
+```
+void push(VarName[] shadowed)
+```
+
+one call, taking an array the compiled op already holds. That is the same idea — push and shadow
+belong together — expressed as a compile-time constant rather than as an object handed back and
+mutated. It also removes the `getLast()` that every `shadow` does today, which was the wrapper's
+other prize.
+
+#### What `VarName` is, and what it costs to carry
+
+`VarName(String name, int slot)`, interned once per configuration when it compiles, living in
+`compile` — `exec` already imports `compile`, and design 27 ruling 8 refuses only the reverse
+edge. The name stays on it because messages, instrumentation and `toString` all want it; the slot
+is what the run uses.
+
+The surface is about **twenty fields on the compiled graph** that hold a variable name today and
+would hold a `VarName`: `CompiledRef.RemoteVar.varId`, `CompiledCapture.name`,
+`Apply.recursiveShadow`, `Arg.name`, `Param.name`, `Variable.name`, the eight transform targets,
+`Sequence.name`, `Append.name`, `ForEach.select` and `as`, `ForEachGroup.select`, `Key.select`,
+`KeyGet.name`, `Fold.select` and `name`, `DistinctValues`, `Tokenize.name`, and
+`CompiledTemplate`'s `clearNames` and `captureNames`. Mechanical, wide, and each one a place a
+name stops being resolved.
+
+Two smaller consequences worth knowing before starting:
+
+- **`MatchIndex.varRef` is the twenty-first**, and it is the awkward one: it lives on the authored
+  `RefExpression` rather than on a compiled node, so `$var[$other]` still resolves a name at run
+  time. Phase 4 already flagged it as residue. It needs a compiled `MatchIndex` alongside
+  `CompiledRef`, which is a small design of its own.
+- **`fromCurrentScope` disappears.** Its one caller shadows the very name it then asks for, so
+  after the shadow the current scope's entry *is* `current[slot]`, and the method becomes a plain
+  read.
+
+#### The one map that stays, and why that is the answer rather than a gap
+
+A key-value capture writes under a name from the data, so it needs `String → slot`: a
+`Map<String, VarName>` built when the configuration compiles and consulted only there.
+
+A data-derived name the table does not hold has no slot, and no reference can name it. **Ruled
+2026-09-10: keep it anyway**, in a small overflow the key-value path alone touches. The reason is
+not that anything reads it — nothing can — but that captures have to keep operating for something
+outside the run to present them, which is the same requirement that made capture pruning a *mode*
+rather than a deletion. Dropping the binding would be faster and would quietly empty a field a
+diagnostic or a UI expects to see. The overflow costs nothing to a configuration without
+key-value captures, since it is never allocated.
+
+That leaves the end state statable in one line, which is the point of the exercise: **every map
+left in the compiled runtime is keyed by data** — a `switch`'s selected value, a value map's
+subject, a grouping's key, a key index's key, and a key-value capture's name. None is keyed by
+something the compiler knew.
+
+#### The count, 2026-09-10 — what the registry is asked once the frames have gone
+
+§7's rule, and phase 4's lesson about reading a count in absolute terms rather than as a share.
+Instrumentation reverted afterwards, per 256 KiB operation.
+
+| workload | reads | writes | **hash lookups** | levels walked | shadows | pushes | distinct names |
+|---|---|---|---|---|---|---|---|
+| `log_sessions` | 107,419 | 77,271 | **252,553** | 248,764 | 3,782 | 3,778 | 22 |
+| `apache_httpd` | 69,668 | 65,712 | **140,892** | 139,480 | 1,392 | 1,392 | 213 |
+| `win_sec_strict` | 19,537 | 23,494 | **45,023** | 43,988 | 957 | 957 | 95 |
+| `ausearch` | 4,136 | 19,880 | **24,022** | 24,016 | 0 | 0 | 50 |
+| `element_storm` | 0 | 0 | **0** | 0 | 0 | 0 | 0 |
+
+**`element_storm` no longer touches the registry at all.** Every one of the 7,320 resolutions
+§5.3 counted on it was an engine variable, and phase 4 took all of them. Nothing to intern, and
+its slot array is never allocated. That is the cleanest confirmation phase 4 could have.
+
+**The hash column is what this phase removes, and it is large where it matters.** Phase 4 removed
+61,566 resolutions from `log_sessions` and was worth +9.7%; phase 5 has **252,553** hash lookups
+to remove from the same row, four times as many. `apache_httpd` keeps 140,892 — the row that
+started this design with a 7.2% profile reading and that phase 4 could not touch. Ranked
+absolutely, as the lesson says: `log_sessions`, `apache_httpd`, `win_sec_strict`, `ausearch`,
+`element_storm`, in that order, and the first two are where an interleaved reading should go.
+
+**Almost all of it is the walk's per-level hash** — 248,764 of `log_sessions`'s 252,553 — which
+is not a contradiction of §5.3's finding that the walk is shallow. The walk *is* shallow, about
+1.35 levels per lookup; it is that there are so many lookups. The array removes both the depth
+and the hash, and a shallow walk is exactly the case where removing the hash is the whole win.
+
+**Writes are between 40% and 83% of the traffic**, and on `ausearch` they are almost all of it.
+A design that made reads cheap and left writes hashing would miss most of this. `current[slot]`
+is the same operation for both, which is the point.
+
+**A push shadows one name, on average.** `apache_httpd`: 1,392 pushes, 1,392 shadows.
+`log_sessions`: 3,778 and 3,782, the four extra being the `sequence` instruction's standalone
+shadow. So `push(VarName[])` is one call replacing two, over an array that is usually length one
+— and `ausearch` makes none at all, so the primitive costs it nothing.
+
+**And the name counts settle the array.** 22, 213, 95, 50 and 0 distinct names resolved at run
+time. Flat, allocated once, as ruled.
+
+The gate is the suites plus interleaved rounds on `log_sessions` and `apache_httpd`.
+
 ## 6. Phasing
 
 Phases 1 and 2 are built (§9). What remains:
@@ -227,17 +407,24 @@ then deletes; and the two numbers that decide interning's shape, how many names 
 and how deep the stack goes, are both changed by removing them. So the frame model goes first
 and interning is designed against what is left.
 
-**Phase 5 — interning**, which §5.4 ranks first on the count: every resolution pays a hash and
-almost none pays a walk. Behaviour-preserving by construction, so its gate is the suites plus an
-interleaved reading on `apache_httpd` and `log_sessions`, the two rows with the most traffic —
-and phase 4 will have taken the engine variables out of both counts, so the expected call count
-is to be re-taken rather than reused.
+**Phase 5 — interning. Done 2026-09-10; §5.5 is its design and §9 its record.** +13.9% on
+`apache_httpd` and +11.8% on `log_sessions`, the two rows the re-taken count ranked first and
+second by absolute lookups removed.
 
-**Phase 6 — the key index**, if it is still worth it. `log_sessions` became a benchmark row on
-2026-09-09, so it is measurable now where it was not; whether it is worth measuring is phase 4's
-number to decide.
+**Phase 6 — the conditions' references** (E39's other half), which phase 5 turned from a
+performance question into a structural one. *This design's goal is now one map away.* Every
+run-time string lookup left outside a key-value capture is a condition resolving an **authored**
+expression: 19,440 per operation on `apache_httpd`, 8,792 on `log_sessions`, 4,872 on
+`win_sec_strict`. That is a map keyed by something the compiler knew, which is the exact defect
+§1 names. Closing it takes `apache_httpd` to zero and leaves only `ausearch`'s 14,140, which are
+data. Design 29 §4 and §4 above both deferred this on a 0.4%-to-0.7% measurement; the reason to
+do it now is not speed, and the count is the argument.
 
-**Phase 7 — the record.** E44 closed or restated; design 10 §2's reference-resolution row
+**Phase 7 — the key index**, if it is still worth it. `log_sessions` became a benchmark row on
+2026-09-09, so it is measurable now where it was not; whether it is worth measuring is phase 5's
+number to decide, and phase 5 removed the traffic that would have made it look expensive.
+
+**Phase 8 — the record.** E44 closed or restated; design 10 §2's reference-resolution row
 updated; §3's cleared list carried into the ledger so the next survey starts from it.
 
 ## 7. The gate, and the method
@@ -272,6 +459,29 @@ whether the count was right. Phase 3 is nothing but that.
    decides how the registry holds it, so the vocabulary settles before the representation.
 5. **A sink-bound and reference-heavy benchmark row.** Still open, and shared with design 29's
    outstanding measurements.
+6. **A `Scope` type, and `push` returning it.** *Raised 2026-09-10, and answered by §5.5 rather
+   than ruled on:* the observation behind it is right and is stronger than it was put — every
+   push's shadow set is a compile-time constant, at all six sites — but the object it asks for is
+   the thing phase 5 deletes, since an array-and-undo-log registry has no per-scope object, only
+   a mark. What the observation earns is `push(VarName[])`, the combined primitive, which is the
+   same idea said as a constant rather than as a handle.
+7. **Names as compile-time objects carrying a slot.** *Raised 2026-09-10 as the direction to go,
+   and it is:* §5.5 is its design. The one place it cannot reach is a key-value capture, whose
+   name is read from the data — and that is the rule of §1 holding rather than failing. The end
+   state is worth stating as the goal it is: **every map left in the compiled runtime is keyed by
+   data.**
+8. **A data-derived capture name with no slot.** *Ruled 2026-09-10: kept, in an overflow*, on the
+   same ground as the capture-pruning mode — a capture nothing consumes still has to be there for
+   something outside the run to show. Dropping it would be faster and would silently empty a
+   field.
+9. **How wide a configuration gets.** *Ruled 2026-09-10: a few hundred names at most*, so the
+   slot array is flat with no threshold. Recorded because it is an assumption about
+   configurations this repository has not seen rather than a measurement, and a production
+   configuration an order of magnitude wider would want rechecking rather than a surprise.
+10. **The conditions' references, once more.** *Not yet ruled.* Deferred twice on the ground that
+    the path measures at 0.4% to 0.7%, which is still true and is no longer the question. After
+    phase 5 they are the **only** run-time name resolution left whose key the compiler knew, and
+    this design's stated aim is that no such map survives. §6 phase 6 is the proposal.
 
 ## 9. Record
 
@@ -312,8 +522,8 @@ thing that noticed the design's own rule was not being followed.
 
 **Neither phase is measured**, and neither is expected to be: points 8, 9 and 10 are recorded as
 controls in `benchmarks/points.md`. Point 10 is the one that could say something, because it takes
-an implementation out of `Transform.function`'s call site on the workload that runs 209 replaces
-per record — which is the question design 27 ruling 2 and design 29 §4 both settled by argument.
+an implementation out of `Transform.function`'s call site on the workload believed to run 209
+replaces per record — which, corrected 2026-09-10, runs two — which is the question design 27 ruling 2 and design 29 §4 both settled by argument.
 
 ### Phase 4 — the engine variables are frames
 
@@ -450,3 +660,126 @@ That also settles what the phase is worth against §5.4's ordering. The frame mo
 second on a share reading and has now moved two rows by ten per cent; interning's own expected
 call count must be re-taken on the same footing — absolute resolutions remaining after this
 phase, not percentages.
+
+### Phase 5 — a name is a slot
+
+`compile/VarName` and `compile/VarNames`; a rewritten `exec/VarRegistry`; about twenty fields
+across the compiled graph that held a string now hold an interned name. Names are interned as the
+graph is built — whatever compiles a node that names a variable asks for the `VarName`, and the
+first ask assigns the slot — so there is no second walk to keep in step with the compiler's
+existing one.
+
+`compile/CompiledIndex` is the twenty-first, and the one §5.5 called awkward: `$var[$other]`
+resolved its *index* variable by name on every such reference, because the rule lived on the
+authored `RefExpression` rather than on a compiled node. It is compiled now, and it says which of
+the two places holds that variable — a registry slot, or one of phase 4's frames.
+
+*The registry is one array and an undo log.* A read is `slots.get(name.slot())`: no hash, and no
+walk. A push records the log's height, a shadow saves a slot's binding and installs a fresh one,
+and a pop unwinds to the mark **in reverse**, which is what makes a name shadowed twice in one
+scope come back to the binding outside it rather than the one in between. **A scope is an
+`int`** — nothing is allocated to open one. `owner`, holding the depth that installed each
+binding, is what keeps the log bounded: shadowing a name the scope already holds is the no-op the
+per-scope map made it, and without that a `sequence` declared inside a loop would log once per
+iteration.
+
+*`push(VarName[])` is the combined primitive* §5.5 argued for in place of a `Scope` object. The
+count said a push shadows one name on average — `apache_httpd`, 1,392 pushes and 1,392 shadows —
+so it is one call replacing two over an array usually of length one, and `link` deduplicates that
+array because two candidate templates can declare the same capture name.
+
+#### What measuring found, twice
+
+**A defect, and it was mine.** `ausearch` binds 14,140 names per operation out of the data. The
+first shape consulted the compiled table — which *misses* for exactly those names — and then a
+separate map of data-derived ones, which hits. Two lookups where phase 4 did one, on that row's
+hottest path: 24,022 map lookups per operation became about **30,450**, and it measured as a
+regression. One map instead of two fixes it: on the first name that arrives from the data the
+table is copied once, and every lookup after that is a single hit. A configuration without
+key-value captures never copies. `ausearch` is now 16,310, below where it started.
+
+**A floor, and it is structural.** Even fixed, `ausearch` does not gain, and cannot: its names
+genuinely arrive as strings, so the map lookup is irreducible and the slot indirection is added
+after it. The right result for that row is *no change*, and that is what it now measures. Worth
+stating because it is the boundary of this design's own rule — §1 exempts a key whose value is
+data, and this is what that exemption costs where the data-keyed path is the whole workload.
+
+#### The reading, 2026-09-10
+
+Six interleaved rounds against `68fb1a592a`, order alternated within each round, plus a targeted
+six on `ausearch` after the fix.
+
+| workload | lookups removed | median | range | rounds |
+|---|---|---|---|---|
+| `apache_httpd` | 140,892 → 19,440 | **+13.9%** | +13.2 to +15.7 | 6/6 faster |
+| `log_sessions` | 252,553 → 8,792 | **+11.8%** | −1.3 to +15.1 | 5/6 faster |
+| `win_sec_strict` | 45,023 → 4,872 | +1.3% | +0.9 to +3.7 | 6/6, inside the envelope |
+| `ausearch` | 24,022 → 16,310 | −0.4% | −2.3 to +2.2 | flat against a −0.6% control |
+| `element_storm` | 0 → 0 | **the control** | −1.8 to +1.5 | flat, as it must be |
+
+`apache_httpd` is the largest gain this design has produced, on the row that started it: E44's
+7.2% profile reading, which phase 4 could not touch because only 5.9% of its resolutions were
+engine variables. **The count predicted both movers**, by absolute lookups removed — the same
+ranking that was wrong when read as a share in phase 4, and right twice since.
+
+`win_sec_strict` is reported as no measurable change despite six rounds agreeing in sign, because
++1.3% is inside a ±2% envelope. Six agreeing rounds inside the envelope is still inside the
+envelope.
+
+#### The control row, which is the method note
+
+**`element_storm` does no registry work at all**, because phase 4 took every one of its
+resolutions into frames. That makes it a free noise gauge for any registry change: whatever it
+reads is the box, not the code. It earned that in the first attempt at this reading, where it
+swung **−11.4%** in round one and **+6.2%** in round two — an eighteen-point spread on a row that
+cannot move — which is what said the whole run was worthless and sent the reading back to a
+settled box. On the good run it holds within ±1.8%.
+
+It should have been *declared* a control before the first run rather than noticed afterwards.
+That is the rule worth keeping: **a change to a subsystem should be measured with a row that does
+not use that subsystem in the same run**, and this design acquired one by accident.
+
+#### The audit, 2026-09-10
+
+*One over-claim of my own, one hardening, one hot-path slip, and two tightenings.*
+
+**A defence justified by a failure that cannot happen.** Compiling a condition interns the names
+its operands read, and the javadoc said this stops a name written by a capture and read only by a
+guard from missing the table, taking a slot of its own and reading nothing — silently. It does
+not, because that cannot occur: **whatever writes a name interns it, and the compiler refuses a
+read of a name nothing writes**, so a guard's name is always in the table already. Where it is
+not — a key-value capture's data-derived name — the write and the read go through the *same*
+run-time map and agree on the slot they invent. Proved by disabling the interning and re-running
+the test written to guard it, which still passed. The interning stays, on the honest ground that
+it makes the table mean *every name the configuration mentions*; the javadoc and the test now say
+that instead. **A test that passes with the code removed is not a test**, and this one was written
+before it was checked.
+
+**`VarNames` was mutable and shared, and a late `intern` would have been silent.** A compiled
+project outlives the runs that use it (D35) and each of those sizes its slot array from this
+table, so a name interned afterwards has a slot past the end of every one of them. `Compiler`
+freezes the table once linking has interned the last names, and `intern` throws after that.
+
+**The index rule was resolved before there was anything to index.** The walk this replaced
+resolved it only after establishing that the variable had stores; the first version passed it as
+an argument, so it ran on the absent path too. No behaviour difference — resolving an index reads
+and nothing more — but "empty is absent" makes the absent path the common one. Restored to the
+original order in both resolvers.
+
+**Two tightenings.** `VarNames.all()` handed out its live map, and is now unmodifiable;
+`CompiledRef.of` was public with no caller outside its package.
+
+**Checked and clear.** The undo log's reverse unwind and `owner` keeping it bounded;
+`bind` not logging at the global scope; both parallel arrays growing together; `fromCurrentScope`
+matching the old per-scope map exactly; and `grow` not structurally modifying the map it is
+called from inside `computeIfAbsent`. The strongest evidence is the probe rather than the
+reading: **only two run-time name resolutions survive in the engine**, conditions and key-value
+captures, and four of the five workloads create no run-time slot at all.
+
+Both resolvers' class javadocs were stale in the same way — they justified the two-resolver seam
+as a deferred optimisation. It is now this design's last loose end, so they carry the count.
+
+*Re-measured after the audit, because it changed hot-path code:* four more interleaved rounds,
+`apache_httpd` **+15.9%** (4/4, +12.9 to +19.1) and `log_sessions` **+11.9%** (4/4, +9.1 to
++16.5), against a control at −0.2%. Both hold; the earlier figures are not restated as improved,
+because the difference is inside what the rounds themselves spread.

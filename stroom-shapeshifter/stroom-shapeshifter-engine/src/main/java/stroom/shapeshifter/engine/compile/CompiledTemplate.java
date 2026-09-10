@@ -68,8 +68,8 @@ public record CompiledTemplate(Template template,
                                int contentGroup,
                                Set<Integer> onlyMatch,
                                CompiledCondition guard,
-                               String[] clearNames,
-                               String[] captureNames) {
+                               VarName[] clearNames,
+                               VarName[] captureNames) {
 
     public CompiledTemplate {
         body = List.copyOf(body);
@@ -87,13 +87,15 @@ public record CompiledTemplate(Template template,
                                final List<CompiledOp> body,
                                final Encoding encoding,
                                final List<CompiledCapture> captures,
-                               final CompiledCondition guard) {
-        final List<String> clear = new ArrayList<>();
-        final List<String> named = new ArrayList<>();
+                               final CompiledCondition guard,
+                               final VarNames names) {
+        final List<VarName> clear = new ArrayList<>();
+        final List<VarName> named = new ArrayList<>();
         for (final CaptureBinding capture : template.captures()) {
-            named.add(capture.name());
+            final VarName name = names.intern(capture.name());
+            named.add(name);
             if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
-                clear.add(capture.name());
+                clear.add(name);
             }
         }
         return new CompiledTemplate(template, match, body, encoding, captures,
@@ -104,7 +106,7 @@ public record CompiledTemplate(Template template,
                 template.match() instanceof MatchExpression.Delimiter ? 1 : 0,
                 template.matchLimits().onlyMatch(),
                 guard,
-                clear.toArray(String[]::new),
-                named.toArray(String[]::new));
+                clear.toArray(VarName[]::new),
+                named.toArray(VarName[]::new));
     }
 }

@@ -33,7 +33,7 @@ import java.util.List;
  * @param source what is read
  * @param as     the cast applied at bind, or null for none
  */
-public record CompiledCapture(String name, Source source, Cast as) {
+public record CompiledCapture(VarName name, Source source, Cast as) {
 
     /** What a capture reads. */
     public sealed interface Source {
@@ -55,21 +55,23 @@ public record CompiledCapture(String name, Source source, Cast as) {
     }
 
     /** The compiled form of a template's bindings, in their authored order. */
-    static List<CompiledCapture> compile(final List<CaptureBinding> captures) {
+    static List<CompiledCapture> compile(final List<CaptureBinding> captures,
+                                        final VarNames names) {
         final List<CompiledCapture> compiled = new ArrayList<>(captures.size());
         for (final CaptureBinding capture : captures) {
             final Source source = switch (capture.select()) {
-                case CaptureBinding.CaptureSource.Group group -> new Source.Group(group.group());
-                case CaptureBinding.CaptureSource.Step step -> new Source.Group(step.index() + 1);
-                case CaptureBinding.CaptureSource.Select select ->
-                        new Source.Select(CompiledRef.of(select.select()));
-                case CaptureBinding.CaptureSource.KeyValue keyValue -> new Source.KeyValue(
-                        CompiledRef.of(keyValue.keyRef()), CompiledRef.of(keyValue.valueRef()));
+                case final CaptureBinding.CaptureSource.Group group -> new Source.Group(group.group());
+                case final CaptureBinding.CaptureSource.Step step -> new Source.Group(step.index() + 1);
+                case final CaptureBinding.CaptureSource.Select select ->
+                        new Source.Select(CompiledRef.of(select.select(), names));
+                case final CaptureBinding.CaptureSource.KeyValue keyValue -> new Source.KeyValue(
+                        CompiledRef.of(keyValue.keyRef(), names),
+                        CompiledRef.of(keyValue.valueRef(), names));
                 // Refused before compilation reaches here (design 27 ruling 10).
-                case CaptureBinding.CaptureSource.Field ignored -> throw new IllegalStateException(
+                case final CaptureBinding.CaptureSource.Field ignored -> throw new IllegalStateException(
                         "Field capture sources are refused at compile time");
             };
-            compiled.add(new CompiledCapture(capture.name(), source, capture.as()));
+            compiled.add(new CompiledCapture(names.intern(capture.name()), source, capture.as()));
         }
         return List.copyOf(compiled);
     }

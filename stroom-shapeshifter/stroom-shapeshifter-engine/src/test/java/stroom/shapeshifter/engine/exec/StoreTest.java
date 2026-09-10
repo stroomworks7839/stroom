@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.compile.VarName;
+import stroom.shapeshifter.engine.compile.VarNames;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 import org.junit.jupiter.api.Test;
@@ -155,30 +157,138 @@ class StoreTest {
 
     @Test
     void innerScopesShadowOuterOnesAndReleaseOnTheWayOut() {
-        final VarRegistry vars = new VarRegistry();
-        vars.store("name").set(0, text("outer"));
+        // The table is what the compiler would have handed the run: a name is a slot in it.
+        final VarNames names = new VarNames();
+        final VarName name = names.intern("name");
+        final VarRegistry vars = new VarRegistry(names);
+        vars.store(name).set(0, text("outer"));
 
         vars.push();
-        vars.shadow("name");
-        vars.store("name").set(0, text("inner"));
-        assertThat(vars.store("name").get(0)).isEqualTo(text("inner"));
+        vars.shadow(name);
+        vars.store(name).set(0, text("inner"));
+        assertThat(vars.store(name).get(0)).isEqualTo(text("inner"));
 
         vars.pop();
         // Releasing is the point: a deep recursion would otherwise accumulate every level's
         // captures for the length of the stream.
-        assertThat(vars.store("name").get(0)).isEqualTo(text("outer"));
+        assertThat(vars.store(name).get(0)).isEqualTo(text("outer"));
+    }
+
+    @Test
+    void shadowingTwiceInOneScopeStillRestoresWhatWasOutsideIt() {
+        // The undo log unwinds in reverse, so the intermediate binding is restored and then the
+        // outer one — which is what a name shadowed twice has to come back to. It matters
+        // because a recursive apply shadows every candidate's capture names, and two candidates
+        // can declare the same one.
+        final VarNames names = new VarNames();
+        final VarName name = names.intern("name");
+        final VarRegistry vars = new VarRegistry(names);
+        vars.store(name).set(0, text("outer"));
+
+        vars.push();
+        vars.shadow(name);
+        vars.store(name).set(0, text("first"));
+        vars.shadow(name);
+        // Already this scope's, so the second shadow is the no-op the per-scope map made it.
+        assertThat(vars.store(name).get(0)).isEqualTo(text("first"));
+
+        vars.pop();
+        assertThat(vars.store(name).get(0)).isEqualTo(text("outer"));
+    }
+
+    @Test
+    void nestedScopesUnwindOneAtATime() {
+        final VarNames names = new VarNames();
+        final VarName name = names.intern("name");
+        final VarRegistry vars = new VarRegistry(names);
+        vars.store(name).set(0, text("outer"));
+
+        vars.push();
+        vars.shadow(name);
+        vars.store(name).set(0, text("middle"));
+        vars.push();
+        vars.shadow(name);
+        vars.store(name).set(0, text("inner"));
+
+        vars.pop();
+        assertThat(vars.store(name).get(0)).isEqualTo(text("middle"));
+        vars.pop();
+        assertThat(vars.store(name).get(0)).isEqualTo(text("outer"));
+    }
+
+    @Test
+    void nameFirstWrittenInsideAScopeDoesNotSurviveIt() {
+        final VarNames names = new VarNames();
+        final VarName name = names.intern("name");
+        final VarRegistry vars = new VarRegistry(names);
+
+        vars.push();
+        vars.store(name).set(0, text("local"));
+        vars.pop();
+
+        // Creating in the innermost scope undoes the same way shadowing does.
+        assertThat(vars.get(name)).isNull();
+    }
+
+    @Test
+    void pushingShadowsTheNamesTheCompilerSettled() {
+        // Every push in the interpreter knows its shadow set before the run starts, so the two
+        // operations are one call over a compile-time array.
+        final VarNames names = new VarNames();
+        final VarName first = names.intern("first");
+        final VarName second = names.intern("second");
+        final VarRegistry vars = new VarRegistry(names);
+        vars.store(first).set(0, text("outer one"));
+        vars.store(second).set(0, text("outer two"));
+
+        vars.push(new VarName[]{first, second});
+        assertThat(vars.store(first).get(0)).isNull();
+        assertThat(vars.store(second).get(0)).isNull();
+
+        vars.pop();
+        assertThat(vars.store(first).get(0)).isEqualTo(text("outer one"));
+        assertThat(vars.store(second).get(0)).isEqualTo(text("outer two"));
+    }
+
+    @Test
+    void nameReadOutOfTheDataGetsASlotOfItsOwn() {
+        // A key-value capture binds under a name from the input. One the configuration never
+        // mentions is kept rather than dropped: nothing can read it, but a capture has to keep
+        // operating for something outside the run to present it.
+        final VarNames names = new VarNames();
+        final VarRegistry vars = new VarRegistry(names);
+
+        vars.store("from the data").set(0, text("value"));
+
+        assertThat(vars.get("from the data")).isNotNull();
+        assertThat(vars.get("from the data").getFirst().get(0)).isEqualTo(text("value"));
+    }
+
+    @Test
+    void nameTheConfigurationMentionsIsTheSameSlotEitherWay() {
+        // The failure this guards: a capture writing by name and a reference reading by slot
+        // must land on the same variable, or the read is of the wrong slot and says nothing.
+        final VarNames names = new VarNames();
+        final VarName name = names.intern("shared");
+        final VarRegistry vars = new VarRegistry(names);
+
+        vars.store("shared").set(0, text("written by name"));
+
+        assertThat(vars.store(name).get(0)).isEqualTo(text("written by name"));
     }
 
     @Test
     void writeWithoutShadowingReachesTheScopeThatHoldsTheName() {
-        final VarRegistry vars = new VarRegistry();
-        vars.store("name").set(0, text("outer"));
+        final VarNames names = new VarNames();
+        final VarName name = names.intern("name");
+        final VarRegistry vars = new VarRegistry(names);
+        vars.store(name).set(0, text("outer"));
 
         vars.push();
-        vars.store("name").set(0, text("changed"));
+        vars.store(name).set(0, text("changed"));
         vars.pop();
 
-        // No shadow, so the write went to the scope that already had the name.
-        assertThat(vars.store("name").get(0)).isEqualTo(text("changed"));
+        // No shadow, so to write went to the scope that already had the name.
+        assertThat(vars.store(name).get(0)).isEqualTo(text("changed"));
     }
 }

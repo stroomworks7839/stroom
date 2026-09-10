@@ -162,12 +162,15 @@ class CompareSpineTest {
 
     private static boolean evaluate(final Condition condition) {
         // No match, no variables: every reference is absent. No patterns either — the spine is
-        // comparisons, and a compiled condition only needs the map for a matches test.
+        // comparisons, and a compiled condition only needs the map for a matches test. The name
+        // table is the one compiling the condition fills, and a run needs it to size its slots.
+        final stroom.shapeshifter.engine.compile.VarNames names =
+                new stroom.shapeshifter.engine.compile.VarNames();
         return stroom.shapeshifter.engine.exec.Conditions.evaluate(
                 stroom.shapeshifter.engine.compile.CompiledCondition.of(condition,
-                        java.util.Map.of()),
+                        java.util.Map.of(), names),
                 MatchResult.empty(), 1,
-                new stroom.shapeshifter.engine.exec.VarRegistry());
+                new stroom.shapeshifter.engine.exec.VarRegistry(names));
     }
 
     private static final String MISSING_REF =
