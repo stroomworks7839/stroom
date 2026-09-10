@@ -17,13 +17,8 @@
 package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.Dispatch;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
-import stroom.shapeshifter.engine.config.Project;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * How a run begins and ends, settled once when the project compiles.
@@ -59,92 +54,5 @@ public record RootPlan(Dispatch dispatch,
         prologues = List.copyOf(prologues);
         opened = List.copyOf(opened);
         tails = List.copyOf(tails);
-    }
-
-    /** Settle the plan for a compiled configuration. */
-    public static RootPlan of(final Project project, final List<CompiledTemplate> templates) {
-        final CompiledTemplate source = templates.stream()
-                .filter(t -> t.match() instanceof CompiledMatch.Source)
-                .findFirst()
-                .orElse(null);
-        final ApplyDirective directive = source == null
-                ? null
-                : applyDirective(source.template().body());
-        final String mode = directive == null ? null : directive.mode();
-        final Dispatch dispatch = Dispatch.effective(
-                directive == null ? null : directive.dispatch(), project);
-        final List<CompiledTemplate> roots = templates.stream()
-                .filter(t -> !(t.match() instanceof CompiledMatch.Source))
-                .filter(t -> Objects.equals(t.template().mode(), mode))
-                .toList();
-        // The root level's gate is the configuration's own ignoreErrors — DS3's flag on the
-        // dataSplitter element itself — or the document template's directive saying so.
-        final boolean ignoreErrors = project.source().ignoreErrors()
-                                     || (directive != null && directive.ignoreErrors());
-
-        if (source == null) {
-            return new RootPlan(dispatch, roots, ignoreErrors, List.of(), List.of(), List.of());
-        }
-        final List<List<CompiledOp>> prologues = new ArrayList<>();
-        final List<CompiledOp.Element> opened = new ArrayList<>();
-        final List<List<CompiledOp>> tails = new ArrayList<>();
-        List<CompiledOp> level = source.body();
-        while (true) {
-            final int at = indexOfApplyOrEnclosingElement(level);
-            if (at < 0) {
-                prologues.add(level);
-                tails.add(List.of());
-                break;
-            }
-            prologues.add(level.subList(0, at));
-            tails.add(level.subList(at + 1, level.size()));
-            if (level.get(at) instanceof final CompiledOp.Element element) {
-                opened.add(element);
-                level = element.body();
-            } else {
-                break;
-            }
-        }
-        return new RootPlan(dispatch, roots, ignoreErrors, prologues, opened, tails);
-    }
-
-    /**
-     * The directive of the first apply-templates in a body, searched top down and inside any
-     * {@code element} that encloses it — the same descent the split makes.
-     */
-    private static ApplyDirective applyDirective(final List<OutputNode> body) {
-        for (final OutputNode node : body) {
-            if (node instanceof final OutputNode.ApplyTemplates apply) {
-                return apply.directive();
-            }
-            if (node instanceof final OutputNode.Element element) {
-                final ApplyDirective inside = applyDirective(element.body());
-                if (inside != null) {
-                    return inside;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static int indexOfApplyOrEnclosingElement(final List<CompiledOp> body) {
-        for (int i = 0; i < body.size(); i++) {
-            final CompiledOp op = body.get(i);
-            if (op instanceof CompiledOp.Apply
-                || (op instanceof final CompiledOp.Element element && containsApply(element.body()))) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static boolean containsApply(final List<CompiledOp> body) {
-        for (final CompiledOp op : body) {
-            if (op instanceof CompiledOp.Apply
-                || (op instanceof final CompiledOp.Element element && containsApply(element.body()))) {
-                return true;
-            }
-        }
-        return false;
     }
 }

@@ -17,11 +17,9 @@
 package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.Condition;
-import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.regex.BytePattern;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * A condition, compiled.
@@ -109,51 +107,5 @@ public sealed interface CompiledCondition {
     /** The iteration's last position. */
     record IsLast() implements CompiledCondition {
 
-    }
-
-    /**
-     * Compile a condition, resolving each {@code matches} pattern against the patterns the match
-     * compiler interned. This is the only place that reads that map for a condition, and it runs
-     * once per authored condition rather than once per evaluation.
-     *
-     * @param condition the authored condition, or null for a template with no guard
-     * @param patterns  every pattern the configuration compiled, by key
-     * @return the compiled form, or null when there was no condition
-     */
-    public static CompiledCondition of(final Condition condition,
-                                final Map<PatternKey, BytePattern> patterns,
-                                final VarNames names) {
-        return switch (condition) {
-            case null -> null;
-            case final Condition.Compare value -> new Compare(value.op(),
-                    CompiledOperand.of(value.left(), names),
-                    CompiledOperand.of(value.right(), names));
-            case final Condition.Matches value -> {
-                final BytePattern pattern = patterns.get(PatternKey.ofValue(value.pattern()));
-                if (pattern == null) {
-                    // The match compiler interns every pattern a condition names, including the
-                    // ones nested in a body; a miss here means it stopped walking somewhere.
-                    throw new IllegalStateException("Pattern was not compiled: " + value.pattern());
-                }
-                yield new Matches(CompiledRef.of(value.select(), names), pattern);
-            }
-            case final Condition.Contains value ->
-                    new Contains(CompiledRef.of(value.select(), names), value.substring());
-            case final Condition.StartsWith value ->
-                    new StartsWith(CompiledRef.of(value.select(), names), value.prefix());
-            case final Condition.And value -> new And(all(value.conditions(), patterns, names));
-            case final Condition.Or value -> new Or(all(value.conditions(), patterns, names));
-            case final Condition.Not value -> new Not(of(value.condition(), patterns, names));
-            case final Condition.Exists value ->
-                    new Exists(CompiledRef.of(value.select(), names));
-            case final Condition.IsFirst ignored -> new IsFirst();
-            case final Condition.IsLast ignored -> new IsLast();
-        };
-    }
-
-    private static List<CompiledCondition> all(final List<Condition> conditions,
-                                               final Map<PatternKey, BytePattern> patterns,
-                                               final VarNames names) {
-        return conditions.stream().map(child -> of(child, patterns, names)).toList();
     }
 }

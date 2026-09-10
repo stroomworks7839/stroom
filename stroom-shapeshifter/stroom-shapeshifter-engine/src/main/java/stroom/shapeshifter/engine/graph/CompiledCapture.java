@@ -16,11 +16,8 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.Cast;
 
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * A capture binding with its resolution decided once (design 25 §9.2, D50): where the value
@@ -52,27 +49,5 @@ public record CompiledCapture(VarName name, Source source, Cast as) {
         record KeyValue(CompiledRef key, CompiledRef value) implements Source {
 
         }
-    }
-
-    /** The compiled form of a template's bindings, in their authored order. */
-    public static List<CompiledCapture> compile(final List<CaptureBinding> captures,
-                                        final VarNames names) {
-        final List<CompiledCapture> compiled = new ArrayList<>(captures.size());
-        for (final CaptureBinding capture : captures) {
-            final Source source = switch (capture.select()) {
-                case final CaptureBinding.CaptureSource.Group group -> new Source.Group(group.group());
-                case final CaptureBinding.CaptureSource.Step step -> new Source.Group(step.index() + 1);
-                case final CaptureBinding.CaptureSource.Select select ->
-                        new Source.Select(CompiledRef.of(select.select(), names));
-                case final CaptureBinding.CaptureSource.KeyValue keyValue -> new Source.KeyValue(
-                        CompiledRef.of(keyValue.keyRef(), names),
-                        CompiledRef.of(keyValue.valueRef(), names));
-                // Refused before compilation reaches here (design 27 ruling 10).
-                case final CaptureBinding.CaptureSource.Field ignored -> throw new IllegalStateException(
-                        "Field capture sources are refused at compile time");
-            };
-            compiled.add(new CompiledCapture(names.intern(capture.name()), source, capture.as()));
-        }
-        return List.copyOf(compiled);
     }
 }

@@ -32,11 +32,13 @@
  * runs it. That is the whole point of the package existing, and both directions are load-bearing:
  *
  * <ul>
- *   <li><b>Not on the compiler.</b> A graph is a value. Nothing in it should be able to reach the
- *       thing that made it, and a reader should be able to learn what an instruction <i>is</i>
- *       without reading how it came to be. The {@code of} and {@code compile} factories here are
- *       public for the compiler's benefit and are the seam — they take the authored model and
- *       return a graph, and take no compiler with them.</li>
+ *   <li><b>Not on the compiler.</b> A graph is a value, and <b>nothing here builds one</b>: there
+ *       are no factories, no {@code of}, no {@code compile}. Every node is constructed by the
+ *       pass that decided its contents, so a reader learns what an instruction <i>is</i> from
+ *       this package and how it came to be from {@code compile}, and neither file has to explain
+ *       the other. The one method that mutates a node after construction — an apply's or a call's
+ *       {@code link} — takes what it is given rather than working it out, because working it out
+ *       meant reading the authored model.</li>
  *   <li><b>Not on the interpreter.</b> Design 27 ruling 8 removed a cycle between the compiled
  *       vocabulary and the run, and this keeps it removed by construction rather than by care.
  *       It is also what makes design 31 possible rather than ceremonial: an instruction can be
@@ -48,5 +50,12 @@
  * lived in {@code compile} beside the compiler, but no compiled class named a compiler class and
  * {@code exec} imported none of them — the layering existed and only the package was missing.
  * Drawing it costs a boundary that can now be enforced instead of remembered.
+ *
+ * <p>The building came out the same day. Each node had carried a static factory reading the
+ * authored model, which is compiler work sitting on the thing it makes; those are
+ * {@code RefCompiler}, {@code ConditionCompiler}, {@code CaptureCompiler}, {@code RootPlanner}
+ * and one private method of {@code Compiler} now. What is left here depends on {@code config}
+ * and that is D35 rather than a leak: a compiled node <i>carries</i> the authored one for names,
+ * identifiers and messages, and reads it nowhere.
  */
 package stroom.shapeshifter.engine.graph;

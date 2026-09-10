@@ -16,12 +16,9 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.config.CaptureBinding;
-import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.text.Encoding;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -74,39 +71,5 @@ public record CompiledTemplate(Template template,
     public CompiledTemplate {
         body = List.copyOf(body);
         captures = List.copyOf(captures);
-    }
-
-    /**
-     * Compile a template, deciding here everything the match loop would otherwise ask the
-     * authored {@link Template} for on every candidate, every match and every level entry
-     * (design 29 §3.1, D51). The model stays the model, carried for names, identifiers and
-     * messages; the loop reads the fields beside it.
-     */
-    public static CompiledTemplate of(final Template template,
-                               final CompiledMatch match,
-                               final List<CompiledOp> body,
-                               final Encoding encoding,
-                               final List<CompiledCapture> captures,
-                               final CompiledCondition guard,
-                               final VarNames names) {
-        final List<VarName> clear = new ArrayList<>();
-        final List<VarName> named = new ArrayList<>();
-        for (final CaptureBinding capture : template.captures()) {
-            final VarName name = names.intern(capture.name());
-            named.add(name);
-            if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
-                clear.add(name);
-            }
-        }
-        return new CompiledTemplate(template, match, body, encoding, captures,
-                template.matchLimits().maxMatch(),
-                template.consume(),
-                // A delimiter template's content is the field, group 1; every other template's
-                // is the whole match. The group that carries the delimiter too is not it.
-                template.match() instanceof MatchExpression.Delimiter ? 1 : 0,
-                template.matchLimits().onlyMatch(),
-                guard,
-                clear.toArray(VarName[]::new),
-                named.toArray(VarName[]::new));
     }
 }

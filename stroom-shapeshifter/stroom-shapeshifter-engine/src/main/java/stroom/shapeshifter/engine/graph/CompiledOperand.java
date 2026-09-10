@@ -17,8 +17,6 @@
 package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.Condition;
-import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 /**
@@ -49,20 +47,5 @@ public record CompiledOperand(CompiledRef ref, TypedValue literal, Cast as) {
             // requires an explicit offset.
             throw new IllegalStateException("A literal operand's cast is applied when it compiles");
         }
-    }
-
-    /** Compile one side of a comparison. */
-    public static CompiledOperand of(final Condition.Operand operand, final VarNames names) {
-        if (operand.ref() != null) {
-            return new CompiledOperand(CompiledRef.of(operand.ref(), names), null, operand.as());
-        }
-        final TypedValue value = switch (operand.literal()) {
-            case final Condition.Literal.Text text -> TypedValue.of(text.value());
-            case final Condition.Literal.Whole whole -> new TypedValue.Integer(whole.value());
-            case final Condition.Literal.Fractional fraction ->
-                    new TypedValue.Double(fraction.value());
-            case final Condition.Literal.Truth truth -> new TypedValue.Bool(truth.value());
-        };
-        return new CompiledOperand(null, Comparisons.cast(value, operand.as()), null);
     }
 }

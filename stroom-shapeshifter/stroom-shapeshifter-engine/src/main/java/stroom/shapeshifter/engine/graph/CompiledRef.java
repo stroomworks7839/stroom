@@ -17,8 +17,6 @@
 package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.EngineVars;
-import stroom.shapeshifter.engine.config.RefExpression;
-import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 /**
@@ -75,36 +73,5 @@ public sealed interface CompiledRef {
     /** Several parts, concatenated. Each element is one of the three shapes above. */
     record Composite(CompiledRef[] parts) implements CompiledRef {
 
-    }
-
-    /** Decide an expression's strategy, interning every name it reads. */
-    public static CompiledRef of(final RefExpression expression, final VarNames names) {
-        if (expression == null || expression.parts().isEmpty()) {
-            return new Empty();
-        }
-        if (expression.parts().size() == 1) {
-            return part(expression.parts().getFirst(), names);
-        }
-        final CompiledRef[] parts = new CompiledRef[expression.parts().size()];
-        for (int i = 0; i < parts.length; i++) {
-            parts[i] = part(expression.parts().get(i), names);
-        }
-        return new Composite(parts);
-    }
-
-    private static CompiledRef part(final RefPart part, final VarNames names) {
-        return switch (part) {
-            case final RefPart.Text text -> new Bytes(TypedValue.of(text.value()));
-            case final RefPart.Capture capture -> {
-                if (capture.varId() == null) {
-                    yield new LocalGroup(capture.group());
-                }
-                final CompiledIndex index = CompiledIndex.of(capture.matchIndex(), names);
-                final EngineVars engine = EngineVars.byName(capture.varId());
-                yield engine != null && engine.framed()
-                        ? new Context(engine, capture.group(), index)
-                        : new RemoteVar(names.intern(capture.varId()), capture.group(), index);
-            }
-        };
     }
 }

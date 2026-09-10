@@ -21,9 +21,7 @@ import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.ProjectReader;
-import stroom.shapeshifter.engine.graph.CompiledCondition;
 import stroom.shapeshifter.engine.graph.CompiledProject;
-import stroom.shapeshifter.engine.graph.VarNames;
 import stroom.shapeshifter.engine.match.MatchResult;
 
 import org.junit.jupiter.api.Test;
@@ -162,17 +160,42 @@ class CompareSpineTest {
     // absent never compares. The aliases carry the difference so the corpus cannot notice.
     // -----------------------------------------------------------------------------------
 
+    /**
+     * Evaluate a condition as a template's guard, with no match and no variables so that every
+     * reference is absent.
+     *
+     * <p>It compiles a whole configuration to get there, rather than calling a compiler pass,
+     * because the passes are the compiler's business and only {@code Compiler} is its face
+     * (2026-09-10, when the compiled vocabulary moved to {@code graph} and the passes stopped
+     * being reachable from outside).
+     *
+     * <p>The template <b>declares</b> the name these conditions read, because the compiler
+     * rightly refuses a configuration that reads a name nothing writes. Declaring it does not
+     * bind it: no match has been made and the registry is empty, so it still resolves to nothing,
+     * which is the absence every case here is about.
+     */
     private static boolean evaluate(final Condition condition) {
-        // No match, no variables: every reference is absent. No patterns either — the spine is
-        // comparisons, and a compiled condition only needs the map for a matches test. The name
-        // table is the one compiling the condition fills, and a run needs it to size its slots.
-        final stroom.shapeshifter.engine.graph.VarNames names =
-                new stroom.shapeshifter.engine.graph.VarNames();
+        final stroom.shapeshifter.engine.config.Template guarded =
+                new stroom.shapeshifter.engine.config.Template(
+                        java.util.UUID.randomUUID(), "guarded", "doc", false, condition,
+                        java.util.List.of(),
+                        new stroom.shapeshifter.engine.config.MatchExpression.Regex(".*", null, 0),
+                        new stroom.shapeshifter.engine.config.Template.MatchLimits(0, -1, null),
+                        java.util.List.of(new stroom.shapeshifter.engine.config.CaptureBinding(
+                                "missing",
+                                new stroom.shapeshifter.engine.config.CaptureBinding
+                                        .CaptureSource.Group(1), null)),
+                        java.util.List.of(), null, false);
+        final stroom.shapeshifter.engine.config.Project project =
+                new stroom.shapeshifter.engine.config.Project("t", 5,
+                        stroom.shapeshifter.engine.config.Project.SourceConfig.defaults(),
+                        java.util.List.of(guarded), java.util.List.of());
+        final stroom.shapeshifter.engine.graph.CompiledProject compiled =
+                stroom.shapeshifter.engine.Shapeshifter.compile(project);
         return stroom.shapeshifter.engine.exec.Conditions.evaluate(
-                stroom.shapeshifter.engine.graph.CompiledCondition.of(condition,
-                        java.util.Map.of(), names),
+                compiled.templates().getFirst().guard(),
                 MatchResult.empty(), 1,
-                new stroom.shapeshifter.engine.exec.VarRegistry(names));
+                new stroom.shapeshifter.engine.exec.VarRegistry(compiled.names()));
     }
 
     private static final String MISSING_REF =

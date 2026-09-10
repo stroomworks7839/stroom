@@ -19,14 +19,17 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.graph.CompiledCapture;
 import stroom.shapeshifter.engine.graph.CompiledCondition;
 import stroom.shapeshifter.engine.graph.CompiledMatch;
+import stroom.shapeshifter.engine.graph.CompiledOp;
 import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.graph.CompiledTemplate;
+import stroom.shapeshifter.engine.graph.VarName;
 import stroom.shapeshifter.engine.graph.VarNames;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
@@ -107,12 +110,12 @@ public final class Compiler {
                             : null;
             // The match first: it interns the patterns the body's compiled form resolves against.
             final CompiledMatch match = matches.compile(template, matchEncoding, markEncoding);
-            templates.add(CompiledTemplate.of(template, match,
+            templates.add(template(template, match,
                     bodies.compile(template.body()),
                     declared,
-                    CompiledCapture.compile(template.captures(), names),
+                    CaptureCompiler.compile(template.captures(), names),
                     // The guard's patterns were interned by the match compile above.
-                    CompiledCondition.of(template.guard(), matches.patterns(), names),
+                    ConditionCompiler.compile(template.guard(), matches.patterns(), names),
                     names));
         }
         final List<TemplateUses> uses = TemplateUses.of(project);
@@ -120,7 +123,8 @@ public final class Compiler {
         TemplateUses.lintDispatch(project, templates, uses, warnings);
         final boolean structured = bodyChecks(project, warnings);
         final CompiledProject compiled = new CompiledProject(project, templates,
-                encoding, transcodeFrom, warnings, functions.used(), structured, names);
+                encoding, transcodeFrom, warnings, functions.used(), structured, names,
+                RootPlanner.plan(project, templates));
 
         // The bodies were compiled before the templates they name existed; now they do. Linking
         // interns the last names — a call's parameters — so the table closes after it.
@@ -228,5 +232,39 @@ public final class Compiler {
             throw new ConfigException("This build has no charset for " + encoding.label());
         }
         return encoding;
+    }
+
+    /**
+     * Compile a template, deciding here everything the match loop would otherwise ask the
+     * authored {@link Template} for on every candidate, every match and every level entry
+     * (design 29 §3.1, D51). The model stays the model, carried for names, identifiers and
+     * messages; the loop reads the fields beside it.
+     */
+    private static CompiledTemplate template(final Template template,
+                                             final CompiledMatch match,
+                                             final List<CompiledOp> body,
+                                             final Encoding encoding,
+                                             final List<CompiledCapture> captures,
+                                             final CompiledCondition guard,
+                                             final VarNames names) {
+        final List<VarName> clear = new ArrayList<>();
+        final List<VarName> named = new ArrayList<>();
+        for (final CaptureBinding capture : template.captures()) {
+            final VarName name = names.intern(capture.name());
+            named.add(name);
+            if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
+                clear.add(name);
+            }
+        }
+        return new CompiledTemplate(template, match, body, encoding, captures,
+                template.matchLimits().maxMatch(),
+                template.consume(),
+                // A delimiter template's content is the field, group 1; every other template's
+                // is the whole match. The group that carries the delimiter too is not it.
+                template.match() instanceof MatchExpression.Delimiter ? 1 : 0,
+                template.matchLimits().onlyMatch(),
+                guard,
+                clear.toArray(VarName[]::new),
+                named.toArray(VarName[]::new));
     }
 }

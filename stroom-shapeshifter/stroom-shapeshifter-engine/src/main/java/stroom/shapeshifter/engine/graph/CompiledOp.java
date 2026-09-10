@@ -21,14 +21,12 @@ import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
-import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.value.Dates;
 import stroom.shapeshifter.engine.value.Replacer;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.BytePattern;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -215,21 +213,9 @@ public sealed interface CompiledOp {
          * @param target the template named, or null when the name resolves to none, which is
          *               not an error here: the call does nothing at run time
          */
-        public void link(final CompiledTemplate target, final VarNames names) {
+        public void link(final CompiledTemplate target, final List<Param> params) {
             this.target = target;
-            if (target == null) {
-                return;
-            }
-            final List<Param> declared = new ArrayList<>();
-            for (final Template.ParamDecl parameter : target.template().param()) {
-                final VarName name = names.intern(parameter.name());
-                final boolean supplied = args.stream().anyMatch(arg -> arg.name().equals(name));
-                declared.add(new Param(name,
-                        !supplied && parameter.defaultValue() != null
-                                ? TypedValue.of(parameter.defaultValue())
-                                : null));
-            }
-            this.params = List.copyOf(declared);
+            this.params = List.copyOf(params);
         }
 
         /** The name called, kept for diagnostics. */

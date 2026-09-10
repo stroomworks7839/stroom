@@ -17,7 +17,6 @@
 package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.EngineVars;
-import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 
 /**
  * Which of a variable's values a reference means, compiled (design 30 phase 5).
@@ -46,16 +45,4 @@ public record CompiledIndex(int index,
                             boolean isLast,
                             VarName varRef,
                             EngineVars varContext) {
-
-    /** Compile an authored index rule, or null when the reference carries none. */
-    public static CompiledIndex of(final MatchIndex matchIndex, final VarNames names) {
-        if (matchIndex == null) {
-            return null;
-        }
-        final EngineVars engine = EngineVars.byName(matchIndex.varRef());
-        final boolean framed = engine != null && engine.framed();
-        return new CompiledIndex(matchIndex.index(), matchIndex.isOffset(), matchIndex.isLast(),
-                framed ? null : names.intern(matchIndex.varRef()),
-                framed ? engine : null);
-    }
 }

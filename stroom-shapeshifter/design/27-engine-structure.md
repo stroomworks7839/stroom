@@ -241,13 +241,28 @@ an instruction can be given a `run` method against a context declared in `graph`
 in `exec`, with the graph never naming the interpreter, which is what §4 of that design had
 costed as ceremony.
 
-*Two things it did not do, named so they are not mistaken for oversights.* The seven
-`of`/`compile` factories stayed on the graph and were widened to public rather than moved into
-the compiler: they take the authored model and return a graph, and name no compiler, so they are
-the seam rather than a leak — but "the compiler builds the model, the model does not build
-itself" would move them. And `CompiledStep`/`CompiledSteps` remain in `engine.match`, because
-`graph` reaches into `match` and the reverse edge is this ruling's own cycle; separating them
-means splitting `match` as well, which is a change of its own.
+**And then the building moved too, the same day.** Each node had carried a static factory that
+read the authored model — `CompiledRef.of`, `CompiledCondition.of`, `CompiledOperand.of`,
+`CompiledIndex.of`, `CompiledCapture.compile`, `CompiledTemplate.of`, `RootPlan.of` — which is
+compiler work sitting on the thing it makes. Those are `RefCompiler`, `ConditionCompiler`,
+`CaptureCompiler`, `RootPlanner` and one private method of `Compiler` now, and **`graph` builds
+nothing at all**. Two consequences worth having: `CompiledProject` *receives* its `RootPlan`
+rather than computing one in its constructor, and a call site's parameters are computed by the
+compiler, so `CallTemplate.link` takes what it is given instead of reading `target.template()`.
+
+The passes are all package-private and only `Compiler` is the compiler's face, which cost one
+test its shortcut: `CompareSpineTest` called a factory directly and now compiles a minimal
+configuration. It has to *declare* the name its conditions read, because the compiler rightly
+refuses a configuration that reads a name nothing writes — declaring does not bind, so the
+absence each case is about survives.
+
+What is left is `graph`'s dependency on `config`, and that is D35 rather than a leak: a compiled
+node *carries* the authored one for names, identifiers and messages, and reads it nowhere.
+
+*One thing deliberately not done*, named so it is not mistaken for an oversight:
+`CompiledStep`/`CompiledSteps` remain in `engine.match`, because `graph` reaches into `match` and
+the reverse edge is this ruling's own cycle; separating them means splitting `match` as well,
+which is a change of its own.
 
 ### 2.6 What does not move
 

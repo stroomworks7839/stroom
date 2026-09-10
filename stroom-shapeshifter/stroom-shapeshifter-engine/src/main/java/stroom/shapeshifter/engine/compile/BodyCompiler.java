@@ -23,10 +23,10 @@ import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
+import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Signature;
-import stroom.shapeshifter.engine.graph.CompiledCondition;
 import stroom.shapeshifter.engine.graph.CompiledOp;
 import stroom.shapeshifter.engine.graph.CompiledRef;
 import stroom.shapeshifter.engine.graph.CompiledTemplate;
@@ -118,7 +118,8 @@ final class BodyCompiler {
             apply.link(List.copyOf(byMode.getOrDefault(apply.directive().mode(), List.of())));
         }
         for (final CompiledOp.CallTemplate call : calls) {
-            call.link(byName.get(call.name()), names);
+            final CompiledTemplate target = byName.get(call.name());
+            call.link(target, target == null ? List.of() : params(call, target));
         }
     }
 
@@ -133,26 +134,26 @@ final class BodyCompiler {
                 case final OutputNode.Text text ->
                         new CompiledOp.Text(TypedValue.of(text.value()));
                 case final OutputNode.ValueOf valueOf ->
-                        new CompiledOp.ValueOf(CompiledRef.of(valueOf.select(), names));
+                        new CompiledOp.ValueOf(RefCompiler.compile(valueOf.select(), names));
                 case final OutputNode.Call value -> call(value);
                 case final OutputNode.If value -> new CompiledOp.If(
-                        CompiledCondition.of(value.test(), patterns, names), compile(value.then()));
+                        ConditionCompiler.compile(value.test(), patterns, names), compile(value.then()));
                 case final OutputNode.Choose value -> new CompiledOp.Choose(
                         value.when().stream()
                                 .map(branch -> new CompiledOp.When(
-                                        CompiledCondition.of(branch.test(), patterns, names),
+                                        ConditionCompiler.compile(branch.test(), patterns, names),
                                         compile(branch.body())))
                                 .toList(),
                         compile(value.otherwise()));
                 case final OutputNode.Switch value -> new CompiledOp.Switch(
-                        CompiledRef.of(value.select(), names), cases(value), compile(value.defaultBody()));
+                        RefCompiler.compile(value.select(), names), cases(value), compile(value.defaultBody()));
                 case final OutputNode.ApplyTemplates apply -> {
                     // Whole-parent-content is the group-0 special case of a local group, so
                     // being a local group is the whole of being locatable.
                     final RefExpression select = apply.directive().select();
                     final CompiledOp.Apply applyOp = new CompiledOp.Apply(
                             apply.directive(),
-                            CompiledRef.of(select, names),
+                            RefCompiler.compile(select, names),
                             isWholeParentContent(select),
                             isLocalGroup(select),
                             Dispatch.effective(apply.directive().dispatch(), project));
@@ -160,13 +161,13 @@ final class BodyCompiler {
                     yield applyOp;
                 }
                 case final OutputNode.EmitError value ->
-                        new CompiledOp.EmitError(value.severity(), CompiledRef.of(value.message(), names));
+                        new CompiledOp.EmitError(value.severity(), RefCompiler.compile(value.message(), names));
                 case final OutputNode.CallTemplate value -> {
                     final CompiledOp.CallTemplate call = new CompiledOp.CallTemplate(
                             value.name(),
                             value.withParam().stream()
                                     .map(param -> new CompiledOp.Arg(names.intern(param.name()),
-                                            CompiledRef.of(param.value(), names)))
+                                            RefCompiler.compile(param.value(), names)))
                                     .toList());
                     calls.add(call);
                     yield call;
@@ -223,7 +224,7 @@ final class BodyCompiler {
                                     Transforms.substring(inputs, effectiveStart, effectiveLength));
                 }
                 case final OutputNode.Tokenize value -> new CompiledOp.Tokenize(
-                        CompiledRef.of(single("tokenize", value.select()).getFirst(), names),
+                        RefCompiler.compile(single("tokenize", value.select()).getFirst(), names),
                         value.delimiter(), names.intern(value.name()));
                 case final OutputNode.Number value ->
                         transform(single("number", value.select()), value.name(),
@@ -279,8 +280,8 @@ final class BodyCompiler {
                             value.pattern(), value.timezone(), value.reference() != null,
                                     "parse-date");
                     yield new CompiledOp.ParseDate(
-                            CompiledRef.of(single("parse-date", value.select()).getFirst(), names),
-                            value.reference() == null ? null : CompiledRef.of(value.reference(), names),
+                            RefCompiler.compile(single("parse-date", value.select()).getFirst(), names),
+                            value.reference() == null ? null : RefCompiler.compile(value.reference(), names),
                             parser,
                             names.intern(value.name()));
                 }
@@ -303,21 +304,21 @@ final class BodyCompiler {
                         new CompiledOp.DistinctValues(names.intern(value.select()), names.intern(value.name()));
                 case final OutputNode.Sequence value -> new CompiledOp.Sequence(names.intern(value.name()));
                 case final OutputNode.Append value ->
-                        new CompiledOp.Append(names.intern(value.name()), CompiledRef.of(value.select(), names));
+                        new CompiledOp.Append(names.intern(value.name()), RefCompiler.compile(value.select(), names));
                 case final OutputNode.Key value -> new CompiledOp.Key(
                         names.internKey(value.name()), names.intern(value.select()),
-                        value.groupBy() == null ? null : CompiledRef.of(value.groupBy(), names));
+                        value.groupBy() == null ? null : RefCompiler.compile(value.groupBy(), names));
                 case final OutputNode.KeyGet value -> new CompiledOp.KeyGet(names.internKey(value.key()),
-                        CompiledRef.of(value.select(), names), names.intern(value.name()));
+                        RefCompiler.compile(value.select(), names), names.intern(value.name()));
                 case final OutputNode.ForEachGroup value -> new CompiledOp.ForEachGroup(
                         names.intern(value.select()),
-                        value.groupBy() == null ? null : CompiledRef.of(value.groupBy(), names),
+                        value.groupBy() == null ? null : RefCompiler.compile(value.groupBy(), names),
                         compile(value.body()));
                 case final OutputNode.ForEach value -> new CompiledOp.ForEach(
                         names.intern(value.select()), names.intern(value.as()),
                         value.sort().stream()
                                 .map(key ->
-                                        new CompiledOp.SortKey(CompiledRef.of(key.by(), names),
+                                        new CompiledOp.SortKey(RefCompiler.compile(key.by(), names),
                                                 key.order(), key.as()))
                                 .toList(),
                         compile(value.body()));
@@ -381,7 +382,7 @@ final class BodyCompiler {
                 select.add(null);
             } else {
                 sequences.add(null);
-                select.add(CompiledRef.of(ref, names));
+                select.add(RefCompiler.compile(ref, names));
             }
         }
         return new CompiledOp.CallFunction(definition, functions.slot(definition.name()),
@@ -392,7 +393,7 @@ final class BodyCompiler {
                                            final String name,
                                            final Function<List<TypedValue>, TypedValue> function) {
         return new CompiledOp.Transform(
-                select.stream().map(ref -> CompiledRef.of(ref, names)).toList(),
+                select.stream().map(ref -> RefCompiler.compile(ref, names)).toList(),
                 names.intern(name), function, null);
     }
 
@@ -419,7 +420,7 @@ final class BodyCompiler {
         }
         final int expected = select.size();
         return new CompiledOp.Transform(
-                select.stream().map(ref -> CompiledRef.of(ref, names)).toList(),
+                select.stream().map(ref -> RefCompiler.compile(ref, names)).toList(),
                 names.intern(name),
                 inputs -> inputs.size() == expected ? function.apply(inputs) : null, what);
     }
@@ -489,7 +490,7 @@ final class BodyCompiler {
             entries.putIfAbsent(entry.from(),
                     entry.to() == null ? defaultValue : TypedValue.of(entry.to()));
         }
-        return new CompiledOp.ValueMap(CompiledRef.of(value.select(), names), Map.copyOf(entries),
+        return new CompiledOp.ValueMap(RefCompiler.compile(value.select(), names), Map.copyOf(entries),
                 defaultValue, names.intern(value.name()));
     }
 
@@ -510,7 +511,7 @@ final class BodyCompiler {
         // held by the op rather than closed over by one, so what the instruction runs is visible
         // on it (design 30).
         return new CompiledOp.Replace(
-                value.select().stream().map(ref -> CompiledRef.of(ref, names)).toList(),
+                value.select().stream().map(ref -> RefCompiler.compile(ref, names)).toList(),
                 names.intern(value.name()),
                 new Replacer(pattern, value.replacement()));
     }
@@ -530,5 +531,28 @@ final class BodyCompiler {
                && expression.parts().getFirst() instanceof final RefPart.Capture capture
                && capture.varId() == null
                && capture.matchIndex() == null;
+    }
+
+    /**
+     * Which parameters a call site leaves unsupplied, and their defaults encoded.
+     *
+     * <p>A parameter the caller supplies needs nothing here — the argument binds it. One it does
+     * not needs its declared default, made once rather than per call, and a declared parameter
+     * with no default is still named so that the call shadows it and cannot read the caller's
+     * variable of the same name.
+     */
+    private List<CompiledOp.Param> params(final CompiledOp.CallTemplate call,
+                                          final CompiledTemplate target) {
+        final List<CompiledOp.Param> declared = new ArrayList<>();
+        for (final Template.ParamDecl parameter : target.template().param()) {
+            final VarName name = names.intern(parameter.name());
+            final boolean supplied = call.args().stream()
+                    .anyMatch(arg -> arg.name().equals(name));
+            declared.add(new CompiledOp.Param(name,
+                    !supplied && parameter.defaultValue() != null
+                            ? TypedValue.of(parameter.defaultValue())
+                            : null));
+        }
+        return declared;
     }
 }

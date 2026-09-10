@@ -83,7 +83,8 @@ public final class CompiledProject {
                            final List<Message> warnings,
                            final List<FunctionDefinition> functions,
                            final boolean structured,
-                           final VarNames names) {
+                           final VarNames names,
+                           final RootPlan rootPlan) {
         this.names = names;
         this.transcodeFrom = transcodeFrom;
         this.functions = List.copyOf(functions);
@@ -92,7 +93,7 @@ public final class CompiledProject {
         this.encoding = encoding;
         this.warnings = List.copyOf(warnings);
         this.structured = structured;
-        this.rootPlan = RootPlan.of(project, this.templates);
+        this.rootPlan = rootPlan;
     }
 
     /**
