@@ -634,7 +634,7 @@ name in it. The one place that had to be found rather than reasoned about is
 refused a capture, parameter, variable, transform target or `for-each as` called `__index`.
 Before the frames such a binding landed on the engine's own store — clobbering the counter for
 the rest of the run, which is worse, not better. After them it writes the registry while every
-reference to that name reads the frame: written, and unreadable for ever. That is precisely the
+reference to that name reads the frame: written, and unreadable forever. That is precisely the
 failure this class already refuses configurations for, in its own words, "a configuration that
 appears to work and quietly reads absence for ever", so it is a `ConfigException` rather than a
 warning. All eleven binding sites already funnelled through one `writable.add`, so the refusal is

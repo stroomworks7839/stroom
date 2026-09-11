@@ -173,7 +173,7 @@ as three events became `ab` in the image — and the engine's own `element d { v
 Whitespace is now held as pending in both sinks: text that follows keeps it, a child element
 or the close discards it, which is the indenter's own rule. Pinned in both sinks and in the
 image. (2) A document that never reached `endDocument` — an upstream failure mid-stream —
-left its worker waiting on the pipe for ever. `endProcessing` and a fresh `startDocument` now
+left its worker waiting on the pipe forever. `endProcessing` and a fresh `startDocument` now
 abandon an open document, failing the pipe so the worker's read ends and the worker with it,
 with a warning against the element. Pinned: an abandoned run's worker is gone within the
 join. Read through and left: a fatal in `image()` is logged by the filter and then again by

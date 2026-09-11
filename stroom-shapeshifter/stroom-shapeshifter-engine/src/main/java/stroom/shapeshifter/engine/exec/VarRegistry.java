@@ -90,7 +90,7 @@ public final class VarRegistry {
 
     /**
      * The table, extended with names that arrived from the data. Null until one does, which for
-     * a configuration without key-value captures is for ever.
+     * a configuration without key-value captures is forever.
      */
     private Map<String, VarName> extended;
 

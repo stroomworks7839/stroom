@@ -797,7 +797,7 @@ class EngineBehaviourTest {
 
     @Test
     void refusesAPatternThatRefersToItself() {
-        // Without this the compiler inlines for ever and the stack runs out, which is a much
+        // Without this the compiler inlines forever and the stack runs out, which is a much
         // worse way to learn that a configuration is circular.
         final String cyclic = """
                 {

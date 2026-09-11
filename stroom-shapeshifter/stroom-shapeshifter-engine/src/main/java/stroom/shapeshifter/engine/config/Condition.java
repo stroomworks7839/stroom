@@ -36,7 +36,7 @@ public sealed interface Condition {
      * natively ({@code Int}↔{@code Real} promoting within the numeric kind), a cross-kind
      * comparison is <b>false</b>, and the cast is explicit on the operand — there is no
      * coercion. The legacy spellings {@code equals}, {@code not-equals}, {@code ref-equals},
-     * {@code greater-than} and {@code less-than} read for ever as aliases carrying the casts
+     * {@code greater-than} and {@code less-than} read forever as aliases carrying the casts
      * their semantics always implied: {@code as: "string"} on both sides for the equality
      * trio — the engine's counters are already typed, and legacy equality compares string
      * forms — and {@code as: "number"} on the left for the ordered pair.

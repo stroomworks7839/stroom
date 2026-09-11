@@ -173,7 +173,7 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
         }
     }
 
-    /** A document left open — no endDocument came — would leave its worker waiting for ever. */
+    /** A document left open — no endDocument came — would leave its worker waiting forever. */
     private void abandonIfOpen(final String why) {
         if (document != null) {
             document.abandon(new IllegalStateException(why));

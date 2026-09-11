@@ -823,7 +823,7 @@ configurations. The trap note lives in `OutputNode.Substring`'s javadoc and the 
 run — repaired at the configurations and re-frozen, per the user's ruling.** All three
 win_sec configurations carried reads of the prototype node-editor display names — `Var:
 privilegesClean`, `Var: subjectSID` and eight more, 24 read sites — where the port should
-have carried the variable ids they aliased. Every one read absent for ever: the
+have carried the variable ids they aliased. Every one read absent forever: the
 privilege/access cleaning chains (newlines to a space, tabs deleted) had been authored,
 ported, and dead the whole time, and the six trim templates trimmed nothing. The output
 consequence was exactly the multi-line attribute values E6's audit note called "genuine

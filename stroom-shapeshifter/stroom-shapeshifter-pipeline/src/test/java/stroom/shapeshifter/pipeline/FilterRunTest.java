@@ -374,7 +374,7 @@ class FilterRunTest {
             }
         };
         final FilterRun run = new FilterRun(failing, 64, new EventRecorder(), errors());
-        // More than the pipe holds: without the failure propagating, this write would block for ever.
+        // More than the pipe holds: without the failure propagating, this write would block forever.
         assertThatThrownBy(() -> ds3("001_csv_with_header", run.input()))
                 .hasMessageContaining("the engine fell over");
         assertThatThrownBy(run::finish)

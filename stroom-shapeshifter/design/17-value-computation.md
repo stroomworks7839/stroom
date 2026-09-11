@@ -307,7 +307,7 @@ existing shapes: `equals`/`not-equals`/`ref-equals` are `eq`/`ne` with **`as: "s
 both operands**; `greater-than`/`less-than` (ref against numeric literal) are `gt`/`lt` with
 **`as: "number"` on the left**. In each case the alias carries the cast the old condition's
 semantics always implied, preserved *visibly* in the mapped form rather than by an invisible
-rule. The old spellings **stay readable for ever as aliases** — the format's own precedent
+rule. The old spellings **stay readable forever as aliases** — the format's own precedent
 is `Store`/`capture` in `ProjectJson.readRefPart`. The writer emits the new spellings. The
 non-comparison conditions — `matches`, `contains`, `starts-with`, `exists`, the boolean
 connectives — keep their names; they are predicates, not comparisons, and have no operator

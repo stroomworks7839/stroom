@@ -449,7 +449,7 @@ final class BodyCompiler {
      * list; every other transform reads its first input, so a second one is an authoring
      * mistake that would otherwise run and silently drop data.
      *
-     * <p>And so is <b>none</b>. An instruction with nothing to read produces nothing for ever —
+     * <p>And so is <b>none</b>. An instruction with nothing to read produces nothing forever —
      * the same "reads absent for ever" hazard the unknown-reference refusal exists to catch —
      * and refusing arity here says which instruction and what is wrong, for all of them at once,
      * where an instruction taking its one select by {@code getFirst()} would fail without a name.

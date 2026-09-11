@@ -67,7 +67,7 @@ class StructureTest {
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(positional)))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("Template 'root' reads capture group 0 in its body")
-                .hasMessageContaining("empty for ever");
+                .hasMessageContaining("empty forever");
         // The select is the idiom and exempt; a parameter's value beside it is a read like any other.
         final String named = project("{\"apply-templates\": {\"select\": {\"parts\": [{\"capture\": {\"group\": 0}}]},"
                                      + " \"mode\": \"lines\", \"with-param\": [[\"p\","

@@ -48,7 +48,7 @@ public final class Nfa {
     /**
      * The loop-back edge of a repetition whose body can match empty. Falls through to the next
      * instruction when the iteration made progress, and jumps to {@code b} — the loop exit — when
-     * it did not, which is how an empty iteration ends the loop instead of repeating for ever.
+     * it did not, which is how an empty iteration ends the loop instead of repeating forever.
      */
     public static final int PROGRESS = 8;
 

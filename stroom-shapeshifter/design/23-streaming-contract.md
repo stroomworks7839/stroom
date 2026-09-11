@@ -152,7 +152,7 @@ match, so on the native path the open stack grew by one entry per match for the 
 stream, and its top was the *last-started* match rather than the innermost running one — a
 parent's events after a child closed were located at the child. Now every close pops,
 whatever the currency; only the byte path keeps a span. (2) `LineIndex` kept a start for
-every line of the input for ever: eight bytes a line, tens of gigabytes on a terabyte. It now
+every line of the input forever: eight bytes a line, tens of gigabytes on a terabyte. It now
 forgets everything before the outermost open match — or, with nothing open, before the match
 that just closed — and counts what it forgot so line numbers stay right. The first cut of that
 forgot up to the *read* position, which runs ahead of the matches, and located every record at
@@ -188,7 +188,7 @@ pipeline's thread writes or closes, and that thread is never blocked at the same
 what blocks it is a *full* pipe. *One defect:* the ruling did not reach the pipeline. A FATAL
 ends the engine's run normally — the worker returned, and never told the pipe — while the
 pipeline's thread still had most of the image to write; it filled the pipe and waited on it
-in 20 ms turns for ever. The pipe now has a reader-side close: once the reader has gone,
+in 20 ms turns forever. The pipe now has a reader-side close: once the reader has gone,
 whatever the writer still has is accepted and discarded, the writer reaches endDocument, and
 the FATAL is what it hears there. The worker closes the reader on every exit. Pinned through
 the pipe with a record larger than the window under a live DS3 upstream. *Parity, named and

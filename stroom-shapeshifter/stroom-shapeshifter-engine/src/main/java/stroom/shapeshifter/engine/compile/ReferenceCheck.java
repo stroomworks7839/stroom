@@ -85,7 +85,7 @@ final class ReferenceCheck {
     /**
      * E37: the document template's body runs against no match — under design 23 the input
      * is the windows, and the body is split around its apply-templates — so a capture read
-     * there is empty for ever. The compiler can see it, so it refuses it by name, as it
+     * there is empty forever. The compiler can see it, so it refuses it by name, as it
      * refuses captures on an eater; the apply-templates select is the one place a group
      * may be named, because it is the idiom that hands the input to a mode and is not read.
      * A named template the document template calls runs over the same no-match, so the
@@ -459,7 +459,7 @@ final class ReferenceCheck {
                     throw new ConfigException("Template '" + templateName + "' reads " + read
                             + " in its body, but the document template has no match: its body"
                             + " runs once around the apply-templates, over no match, so the"
-                            + " reference would be empty for ever. Only the apply-templates"
+                            + " reference would be empty forever. Only the apply-templates"
                             + " select may name a group there.");
                 }
                 if (!inDocumentTemplate) {
@@ -609,7 +609,7 @@ final class ReferenceCheck {
             if (read != null) {
                 throw new ConfigException("Template '" + document + "'" + chain + ", which reads " + read
                         + ": a call from the document template's body runs over no match, so"
-                        + " the reference would be empty for ever.");
+                        + " the reference would be empty forever.");
             }
             refuseMatchReadsCalledFrom(document, called, visited, chain);
             chain.setLength(mark);
@@ -621,7 +621,7 @@ final class ReferenceCheck {
      * capture, no {@code variable}, no transform bind, no parameter — is a compile-time
      * error naming the reference and its template. This is where typos actually are, and
      * it costs nothing at run time; the alternative is a configuration that appears to
-     * work and quietly reads absence for ever.
+     * work and quietly reads absence forever.
      */
     private void checkRead(final Read read) {
         for (final RefExpression.RefPart part : read.ref().parts()) {
