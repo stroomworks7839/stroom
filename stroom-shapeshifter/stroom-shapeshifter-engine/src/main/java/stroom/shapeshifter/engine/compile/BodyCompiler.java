@@ -102,7 +102,7 @@ final class BodyCompiler {
      * @param templates every compiled template, in authored order — which is all linking needs,
      *                  so it is what linking is given rather than the graph they belong to
      */
-    void link(final List<CompiledTemplate> templates) {
+    void link(final CompiledTemplate[] templates) {
         // Built here and discarded here. Linking is the only thing that ever asks a compiled
         // project which templates answer to a mode or a name, and a graph that kept the indexes
         // afterwards would be carrying its own scaffolding — and inviting the reading that
@@ -117,8 +117,9 @@ final class BodyCompiler {
         }
         for (final CompiledOp.Apply apply : applies) {
             // An apply whose mode answers to nothing gets an empty list and matches nothing.
-            final List<CompiledTemplate> candidates =
-                    List.copyOf(byMode.getOrDefault(apply.directive().mode(), List.of()));
+            final CompiledTemplate[] candidates = byMode
+                    .getOrDefault(apply.directive().mode(), List.of())
+                    .toArray(new CompiledTemplate[0]);
             apply.link(candidates, recursiveShadow(candidates));
         }
         for (final CompiledOp.CallTemplate call : calls) {
@@ -570,7 +571,7 @@ final class BodyCompiler {
      * <p>Computed here rather than by the op, for the same reason a call site's parameters are:
      * the graph holds what it was given (design 27 §2.5.1).
      */
-    private static VarName[] recursiveShadow(final List<CompiledTemplate> candidates) {
+    private static VarName[] recursiveShadow(final CompiledTemplate[] candidates) {
         final Set<VarName> shadow = new LinkedHashSet<>();
         for (final CompiledTemplate candidate : candidates) {
             shadow.addAll(Arrays.asList(candidate.captureNames()));

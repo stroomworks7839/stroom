@@ -154,7 +154,7 @@ public final class Run {
         // none of it depends on the input. It was re-derived per run, which is per stream in a
         // pipeline processing many (design 29 §3.5).
         final RootPlan plan = compiled.rootPlan();
-        final List<CompiledTemplate> roots = plan.roots();
+        final CompiledTemplate[] roots = plan.roots();
         final Dispatch rootDispatch = plan.dispatch();
         final boolean rootIgnoreErrors = plan.ignoreErrors();
 
@@ -197,7 +197,7 @@ public final class Run {
      * Everything else streams through the window (E13, design 23). The byte-order mark is read
      * once at the front, whichever way, and counts toward every absolute offset.
      */
-    private void dispatchInput(final List<CompiledTemplate> roots,
+    private void dispatchInput(final CompiledTemplate[] roots,
                                final Dispatch rootDispatch,
                                final boolean rootIgnoreErrors,
                                final InputStream input,

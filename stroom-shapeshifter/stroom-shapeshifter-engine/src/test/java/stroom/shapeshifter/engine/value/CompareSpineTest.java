@@ -193,7 +193,7 @@ class CompareSpineTest {
         final stroom.shapeshifter.engine.graph.CompiledProject compiled =
                 stroom.shapeshifter.engine.Shapeshifter.compile(project);
         return stroom.shapeshifter.engine.exec.Conditions.evaluate(
-                compiled.templates().getFirst().guard(),
+                compiled.templates()[0].guard(),
                 MatchResult.empty(), 1,
                 new stroom.shapeshifter.engine.exec.VarRegistry(compiled.names()));
     }

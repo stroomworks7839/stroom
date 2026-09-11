@@ -1029,7 +1029,7 @@ final class Body {
 
         // A compile-time fact read as a field: the op holds the templates its mode answers to,
         // bound when the project finished compiling (design 29 §3.2).
-        final List<CompiledTemplate> candidates = op.candidates();
+        final CompiledTemplate[] candidates = op.candidates();
 
         // A recursive apply gets its own scope, so that a nested level's captures cannot leak
         // back into the level that invoked it — and so that they are released on the way out.

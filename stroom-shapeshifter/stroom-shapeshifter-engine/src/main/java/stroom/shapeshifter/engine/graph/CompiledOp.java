@@ -63,6 +63,9 @@ public sealed interface CompiledOp {
     /** Shared empty, so an unlinked or capture-free apply allocates no array. */
     VarName[] EMPTY_NAMES = new VarName[0];
 
+    /** Shared empty, for an apply whose mode no template answers. */
+    CompiledTemplate[] EMPTY_CANDIDATES = new CompiledTemplate[0];
+
     /** Write a literal: a UTF-8-tagged value; the sink's encoding decides its bytes (design 25). */
     record Text(TypedValue value) implements CompiledOp {
 
@@ -109,7 +112,7 @@ public sealed interface CompiledOp {
         private final boolean wholeParentContent;
         private final boolean locatable;
         private final Dispatch dispatch;
-        private List<CompiledTemplate> candidates = List.of();
+        private CompiledTemplate[] candidates = EMPTY_CANDIDATES;
         private VarName[] recursiveShadow = EMPTY_NAMES;
 
         /**
@@ -144,7 +147,7 @@ public sealed interface CompiledOp {
          * collected as they are made and linked when the list is complete, rather than found
          * again by walking the compiled bodies, so no nesting can hide one.
          */
-        public void link(final List<CompiledTemplate> candidates, final VarName[] recursiveShadow) {
+        public void link(final CompiledTemplate[] candidates, final VarName[] recursiveShadow) {
             this.candidates = candidates;
             this.recursiveShadow = recursiveShadow;
         }
@@ -178,7 +181,7 @@ public sealed interface CompiledOp {
         }
 
         /** The templates answering this apply's mode, in authored order. */
-        public List<CompiledTemplate> candidates() {
+        public CompiledTemplate[] candidates() {
             return candidates;
         }
 

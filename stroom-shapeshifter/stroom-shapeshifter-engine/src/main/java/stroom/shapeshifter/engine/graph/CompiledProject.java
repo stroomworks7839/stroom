@@ -38,7 +38,7 @@ import java.util.List;
 public final class CompiledProject {
 
     private final Project project;
-    private final List<CompiledTemplate> templates;
+    private final CompiledTemplate[] templates;
     private final Encoding encoding;
 
     /** The source encoding a whole-source transcode decodes from, or null for none. */
@@ -77,7 +77,7 @@ public final class CompiledProject {
      * @param structured whether any template writes structure, decided by the structure check
      */
     public CompiledProject(final Project project,
-                           final List<CompiledTemplate> templates,
+                           final CompiledTemplate[] templates,
                            final Encoding encoding,
                            final Encoding transcodeFrom,
                            final List<Message> warnings,
@@ -89,7 +89,7 @@ public final class CompiledProject {
         this.transcodeFrom = transcodeFrom;
         this.functions = List.copyOf(functions);
         this.project = project;
-        this.templates = List.copyOf(templates);
+        this.templates = templates;
         this.encoding = encoding;
         this.warnings = List.copyOf(warnings);
         this.structured = structured;
@@ -121,7 +121,7 @@ public final class CompiledProject {
     }
 
     /** The templates, compiled, in authored order. */
-    public List<CompiledTemplate> templates() {
+    public CompiledTemplate[] templates() {
         return templates;
     }
 

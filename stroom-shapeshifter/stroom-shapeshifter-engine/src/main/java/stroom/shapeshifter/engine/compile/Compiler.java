@@ -146,10 +146,13 @@ public final class Compiler {
         // runs before the graph is built rather than after, because linking interns the last
         // names — a call's parameters — and the table handed to the graph has to be the finished
         // one. The old order took the table first and closed it afterwards with a flag.
-        bodies.link(templates);
-        return new CompiledProject(project, templates,
+        // One array, built once the last template is compiled, and handed to everything that
+        // holds the compiled set: the linker, the project and the root plan (design 33 §11).
+        final CompiledTemplate[] compiled = templates.toArray(new CompiledTemplate[0]);
+        bodies.link(compiled);
+        return new CompiledProject(project, compiled,
                 encoding, transcodeFrom, warnings, functions.used(), structured, names.names(),
-                RootPlanner.plan(project, templates));
+                RootPlanner.plan(project, compiled));
     }
 
     /** What a template's captures alone can be wrong about. */

@@ -96,7 +96,7 @@ final class Level {
      *                     resolves each template's effective encoding against — the tag on every
      *                     group it matches; the same value on every nested dispatch of a run
      */
-    void dispatch(final List<CompiledTemplate> templates,
+    void dispatch(final CompiledTemplate[] templates,
                   final byte[] data,
                   final int from,
                   final int to,
@@ -118,7 +118,7 @@ final class Level {
         // Strict and lexer levels ask the anchored question of every template: the mode
         // carries the anchoring, whatever the pattern text says (D36).
         final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
-        final int[] counts = new int[templates.size()];
+        final int[] counts = new int[templates.length];
 
         final boolean[] allowed = guards(templates);
 
@@ -127,11 +127,11 @@ final class Level {
         while (cursor < to) {
             int winner = -1;
             MatchResult match = null;
-            for (int i = 0; i < templates.size(); i++) {
+            for (int i = 0; i < templates.length; i++) {
                 if (allowed != null && !allowed[i]) {
                     continue;
                 }
-                final CompiledTemplate candidate = templates.get(i);
+                final CompiledTemplate candidate = templates[i];
                 final int maxMatch = candidate.maxMatch();
                 if (!candidate.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
                     continue;
@@ -156,7 +156,7 @@ final class Level {
             if (match == null) {
                 break;
             }
-            final CompiledTemplate candidate = templates.get(winner);
+            final CompiledTemplate candidate = templates[winner];
             final Template template = candidate.template();
 
             if (match.advance() == 0) {
@@ -257,7 +257,7 @@ final class Level {
      * @param window   the input window, opened and its byte-order mark already applied by the run
      * @param encoding the run's encoding in force, as for {@link #dispatch}
      */
-    void stream(final List<CompiledTemplate> templates,
+    void stream(final CompiledTemplate[] templates,
                 final InputWindow window,
                 final Output out,
                 final boolean ignoreErrors,
@@ -266,7 +266,7 @@ final class Level {
         this.encoding = encoding;
         final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
 
-        final int[] counts = new int[templates.size()];
+        final int[] counts = new int[templates.length];
         final boolean[] allowed = guards(templates);
 
         while (!window.isEmpty()) {
@@ -274,11 +274,11 @@ final class Level {
             final int filled = window.filled();
             int winner = -1;
             MatchResult match = null;
-            for (int i = 0; i < templates.size(); i++) {
+            for (int i = 0; i < templates.length; i++) {
                 if (allowed != null && !allowed[i]) {
                     continue;
                 }
-                final CompiledTemplate candidate = templates.get(i);
+                final CompiledTemplate candidate = templates[i];
                 final int maxMatch = candidate.maxMatch();
                 if (!candidate.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
                     continue;
@@ -319,7 +319,7 @@ final class Level {
                 continue;
             }
 
-            final CompiledTemplate candidate = templates.get(winner);
+            final CompiledTemplate candidate = templates[winner];
             final Template template = candidate.template();
 
             if (match.advance() == 0) {
@@ -374,7 +374,7 @@ final class Level {
      * excision nothing can be located in the input any more — positions in a stitched buffer
      * point at nothing — so attribution goes dark rather than lying.
      */
-    private void anyLevel(final List<CompiledTemplate> templates,
+    private void anyLevel(final CompiledTemplate[] templates,
                          final byte[] data,
                          final int from,
                          final int to,
@@ -386,17 +386,17 @@ final class Level {
         int length = work.length;
         long base = inputBase;
 
-        final int[] counts = new int[templates.size()];
+        final int[] counts = new int[templates.length];
         final boolean[] allowed = guards(templates);
 
         boolean matched = true;
         while (length > 0 && matched) {
             matched = false;
-            for (int i = 0; i < templates.size(); i++) {
+            for (int i = 0; i < templates.length; i++) {
                 if (allowed != null && !allowed[i]) {
                     continue;
                 }
-                final CompiledTemplate candidate = templates.get(i);
+                final CompiledTemplate candidate = templates[i];
                 final int maxMatch = candidate.maxMatch();
                 if (!candidate.consume() && maxMatch >= 0 && counts[i] >= maxMatch) {
                     continue;
@@ -445,7 +445,7 @@ final class Level {
      * match number 1. The cursor never moves and nothing is reported: a mode that consumes
      * nothing cannot leave anything unmatched.
      */
-    private void classify(final List<CompiledTemplate> templates,
+    private void classify(final CompiledTemplate[] templates,
                          final byte[] data,
                          final int from,
                          final int to,
@@ -456,11 +456,11 @@ final class Level {
         // Guards once on the way in, as every mode (design 27 ruling 11): a guard read after an
         // earlier sibling's match would see that sibling's counters and captures.
         final boolean[] allowed = guards(templates);
-        for (int i = 0; i < templates.size(); i++) {
+        for (int i = 0; i < templates.length; i++) {
             if (allowed != null && !allowed[i]) {
                 continue;
             }
-            final CompiledTemplate candidate = templates.get(i);
+            final CompiledTemplate candidate = templates[i];
             final Template template = candidate.template();
             final long timing = instrument.startTiming();
             final MatchResult match = match(candidate, data, from, to, false);
@@ -491,7 +491,7 @@ final class Level {
      * when nothing in it is guarded — most levels in most configurations — and which then costs
      * neither the array nor the walk (design 29 §3.1).
      */
-    private boolean[] guards(final List<CompiledTemplate> templates) {
+    private boolean[] guards(final CompiledTemplate[] templates) {
         boolean any = false;
         for (final CompiledTemplate candidate : templates) {
             if (candidate.guard() != null) {
@@ -502,9 +502,9 @@ final class Level {
         if (!any) {
             return null;
         }
-        final boolean[] allowed = new boolean[templates.size()];
-        for (int i = 0; i < templates.size(); i++) {
-            final CompiledTemplate candidate = templates.get(i);
+        final boolean[] allowed = new boolean[templates.length];
+        for (int i = 0; i < templates.length; i++) {
+            final CompiledTemplate candidate = templates[i];
             allowed[i] = candidate.guard() == null
                          || Conditions.evaluate(candidate.guard(),
                     MatchResult.empty(), 1, vars);
@@ -533,15 +533,15 @@ final class Level {
      * 005's fully-unmatched line is reported even though nothing matched, and 014's is not,
      * because its three minMatch errors already said what was wrong.
      */
-    private void report(final List<CompiledTemplate> templates,
+    private void report(final CompiledTemplate[] templates,
                         final int[] counts,
                         final boolean ignoreErrors,
                         final byte[] data,
                         final int from,
                         final int to) {
         boolean minMatchFailed = false;
-        for (int i = 0; i < templates.size(); i++) {
-            final Template template = templates.get(i).template();
+        for (int i = 0; i < templates.length; i++) {
+            final Template template = templates[i].template();
             final int minMatch = template.matchLimits().minMatch();
             if (minMatch > 0 && counts[i] < minMatch) {
                 minMatchFailed = true;

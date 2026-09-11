@@ -43,14 +43,13 @@ import java.util.List;
  * @param tails            each level's ops after the apply-templates, outermost first
  */
 public record RootPlan(Dispatch dispatch,
-                       List<CompiledTemplate> roots,
+                       CompiledTemplate[] roots,
                        boolean ignoreErrors,
                        List<CompiledOp[]> prologues,
                        List<CompiledOp.Element> opened,
                        List<CompiledOp[]> tails) {
 
     public RootPlan {
-        roots = List.copyOf(roots);
         prologues = List.copyOf(prologues);
         opened = List.copyOf(opened);
         tails = List.copyOf(tails);

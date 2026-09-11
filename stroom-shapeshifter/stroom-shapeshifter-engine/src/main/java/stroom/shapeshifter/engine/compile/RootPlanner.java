@@ -48,8 +48,8 @@ final class RootPlanner {
     }
 
     /** Settle the plan for a compiled configuration. */
-    static RootPlan plan(final Project project, final List<CompiledTemplate> templates) {
-        final CompiledTemplate source = templates.stream()
+    static RootPlan plan(final Project project, final CompiledTemplate[] templates) {
+        final CompiledTemplate source = Arrays.stream(templates)
                 .filter(t -> t.match() instanceof CompiledMatch.Source)
                 .findFirst()
                 .orElse(null);
@@ -59,10 +59,10 @@ final class RootPlanner {
         final String mode = directive == null ? null : directive.mode();
         final Dispatch dispatch = Dispatch.effective(
                 directive == null ? null : directive.dispatch(), project);
-        final List<CompiledTemplate> roots = templates.stream()
+        final CompiledTemplate[] roots = Arrays.stream(templates)
                 .filter(t -> !(t.match() instanceof CompiledMatch.Source))
                 .filter(t -> Objects.equals(t.template().mode(), mode))
-                .toList();
+                .toArray(CompiledTemplate[]::new);
         // The root level's gate is the configuration's own ignoreErrors — DS3's flag on the
         // dataSplitter element itself — or the document template's directive saying so.
         final boolean ignoreErrors = project.source().ignoreErrors()
