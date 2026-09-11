@@ -482,7 +482,7 @@ Ranked by how often the walk happens. "per match" tops out at 569,199 per operat
 
 | site | type | walked | note |
 |---|---|---|---|
-| `CompiledTemplate.onlyMatch` | **`Set<Integer>`** | per match | `onlyMatch.contains(matchCount)` — a hash lookup **and an `Integer` box** per match. The worst of the set: it should be an `int[]`, a bitset, or a range, and the common case is a single value |
+| `CompiledTemplate.onlyMatch` | **`Set<Integer>`** | per match | *Converted 2026-09-11 to a sorted `int[]`.* It was `onlyMatch.contains(matchCount)` — a hash lookup and an `Integer` box — but **no corpus workload sets the field**, so the benchmark cannot see it. Two things were found doing it: the native field had **no run-time test at all** (disabling the filter passed the whole suite; `OnlyMatchTest` covers it now), and it is **not** DS3's `onlyMatch` — that attribute counts the *parent's* matches and compiles to a guard on `__match_idx`, so the two are different predicates sharing a name |
 | `CompiledTemplate.captures` | `List<CompiledCapture>` | per match | bound in `Level`, and again in `Body.registerCaptures` |
 | `RootPlan.roots`, `CompiledOp.Apply.candidates` | `List<CompiledTemplate>` | per dispatch | what `Level.dispatch` walks to find a winner |
 | `CompiledSteps.steps` | `List<CompiledStep>` | per progressive match | 52,431/op on `progressive` — the row that lost 0.67% to the body arrays and may get it back here |

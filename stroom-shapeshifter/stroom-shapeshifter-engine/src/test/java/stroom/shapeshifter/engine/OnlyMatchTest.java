@@ -30,12 +30,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * {@code only_match}: which of a template's matches produce output.
  *
- * <p><b>Written because nothing tested it.</b> `ProjectReaderTest` pins the parsing, the two
- * fixtures named {@code *_only_match} carry it only in their DS3 sources — where the migration
- * turns it into a guard rather than a limit, deliberately — and no native fixture sets the field
- * at all. Disabling the filter in {@code Level} passed the entire suite, which is how this gap
- * was found: a conversion of the compiled form to an {@code int[]} would have been unverifiable
- * without it (design 33 §11).
+ * <p><b>This is not DS3's {@code onlyMatch}, and the names colliding is a trap.</b> A match
+ * limit counts <i>this</i> template's matches, which is what this file pins. DS3's attribute
+ * counts the <i>parent's</i> — "only when my parent is on its second match" — so
+ * {@code Ds3Migration.onlyMatchGuard} turns it into a condition on {@code __match_idx} and leaves
+ * this field null. They are different predicates that share a word, not one feature expressed
+ * two ways.
+ *
+ * <p><b>Written because nothing tested it.</b> {@code ProjectReaderTest} pins the parsing, the
+ * two fixtures named {@code *_only_match} carry the DS3 attribute and therefore compile to
+ * guards, and no native fixture sets {@code match_limits.only_match} at all. Disabling the filter
+ * in {@code Level} passed the entire suite, which is how the gap was found: the conversion of the
+ * compiled form to an {@code int[]} would have been unverifiable without this (design 33 §11).
  */
 class OnlyMatchTest {
 
