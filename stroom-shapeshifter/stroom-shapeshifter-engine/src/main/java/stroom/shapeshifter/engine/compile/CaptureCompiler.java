@@ -29,7 +29,7 @@ final class CaptureCompiler {
     }
 
     /** The compiled form of a template's bindings, in their authored order. */
-    static List<CompiledCapture> compile(final List<CaptureBinding> captures,
+    static CompiledCapture[] compile(final List<CaptureBinding> captures,
                                          final Interner names) {
         final List<CompiledCapture> compiled = new ArrayList<>(captures.size());
         for (final CaptureBinding capture : captures) {
@@ -52,6 +52,6 @@ final class CaptureCompiler {
             };
             compiled.add(new CompiledCapture(names.intern(capture.name()), source, capture.as()));
         }
-        return List.copyOf(compiled);
+        return compiled.toArray(new CompiledCapture[0]);
     }
 }

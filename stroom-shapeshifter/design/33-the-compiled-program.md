@@ -466,6 +466,78 @@ allocation evidence — `element_storm` 42.4 → 38.9 MB/op — and is parked in
 re-applied as its own change with its own reading, rather than folded into the array measurement
 and confusing it.
 
+
+## 11. Every collection left in the compiled graph
+
+*Inventoried 2026-09-11, after the body arrays landed, because the measured value of that change
+(+12.4% on `regex_lines` for eight files) makes the rest worth doing rather than worth arguing
+about. The goal is that a compiled graph holds arrays and fields, and that every surviving
+collection is one whose key is **data** — which is design 30 §1's rule, arrived at from the other
+direction.*
+
+### A. Walked while a record runs — convert
+
+Ranked by how often the walk happens. "per match" tops out at 569,199 per operation on
+`win_sec_strict`, "per dispatch" and "per instruction" are the counts design 33 §4 took.
+
+| site | type | walked | note |
+|---|---|---|---|
+| `CompiledTemplate.onlyMatch` | **`Set<Integer>`** | per match | `onlyMatch.contains(matchCount)` — a hash lookup **and an `Integer` box** per match. The worst of the set: it should be an `int[]`, a bitset, or a range, and the common case is a single value |
+| `CompiledTemplate.captures` | `List<CompiledCapture>` | per match | bound in `Level`, and again in `Body.registerCaptures` |
+| `RootPlan.roots`, `CompiledOp.Apply.candidates` | `List<CompiledTemplate>` | per dispatch | what `Level.dispatch` walks to find a winner |
+| `CompiledSteps.steps` | `List<CompiledStep>` | per progressive match | 52,431/op on `progressive` — the row that lost 0.67% to the body arrays and may get it back here |
+| `CompiledStep.Choice.alternatives` | `List<List<CompiledStep>>` | per choice | doubly nested; becomes `CompiledStep[][]` |
+| `CompiledStep.Optional/Repeat/Sequence/Peek/Not.steps` | `List<CompiledStep>` | per step | the rest of the step vocabulary |
+| `CompiledCondition.And.conditions`, `Or.conditions` | `List<CompiledCondition>` | per condition | 8,496/op on `apache_httpd`; E46 also wants the `stream()` off this path |
+| `Transform.select`, `Replace.select`, `CallFunction.select`, `CallFunction.sequences` | `List<CompiledRef>`, `List<VarName>` | per instruction | 24,768 transforms/op on `apache_httpd` |
+| `Replacer.pieces` | `List<Piece>` | per replace | |
+| `CompiledOp.ForEach.sort` | `List<SortKey>` | per sorted walk | |
+| `CallTemplate.args`, `params` | `List<Arg>`, `List<Param>` | per call | |
+| `RootPlan.prologues`, `tails`, `opened` | `List<CompiledOp[]>` | once per document | already hold arrays; the outer list is cold and may stay |
+
+### B. Keyed by data — these stay, and are not defects
+
+Design 30 §1: a map consulted at run time is a defect only when its key is **already known at
+compile time**. These three are keyed by a value that arrives in the input, which is what a map is
+for.
+
+| site | key | why it stays |
+|---|---|---|
+| `Names.all` / `Names.keys`, via `VarRegistry` | a key-value capture's name, from the input | 14,140/op on `ausearch`. **This is the one the owner expects to be the last, and it is** — every other name is a slot |
+| `CompiledOp.Switch.cases` | the selected value | data |
+| `CompiledOp.ValueMap.entries` | the subject value | data |
+
+*Two of those three could still go, but not by becoming arrays.* `Switch` and `ValueMap` both
+resolve their selector to a **`String`** first — a decode and an allocation per execution — and
+then hash it. Design 31 §5 is the alternative: match the selector's *bytes* against cases the
+compiler knows, as a length-bucketed comparison or a trie. That removes the map as a consequence
+rather than as the goal, and it removes the decode, which is the larger cost. It is a separate
+change from this inventory and should be measured as one.
+
+### C. Cold — once per run or at link time
+
+`CompiledProject.templates` (walked by `registerCaptures` once per run, and by the compiler),
+`CompiledProject.functions` (bound once per run), `CompiledProject.warnings` (emitted once).
+Converting these buys nothing measurable and costs the compiler's readability; they are listed so
+that a later survey does not have to rediscover that they were considered.
+
+### D. Adjacent, and not a graph collection
+
+`Transform.function` is a `Function<List<TypedValue>, TypedValue>`, so `Body.inputs` **allocates a
+`List` per transform** — 24,768 per operation on `apache_httpd` — to call it. That is an
+allocation question in E46's family rather than a collection in the graph, and changing it means
+changing the `Transforms` library's signatures. Named here because a survey of collections will
+otherwise keep finding it and keep setting it aside.
+
+### The order to do them in
+
+By walks per operation, which is the ranking that predicted the body result: **`onlyMatch` and
+`captures` first** (per match, and `onlyMatch` boxes), then **`roots`/`candidates`** (per
+dispatch), then **the step vocabulary** (`CompiledSteps` and the six nested step records, which
+are one change), then the condition lists and the `select` lists. Each is mechanical and each
+should be gated the same way: convert, run the corpus, and take one interleaved reading on the
+rows the counts say can move.
+
 ## 7. What would make this a mistake
 
 - **If phase 1 (B) collects most of the gain**, then the dispatch was never the problem, the

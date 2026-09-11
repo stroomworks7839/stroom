@@ -59,7 +59,7 @@ public record CompiledTemplate(Template template,
                                CompiledMatch match,
                                CompiledOp[] body,
                                Encoding encoding,
-                               List<CompiledCapture> captures,
+                               CompiledCapture[] captures,
                                int maxMatch,
                                boolean consume,
                                int contentGroup,
@@ -76,6 +76,5 @@ public record CompiledTemplate(Template template,
         // because body() hands the array straight out. A defensive copy behind a leaking
         // accessor is half a guarantee; the rule that nothing writes to a body is on
         // CompiledOp, where it can be checked.
-        captures = List.copyOf(captures);
     }
 }

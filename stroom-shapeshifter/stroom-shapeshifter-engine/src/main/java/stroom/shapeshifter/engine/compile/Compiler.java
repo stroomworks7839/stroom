@@ -263,7 +263,7 @@ public final class Compiler {
                                              final CompiledMatch match,
                                              final CompiledOp[] body,
                                              final Encoding encoding,
-                                             final List<CompiledCapture> captures,
+                                             final CompiledCapture[] captures,
                                              final CompiledCondition guard,
                                              final Interner names) {
         final List<VarName> clear = new ArrayList<>();
