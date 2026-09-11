@@ -64,10 +64,26 @@ public final class VarRegistry {
     /** Not bound by any scope. */
     private static final int UNBOUND = -1;
 
+    /** How many undo entries the log starts with; it doubles from there. */
+    private static final int UNDO_INITIAL = 64;
+
     private final Names names;
 
-    /** Every slot's current binding, by {@link VarName#slot()}. */
-    private final List<List<Store>> slots = new ArrayList<>();
+    /**
+     * Every slot's current binding, by {@link VarName#slot()}.
+     *
+     * <p>An array rather than a {@code List<List<Store>>}: this is read on <b>every</b> reference
+     * resolution — {@code get}, {@code entry}, {@code store} and {@code fromCurrentScope} all
+     * index it — which is the hottest read in the engine (design 33 §11 E). It grows only when a
+     * name arrives from the data, beside {@link #owner}, which has always been an array.
+     */
+    private List<Store>[] slots;
+
+    /**
+     * How many slots exist, which is the next free one. The arrays are longer than this once a
+     * data-derived name has grown them, because they grow geometrically.
+     */
+    private int slotCount;
 
     /** The scope depth that installed each slot's current binding, or {@link #UNBOUND}. */
     private int[] owner;
@@ -81,19 +97,35 @@ public final class VarRegistry {
     private int[] marks = new int[16];
     private int depth;
 
-    private int[] undoSlot = new int[64];
-    private int[] undoOwner = new int[64];
-    private final List<List<Store>> undoSaved = new ArrayList<>();
+    // The undo log, as three parallel arrays: which slot an entry restores, what owned it, and
+    // what it held. They are grown together in bind() and must stay the same length, which is
+    // why all three are sized in one place rather than two — undoSaved cannot be initialised at
+    // its declaration, because a generic array needs the constructor's @SuppressWarnings.
+
+    /** The slot each entry restores. */
+    private int[] undoSlot;
+
+    /** The scope depth that owned the slot before the entry replaced it. */
+    private int[] undoOwner;
+
+    /** What each entry replaced. */
+    private List<Store>[] undoSaved;
+
+    /** How many entries are live, which is also the next free index in all three. */
+    private int undoCount;
 
     private final Frames frames = new Frames();
 
+    @SuppressWarnings("unchecked")
     public VarRegistry(final Names names) {
         this.names = names;
         this.owner = new int[names.size()];
         Arrays.fill(owner, UNBOUND);
-        for (int i = 0; i < names.size(); i++) {
-            slots.add(null);
-        }
+        this.slots = new List[names.size()];
+        this.slotCount = names.size();
+        this.undoSlot = new int[UNDO_INITIAL];
+        this.undoOwner = new int[UNDO_INITIAL];
+        this.undoSaved = new List[UNDO_INITIAL];
     }
 
     /** The engine's own variables, which are frames rather than names. */
@@ -106,7 +138,7 @@ public final class VarRegistry {
         if (depth == marks.length) {
             marks = Arrays.copyOf(marks, marks.length * 2);
         }
-        marks[depth++] = undoSaved.size();
+        marks[depth++] = undoCount;
     }
 
     /**
@@ -130,16 +162,18 @@ public final class VarRegistry {
             throw new IllegalStateException("Cannot pop the global scope");
         }
         final int mark = marks[--depth];
-        for (int i = undoSaved.size() - 1; i >= mark; i--) {
+        for (int i = undoCount - 1; i >= mark; i--) {
             final int slot = undoSlot[i];
-            slots.set(slot, undoSaved.removeLast());
+            slots[slot] = undoSaved[i];
+            undoSaved[i] = null;
             owner[slot] = undoOwner[i];
         }
+        undoCount = mark;
     }
 
     /** The stores for a name, or null. */
     public List<Store> get(final VarName name) {
-        return slots.get(name.slot());
+        return slots[name.slot()];
     }
 
     /** The stores for a name the run read out of the data, or null. */
@@ -150,7 +184,7 @@ public final class VarRegistry {
     /** The stores for a name, creating them in the innermost scope if nothing holds it yet. */
     public List<Store> entry(final VarName name) {
         final int slot = name.slot();
-        final List<Store> found = slots.get(slot);
+        final List<Store> found = slots[slot];
         if (found != null) {
             return found;
         }
@@ -177,8 +211,8 @@ public final class VarRegistry {
      */
     public void register(final VarName name) {
         final int slot = name.slot();
-        if (slots.get(slot) == null) {
-            slots.set(slot, new ArrayList<>(1));
+        if (slots[slot] == null) {
+            slots[slot] = new ArrayList<>(1);
             owner[slot] = 0;
         }
     }
@@ -197,7 +231,7 @@ public final class VarRegistry {
     /** A name's stores from the current scope only, ignoring anything outside it. */
     public List<Store> fromCurrentScope(final VarName name) {
         final int slot = name.slot();
-        return owner[slot] == depth ? slots.get(slot) : null;
+        return owner[slot] == depth ? slots[slot] : null;
     }
 
     /**
@@ -233,10 +267,22 @@ public final class VarRegistry {
         return extended.computeIfAbsent(name, this::grow);
     }
 
+    /**
+     * A slot for a name that arrived from the data.
+     *
+     * <p><b>The arrays double rather than growing by one.</b> Extending by a single element
+     * copies the whole array per new name, which is quadratic in the number of distinct
+     * key-value names a stream carries — and a stream with a thousand distinct keys is the case
+     * this exists for. The one-at-a-time growth predates the arrays: {@code owner} was already
+     * copied per name when {@code slots} was a list that doubled for itself.
+     */
     private VarName grow(final String name) {
-        final VarName made = new VarName(name, slots.size());
-        slots.add(null);
-        owner = Arrays.copyOf(owner, slots.size());
+        if (slotCount == slots.length) {
+            final int bigger = Math.max(8, slots.length * 2);
+            slots = Arrays.copyOf(slots, bigger);
+            owner = Arrays.copyOf(owner, bigger);
+        }
+        final VarName made = new VarName(name, slotCount++);
         owner[made.slot()] = UNBOUND;
         return made;
     }
@@ -244,17 +290,19 @@ public final class VarRegistry {
     /** Install a fresh binding for a slot in the current scope, logging what it replaced. */
     private List<Store> bind(final int slot) {
         if (depth > 0) {
-            final int at = undoSaved.size();
+            final int at = undoCount;
             if (at == undoSlot.length) {
                 undoSlot = Arrays.copyOf(undoSlot, at * 2);
                 undoOwner = Arrays.copyOf(undoOwner, at * 2);
+                undoSaved = Arrays.copyOf(undoSaved, at * 2);
             }
             undoSlot[at] = slot;
             undoOwner[at] = owner[slot];
-            undoSaved.add(slots.get(slot));
+            undoSaved[at] = slots[slot];
+            undoCount = at + 1;
         }
         final List<Store> stores = new ArrayList<>(1);
-        slots.set(slot, stores);
+        slots[slot] = stores;
         owner[slot] = depth;
         return stores;
     }
