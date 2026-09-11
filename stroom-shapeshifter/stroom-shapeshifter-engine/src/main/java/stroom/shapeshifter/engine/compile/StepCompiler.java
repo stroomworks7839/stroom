@@ -65,7 +65,7 @@ public final class StepCompiler {
      * @param patterns     compiles and interns a pattern, so that a pattern a step names and one
      *                     a body names are the same compiled pattern
      */
-    public static List<CompiledStep> compile(final List<MatchStep> steps,
+    public static CompiledStep[] compile(final List<MatchStep> steps,
                                              final String templateName,
                                              final Decoding decoding,
                                              final Function<PatternKey, BytePattern> patterns) {
@@ -75,7 +75,7 @@ public final class StepCompiler {
                 RegexEncodings.forMatch(decoding.encoding()));
     }
 
-    private static List<CompiledStep> compile(final List<MatchStep> steps,
+    private static CompiledStep[] compile(final List<MatchStep> steps,
                                               final String templateName,
                                               final Decoding decoding,
                                               final Function<PatternKey, BytePattern> patterns,
@@ -117,7 +117,7 @@ public final class StepCompiler {
                 case MatchStep.Choice choice -> new CompiledStep.Choice(
                         choice.alternatives().stream()
                                 .map(alternative -> compile(alternative, templateName, decoding, patterns, encoding))
-                                .toList());
+                                .toArray(CompiledStep[][]::new));
                 case MatchStep.Optional optional -> new CompiledStep.Optional(
                         compile(optional.steps(), templateName, decoding, patterns, encoding));
                 case MatchStep.Repeat repeat -> new CompiledStep.Repeat(
@@ -136,7 +136,7 @@ public final class StepCompiler {
             };
             compiled.add(one);
         }
-        return compiled;
+        return compiled.toArray(new CompiledStep[0]);
     }
 
     private static void requireCodec(final Codec codec, final String templateName) {

@@ -80,12 +80,12 @@ public final class Steps {
                                     final byte[] data,
                                     final int from,
                                     final int to) {
-        final List<CompiledStep> steps = program.steps();
+        final CompiledStep[] steps = program.steps();
         final Decoding decoding = program.decoding();
         final Encoding encoding = program.encoding();
         int pos = 0;
         int highWater = 0;
-        final List<TypedValue> outputs = new ArrayList<>(steps.size());
+        final List<TypedValue> outputs = new ArrayList<>(steps.length);
 
         for (final CompiledStep step : steps) {
             // The two seeks that can move backwards are handled here rather than as ordinary
@@ -314,7 +314,7 @@ public final class Steps {
                 yield new Result(TypedValue.of(matched, encoding), matched.length);
             }
             case final CompiledStep.Choice choice -> {
-                for (final List<CompiledStep> alternative : choice.alternatives()) {
+                for (final CompiledStep[] alternative : choice.alternatives()) {
                     final Integer consumed = sequence(
                             alternative, data, from, to, prior, local, position, decoding, encoding);
                     if (consumed != null) {
@@ -377,7 +377,7 @@ public final class Steps {
      * and the caller's own — as one flat list. That is the rule a step reference indexes into:
      * output indexes count all step outputs in execution order, at any nesting depth.
      */
-    private static Integer sequence(final List<CompiledStep> steps,
+    private static Integer sequence(final CompiledStep[] steps,
                                     final byte[] data,
                                     final int from,
                                     final int to,
@@ -388,7 +388,7 @@ public final class Steps {
                                     final Encoding encoding) {
         final List<TypedValue> prior = concat(enclosing, callerLocal);
         int pos = 0;
-        final List<TypedValue> local = new ArrayList<>(steps.size());
+        final List<TypedValue> local = new ArrayList<>(steps.length);
         for (final CompiledStep step : steps) {
             final Result result = step(step, data, from + pos, to, prior, local, position + pos,
                     decoding, encoding);

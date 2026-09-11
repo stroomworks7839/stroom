@@ -197,32 +197,32 @@ public sealed interface CompiledStep {
     }
 
     /** Try each alternative in order; the first whole sequence that matches wins. */
-    record Choice(List<List<CompiledStep>> alternatives) implements CompiledStep {
+    record Choice(CompiledStep[][] alternatives) implements CompiledStep {
 
     }
 
     /** Match a sequence, or nothing. */
-    record Optional(List<CompiledStep> steps) implements CompiledStep {
+    record Optional(CompiledStep[] steps) implements CompiledStep {
 
     }
 
     /** Match a sequence repeatedly, greedily, without giving anything back. */
-    record Repeat(List<CompiledStep> steps, int min, Integer max) implements CompiledStep {
+    record Repeat(CompiledStep[] steps, int min, Integer max) implements CompiledStep {
 
     }
 
     /** Group a sequence so it can be treated as one step. */
-    record Sequence(List<CompiledStep> steps) implements CompiledStep {
+    record Sequence(CompiledStep[] steps) implements CompiledStep {
 
     }
 
     /** Match without consuming — positive lookahead. */
-    record Peek(List<CompiledStep> steps) implements CompiledStep {
+    record Peek(CompiledStep[] steps) implements CompiledStep {
 
     }
 
     /** Succeed only if the inner sequence fails — negative lookahead. */
-    record Not(List<CompiledStep> steps) implements CompiledStep {
+    record Not(CompiledStep[] steps) implements CompiledStep {
 
     }
 }

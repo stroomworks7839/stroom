@@ -37,18 +37,18 @@ import java.util.List;
  */
 public final class CompiledSteps {
 
-    private final List<CompiledStep> steps;
+    private final CompiledStep[] steps;
     private final Decoding decoding;
     private final Encoding encoding;
 
-    public CompiledSteps(final List<CompiledStep> steps, final Decoding decoding) {
-        this.steps = List.copyOf(steps);
+    public CompiledSteps(final CompiledStep[] steps, final Decoding decoding) {
+        this.steps = steps;
         this.decoding = decoding;
         this.encoding = decoding.encoding();
     }
 
     /** The compiled steps, in order. */
-    public List<CompiledStep> steps() {
+    public CompiledStep[] steps() {
         return steps;
     }
 
