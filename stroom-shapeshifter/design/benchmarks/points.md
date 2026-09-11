@@ -24,11 +24,8 @@ keeping, and so is one that did not.
 | 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
 | 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
 | 9 | `8d0fd1cd65` | 2026-09-09 | Design 30: conditions compiled, the pattern map off the graph | A `matches` test holds its `BytePattern` instead of hashing the pattern's text per evaluation, and `Conditions.evaluate` stops taking the map — so it is no longer threaded into every guard evaluation on every template on every record. **624 evaluations per operation on `apache_httpd` and none anywhere else**, invisible in a sampled profile, so the run rows should not move. Compilation now walks the condition trees, so the compile rows are where a change would show. |
+| 24 | `2d8be8b5be` | 2026-09-11 | A template's captures are a `CompiledCapture[]` | The second of design 33 §11's twelve, and the one walked most often — `Level` binds captures **per match**, up to 569,199 times per operation on `win_sec_strict`. So the rows to watch are the match-dense ones the body arrays could not reach: **`win_sec_strict`, `win_sec_xml` and `win_sec`**, none of which moved for point 23. `apache_httpd` and `log_sessions` make few matches and should be flat here, which is the check that this is the captures walk and not something else. |
 | 23 | `7335b0a7f2` | 2026-09-11 | A compiled body is a `CompiledOp[]` — design 33's one surviving change, rebuilt on point 18 | **Already measured against its own floor** — +12.4% `regex_lines`, +10.4% `csv_header`, +7.8% `apache_httpd`, +4.8% `log_sessions`, all 6/6 interleaved, and −0.7% on `progressive`. It is a point because the interleaved rows are four of eleven: the **seven** it did not cover include `element_storm` and `win_sec_xml`, which write structure, and `ausearch`, whose bodies are shallow. The **compile** rows should show a small rise — `BodyCompiler` builds an array per body where it built an immutable list, and `RootPlanner` copies slices where it took views. |
-| 22 | `86caf58748` | 2026-09-10 | Design 33 phase 3: a compiled body is an `int[]` of opcodes beside its ops, dispatched by `tableswitch` | **The dispatch half, isolated** — phase 2 left the type switch in place, so this is the step where the `instanceof` chain and its un-inlinable 389-byte bootstrap method go, confirmed by `javap` and by `Body$$TypeSwitch` disappearing from the inlining log. `log_sessions` and `element_storm` execute the most instructions and are where it should show; the micro says an `int` jump table beats the chain at every arm count sampled but one. **The `run` loop is still not inlinable** (532 bytes), so this cannot recover what design 31 phase 2 got by having no switch at all — if this row moves as much as that did, the explanation is not the dispatch. The **compile** rows carry a new cost that should be visible: `CompiledBody.of` walks every instruction through a type switch at link time, which is the price of the run-time jump table. |
-| 21 | `668c95a641` | 2026-09-10 | Design 33 phase 2: a compiled body is a `CompiledOp[]`, not a `List<CompiledOp>` | **The collection half, isolated** — the type switch is untouched, so anything that moves here is the iterator and the unbindable `List` interface calls going off the body path. `log_sessions` and `element_storm` execute the most instructions and are where it should show; `win_sec_strict` and `progressive` should be flat, since neither runs many body ops. The **compile** rows may move and a *rise* would be the honest expectation for once: `BodyCompiler` now builds an array per body instead of an immutable list, and `RootPlanner` copies its slices where it used to take views. Read with 19 and 20, which are in the same code. |
-| 20 | `82c9c7f911` | 2026-09-10 | The structural refusal is a `try`/`catch` rather than a `Runnable` | **`element_storm` and `win_sec_xml` are the only rows that can move** — they are the only ones that write structure — and `element_storm`'s allocation is already measured: **−3,455,105 B/op, −8.2%**, which is 153,720 capturing lambdas per operation that escape analysis was not removing. What is *not* known is whether that converts to throughput, and this is the row to find out on: point 19 cost `element_storm` 2.22%, and the two changes are in the same place, so read them together. Everything else should be flat, the **compile** rows included. |
-| 19 | `b59473a506` | 2026-09-10 | Design 33 phases 1 and 1b: `Body`'s arms become methods, and its eight parameters become registers | **Two of its four rows are already measured and disagree with each other**, which is why the other seven matter: `log_sessions` +2.35% and `element_storm` −2.22%, six interleaved rounds each, every round agreeing on both signs. The full suite is the check on whether that split is a property of those two workloads or of the change. **`progressive` and `progressive_text` should be flat** — the step interpreter is untouched — and so should every **compile** row, since nothing in the compiler moved. A compile row moving here would be the third instance of point 8's phenomenon and would stop being a coincidence. The interesting rows are `csv_header` and `regex_lines`, which execute bodies heavily and have never been read against this change. |
 | 18 | `c2aee70a05` | 2026-09-10 | The graph holds values: the interner moves to the compiler, `Apply.link` takes what it is given, `Replacer` moves to `graph` | **Nothing should move, and this one has a way of being wrong.** It is the third "nothing should move" point today, and unlike 14 and 16 it is not only file moves: `Compiler` was reordered so linking runs before the graph is built, and `Apply.link` stopped deriving `recursiveShadow` per apply and started being handed it. Both are compile-time, so the **compile rows** are where anything would show — and a *drop* there is as interesting as a rise, since the derivation happens once now instead of once per apply site. A run row moving means something is wrong. |
 | 17 | `b38197bc13` | 2026-09-10 | Design 32: the encoding is settled before compiling, and the dual reading is gone | **`progressive` and `progressive_text` are the only rows that can move**, and they should: `forEncoding(effective(candidate))` ran on every progressive match — a call, an `Encoding.resolve` and a comparison — and is now a field read. Everything else is structure. Note what will *not* show: the step compiler no longer compiles twice, but it never did for this corpus, because every fixture declares `auto` or `utf-8` and the second reading was only built for a source that was neither. So a compile row moving here would want explaining rather than celebrating. |
 | 16 | `d0c22a1d6e` | 2026-09-10 | `engine.compile` split into `graph` and `compile`, the graph stops building itself, and `match` splits four ways | **Nothing should move**, which is why it is a point — the same reason as point 8, which said that and then moved six compile rows coherently upward. This is file moves, eleven widened members and five factories relocated; the JVM sees the same code under different package names. If a run row moves, the explanation is not in this diff. |
@@ -635,98 +632,37 @@ measured resolution. Keep them. But a point whose claim is smaller than four poi
 
 ## The next set — 2026-09-11
 
-**Points 19 and 20, over the floor that is point 18:**
+**Point 18 is the floor, and the array conversions are the points:**
 
 ```
-engine-bench-points.sh full c2aee70a05 b59473a506 82c9c7f911 668c95a641 86caf58748
+engine-bench-points.sh full c2aee70a05 7335b0a7f2 2d8be8b5be
 ```
 
-Five points, about seventy-five minutes. `c2aee70a05` is the floor — point 18, the last state of
-2026-09-10 before design 33 — and the two above it are the day's interpreter work.
+`c2aee70a05` is point 18 — the last state before the first array change, and the last state whose
+code is still on the branch below everything here.
 
-**Read them as a pair, because they are in the same place and pull opposite ways on the same
-row.** Point 19 cost `element_storm` 2.22% over six interleaved rounds; point 20 took 8.2% of
-that row's allocation away. Whether 20 repays 19 on that row is the question this set exists to
-answer, and neither point can answer it alone.
+**Points 19 to 22 were scrubbed from this list, and deliberately.** They were design 33's arms,
+registers, structural `try`/`catch` and opcodes, and all four were wound back on 2026-09-11 after
+an interleaved pair showed the first of them costing `progressive` 8.64% over six agreeing rounds.
+Their code is not on the branch, so they cannot be measured against it, and re-running them would
+spend an evening reproducing a decision already taken. **Their readings are not lost**: the
+five-point set and the pair are both in the design 33 reading below, and design 33 §10 carries
+what they settled. A point exists to be measured against the branch; once its code is gone, the
+reading is the record and the row is not.
 
-**What should not move**, and would be worth explaining if it did: every **compile** row, since
-neither point touches the compiler; and `progressive` and `progressive_text`, since the step
-interpreter is untouched. `csv_header` and `regex_lines` execute bodies heavily and have never
-been read against either change, so they are where a cost spread thinly would show.
+**What to expect.** Point 23 is already measured against point 18 over six interleaved rounds —
+`regex_lines` +12.4%, `csv_header` +10.4%, `apache_httpd` +7.8%, `log_sessions` +4.8%,
+`progressive` −0.7% — so the full suite's job there is the **seven rows the pair did not cover**,
+`element_storm`, `win_sec_xml` and `ausearch` among them, and the **compile** rows, which should
+rise slightly: `BodyCompiler` builds an array per body where it built an immutable list, and
+`RootPlanner` copies slices where it took views.
 
-**And do not add a fourth point to save a trip.** Point 19's own reading came from six
-interleaved rounds on four rows; the sequential protocol resolves about ±4% on a single row (see
-the 2026-09-10 reading, §4), so a change claiming less than that cannot be settled here whatever
-its slot.
+Point 24 has not been measured at all. Its prediction is in its row.
 
-## The reading — design 33, run 2026-09-10 23:15 to 2026-09-11 00:35
-
-*Five points over point 18 as the floor. All completed, box idle, no failures. There is **no
-control point in this set** — every point changes code — so the ±4% single-row resolution the
-2026-09-10 set measured is carried over as an estimate rather than re-established.*
-
-| workload | 19 arms+registers | 20 no lambda | 21 arrays | 22 opcodes |
-|---|---|---|---|---|
-| `apache_httpd` | −1.2 | −0.8 | **+7.2** | **+8.0** |
-| `log_sessions` | +0.8 | −0.4 | +4.5 | **+5.2** |
-| `regex_lines` | −8.6 | −5.7 | +3.9 | **+5.0** |
-| `csv_header` | −4.2 | −6.2 | +6.2 | **+4.9** |
-| `ausearch` | +0.1 | −2.5 | +0.8 | +3.7 |
-| `element_storm` | +0.1 | +0.6 | +2.7 | +2.2 |
-| `win_sec` | +0.1 | +0.2 | +1.0 | +1.2 |
-| `win_sec_strict` | −1.4 | −1.2 | +0.8 | +0.3 |
-| `win_sec_xml` | −1.7 | −0.9 | −1.3 | −0.3 |
-| `progressive_text` | −2.0 | −3.1 | −2.0 | −1.0 |
-| `progressive` | −8.7 | −9.6 | −8.6 | **−11.4** |
-
-### The arrays are the result, and they answer the question the set was run to answer
-
-**Point 21 is where everything moves.** `apache_httpd` goes −0.8 → +7.2 in that one step,
-`csv_header` −6.2 → +6.2, `regex_lines` −5.7 → +3.9, `log_sessions` −0.4 → +4.5. Nothing else in
-the set does anything on that scale. That step is `List<CompiledOp>` becoming `CompiledOp[]` and
-**nothing else** — the type switch is still in place at 21 — so what paid is the collection, not
-the dispatch.
-
-**Point 22 adds a little and is not the story.** +0.8 on `apache_httpd`, +0.7 on `log_sessions`,
-+1.1 on `regex_lines`, +2.9 on `ausearch`, and −1.3 on `csv_header`. Most of those are inside the
-noise estimate; the jump table is worth having and it is worth about a point.
-
-**So the rollout question has an answer.** Of the three mechanisms design 33 conflated — the
-un-inlinable chain, the linear scan, and the `List` interface calls — it is the **third** that
-paid, and it is the one that applies everywhere: `Level` walking its templates 569,199 times per
-operation on `win_sec_strict`, `CompiledSteps.steps` 104,862 times on `progressive`,
-`Transform.select`, `And`/`Or.conditions`, `CompiledTemplate.captures`. Arrays before opcodes,
-and opcodes only where a switch is large.
-
-### `progressive` is down 11.4% and it is not explained
-
-It was **−8.7% at point 19 and never recovers**: −9.6, −8.6, −11.4. That is far outside the noise
-estimate and consistent across four independent readings, so it is real. The prediction attached
-to points 19 and 22 was that `progressive` and `progressive_text` should be *flat*, since the step
-interpreter is untouched by every phase here. They are not flat, and `progressive` is the worst
-row in the set.
-
-**A mechanism was proposed and does not survive its own check.** The obvious candidate is point
-1b's register save and restore, which costs fourteen field operations per `body()` call and is
-therefore paid per *instruction* on a row whose bodies hold one instruction — and `progressive`
-runs 52,431 bodies for 52,431 ops, exactly one each. But `progressive_text` has the same ratio of
-one op per body and lost only 2.0, while `regex_lines` has three and lost 8.6. The correlation
-that would make the story work is not there, so it is recorded as a hypothesis that failed rather
-than as the explanation.
-
-| workload | ops per body | point 19 |
-|---|---|---|
-| `progressive_text` | 1.0 | −2.0 |
-| `progressive` | 1.0 | **−8.7** |
-| `regex_lines` | 3.0 | **−8.6** |
-| `apache_httpd` | 13.3 | −1.2 |
-| `log_sessions` | 26.2 | +0.8 |
-| `element_storm` | 40.9 | +0.1 |
-
-**What that costs the design, said plainly:** design 33's net across the corpus is +8.0, +5.2,
-+5.0 and +4.9 on the four body-heavy text rows and **−11.4 on the row that is the step
-interpreter's own**. Rolling this approach out further before `progressive` is understood would
-be building on an unexplained regression, which is the thing this page exists to prevent.
+**And the set will grow.** Design 33 §11 lists twelve run-time collections; two are converted. The
+rest will be added as points as they land, and the floor stays at `c2aee70a05` so that the arc
+reads as one sequence rather than as a chain of adjacent pairs — which is the reading the
+2026-09-10 set showed this protocol can actually support.
 
 ## Points deliberately not on the list
 
