@@ -123,6 +123,16 @@ is actually about.
 uncovered against a change, but never executed by any test at all. That is worth fixing whether
 or not this design is ever built, and it comes first.
 
+> **Corrected 2026-09-11, during the audit — the sentence above is wrong.** It is true of the
+> *fixtures*, which is what the table measures, and I extrapolated it to every test. `StepsTest`
+> already held **five combinator tests** — `choiceTakesTheFirstAlternativeThatMatches`,
+> `optionalAndRepeatAreGreedyAndDoNotGiveBack`, `lookaheadMatchesWithoutConsuming`,
+> `nestedStepsSeeEveryOutputProducedSoFarAtAnyDepth` and `sequenceIsOneStepFromTheOutside` —
+> which build `MatchStep` objects directly rather than going through configuration. They predate
+> this design and were never modified by it. The first two of §5's three consequences stand: the
+> corpus does not run this path and cannot measure it. The third does not. §8 records what that
+> cost, because the sabotage shows those five doing most of the catching.
+
 ## 6. How it is gated
 
 *This design's own prior is that the corpus will not catch its mistakes — §5 is why, and it is
@@ -135,7 +145,9 @@ So, before the benchmark:
 
 1. **A test per combinator** that a nested sequence's outputs are not visible after it returns,
    and that a *failed* alternative's outputs are not visible to the one that follows. Neither is
-   covered today.
+   covered today. *(Corrected during the audit: the first of the two was already covered, by
+   `StepsTest.sequenceIsOneStepFromTheOutside` — see §5's correction. The second was not, and it
+   is the one the sabotage in §8 shows nothing else catching.)*
 2. **A growth test** — more outputs in one match than the buffer starts with, several doublings
    over.
 3. **Sabotage each**: remove the truncation on the failure path, and on the success path, and
@@ -156,3 +168,55 @@ Only then a reading, and `progressive` and `progressive_text` are the only rows 
   from every reference does nothing, then allocation churn is not what these rows are spending
   their time on, and the remaining items in design 33 §11 should be dropped rather than worked
   through.
+
+## 8. What was built, and what the gate caught
+
+*Built 2026-09-11.* `Outputs` is a `TypedValue[]` with a count, doubling from `max(4, steps.length)`.
+`step(...)` and `sequence(...)` take one buffer where they took `prior` and `local`; `concat(...)`
+and the two-list `at(index, prior, local)` are gone, and with them the subtract-against-the-first-
+list arithmetic every step reference used to do. `sequence` takes a mark on entry and truncates to
+it on both exits. §7's first condition is met: the truncation is on the two exits and nowhere else.
+
+**The combinators were tested first**, as §5 required — seventeen tests over `Choice`, `Optional`,
+`Repeat`, `Sequence`, `Peek` and `Not`, committed before the buffer existed, driving the
+combinators through configuration rather than by building `MatchStep` objects. §5's premise for
+writing them was partly wrong — see the correction there — and the sabotage below says how much
+they actually added.
+
+Then §6.3's sabotage, and it is the reason §6.3 is written down:
+
+Each sabotage was run against the whole engine suite, with every test in place:
+
+| sabotage | failing | pre-existing `StepsTest` | written for this design |
+|---|---|---|---|
+| no truncation on the **success** exit | 6 | 5 | 1 |
+| growth allocates without copying the old values | 2 | 1 | 1 |
+| growth removed entirely | 2 | 1 | 1 |
+| no truncation on the **failure** exit | **1** | **0** | 1 |
+
+**Two things in that table, and they point opposite ways.**
+
+*The five combinator tests that were already there did most of the work.* Three of the four
+sabotages are caught by `StepsTest` alone, which §5 did not expect because §5 had wrongly
+concluded there were no such tests. The seventeen written for this design overlap them
+substantially — a JSON-configured path over the same vocabulary the old ones reach directly — and
+had §5 been right about what existed, far fewer would have been worth writing.
+
+*And the one sabotage they all miss is the defect this design names for itself.* Before the test
+written for it, removing the truncation from the **failure** exit broke **nothing** — not the
+corpus, not the five, not the other sixteen new ones. Every one of them either fails a
+combinator's first alternative before it has produced an output, or does not read an index
+afterwards. It took a test built backwards from the defect: a first alternative that produces one
+output and *then* fails, a second that produces the value the next step reads by index, chosen so
+the leaked output and the correct one differ in type. The growth test needed the same care — its
+first version read an index written *after* the last doubling and passed happily against a growth
+that copied nothing.
+
+So the lesson is not "write tests first", and it is not "there were no tests" — there were, and
+they were good ones. It is that **a test written to cover a feature is not a test of the defect a
+change to that feature will introduce.** Coverage of the combinators was already decent; what it
+could not do was anticipate mark-and-truncate, because nothing in the old design had a mark to
+forget. Only sabotage found that, and only after the defect was named.
+
+*Unmeasured.* §6's reading is still owed, and §7's third condition still stands — `progressive` and
+`progressive_text` are the only rows that can move.

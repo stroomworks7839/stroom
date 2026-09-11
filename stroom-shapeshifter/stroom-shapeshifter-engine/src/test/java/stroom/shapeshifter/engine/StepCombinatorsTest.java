@@ -248,6 +248,53 @@ class StepCombinatorsTest {
         assertThat(run(steps, "3xabc")).isEqualTo("[3xabc]");
     }
 
+    /**
+     * A <b>failed</b> alternative's outputs do not survive into the index space of what runs
+     * after it.
+     *
+     * <p>The first alternative produces one output and then fails; the second produces the
+     * number the following {@code TakeBytes} reads. If the failed alternative's output were
+     * still there, index 0 would be its non-numeric "3a" rather than the choice's own "3", and
+     * the match would fail.
+     *
+     * <p>Design 34 §3 names this as the defect a shared buffer can introduce — a nested sequence
+     * that forgets to truncate on its <i>failing</i> exit. Every other test in this file passes
+     * with that truncation removed.
+     */
+    @Test
+    void failedAlternativeOutputsDoNotSurviveIntoTheIndexSpace() {
+        final String steps = """
+                {"Choice": [[{"Tag": "3a"}, {"Tag": "Q"}],
+                            [{"TakeWhile": "Numeric"}]]},
+                {"TakeBytes": {"StepOutput": 0}}""";
+        assertThat(run(steps, "3abc")).isEqualTo("[3abc]");
+    }
+
+    /**
+     * The output buffer grows, and what it held before growing is still readable at its old index.
+     *
+     * <p>The buffer starts at the top-level step count — two here — so the twenty-one steps of the
+     * nested sequence take it through three doublings. The digit is written at index 3 while the
+     * buffer still holds four, and read back by the last step, three doublings later: if growth
+     * allocated without carrying the old values across, that read finds nothing there.
+     */
+    @Test
+    void theBufferGrowsAndKeepsWhatItHeldAtItsOldIndex() {
+        final String after = "cdefghijklmnopqrs";
+        final StringBuilder tags = new StringBuilder();
+        for (final char letter : after.toCharArray()) {
+            tags.append(", {\"Tag\": \"").append(letter).append("\"}");
+        }
+        // Index 0 is the outer tag, 1 and 2 the first two letters, 3 the digit the last step reads
+        // as a count, and 4..20 the rest — which is where the buffer outgrows the four it began on.
+        final String steps = """
+                {"Tag": "S"},
+                {"Sequence": [{"Tag": "a"}, {"Tag": "b"}, {"Tag": "3"}TAGS,
+                              {"TakeBytes": {"StepOutput": 3}}]}"""
+                .replace("TAGS", tags.toString());
+        assertThat(run(steps, "Sab3" + after + "xyz")).isEqualTo("[Sab3" + after + "xyz]");
+    }
+
     @Test
     void combinatorsNestInsideOneAnother() {
         final String steps = """

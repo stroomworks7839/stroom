@@ -37,8 +37,13 @@ public sealed interface StepRef {
     /**
      * The output of an earlier step, parsed as a decimal number.
      *
-     * @param index the output's 0-based position counting every step output the match has
-     *              produced so far, in execution order and at any nesting depth
+     * <p>Indices count outputs in execution order, and a step inside a combinator can name one an
+     * enclosing sequence produced. What it cannot name is a combinator's internals from outside
+     * it: a combinator contributes exactly one output — the span it consumed — and the outputs of
+     * its own steps are gone once it returns. So "so far" means the outputs still live at the
+     * point of the read, not every output the match has ever produced (design 34 §2).
+     *
+     * @param index the output's 0-based position among the outputs live where the reference is read
      */
     record StepOutput(int index) implements StepRef {
 
