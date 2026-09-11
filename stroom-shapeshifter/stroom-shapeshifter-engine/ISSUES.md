@@ -1625,7 +1625,7 @@ Profiles: `design/benchmarks/ph4-conditions-stack-apache-lines8.txt`. Design:
 `design/30-references-not-names.md`.
 
 ### E48 — A reference to a group of a named variable reads group 1, whatever group it asked for
-**`open` 2026-09-11. Rewritten twice the same day; both earlier versions were wrong, and how they
+**`resolved` 2026-09-11. Rewritten twice the same day; both earlier versions were wrong, and how they
 were wrong is the useful part.**
 
 **What actually happens.** A DS3 `<var id="h"/>` binds **exactly one** store, and every `$h$N` read
@@ -1730,11 +1730,41 @@ number. The group-0 spellings are `$h$` and `@h`. Pinned by
   match-storing declaration and the computed one binds a name nothing reads. Pre-existing ambiguity
   rather than something this change introduced.
 
-**Still open: the run-time half.** `VarRegistry.slots` is still `Store[][]`, and now provably
-dead — the group is resolved entirely at migration time. Collapsing it to `Store[]` removes an
-indirection from every reference resolution (24,960/op on `apache_httpd`), and a native reference
-naming a non-zero group has to become a compile-time refusal, since after the collapse there is
-nowhere for it to read from.
+**Built 2026-09-11, run-time half — and with it the issue is `resolved`.** `VarRegistry.slots` is
+`Store[]`: one store per name, not an array indexed by capture group. `undoSaved` collapses with
+it, and `get`, `entry`, `fromCurrentScope` and `put` all deal in a single `Store`. `store(name)` is
+now exactly `entry(name)`, because a slot holds a store rather than somewhere to put one.
+
+The group is gone from the compiled graph too — `CompiledRef.RemoteVar(varId, matchIndex)` and
+`CompiledRef.Context(var, matchIndex)` no longer carry one. `CompiledRefs.indexed` lost its bounds
+check and its array index, `framed` lost its `group != 0` guard, Body's four read sites went from
+`stores == null || stores[0] == null` then `stores[0]` to one null check, and `noValues` — which
+existed only to scan an array that never had more than one entry — is deleted.
+
+**A native reference naming a non-zero group is now refused** rather than reading as absent for
+ever: *"Reference to 'x' asks for group 2, but a variable holds one value and has no groups to
+select from. Bind the group you want as its own capture."*
+
+*One semantic shift, traced rather than assumed.* `bind()` always creates a `Store`, so a
+shadowed-but-unwritten name now returns an **empty store** where it returned absent. Every reader
+converges: `get` → null, `lastIndex` → −1, `latest` → null, `size` → 0. The two sites that now
+proceed instead of returning early — grouping and the sorted for-each — each hit a second guard
+that exits identically.
+
+*And one allocation trade-off, measured rather than guessed.* A `Store` is two objects, itself and
+`new TypedValue[2]`, where `Store[1]` was one — so the change saves an object when a shadowed name
+is written and costs one when it is not. Instrumenting `bind()` and `pop()` over the suite:
+**1,095 binds, 258 of them (24%) shadowed and never written**. A net saving of about half an object
+per bind, so eager allocation is the right side of the trade. It is a ratio rather than a law, and
+a workload that shadows far more than it writes would land the other way.
+
+*Sabotage.* `store()` handing back a fresh store each time: 149 tests. Undo log not saving what it
+replaced: 5. `bind()` recording the wrong owning depth: 3. The group refusal removed: 2.
+`register()` binding at the current depth: 0 — a no-op rather than a gap, since `registerCaptures`
+runs once at depth 0, where `0` and `depth` are the same expression.
+
+**Unmeasured.** This is the hottest read in the engine — 24,960 reference resolutions per
+operation on `apache_httpd` — and it has a benchmark point of its own.
 
 Sites: `ds3/Ds3Migration.java` (`expression`'s binding rewrite, `indexVarReads`, the `<group>` path
 at :337), `ds3/LegacyRefs.java`, `exec/CompiledRefs.java` `indexed`, `exec/Level.java`

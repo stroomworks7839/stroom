@@ -544,11 +544,10 @@ final class Body {
 
     /** The populated entries of a named sequence, in ascending index order, or empty. */
     private List<TypedValue> entries(final VarName name) {
-        final Store[] stores = vars.get(name);
-        if (stores == null || stores[0] == null) {
+        final Store store = vars.get(name);
+        if (store == null) {
             return List.of();
         }
-        final Store store = stores[0];
         final List<TypedValue> values = new ArrayList<>(store.size());
         for (int i = 0; i < store.size(); i++) {
             final TypedValue value = store.get(i);
@@ -632,11 +631,10 @@ final class Body {
                                     final MatchResult match,
                                     final int matchCount) {
         final Map<String, Filed> members = new LinkedHashMap<>();
-        final Store[] stores = vars.get(select);
-        if (stores == null || stores[0] == null) {
+        final Store store = vars.get(select);
+        if (store == null) {
             return members;
         }
-        final Store store = stores[0];
         vars.frames().pushIteration();
         for (int index = 0; index < store.size(); index++) {
             final TypedValue entry = store.get(index);
@@ -684,8 +682,8 @@ final class Body {
                               final long inputBase,
                               final boolean ignoreErrors,
                               final int depth) {
-        final Store[] stores = vars.get(op.select());
-        if (stores == null || stores[0] == null) {
+        final Store store = vars.get(op.select());
+        if (store == null) {
             return;
         }
 
@@ -830,11 +828,10 @@ final class Body {
                          final long inputBase,
                          final boolean ignoreErrors,
                          final int depth) {
-        final Store[] stores = vars.get(op.select());
-        if (stores == null || stores[0] == null) {
+        final Store store = vars.get(op.select());
+        if (store == null) {
             return;
         }
-        final Store store = stores[0];
         final List<Integer> populated = new ArrayList<>();
         for (int i = 0; i < store.size(); i++) {
             if (store.get(i) != null) {
@@ -919,8 +916,8 @@ final class Body {
                 ignoreErrors,
                 depth);
 
-        Store[] captured = vars.fromCurrentScope(value.name());
-        if (captured != null && noValues(captured)) {
+        Store captured = vars.fromCurrentScope(value.name());
+        if (captured != null && captured.lastIndex() < 0) {
             captured = null;
         }
         vars.pop();
@@ -928,7 +925,7 @@ final class Body {
         if (captured != null) {
             // Not copied. The line this replaced took List.copyOf because the target list was
             // then cleared and refilled in place — reading and writing the same list. Nothing
-            // is mutated now: the scope's array is installed whole, and the scope that held it
+            // is mutated now: the scope's store is installed whole, and the scope that held it
             // has gone, so nothing else refers to it.
             vars.put(value.name(), captured);
         } else if (buffer.size() > 0) {
@@ -938,15 +935,6 @@ final class Body {
         }
     }
 
-    /** Whether a promoted name's stores hold nothing, in which case there is nothing to keep. */
-    private static boolean noValues(final Store[] stores) {
-        for (final Store store : stores) {
-            if (store != null && store.lastIndex() >= 0) {
-                return false;
-            }
-        }
-        return true;
-    }
 
     /**
      * Invoke a template by name, with parameters and without matching anything.

@@ -50,8 +50,11 @@ import java.util.Map;
  * rather than another entry. Without it a {@code sequence} declared inside a loop would log once
  * per iteration.
  *
- * <p>Each name maps to a <i>list</i> of stores, indexed by capture group. Group 0 is where
- * ordinary captures land; the wider list is what lets a variable carry a whole match's groups.
+ * <p>Each name maps to <i>one</i> store. It used to map to an array of them indexed by capture
+ * group, mirroring DS3's {@code StoreNode}, but nothing ever wrote above index 0: the group is
+ * settled when the configuration is compiled, where a referenced {@code (var, group)} pair
+ * becomes a capture of its own (E48). So the group dimension was an indirection on the single
+ * hottest path in the engine, carrying a value that was always the same.
  *
  * <p>What is in here is the <b>author's</b> names. The engine's own are {@link Frames}, which
  * design 30 phase 4 gave them; the one exception is {@code __group}, a sequence rather than a
@@ -81,7 +84,7 @@ public final class VarRegistry {
      * index it — which is the hottest read in the engine (design 33 §11 E). It grows only when a
      * name arrives from the data, beside {@link #owner}, which has always been an array.
      */
-    private Store[][] slots;
+    private Store[] slots;
 
     /**
      * How many slots exist, which is the next free one. The arrays are longer than this once a
@@ -113,7 +116,7 @@ public final class VarRegistry {
     private int[] undoOwner;
 
     /** What each entry replaced. */
-    private Store[][] undoSaved;
+    private Store[] undoSaved;
 
     /** How many entries are live, which is also the next free index in all three. */
     private int undoCount;
@@ -124,11 +127,11 @@ public final class VarRegistry {
         this.names = names;
         this.owner = new int[names.size()];
         Arrays.fill(owner, UNBOUND);
-        this.slots = new Store[names.size()][];
+        this.slots = new Store[names.size()];
         this.slotCount = names.size();
         this.undoSlot = new int[UNDO_INITIAL];
         this.undoOwner = new int[UNDO_INITIAL];
-        this.undoSaved = new Store[UNDO_INITIAL][];
+        this.undoSaved = new Store[UNDO_INITIAL];
     }
 
     /** The engine's own variables, which are frames rather than names. */
@@ -174,20 +177,20 @@ public final class VarRegistry {
         undoCount = mark;
     }
 
-    /** The stores for a name, by capture group, or null. */
-    public Store[] get(final VarName name) {
+    /** The store for a name, or null when nothing holds it. */
+    public Store get(final VarName name) {
         return slots[name.slot()];
     }
 
-    /** The stores for a name the run read out of the data, or null. */
-    public Store[] get(final String name) {
+    /** The store for a name the run read out of the data, or null. */
+    public Store get(final String name) {
         return get(name(name));
     }
 
-    /** The stores for a name, creating them in the innermost scope if nothing holds it yet. */
-    public Store[] entry(final VarName name) {
+    /** The store for a name, creating it in the innermost scope if nothing holds it yet. */
+    public Store entry(final VarName name) {
         final int slot = name.slot();
-        final Store[] found = slots[slot];
+        final Store found = slots[slot];
         if (found != null) {
             return found;
         }
@@ -195,27 +198,26 @@ public final class VarRegistry {
     }
 
     /**
-     * Install a name's stores in the innermost scope, replacing whatever it held.
+     * Install a name's store in the innermost scope, replacing whatever it held.
      *
-     * <p>What a variable's promotion needs: the nested body's stores, kept after its scope has
+     * <p>What a variable's promotion needs: the nested body's store, kept after its scope has
      * gone. {@link #entry} first, so the slot is bound in this scope and the undo log knows what
-     * it replaced, and then the stores themselves.
+     * it replaced, and then the store itself.
      */
-    public void put(final VarName name, final Store[] stores) {
+    public void put(final VarName name, final Store store) {
         entry(name);
-        slots[name.slot()] = stores;
+        slots[name.slot()] = store;
     }
 
-    /** The group-0 store for a name, creating it if needed. */
+    /**
+     * The store for a name, creating it if needed — which is what {@link #entry} already does,
+     * now that a slot holds a store rather than somewhere to put one.
+     */
     public Store store(final VarName name) {
-        final Store[] stores = entry(name);
-        if (stores[0] == null) {
-            stores[0] = new Store();
-        }
-        return stores[0];
+        return entry(name);
     }
 
-    /** The group-0 store for a name the run read out of the data. */
+    /** The store for a name the run read out of the data. */
     public Store store(final String name) {
         return store(name(name));
     }
@@ -227,7 +229,7 @@ public final class VarRegistry {
     public void register(final VarName name) {
         final int slot = name.slot();
         if (slots[slot] == null) {
-            slots[slot] = new Store[1];
+            slots[slot] = new Store();
             owner[slot] = 0;
         }
     }
@@ -243,8 +245,8 @@ public final class VarRegistry {
         bind(slot);
     }
 
-    /** A name's stores from the current scope only, ignoring anything outside it. */
-    public Store[] fromCurrentScope(final VarName name) {
+    /** A name's store from the current scope only, ignoring anything outside it. */
+    public Store fromCurrentScope(final VarName name) {
         final int slot = name.slot();
         return owner[slot] == depth ? slots[slot] : null;
     }
@@ -303,7 +305,7 @@ public final class VarRegistry {
     }
 
     /** Install a fresh binding for a slot in the current scope, logging what it replaced. */
-    private Store[] bind(final int slot) {
+    private Store bind(final int slot) {
         if (depth > 0) {
             final int at = undoCount;
             if (at == undoSlot.length) {
@@ -316,9 +318,9 @@ public final class VarRegistry {
             undoSaved[at] = slots[slot];
             undoCount = at + 1;
         }
-        final Store[] stores = new Store[1];
-        slots[slot] = stores;
+        final Store store = new Store();
+        slots[slot] = store;
         owner[slot] = depth;
-        return stores;
+        return store;
     }
 }

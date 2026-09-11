@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
@@ -63,12 +64,22 @@ final class RefCompiler {
                 if (capture.varId() == null) {
                     yield new CompiledRef.LocalGroup(capture.group());
                 }
+                // A name holds one value, so there is no group to select within it. The group a
+                // reference names is spent when the configuration is compiled — the DS3 migration
+                // binds a capture per referenced group (E48) — and a non-zero one arriving here
+                // is a native configuration asking for something no writer can produce. Refusing
+                // it is the difference between a message and an empty value for ever.
+                if (capture.group() != 0) {
+                    throw new ConfigException(
+                            "Reference to '" + capture.varId() + "' asks for group "
+                            + capture.group() + ", but a variable holds one value and has no "
+                            + "groups to select from. Bind the group you want as its own capture.");
+                }
                 final CompiledIndex index = index(capture.matchIndex(), names);
                 final EngineVars engine = EngineVars.byName(capture.varId());
                 yield engine != null && engine.framed()
-                        ? new CompiledRef.Context(engine, capture.group(), index)
-                        : new CompiledRef.RemoteVar(
-                                names.intern(capture.varId()), capture.group(), index);
+                        ? new CompiledRef.Context(engine, index)
+                        : new CompiledRef.RemoteVar(names.intern(capture.varId()), index);
             }
         };
     }

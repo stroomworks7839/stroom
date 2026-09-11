@@ -316,7 +316,7 @@ class StoreTest {
         vars.store("from the data").set(0, text("value"));
 
         assertThat(vars.get("from the data")).isNotNull();
-        assertThat(vars.get("from the data")[0].get(0)).isEqualTo(text("value"));
+        assertThat(vars.get("from the data").get(0)).isEqualTo(text("value"));
     }
 
     @Test

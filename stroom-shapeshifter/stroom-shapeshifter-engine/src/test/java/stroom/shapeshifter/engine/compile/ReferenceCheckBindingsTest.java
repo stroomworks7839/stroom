@@ -27,6 +27,7 @@ import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.Template;
 
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 import java.util.LinkedHashMap;
@@ -98,6 +99,59 @@ class ReferenceCheckBindingsTest {
         out.put("parse-date", new OutputNode.ParseDate(SELECT, "iso", null, null, bound));
         out.put("format-date", new OutputNode.FormatDate(SELECT, "iso", null, bound));
         return out;
+    }
+
+    /**
+     * A reference naming a group of a variable is refused, because a variable holds one value.
+     *
+     * <p>The group a reference names is spent when the configuration is compiled — the DS3
+     * migration binds a capture per referenced group (E48) — so by the time the graph exists
+     * there is one store per name and nothing to select within it. Before this was refused, a
+     * native configuration asking for group 2 read as absent for ever, with no message.
+     */
+    @Test
+    void varReferenceMayNotNameAGroup() {
+        assertThatThrownBy(() -> Shapeshifter.compile(readsGroupOf("seed", 2)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("asks for group 2")
+                .hasMessageContaining("seed");
+    }
+
+    /** Group 0 is the only group a variable has, and it is the spelling everything uses. */
+    @Test
+    void varReferenceAtGroupZeroIsFine() {
+        assertThatCode(() -> Shapeshifter.compile(readsGroupOf("seed", 0)))
+                .doesNotThrowAnyException();
+    }
+
+    /** The same rule for the engine's own framed names, which are read the same way. */
+    @Test
+    void engineVarReferenceMayNotNameAGroup() {
+        assertThatThrownBy(() -> Shapeshifter.compile(readsGroupOf(EngineVars.INDEX.varName(), 1)))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("asks for group 1");
+    }
+
+    private static Project readsGroupOf(final String name, final int group) {
+        final OutputNode read = new OutputNode.ValueOf(new RefExpression(
+                List.of(new RefExpression.RefPart.Capture(name, group, null))));
+        final Template line = new Template(
+                UUID.randomUUID(), "line", "doc", false, null, List.of(),
+                new MatchExpression.Regex("([^\n]*)\n", null, 0),
+                new Template.MatchLimits(0, -1, null),
+                List.of(new CaptureBinding("seed", new CaptureBinding.CaptureSource.Group(1), null)),
+                List.of(read),
+                null, false);
+        final Template source = new Template(
+                UUID.randomUUID(), "source", null, false, null, List.of(),
+                new MatchExpression.Source(),
+                new Template.MatchLimits(0, -1, null), List.of(),
+                List.of(new OutputNode.ApplyTemplates(new OutputNode.ApplyDirective(
+                        new RefExpression(List.of(new RefExpression.RefPart.Capture(null, 0, null))),
+                        "doc", List.of(), OutputNode.ApplyDirective.DEFAULT_MAX_DEPTH, false,
+                        null))),
+                null, false);
+        return new Project("t", 5, Project.SourceConfig.defaults(), List.of(source, line), List.of());
     }
 
     /** The binder writes the name; the instruction after it reads the same name back. */

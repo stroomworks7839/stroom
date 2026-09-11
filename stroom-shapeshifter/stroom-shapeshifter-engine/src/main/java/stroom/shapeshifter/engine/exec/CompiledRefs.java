@@ -171,19 +171,14 @@ final class CompiledRefs {
     }
 
     /**
-     * One value out of a name's stores, under an index rule already resolved to a number.
+     * One value out of a name's store, under an index rule already resolved to a number.
      *
      * <p>Since design 30 phase 6 there is one resolver, so this is no longer shared with an
      * authored twin — it is simply how an index rule reads a store.
      */
-    private static TypedValue indexed(final Store[] stores,
-                              final int group,
-                              final Integer index,
-                              final int matchCount) {
-        if (stores == null || group >= stores.length) {
-            return null;
-        }
-        final Store store = stores[group];
+    private static TypedValue indexed(final Store store,
+                                      final Integer index,
+                                      final int matchCount) {
         if (store == null) {
             return null;
         }
@@ -204,8 +199,8 @@ final class CompiledRefs {
      * a reference reads it when it asks for the latest, for the last, or for index one, and reads
      * nothing otherwise — which is what indexing past a single-valued store already did.
      */
-    private static TypedValue framed(final TypedValue value, final int group, final Integer index) {
-        if (group != 0 || value == null) {
+    private static TypedValue framed(final TypedValue value, final Integer index) {
+        if (value == null) {
             return null;
         }
         return index == null || index == LAST || index == 1 ? value : null;
@@ -222,9 +217,9 @@ final class CompiledRefs {
         return isOffset ? matchCount + index : index;
     }
 
-    /** The most recent value a name's stores hold, or null. */
-    private static TypedValue latest(final Store[] stores) {
-        return stores == null || stores[0] == null ? null : stores[0].latest();
+    /** The most recent value a name's store holds, or null. */
+    private static TypedValue latest(final Store store) {
+        return store == null ? null : store.latest();
     }
 
     /**
@@ -252,12 +247,11 @@ final class CompiledRefs {
     private static TypedValue lookup(final CompiledRef.RemoteVar remote,
                                      final int matchCount,
                                      final VarRegistry vars) {
-        final Store[] stores = vars.get(remote.varId());
+        final Store store = vars.get(remote.varId());
         // Nothing to index is nothing to resolve the rule for, and absent is the common case.
-        return stores == null
+        return store == null
                 ? null
-                : indexed(stores, remote.group(),
-                        index(remote.matchIndex(), matchCount, vars), matchCount);
+                : indexed(store, index(remote.matchIndex(), matchCount, vars), matchCount);
     }
 
     /**
@@ -270,7 +264,7 @@ final class CompiledRefs {
         final TypedValue value = vars.frames().value(context.var());
         return value == null
                 ? null
-                : framed(value, context.group(), index(context.matchIndex(), matchCount, vars));
+                : framed(value, index(context.matchIndex(), matchCount, vars));
     }
 
     /**
