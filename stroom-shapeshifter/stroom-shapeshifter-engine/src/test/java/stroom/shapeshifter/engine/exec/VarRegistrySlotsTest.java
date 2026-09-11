@@ -55,8 +55,8 @@ class VarRegistrySlotsTest {
         registry.store("alpha").set(1, TypedValue.of("a"));
         registry.store("beta").set(1, TypedValue.of("b"));
 
-        assertThat(registry.get("alpha").getFirst().get(1).asString()).isEqualTo("a");
-        assertThat(registry.get("beta").getFirst().get(1).asString()).isEqualTo("b");
+        assertThat(registry.get("alpha")[0].get(1).asString()).isEqualTo("a");
+        assertThat(registry.get("beta")[0].get(1).asString()).isEqualTo("b");
     }
 
     @Test
@@ -69,7 +69,7 @@ class VarRegistrySlotsTest {
             registry.store("key" + i).set(1, TypedValue.of("v" + i));
         }
 
-        assertThat(registry.get(names.lookup("kept")).getFirst().get(1).asString())
+        assertThat(registry.get(names.lookup("kept"))[0].get(1).asString())
                 .isEqualTo("survives");
     }
 
@@ -81,7 +81,7 @@ class VarRegistrySlotsTest {
             registry.store("k" + i).set(1, TypedValue.of("v" + i));
         }
         for (int i = 0; i < 100; i++) {
-            assertThat(registry.get("k" + i).getFirst().get(1).asString()).isEqualTo("v" + i);
+            assertThat(registry.get("k" + i)[0].get(1).asString()).isEqualTo("v" + i);
         }
     }
 }

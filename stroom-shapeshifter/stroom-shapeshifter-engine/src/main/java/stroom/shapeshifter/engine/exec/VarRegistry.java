@@ -19,10 +19,8 @@ package stroom.shapeshifter.engine.exec;
 import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -72,12 +70,18 @@ public final class VarRegistry {
     /**
      * Every slot's current binding, by {@link VarName#slot()}.
      *
+     * <p>Arrays rather than a {@code List<List<Store>>}. The inner dimension is the capture
+     * <b>group</b> and stays: DS3's reference syntax can ask for one — {@code @name.2} parses to
+     * a group on a named variable, and {@code LegacyRefs} has done so since the port — so
+     * collapsing a name to a single store would settle a question this engine has not answered.
+     * See E48.
+     *
      * <p>An array rather than a {@code List<List<Store>>}: this is read on <b>every</b> reference
      * resolution — {@code get}, {@code entry}, {@code store} and {@code fromCurrentScope} all
      * index it — which is the hottest read in the engine (design 33 §11 E). It grows only when a
      * name arrives from the data, beside {@link #owner}, which has always been an array.
      */
-    private List<Store>[] slots;
+    private Store[][] slots;
 
     /**
      * How many slots exist, which is the next free one. The arrays are longer than this once a
@@ -109,23 +113,22 @@ public final class VarRegistry {
     private int[] undoOwner;
 
     /** What each entry replaced. */
-    private List<Store>[] undoSaved;
+    private Store[][] undoSaved;
 
     /** How many entries are live, which is also the next free index in all three. */
     private int undoCount;
 
     private final Frames frames = new Frames();
 
-    @SuppressWarnings("unchecked")
     public VarRegistry(final Names names) {
         this.names = names;
         this.owner = new int[names.size()];
         Arrays.fill(owner, UNBOUND);
-        this.slots = new List[names.size()];
+        this.slots = new Store[names.size()][];
         this.slotCount = names.size();
         this.undoSlot = new int[UNDO_INITIAL];
         this.undoOwner = new int[UNDO_INITIAL];
-        this.undoSaved = new List[UNDO_INITIAL];
+        this.undoSaved = new Store[UNDO_INITIAL][];
     }
 
     /** The engine's own variables, which are frames rather than names. */
@@ -171,33 +174,45 @@ public final class VarRegistry {
         undoCount = mark;
     }
 
-    /** The stores for a name, or null. */
-    public List<Store> get(final VarName name) {
+    /** The stores for a name, by capture group, or null. */
+    public Store[] get(final VarName name) {
         return slots[name.slot()];
     }
 
     /** The stores for a name the run read out of the data, or null. */
-    public List<Store> get(final String name) {
+    public Store[] get(final String name) {
         return get(name(name));
     }
 
     /** The stores for a name, creating them in the innermost scope if nothing holds it yet. */
-    public List<Store> entry(final VarName name) {
+    public Store[] entry(final VarName name) {
         final int slot = name.slot();
-        final List<Store> found = slots[slot];
+        final Store[] found = slots[slot];
         if (found != null) {
             return found;
         }
         return bind(slot);
     }
 
+    /**
+     * Install a name's stores in the innermost scope, replacing whatever it held.
+     *
+     * <p>What a variable's promotion needs: the nested body's stores, kept after its scope has
+     * gone. {@link #entry} first, so the slot is bound in this scope and the undo log knows what
+     * it replaced, and then the stores themselves.
+     */
+    public void put(final VarName name, final Store[] stores) {
+        entry(name);
+        slots[name.slot()] = stores;
+    }
+
     /** The group-0 store for a name, creating it if needed. */
     public Store store(final VarName name) {
-        final List<Store> stores = entry(name);
-        if (stores.isEmpty()) {
-            stores.add(new Store());
+        final Store[] stores = entry(name);
+        if (stores[0] == null) {
+            stores[0] = new Store();
         }
-        return stores.getFirst();
+        return stores[0];
     }
 
     /** The group-0 store for a name the run read out of the data. */
@@ -212,7 +227,7 @@ public final class VarRegistry {
     public void register(final VarName name) {
         final int slot = name.slot();
         if (slots[slot] == null) {
-            slots[slot] = new ArrayList<>(1);
+            slots[slot] = new Store[1];
             owner[slot] = 0;
         }
     }
@@ -229,7 +244,7 @@ public final class VarRegistry {
     }
 
     /** A name's stores from the current scope only, ignoring anything outside it. */
-    public List<Store> fromCurrentScope(final VarName name) {
+    public Store[] fromCurrentScope(final VarName name) {
         final int slot = name.slot();
         return owner[slot] == depth ? slots[slot] : null;
     }
@@ -288,7 +303,7 @@ public final class VarRegistry {
     }
 
     /** Install a fresh binding for a slot in the current scope, logging what it replaced. */
-    private List<Store> bind(final int slot) {
+    private Store[] bind(final int slot) {
         if (depth > 0) {
             final int at = undoCount;
             if (at == undoSlot.length) {
@@ -301,7 +316,7 @@ public final class VarRegistry {
             undoSaved[at] = slots[slot];
             undoCount = at + 1;
         }
-        final List<Store> stores = new ArrayList<>(1);
+        final Store[] stores = new Store[1];
         slots[slot] = stores;
         owner[slot] = depth;
         return stores;

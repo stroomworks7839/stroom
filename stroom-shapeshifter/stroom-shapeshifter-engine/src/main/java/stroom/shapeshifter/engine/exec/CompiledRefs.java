@@ -23,7 +23,6 @@ import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 /**
  * Resolving compiled references — {@link Refs} with the interpretation already done.
@@ -177,14 +176,17 @@ final class CompiledRefs {
      * <p>Since design 30 phase 6 there is one resolver, so this is no longer shared with an
      * authored twin — it is simply how an index rule reads a store.
      */
-    private static TypedValue indexed(final List<Store> stores,
+    private static TypedValue indexed(final Store[] stores,
                               final int group,
                               final Integer index,
                               final int matchCount) {
-        if (stores == null || group >= stores.size()) {
+        if (stores == null || group >= stores.length) {
             return null;
         }
-        final Store store = stores.get(group);
+        final Store store = stores[group];
+        if (store == null) {
+            return null;
+        }
         if (index == null) {
             return store.latest();
         }
@@ -221,8 +223,8 @@ final class CompiledRefs {
     }
 
     /** The most recent value a name's stores hold, or null. */
-    private static TypedValue latest(final List<Store> stores) {
-        return stores == null || stores.isEmpty() ? null : stores.getFirst().latest();
+    private static TypedValue latest(final Store[] stores) {
+        return stores == null || stores[0] == null ? null : stores[0].latest();
     }
 
     /**
@@ -250,7 +252,7 @@ final class CompiledRefs {
     private static TypedValue lookup(final CompiledRef.RemoteVar remote,
                                      final int matchCount,
                                      final VarRegistry vars) {
-        final List<Store> stores = vars.get(remote.varId());
+        final Store[] stores = vars.get(remote.varId());
         // Nothing to index is nothing to resolve the rule for, and absent is the common case.
         return stores == null
                 ? null

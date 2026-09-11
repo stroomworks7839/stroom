@@ -1623,3 +1623,47 @@ sampled profile of `win_sec_xml` at all. Not a finding.
 
 Profiles: `design/benchmarks/ph4-conditions-stack-apache-lines8.txt`. Design:
 `design/30-references-not-names.md`.
+
+### E48 — A reference to a group of a named variable always reads nothing
+**`open` 2026-09-11.** Found while converting the variable registry's collections to arrays
+(design 33 §11 E), by asking whether the per-group dimension was still needed. It is needed, and
+it does not work.
+
+**The syntax exists and is documented.** `LegacyRefs`' own class javadoc lists it twice:
+
+```
+$heading$1   — group 1 of the variable heading
+@name.2[+1]  — the same thing said the other way round
+```
+
+**The whole path compiles.** `LegacyRefs` parses both forms into
+`RefPart.Capture(varId, group, matchIndex)` with a non-zero group; `RefCompiler` compiles that to
+`CompiledRef.RemoteVar(varId, group, matchIndex)`; and `CompiledRefs.indexed` resolves it by
+reading `stores[group]` — the registry holds a store *per capture group* precisely so that it
+can.
+
+**Nothing ever writes a group above zero.** `Level.bindCaptures` binds every capture through
+`vars.store(capture.name())`, which is group 0 and creates a one-element array. The only other
+writer is a variable's promotion, which copies an array built the same way. So `stores.length` is
+always 1, `group >= stores.length` is true for every group above zero, and the reference resolves
+to **null, silently** — no message, no warning, an empty value where the authored configuration
+asked for a real one.
+
+**Why it has survived.** No fixture in either corpus uses the form — not one legacy `.ds3.xml`,
+not one native `project.json`. Both greps come back empty. So the golden suite, whose purpose is
+porting fidelity, cannot see it: a DS3 configuration using `$heading$1` would produce empty output
+here where the old engine produced a value, and nothing would fail.
+
+**What it would take.** A capture would have to bind every group of the match that produced it,
+not just the one it selected — which is what a store per group is for. That is a decision about
+what a captured *name* means: today it is one value, and the syntax implies it is a match whose
+groups stay reachable. The registry's shape already carries the answer; the binder does not.
+
+**What was nearly done instead, and is worth recording.** The conversion that found this first
+proposed collapsing a name to a single store, on the evidence that nothing populates the
+dimension and no fixture reads it. That would have cemented the defect as a rule. The owner's
+objection — that a fixture not asking for something is not proof it is not needed — is what sent
+the search to `LegacyRefs`, where the syntax is written down.
+
+Sites: `ds3/LegacyRefs.java` (the parse, and the javadoc listing the forms),
+`exec/CompiledRefs.java` `indexed`, `exec/Level.java` `bindCaptures`, `exec/VarRegistry.java`.

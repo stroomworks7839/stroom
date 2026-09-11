@@ -544,11 +544,11 @@ final class Body {
 
     /** The populated entries of a named sequence, in ascending index order, or empty. */
     private List<TypedValue> entries(final VarName name) {
-        final List<Store> stores = vars.get(name);
-        if (stores == null || stores.isEmpty()) {
+        final Store[] stores = vars.get(name);
+        if (stores == null || stores[0] == null) {
             return List.of();
         }
-        final Store store = stores.getFirst();
+        final Store store = stores[0];
         final List<TypedValue> values = new ArrayList<>(store.size());
         for (int i = 0; i < store.size(); i++) {
             final TypedValue value = store.get(i);
@@ -632,11 +632,11 @@ final class Body {
                                     final MatchResult match,
                                     final int matchCount) {
         final Map<String, Filed> members = new LinkedHashMap<>();
-        final List<Store> stores = vars.get(select);
-        if (stores == null || stores.isEmpty()) {
+        final Store[] stores = vars.get(select);
+        if (stores == null || stores[0] == null) {
             return members;
         }
-        final Store store = stores.getFirst();
+        final Store store = stores[0];
         vars.frames().pushIteration();
         for (int index = 0; index < store.size(); index++) {
             final TypedValue entry = store.get(index);
@@ -684,8 +684,8 @@ final class Body {
                               final long inputBase,
                               final boolean ignoreErrors,
                               final int depth) {
-        final List<Store> stores = vars.get(op.select());
-        if (stores == null || stores.isEmpty()) {
+        final Store[] stores = vars.get(op.select());
+        if (stores == null || stores[0] == null) {
             return;
         }
 
@@ -830,11 +830,11 @@ final class Body {
                          final long inputBase,
                          final boolean ignoreErrors,
                          final int depth) {
-        final List<Store> stores = vars.get(op.select());
-        if (stores == null || stores.isEmpty()) {
+        final Store[] stores = vars.get(op.select());
+        if (stores == null || stores[0] == null) {
             return;
         }
-        final Store store = stores.getFirst();
+        final Store store = stores[0];
         final List<Integer> populated = new ArrayList<>();
         for (int i = 0; i < store.size(); i++) {
             if (store.get(i) != null) {
@@ -919,22 +919,33 @@ final class Body {
                 ignoreErrors,
                 depth);
 
-        List<Store> captured = vars.fromCurrentScope(value.name());
-        if (captured != null && captured.stream().noneMatch(store -> store.lastIndex() >= 0)) {
+        Store[] captured = vars.fromCurrentScope(value.name());
+        if (captured != null && noValues(captured)) {
             captured = null;
         }
-        final List<Store> promoted = captured == null ? null : List.copyOf(captured);
         vars.pop();
 
-        if (promoted != null) {
-            final List<Store> target = vars.entry(value.name());
-            target.clear();
-            target.addAll(promoted);
+        if (captured != null) {
+            // Not copied. The line this replaced took List.copyOf because the target list was
+            // then cleared and refilled in place — reading and writing the same list. Nothing
+            // is mutated now: the scope's array is installed whole, and the scope that held it
+            // has gone, so nothing else refers to it.
+            vars.put(value.name(), captured);
         } else if (buffer.size() > 0) {
             vars.store(value.name()).set(matchCount, TypedValue.utf8(buffer.toByteArray()));
         } else {
             vars.store(value.name()).remove(matchCount);
         }
+    }
+
+    /** Whether a promoted name's stores hold nothing, in which case there is nothing to keep. */
+    private static boolean noValues(final Store[] stores) {
+        for (final Store store : stores) {
+            if (store != null && store.lastIndex() >= 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
