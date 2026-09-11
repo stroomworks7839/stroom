@@ -122,16 +122,19 @@ class Ds3ImportTest {
         final List<RefPart> parts = refParts(project);
         assertThat(parts)
                 .noneMatch(part -> part instanceof RefPart.Text text && text.value().contains("@foo"));
+        // foo$1, not foo: the group is spent on the name at migration time, so the read
+        // carries no group of its own (E48).
         assertThat(parts)
                 .filteredOn(part -> part instanceof RefPart.Capture capture
-                                    && "foo".equals(capture.varId()))
+                                    && "foo$1".equals(capture.varId()))
                 .isNotEmpty();
     }
 
     @Test
     void varComputedFromAnotherVarReadsAtTheCurrentMatch() {
-        // '$a$1' names which group of a to *store*; reading it back must be indexed by the
-        // parent's match count, or every match would read whatever a stored last.
+        // '$a$1' names which group of a to *store*, and since E48 it says so in the bound
+        // name. Reading it back must be indexed by the parent's match count, or every match
+        // would read whatever a stored last.
         final Project project = Ds3Migration.importXml("""
                 <?xml version="1.0" encoding="UTF-8"?>
                 <dataSplitter xmlns="data-splitter:3" version="3.0">
@@ -143,7 +146,7 @@ class Ds3ImportTest {
                 </dataSplitter>
                 """);
         assertThat(variableReads(project, "b")).containsExactly(
-                new RefPart.Capture("a", 0, new MatchIndex(0, false, false, "__match_count")));
+                new RefPart.Capture("a$1", 0, new MatchIndex(0, false, false, "__match_count")));
     }
 
     @Test

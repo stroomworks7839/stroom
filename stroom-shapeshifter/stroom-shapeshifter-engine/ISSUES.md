@@ -1624,49 +1624,121 @@ sampled profile of `win_sec_xml` at all. Not a finding.
 Profiles: `design/benchmarks/ph4-conditions-stack-apache-lines8.txt`. Design:
 `design/30-references-not-names.md`.
 
-### E48 — A reference to a group of a named variable always reads nothing
-**`open` 2026-09-11.** Found while converting the variable registry's collections to arrays
-(design 33 §11 E), by asking whether the per-group dimension was still needed. It is needed, and
-it does not work.
+### E48 — A reference to a group of a named variable reads group 1, whatever group it asked for
+**`open` 2026-09-11. Rewritten twice the same day; both earlier versions were wrong, and how they
+were wrong is the useful part.**
 
-**The syntax exists and is documented.** `LegacyRefs`' own class javadoc lists it twice:
+**What actually happens.** A DS3 `<var id="h"/>` binds **exactly one** store, and every `$h$N` read
+is forced to group 0, so all of them land on that one store. The two hardcodes cancel out at N=1
+and silently collapse every other N onto the same value. Run against `H:alpha,beta`, with a var
+declared on a regex with two groups:
 
+```xml
+<data name="zero" value="$h$0"/>   <!-- expected H:alpha,beta -->
+<data name="one"  value="$h$1"/>   <!-- expected alpha        -->
+<data name="two"  value="$h$2"/>   <!-- expected beta         -->
 ```
-$heading$1   — group 1 of the variable heading
-@name.2[+1]  — the same thing said the other way round
+
+```xml
+<data name="zero" value="alpha"/>
+<data name="one"  value="alpha"/>
+<data name="two"  value="alpha"/>
 ```
 
-**The whole path compiles.** `LegacyRefs` parses both forms into
-`RefPart.Capture(varId, group, matchIndex)` with a non-zero group; `RefCompiler` compiles that to
-`CompiledRef.RemoteVar(varId, group, matchIndex)`; and `CompiledRefs.indexed` resolves it by
-reading `stores[group]` — the registry holds a store *per capture group* precisely so that it
-can.
+**All three read `alpha`** — group 1. Not empty: *wrong*, which is the worse failure mode.
 
-**Nothing ever writes a group above zero.** `Level.bindCaptures` binds every capture through
-`vars.store(capture.name())`, which is group 0 and creates a one-element array. The only other
-writer is a variable's promotion, which copies an array built the same way. So `stores.length` is
-always 1, `group >= stores.length` is true for every group above zero, and the reference resolves
-to **null, silently** — no message, no warning, an empty value where the authored configuration
-asked for a real one.
+**The two hardcodes.**
 
-**Why it has survived.** No fixture in either corpus uses the form — not one legacy `.ds3.xml`,
-not one native `project.json`. Both greps come back empty. So the golden suite, whose purpose is
-porting fidelity, cannot see it: a DS3 configuration using `$heading$1` would produce empty output
-here where the old engine produced a value, and nothing would fail.
+*Binding.* `Ds3Migration.expression` rewrites every valueless var's `Group(0)` to `Group(1)`,
+with a comment saying "group 1 of a split rather than group 0 — group 0 still carries the quotes".
+The comment describes a split; the code is in `expression`, which handles **regex too**, so a regex
+var silently binds capture group 1 rather than the whole match.
 
-**What it would take.** A capture would have to bind every group of the match that produced it,
-not just the one it selected — which is what a store per group is for. That is a decision about
-what a captured *name* means: today it is one value, and the syntax implies it is a match whose
-groups stay reachable. The registry's shape already carries the answer; the binder does not.
+*Reading.* `Ds3Migration.indexVarReads` forces the group of every `$var$N` to 0, with a comment
+that is exactly right about the intent: "the `$1` in `$heading$1` chose which group to *store*,
+not which to read back."
 
-**What was nearly done instead, and is worth recording.** The conversion that found this first
-proposed collapsing a name to a single store, on the evidence that nothing populates the
-dimension and no fixture reads it. That would have cemented the defect as a rule. The owner's
-objection — that a fixture not asking for something is not proof it is not needed — is what sent
-the search to `LegacyRefs`, where the syntax is written down.
+Each is defensible alone. Together they mean the stored group is a constant and the requested
+group is discarded.
 
-Sites: `ds3/LegacyRefs.java` (the parse, and the javadoc listing the forms),
-`exec/CompiledRefs.java` `indexed`, `exec/Level.java` `bindCaptures`, `exec/VarRegistry.java`.
+**Why the corpus cannot see it.** The whole corpus contains **three** var-group references and
+they are all `$heading$1` — the one value of N the hardcodes get right. `019_single_line_split`
+passes, and correctly: for a split, group 1 *is* the container-stripped field, which is what
+`$heading$1` means.
+
+**The ruling (owner, 2026-09-11): bind whatever groups are used, to unique vars.** The migration
+scans the configuration for every `$var$N` reference, emits one capture binding per distinct
+`(var, group)` pair under a derived name, and rewrites the reference to that name at group 0. Then
+`$h$0`, `$h$1` and `$h$2` are three bindings with `Group(0)`, `Group(1)` and `Group(2)`, each read
+group-free; today's behaviour becomes the N=1 special case; and the `Group(0)` → `Group(1)` rewrite
+is deleted, because the reference now says which group it wants. **For native configurations,
+which owe DS3 nothing, a regex var binds group 0 by default.**
+
+**Consequences.**
+
+- The per-group dimension in `VarRegistry` — `slots` as `Store[][]` — becomes provably dead, since
+  the group is resolved entirely at migration time. It collapses to `Store[]`, removing an
+  indirection from **every reference resolution** (24,960/op on `apache_httpd`). A native
+  reference naming a non-zero group must then be refused at compile time rather than read as null.
+- `Ds3Migration:337` — `<group value="...">` parses without `indexed()`, so
+  `<group value="$h$1">` keeps its group and is the one read the forcing never reached. It must go
+  through the same rewrite.
+- **Unreferenced vars are not pruned.** They could be, but that is E10's ground —
+  unused-capture elimination and dead-branch pruning — and design 30 twice records that it has to
+  be a *mode*, because the trace editor needs a capture present even when nothing consumes it.
+
+**How the two wrong versions got written, which is worth more than the issue.** The first said the
+reference "always reads nothing", on the strength of reading the resolution path — `stores[group]`
+with nothing ever writing above 0 — without running it. The second concluded there was no defect
+at all, on finding `indexVarReads` forcing the group to 0 and a passing fixture, and stopped there.
+Both were reasoning about the code; neither ran a configuration that asked a question the corpus
+does not ask. Three lines of scratch DS3 settled it in under a minute. The first version also
+claimed "no fixture in either corpus uses the form, both greps come back empty" — a bad grep, and
+`019_single_line_split` uses it in both families.
+
+**Built 2026-09-11, migration half.** A pre-pass walks the configuration before a template is
+emitted and records which groups of which vars are read. Each referenced `(var, group)` pair binds
+its own capture named `id$group`; `indexVarReads` spends the group on that name and reads at group
+0; `<group value="…">` goes through the same rewrite; and the `Group(0)` → `Group(1)` hack is gone.
+A valued `<var>` — a Shapeshifter extension, since DS3's `<var>` takes an id and nothing else —
+keeps its own name, because it holds one computed value and has no group to spend.
+
+*The pre-pass is provably complete against DS3's source.* DS3 has exactly three reference-bearing
+attributes: `GroupFactory:67` and `DataFactory:69–70` are the only callers of
+`RefResolver.create`, so `<group value>`, `<data name>` and `<data value>` are the whole set. The
+pre-pass scans those three plus `<var value>`.
+
+*The derived name cannot collide.* `$` ends the id in both `LegacyRefs` and DS3's `RefParser`, so
+`h$1` is unauthorable.
+
+*Sabotage.* The old `Group(0)` → `Group(1)` hack restored: 3 tests. The old group-forcing restored:
+5 tests, plus golden `001_csv_with_header` and `019_single_line_split`. `<group value>` skipping the
+rewrite: 1. Binding every group rather than the read ones: 2.
+
+**A correction worth keeping: `$h` is not the group-0 spelling.** It was described that way in
+discussion. The *rule* is right — a reference naming no group reads group 0, `RefParser:139` — but
+`$h` does not name no group; it names the group `h`, and both parsers refuse it as a malformed
+number. The group-0 spellings are `$h$` and `@h`. Pinned by
+`VarGroupTest.referenceWithNoGroupReadsGroupZero` and `bareDollarNameIsRefused`.
+
+**Two residuals the audit found, neither built.**
+
+- *A group the pattern does not have reads empty, silently.* `$h$9` against a two-group regex now
+  yields nothing where it used to yield group 1's value — better, but still quiet. The pattern's
+  group count is known at compile time, so this could be refused outright.
+- *One id declared twice, once valueless and once valued, silently shadows.* Reads resolve to the
+  match-storing declaration and the computed one binds a name nothing reads. Pre-existing ambiguity
+  rather than something this change introduced.
+
+**Still open: the run-time half.** `VarRegistry.slots` is still `Store[][]`, and now provably
+dead — the group is resolved entirely at migration time. Collapsing it to `Store[]` removes an
+indirection from every reference resolution (24,960/op on `apache_httpd`), and a native reference
+naming a non-zero group has to become a compile-time refusal, since after the collapse there is
+nowhere for it to read from.
+
+Sites: `ds3/Ds3Migration.java` (`expression`'s binding rewrite, `indexVarReads`, the `<group>` path
+at :337), `ds3/LegacyRefs.java`, `exec/CompiledRefs.java` `indexed`, `exec/Level.java`
+`bindCaptures`, `exec/VarRegistry.java`.
 
 ### E49 — A capture holds the previous record's value when this record did not overwrite it
 **`open` 2026-09-11.** Found while asking what the variable registry's data-derived names are

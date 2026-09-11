@@ -35,8 +35,13 @@ import stroom.shapeshifter.engine.config.Template.RegexFlags;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /**
@@ -75,6 +80,19 @@ public final class Ds3Migration {
     private final List<Template> templates = new ArrayList<>();
     private int modeCounter;
 
+    /**
+     * Which groups of each match-storing {@code <var>} the configuration actually reads, and
+     * which ids are match-storing at all — both collected before a single template is emitted.
+     *
+     * <p>This is DS3's own mechanism. {@code StoreNode} allocates {@code Store[maxGroup + 1]} and
+     * fills only the entries in {@code getReferencedGroups()}, so a group nothing reads is never
+     * stored. Here the group is resolved at migration time instead of run time: each referenced
+     * {@code (var, group)} pair becomes its own capture, named {@code id$group}, and the read
+     * names that capture rather than carrying a group with it (E48).
+     */
+    private final Map<String, SortedSet<Integer>> referencedGroups = new LinkedHashMap<>();
+    private final Set<String> matchVars = new HashSet<>();
+
     private Ds3Migration() {
     }
 
@@ -94,6 +112,8 @@ public final class Ds3Migration {
                 ? new SourceConfig(document.bufferSize(), document.ignoreErrors(), SourceConfig.AUTO,
                         null, false, SourceConfig.DEFAULT_MAX_SEQUENCE_ENTRIES)
                 : SourceConfig.defaults();
+
+        collectVarReads(root);
 
         final List<Ds3Config> rootChildren = root.children();
         for (int i = 0; i < rootChildren.size(); i++) {
@@ -194,14 +214,11 @@ public final class Ds3Migration {
             wrapAsRecord(body);
         }
 
-        // A DS3 <var> stores the container-stripped content, which is group 1 of a split rather
-        // than group 0 — group 0 still carries the quotes.
-        final List<CaptureBinding> adjusted = captures.stream()
-                .map(capture -> capture.select() instanceof CaptureSource.Group group && group.group() == 0
-                        ? new CaptureBinding(capture.name(), new CaptureSource.Group(1), null)
-                        : capture)
-                .toList();
-
+        // No group adjustment on the way out. A var binds the groups its readers name, so a
+        // split's $heading$1 asks for group 1 — the container-stripped field — by the ordinary
+        // route, and $heading$ asks for group 0, which still carries the quotes. Forcing every
+        // var to group 1 was right for the one form the corpus uses and silently wrong for
+        // every other (E48).
         templates.add(new Template(
                 identifier(node, path),
                 name(node),
@@ -211,7 +228,7 @@ public final class Ds3Migration {
                 List.of(),
                 matchExpression(node),
                 matchLimits(node),
-                adjusted,
+                captures,
                 body,
                 null,
                 false));
@@ -285,11 +302,11 @@ public final class Ds3Migration {
      * template read it. If it needs another variable's value, it has to run in order, so it
      * becomes an instruction.
      */
-    private static void variable(final Ds3Config.Var var,
-                                 final List<CaptureBinding> captures,
-                                 final List<OutputNode> body) {
+    private void variable(final Ds3Config.Var var,
+                          final List<CaptureBinding> captures,
+                          final List<OutputNode> body) {
         if (var.value() == null) {
-            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0), null));
+            bindReadGroups(var.id(), captures);
             return;
         }
         final RefExpression reference = LegacyRefs.parse(var.value());
@@ -334,7 +351,7 @@ public final class Ds3Migration {
         // owns the gate in DS3, and the directive is where the container's intent survives
         // flattening.
         into.add(new OutputNode.ApplyTemplates(new ApplyDirective(
-                group.value() == null ? RefExpression.group(0) : LegacyRefs.parse(group.value()),
+                group.value() == null ? RefExpression.group(0) : indexed(LegacyRefs.parse(group.value())),
                 subMode, List.of(), ApplyDirective.DEFAULT_MAX_DEPTH, group.ignoreErrors(), null)));
         for (int i = 0; i < members.size(); i++) {
             final Ds3Config child = members.get(i);
@@ -342,7 +359,7 @@ public final class Ds3Migration {
                 switch (child) {
                     case Ds3Config.Var var -> {
                         if (var.value() == null) {
-                            captures.add(new CaptureBinding(var.id(), new CaptureSource.Group(0), null));
+                            bindReadGroups(var.id(), captures);
                         } else {
                             into.add(new OutputNode.Variable(var.id(),
                                     List.of(new OutputNode.ValueOf(
@@ -388,7 +405,7 @@ public final class Ds3Migration {
     }
 
     /** A {@code name} or {@code value} attribute: a literal or a reference, trimmed, dropped if empty. */
-    private static OutputNode dataAttribute(final String attribute, final String text) {
+    private OutputNode dataAttribute(final String attribute, final String text) {
         final RefExpression value = isReference(text)
                 ? indexed(LegacyRefs.parse(text))
                 : RefExpression.text(text);
@@ -401,8 +418,8 @@ public final class Ds3Migration {
     }
 
     /** Apply {@link #indexVarReads} across a whole expression. */
-    private static RefExpression indexed(final RefExpression expression) {
-        return new RefExpression(expression.parts().stream().map(Ds3Migration::indexVarReads).toList());
+    private RefExpression indexed(final RefExpression expression) {
+        return new RefExpression(expression.parts().stream().map(this::indexVarReads).toList());
     }
 
     /**
@@ -414,16 +431,92 @@ public final class Ds3Migration {
      * because the {@code $1} in {@code $heading$1} chose which group to <i>store</i>, not which
      * to read back.
      */
-    private static RefPart indexVarReads(final RefPart part) {
+    private RefPart indexVarReads(final RefPart part) {
         if (part instanceof RefPart.Capture capture && capture.varId() != null) {
+            // A match-storing var binds one capture per group its readers name, so the group is
+            // spent here, on the name. A valued <var> is a Shapeshifter extension holding a
+            // single computed value — DS3's <var> takes an id and nothing else — so it keeps its
+            // own name and there is no group to spend.
+            final String name = matchVars.contains(capture.varId())
+                    ? varGroupName(capture.varId(), capture.group())
+                    : capture.varId();
             return new RefPart.Capture(
-                    capture.varId(),
+                    name,
                     0,
                     capture.matchIndex() != null
                             ? capture.matchIndex()
                             : new MatchIndex(0, false, false, "__match_count"));
         }
         return part;
+    }
+
+    /**
+     * The name a {@code (var, group)} pair binds under.
+     *
+     * <p>{@code $} cannot appear in a DS3 var id — {@link stroom.shapeshifter.engine.ds3.LegacyRefs}
+     * and DS3's own {@code RefParser} both read it as the end of the id — so a derived name can
+     * never collide with an authored one.
+     */
+    private static String varGroupName(final String varId, final int group) {
+        return varId + "$" + group;
+    }
+
+    /**
+     * Bind one capture per group this var is read at, and nothing at all if nothing reads it.
+     *
+     * <p>DS3 does the same: {@code StoreNode} creates a store only for each referenced group. An
+     * unreferenced var could still be worth binding for the trace editor, but that is E10's
+     * unused-capture mode rather than this migration's business (design 30).
+     */
+    private void bindReadGroups(final String varId, final List<CaptureBinding> captures) {
+        for (final int group : referencedGroups.getOrDefault(varId, new TreeSet<>())) {
+            captures.add(new CaptureBinding(
+                    varGroupName(varId, group), new CaptureSource.Group(group), null));
+        }
+    }
+
+    // -----------------------------------------------------------------------------------
+    // The pre-pass
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * Walk the whole configuration and record which groups of which vars are read, before any
+     * template is emitted. A var's binding cannot be decided from its declaration alone: the
+     * declaration says a match is stored, and only the readers say which parts of it are wanted.
+     */
+    private void collectVarReads(final Ds3Config node) {
+        switch (node) {
+            case final Ds3Config.Var var -> {
+                if (var.value() == null) {
+                    matchVars.add(var.id());
+                } else {
+                    scanForVarReads(var.value());
+                }
+            }
+            case final Ds3Config.Group group -> scanForVarReads(group.value());
+            case final Ds3Config.Data data -> {
+                scanForVarReads(data.name());
+                scanForVarReads(data.value());
+            }
+            default -> {
+            }
+        }
+        for (final Ds3Config child : node.children()) {
+            collectVarReads(child);
+        }
+    }
+
+    private void scanForVarReads(final String text) {
+        if (text == null || !isReference(text)) {
+            return;
+        }
+        for (final RefPart part : LegacyRefs.parse(text).parts()) {
+            if (part instanceof final RefPart.Capture capture && capture.varId() != null) {
+                referencedGroups
+                        .computeIfAbsent(capture.varId(), ignored -> new TreeSet<>())
+                        .add(capture.group());
+            }
+        }
     }
 
     // -----------------------------------------------------------------------------------
