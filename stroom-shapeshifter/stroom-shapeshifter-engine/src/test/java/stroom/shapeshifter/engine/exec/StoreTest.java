@@ -58,6 +58,53 @@ class StoreTest {
     // Store
     // -----------------------------------------------------------------------------------
 
+    /**
+     * The store grows by doubling until an index fits (design 33 §11 E), so a single distant
+     * index has to carry the earlier ones with it rather than starting again.
+     */
+    @Test
+    void growingToADistantIndexKeepsWhatCameBefore() {
+        final Store store = new Store();
+        store.set(0, text("first"));
+        store.set(500, text("far"));
+
+        assertThat(store.get(0)).isEqualTo(text("first"));
+        assertThat(store.get(499)).isNull();
+        assertThat(store.get(500)).isEqualTo(text("far"));
+        assertThat(store.lastIndex()).isEqualTo(500);
+        assertThat(store.size()).isEqualTo(501);
+    }
+
+    /** Two hundred matches in a row, which doubles the store several times over. */
+    @Test
+    void manySequentialMatchesAreAllKept() {
+        final Store store = new Store();
+        for (int i = 0; i < 200; i++) {
+            store.set(i, text("v" + i));
+        }
+        assertThat(store.size()).isEqualTo(200);
+        for (int i = 0; i < 200; i++) {
+            assertThat(store.get(i)).isEqualTo(text("v" + i));
+        }
+    }
+
+    /** A store outlives the record that filled it, so clearing has to leave it usable. */
+    @Test
+    void clearingLeavesTheStoreReusable() {
+        final Store store = new Store();
+        store.set(9, text("old"));
+        store.clear();
+
+        assertThat(store.size()).isZero();
+        assertThat(store.lastIndex()).isEqualTo(-1);
+        assertThat(store.get(9)).isNull();
+        assertThat(store.latest()).isNull();
+
+        store.set(1, text("new"));
+        assertThat(store.latest()).isEqualTo(text("new"));
+        assertThat(store.lastIndex()).isEqualTo(1);
+    }
+
     @Test
     void keepsValuesByMatchNumber() {
         final Store store = new Store();
