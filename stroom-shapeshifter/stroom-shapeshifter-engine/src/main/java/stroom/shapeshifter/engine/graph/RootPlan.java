@@ -45,9 +45,9 @@ import java.util.List;
 public record RootPlan(Dispatch dispatch,
                        List<CompiledTemplate> roots,
                        boolean ignoreErrors,
-                       List<CompiledBody> prologues,
+                       List<List<CompiledOp>> prologues,
                        List<CompiledOp.Element> opened,
-                       List<CompiledBody> tails) {
+                       List<List<CompiledOp>> tails) {
 
     public RootPlan {
         roots = List.copyOf(roots);

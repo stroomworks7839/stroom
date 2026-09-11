@@ -18,7 +18,6 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
-import stroom.shapeshifter.engine.graph.CompiledBody;
 import stroom.shapeshifter.engine.graph.CompiledCondition;
 import stroom.shapeshifter.engine.graph.CompiledOp;
 import stroom.shapeshifter.engine.graph.CompiledProject;
@@ -88,8 +87,8 @@ class CompilerWalksTest {
         return found;
     }
 
-    private static void collect(final CompiledBody body, final List<String> found) {
-        for (final CompiledOp op : body.ops()) {
+    private static void collect(final List<CompiledOp> body, final List<String> found) {
+        for (final CompiledOp op : body) {
             switch (op) {
                 case final CompiledOp.If value -> {
                     collect(value.test(), found);

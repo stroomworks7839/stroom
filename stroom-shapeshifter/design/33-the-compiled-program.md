@@ -392,6 +392,56 @@ must be said out loud rather than discovered.
 30 removed a map lookup because the compiler knew the key; this removes a linear scan for the
 same reason — the compiler knows which instruction it emitted.
 
+## 10. The result, and the wind-back — 2026-09-11
+
+**The five-point set and an interleaved pair settled this design, and the answer is one of its
+four phases.**
+
+*The set, point 18 to each phase in turn (`design/benchmarks/points.md` carries the full table):*
+point 21 — `List<CompiledOp>` becoming `CompiledOp[]`, with the type switch still in place — is
+where everything moves: `apache_httpd` −0.8 → **+7.2**, `csv_header` −6.2 → **+6.2**,
+`regex_lines` −5.7 → **+3.9**, `log_sessions` −0.4 → **+4.5**. Point 22's opcodes add about a
+point on average and sit inside the protocol's per-row resolution.
+
+*The pair, point 18 against point 19, six interleaved rounds:*
+
+| workload | median | min | max | agreed |
+|---|---|---|---|---|
+| `progressive` | **−8.64%** | −8.95 | −8.05 | **6/6 slower** |
+| `regex_lines` | **−6.55%** | −9.35 | −4.66 | **6/6 slower** |
+| `csv_header` | **−5.23%** | −6.36 | −4.51 | **6/6 slower** |
+| `apache_httpd` | −0.57% | −1.32 | −0.12 | 6/6 slower |
+
+`progressive`'s six rounds span 0.9 of a point, so this is not drift: **extracting the arms and
+turning the parameters into registers cost throughput on every workload it touched**, most where
+a body holds fewest instructions, and bought nothing anywhere.
+
+**So phases 1, 1b and 3 are wound back to point 18, and the design's deliverable is phase 2
+alone.** The arrays are kept and rebuilt on point 18 directly, rather than reverting 19 and 22 out
+from under them: phase 2 was written against extracted arms and registers, and a straight revert
+would leave it entangled with code that is going.
+
+**What this design got wrong, stated as plainly as it stated its predictions.** It opened by
+arguing from inlining — a 389-byte chain the JIT refuses at 26 arms — and that mechanism never
+fired: the loop was un-inlinable at 758, 591, 589 and 532 bytes alike. The dispatch it was named
+for is worth about a point. What paid was the thing it treated as a supporting phase: **an
+interface call the JIT could not bind, on every element of every body, replaced by an array
+load.** The owner's reading — that arrays and ints might be worth having on their own, separately
+from any inlining story — was the correct one, and the design's ordering had it as a control
+rather than as the point.
+
+**What is left unresolved, and deliberately not spent on:** whether phase 1's loss was the arm
+extraction or the registers. Both are going, so separating them would buy a fact and no decision.
+
+**What survives for later.** Phase 3's opcode work is recorded rather than deleted — `CompiledOp`'s
+`OP_*` constants, `codeOf`, `CompiledBody` and `OpcodesTest` are in `86caf58748` if a site ever
+justifies them. §6 shape 1, the abstract class with a `final int opcode` field, was never built and
+is the only dispatch shape that gets a jump table without the second array load; its ceiling is
+the point that phase 3 measured. And point 20's `try`/`catch` for `structure` stands on its own
+allocation evidence — `element_storm` 42.4 → 38.9 MB/op — and is parked in `82c9c7f911` to be
+re-applied as its own change with its own reading, rather than folded into the array measurement
+and confusing it.
+
 ## 7. What would make this a mistake
 
 - **If phase 1 (B) collects most of the gain**, then the dispatch was never the problem, the

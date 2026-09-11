@@ -23,10 +23,10 @@ import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
-import stroom.shapeshifter.engine.graph.CompiledBody;
 import stroom.shapeshifter.engine.graph.CompiledCapture;
 import stroom.shapeshifter.engine.graph.CompiledCondition;
 import stroom.shapeshifter.engine.graph.CompiledMatch;
+import stroom.shapeshifter.engine.graph.CompiledOp;
 import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.graph.CompiledTemplate;
 import stroom.shapeshifter.engine.graph.VarName;
@@ -261,7 +261,7 @@ public final class Compiler {
      */
     private static CompiledTemplate template(final Template template,
                                              final CompiledMatch match,
-                                             final CompiledBody body,
+                                             final List<CompiledOp> body,
                                              final Encoding encoding,
                                              final List<CompiledCapture> captures,
                                              final CompiledCondition guard,

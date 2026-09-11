@@ -27,7 +27,6 @@ import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Signature;
-import stroom.shapeshifter.engine.graph.CompiledBody;
 import stroom.shapeshifter.engine.graph.CompiledOp;
 import stroom.shapeshifter.engine.graph.CompiledRef;
 import stroom.shapeshifter.engine.graph.CompiledTemplate;
@@ -132,7 +131,7 @@ final class BodyCompiler {
     private enum Arity { EXACTLY, AT_LEAST }
 
     /** Compile a body: one arm per instruction, so the method is as long as the vocabulary. */
-    CompiledBody compile(final List<OutputNode> body) {
+    List<CompiledOp> compile(final List<OutputNode> body) {
         final List<CompiledOp> ops = new ArrayList<>(body.size());
         for (final OutputNode node : body) {
             final CompiledOp op = switch (node) {
@@ -148,7 +147,7 @@ final class BodyCompiler {
                                 .map(branch -> new CompiledOp.When(
                                         ConditionCompiler.compile(branch.test(), patterns, names),
                                         compile(branch.body())))
-                                .toArray(CompiledOp.When[]::new),
+                                .toList(),
                         compile(value.otherwise()));
                 case final OutputNode.Switch value -> new CompiledOp.Switch(
                         RefCompiler.compile(value.select(), names), cases(value), compile(value.defaultBody()));
@@ -347,7 +346,7 @@ final class BodyCompiler {
             };
             ops.add(op);
         }
-        return CompiledBody.of(ops);
+        return List.copyOf(ops);
     }
 
     /**
@@ -471,8 +470,8 @@ final class BodyCompiler {
      * <p>{@code putIfAbsent} keeps the authored order's answer: the scan this replaces took the
      * first case whose value matched, so a value written twice still runs the first branch.
      */
-    private Map<String, CompiledBody> cases(final OutputNode.Switch value) {
-        final Map<String, CompiledBody> cases = new HashMap<>();
+    private Map<String, List<CompiledOp>> cases(final OutputNode.Switch value) {
+        final Map<String, List<CompiledOp>> cases = new HashMap<>();
         for (final OutputNode.SwitchCase branch : value.cases()) {
             cases.putIfAbsent(branch.value(), compile(branch.body()));
         }
