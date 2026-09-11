@@ -19,9 +19,7 @@ package stroom.shapeshifter.engine.match;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.TypedValue;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * Splitting on a delimiter, with quoting and escaping.
@@ -86,13 +84,22 @@ public final class Splitter {
             scan = from + containerStart.length;
         }
 
-        final List<Integer> escapes = new ArrayList<>();
+        // An int[] and a count, not a List<Integer>: this runs per field of every delimited
+        // row, and a boxed Integer per escape is a lot of objects for a value that is an offset.
+        // Null until the field has an escape in it, which most do not.
+        int[] escapes = null;
+        int escapeCount = 0;
         boolean escaped = false;
         int lastContainerEnd = -1;
 
         while (scan < to) {
             if (escape != null && !escaped && matchesAt(data, scan, to, escape)) {
-                escapes.add(scan);
+                if (escapes == null) {
+                    escapes = new int[4];
+                } else if (escapeCount == escapes.length) {
+                    escapes = Arrays.copyOf(escapes, escapeCount * 2);
+                }
+                escapes[escapeCount++] = scan;
                 escaped = true;
                 scan += escape.length;
                 continue;
@@ -115,14 +122,15 @@ public final class Splitter {
             }
             if (!inContainer && matchesAt(data, scan, to, delimiter)) {
                 return build(data, from, scan, delimiter.length, hasStartContainer,
-                        containerStart, containerEnd, escape, escapes, false, lastContainerEnd,
-                        encoding);
+                        containerStart, containerEnd, escape, escapes, escapeCount, false,
+                        lastContainerEnd, encoding);
             }
             scan++;
         }
 
         return build(data, from, to, 0, hasStartContainer,
-                containerStart, containerEnd, escape, escapes, true, lastContainerEnd, encoding);
+                containerStart, containerEnd, escape, escapes, escapeCount, true, lastContainerEnd,
+                encoding);
     }
 
     private static MatchResult splitOnByte(final byte[] data,
@@ -155,7 +163,8 @@ public final class Splitter {
                                      final byte[] containerStart,
                                      final byte[] containerEnd,
                                      final byte[] escape,
-                                     final List<Integer> escapes,
+                                     final int[] escapes,
+                                     final int escapeCount,
                                      final boolean isLast,
                                      final int lastContainerEnd,
                                      final Encoding encoding) {
@@ -184,10 +193,10 @@ public final class Splitter {
         final byte[] group1 = Arrays.copyOfRange(data, contentStart, Math.max(contentStart, contentEnd));
         // Group 2 is group 1 with the escapes stripped, and the same value when there are none.
         final TypedValue content = TypedValue.of(group1, encoding);
-        final TypedValue unescaped = escapes.isEmpty()
+        final TypedValue unescaped = escapeCount == 0
                 ? content
                 : TypedValue.of(stripEscapes(data, contentStart, contentEnd, escape.length,
-                        escapes), encoding);
+                        escapes, escapeCount), encoding);
 
         return new MatchResult(new TypedValue[]{
                 TypedValue.of(group0, encoding), content, unescaped}, matchEnd - from, 0);
@@ -197,16 +206,17 @@ public final class Splitter {
                                        final int start,
                                        final int end,
                                        final int escapeLength,
-                                       final List<Integer> escapes) {
+                                       final int[] escapes,
+                                       final int escapeCount) {
         final byte[] result = new byte[Math.max(0, end - start)];
         int written = 0;
         int cursor = 0;
         int i = start;
         while (i < end) {
-            while (cursor < escapes.size() && escapes.get(cursor) < i) {
+            while (cursor < escapeCount && escapes[cursor] < i) {
                 cursor++;
             }
-            if (cursor < escapes.size() && escapes.get(cursor) == i) {
+            if (cursor < escapeCount && escapes[cursor] == i) {
                 i += escapeLength;
                 cursor++;
             } else {
