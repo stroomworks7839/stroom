@@ -89,9 +89,44 @@ reaches.
 It also removes the two-list arithmetic from `at`, which runs on **every** step reference — a
 compare and a subtract per read, replaced by an array index.
 
-## 5. How it is gated
+## 5. The corpus does not execute the path this design changes
 
-*This design's own prior is that the corpus will not catch its mistakes.* Three array conversions
+*Established 2026-09-11, before any work, by asking which step kinds the fixtures actually use.*
+
+Five fixtures exercise progressive matching, all in the golden suite, and between them they cover
+**fourteen of the twenty-four step kinds**:
+
+| fixture | step kinds |
+|---|---|
+| `progressive_len_records` | `ReadVarint`, `TakeBytes` |
+| `progressive_text_steps` | `Tag`, `TakeWhile`, `TakeUntil`, `Regex` |
+| `progressive_embedded_codec` | `Decode`, `ReadVarint`, `TakeBytes` |
+| `progressive_mixed_endian` | `ReadNumeric`, `Seek`, `Tell` |
+| `progressive_varint_zigzag` | `ReadVarintZigZag` |
+
+**Not one of them uses `Choice`, `Optional`, `Repeat`, `Sequence`, `Peek` or `Not`** — which are
+exactly the six that call `sequence(...)`, allocate the nested list, and would carry the
+mark-and-truncate. The corpus never calls `sequence` at all; the two benchmark rows do not either.
+
+Three consequences, and they change what this design is:
+
+*It cannot be trusted to the corpus.* §6's prior was that the fixtures would miss the growth path,
+which understates it: they do not run the nested path in any form. Every test of the combinators
+has to be written before the change, not after it.
+
+*It cannot be measured as things stand.* `progressive` and `progressive_text` are the only rows
+that reach the step interpreter, and neither nests. A reading would show the flat-sequence saving
+— one list per match, and the split arithmetic out of `at` — and nothing of the part this design
+is actually about.
+
+*And it means the nested combinators are, today, untested engine behaviour* — not merely
+uncovered against a change, but never executed by any test at all. That is worth fixing whether
+or not this design is ever built, and it comes first.
+
+## 6. How it is gated
+
+*This design's own prior is that the corpus will not catch its mistakes — §5 is why, and it is
+worse than a prior: the corpus does not run the code at all.* Three array conversions
 on 2026-09-11 — `Store`'s doubling, the sinks' namespace walk, `Splitter`'s escape growth — each
 had a growth or edge path the golden fixtures never touched, found only by sabotage. A buffer with
 mark-and-truncate is the same shape and deserves the same suspicion.
@@ -108,7 +143,7 @@ So, before the benchmark:
 
 Only then a reading, and `progressive` and `progressive_text` are the only rows that can move.
 
-## 6. What would make this a mistake
+## 7. What would make this a mistake
 
 - **If the truncation cannot be made obviously correct** — if it has to appear on more than the
   two exits from `sequence` — then the buffer is carrying a discipline the type system used to
