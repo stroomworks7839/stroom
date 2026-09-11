@@ -43,6 +43,20 @@ import java.util.function.Function;
  * <p>Conditions are compiled too, since design 30: a {@code matches} test holds the pattern
  * it runs rather than the text to look one up by. Their references are not — that is E39,
  * deferred on design 29 phase 4's measurement.
+ *
+ * <p><b>A body is a {@code CompiledOp[]}, and nothing may write to one.</b> The arrays replaced
+ * {@code List<CompiledOp>} because the interpreter walked them per instruction through an
+ * interface the JIT could not bind: {@code List::get}, {@code size} and {@code iterator} failed
+ * to inline at hundreds of sites, the receiver profile being polluted across every {@code List}
+ * implementation in the engine. An array load has no call in it, and design 33 §10 is the
+ * measurement — it is the whole of what that design delivered.
+ *
+ * <p><b>What it costs.</b> The compiler used to hand over {@code List.copyOf(ops)}, which was
+ * immutable: a write threw. An array cannot be immutable in Java, so the guarantee is now a rule
+ * rather than a type. It matters because a compiled project outlives the runs that use it and is
+ * shared between them (D35) — a run that wrote into a body would be editing every later run's
+ * program. Nothing writes to one, and the accessors that hand the array out are the whole surface
+ * to check.
  */
 public sealed interface CompiledOp {
 
@@ -60,17 +74,17 @@ public sealed interface CompiledOp {
     }
 
     /** Run a body if a condition holds. */
-    record If(CompiledCondition test, List<CompiledOp> then) implements CompiledOp {
+    record If(CompiledCondition test, CompiledOp[] then) implements CompiledOp {
 
     }
 
     /** Run the first branch whose condition holds. */
-    record Choose(List<When> when, List<CompiledOp> otherwise) implements CompiledOp {
+    record Choose(When[] when, CompiledOp[] otherwise) implements CompiledOp {
 
     }
 
     /** One branch of a {@link Choose}. */
-    record When(CompiledCondition test, List<CompiledOp> body) {
+    record When(CompiledCondition test, CompiledOp[] body) {
 
     }
 
@@ -83,8 +97,8 @@ public sealed interface CompiledOp {
      *                   also reaches
      */
     record Switch(CompiledRef select,
-                  Map<String, List<CompiledOp>> cases,
-                  List<CompiledOp> defaultBody) implements CompiledOp {
+                  Map<String, CompiledOp[]> cases,
+                  CompiledOp[] defaultBody) implements CompiledOp {
 
     }
 
@@ -246,18 +260,18 @@ public sealed interface CompiledOp {
     }
 
     /** Bind a variable to what a nested body writes. */
-    record Variable(VarName name, List<CompiledOp> body) implements CompiledOp {
+    record Variable(VarName name, CompiledOp[] body) implements CompiledOp {
 
     }
 
     /** Design 20's structural instructions, bracketing their bodies with the sink's calls. */
-    record Element(String name, String namespace, boolean omitIfEmpty, List<CompiledOp> body)
+    record Element(String name, String namespace, boolean omitIfEmpty, CompiledOp[] body)
             implements CompiledOp {
 
     }
 
     /** An attribute on the enclosing element, its value the body's text; omitted if empty when asked. */
-    record Attribute(String name, boolean omitIfEmpty, List<CompiledOp> body) implements CompiledOp {
+    record Attribute(String name, boolean omitIfEmpty, CompiledOp[] body) implements CompiledOp {
 
     }
 
@@ -359,14 +373,14 @@ public sealed interface CompiledOp {
     record ForEach(VarName select,
                    VarName as,
                    List<SortKey> sort,
-                   List<CompiledOp> body) implements CompiledOp {
+                   CompiledOp[] body) implements CompiledOp {
 
     }
 
     /** Group a sequence's entries, running a body per group (design/16 §6). */
     record ForEachGroup(VarName select,
                         CompiledRef groupBy,
-                        List<CompiledOp> body) implements CompiledOp {
+                        CompiledOp[] body) implements CompiledOp {
 
     }
 

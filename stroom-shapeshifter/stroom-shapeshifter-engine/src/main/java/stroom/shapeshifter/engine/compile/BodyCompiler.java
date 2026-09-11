@@ -131,7 +131,7 @@ final class BodyCompiler {
     private enum Arity { EXACTLY, AT_LEAST }
 
     /** Compile a body: one arm per instruction, so the method is as long as the vocabulary. */
-    List<CompiledOp> compile(final List<OutputNode> body) {
+    CompiledOp[] compile(final List<OutputNode> body) {
         final List<CompiledOp> ops = new ArrayList<>(body.size());
         for (final OutputNode node : body) {
             final CompiledOp op = switch (node) {
@@ -147,7 +147,7 @@ final class BodyCompiler {
                                 .map(branch -> new CompiledOp.When(
                                         ConditionCompiler.compile(branch.test(), patterns, names),
                                         compile(branch.body())))
-                                .toList(),
+                                .toArray(CompiledOp.When[]::new),
                         compile(value.otherwise()));
                 case final OutputNode.Switch value -> new CompiledOp.Switch(
                         RefCompiler.compile(value.select(), names), cases(value), compile(value.defaultBody()));
@@ -346,7 +346,7 @@ final class BodyCompiler {
             };
             ops.add(op);
         }
-        return List.copyOf(ops);
+        return ops.toArray(new CompiledOp[0]);
     }
 
     /**
@@ -470,8 +470,8 @@ final class BodyCompiler {
      * <p>{@code putIfAbsent} keeps the authored order's answer: the scan this replaces took the
      * first case whose value matched, so a value written twice still runs the first branch.
      */
-    private Map<String, List<CompiledOp>> cases(final OutputNode.Switch value) {
-        final Map<String, List<CompiledOp>> cases = new HashMap<>();
+    private Map<String, CompiledOp[]> cases(final OutputNode.Switch value) {
+        final Map<String, CompiledOp[]> cases = new HashMap<>();
         for (final OutputNode.SwitchCase branch : value.cases()) {
             cases.putIfAbsent(branch.value(), compile(branch.body()));
         }

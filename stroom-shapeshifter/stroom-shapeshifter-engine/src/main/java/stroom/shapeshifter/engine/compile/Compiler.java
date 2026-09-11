@@ -261,7 +261,7 @@ public final class Compiler {
      */
     private static CompiledTemplate template(final Template template,
                                              final CompiledMatch match,
-                                             final List<CompiledOp> body,
+                                             final CompiledOp[] body,
                                              final Encoding encoding,
                                              final List<CompiledCapture> captures,
                                              final CompiledCondition guard,

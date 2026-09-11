@@ -87,7 +87,7 @@ class CompilerWalksTest {
         return found;
     }
 
-    private static void collect(final List<CompiledOp> body, final List<String> found) {
+    private static void collect(final CompiledOp[] body, final List<String> found) {
         for (final CompiledOp op : body) {
             switch (op) {
                 case final CompiledOp.If value -> {

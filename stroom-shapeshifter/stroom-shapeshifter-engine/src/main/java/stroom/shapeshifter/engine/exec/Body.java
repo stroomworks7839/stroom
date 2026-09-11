@@ -177,7 +177,7 @@ final class Body {
      * call. One arm per instruction, so the method is as long as the instruction set (design 27
      * §2.2).
      */
-    void body(final List<CompiledOp> ops,
+    void body(final CompiledOp[] ops,
               final MatchResult match,
               final int matchCount,
               final byte[] content,
@@ -216,7 +216,7 @@ final class Body {
                 }
                 case final CompiledOp.Switch value -> {
                     final String selected = textOf(value.select(), match, matchCount);
-                    final List<CompiledOp> taken = value.cases().get(selected);
+                    final CompiledOp[] taken = value.cases().get(selected);
                     body(taken == null ? value.defaultBody() : taken, match, matchCount, content,
                             out, inputBase, ignoreErrors, depth);
                 }
