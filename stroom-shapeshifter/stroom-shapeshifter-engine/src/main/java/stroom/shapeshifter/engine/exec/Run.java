@@ -166,11 +166,11 @@ public final class Run {
         // way down (design 21 phase 2b: `element records { apply-templates }` is the shape the
         // migration takes, and the sink's deferred start tag is what makes opening-then-looping
         // serialise as if the body had run in one piece).
-        for (int i = 0; i < plan.prologues().size(); i++) {
-            body.body(plan.prologues().get(i), nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
+        for (int i = 0; i < plan.prologues().length; i++) {
+            body.body(plan.prologues()[i], nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
                     0);
-            if (i < plan.opened().size()) {
-                final CompiledOp.Element element = plan.opened().get(i);
+            if (i < plan.opened().length) {
+                final CompiledOp.Element element = plan.opened()[i];
                 body.structure(() -> out.sink().startElement(element.name(), element.namespace(),
                         element.omitIfEmpty()),
                         "element", element.name());
@@ -180,11 +180,11 @@ public final class Run {
         dispatchInput(roots, rootDispatch, rootIgnoreErrors, input, wholeBuffer);
 
         // And what comes after it, closing the opened elements on the way back up.
-        for (int i = plan.tails().size() - 1; i >= 0; i--) {
-            body.body(plan.tails().get(i), nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
+        for (int i = plan.tails().length - 1; i >= 0; i--) {
+            body.body(plan.tails()[i], nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
                     0);
             if (i > 0) {
-                final CompiledOp.Element element = plan.opened().get(i - 1);
+                final CompiledOp.Element element = plan.opened()[i - 1];
                 body.structure(out.sink()::endElement, "element", element.name());
             }
         }

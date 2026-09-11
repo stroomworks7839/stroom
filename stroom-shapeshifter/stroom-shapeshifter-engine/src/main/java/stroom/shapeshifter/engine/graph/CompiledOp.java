@@ -66,6 +66,9 @@ public sealed interface CompiledOp {
     /** Shared empty, for an apply whose mode no template answers. */
     CompiledTemplate[] EMPTY_CANDIDATES = new CompiledTemplate[0];
 
+    /** Shared empty, for a call whose target declares no parameters. */
+    CallTemplate.Param[] EMPTY_PARAMS = new CallTemplate.Param[0];
+
     /** Write a literal: a UTF-8-tagged value; the sink's encoding decides its bytes (design 25). */
     record Text(TypedValue value) implements CompiledOp {
 
@@ -200,11 +203,11 @@ public sealed interface CompiledOp {
     final class CallTemplate implements CompiledOp {
 
         private final String name;
-        private final List<Arg> args;
+        private final Arg[] args;
         private CompiledTemplate target;
-        private List<Param> params = List.of();
+        private Param[] params = EMPTY_PARAMS;
 
-        public CallTemplate(final String name, final List<Arg> args) {
+        public CallTemplate(final String name, final Arg[] args) {
             this.name = name;
             this.args = args;
         }
@@ -220,9 +223,9 @@ public sealed interface CompiledOp {
          * @param target the template named, or null when the name resolves to none, which is
          *               not an error here: the call does nothing at run time
          */
-        public void link(final CompiledTemplate target, final List<Param> params) {
+        public void link(final CompiledTemplate target, final Param[] params) {
             this.target = target;
-            this.params = List.copyOf(params);
+            this.params = params;
         }
 
         /** The name called, kept for diagnostics. */
@@ -231,7 +234,7 @@ public sealed interface CompiledOp {
         }
 
         /** The arguments this call supplies. */
-        public List<Arg> args() {
+        public Arg[] args() {
             return args;
         }
 
@@ -241,7 +244,7 @@ public sealed interface CompiledOp {
         }
 
         /** The target's parameters as this call site sees them. */
-        public List<Param> params() {
+        public Param[] params() {
             return params;
         }
     }
@@ -372,7 +375,7 @@ public sealed interface CompiledOp {
     /** Walk a sequence, running a body per populated entry (design/16 §4). */
     record ForEach(VarName select,
                    VarName as,
-                   List<SortKey> sort,
+                   SortKey[] sort,
                    CompiledOp[] body) implements CompiledOp {
 
     }

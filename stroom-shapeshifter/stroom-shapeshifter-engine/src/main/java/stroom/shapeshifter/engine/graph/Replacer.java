@@ -67,7 +67,7 @@ public final class Replacer {
     }
 
     private final ByteMatcher matcher;
-    private final List<Piece> pieces;
+    private final Piece[] pieces;
 
     /** Compile a replacement against the pattern whose groups it names. */
     public Replacer(final BytePattern pattern, final String replacement) {
@@ -143,7 +143,7 @@ public final class Replacer {
      * brace, one before a character that cannot start a name — is a literal dollar, and stays
      * one here rather than being decided again per match.
      */
-    private static List<Piece> parse(final String replacement, final BytePattern pattern) {
+    private static Piece[] parse(final String replacement, final BytePattern pattern) {
         final List<Piece> pieces = new ArrayList<>();
         final StringBuilder literal = new StringBuilder();
         int i = 0;
@@ -196,7 +196,7 @@ public final class Replacer {
         if (!literal.isEmpty()) {
             pieces.add(new Piece(literal.toString(), -1));
         }
-        return List.copyOf(pieces);
+        return pieces.toArray(new Piece[0]);
     }
 
     /**

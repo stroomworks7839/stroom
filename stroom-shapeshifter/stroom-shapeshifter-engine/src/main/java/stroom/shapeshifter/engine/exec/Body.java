@@ -734,7 +734,7 @@ final class Body {
                                  final Store store,
                                  final MatchResult match,
                                  final int matchCount) {
-        final int keyCount = op.sort().size();
+        final int keyCount = op.sort().length;
         final TypedValue[][] keys = new TypedValue[populated.size()][keyCount];
 
         vars.push();
@@ -754,7 +754,7 @@ final class Body {
                 vars.store(op.as()).set(1, store.get(index));
             }
             for (int k = 0; k < keyCount; k++) {
-                final CompiledOp.SortKey key = op.sort().get(k);
+                final CompiledOp.SortKey key = op.sort()[k];
                 final TypedValue raw = CompiledRefs.resolveValue(
                         key.by(), match, matchCount, vars);
                 // Uncast, an ordering compares string forms — the one total reading.
@@ -770,7 +770,7 @@ final class Body {
         }
         positions.sort((left, right) -> {
             for (int k = 0; k < keyCount; k++) {
-                final int comparison = compareKeys(keys[left][k], keys[right][k], op.sort().get(k).order());
+                final int comparison = compareKeys(keys[left][k], keys[right][k], op.sort()[k].order());
                 if (comparison != 0) {
                     return comparison;
                 }
@@ -844,7 +844,7 @@ final class Body {
         if (populated.isEmpty()) {
             return;
         }
-        final List<Integer> order = op.sort().isEmpty()
+        final List<Integer> order = op.sort().length == 0
                 ? populated
                 : sorted(op, populated, store, match, matchCount);
 
@@ -958,14 +958,14 @@ final class Body {
 
         // Arguments resolve in the caller's scope — an argument may legitimately read the very
         // variable its parameter will shadow — and only then does the call's own scope open.
-        final List<byte[]> resolved = new ArrayList<>(value.args().size());
+        final List<byte[]> resolved = new ArrayList<>(value.args().length);
         for (final CompiledOp.Arg arg : value.args()) {
             resolved.add(CompiledRefs.resolve(arg.value(), match, matchCount, vars));
         }
 
         vars.push();
-        for (int i = 0; i < value.args().size(); i++) {
-            final CompiledOp.Arg arg = value.args().get(i);
+        for (int i = 0; i < value.args().length; i++) {
+            final CompiledOp.Arg arg = value.args()[i];
             // Shadow before storing: store() searches outwards, and a parameter whose name
             // collides with a capture registered globally would otherwise write straight
             // through the new scope and outlive the call.

@@ -44,6 +44,9 @@ final class RootPlanner {
     /** Shared empty, so a level with nothing after its apply allocates no array. */
     private static final CompiledOp[] EMPTY = new CompiledOp[0];
 
+    /** Shared empty, and the array template the plan's levels collect into. */
+    private static final CompiledOp[][] NO_BODIES = new CompiledOp[0][];
+
     private RootPlanner() {
     }
 
@@ -69,7 +72,8 @@ final class RootPlanner {
                                      || (directive != null && directive.ignoreErrors());
 
         if (source == null) {
-            return new RootPlan(dispatch, roots, ignoreErrors, List.of(), List.of(), List.of());
+            return new RootPlan(dispatch, roots, ignoreErrors, NO_BODIES,
+                    new CompiledOp.Element[0], NO_BODIES);
         }
         final List<CompiledOp[]> prologues = new ArrayList<>();
         final List<CompiledOp.Element> opened = new ArrayList<>();
@@ -91,7 +95,9 @@ final class RootPlanner {
                 break;
             }
         }
-        return new RootPlan(dispatch, roots, ignoreErrors, prologues, opened, tails);
+        return new RootPlan(dispatch, roots, ignoreErrors,
+                prologues.toArray(NO_BODIES), opened.toArray(new CompiledOp.Element[0]),
+                tails.toArray(NO_BODIES));
     }
 
     /**

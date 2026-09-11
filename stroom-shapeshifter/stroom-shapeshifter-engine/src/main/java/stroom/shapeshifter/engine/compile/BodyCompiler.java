@@ -124,7 +124,7 @@ final class BodyCompiler {
         }
         for (final CompiledOp.CallTemplate call : calls) {
             final CompiledTemplate target = byName.get(call.name());
-            call.link(target, target == null ? List.of() : params(call, target));
+            call.link(target, target == null ? CompiledOp.EMPTY_PARAMS : params(call, target));
         }
     }
 
@@ -173,7 +173,7 @@ final class BodyCompiler {
                             value.withParam().stream()
                                     .map(param -> new CompiledOp.Arg(names.intern(param.name()),
                                             RefCompiler.compile(param.value(), names)))
-                                    .toList());
+                                    .toArray(CompiledOp.Arg[]::new));
                     calls.add(call);
                     yield call;
                 }
@@ -325,7 +325,7 @@ final class BodyCompiler {
                                 .map(key ->
                                         new CompiledOp.SortKey(RefCompiler.compile(key.by(), names),
                                                 key.order(), key.as()))
-                                .toList(),
+                                .toArray(CompiledOp.SortKey[]::new),
                         compile(value.body()));
                 case final OutputNode.FormatDate value -> {
                     final Dates.Formatter formatter = Dates.compileFormatter(
@@ -546,19 +546,24 @@ final class BodyCompiler {
      * with no default is still named so that the call shadows it and cannot read the caller's
      * variable of the same name.
      */
-    private List<CompiledOp.Param> params(final CompiledOp.CallTemplate call,
-                                          final CompiledTemplate target) {
+    private CompiledOp.Param[] params(final CompiledOp.CallTemplate call,
+                                      final CompiledTemplate target) {
         final List<CompiledOp.Param> declared = new ArrayList<>();
         for (final Template.ParamDecl parameter : target.template().param()) {
             final VarName name = names.intern(parameter.name());
-            final boolean supplied = call.args().stream()
-                    .anyMatch(arg -> arg.name().equals(name));
+            boolean supplied = false;
+            for (final CompiledOp.Arg arg : call.args()) {
+                if (arg.name().equals(name)) {
+                    supplied = true;
+                    break;
+                }
+            }
             declared.add(new CompiledOp.Param(name,
                     !supplied && parameter.defaultValue() != null
                             ? TypedValue.of(parameter.defaultValue())
                             : null));
         }
-        return declared;
+        return declared.toArray(CompiledOp.EMPTY_PARAMS);
     }
 
     /**
