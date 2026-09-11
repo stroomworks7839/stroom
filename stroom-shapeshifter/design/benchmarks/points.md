@@ -24,6 +24,7 @@ keeping, and so is one that did not.
 | 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
 | 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
 | 9 | `8d0fd1cd65` | 2026-09-09 | Design 30: conditions compiled, the pattern map off the graph | A `matches` test holds its `BytePattern` instead of hashing the pattern's text per evaluation, and `Conditions.evaluate` stops taking the map — so it is no longer threaded into every guard evaluation on every template on every record. **624 evaluations per operation on `apache_httpd` and none anywhere else**, invisible in a sampled profile, so the run rows should not move. Compilation now walks the condition trees, so the compile rows are where a change would show. |
+| 27 | `b29f352bd6` | 2026-09-11 | The condition lists are arrays, and `Conditions` drops its streams | **The first conversion that changes allocation as well as indirection**, so `apache_httpd` is the row: it evaluates 7,152 `and` and 1,344 `or` per operation, each of which was allocating a stream pipeline and a capturing lambda. `win_sec_strict` (377 `or`, 319 `and`) and `ausearch` (560 `or`) are the only others that reach it at all; everything else should be flat. **It measures two things at once** — the array and the destreaming — and cannot separate them, which is stated in the commit rather than left to be inferred from the number. |
 | 26 | `452ef6f6e5` | 2026-09-11 | The step vocabulary is arrays: `CompiledSteps.steps` and the six nested step records | **`progressive` and `progressive_text` are the only rows that can move** — nothing else runs a progressive match — and `progressive` is the row to watch for a second reason: it is the one that *lost* 0.67% to point 23, so this is where that comes back if the loss was the body arrays reaching a row whose work is elsewhere. 104,862 steps per operation on `progressive`, and `progressive_text` exercises four step kinds the binary row never reaches. A move on any other row means something is wrong rather than fast. |
 | 25 | `30581c3727` | 2026-09-11 | The compiled template lists are `CompiledTemplate[]` | `Level` walks the candidate set **per dispatch** to pick a winner, so the rows that make many dispatches are the ones that can move: `win_sec_strict` (569,199 matches/op), `win_sec_xml` (244,054), `ausearch` (32,109 across two match kinds) and `csv_header` (35,473). It also removes two real copies at compile time — `CompiledProject` and `RootPlan` both took `List.copyOf` of a mutable list — so a small **compile**-row gain is the honest expectation, unlike points 23 and 24 where the copies replaced no-ops. |
 | 24 | `2d8be8b5be` | 2026-09-11 | A template's captures are a `CompiledCapture[]` | The second of design 33 §11's twelve, and the one walked most often — `Level` binds captures **per match**, up to 569,199 times per operation on `win_sec_strict`. So the rows to watch are the match-dense ones the body arrays could not reach: **`win_sec_strict`, `win_sec_xml` and `win_sec`**, none of which moved for point 23. `apache_httpd` and `log_sessions` make few matches and should be flat here, which is the check that this is the captures walk and not something else. |
@@ -637,7 +638,7 @@ measured resolution. Keep them. But a point whose claim is smaller than four poi
 **Point 18 is the floor, and the array conversions are the points:**
 
 ```
-engine-bench-points.sh full c2aee70a05 7335b0a7f2 2d8be8b5be 30581c3727 452ef6f6e5
+engine-bench-points.sh full c2aee70a05 7335b0a7f2 2d8be8b5be 30581c3727 452ef6f6e5 b29f352bd6
 ```
 
 `c2aee70a05` is point 18 — the last state before the first array change, and the last state whose
@@ -661,7 +662,7 @@ rise slightly: `BodyCompiler` builds an array per body where it built an immutab
 
 Point 24 has not been measured at all. Its prediction is in its row.
 
-**And the set will grow.** Design 33 §11 lists twelve run-time collections; four are converted. The
+**And the set will grow.** Design 33 §11 lists twelve run-time collections; five are converted. The
 rest will be added as points as they land, and the floor stays at `c2aee70a05` so that the arc
 reads as one sequence rather than as a chain of adjacent pairs — which is the reading the
 2026-09-10 set showed this protocol can actually support.
