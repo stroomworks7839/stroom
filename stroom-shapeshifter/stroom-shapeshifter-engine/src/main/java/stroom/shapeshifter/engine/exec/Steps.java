@@ -483,11 +483,25 @@ public final class Steps {
             return index >= 0 && index < count ? values[index] : null;
         }
 
+        /**
+         * Append, with the growth in a method of its own.
+         *
+         * <p>Not a stylistic split. With the {@code Arrays.copyOf} inline this is 50 bytes, over
+         * {@code MaxInlineSize} of 35, and {@code PrintInlining} reports "callee is too large" at
+         * every call site — which cost {@code progressive} 4.09% and {@code progressive_text} 3.36% over six
+         * interleaved rounds when this buffer replaced an {@code ArrayList}. {@code ArrayList.add}
+         * is 23 bytes and inlines precisely because the JDK keeps its growth out of line. Same
+         * shape here, same reason.
+         */
         private void add(final TypedValue value) {
             if (count == values.length) {
-                values = Arrays.copyOf(values, count * 2);
+                grow();
             }
             values[count++] = value;
+        }
+
+        private void grow() {
+            values = Arrays.copyOf(values, count * 2);
         }
 
         /** Drop everything above a mark, releasing what it held. */
