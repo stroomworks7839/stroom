@@ -309,8 +309,8 @@ public sealed interface CompiledOp {
      */
     record CallFunction(FunctionDefinition definition,
                         int slot,
-                        List<CompiledRef> select,
-                        List<VarName> sequences,
+                        CompiledRef[] select,
+                        VarName[] sequences,
                         VarName name) implements CompiledOp {
 
     }
@@ -324,7 +324,7 @@ public sealed interface CompiledOp {
      * @param numericKind the instruction's name when it is arithmetic — the hook for the
      *                    {@code strict_values} diagnostic (design/17 §10) — or null
      */
-    record Transform(List<CompiledRef> select,
+    record Transform(CompiledRef[] select,
                      VarName name,
                      Function<List<TypedValue>, TypedValue> function,
                      String numericKind) implements CompiledOp {
@@ -355,11 +355,8 @@ public sealed interface CompiledOp {
      * parsed into literals and group indices — and a {@code Transform} would carry it inside a
      * closure where nothing can see it. An instruction that holds compiled state should say so.
      */
-    record Replace(List<CompiledRef> select, VarName name, Replacer replacer) implements CompiledOp {
+    record Replace(CompiledRef[] select, VarName name, Replacer replacer) implements CompiledOp {
 
-        public Replace {
-            select = List.copyOf(select);
-        }
     }
 
     /** Declare a sequence and empty it (design/16 §9). */

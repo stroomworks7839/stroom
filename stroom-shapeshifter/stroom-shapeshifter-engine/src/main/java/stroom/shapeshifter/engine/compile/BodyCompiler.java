@@ -367,8 +367,8 @@ final class BodyCompiler {
                                       + (signature.maxArgs() == 1 ? " argument" : " arguments")
                                       + ", but the call has " + written);
         }
-        final List<CompiledRef> select = new ArrayList<>(written);
-        final List<VarName> sequences = new ArrayList<>(written);
+        final CompiledRef[] select = new CompiledRef[written];
+        final VarName[] sequences = new VarName[written];
         for (int i = 0; i < written; i++) {
             final RefExpression ref = value.select().get(i);
             if (signature.argKinds().get(i) == Kind.SEQUENCE) {
@@ -383,11 +383,11 @@ final class BodyCompiler {
                                               + " is a sequence and must name a variable,"
                                               + " whose every entry it receives");
                 }
-                sequences.add(names.intern(store));
-                select.add(null);
+                sequences[i] = names.intern(store);
+                select[i] = null;
             } else {
-                sequences.add(null);
-                select.add(RefCompiler.compile(ref, names));
+                sequences[i] = null;
+                select[i] = RefCompiler.compile(ref, names);
             }
         }
         return new CompiledOp.CallFunction(definition, functions.slot(definition.name()),
@@ -398,7 +398,7 @@ final class BodyCompiler {
                                            final String name,
                                            final Function<List<TypedValue>, TypedValue> function) {
         return new CompiledOp.Transform(
-                select.stream().map(ref -> RefCompiler.compile(ref, names)).toList(),
+                select.stream().map(ref -> RefCompiler.compile(ref, names)).toArray(CompiledRef[]::new),
                 names.intern(name), function, null);
     }
 
@@ -425,7 +425,7 @@ final class BodyCompiler {
         }
         final int expected = select.size();
         return new CompiledOp.Transform(
-                select.stream().map(ref -> RefCompiler.compile(ref, names)).toList(),
+                select.stream().map(ref -> RefCompiler.compile(ref, names)).toArray(CompiledRef[]::new),
                 names.intern(name),
                 inputs -> inputs.size() == expected ? function.apply(inputs) : null, what);
     }
@@ -516,7 +516,7 @@ final class BodyCompiler {
         // held by the op rather than closed over by one, so what the instruction runs is visible
         // on it (design 30).
         return new CompiledOp.Replace(
-                value.select().stream().map(ref -> RefCompiler.compile(ref, names)).toList(),
+                value.select().stream().map(ref -> RefCompiler.compile(ref, names)).toArray(CompiledRef[]::new),
                 names.intern(value.name()),
                 new Replacer(pattern, value.replacement()));
     }

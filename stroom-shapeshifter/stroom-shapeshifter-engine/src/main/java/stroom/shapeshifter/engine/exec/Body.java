@@ -385,12 +385,12 @@ final class Body {
             return;
         }
         final List<Kind> kinds = definition.signature().argKinds();
-        final int written = op.select().size();
+        final int written = op.select().length;
         final List<TypedValue> values = new ArrayList<>(written);
         final List<TypedValue> raw = new ArrayList<>(written);
         final List<List<TypedValue>> sequences = new ArrayList<>(written);
         for (int i = 0; i < written; i++) {
-            final VarName store = op.sequences().get(i);
+            final VarName store = op.sequences()[i];
             if (store != null) {
                 raw.add(null);
                 values.add(null);
@@ -398,7 +398,7 @@ final class Body {
                 continue;
             }
             final TypedValue resolved = CompiledRefs.resolveValue(
-                    op.select().get(i), match, matchCount, vars);
+                    op.select()[i], match, matchCount, vars);
             raw.add(resolved);
             values.add(resolved == null ? null : castTo(resolved, kinds.get(i)));
             sequences.add(null);
@@ -436,7 +436,7 @@ final class Body {
                            final MatchResult match,
                            final int matchCount,
                            final Output out) {
-        final List<CompiledRef> select = op.select();
+        final CompiledRef[] select = op.select();
         final VarName name = op.name();
         final Function<List<TypedValue>, TypedValue> function = op.function();
         final List<TypedValue> inputs = inputs(select, match, matchCount);
@@ -458,10 +458,10 @@ final class Body {
     }
 
     /** The selects an instruction reads, resolved; an absent one contributes nothing. */
-    private List<TypedValue> inputs(final List<CompiledRef> select,
+    private List<TypedValue> inputs(final CompiledRef[] select,
                                     final MatchResult match,
                                     final int matchCount) {
-        final List<TypedValue> inputs = new ArrayList<>(select.size());
+        final List<TypedValue> inputs = new ArrayList<>(select.length);
         for (final CompiledRef ref : select) {
             final TypedValue resolved = CompiledRefs.resolveValue(ref, match, matchCount, vars);
             if (resolved != null) {
