@@ -421,6 +421,30 @@ alone.** The arrays are kept and rebuilt on point 18 directly, rather than rever
 from under them: phase 2 was written against extracted arms and registers, and a straight revert
 would leave it entangled with code that is going.
 
+**Rebuilt on point 18 and measured there, six interleaved rounds, no failures:**
+
+| workload | median | min | max | agreed |
+|---|---|---|---|---|
+| `regex_lines` | **+12.38%** | +8.41 | +15.93 | **6/6 faster** |
+| `csv_header` | **+10.37%** | +9.58 | +11.57 | **6/6 faster** |
+| `apache_httpd` | **+7.84%** | +6.55 | +8.78 | **6/6 faster** |
+| `log_sessions` | **+4.82%** | +3.77 | +5.87 | **6/6 faster** |
+| `progressive` | −0.67% | −1.30 | −0.49 | 0/6 faster |
+
+**Larger than the five-point set implied**, and for a reason that vindicates the wind-back: at
+point 21 the arrays were measured on top of phase 1's losses, so part of their value went on
+paying those back. Against a clean base, a change of eight files and fifty-two lines — four of
+them in the interpreter — is worth **+12.4% on `regex_lines` and +10.4% on `csv_header`**.
+
+*`progressive` loses two thirds of a point, consistently, and it is recorded without an
+explanation.* The obvious candidate — that a one- or two-element body is better served by
+`ImmutableCollections.List12`, which holds its elements in fields rather than behind an array
+indirection — dies on `csv_header`, whose bodies are 1.7 instructions each and which gains 10.4%.
+What is true is that `progressive` is step-bound, 104,862 steps per operation against 52,431 body
+ops, so its body work is a small share of its time and this is near the harness's floor. A small
+real cost of unknown cause, which is what it should be called until `CompiledSteps` is converted
+and the row is read again.
+
 **What this design got wrong, stated as plainly as it stated its predictions.** It opened by
 arguing from inlining — a 389-byte chain the JIT refuses at 26 arms — and that mechanism never
 fired: the loop was un-inlinable at 758, 591, 589 and 532 bytes alike. The dispatch it was named

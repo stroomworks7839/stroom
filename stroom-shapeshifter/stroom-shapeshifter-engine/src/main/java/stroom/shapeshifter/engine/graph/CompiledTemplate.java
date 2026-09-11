@@ -69,7 +69,13 @@ public record CompiledTemplate(Template template,
                                VarName[] captureNames) {
 
     public CompiledTemplate {
-        body = body.clone();
+        // The body is not copied, and the omission is deliberate. The line this replaced read
+        // List.copyOf(body), which was a no-op: the compiler already handed over an immutable
+        // list, and List.copyOf returns such a list unchanged. Cloning the array instead would
+        // be a real copy per template that the old code never made — and it would buy nothing,
+        // because body() hands the array straight out. A defensive copy behind a leaking
+        // accessor is half a guarantee; the rule that nothing writes to a body is on
+        // CompiledOp, where it can be checked.
         captures = List.copyOf(captures);
     }
 }
