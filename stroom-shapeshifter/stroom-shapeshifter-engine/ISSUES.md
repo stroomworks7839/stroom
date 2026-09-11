@@ -1667,3 +1667,99 @@ the search to `LegacyRefs`, where the syntax is written down.
 
 Sites: `ds3/LegacyRefs.java` (the parse, and the javadoc listing the forms),
 `exec/CompiledRefs.java` `indexed`, `exec/Level.java` `bindCaptures`, `exec/VarRegistry.java`.
+
+### E49 — A capture holds the previous record's value when this record did not overwrite it
+**`open` 2026-09-11.** Found while asking what the variable registry's data-derived names are
+*for* and what their lifetime should be (design 33 §11 E, E48's neighbour). The answer turned out
+to be that captures have no reliable lifetime at all, and that this is not specific to
+key-value ones.
+
+**The mechanism.** A template's captures are emptied in `Level.processMatch`:
+
+```java
+if (matchCount == 1) {
+    for (final VarName name : candidate.clearNames()) {
+        vars.store(name).clear();
+    }
+}
+```
+
+**The clear is keyed to a match happening.** A template that does not match on a record never
+reaches `matchCount == 1`, so nothing is cleared and its stores still hold the last record that
+did match. And key-value captures are excluded from `clearNames` altogether — `Compiler` skips
+any binding whose select is a `CaptureSource.KeyValue`, because the names are not knowable at
+compile time — so they are never cleared under any circumstances.
+
+**Three demonstrations, each run against the engine as it stands.** The configuration is the same
+shape each time: a record template that dispatches into a field template and then reads a name the
+field template binds.
+
+*A compiled capture, on a record where its template does not match.* Input `k=1`, `nothing here`,
+`k=3`; the field template matches `k=([0-9]+)` and captures `v`:
+
+```
+[v=1][v=1][v=3]
+```
+
+The middle record contains no `k=` at all and reads the previous record's value.
+
+*A key-value capture, same shape.* Input `k=one`, `other=two`, `k=three`:
+
+```
+[k=one][k=one][k=three]
+```
+
+*And the one that is worse than staleness.* Input `a=1 b=2 key=old` then `key=new`:
+
+```
+[key=old][key=old]
+```
+
+**The second record binds `key` to `new` and still reads `old`.** A data-derived name's store is
+indexed by the declaring template's match count — *which token of the record this was* — so `old`
+sits at index 3 (third token of record one) and `new` at index 1 (first token of record two). A
+reference with no index reads `latest()`, the highest populated index, and 3 beats 1. The engine
+has the right answer and returns the wrong one, on a record where everything matched.
+
+**That last case also shows the index means two different things.** For a compiled capture the
+match index is "the Nth match of this template" and `$field[2]` is meaningful. For a data-derived
+name it is "the Nth token of the record", so `$key[2]` is whatever field happened to be second.
+`latest()` is only coherent if the store is emptied per record, which is the defect.
+
+**The proposed fix, and why it is this one.** Move the clear from *first match* to **dispatch
+entry**: when `Level.dispatch` is entered for a set of candidates, clear each candidate's
+`clearNames` unconditionally, and give key-value captures the same treatment by recording at run
+time which slots they wrote. The lifetime stays keyed to the declaring template, which needs no
+reasoning about ancestry, and both cases in the corpus come out right for the same reason:
+
+| template | dispatched | so its captures clear |
+|---|---|---|
+| `kv_pair`, or any per-field template | once per record | once per record, matched or not |
+| `header_column` in the CSV fixture | once per stream | once — the headings survive every data row |
+
+*Two alternatives were considered and rejected.* **A scope per dispatch** — push on entry, pop on
+exit — is unconditional and would fix the staleness, but it destroys the CSV headings: they are
+captured by `header_column`, dispatched once from `header_row`'s body, and read much later by
+`data_column` in a different dispatch chain. **Binding into the enclosing scope** makes the
+lifetime depend on who dispatched the template, which is dynamic scoping: the same template would
+get different lifetimes from different call sites.
+
+**What it costs.** The clear moves from per-match to per-dispatch-entry for every candidate in the
+mode, so it runs on dispatches where nothing matches — which is the point — at O(candidates ×
+captures) per dispatch. `win_sec_strict` makes 569,199 dispatches per operation, so this wants
+measuring rather than assuming.
+
+**And it is a behaviour change, not only a fix.** Any configuration relying on a capture surviving
+a record that did not rebind it would produce different output. The current behaviour is hard to
+defend — a record with no `k=` answering `v=1` is the engine answering a question the data did not
+— but the change belongs to whoever owns the porting-fidelity contract, not to the person who
+found it.
+
+**Why the corpus never caught it.** Only `projects/ausearch` uses key-value captures. It reads
+`$auid`, `$success`, `$key` and `$res`; `$res` is read inside a branch guarded on
+`type == USER_AUTH`, and none of its 16 records is a `USER_AUTH` lacking `res` after one that had
+it. The compiled-capture case needs a record where a template that usually matches does not, which
+no golden exercises either.
+
+Sites: `exec/Level.java` `processMatch` (the clear), `compile/Compiler.java` (the `KeyValue`
+exclusion from `clearNames`), `exec/Level.java` `bindCaptures`, `exec/Store.java` `latest`.
