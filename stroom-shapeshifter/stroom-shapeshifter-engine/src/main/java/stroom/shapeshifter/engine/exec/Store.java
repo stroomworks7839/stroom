@@ -18,8 +18,7 @@ package stroom.shapeshifter.engine.exec;
 
 import stroom.shapeshifter.engine.value.TypedValue;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
 /**
  * The values one variable took, indexed by which match produced them.
@@ -34,19 +33,43 @@ import java.util.List;
  */
 public final class Store {
 
-    private final List<TypedValue> values = new ArrayList<>(2);
+    /** What a store starts with; most hold one value, and a second is the common growth. */
+    private static final int INITIAL = 2;
+
+    /**
+     * The values, indexed by match count, with nulls for the holes.
+     *
+     * <p>An array rather than a {@code List<TypedValue>}: this is read on every value a
+     * reference resolves and written on every capture a template binds, which with
+     * {@link VarRegistry}'s slots is the hottest pair of reads in the engine (design 33 §11 E).
+     * What it does is what {@code ArrayList} does — grow, pad with nulls, index — minus the
+     * interface call at each of those sites.
+     */
+    private TypedValue[] values = new TypedValue[INITIAL];
+
+    /** How far the store spans, holes included; the array is longer once it has grown. */
+    private int size;
 
     /** Put a value at a match index, growing the store as needed. */
     public void set(final int matchCount, final TypedValue value) {
-        while (values.size() <= matchCount) {
-            values.add(null);
+        if (matchCount >= values.length) {
+            // Doubling until it fits, rather than once per index: a capture binding its
+            // hundredth match should not copy the store a hundred times.
+            int bigger = Math.max(values.length, 1);
+            while (bigger <= matchCount) {
+                bigger *= 2;
+            }
+            values = Arrays.copyOf(values, bigger);
         }
-        values.set(matchCount, value);
+        if (matchCount >= size) {
+            size = matchCount + 1;
+        }
+        values[matchCount] = value;
     }
 
     /** The value at a match index, or null. */
     public TypedValue get(final int matchCount) {
-        return matchCount >= 0 && matchCount < values.size() ? values.get(matchCount) : null;
+        return matchCount >= 0 && matchCount < size ? values[matchCount] : null;
     }
 
     /**
@@ -56,20 +79,20 @@ public final class Store {
      * be there, and the reference would quietly read stale data rather than nothing.
      */
     public void remove(final int matchCount) {
-        if (matchCount >= 0 && matchCount < values.size()) {
-            values.set(matchCount, null);
+        if (matchCount >= 0 && matchCount < size) {
+            values[matchCount] = null;
         }
     }
 
     /** How many match indices the store spans, holes included. */
     public int size() {
-        return values.size();
+        return size;
     }
 
     /** The highest index holding a value, or -1. */
     public int lastIndex() {
-        for (int i = values.size() - 1; i >= 0; i--) {
-            if (values.get(i) != null) {
+        for (int i = size - 1; i >= 0; i--) {
+            if (values[i] != null) {
                 return i;
             }
         }
@@ -84,12 +107,15 @@ public final class Store {
      * cannot leave the previous record's tail hanging past its own length.
      */
     public void clear() {
-        values.clear();
+        // The spanned range is emptied rather than the whole array: what is past it is already
+        // null, because nothing writes beyond size without moving it.
+        Arrays.fill(values, 0, size, null);
+        size = 0;
     }
 
     /** The most recently stored value, for references that do not say which they want. */
     public TypedValue latest() {
         final int last = lastIndex();
-        return last < 0 ? null : values.get(last);
+        return last < 0 ? null : values[last];
     }
 }
