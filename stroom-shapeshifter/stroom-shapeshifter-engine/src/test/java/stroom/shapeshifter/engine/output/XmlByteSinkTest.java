@@ -192,6 +192,42 @@ class XmlByteSinkTest {
         }
     }
 
+    /**
+     * A prefix bound by an ancestor is in scope for a descendant, which therefore does not
+     * declare it again.
+     *
+     * <p>The binding used to be a map copied down the tree; it is now a walk up the open
+     * elements, and <b>nothing tested the walk</b> — breaking it so that it only ever looked at
+     * the element itself passed the whole suite, because no fixture nests a namespaced element
+     * under another (design 33 §11's sweep).
+     */
+    @Test
+    void prefixBoundByAnAncestorIsNotDeclaredAgain() {
+        sink.startElement("outer", "urn:x");
+        sink.startElement("inner", "urn:x");
+        sink.endElement();
+        sink.endElement();
+        assertThat(output()).isEqualTo("""
+                <outer xmlns="urn:x">
+                   <inner/>
+                </outer>
+                """);
+    }
+
+    /** A descendant rebinding the same prefix to a different URI does declare it. */
+    @Test
+    void prefixReboundByADescendantIsDeclaredAgain() {
+        sink.startElement("outer", "urn:x");
+        sink.startElement("inner", "urn:y");
+        sink.endElement();
+        sink.endElement();
+        assertThat(output()).isEqualTo("""
+                <outer xmlns="urn:x">
+                   <inner xmlns="urn:y"/>
+                </outer>
+                """);
+    }
+
     @Test
     void namespaceDeclarationsCountTowardsTheSumAndAlignUnderTheFirst() {
         sink.startElement("records");

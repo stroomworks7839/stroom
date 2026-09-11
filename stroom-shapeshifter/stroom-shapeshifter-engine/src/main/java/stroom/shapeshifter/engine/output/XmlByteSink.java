@@ -23,12 +23,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Arrays;
 
 /**
  * An {@link OutputSink} that serialises structure the way Stroom's own serialiser does.
@@ -79,7 +74,14 @@ public final class XmlByteSink implements OutputSink {
 
     private final OutputStream out;
     private final Layout layout;
-    private final Deque<Element> open = new ArrayDeque<>();
+    /**
+     * The element being written, or null at document level.
+     *
+     * <p>This was an {@code ArrayDeque<Element>}, which an element pushed and popped as it opened
+     * and closed. It was redundant: an {@link Element} already holds its parent and its level, so
+     * the stack is the chain, and popping is following one field.
+     */
+    private Element innermost;
     private long position;
     private Attribute attribute;
     /** The bytes between writes that did not finish a UTF-8 sequence; see {@link #write}. */
@@ -104,16 +106,17 @@ public final class XmlByteSink implements OutputSink {
     public void startElement(final String qName, final String namespace, final boolean omitIfEmpty) {
         checkNoAttributeOpen("startElement", qName);
         flushCarry();
-        final Element parent = open.peek();
+        final Element parent = innermost;
         // The parent is not started here: a child that turns out to be omitted must leave the
         // parent as empty as it found it. The child's own first emission starts the parent.
-        final Element element = new Element(qName, open.size() + 1, parent, omitIfEmpty);
-        open.push(element);
+        final Element element = new Element(qName, parent == null ? 1 : parent.level + 1, parent,
+                omitIfEmpty);
+        innermost = element;
         if (namespace != null) {
             // Element-declared (S3): the prefix's binding in scope serves if it already says so,
             // otherwise the element declares it.
             final String prefix = QNames.prefixOf(qName);
-            if (!namespace.equals(element.scope.get(prefix))) {
+            if (!namespace.equals(inScope(element, prefix))) {
                 declare(element, prefix, namespace);
             }
         }
@@ -130,14 +133,38 @@ public final class XmlByteSink implements OutputSink {
     }
 
     private static void declare(final Element element, final String prefix, final String uri) {
-        element.declarations.add(new String[]{prefix, uri});
-        if (!element.ownsScope) {
-            // The first declaration is what buys the copy; until then the parent's map is the
-            // answer and sharing it is safe, because an element only ever adds to its own.
-            element.scope = new HashMap<>(element.scope);
-            element.ownsScope = true;
+        element.declarations = append(element.declarations, element.declarationCount, prefix, uri);
+        element.declarationCount += 2;
+    }
+
+    /**
+     * A prefix's binding here, or null — walked up the open elements rather than held as a map.
+     *
+     * <p>The innermost declaration wins, which is what a copied-down map said by overwriting.
+     */
+    private static String inScope(final Element from, final String prefix) {
+        for (Element e = from; e != null; e = e.parent) {
+            for (int i = 0; i < e.declarationCount; i += 2) {
+                if (e.declarations[i].equals(prefix)) {
+                    return e.declarations[i + 1];
+                }
+            }
         }
-        element.scope.put(prefix, uri);
+        return null;
+    }
+
+    /** Add a name and value to a flat pair array, growing it — null until the first pair. */
+    private static String[] append(final String[] pairs, final int count,
+                                   final String name, final String value) {
+        String[] grown = pairs;
+        if (grown == null) {
+            grown = new String[4];
+        } else if (count == grown.length) {
+            grown = Arrays.copyOf(grown, count * 2);
+        }
+        grown[count] = name;
+        grown[count + 1] = value;
+        return grown;
     }
 
     @Override
@@ -158,7 +185,10 @@ public final class XmlByteSink implements OutputSink {
         }
         final String value = attribute.value.toString(StandardCharsets.UTF_8);
         if (!(attribute.omitIfEmpty && value.isEmpty())) {
-            open.peek().attributes.add(new String[]{attribute.qName, value});
+            final Element holder = innermost;
+            holder.attributes = append(holder.attributes, holder.attributeCount,
+                    attribute.qName, value);
+            holder.attributeCount += 2;
         }
         attribute = null;
     }
@@ -170,8 +200,8 @@ public final class XmlByteSink implements OutputSink {
         flushCarry();
         settleWhitespace(element);
         if (!element.started) {
-            if (element.omitIfEmpty && element.declarations.isEmpty() && element.attributes.isEmpty()) {
-                open.pop();
+            if (element.omitIfEmpty && element.declarationCount == 0 && element.attributeCount == 0) {
+                innermost = element.parent;
                 return;
             }
             emitStartTag(element, true);
@@ -180,8 +210,8 @@ public final class XmlByteSink implements OutputSink {
         } else {
             emit("</" + element.qName + ">");
         }
-        open.pop();
-        if (open.isEmpty() && indented()) {
+        innermost = element.parent;
+        if (innermost == null && indented()) {
             // Saxon ends an indented document with a newline after the root's close.
             emit("\n");
         }
@@ -197,7 +227,7 @@ public final class XmlByteSink implements OutputSink {
             attribute.value.write(data, offset, length);
             return;
         }
-        final Element element = open.peek();
+        final Element element = innermost;
         if (element == null) {
             raw(data, offset, length);
             return;
@@ -242,7 +272,7 @@ public final class XmlByteSink implements OutputSink {
     private void flushCarry() {
         final String rest = carry.flush();
         if (rest != null) {
-            final Element element = open.peek();
+            final Element element = innermost;
             if (element != null) {
                 content(element, rest);
             }
@@ -288,14 +318,17 @@ public final class XmlByteSink implements OutputSink {
                 ? "\n" + spaces((element.level - 1) * INDENT + element.qName.length() + 2)
                 : " ";
         int written = 0;
-        for (final String[] declaration : element.declarations) {
+        for (int i = 0; i < element.declarationCount; i += 2) {
             tag.append(written++ == 0 ? " " : separator)
-                    .append(declaration[0].isEmpty() ? "xmlns" : "xmlns:" + declaration[0])
-                    .append("=\"").append(escapeAttribute(declaration[1])).append('"');
+                    .append(element.declarations[i].isEmpty()
+                            ? "xmlns"
+                            : "xmlns:" + element.declarations[i])
+                    .append("=\"").append(escapeAttribute(element.declarations[i + 1])).append('"');
         }
-        for (final String[] attribute : element.attributes) {
+        for (int i = 0; i < element.attributeCount; i += 2) {
             tag.append(written++ == 0 ? " " : separator)
-                    .append(attribute[0]).append("=\"").append(escapeAttribute(attribute[1])).append('"');
+                    .append(element.attributes[i]).append("=\"")
+                    .append(escapeAttribute(element.attributes[i + 1])).append('"');
         }
         tag.append(selfClose ? "/>" : ">");
         emit(tag.toString());
@@ -305,16 +338,17 @@ public final class XmlByteSink implements OutputSink {
     /** Saxon's {@code XMLIndenter.startContent} sum, on raw lengths, which decides wrapping. */
     private static int saxonAttributeLength(final Element element) {
         int total = 0;
-        for (final String[] declaration : element.declarations) {
-            total += declaration[0].isEmpty()
-                    ? 9 + declaration[1].length()
-                    : declaration[0].length() + 10 + declaration[1].length();
+        for (int i = 0; i < element.declarationCount; i += 2) {
+            total += element.declarations[i].isEmpty()
+                    ? 9 + element.declarations[i + 1].length()
+                    : element.declarations[i].length() + 10 + element.declarations[i + 1].length();
         }
-        for (final String[] attribute : element.attributes) {
-            final int colon = attribute[0].indexOf(':');
+        for (int i = 0; i < element.attributeCount; i += 2) {
+            final String qName = element.attributes[i];
+            final int colon = qName.indexOf(':');
             final int prefix = colon < 0 ? 0 : colon;
-            final int local = colon < 0 ? attribute[0].length() : attribute[0].length() - colon - 1;
-            total += local + attribute[1].length() + 4 + (prefix == 0 ? 4 : prefix + 5);
+            final int local = colon < 0 ? qName.length() : qName.length() - colon - 1;
+            total += local + element.attributes[i + 1].length() + 4 + (prefix == 0 ? 4 : prefix + 5);
         }
         return total;
     }
@@ -365,7 +399,7 @@ public final class XmlByteSink implements OutputSink {
     // describe almost never fires; concatenating its description first made every structural
     // write pay for the one that does not happen.
     private Element current(final String call, final String subject) {
-        final Element element = open.peek();
+        final Element element = innermost;
         if (element == null) {
             throw new StructureException(call + " " + subject + " with no element open");
         }
@@ -374,7 +408,7 @@ public final class XmlByteSink implements OutputSink {
 
     /** The same, for the one call that names no subject. */
     private Element current(final String call) {
-        final Element element = open.peek();
+        final Element element = innermost;
         if (element == null) {
             throw new StructureException(call + " with no element open");
         }
@@ -433,15 +467,23 @@ public final class XmlByteSink implements OutputSink {
         private final Element parent;
         private final boolean omitIfEmpty;
         /**
-         * Prefix bindings in scope here: the parent's, plus this element's own declarations.
-         * Shared with the parent until this element declares one of its own, because most
-         * elements declare none and a configuration with no namespaces at all would otherwise
-         * copy an empty map per element.
+         * This element's own declarations and attributes, as flat {@code prefix, uri, …} and
+         * {@code qName, value, …} pairs, null until there is one.
+         *
+         * <p>A {@code List<String[]>} allocated a list <i>and</i> a two-element array per entry,
+         * per element written — 40,260 elements and 36,600 attributes per operation on the
+         * element-heavy row. Most elements declare no namespace at all, so the common case is now
+         * two null fields rather than two empty lists.
+         *
+         * <p><b>There is no scope map.</b> A prefix's binding used to be a
+         * {@code Map<String, String>} shared with the parent and copied on first declaration.
+         * Looking it up walks the parent chain instead: the chain is short, the declarations are
+         * few, and a document with no namespaces touches nothing.
          */
-        private Map<String, String> scope;
-        private boolean ownsScope;
-        private final List<String[]> declarations = new ArrayList<>();
-        private final List<String[]> attributes = new ArrayList<>();
+        private String[] declarations;
+        private int declarationCount;
+        private String[] attributes;
+        private int attributeCount;
         private boolean started;
         private boolean hasElementChildren;
         private boolean hasText;
@@ -452,7 +494,6 @@ public final class XmlByteSink implements OutputSink {
             this.level = level;
             this.parent = parent;
             this.omitIfEmpty = omitIfEmpty;
-            this.scope = parent == null ? Map.of() : parent.scope;
         }
     }
 

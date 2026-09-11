@@ -23,12 +23,7 @@ import org.xml.sax.helpers.AttributesImpl;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Arrays;
 
 /**
  * An {@link OutputSink} that forwards structure as SAX events.
@@ -50,7 +45,8 @@ public final class SaxEventSink implements OutputSink {
     private static final String XML_NS = "http://www.w3.org/XML/1998/namespace";
 
     private final ContentHandler handler;
-    private final Deque<Element> open = new ArrayDeque<>();
+    /** The element being written, or null at document level: an element knows its own parent. */
+    private Element innermost;
     private final SaxEvents events = new SaxEvents();
     private Attribute attribute;
     private final Utf8.Carry carry = new Utf8.Carry();
@@ -70,17 +66,17 @@ public final class SaxEventSink implements OutputSink {
     public void startElement(final String qName, final String namespace, final boolean omitIfEmpty) {
         checkNoAttributeOpen("startElement", qName);
         flushCarry();
-        final Element parent = open.peek();
+        final Element parent = innermost;
         if (parent == null && documentEnded) {
             throw new StructureException("element " + qName + " after the document element has closed");
         }
         // As in the byte sink: the parent starts when this child first emits, not now, so an
         // omitted child leaves it untouched — and the document starts with its root's first event.
         final Element element = new Element(qName, parent, omitIfEmpty);
-        open.push(element);
+        innermost = element;
         if (namespace != null) {
             final String prefix = QNames.prefixOf(qName);
-            if (!namespace.equals(element.scope.get(prefix))) {
+            if (!namespace.equals(inScope(element, prefix))) {
                 declare(element, prefix, namespace);
             }
         }
@@ -97,13 +93,8 @@ public final class SaxEventSink implements OutputSink {
     }
 
     private static void declare(final Element element, final String prefix, final String uri) {
-        element.declarations.add(new String[]{prefix, uri});
-        if (!element.ownsScope) {
-            // The first declaration buys the copy; until then the parent's map is the answer.
-            element.scope = new HashMap<>(element.scope);
-            element.ownsScope = true;
-        }
-        element.scope.put(prefix, uri);
+        element.declarations = append(element.declarations, element.declarationCount, prefix, uri);
+        element.declarationCount += 2;
     }
 
     @Override
@@ -124,7 +115,10 @@ public final class SaxEventSink implements OutputSink {
         }
         final String value = attribute.value.toString(StandardCharsets.UTF_8);
         if (!(attribute.omitIfEmpty && value.isEmpty())) {
-            open.peek().attributes.add(new String[]{attribute.qName, value});
+            final Element holder = innermost;
+            holder.attributes = append(holder.attributes, holder.attributeCount,
+                    attribute.qName, value);
+            holder.attributeCount += 2;
         }
         attribute = null;
     }
@@ -135,18 +129,18 @@ public final class SaxEventSink implements OutputSink {
         checkNoAttributeOpen("endElement", element.qName);
         flushCarry();
         if (!element.started && element.omitIfEmpty
-            && element.declarations.isEmpty() && element.attributes.isEmpty()) {
-            open.pop();
+            && element.declarationCount == 0 && element.attributeCount == 0) {
+            innermost = element.parent;
             return;
         }
         ensureStarted(element);
         events.make(() -> handler.endElement(element.uri, element.localName, element.qName));
-        for (int i = element.declarations.size() - 1; i >= 0; i--) {
-            final String prefix = element.declarations.get(i)[0];
+        for (int i = element.declarationCount - 2; i >= 0; i -= 2) {
+            final String prefix = element.declarations[i];
             events.make(() -> handler.endPrefixMapping(prefix));
         }
-        open.pop();
-        if (open.isEmpty()) {
+        innermost = element.parent;
+        if (innermost == null) {
             events.make(handler::endDocument);
             documentEnded = true;
         }
@@ -179,7 +173,7 @@ public final class SaxEventSink implements OutputSink {
         if (text.isEmpty()) {
             return;
         }
-        final Element element = open.peek();
+        final Element element = innermost;
         if (element == null) {
             final String flat = text.strip();
             // Whitespace between top-level things is nobody's; an XML declaration is the byte
@@ -223,8 +217,10 @@ public final class SaxEventSink implements OutputSink {
             events.make(handler::startDocument);
             documentStarted = true;
         }
-        for (final String[] declaration : element.declarations) {
-            events.make(() -> handler.startPrefixMapping(declaration[0], declaration[1]));
+        for (int i = 0; i < element.declarationCount; i += 2) {
+            final String prefix = element.declarations[i];
+            final String uri = element.declarations[i + 1];
+            events.make(() -> handler.startPrefixMapping(prefix, uri));
         }
         // The name is split once, here, rather than twice — prefixOf and localOf each scanned
         // for the colon, for the element and again for every attribute.
@@ -233,15 +229,16 @@ public final class SaxEventSink implements OutputSink {
                 "element", element.qName);
         element.localName = QNames.localOf(element.qName, elementColon);
         final AttributesImpl attributes = new AttributesImpl();
-        for (final String[] attribute : element.attributes) {
-            final int colon = attribute[0].indexOf(':');
-            final String prefix = QNames.prefixOf(attribute[0], colon);
+        for (int i = 0; i < element.attributeCount; i += 2) {
+            final String qName = element.attributes[i];
+            final int colon = qName.indexOf(':');
+            final String prefix = QNames.prefixOf(qName, colon);
             // An unprefixed attribute is in no namespace, whatever the default namespace is.
             final String uri = prefix.isEmpty()
                     ? ""
-                    : resolve(element, prefix, "attribute", attribute[0]);
-            attributes.addAttribute(uri, QNames.localOf(attribute[0], colon), attribute[0], "CDATA",
-                    attribute[1]);
+                    : resolve(element, prefix, "attribute", qName);
+            attributes.addAttribute(uri, QNames.localOf(qName, colon), qName, "CDATA",
+                    element.attributes[i + 1]);
         }
         events.make(() ->
                 handler.startElement(element.uri, element.localName, element.qName, attributes));
@@ -253,7 +250,7 @@ public final class SaxEventSink implements OutputSink {
                                   final String prefix,
                                   final String kind,
                                   final String name) {
-        final String uri = element.scope.get(prefix);
+        final String uri = inScope(element, prefix);
         if (uri == null) {
             throw new StructureException(
                     kind + " " + name + " uses prefix '" + prefix + "', which is not bound in scope");
@@ -261,15 +258,46 @@ public final class SaxEventSink implements OutputSink {
         return uri;
     }
 
-    /** The bindings every document starts with: no prefix is no namespace, and xml is fixed. */
-    private static final Map<String, String> ROOT_SCOPE = Map.of("", "", "xml", XML_NS);
+    /**
+     * A prefix's binding here, or null — walked up the open elements rather than held as a map.
+     *
+     * <p>The two the document always has are answered without walking: the empty prefix is bound
+     * to no namespace, and {@code xml} is bound by the specification.
+     */
+    private static String inScope(final Element from, final String prefix) {
+        for (Element e = from; e != null; e = e.parent) {
+            for (int i = 0; i < e.declarationCount; i += 2) {
+                if (e.declarations[i].equals(prefix)) {
+                    return e.declarations[i + 1];
+                }
+            }
+        }
+        if (prefix.isEmpty()) {
+            return "";
+        }
+        return "xml".equals(prefix) ? XML_NS : null;
+    }
+
+    /** Add a name and value to a flat pair array, growing it — null until the first pair. */
+    private static String[] append(final String[] pairs, final int count,
+                                   final String name, final String value) {
+        String[] grown = pairs;
+        if (grown == null) {
+            grown = new String[4];
+        } else if (count == grown.length) {
+            grown = Arrays.copyOf(grown, count * 2);
+        }
+        grown[count] = name;
+        grown[count + 1] = value;
+        return grown;
+    }
 
     // -----------------------------------------------------------------------------------
     // Plumbing
     // -----------------------------------------------------------------------------------
 
     private Element current(final String call, final String subject) {
-        final Element element = open.peek();
+        final Element element = innermost;
         if (element == null) {
             throw new StructureException(call + " " + subject + " with no element open");
         }
@@ -278,7 +306,7 @@ public final class SaxEventSink implements OutputSink {
 
     /** The same, for the one call that names no subject. */
     private Element current(final String call) {
-        final Element element = open.peek();
+        final Element element = innermost;
         if (element == null) {
             throw new StructureException(call + " with no element open");
         }
@@ -304,11 +332,15 @@ public final class SaxEventSink implements OutputSink {
         private final String qName;
         private final Element parent;
         private final boolean omitIfEmpty;
-        /** Shared with the parent until this element declares a prefix of its own. */
-        private Map<String, String> scope;
-        private boolean ownsScope;
-        private final List<String[]> declarations = new ArrayList<>();
-        private final List<String[]> attributes = new ArrayList<>();
+        /**
+         * Declarations and attributes as flat {@code prefix, uri, …} and {@code qName, value, …}
+         * pairs, null until there is one, and no scope map — a prefix is looked up by walking the
+         * open elements. The byte sink says why, at length; this is the same change.
+         */
+        private String[] declarations;
+        private int declarationCount;
+        private String[] attributes;
+        private int attributeCount;
         private boolean started;
         private String uri;
         private String localName;
@@ -317,7 +349,6 @@ public final class SaxEventSink implements OutputSink {
             this.qName = qName;
             this.parent = parent;
             this.omitIfEmpty = omitIfEmpty;
-            this.scope = parent == null ? ROOT_SCOPE : parent.scope;
         }
     }
 
