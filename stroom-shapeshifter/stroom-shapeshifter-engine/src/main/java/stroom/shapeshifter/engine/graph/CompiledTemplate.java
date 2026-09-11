@@ -63,7 +63,7 @@ public record CompiledTemplate(Template template,
                                int maxMatch,
                                boolean consume,
                                int contentGroup,
-                               Set<Integer> onlyMatch,
+                               int[] onlyMatch,
                                CompiledCondition guard,
                                VarName[] clearNames,
                                VarName[] captureNames) {

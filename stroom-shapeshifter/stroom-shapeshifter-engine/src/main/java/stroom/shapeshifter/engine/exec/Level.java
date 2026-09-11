@@ -219,8 +219,18 @@ final class Level {
                     + preview(data, cursor, cursor + match.matchStart()) + "]"));
         }
         vars.frames().match(matchCount);
-        final Set<Integer> onlyMatch = candidate.onlyMatch();
-        final boolean wanted = onlyMatch == null || onlyMatch.contains(matchCount);
+        // A linear scan over an int[], not a Set.contains: this runs on every match, and the
+        // set is a handful of indices at most — usually one (design 33 §11).
+        final int[] onlyMatch = candidate.onlyMatch();
+        boolean wanted = onlyMatch == null;
+        if (!wanted) {
+            for (final int only : onlyMatch) {
+                if (only == matchCount) {
+                    wanted = true;
+                    break;
+                }
+            }
+        }
         if (wanted) {
             runBody(candidate, match, matchCount, out, locateBase, ignoreErrors, depth);
         }

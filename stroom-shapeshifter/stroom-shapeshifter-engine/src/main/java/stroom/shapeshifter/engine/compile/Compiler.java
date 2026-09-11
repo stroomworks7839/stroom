@@ -35,6 +35,7 @@ import stroom.shapeshifter.engine.text.RegexEncodings;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Turns an authored configuration into one that can run.
@@ -257,6 +258,23 @@ public final class Compiler {
     }
 
     /**
+     * The match indices whose bodies run, as a sorted {@code int[]}, or null for all of them.
+     *
+     * <p>The authored form is a {@code Set<Integer>} and stays one — the model stays the model
+     * (D35) — but {@code Level} tests it on <b>every match</b>, up to 569,199 times per operation
+     * on the strict Windows-event row, and a hash lookup that boxes an {@code Integer} to ask
+     * "is this the second match?" is the wrong shape for that. Sorted so the array is
+     * deterministic; a set's iteration order is not.
+     */
+    private static int[] onlyMatch(final Template template) {
+        final Set<Integer> only = template.matchLimits().onlyMatch();
+        if (only == null) {
+            return null;
+        }
+        return only.stream().mapToInt(Integer::intValue).sorted().toArray();
+    }
+
+    /**
      * Compile a template, deciding here everything the match loop would otherwise ask the
      * authored {@link Template} for on every candidate, every match and every level entry
      * (design 29 §3.1, D51). The model stays the model, carried for names, identifiers and
@@ -284,7 +302,7 @@ public final class Compiler {
                 // A delimiter template's content is the field, group 1; every other template's
                 // is the whole match. The group that carries the delimiter too is not it.
                 template.match() instanceof MatchExpression.Delimiter ? 1 : 0,
-                template.matchLimits().onlyMatch(),
+                onlyMatch(template),
                 guard,
                 clear.toArray(VarName[]::new),
                 named.toArray(VarName[]::new));
