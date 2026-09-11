@@ -94,10 +94,25 @@ public final class Conditions {
                     text(value.select(), match, matchCount, vars).contains(value.substring());
             case final CompiledCondition.StartsWith value ->
                     text(value.select(), match, matchCount, vars).startsWith(value.prefix());
-            case final CompiledCondition.And value -> value.conditions().stream()
-                    .allMatch(child -> evaluate(child, match, matchCount, vars));
-            case final CompiledCondition.Or value -> value.conditions().stream()
-                    .anyMatch(child -> evaluate(child, match, matchCount, vars));
+            // A loop rather than a stream, and it is not only the array: the stream allocated a
+            // pipeline and a capturing lambda on every evaluation of every and/or, which is
+            // half of E46. Both still short-circuit, as allMatch and anyMatch did.
+            case final CompiledCondition.And value -> {
+                for (final CompiledCondition child : value.conditions()) {
+                    if (!evaluate(child, match, matchCount, vars)) {
+                        yield false;
+                    }
+                }
+                yield true;
+            }
+            case final CompiledCondition.Or value -> {
+                for (final CompiledCondition child : value.conditions()) {
+                    if (evaluate(child, match, matchCount, vars)) {
+                        yield true;
+                    }
+                }
+                yield false;
+            }
             case final CompiledCondition.Not value ->
                     !evaluate(value.condition(), match, matchCount, vars);
             // Set by the iteration (design/16 §4.3). Outside a

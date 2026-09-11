@@ -87,10 +87,12 @@ final class ConditionCompiler {
         };
     }
 
-    private static List<CompiledCondition> all(final List<Condition> conditions,
-                                               final Map<PatternKey, BytePattern> patterns,
-                                               final Interner names) {
-        return conditions.stream().map(child -> compile(child, patterns, names)).toList();
+    private static CompiledCondition[] all(final List<Condition> conditions,
+                                           final Map<PatternKey, BytePattern> patterns,
+                                           final Interner names) {
+        return conditions.stream()
+                .map(child -> compile(child, patterns, names))
+                .toArray(CompiledCondition[]::new);
     }
 
     /**

@@ -74,19 +74,13 @@ public sealed interface CompiledCondition {
     }
 
     /** Every one of them. */
-    record And(List<CompiledCondition> conditions) implements CompiledCondition {
+    record And(CompiledCondition[] conditions) implements CompiledCondition {
 
-        public And {
-            conditions = List.copyOf(conditions);
-        }
     }
 
     /** Any one of them. */
-    record Or(List<CompiledCondition> conditions) implements CompiledCondition {
+    record Or(CompiledCondition[] conditions) implements CompiledCondition {
 
-        public Or {
-            conditions = List.copyOf(conditions);
-        }
     }
 
     /** The opposite. */

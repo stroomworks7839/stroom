@@ -107,10 +107,16 @@ class CompilerWalksTest {
     private static void collect(final CompiledCondition condition, final List<String> found) {
         switch (condition) {
             case final CompiledCondition.Matches value -> found.add(value.pattern().pattern());
-            case final CompiledCondition.And value -> value.conditions()
-                    .forEach(child -> collect(child, found));
-            case final CompiledCondition.Or value -> value.conditions()
-                    .forEach(child -> collect(child, found));
+            case final CompiledCondition.And value -> {
+                for (final CompiledCondition child : value.conditions()) {
+                    collect(child, found);
+                }
+            }
+            case final CompiledCondition.Or value -> {
+                for (final CompiledCondition child : value.conditions()) {
+                    collect(child, found);
+                }
+            }
             case final CompiledCondition.Not value -> collect(value.condition(), found);
             default -> {
                 // No pattern to find.
