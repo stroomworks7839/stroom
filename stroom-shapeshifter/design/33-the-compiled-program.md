@@ -529,6 +529,42 @@ allocation question in E46's family rather than a collection in the graph, and c
 changing the `Transforms` library's signatures. Named here because a survey of collections will
 otherwise keep finding it and keep setting it aside.
 
+### E. The run state, which this inventory's scope missed
+
+*Added 2026-09-11, after the graph was finished and the owner asked the question the inventory
+should have asked itself: **what collections are read repeatedly while a record runs?** §11 was
+scoped to the compiled graph, and the two hottest collections in the engine are not in it.*
+
+| collection | where | read per |
+|---|---|---|
+| `VarRegistry.slots` — `List<List<Store>>` | `get`, `store`, `entry`, `fromCurrentScope` each do `slots.get(slot)` | **every reference resolution** — 24,960 per operation on `apache_httpd`, and `log_sessions` resolved 246,266 names per operation before design 30 made them slots |
+| `Store.values` — `List<TypedValue>` | `get`, `set`, `remove`, `size`, `lastIndex`, `clear` | **every capture write and every value read** |
+| `Body.keyIndexes` — `List<Map<String, Filed>>` | outer by slot, inner by the key's value | per `key` / `key-get` |
+| `FunctionRuntime.definitions`, `notRunInPreview`, `state` | binding and invocation | per extension-function call |
+
+**This is design 30's unfinished half, and it is worth naming as such.** That design removed a
+`HashMap` lookup per resolution and replaced it with `slots.get(name.slot())` — the lookup became
+O(1), which was the point, and it is *still a collection read on the hottest path in the engine*.
+`Store.values` is the same shape one level down: every capture a template binds and every value a
+reference reads goes through a `List<TypedValue>`.
+
+**Both are run state, not graph**, so the rule that governs them is different. A body is
+immutable and shared between runs, which is what made `CompiledOp[]` safe and what the no-writes
+comment on `CompiledOp` is for. A store is written constantly, by one run, and grows: `Store.set`
+pads with nulls up to the match index. So the conversion is not a type change but a small
+growable-array implementation — the thing `ArrayList` already is, minus the interface call and
+minus `Integer` boxing where indices are involved.
+
+*Order, by reads:* `VarRegistry.slots` first, `Store.values` second, and then a decision on
+`keyIndexes` and the function runtime, which are per-instruction rather than per-resolution.
+
+*And the honest prior, given what §10 measured:* the body arrays were worth +12.4% on
+`regex_lines` for a change of this shape, so these two are not obviously smaller. But `slots` is
+read through `ArrayList` at a site that is probably monomorphic, where the body lists were
+polluted across every `List` implementation in the engine — which is the mechanism §10 says
+actually paid. That difference is a reason to measure each on its own rather than to assume the
+result carries over.
+
 ### The order to do them in
 
 By walks per operation, which is the ranking that predicted the body result: **`onlyMatch` and
