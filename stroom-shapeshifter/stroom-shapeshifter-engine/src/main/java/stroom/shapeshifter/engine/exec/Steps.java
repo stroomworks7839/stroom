@@ -29,7 +29,9 @@ import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -83,7 +85,7 @@ public final class Steps {
         final Encoding encoding = program.encoding();
         int pos = 0;
         int highWater = 0;
-        final Outputs outputs = new Outputs(steps.length);
+        final List<TypedValue> outputs = new ArrayList<>(steps.length);
 
         for (final CompiledStep step : steps) {
             // The two seeks that can move backwards are handled here rather than as ordinary
@@ -105,7 +107,7 @@ public final class Steps {
                 pos -= back;
                 outputs.add(NOTHING);
             } else {
-                final Result result = step(step, data, from + pos, to, outputs, pos,
+                final Result result = step(step, data, from + pos, to, outputs, List.of(), pos,
                         decoding, encoding);
                 if (result == null) {
                     return null;
@@ -121,7 +123,7 @@ public final class Steps {
         final TypedValue[] groups = new TypedValue[outputs.size() + 1];
         groups[0] = TypedValue.of(Arrays.copyOfRange(data, from, from + highWater), encoding);
         for (int i = 0; i < outputs.size(); i++) {
-            groups[i + 1] = outputs.at(i);
+            groups[i + 1] = outputs.get(i);
         }
         return new MatchResult(groups, highWater, 0);
     }
@@ -134,15 +136,16 @@ public final class Steps {
      * Run one step at a position: one arm per step kind, so the method is as long as the
      * vocabulary.
      *
-     * @param outputs  every output produced so far, enclosing sequences' first and this
-     *                 sequence's after them, which is the numbering a step reference names
+     * @param prior    outputs from enclosing sequences, which a step reference can name
+     * @param local    outputs from this sequence so far, numbered after the prior ones
      * @param position how far into the whole match this is, which is what {@code Tell} reports
      */
     private static Result step(final CompiledStep step,
                                final byte[] data,
                                final int from,
                                final int to,
-                               final Outputs outputs,
+                               final List<TypedValue> prior,
+                               final List<TypedValue> local,
                                final int position,
                                final Decoding decoding,
                                final Encoding encoding) {
@@ -224,7 +227,7 @@ public final class Steps {
                         end - from);
             }
             case final CompiledStep.TakeBytes takeBytes ->
-                    take(count(takeBytes.count(), outputs), data, from, to, encoding);
+                    take(count(takeBytes.count(), prior, local), data, from, to, encoding);
             case final CompiledStep.TakeN takeN -> take(takeN.count(), data, from, to, encoding);
             case final CompiledStep.AnyChar ignored -> {
                 if (available <= 0) {
@@ -258,7 +261,7 @@ public final class Steps {
                                 (int) varint[1]);
             }
             case final CompiledStep.Seek seek -> {
-                final Integer count = count(seek.count(), outputs);
+                final Integer count = count(seek.count(), prior, local);
                 yield count == null || count > available
                         ? null
                         : new Result(NOTHING, count);
@@ -266,7 +269,7 @@ public final class Steps {
             // Reached only inside a combinator, where going backwards cannot be expressed. The
             // top-level sequence handles both seeks itself.
             case final CompiledStep.SeekAbs seek -> {
-                final Integer target = count(seek.offset(), outputs);
+                final Integer target = count(seek.offset(), prior, local);
                 if (target == null || target < position) {
                     yield null;
                 }
@@ -278,7 +281,7 @@ public final class Steps {
             case final CompiledStep.SeekBack ignored -> null;
             case final CompiledStep.Tell ignored -> new Result(new TypedValue.Integer(position), 0);
             case final CompiledStep.Decode decode -> {
-                final byte[] input = bytes(decode.data(), outputs);
+                final byte[] input = bytes(decode.data(), prior, local);
                 if (input == null) {
                     yield null;
                 }
@@ -288,7 +291,7 @@ public final class Steps {
                         : new Result(TypedValue.of(decoded, encoding), 0);
             }
             case final CompiledStep.Encode encode -> {
-                final byte[] input = bytes(encode.data(), outputs);
+                final byte[] input = bytes(encode.data(), prior, local);
                 if (input == null) {
                     yield null;
                 }
@@ -313,7 +316,7 @@ public final class Steps {
             case final CompiledStep.Choice choice -> {
                 for (final CompiledStep[] alternative : choice.alternatives()) {
                     final Integer consumed = sequence(
-                            alternative, data, from, to, outputs, position, decoding, encoding);
+                            alternative, data, from, to, prior, local, position, decoding, encoding);
                     if (consumed != null) {
                         yield consumed(data, from, consumed, encoding);
                     }
@@ -322,7 +325,7 @@ public final class Steps {
             }
             case final CompiledStep.Optional optional -> {
                 final Integer consumed = sequence(
-                        optional.steps(), data, from, to, outputs, position, decoding, encoding);
+                        optional.steps(), data, from, to, prior, local, position, decoding, encoding);
                 yield consumed(data,
                         from,
                         consumed == null
@@ -338,7 +341,7 @@ public final class Steps {
                         : repeat.max();
                 while (iterations < max && from + total < to) {
                     final Integer consumed = sequence(
-                            repeat.steps(), data, from + total, to, outputs, position + total, decoding, encoding);
+                            repeat.steps(), data, from + total, to, prior, local, position + total, decoding, encoding);
                     if (consumed == null || consumed == 0) {
                         break;
                     }
@@ -351,17 +354,17 @@ public final class Steps {
             }
             case final CompiledStep.Sequence nested -> {
                 final Integer consumed = sequence(
-                        nested.steps(), data, from, to, outputs, position, decoding, encoding);
+                        nested.steps(), data, from, to, prior, local, position, decoding, encoding);
                 yield consumed == null
                         ? null
                         : consumed(data, from, consumed, encoding);
             }
             case final CompiledStep.Peek peek -> sequence(
-                    peek.steps(), data, from, to, outputs, position, decoding, encoding) == null
+                    peek.steps(), data, from, to, prior, local, position, decoding, encoding) == null
                     ? null
                     : new Result(NOTHING, 0);
             case final CompiledStep.Not not -> sequence(
-                    not.steps(), data, from, to, outputs, position, decoding, encoding) == null
+                    not.steps(), data, from, to, prior, local, position, decoding, encoding) == null
                     ? new Result(NOTHING, 0)
                     : null;
         };
@@ -378,29 +381,41 @@ public final class Steps {
                                     final byte[] data,
                                     final int from,
                                     final int to,
-                                    final Outputs outputs,
+                                    final List<TypedValue> enclosing,
+                                    final List<TypedValue> callerLocal,
                                     final int position,
                                     final Decoding decoding,
                                     final Encoding encoding) {
-        // The mark is what a separate list was: the nested steps append to the one buffer, so
-        // they see everything produced so far, and on the way out everything above the mark is
-        // dropped — which is what letting a local list go out of scope did. Both exits truncate,
-        // and the failing one matters most: without it a failed alternative's outputs would
-        // stay in the index space of whatever runs next (design 34 §3).
-        final int mark = outputs.size();
+        final List<TypedValue> prior = concat(enclosing, callerLocal);
         int pos = 0;
+        final List<TypedValue> local = new ArrayList<>(steps.length);
         for (final CompiledStep step : steps) {
-            final Result result = step(step, data, from + pos, to, outputs, position + pos,
+            final Result result = step(step, data, from + pos, to, prior, local, position + pos,
                     decoding, encoding);
             if (result == null) {
-                outputs.truncate(mark);
                 return null;
             }
             pos += result.consumed();
-            outputs.add(result.output());
+            local.add(result.output());
         }
-        outputs.truncate(mark);
         return pos;
+    }
+
+    /**
+     * Two output lists as one, copying only when both have content — which only a doubly
+     * nested combinator ever asks for, so the common paths stay allocation-free.
+     */
+    private static List<TypedValue> concat(final List<TypedValue> prior, final List<TypedValue> local) {
+        if (local.isEmpty()) {
+            return prior;
+        }
+        if (prior.isEmpty()) {
+            return local;
+        }
+        final List<TypedValue> all = new ArrayList<>(prior.size() + local.size());
+        all.addAll(prior);
+        all.addAll(local);
+        return all;
     }
 
     // -----------------------------------------------------------------------------------
@@ -430,11 +445,17 @@ public final class Steps {
     /**
      * A step reference: a number written down, or one an earlier step produced.
      */
-    private static Integer count(final StepRef reference, final Outputs outputs) {
+    private static Integer count(final StepRef reference, final List<TypedValue> outputs) {
+        return count(reference, outputs, List.of());
+    }
+
+    private static Integer count(final StepRef reference,
+                                 final List<TypedValue> prior,
+                                 final List<TypedValue> local) {
         return switch (reference) {
             case final StepRef.Literal literal -> literal.value();
             case final StepRef.StepOutput output -> {
-                final TypedValue value = outputs.at(output.index());
+                final TypedValue value = at(output.index(), prior, local);
                 if (value == null) {
                     yield null;
                 }
@@ -446,9 +467,11 @@ public final class Steps {
         };
     }
 
-    private static byte[] bytes(final StepRef reference, final Outputs outputs) {
+    private static byte[] bytes(final StepRef reference,
+                                final List<TypedValue> prior,
+                                final List<TypedValue> local) {
         if (reference instanceof final StepRef.StepOutput output) {
-            final TypedValue value = outputs.at(output.index());
+            final TypedValue value = at(output.index(), prior, local);
             return value == null
                     ? null
                     : value.asBytes();
@@ -457,58 +480,14 @@ public final class Steps {
         return null;
     }
 
-    /**
-     * The step outputs of one match, in execution order, as a growable array.
-     *
-     * <p>An index is a position in this buffer and nothing else. It replaced a pair of lists — a
-     * caller's and a nested sequence's — which every read had to reconcile by comparing against
-     * the first one's size and subtracting; the pair also cost a list per match, a list per
-     * nested combinator invocation, and a copy whenever both had content (design 34 §1).
-     */
-    private static final class Outputs {
-
-        private TypedValue[] values;
-        private int count;
-
-        private Outputs(final int expected) {
-            values = new TypedValue[Math.max(4, expected)];
+    private static TypedValue at(final int index, final List<TypedValue> prior, final List<TypedValue> local) {
+        if (index < prior.size()) {
+            return prior.get(index);
         }
-
-        private int size() {
-            return count;
-        }
-
-        /** The output at an index, or null when nothing has produced one there. */
-        private TypedValue at(final int index) {
-            return index >= 0 && index < count ? values[index] : null;
-        }
-
-        /**
-         * Append, with the growth in a method of its own.
-         *
-         * <p>Not a stylistic split. With the {@code Arrays.copyOf} inline this is 50 bytes, over
-         * {@code MaxInlineSize} of 35, and {@code PrintInlining} reports "callee is too large" at
-         * every call site — which cost {@code progressive} 4.09% and {@code progressive_text} 3.36% over six
-         * interleaved rounds when this buffer replaced an {@code ArrayList}. {@code ArrayList.add}
-         * is 23 bytes and inlines precisely because the JDK keeps its growth out of line. Same
-         * shape here, same reason.
-         */
-        private void add(final TypedValue value) {
-            if (count == values.length) {
-                grow();
-            }
-            values[count++] = value;
-        }
-
-        private void grow() {
-            values = Arrays.copyOf(values, count * 2);
-        }
-
-        /** Drop everything above a mark, releasing what it held. */
-        private void truncate(final int mark) {
-            Arrays.fill(values, mark, count, null);
-            count = mark;
-        }
+        final int offset = index - prior.size();
+        return offset < local.size()
+                ? local.get(offset)
+                : null;
     }
 
     /**

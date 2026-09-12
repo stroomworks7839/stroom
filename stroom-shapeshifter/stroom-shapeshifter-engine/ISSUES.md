@@ -1624,6 +1624,86 @@ sampled profile of `win_sec_xml` at all. Not a finding.
 Profiles: `design/benchmarks/ph4-conditions-stack-apache-lines8.txt`. Design:
 `design/30-references-not-names.md`.
 
+### E50 — The step output buffer cost 4% and nobody knows why
+**`open` 2026-09-12.** Design 34 replaced the step interpreter's two output lists with one buffer.
+It measured **worse**, twice, and the one mechanism that explained it was probed and refuted. The
+code is reverted; this entry exists so the change can be inspected on its own.
+
+**The commit to look at is `dee6788ea0`** — "Design 34: the step interpreter's outputs are one
+buffer". Its `Steps.java` hunk is the whole of what regressed; the other three files in it
+(`StepRef.java`'s javadoc, the design, two tests) were kept and are not suspects.
+
+```
+git show dee6788ea0 -- '*/exec/Steps.java'
+```
+
+**Reverted by** `d1ded80dd8` — `Steps.java` only, restored byte-for-byte to `64033f380c`.
+
+**What it measured.** Interleaved, six rounds, order alternating within each round, `64033f380c`
+against `dee6788ea0`:
+
+| row | r1 | r2 | r3 | r4 | r5 | r6 | mean | sign |
+|---|---|---|---|---|---|---|---|---|
+| `progressive` | −4.51 | −3.60 | −5.09 | −4.12 | −3.45 | −3.78 | **−4.09%** | 0/6 |
+| `progressive_text` | −3.69 | −3.29 | −3.00 | −2.87 | −3.76 | −3.54 | **−3.36%** | 0/6 |
+
+Twelve readings, twelve negative, no round within a per-cent of zero. The full-suite sequential
+set had already shown −4.2 and −3.7 percentage-point steps at that point; the interleave confirmed
+them rather than discovering them.
+
+**What was probed, and why it was wrong.** `PrintInlining` on the `progressive` row showed exactly
+one difference between the two sides:
+
+```
+before   java.util.ArrayList::add     (23 bytes)  inline
+after    Steps$Outputs::add           (50 bytes)  failed to inline: callee is too large
+```
+
+`MaxInlineSize` is 35. `Outputs.add` had the `Arrays.copyOf` inline with the store, making it 50
+bytes, so an un-inlined call landed on every step output — and these are the only two rows that
+produce any. `ArrayList.add(E)` is 23 bytes precisely because the JDK keeps its growth in a
+separate method. Splitting `grow()` out took `add` to 33 bytes and restored the inlining, verified
+in both worktrees' bytecode.
+
+*It bought nothing.* Interleaved six rounds, `7506d62981` against `47886b55dd`:
+
+| row | mean | sign |
+|---|---|---|
+| `progressive` | **−0.16%** | 3/6 |
+| `progressive_text` | **+0.03%** | 3/6 |
+
+Both inside a quarter of a per-cent and sign-split. **The inlining difference was real and was not
+the cause.** That commit (`47886b55dd`) is reverted with the rest.
+
+**What the search space actually is, which is the useful part of this entry.** Design 34 §5
+established that **no fixture and no benchmark row nests** — so `sequence(...)`, the method the
+design is actually about and the only place the mark-and-truncate runs, is **never called on
+either row**. Whatever cost the 4% is on the flat path, and the flat path changed in only four
+ways:
+
+1. `new ArrayList<>(steps.length)` became `new Outputs(steps.length)` — one object plus a
+   `TypedValue[Math.max(4, steps.length)]` instead of one object plus an `Object[steps.length]`.
+2. `outputs.add(v)` became `Outputs.add` (the inlining candidate — refuted).
+3. Reads went from `at(index, prior, local)` — a size compare against the first list, then
+   `ArrayList.get` — to `Outputs.at`, two bounds compares and an array load. This was expected to
+   be *faster*.
+4. The result loop built `groups` from `outputs.at(i)` instead of `outputs.get(i)`.
+
+One of those four costs 4%, and 3 is the one that was supposed to pay.
+
+**What has not been tried.** `-prof gc` on the pair, to see whether allocation moved at all —
+`Math.max(4, …)` over-allocates for a short step list, and `progressive`'s templates are short.
+And a four-way bisect of the changes above, each applied alone to the old file, which is a cheap
+sequence of one-minute probe runs rather than another evening.
+
+**The lesson, which E43 taught once already.** `PrintInlining` answers *what the compiler did*, not
+*what cost the time*. A single real difference is not a cause, and the gap between those two is
+where a plausible mechanism becomes a wrong one. Two evenings were spent on this; the second was
+spent confirming a guess instead of narrowing the space.
+
+Sites: `exec/Steps.java` (reverted), `design/34-the-step-output-buffer.md`,
+`design/benchmarks/points.md` (point 34 and its two interleaves).
+
 ### E48 — A reference to a group of a named variable reads group 1, whatever group it asked for
 **`resolved` 2026-09-11. Rewritten twice the same day; both earlier versions were wrong, and how they
 were wrong is the useful part.**

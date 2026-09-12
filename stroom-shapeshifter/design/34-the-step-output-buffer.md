@@ -220,3 +220,32 @@ forget. Only sabotage found that, and only after the defect was named.
 
 *Unmeasured.* §6's reading is still owed, and §7's third condition still stands — `progressive` and
 `progressive_text` are the only rows that can move.
+
+## 9. Reverted, 2026-09-12
+
+**It measured worse and the code is gone.** Interleaved against `64033f380c`, six rounds:
+`progressive` **−4.09%**, `progressive_text` **−3.36%**, twelve readings and twelve negative.
+
+§7's third condition said a flat reading would condemn the design. It did not measure flat — it
+measured worse, on both of the only rows that can reach it, which is a stronger version of the
+same verdict. §4's claim that the design removes allocation is not wrong, but §5 had already
+established that the allocation it removes needs nesting and **nothing in the corpus nests**, so
+what these rows got was the flat path only, and the flat path cost them.
+
+*One explanation was probed and refuted* — `Outputs.add` at 50 bytes failing `MaxInlineSize`,
+fixed to 33 bytes and inlining, measuring −0.16% and +0.03%. Real difference, not the cause.
+
+**What survives the revert**, and it is not nothing:
+
+- **The seventeen combinator tests**, committed at `1df2fc959c` *before* the buffer existed. That
+  separation was made so a revert would keep them, and it did.
+- **Two more tests** from `dee6788ea0` itself, both of which pass against the restored
+  implementation because they test behaviour rather than the buffer:
+  `failedAlternativeOutputsDoNotSurviveIntoTheIndexSpace` — the defect §3 named, which nothing
+  else covered — and `theBufferGrowsAndKeepsWhatItHeldAtItsOldIndex`.
+- **`StepRef.StepOutput`'s javadoc**, which §2 said overstated the addressing rule and §6 never
+  corrected. That correction is independent of the buffer and stays.
+- **§5's finding** that the nested combinator path is unreachable from the corpus, which is why
+  E50's search space is only four lines wide.
+
+The open question is E50. This design is closed.
