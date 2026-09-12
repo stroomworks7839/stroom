@@ -1637,7 +1637,7 @@ buffer". Its `Steps.java` hunk is the whole of what regressed; the other three f
 git show dee6788ea0 -- '*/exec/Steps.java'
 ```
 
-**Reverted by** `d1ded80dd8` — `Steps.java` only, restored byte-for-byte to `64033f380c`.
+**Reverted by** `7e06e6c529` — `Steps.java` only, restored byte-for-byte to `64033f380c`.
 
 **What it measured.** Interleaved, six rounds, order alternating within each round, `64033f380c`
 against `dee6788ea0`:
