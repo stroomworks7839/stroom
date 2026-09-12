@@ -689,6 +689,138 @@ than separately: they are one path converted in three steps, and the floor step 
 configurations only, so the DS3 migration never executes in it — which makes that half both
 unmeasurable and the reason this half is safe.
 
+## The reading — the 2026-09-11 set, run 17:46 to 21:32
+
+Fourteen points over floor `c2aee70a05` (point 18), full mode, sequential. All fourteen JSONs are
+in this directory.
+
+**Cumulative, against the floor. `+` is faster.**
+
+| row | 23 | 26 | 29 | 30 | 31 | 32 | 33 | 34 | 35 |
+|---|---|---|---|---|---|---|---|---|---|
+| `apache_httpd` | +7.0 | +8.1 | +12.4 | +14.1 | **+30.8** | +37.2 | +38.0 | +39.2 | **+42.8** |
+| `csv_header` | +9.0 | +12.2 | +12.5 | +12.9 | +14.4 | +18.1 | +21.3 | +22.1 | **+23.2** |
+| `log_sessions` | +7.2 | +5.6 | +7.2 | +6.8 | +10.1 | +13.0 | +14.3 | +13.4 | **+15.9** |
+| `regex_lines` | +7.7 | +13.3 | +11.1 | +10.1 | +8.4 | +8.7 | +9.2 | +8.3 | +8.8 |
+| `ausearch` | +2.6 | +8.1 | +6.9 | +8.4 | +7.6 | +9.5 | +5.7 | +8.6 | +8.1 |
+| `element_storm` | +2.0 | +2.1 | +0.9 | +3.6 | +2.6 | +2.1 | **+9.3** | +7.4 | +7.1 |
+| `win_sec_xml` | +0.6 | +3.5 | +3.7 | +3.4 | +4.5 | +4.2 | +4.6 | +4.3 | +5.5 |
+| `win_sec` | +1.9 | +2.4 | +1.7 | +2.7 | +5.6 | +3.2 | +3.0 | −4.3 | +5.1 |
+| `win_sec_strict` | +1.3 | +2.3 | +2.2 | +3.2 | +2.6 | +3.7 | +3.3 | +4.2 | +4.8 |
+| `progressive` | +0.6 | −0.6 | +0.5 | +0.9 | +1.0 | +0.6 | +1.1 | **−3.0** | −2.5 |
+| `progressive_text` | +0.4 | +3.8 | +3.2 | +3.7 | +3.5 | +3.9 | +4.1 | **+0.4** | −0.3 |
+
+### What the control says, and read nothing smaller than it
+
+**Point 29 was put in the set as a control** — four cold sites, none of which can move a run row —
+and it earned its place. Its largest step on any run row is **3.1 pp**, mean **0.9 pp**. That is
+this run's noise floor on a single row, measured rather than assumed, and it is the number every
+other step has to beat.
+
+Two rows are worse than that on their own. `regex_lines` steps +4.8, −5.3, +6.0, −3.6, +4.6, −3.1
+across points with no mechanism that could do it; `win_sec` swings −7.3 then +9.4 across points 34
+and 35, neither of which touches anything it runs. **Neither row supports a per-point reading in
+this set**, only the cumulative one.
+
+### Point by point, against what each row predicted
+
+*Hits.* **Point 27** said `apache_httpd` was the row, for the streams and lambdas in `and`/`or`:
++3.0 pp, the largest step in the middle of the set. **Point 28** said the same row and said
+explicitly that a small move was the honest expectation: +1.5 pp. **Point 30** said its feature is
+set by no workload in the corpus and that **the expectation is that it moves nothing**: every step
+is inside the control band. Being right about nothing happening is worth as much as the rest.
+
+*The best call in the set.* **Point 33** named `element_storm` in advance — flat through every
+prior point, +2.2 at its best — and asked whether −8.9% allocation would convert to throughput.
+It stepped **+7.2 pp**, more than twice the control band, and has held since. `csv_header` took
++3.2 pp from the splitter escapes folded into the same point, also as written.
+
+*The one that was badly underestimated.* **Point 31** predicted the right rows and then hedged:
+*"this may be smaller than the body arrays despite more reads."* It was not. `apache_httpd`
+stepped **+16.7 pp** in one point — five times the control band and the largest single move in the
+whole sequence — with `log_sessions` +3.3 and `win_sec` +2.9 behind it. The run state, which
+design 33 §11's original inventory **missed entirely** and only caught in an afterthought section,
+turned out to hold the largest single gain available. Point 32 then added +6.4 pp on the same row
+and point 35 another +3.6. **The three together are +26.7 pp of `apache_httpd`'s +42.8.**
+
+*Wrong about which rows, inside the noise.* **Point 24** named the `win_sec` family and they moved
++0.4, +1.1, +0.4 — nothing — while `ausearch` took +5.9 and `csv_header` +4.2 in the same step
+with no mechanism to explain it. **Point 25** named four rows and only `win_sec_xml` (+3.3) moved.
+Both are at or inside the band once `regex_lines`-style volatility is allowed for; neither is
+evidence of anything.
+
+### Point 34 is a regression, and the interleave settled it
+
+**`progressive` stepped −4.2 pp and `progressive_text` −3.7 pp at point 34** — the two rows design
+34 named as the only ones that can reach its code, both down together. That was the shape of a
+real cost, but not callable from this set: both were barely outside the 3.1 pp control band, and
+the same point moved `win_sec` −7.3 pp on a row design 34 cannot touch by any mechanism.
+
+*So it was interleaved, the same evening — `64033f380c` against `dee6788ea0`, six rounds, order
+alternating within each round.* `+` means design 34 is faster:
+
+| row | r1 | r2 | r3 | r4 | r5 | r6 | mean | sign |
+|---|---|---|---|---|---|---|---|---|
+| `progressive` | −4.51 | −3.60 | −5.09 | −4.12 | −3.45 | −3.78 | **−4.09** | 0/6 |
+| `progressive_text` | −3.69 | −3.29 | −3.00 | −2.87 | −3.76 | −3.54 | **−3.36** | 0/6 |
+
+**Twelve readings, twelve negative, no round within a per-cent of zero.** Design 34 costs about
+4% on `progressive` and 3.4% on `progressive_text`. The sequential set had it right and the noise
+was not hiding it — but the sequential set could not have known that, which is the case for
+interleaving rather than an argument against the control.
+
+*Design 34 §7 named this outcome as its own condemnation* — "if it measures flat, allocation churn
+is not what these rows are spending their time on". It did not measure flat. It measured worse, on
+both of the only rows it can reach, which is the stronger version of the same verdict.
+**It was reverted on 2026-09-12 by `7e06e6c529`**, after the one probe that might have explained
+it was refuted below. The open question is now E50.
+
+**One explanation was probed and refuted, which is worth more than the guess would have been.**
+`PrintInlining` on the `progressive` row showed exactly one difference between the two sides:
+`ArrayList::add` is 23 bytes and inlines, while `Steps$Outputs::add` was 50 bytes — over
+`MaxInlineSize` of 35 — and reported "callee is too large" at every call site, on the only rows
+that produce step outputs. Splitting the growth into its own method took it to 33 bytes and
+restored the inlining, verified in both worktrees' bytecode.
+
+*It made no difference.* Interleaved six rounds, `7506d62981` against `47886b55dd`:
+
+| row | r1 | r2 | r3 | r4 | r5 | r6 | mean | sign |
+|---|---|---|---|---|---|---|---|---|
+| `progressive` | +0.01 | +0.26 | −1.44 | +0.68 | −0.08 | −0.38 | **−0.16** | 3/6 |
+| `progressive_text` | +0.48 | +0.90 | −0.73 | −0.52 | −0.14 | +0.22 | **+0.03** | 3/6 |
+
+Both inside a quarter of a per-cent, both sign-split. **The inlining difference was real and was
+not the cause.** The lesson is the one E43 already taught and this retook: `PrintInlining` answers
+*what the compiler did*, not *what cost the time*, and the gap between those two is where a
+plausible mechanism becomes a wrong one. A second probe — allocation with `-prof gc`, or a
+narrower bisect of the four changes on the flat path — is what is owed, not a third guess.
+
+**The rest of the why is not known and should not be guessed.** The corpus never nests, so `sequence()` — the
+method that carries the mark-and-truncate the design is actually about — is never called on either
+row. What changed for them is only the flat path: `ArrayList` became `Outputs` on a per-match
+buffer, and the split arithmetic left `at`. That should have been neutral to slightly positive.
+E43 is the precedent for the *kind* of question to ask, but the answer it gave here was wrong, so
+the search space is what E50 carries instead: four changes on the flat path, one of which costs
+4%, and the read path that was meant to pay is one of them.
+
+**The revert was clean**, because the seventeen combinator tests went in as their own commit
+(`1df2fc959c`) *before* the buffer. `7e06e6c529` restored `Steps.java` alone and kept every test —
+including the two `dee6788ea0` added, which pass against the old implementation because they test
+behaviour rather than the buffer. 1,203 tests either way. That is the whole reason they were
+committed separately.
+
+### What the set says overall
+
+Eleven array conversions plus two structural changes are worth **+42.8% on `apache_httpd`,
++23.2% on `csv_header`, +15.9% on `log_sessions`** and mid-single-digits nearly everywhere else,
+against a floor thirteen points below. The compile rows paid a consistent **1–2%** for it —
+`apache_httpd` −1.2%, `regex_lines` −1.6% — which is the predicted cost of building arrays where
+the compiler built immutable lists, and is the trade design 33 chose knowingly.
+
+The two rows that did not benefit are the two that run the step interpreter, and the interleave
+says point 34 cost them: −4.09% and −3.36%, twelve readings out of twelve negative. Without that
+point the set's step rows are roughly flat rather than down.
+
 ## Points deliberately not on the list
 
 The intermediate commits of design 25 — its phase 1, 2 and 3 and their audits, and the splitter
