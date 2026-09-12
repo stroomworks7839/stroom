@@ -65,12 +65,34 @@ rules every language already has, and adopting them is the point: nothing here h
 **Two scopes.**
 
 - **Global** — visible to everything, for the whole run.
-- **Template** — visible within that template and any descendant execution, and gone when that
+- **Template** — visible within that template and any descendant execution, and destroyed when that
   template's execution ends.
 
-**Declaration is what E49 could not express.** A name declared on the record template clears per
-record because that is when its scope ends. The same name declared globally survives the stream.
-Both are now statable, and neither is a heuristic.
+**It is var scope, not template scope.** There is no frame per template execution. A template
+holds the list of slots declared in it, and on exit it clears them. That is the whole run-time
+cost of lifetime: a walk of a small per-template array, and nothing at all for a template that
+declares nothing. A push and pop per execution would be 569,199 of them on `win_sec_strict`; this
+is zero.
+
+**Shadowing is mostly a compile-time resolution, not a stack.** Two declarations of the same name
+at two declaration sites are two slots; every reference is resolved to one of them when the
+configuration is compiled, exactly as design 30 resolved names to slots. Nothing shadows at run
+time and nothing is pushed.
+
+*The corpus says how common that even is:* across every fixture, **one** name is declared by two
+templates — `__kv`, by `kv_pair` and `extra_kv_pair` in `ausearch` — and it is a key-value capture,
+which §5 removes. Lexical shadowing is close to nonexistent.
+
+**The one case that needs real storage is the same declaration site live twice**, which compile
+time cannot resolve away because whether it happens is data-driven: which child template matches
+depends on the input, and a mode graph with a cycle — the `__rec_` recursive form is the explicit
+one — can re-enter a template while an outer activation is still live. One slot cannot hold both.
+
+*So a slot holds its value directly until a second declaration of it arrives, and becomes a stack
+only then.* The common case pays nothing and the rare case is correct. Whether the promotion is
+decided at run time on the second declaration, or at compile time by looking for cycles in the
+dispatch graph, is §9's business; the run-time test is simpler and cannot be wrong about a graph
+it did not have to analyse.
 
 ### Why declaration must be separable from capture
 
@@ -144,17 +166,22 @@ Leaving them alone costs nothing and removes the risk.
 
 ## 8. What it costs, and where it must not
 
-The run-time mechanism **already exists**: `VarRegistry`'s push/pop/shadow and its undo log are
-what lexical declaration needs, and they are already on arrays after design 33. So the bulk of
-this is compile-time — deciding which scope each declaration belongs to and emitting the pushes —
-rather than new machinery on the hot path.
+Most of this is compile-time: which slot each declaration owns, which slot each reference resolves
+to, and which template clears which slots on exit. The run time left over is small and it is worth
+being precise about, because design 33 has just shown that run-state access is where this engine's
+throughput lives — points 31, 32 and 35 are **+26.7 of `apache_httpd`'s +42.8**.
 
-The two places it could still cost:
+- **Clear on exit** — a walk of the declaring template's slot array. Nothing for a template that
+  declares none, which is most of them.
+- **The lazy stack** — one branch on write to test whether a slot is direct or stacked. The
+  promotion itself happens only on a second live declaration of the same site, which no fixture
+  currently does at all.
 
-- **A push per template execution**, where today captures are bound without one.
-  `win_sec_strict` makes 569,199 dispatches per operation, so a scope per execution is 569,199
-  pushes. The undo log is cheap but it is not free, and an empty scope should cost nothing.
-- **Declaration lookup**, if it is not resolved to a slot at compile time. It must be.
+**And it may take something away.** `VarRegistry` today pushes a scope for grouping, for-each,
+variables, calls and recursive applies, with an undo log restoring on unwind. Some of those are
+genuinely nested and bounded and will keep it; but if template lifetime is per-var rather than per
+frame, it is worth asking which of the remaining pushes are still earning their place rather than
+assuming the stack stays as it is.
 
 ## 9. What has to be ruled before anything is built
 
@@ -165,8 +192,11 @@ The two places it could still cost:
    Global is faithful and blunt; narrower is more useful and needs proof per case.
 3. **Are the four var types all needed at once**, or is scalar-plus-list enough to close the open
    issues, with map and set following?
-4. **Does a template scope open per execution or per dispatch?** E49 died on exactly this
-   distinction, and it decides whether a template matching twice in a record clears between.
+4. **Is the lazy stack promoted at run time or decided at compile time?** A cycle search over the
+   dispatch graph could mark the slots that can ever need stacking and leave every other slot a
+   plain field. The run-time test is simpler and cannot be wrong about an analysis it never made.
+5. **Which of `VarRegistry`'s existing pushes survive?** §8's last paragraph — this design may
+   shrink the scope stack rather than add to it.
 
 ## 10. How it would be gated
 
@@ -189,6 +219,10 @@ it was reading DS3's source. So:
 - **If two scopes are not enough.** The CSV headings are global and the record fields are
   template-scoped, but a third case — something per-dispatch rather than per-execution — would mean
   the model is under-powered and the special cases come back.
-- **If the push per template execution measures.** §8 names the row. Design 33 bought
-  +26.7 points on `apache_httpd` from run-state access; a lifetime model that spends it back has
-  not earned its correctness.
+- **If the lazy stack is not lazy enough.** The whole case for a direct slot that becomes a stack
+  on a second declaration is that the second declaration is rare — one name in the corpus, in a
+  feature §5 removes. If real configurations shadow routinely, every write pays the branch and the
+  promotion, and a plain stack would have been the honest choice from the start.
+- **If clear-on-exit is not where the cost went.** Design 33 bought +26.7 points on
+  `apache_httpd` from run-state access. A lifetime model that spends it back has not earned its
+  correctness, and §10 names `win_sec_strict` as the row that would say so.
