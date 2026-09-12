@@ -1,17 +1,16 @@
-# Design 35 — One binding, with a lifetime and a multiplicity
+# Design 35 — One binding, declared in a scope, with a type
 
-*Opened 2026-09-11, after E49 was built, measured against the corpus, and reverted.*
+*Opened 2026-09-11 after E49 was built, measured and reverted. Reshaped 2026-09-12 on the owner's
+model: lexical declaration, two scopes, var types, counters left alone.*
 
-**Status: open. Nothing is built. §7 lists what has to be ruled before anything is.**
+**Status: open. Nothing is built. §9 lists what has to be ruled first.**
 
-## 1. The observation this starts from
+## 1. Captures and variables are one thing
 
-Captures and variables are not two things. They are one thing with different **binding times**.
-
-Everything that binds a name in a run writes through the same two calls — `vars.store(name)` and
-`vars.put(name, store)` — into one `VarRegistry`, one slot space, one `Store`. The compiler's own
-refusal message already says so: *"no capture, variable, transform bind or parameter has that
-name."* Four binders, one namespace, and a reference cannot tell which of them wrote what it reads.
+Everything that binds a name writes through `vars.store(name)` or `vars.put(name, store)` into one
+`VarRegistry`, one slot space, one `Store`. The compiler's own refusal says so: *"no capture,
+variable, transform bind or parameter has that name."* Four binders, one namespace, and a reference
+cannot tell which wrote what it reads.
 
 | binder | bound when | value from |
 |---|---|---|
@@ -20,154 +19,176 @@ name."* Four binders, one namespace, and a reference cannot tell which of them w
 | parameter, call argument | at the call | the caller |
 | transform bind (`as`) | at the instruction | the transform's result |
 
-A capture is a variable whose value comes from the match and is bound before the body runs. That
-is the whole difference.
+A capture is a variable whose value comes from the match and is bound early. That is the whole
+difference, and it is a difference of *binding time*, not of kind.
 
-## 2. What is actually missing, stated three ways
+## 2. What is missing: declaration, and type
 
-**One namespace, four binders, one lifetime rule.** Only compiled captures have a rule: E19's
-clear on the template's first match of a dispatch. Key-value captures are excluded from
-`clearNames` outright. Variables, parameters and transform binds have no rule at all — and E19's
-own residual predicted they would "tail-leak in the same shape", which E28 then was.
+**One namespace, four binders, one lifetime rule.** Only compiled captures have a rule — E19's
+clear on the template's first match. Key-value captures are excluded outright. Variables,
+parameters and transform binds have none, and E19's residual predicted they would tail-leak in the
+same shape, which E28 then was.
 
-**A scope mechanism that captures never touch.** `VarRegistry` already has real scopes — `push`,
-`pop`, `shadow`, an undo log that restores on unwind. Every one of its callers is `Body`:
-grouping, for-each, variables, calls. Captures are bound outside any push. So the engine has a
-working lifetime mechanism and a lifetime problem, and they are not connected.
+**A scope mechanism nothing declarative reaches.** `VarRegistry` already has `push`, `pop`,
+`shadow` and an undo log that restores on unwind. Every caller is `Body` — grouping, for-each,
+variables, calls. Captures never participate, because nothing says *where a name belongs*.
 
-**Three meanings for one index.** A `Store` is `TypedValue[]` addressed by an int, and the int is
-always "the declaring template's match count" — but what a *match* is differs per template, so
-the same number means three different things:
+**Three meanings for one index.** A `Store` is addressed by an int that is always "the declaring
+template's match count" — but what a match *is* differs per template, so the number means which
+record, which column, or which token depending on who bound it, while parameters and loop
+variables write a literal 1 by convention. `latest()` is well defined in all of them and means
+something in only some.
 
-| binder | what the index counts |
-|---|---|
-| compiled capture on a per-record template | which record |
-| compiled capture on a per-column template | which column |
-| key-value capture on a per-token template | which token of the record |
-| parameter, loop variable, transform bind | nothing — the scalar convention, always 1 |
+## 3. Why every rule so far has broken something else
 
-`latest()` — the highest populated index — is well defined in all of them and *means* something
-in only some of them.
+- **E19** — clear on the template's first match, mirroring DS3's `parentMatchCount == 0`. Half
+  fixed, half pinned, 2026-08-20.
+- **Nothing** for key-value captures, which is why a record that *did* bind `key` can still read an
+  earlier record's token.
+- **E49** — clear on entering a level. Built 2026-09-11, reverted the same day: it fixed its first
+  demonstration and broke four golden fixtures, because **DS3 carries captures forward and the
+  goldens record it**. `DS3Parser.parse` calls `root.clear()` once per stream. The 4625 event at
+  `win_sec/input.txt:165` has no `Logon Type:` line and DS3 still emits
+  `<LogonType>Interactive</LogonType>`, carried from line 21.
 
-## 3. Why every fix so far has broken something else
+Three rules for one question, each inferred from where a template sits rather than from what its
+author meant. E49's design had already rejected "a scope per dispatch" because it destroys the CSV
+headings — the mechanism could not say *this one is per-record and that one is per-stream*, so it
+had to pick one and lose the other. That is what a missing concept looks like.
 
-Three rules have been proposed for one question, each inferred from where a template sits rather
-than from what its author meant:
+## 4. The model
 
-- **E19's rule** — clear on the template's first match — mirrors DS3's
-  `parentMatchCount == 0 → clearStores()`. Half fixed, half pinned, resolved 2026-08-20.
-- **No rule** for key-value captures, which is why a record that *did* write `key` can still read
-  an earlier record's token (§4).
-- **E49's rule** — clear on entering a level. Built 2026-09-11 and reverted the same day.
+**A variable's scope is where it is declared.** Assignment may happen deeper — in a descendant
+template's execution. Re-declaring a name in a deeper scope shadows the outer one. These are the
+rules every language already has, and adopting them is the point: nothing here has to be learned.
 
-E49's failure is the informative one. It fixed its first demonstration and broke four golden
-fixtures — `win_sec`, `win_sec_strict`, `win_app`, `win_app_xml` — because **DS3 carries captures
-forward and the goldens record it.** `DS3Parser.parse` calls `root.clear()` once per stream and
-nothing clears between records. Direct evidence: the 4625 event at `win_sec/input.txt` line 165
-has no `Logon Type:` line at all, and DS3's own output still emits
-`<LogonType>Interactive</LogonType>`, carried from the 4624 event at line 21.
+**Two scopes.**
 
-E49's design had already rejected "a scope per dispatch" on the grounds that it destroys the CSV
-headings. That was the signal: the mechanism could not express *"this one is per-record and that
-one is per-stream"*, so it had to pick one and lose the other. Three rules, each correct for the
-case it was derived from, is what a missing concept looks like.
+- **Global** — visible to everything, for the whole run.
+- **Template** — visible within that template and any descendant execution, and gone when that
+  template's execution ends.
 
-## 4. The narrow defect inside the broad one
+**Declaration is what E49 could not express.** A name declared on the record template clears per
+record because that is when its scope ends. The same name declared globally survives the stream.
+Both are now statable, and neither is a heuristic.
 
-E49's third demonstration is not the pinned case and is worth separating out.
+### Why declaration must be separable from capture
 
-```
-a=1 b=2 key=old
-key=new          → reads "old"
-```
+This is forced by the corpus, not chosen. In `win_sec`, **`event_record` reads 71 names captured
+by other templates** — `$LogonType` is captured by the `LogonType` template and read by
+`event_record` after the apply returns. The dominant pattern is *a descendant assigns, an ancestor
+reads*.
 
-The second record **does** bind `key`. The kv template matches once, writing index 1; the first
-record's three tokens wrote indices 1–3, and nothing cleared, so `latest()` finds `old` at 3.
+If a capture also declared, every one of those 71 would live in the capturing template's scope and
+be invisible to the reader. So the record template declares, its descendants assign, and it reads
+what they wrote — which is ordinary lexical scoping and needs no new idea.
 
-This is fixable on its own by clearing key-value captures per dispatch, and **it does not touch
-DS3 fidelity, because DS3 has no key-value captures to be faithful to.** It is a Shapeshifter
-construct whose lifetime was never settled. Whether to take it now as a patch or only as part of
-this design is §7's first ruling.
+*And it is how DS3 fidelity is kept.* DS3 clears once per `parse()`, so migrated declarations are
+**global**, and E19's pinned behaviour becomes a declaration rather than an inference. A native
+configuration that wants per-record lifetime declares on the record template. The two stop
+competing.
 
-## 5. Lifetime and multiplicity are different questions
+## 5. Var types
 
-This is the decomposition the whole design turns on, and it is the owner's.
+A variable declares what it holds. **Scalar, list, map, set.**
 
-**Lifetime** is *how long a binding survives* — and belongs on scopes. A frame stack, where a
-lookup walks outward and an inner frame may either shadow an outer binding or surface it. The
-mechanism exists (`VarRegistry`'s scopes, `Frames` for the engine's own); what is missing is that
-a binding cannot *declare* which frame it belongs to, so the engine guesses from dispatch shape.
+This is the second half of the problem and it is not a lifetime question. The engine already has
+something list-shaped — the match-indexed `Store` — but it is muddled, because its index is a
+match count reinterpreted per binder rather than a position. An explicit list has positions; an
+explicit map has keys; a scalar has one value. `latest()` becomes "the last element", which is
+well defined, instead of "the highest populated index", which is well defined and meaningless.
 
-**Multiplicity** is *how many values a binding holds and how they are addressed* — and is not a
-lifetime question at all. The CSV heading case is the proof:
+**The CSV heading case is a list.** Today:
 
 ```json
 {"capture": {"var_id": "heading", "match_index": {"var_ref": "__match_count"}}}
 ```
 
-`heading` holds one value per column, captured by `header_column` in one dispatch, and read by
-`data_column` in a different dispatch on every subsequent row — the Nth column reading the Nth
-heading. It is a **multi-valued binding addressed by the reader's own match index**, and the
-whole point is that it outlives the row that made it.
+`heading` holds one value per column and `data_column` reads the Nth heading by its own match
+count. As a list with an index captured from the counter, that is `heading[i]` — the same
+mechanism, legible.
 
-Conflating the two is why each proposed rule broke the other case. Clearing per record is right
-for a per-record binding and destroys a multi-valued one. Keeping everything is right for the
-headings and leaks for everything else.
+**The data-derived name map goes.** `Names` is `record Names(Map<String, VarName> all,
+Map<String, KeyName> keys)`, and `keys` is the last data-keyed structure at run time — design 33
+§11 B's "the one the owner expects to be the last, and it is". A key-value capture invents a
+variable name from the data; with a **map** var it writes a key into a declared variable instead,
+and the dynamic slot machinery is unnecessary. **Only two fixtures use key-value captures at
+all** — `ausearch` and `text_003_multiline_regex` — and `ausearch` names the keys it wants
+(`$auid`, `$success`, `$key`, `$res`), so explicit captures or a map var cover it.
 
-So a binding wants to say two orthogonal things: **how long** it lives, and **how many** values it
-holds and what indexes them. Today it says neither, and the engine infers both.
+That also deletes E49's third demonstration outright: `key=old` beating `key=new` *is* the dynamic
+name indexed by token position, and neither survives.
 
-## 6. What this would subsume
+## 6. Counters stay as they are
 
-A concept earns its place by closing open questions rather than adding one. This one would take:
+`MATCH_COUNT`, `MATCH_INDEX`, `INDEX`, `POSITION`, `LAST`, `GROUP_KEY`, `GROUP`, `GROUP_SIZE`
+remain inherent properties of the execution, read from `Frames` as they are now (design 30 phase
+4). They can be **captured into a variable** where one is wanted — which is what gives the index
+var the CSV list needs.
 
-- **E19's pinned half** — becomes "DS3 lifetime, declared", faithful by construction for migrated
-  configurations rather than by a heuristic that happens to match.
-- **E49's demonstration 3** — becomes "record lifetime", which nothing can currently express.
-- **E19's residual and E28** — `Variable` and transform results tail-leaking "in the same shape"
-  is the same missing declaration, on binders that never had a rule.
-- **The `latest()` question** — a multiplicity that states what indexes it can say whether
-  `latest()` is meaningful, instead of it being well defined and meaningless.
+*This is deliberate and it is the main performance decision in the design.* `Frames` exists
+because these are hot, and the 2026-09-11 reading says where the throughput lives: points 31, 32
+and 35 are all run-state access and account for **+26.7 of `apache_httpd`'s +42.8**. Turning
+counters into general variables would put them back on the name path that work just took them off.
+Leaving them alone costs nothing and removes the risk.
 
-And it should **supersede E49**, which is wrong as written: its first two demonstrations are E19's
-deliberately pinned behaviour, rediscovered without finding E19.
+## 7. What this subsumes
 
-## 7. What has to be ruled before anything is built
+- **E19's pinned half** — becomes "declared global", faithful by construction.
+- **E49 entirely** — its first two demonstrations are E19's pinned behaviour; its third is the
+  dynamic-name map, which goes. **E49 should be closed by this design, not fixed.**
+- **E19's residual and E28** — `Variable` and transform results tail-leaking is the same missing
+  declaration on binders that never had a rule.
+- **The `latest()` ambiguity** — a type says what indexes it.
+- **The data-name map** — design 33 §11 B's last data-keyed run-time structure.
 
-1. **Take §4's narrow fix now, or only within this design?** It is small, safe and does not touch
-   the goldens.
-2. **Does a migrated DS3 configuration declare DS3's lifetime, or does the engine keep a DS3
-   mode?** The first keeps one engine with a declared difference; the second keeps two behaviours.
-3. **What is the default lifetime for a native configuration that declares nothing?** Whatever it
-   is will be what most configurations get.
-4. **Does an inner frame shadow an outer binding of the same name, or surface it?** The owner's
-   note is that it might do either; if both are wanted, that is a third thing a binding declares.
-5. **Is multiplicity declared, or inferred from the binding time?** A per-column capture is
-   plainly multi-valued and a call argument is plainly scalar; the awkward case is the key-value
-   capture, which is many bindings under many names rather than one binding with many values.
+## 8. What it costs, and where it must not
 
-## 8. How it would be gated
+The run-time mechanism **already exists**: `VarRegistry`'s push/pop/shadow and its undo log are
+what lexical declaration needs, and they are already on arrays after design 33. So the bulk of
+this is compile-time — deciding which scope each declaration belongs to and emitting the pushes —
+rather than new machinery on the hot path.
 
-The corpus cannot be trusted here and the reason is on the record: E49 passed every unit test it
-was given and was caught only by four golden fixtures, and the thing that finally settled it was
-reading DS3's source. So:
+The two places it could still cost:
 
-- **Every lifetime rule needs a fixture that distinguishes it from the others**, not a unit test
-  that exercises the happy path. E49's three demonstrations are the start of that set.
+- **A push per template execution**, where today captures are bound without one.
+  `win_sec_strict` makes 569,199 dispatches per operation, so a scope per execution is 569,199
+  pushes. The undo log is cheap but it is not free, and an empty scope should cost nothing.
+- **Declaration lookup**, if it is not resolved to a slot at compile time. It must be.
+
+## 9. What has to be ruled before anything is built
+
+1. **What does a configuration that declares nothing get?** Implicit global is lenient; a compile
+   error matches how the engine already treats an unwritable name. This decides how much every
+   existing native fixture has to change.
+2. **Does the DS3 migration declare everything global, or only what DS3's semantics require?**
+   Global is faithful and blunt; narrower is more useful and needs proof per case.
+3. **Are the four var types all needed at once**, or is scalar-plus-list enough to close the open
+   issues, with map and set following?
+4. **Does a template scope open per execution or per dispatch?** E49 died on exactly this
+   distinction, and it decides whether a template matching twice in a record clears between.
+
+## 10. How it would be gated
+
+E49 passed every unit test it was given and was caught only by four golden fixtures; what settled
+it was reading DS3's source. So:
+
+- **Every lifetime rule needs a fixture that distinguishes it from the others.** E49's three
+  demonstrations are the start of that set.
 - **DS3's source is the oracle for anything a migration emits**, not our reading of what is
-  reasonable. `root.clear()` in `DS3Parser.parse` settled E49 in one grep after a day of
-  reasoning.
-- **The golden fixtures must not change.** If a rule changes one, either the rule is wrong or the
-  divergence is deliberate and ruled — and E19 is the precedent for how that is recorded.
+  reasonable.
+- **No golden fixture may change.** If one does, either the rule is wrong or the divergence is
+  deliberate and ruled — E19 is the precedent for recording that.
+- **`win_sec_strict` is the performance gate**, for §8's push-per-execution.
 
-## 9. What would make this a mistake
+## 11. What would make this a mistake
 
-- **If lifetime turns out to be genuinely per-binder** rather than per-scope, then four rules is
-  the right answer and one concept is a forced unification.
-- **If declaring lifetime pushes the choice onto authors who cannot make it.** DS3 authors never
-  chose one; they got DS3's. A declaration that every configuration must carry, and that most get
-  wrong, is worse than a default that is occasionally surprising.
-- **If the scope stack cannot hold a multi-valued binding cheaply.** `VarRegistry`'s undo log is
-  on the hottest path in the engine, and design 33 spent a week getting the run state to arrays.
-  A lifetime mechanism that reintroduces per-binding bookkeeping there would pay for correctness
-  with the throughput that work bought.
+- **If declaration turns out to be a burden authors cannot carry.** DS3 authors never declared
+  anything; they got DS3's lifetime. A declaration every configuration must write, and most get
+  wrong, is worse than a default that occasionally surprises.
+- **If two scopes are not enough.** The CSV headings are global and the record fields are
+  template-scoped, but a third case — something per-dispatch rather than per-execution — would mean
+  the model is under-powered and the special cases come back.
+- **If the push per template execution measures.** §8 names the row. Design 33 bought
+  +26.7 points on `apache_httpd` from run-state access; a lifetime model that spends it back has
+  not earned its correctness.
