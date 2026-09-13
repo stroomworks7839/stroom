@@ -548,20 +548,38 @@ because `undoCount` is the only cursor.
 - **The lazy stack** (§4) — one branch on write to test direct-or-stacked. Promotion happens only
   on a second live declaration of the same site, which no fixture currently does.
 
-### The hole problem, which this representation raises
+### Holes: absence is appended *(ruled 2026-09-13)*
 
-Today an unmatched capture calls `store.remove(matchCount)`, leaving a **hole** so that positions
-stay aligned with match numbers — design 25 §9's rule that an unmatched capture reads as empty
-rather than as whatever was there before.
+Today an unmatched capture calls `store.remove(matchCount)`, leaving a **hole** so positions stay
+aligned with match numbers — design 25 §9's rule that an unmatched capture reads as empty rather
+than as whatever the previous record left there, and that a failed cast is absent the same way.
 
-With an explicit `append`, a capture that does not match simply does not append, and every later
-position shifts. The CSV case breaks on exactly this: `data_column` reads the Nth heading by its own
-match count, and if one heading capture failed, N no longer lines up.
+With an explicit `append`, a capture that does not match would simply not append, and every later
+position would shift — which breaks the CSV case, where `data_column` reads the Nth heading by its
+own match count.
 
-So either an append must be able to append *absent* — which is the configuration saying what a
-failed capture means, and is in keeping with the rest of §5 — or alignment must stop being
-positional. **This is the one place the explicit model is harder than the magic**, and it is §9's
-ninth ruling.
+**So a failed capture appends absence.** Alignment is preserved, and it is preserved by the
+configuration saying what a failed capture means rather than by a hole appearing as a side effect.
+That is the same move as `append` itself.
+
+#### What that leaves open: does `last` skip absence?
+
+`Store.lastIndex()` walks back past nulls, so today "the latest value" is *the latest present
+value* — a template that matched three times with the third capture failing reads the second
+match's value.
+
+**The recommendation is that it does not skip.** `last(list)` returns the last element, absent
+included. Skipping is the magic this design removes, and a read that walks back to an earlier match
+is returning a value from a position the data did not fill — the same shape of defect as E49, where
+a record with no `k=` answered with the previous record's `v`.
+
+*It may move a golden, and that is the gate.* The difference only shows when the **final** match's
+capture failed; every other case reads the same either way, because E19's clear already removes
+holes left by a previous record. If a golden output does move, §10 applies: either the rule is
+wrong or the divergence is deliberate and ruled, and E19 is the precedent for recording it.
+
+*If the skipping behaviour is wanted*, it should be a separate named operation rather than the
+default, so that a configuration asking for "the last one that matched" says so.
 
 ## 9. What has to be ruled before anything is built
 
@@ -578,9 +596,9 @@ ninth ruling.
    *(Ruled 2026-09-13: all four types are supported — scalar, list, map, set.)*
 *(Ruled 2026-09-13: types are declared; collections are values that nest; all four types are
 supported; counters become functions — §5, §6.)*
-9. **What happens to a position when a capture does not match?** §8 — today a hole keeps positions
-   aligned with match numbers; with an explicit `append` there is no hole unless something appends
-   absence. The CSV heading case depends on the answer.
+9. **Does `last` skip absence, as `lastIndex()` does today?** §8 recommends not, and notes it can
+   only move a golden when the *final* match's capture failed.
+   *(Ruled 2026-09-13: a failed capture appends absence, so positions stay aligned — §8.)*
 8. **What are the counter functions called?** §6 — eight distinct questions, so one `count()` will
    not do, and whether they are flat names or grouped is open.
 7. **What does the size guard count once collections nest?** §5's last question, and the only one
@@ -617,9 +635,10 @@ it was reading DS3's source. So:
   written instruction. That is more honest and it is more to write, and a CSV heading row is the
   most common thing anyone configures. If the explicit form is materially worse to author, the
   magic was buying something and this trades correctness for ergonomics.
-- **If the hole problem has no clean answer.** §8's last subsection. If keeping positions aligned
-  under an explicit `append` needs a rule as subtle as the magic it replaced, this design has moved
-  the complexity rather than removed it, and the CSV heading case is where that would show.
+- **If absence turns out to need more than one kind.** §8 appends absence to keep positions
+  aligned, which is clean. But the engine already distinguishes a hole from an empty value, and a
+  failed cast from an unmatched capture; if configurations need to tell those apart after the fact,
+  one appended absence is not enough and the distinction has to be carried in the value.
 - **If nesting breaks the bounded-space promise.** The engine's guarantee is that a stream of
   unbounded length runs in bounded space, and `guardSequenceSize` is what enforces it today over a
   flat sequence. A nested collection that grows per record is a new way to exhaust memory, and the
