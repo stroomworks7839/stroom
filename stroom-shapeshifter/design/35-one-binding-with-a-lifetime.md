@@ -100,6 +100,11 @@ had to pick one and lose the other. That is what a missing concept looks like.
 template's execution. Re-declaring a name in a deeper scope shadows the outer one. These are the
 rules every language already has, and adopting them is the point: nothing here has to be learned.
 
+**Where a declaration is written says which scope it is.** A project-level declarations block is
+global; a template-level one beside that template's bindings is template-scoped. The scope is never
+spelled as an attribute, so a global cannot be written by omission and two templates cannot declare
+the same global differently.
+
 **Two scopes.**
 
 - **Global** — visible to everything, for the whole run.
@@ -153,6 +158,33 @@ storage: **one** declaration site live at two depths, which is not a re-declarat
 recursive template declares `x` once and can still be inside itself. So the ban would cost a
 legal construct and leave the stack exactly where it was.
 
+### When a declaration happens, and what nested executions see
+
+**A declaration is an action on entry** to the declaring template's execution. The variable comes
+into being there and is destroyed when that execution ends — entry to exit, not per dispatch and
+not per match of some other template.
+
+**A descendant that does not re-declare the name shares the variable and may mutate it.** That is
+how accumulation works: a nested template's `append` adds to the ancestor's list, because there is
+one variable and the nested execution never made another.
+
+*So a template cannot accumulate into a variable it declares itself.* Eight matches are eight
+executions and eight declarations. A list being filled by a repeating template is declared by that
+template's **parent**, and the repeating one appends to it.
+
+**Recursion shadows, and this is exactly why.** A template that declares `x` and then re-enters
+itself declares `x` again at the inner entry, so the inner execution gets its own — which is the
+lazy stack of §4, and this pins when it is needed: **a declaration made inside a cycle**, not any
+re-entry. A template that declares nothing and recurses costs nothing, and a variable declared
+*above* the recursion is shared and mutable by every level, which is usually what a recursive walk
+wants.
+
+*Both motivating cases fall out.* `event_record` declares, its descendants assign, it reads after
+the apply returns, and everything dies with the record — E49's fix by construction rather than by a
+clearing rule. And the CSV headings cannot live on `header_column`, which runs once per column;
+they would go on `header_row`, except that they must outlive it to reach the data rows, so they are
+**global** — which §4 already said and this confirms from the other direction.
+
 ### Why declaration must be separable from capture
 
 This is forced by the corpus, not chosen. In `win_sec`, **`event_record` reads 71 names captured
@@ -191,9 +223,10 @@ not come out smaller, it is not this design.
 
 **Two things not to gloss.** `Binding` is a *compile-time* construct and says nothing about the
 run-time `Store`; §5's types are a different run-time shape, not merely a different declaration,
-and that is where the work actually is. And folding in `Param` may be the least valuable part —
-parameters are bound at a call and scoped to it, which the existing push and pop already get
-right — so it wants a reason beyond uniformity.
+and that is where the work actually is. And `Param` **stays as it is** *(ruled 2026-09-13)* — parameters are bound at a call and scoped to
+it, which the existing push and pop already get right, and folding it in wanted a reason beyond
+uniformity that did not appear. `CaptureBinding` folds in; `Param` does not. One binder remains
+outside the unified model, deliberately.
 
 ## 5. Var types
 
@@ -476,10 +509,11 @@ assigned to a declared variable like anything else.
 
 #### What has to be decided
 
-*Naming.* `count()` alone is ambiguous — the eight are not one concept. Match count, walk index,
-walk position, last index, group key, group size and the group itself are distinct questions, and
-the names should say which. Whether they are eight flat names or grouped (`group.size()`,
-`match.count()`) is §9's business.
+*Naming, ruled 2026-09-13: eight flat, explicit names.* `matchCount()`, `matchIndex()`, `index()`,
+`position()`, `last()`, `groupKey()`, `group()`, `groupSize()`. One name per question, nothing to
+learn, trivially resolved at compile time. A dotted form (`group.size()`) would carry which context
+a counter belongs to, at the cost of a namespace in the expression syntax; the flat names are
+unambiguous without it.
 
 *The index position.* A reference's index rule also names these —
 `{"match_index": {"var_ref": "__match_count"}}` is the CSV fixture's spelling, and `RefCompiler`
@@ -600,23 +634,25 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Counters** | Become functions resolved to `CompiledRef.Context` at compile time, not reserved `__` variable names. Special forms, never registry functions. | §6 |
 | **Holes** | A failed capture appends absence, so positions stay aligned by the configuration saying so rather than by a hole appearing as a side effect. | §8 |
 | **`last`** | Does not skip absence — it returns the last element. Can only move a golden when the *final* match's capture failed; §10 is the gate and E19 the precedent for recording a divergence. | §8 |
+| **Declaration timing** | A declaration is an action on entry to the declaring template's execution; the variable lives entry to exit. A descendant that does not re-declare shares it and may mutate it, which is how accumulation works — so a template cannot accumulate into a variable it declares itself. Recursion shadows because a recursive execution re-declares, which pins the lazy stack to *a declaration inside a cycle*. | §4 |
+| **Where declared** | Project-level block for global, template-level for template-scoped. The scope is never an attribute, so a global cannot be written by omission. | §4 |
+| **Counter names** | Eight flat, explicit names: `matchCount()`, `matchIndex()`, `index()`, `position()`, `last()`, `groupKey()`, `group()`, `groupSize()`. | §6 |
+| **`Param`** | Stays outside the unified declaration. Call scoping is already correct and uniformity alone was not a reason. | §4 |
 | **DS3 migration** | Declares **everything global**. `root.clear()` runs once per parse and never between records, so global is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
 
 ### Still open
 
-1. **What are the counter functions called?** §6 — the eight are distinct questions, so one
-   `count()` will not do, and flat versus grouped naming is undecided.
-2. **What does the size guard count once collections nest?** §5 — the only consequence of nesting
+1. **What does the size guard count once collections nest?** §5 — the only consequence of nesting
    that threatens the bounded-space promise rather than merely needing a refusal.
-3. **Is the lazy stack promoted at run time or decided at compile time?** §4 — a cycle search over
-   the dispatch graph could mark the slots that can ever need stacking. The run-time test is
-   simpler and cannot be wrong about an analysis it never made.
-4. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
+2. **Is the lazy stack promoted at run time or decided at compile time?** §4 — now narrower than it
+   was: the stack is needed only for *a declaration inside a cycle*, which a cycle search over the
+   dispatch graph can find exactly. The run-time test remains simpler and cannot be wrong about an
+   analysis it never made.
+3. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
    and recursive applies all push today; template lifetime no longer needs a frame, so this design
    may shrink the scope stack rather than extend it.
 
-*These four are implementation questions rather than model questions. The model is settled enough
-to build against.*
+*These three are implementation questions rather than model questions. The model is settled.*
 
 ## 10. How it would be gated
 
