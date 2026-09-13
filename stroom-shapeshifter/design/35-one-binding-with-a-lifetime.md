@@ -226,6 +226,104 @@ all** — `ausearch` and `text_003_multiline_regex` — and `ausearch` names the
 That also deletes E49's third demonstration outright: `key=old` beating `key=new` *is* the dynamic
 name indexed by token position, and neither survives.
 
+### What a collection holds, and why generics never arise
+
+A `Store` holds `TypedValue[]`, and `TypedValue` is a sealed interface — `Integer`, `Double`,
+`Bool`, `Instant`, and the byte-backed forms. So **there is exactly one element type in the
+engine**. `Cast` converts a value's variant; it does not give a collection an element type.
+
+`list` therefore means list-of-`TypedValue` and `map` means key-to-`TypedValue`. There is nothing
+to parameterise, so generics, nested types and element-type inference are not questions this design
+has to answer. That fact is what makes the rest of this section short.
+
+### The list
+
+**Backed by a `TypedValue[]` and a count** — the same shape `Store` already has, and the shape
+design 33 moved the whole run state to. A list is not a new run-time structure; it is the existing
+one with the magic taken out.
+
+The magic being removed is this: today a capture writes at *its template's match count*, so a
+template matching repeatedly accumulates a list **as a side effect of matching**, and an unindexed
+read takes the highest populated index. Nothing says "append". That is where §2's three meanings
+for one index come from, and it is why `latest()` is well defined and meaningless.
+
+Operations, all explicit:
+
+| operation | meaning |
+|---|---|
+| `append(list, value)` | add at the end — what a per-column capture does today by accident |
+| `insert(list, index, value)` | add at a position |
+| `remove(list, index)` | drop a position |
+| `get(list, index)` | read a position |
+| `size(list)` | how many |
+| `clear(list)` | empty it |
+
+**Plain assignment to a list is a compile error.** There is no sensible reading of it: replacing a
+whole list is `clear` then `append`, and letting `=` mean either "replace" or "append" is exactly
+the kind of inference this design exists to delete.
+
+*The CSV heading case, stated in this vocabulary.* `header_column` appends each heading;
+`data_column` reads `get(heading, i)` with `i` captured from its own match counter (§6). Compare
+today's `{"capture": {"var_id": "heading", "match_index": {"var_ref": "__match_count"}}}` — the
+same mechanism, with the accumulation and the addressing both said out loud.
+
+*And the DS3 migration has enough to emit it.* A DS3 var read with an index is a list appended per
+match; one read without is a scalar. The migration already does exactly this kind of pre-pass —
+E48 added one to collect which groups of which vars are read — so the shape is known before a
+template is emitted.
+
+### The map
+
+**Key to `TypedValue`.** This is what removes the data-derived name map: a key-value capture
+invents a *variable name* from the data and needs `Names.keys` to allocate a slot for it; a map var
+writes a **key into a declared variable** and needs nothing dynamic. Design 33 §11 B's last
+data-keyed run-time structure goes with it.
+
+| operation | meaning |
+|---|---|
+| `put(map, key, value)` | bind a key |
+| `get(map, key)` | read a key, absent if unbound |
+| `has(map, key)` | whether a key is bound |
+| `remove(map, key)` | unbind |
+| `size(map)` | how many |
+| `clear(map)` | empty it |
+
+As with the list, plain assignment is a compile error.
+
+*This also deletes E49's third demonstration outright.* `key=old` beating `key=new` is a dynamic
+name indexed by token position; with `put(kv, key, value)` there is no dynamic name and no
+positional index, so the defect has nowhere to live.
+
+### Typing: declared, not inferred
+
+**Recommendation: the type is part of the declaration**, beside the name and the scope, and every
+operation is checked against it.
+
+The owner's proposal was to type on first assignment and refuse incompatible instructions at
+compile time. That works, and the checking is the same either way — but the reason for preferring
+it was that declaring a type opens up generics and nested types, and it does not: there is one
+element type, so a declaration is one word.
+
+Four reasons to declare it:
+
+1. **One place to look.** A var's type is a compile-time fact, and this codebase states those once
+   rather than deriving them at each site.
+2. **Better refusals.** "`append` to `x`, which is declared a scalar at line 40" points at a
+   declaration. Inference can only say "`append` here disagrees with `put` there", and has to pick
+   which of two distant sites to blame.
+3. **A declared-but-unused var still has a type.** Under inference it has none, which matters
+   because the run-time shape has to be chosen anyway.
+4. **The run-time shape is decided at compile time regardless.** §5 says a list and a scalar are
+   different structures; the compiler must settle which before it allocates a slot. Inference does
+   not avoid that work, it only moves where the answer is written down.
+
+*Inference remains, as a check rather than as the source of truth:* the operations on a var are
+walked and any that disagree with its declared type is refused.
+
+**If the owner prefers inference anyway**, nothing else in this design changes — the operations,
+the run-time shapes and the scoping are identical. It is a question about where the type is
+written, not about what the engine does.
+
 ## 6. Counters stay as they are
 
 `MATCH_COUNT`, `MATCH_INDEX`, `INDEX`, `POSITION`, `LAST`, `GROUP_KEY`, `GROUP`, `GROUP_SIZE`
@@ -281,6 +379,9 @@ assuming the stack stays as it is.
 3. **Are the four var types all needed at once**, or is scalar-plus-list enough to close the open
    issues, with map and set following?
    *Note §5's map is what removes the data-name map, so it is not optional if that is wanted.*
+   **Set is the one with no established use** — no open issue needs it and no fixture implies it.
+6. **Is the type declared or inferred from first assignment?** §5 recommends declared and gives
+   four reasons; the owner proposed inferred. Nothing else changes either way.
 4. **Is the lazy stack promoted at run time or decided at compile time?** A cycle search over the
    dispatch graph could mark the slots that can ever need stacking and leave every other slot a
    plain field. The run-time test is simpler and cannot be wrong about an analysis it never made.
@@ -308,6 +409,11 @@ it was reading DS3's source. So:
   *hand-written* configurations: a declaration every one must carry, and most get wrong, is worse
   than a default that occasionally surprises. This is a usability question, not a compatibility
   one.
+- **If the explicit operations turn out to be a worse configuration to write than the magic.**
+  DS3 accumulated a list by matching repeatedly and said nothing; this makes every append a
+  written instruction. That is more honest and it is more to write, and a CSV heading row is the
+  most common thing anyone configures. If the explicit form is materially worse to author, the
+  magic was buying something and this trades correctness for ergonomics.
 - **If the model does not come out smaller.** §4 sets that as the test: thirteen binding
   constructs with two exceptions should become one declaration with several value sources. A
   unification that adds a concept and keeps the old ones has failed on its own terms.
