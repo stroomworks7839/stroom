@@ -294,10 +294,39 @@ As with the list, plain assignment is a compile error.
 name indexed by token position; with `put(kv, key, value)` there is no dynamic name and no
 positional index, so the defect has nowhere to live.
 
+### Collections do not nest
+
+**A collection holds `TypedValue`, and a collection is not a `TypedValue`.** So there is no list of
+lists, no map of lists, and no map of maps. This is a deliberate restriction and it is what keeps
+the previous subsection true: the moment a collection can hold a collection, "what does this list
+contain" becomes a real question, and generics, nested type declarations and recursive type
+checking all arrive with it.
+
+*Nothing needs it.* The three shapes that motivated this design are flat — CSV headings are a list
+of values, key-value pairs are a map of values, and a grouped walk is an instruction. The only
+nested structure in the engine is `private record Filed(TypedValue key, List<Integer> members)`,
+which is `Body`'s own bookkeeping for `ForEachGroup` and is not something a configuration can
+build or name. Everything a configuration *can* bind today — `Sequence`, `DistinctValues`,
+`ValueMap` — is flat.
+
+*And there are two escapes if a nested shape is ever wanted*, in this order:
+
+1. **An instruction that does the nested thing**, which is how grouping already works. The
+   configuration says "walk these, grouped by that"; the map of lists exists for the duration of
+   the walk and is never a variable. Most nesting wanted in a parser is of this shape.
+2. **Parallel collections** — two lists indexed alike, or a map to a key of a second map. Clumsy,
+   but it is the honest clumsiness of a flat model rather than a type system arriving by the back
+   door.
+
+**What would overturn this** is a use that is genuinely a value and genuinely nested — a record
+with repeated sub-records that has to be *held* rather than walked. If one turns up, the choice is
+to make collections values and accept the type system that follows, and that should be a design of
+its own rather than a patch to this one.
+
 ### Typing: declared, not inferred
 
-**Recommendation: the type is part of the declaration**, beside the name and the scope, and every
-operation is checked against it.
+**Ruled 2026-09-13: the type is part of the declaration**, beside the name and the scope, and
+every operation is checked against it.
 
 The owner's proposal was to type on first assignment and refuse incompatible instructions at
 compile time. That works, and the checking is the same either way — but the reason for preferring
@@ -320,9 +349,9 @@ Four reasons to declare it:
 *Inference remains, as a check rather than as the source of truth:* the operations on a var are
 walked and any that disagree with its declared type is refused.
 
-**If the owner prefers inference anyway**, nothing else in this design changes — the operations,
-the run-time shapes and the scoping are identical. It is a question about where the type is
-written, not about what the engine does.
+*The alternative is recorded because it was reasonable:* typing on first assignment, with the same
+compile-time checking. It was declined on the four reasons above, not on the one that motivated it
+— the fear of generics — which does not apply here and does not apply under declaration either.
 
 ## 6. Counters stay as they are
 
@@ -380,8 +409,7 @@ assuming the stack stays as it is.
    issues, with map and set following?
    *Note §5's map is what removes the data-name map, so it is not optional if that is wanted.*
    **Set is the one with no established use** — no open issue needs it and no fixture implies it.
-6. **Is the type declared or inferred from first assignment?** §5 recommends declared and gives
-   four reasons; the owner proposed inferred. Nothing else changes either way.
+*(Ruled 2026-09-13: types are declared, §5. Collections do not nest, §5.)*
 4. **Is the lazy stack promoted at run time or decided at compile time?** A cycle search over the
    dispatch graph could mark the slots that can ever need stacking and leave every other slot a
    plain field. The run-time test is simpler and cannot be wrong about an analysis it never made.
