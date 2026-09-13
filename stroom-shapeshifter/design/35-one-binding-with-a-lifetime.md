@@ -419,18 +419,68 @@ walked and any that disagree with its declared type is refused.
 compile-time checking. It was declined on the four reasons above, not on the one that motivated it
 — the fear of generics — which does not apply here and does not apply under declaration either.
 
-## 6. Counters stay as they are
+## 6. Counters are functions, not variables
 
-`MATCH_COUNT`, `MATCH_INDEX`, `INDEX`, `POSITION`, `LAST`, `GROUP_KEY`, `GROUP`, `GROUP_SIZE`
-remain inherent properties of the execution, read from `Frames` as they are now (design 30 phase
-4). They can be **captured into a variable** where one is wanted — which is what gives the index
-var the CSV list needs.
+The execution's counters — how many times this template has matched, where a walk is, how big a
+group is — stay **inherent properties read from `Frames`**, exactly as design 30 phase 4 made them.
+What changes is how a configuration names them.
 
-*This is deliberate and it is the main performance decision in the design.* `Frames` exists
-because these are hot, and the 2026-09-11 reading says where the throughput lives: points 31, 32
-and 35 are all run-state access and account for **+26.7 of `apache_httpd`'s +42.8**. Turning
-counters into general variables would put them back on the name path that work just took them off.
-Leaving them alone costs nothing and removes the risk.
+**Today they are variable names.** `EngineVars` carries eight: `__match_count`, `__match_idx`,
+`__index`, `__position`, `__last`, `__group_key`, `__group`, `__group_size`. A reference to one is a
+`RefPart.Capture` like any other, and `RefCompiler` recognises it by name:
+
+```java
+final EngineVars engine = EngineVars.byName(capture.varId());
+yield engine != null && engine.framed()
+        ? new CompiledRef.Context(engine, index)
+        : new CompiledRef.RemoteVar(names.intern(capture.varId()), index);
+```
+
+**They become functions** — `matchCount()`, `index()`, `position()` and so on — resolved to the same
+`CompiledRef.Context` at compile time.
+
+*The mechanism does not change at all.* The resolution above is already a compile-time pointer, not
+a run-time lookup, so this costs nothing and gains nothing at run time. It is a change to what the
+configuration says, and the reason is that under this design the current form has become an
+exception to the rule.
+
+**Why it is worth doing now, and not before.** Every variable now has a declaration, a scope and a
+type (§4, §5). A counter has none of the three. Leaving it in the variable namespace makes it the
+one name a reference can resolve that was never declared, has no lifetime and has no type — an
+exception to the exact rule the design exists to establish. Worse, keeping it there *requires*
+machinery: `ReferenceCheck` refuses any binder that takes an engine name, purely to stop
+configurations colliding with things that are not variables.
+
+**What it removes:**
+
+- the `__` prefix convention, which exists only to carve out a namespace;
+- the reservation refusal in `ReferenceCheck` and the test that pins it;
+- the need for a reader to know which `$name`s are storage and which are questions about now.
+
+And it frees the namespace: a configuration may then have a variable called `match_count`, because
+nothing is reserved.
+
+**They must be special forms, not registry functions.** The engine already has a function mechanism
+— `CallFunction`, `FunctionRegistry`, `FunctionRuntime` — and these must *not* go through it.
+They are recognised by the compiler and resolved to `CompiledRef.Context`, as the code above already
+does; routing them through a call would put a frame read behind a dispatch on the hottest path in
+the engine, which is precisely what design 30 phase 4 took them off.
+
+**Capturing one into a variable is how a value outlives the moment.** `append(headings, ...)` with
+`index()` read at the point of use is the CSV case (§5); a counter that must survive its frame is
+assigned to a declared variable like anything else.
+
+#### What has to be decided
+
+*Naming.* `count()` alone is ambiguous — the eight are not one concept. Match count, walk index,
+walk position, last index, group key, group size and the group itself are distinct questions, and
+the names should say which. Whether they are eight flat names or grouped (`group.size()`,
+`match.count()`) is §9's business.
+
+*The index position.* A reference's index rule also names these —
+`{"match_index": {"var_ref": "__match_count"}}` is the CSV fixture's spelling, and `RefCompiler`
+resolves it through the same `EngineVars.byName`. That spelling has to change with the rest, and it
+is the one place the function form has to sit inside another construct.
 
 ## 7. What this subsumes
 
@@ -443,6 +493,8 @@ Leaving them alone costs nothing and removes the risk.
 - **The data-name map** — design 33 §11 B's last data-keyed run-time structure.
 - **The two constructs outside `Binding`** — `CaptureBinding` and `Param`, which is why the
   lifetime rule could only ever be written for captures.
+- **The engine-name reservation** — `ReferenceCheck`'s refusal and the `__` prefix, once counters
+  stop pretending to be variables (§6).
 
 ## 8. What it costs, and where it must not
 
@@ -476,7 +528,10 @@ assuming the stack stays as it is.
    `has(set, x)` and a condition's `=` disagree. §5 says this is really a ruling about equality
    everywhere, and the set is only where it becomes unavoidable.
    *(Ruled 2026-09-13: all four types are supported — scalar, list, map, set.)*
-*(Ruled 2026-09-13: types are declared, and collections are values that nest — §5.)*
+*(Ruled 2026-09-13: types are declared; collections are values that nest; all four types are
+supported; counters become functions — §5, §6.)*
+8. **What are the counter functions called?** §6 — eight distinct questions, so one `count()` will
+   not do, and whether they are flat names or grouped is open.
 7. **What does the size guard count once collections nest?** §5's last question, and the only one
    of the five that threatens the bounded-space promise rather than merely needing a refusal.
 4. **Is the lazy stack promoted at run time or decided at compile time?** A cycle search over the
