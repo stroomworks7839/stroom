@@ -125,11 +125,21 @@ it, because nothing at the read site distinguishes a capture store from a per-re
 is named here rather than left for someone to find." A declared lifetime is exactly that
 distinction.
 
-**It is var scope, not template scope.** There is no frame per template execution. A template
-holds the list of slots declared in it, and on exit it clears them. That is the whole run-time
-cost of lifetime: a walk of a small per-template array, and nothing at all for a template that
-declares nothing. A push and pop per execution would be 569,199 of them on `win_sec_strict`; this
-is zero.
+**Declaring and shadowing are the same mechanism, and it is already built.** Entering a template
+that declares names pushes a scope over exactly those names; leaving it pops. `VarRegistry` already
+has this — `push(VarName[] shadowed)`, whose javadoc reads *"Enter a new scope shadowing a set of
+names settled at compile time"* — and `bind` already logs a slot's previous value and installs a
+fresh one, with `pop` restoring it.
+
+So there is no separate clearing rule and no per-slot machinery. **Restore-on-exit gives
+clear-on-exit for free:** a record's declarations restore to what was there before the record, which
+was unset, so the next record starts unset. And it gives correct shadowing for recursion for free
+too, because an inner execution's declaration logs and restores just the same.
+
+**Only templates that declare pay anything.** A template declaring nothing does not push. In
+`win_sec` that means `event_record` pushes once per record over its 71 names while every field
+template pushes nothing — so the cost tracks declarations, not the 569,199 dispatches
+`win_sec_strict` makes.
 
 **Shadowing is mostly a compile-time resolution, not a stack.** Two declarations of the same name
 at two declaration sites are two slots; every reference is resolved to one of them when the
@@ -145,11 +155,9 @@ time cannot resolve away because whether it happens is data-driven: which child 
 depends on the input, and a mode graph with a cycle — the `__rec_` recursive form is the explicit
 one — can re-enter a template while an outer activation is still live. One slot cannot hold both.
 
-*So a slot holds its value directly until a second declaration of it arrives, and becomes a stack
-only then.* The common case pays nothing and the rare case is correct. Whether the promotion is
-decided at run time on the second declaration, or at compile time by looking for cycles in the
-dispatch graph, is §9's business; the run-time test is simpler and cannot be wrong about a graph
-it did not have to analyse.
+*And it needs nothing new.* A slot holds one value; the stacking lives in the flat undo log, where
+an inner declaration's entry sits above an outer one's and `pop` unwinds them in order. That is the
+frame mechanism §8 describes, shared across all slots rather than built per slot.
 
 *Banning shadowing outright was considered and does not help.* Refusing a second declaration of
 a name at compile time removes the lexical case — which is already free, being a compile-time slot
@@ -174,8 +182,8 @@ template's **parent**, and the repeating one appends to it.
 
 **Recursion shadows, and this is exactly why.** A template that declares `x` and then re-enters
 itself declares `x` again at the inner entry, so the inner execution gets its own — which is the
-lazy stack of §4, and this pins when it is needed: **a declaration made inside a cycle**, not any
-re-entry. A template that declares nothing and recurses costs nothing, and a variable declared
+frame restore of §8, and this pins when stacking actually occurs: **at a declaration made inside a
+cycle**, not at any re-entry. A template that declares nothing and recurses costs nothing, and a variable declared
 *above* the recursion is shared and mutable by every level, which is usually what a recursive walk
 wants.
 
@@ -412,11 +420,12 @@ These are contained, but each needs a decision and none has an obvious default:
 | `isEmpty()` | genuinely easy — no entries |
 | `Cast` applied to a collection | refuse; a cast converts a scalar's variant |
 | equality and ordering in a condition | deep or by identity? Ordering of collections probably has no meaning and should be refused |
-| `guardSequenceSize` and `maxSequenceEntries` | the existing size guard counts entries in a flat sequence. With nesting, "how big is this" is recursive, and an unbounded nested structure is a new way to exhaust memory on a stream of unknown length |
+| `guardSequenceSize` and `maxSequenceEntries` | **ruled**: one run-wide live-element counter, incremented on every `append` and `put` and decremented in O(1) on clear or scope-exit from each collection's cached total. Nesting is then irrelevant — the counter measures total live elements, which is what the bounded-space promise is actually about |
 
-*The last one is the only one with teeth.* The engine's promise is that a stream of unbounded
-length runs in bounded space, and design 30's unwinding is what keeps it. A nested collection that
-grows per record has to be caught by the same guard, and that guard now has to walk.
+*The last one had teeth and is now ruled.* The engine's promise is that a stream of unbounded
+length runs in bounded space. A recursive walk at the guard would be O(size) per check and so
+quadratic over the growth path it watches; a run-wide counter is O(1) and bounds the thing the
+promise names.
 
 #### What nesting does not have to carry
 
@@ -581,10 +590,11 @@ because `undoCount` is the only cursor.
 
 ### What is left to pay
 
-- **Clear on exit** — a walk of the declaring template's slot array. Nothing for a template that
-  declares none, which is most of them.
-- **The lazy stack** (§4) — one branch on write to test direct-or-stacked. Promotion happens only
-  on a second live declaration of the same site, which no fixture currently does.
+- **Restore on exit** — `pop` walking the log back to the scope's mark, which is what it does
+  today.
+- **A push per declaring template execution** — one undo-log entry per declared slot, over an
+  array known at compile time. A template that declares nothing pays nothing, which is most of
+  them.
 
 ### Holes: absence is appended *(ruled 2026-09-13)*
 
@@ -634,25 +644,20 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Counters** | Become functions resolved to `CompiledRef.Context` at compile time, not reserved `__` variable names. Special forms, never registry functions. | §6 |
 | **Holes** | A failed capture appends absence, so positions stay aligned by the configuration saying so rather than by a hole appearing as a side effect. | §8 |
 | **`last`** | Does not skip absence — it returns the last element. Can only move a golden when the *final* match's capture failed; §10 is the gate and E19 the precedent for recording a divergence. | §8 |
-| **Declaration timing** | A declaration is an action on entry to the declaring template's execution; the variable lives entry to exit. A descendant that does not re-declare shares it and may mutate it, which is how accumulation works — so a template cannot accumulate into a variable it declares itself. Recursion shadows because a recursive execution re-declares, which pins the lazy stack to *a declaration inside a cycle*. | §4 |
+| **Declaration timing** | A declaration is an action on entry to the declaring template's execution; the variable lives entry to exit. A descendant that does not re-declare shares it and may mutate it, which is how accumulation works — so a template cannot accumulate into a variable it declares itself. Recursion shadows because a recursive execution re-declares, which is the existing frame restore rather than anything new. | §4 |
 | **Where declared** | Project-level block for global, template-level for template-scoped. The scope is never an attribute, so a global cannot be written by omission. | §4 |
 | **Counter names** | Eight flat, explicit names: `matchCount()`, `matchIndex()`, `index()`, `position()`, `last()`, `groupKey()`, `group()`, `groupSize()`. | §6 |
 | **`Param`** | Stays outside the unified declaration. Call scoping is already correct and uniformity alone was not a reason. | §4 |
+| **Size guard** | One run-wide live-element counter: every `append` or `put` increments it, every collection caches its own total so a clear or scope-exit decrements in O(1). Nesting is irrelevant because the counter measures exactly what the promise is about — total live elements — whatever shape they are in. | §5, §8 |
 | **DS3 migration** | Declares **everything global**. `root.clear()` runs once per parse and never between records, so global is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
 
 ### Still open
 
-1. **What does the size guard count once collections nest?** §5 — the only consequence of nesting
-   that threatens the bounded-space promise rather than merely needing a refusal.
-2. **Is the lazy stack promoted at run time or decided at compile time?** §4 — now narrower than it
-   was: the stack is needed only for *a declaration inside a cycle*, which a cycle search over the
-   dispatch graph can find exactly. The run-time test remains simpler and cannot be wrong about an
-   analysis it never made.
-3. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
+1. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
    and recursive applies all push today; template lifetime no longer needs a frame, so this design
    may shrink the scope stack rather than extend it.
 
-*These three are implementation questions rather than model questions. The model is settled.*
+*One implementation question left. The model is settled.*
 
 ## 10. How it would be gated
 
@@ -684,21 +689,21 @@ it was reading DS3's source. So:
   aligned, which is clean. But the engine already distinguishes a hole from an empty value, and a
   failed cast from an unmatched capture; if configurations need to tell those apart after the fact,
   one appended absence is not enough and the distinction has to be carried in the value.
-- **If nesting breaks the bounded-space promise.** The engine's guarantee is that a stream of
-  unbounded length runs in bounded space, and `guardSequenceSize` is what enforces it today over a
-  flat sequence. A nested collection that grows per record is a new way to exhaust memory, and the
-  guard has to walk to catch it. §9's seventh ruling; of everything nesting costs, this is the one
-  that is not merely a refusal to write.
+- **If the live-element counter drifts.** A single run-wide count is only a bound while every
+  increment has a matching decrement. Aliasing — the same collection value reachable from two
+  places — would double-count on append and under-decrement on clear, so either aliasing is
+  refused or the counter is wrong in a way nothing would notice until a long stream ran out of
+  memory.
 - **If the model does not come out smaller.** §4 sets that as the test: thirteen binding
   constructs with two exceptions should become one declaration with several value sources. A
   unification that adds a concept and keeps the old ones has failed on its own terms.
 - **If two scopes are not enough.** The CSV headings are global and the record fields are
   template-scoped, but a third case — something per-dispatch rather than per-execution — would mean
   the model is under-powered and the special cases come back.
-- **If the lazy stack is not lazy enough.** The whole case for a direct slot that becomes a stack
-  on a second declaration is that the second declaration is rare — one name in the corpus, in a
-  feature §5 removes. If real configurations shadow routinely, every write pays the branch and the
-  promotion, and a plain stack would have been the honest choice from the start.
+- **If declaring templates turn out to be most templates.** The cost of lifetime is a push per
+  declaring execution, and it is cheap because a template that declares nothing pays nothing. If
+  idiomatic configurations declare on every template rather than on the few that need to, the push
+  is back on every dispatch and the saving was imagined.
 - **If clear-on-exit is not where the cost went.** Design 33 bought +26.7 points on
   `apache_httpd` from run-state access. A lifetime model that spends it back has not earned its
   correctness, and §10 names `win_sec_strict` as the row that would say so.
