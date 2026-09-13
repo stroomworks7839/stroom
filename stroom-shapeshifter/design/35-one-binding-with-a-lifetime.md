@@ -581,20 +581,30 @@ not a measurement — §10 names the row.
 
 Already right, and worth writing down so it is not redesigned: a flat undo log — `undoSlot`,
 `undoOwner`, `undoSaved`, `undoCount` — with `marks[depth]` recording where each scope began, and
-`pop()` walking back to the mark. It grows by doubling and never shrinks, and `depth` is the
-pointer.
+`pop()` walking back to the mark. It grows by doubling, never shrinks, and is never copied or
+rebuilt; `depth` and `undoCount` are the only state that moves.
 
 *A flat log beats a per-frame array of restorations*, which is the other way to build this: one
 allocation that amortises rather than one per frame to sit idle, and nothing to reuse or reset
 because `undoCount` is the only cursor.
 
-### What is left to pay
+### What is left to pay, precisely
 
-- **Restore on exit** — `pop` walking the log back to the scope's mark, which is what it does
-  today.
-- **A push per declaring template execution** — one undo-log entry per declared slot, over an
-  array known at compile time. A template that declares nothing pays nothing, which is most of
-  them.
+A scope is **an index, not an object**. Entering one is `marks[depth++] = undoCount` and nothing
+else. The stack arrays are never rebuilt, never copied and never shrunk — they double when they
+fill and stay that size for the run, with `depth` and `undoCount` as the only cursors.
+
+Per declared slot, entry costs three array writes — the slot number, the owner it had, the value it
+held — and one write to set the slot unset. Exit walks back to the mark and restores, four array
+operations per entry. There is no search, no allocation and no per-slot structure.
+
+**And under this design it becomes allocation-free.** `bind()` today does
+`slots[slot] = new Store()`, two objects per declaration. With a slot holding a `TypedValue`
+directly, declaring writes null. So a scope that declares five names is an index increment and
+twenty array writes, and allocates nothing at all.
+
+The cost therefore tracks **declarations**, not dispatches: a template that declares nothing does
+not touch the stack, and `win_sec`'s field templates would not.
 
 ### Holes: absence is appended *(ruled 2026-09-13)*
 
@@ -700,10 +710,11 @@ it was reading DS3's source. So:
 - **If two scopes are not enough.** The CSV headings are global and the record fields are
   template-scoped, but a third case — something per-dispatch rather than per-execution — would mean
   the model is under-powered and the special cases come back.
-- **If declaring templates turn out to be most templates.** The cost of lifetime is a push per
-  declaring execution, and it is cheap because a template that declares nothing pays nothing. If
-  idiomatic configurations declare on every template rather than on the few that need to, the push
-  is back on every dispatch and the saving was imagined.
+- **If declarations end up everywhere rather than where they are needed.** Entry is an index
+  increment and a few array writes per declared slot — cheap per declaration, but it scales with
+  *declarations × executions*. A configuration declaring seventy names on a template entered
+  569,199 times would pay tens of millions of log writes per operation. The mechanism is not the
+  risk; where declarations are put is, and §10's `win_sec_strict` row is where it would show.
 - **If clear-on-exit is not where the cost went.** Design 33 bought +26.7 points on
   `apache_httpd` from run-state access. A lifetime model that spends it back has not earned its
   correctness, and §10 names `win_sec_strict` as the row that would say so.
