@@ -325,12 +325,16 @@ test is that the model gets smaller; this is one of the places it does.
   compares bytes **and** encoding. Under that rule they are different members, and so are the same
   text in two encodings.
 
-Neither is obviously right. The string rule matches what an author writing a parser probably means
-by "distinct"; the structural rule is what the type system already says. What is *not* acceptable
-is keeping both, so that `has(set, x)` and a condition's `=` disagree about the same pair of
-values. **This is the ruling that matters more than whether set exists**, because it is really a
-ruling about equality everywhere — conditions, `ValueMap` lookup, map keys — and the set is just
-where it becomes impossible to avoid.
+**Ruled 2026-09-13: neither. Equality is canonical per type, everywhere.** Numbers compare
+numerically; text compares by its decoded string, so the same text in two encodings is one value;
+different types are never equal, so `1` and `"1"` are two. That governs set membership, map keys,
+conditions and `ValueMap` lookup alike — one rule, so `has(set, x)` and a condition's `=` cannot
+disagree about the same pair.
+
+*What it costs:* every `TypedValue` variant needs its comparison stated, and both existing notions
+change. `DistinctValues` treated `1` and `"1"` as one value and will not; the structural `equals`
+treated the same text in two encodings as two and will not. Either may move a golden, and §10 is
+the gate.
 
 #### Sets and nesting
 
@@ -338,9 +342,9 @@ A set of collections needs equality on collections, and the two candidates fail 
 string rule cannot work because `asString()` on a collection is refused (§5), and the structural
 rule works but is recursive, so `add` costs the size of the element rather than a hash.
 
-The likely answer is to **refuse collections as set members and as map keys**, which keeps
-membership O(1) and costs nothing anyone has asked for. It should be a refusal at compile time,
-which the declared types make possible.
+The answer is to **refuse collections as set members and as map keys**, which keeps membership
+O(1) and costs nothing anyone has asked for. It is a compile-time refusal, which the declared
+types (§5) make possible.
 
 ### Collections are values, and therefore nest
 
@@ -581,33 +585,38 @@ wrong or the divergence is deliberate and ruled, and E19 is the precedent for re
 *If the skipping behaviour is wanted*, it should be a separate named operation rather than the
 default, so that a configuration asking for "the last one that matched" says so.
 
-## 9. What has to be ruled before anything is built
+## 9. Rulings
 
-1. **What does a configuration that declares nothing get?** Implicit global is lenient; a compile
-   error matches how the engine already treats an unwritable name. *Not* a question about how much
-   the fixtures have to change — §0 says they may be rewritten freely — but about what a
-   hand-written configuration should mean.
-2. **Does the DS3 migration declare everything global, or only what DS3's semantics require?**
-   Global is faithful and blunt; narrower is more useful and needs proof per case.
-3. **Which equality does a set use, and therefore which does the engine use?** `DistinctValues`
-   keys on `asString()`; `TypedValue` defines structural `equals`. Keeping both would let
-   `has(set, x)` and a condition's `=` disagree. §5 says this is really a ruling about equality
-   everywhere, and the set is only where it becomes unavoidable.
-   *(Ruled 2026-09-13: all four types are supported — scalar, list, map, set.)*
-*(Ruled 2026-09-13: types are declared; collections are values that nest; all four types are
-supported; counters become functions — §5, §6.)*
-9. **Does `last` skip absence, as `lastIndex()` does today?** §8 recommends not, and notes it can
-   only move a golden when the *final* match's capture failed.
-   *(Ruled 2026-09-13: a failed capture appends absence, so positions stay aligned — §8.)*
-8. **What are the counter functions called?** §6 — eight distinct questions, so one `count()` will
-   not do, and whether they are flat names or grouped is open.
-7. **What does the size guard count once collections nest?** §5's last question, and the only one
-   of the five that threatens the bounded-space promise rather than merely needing a refusal.
-4. **Is the lazy stack promoted at run time or decided at compile time?** A cycle search over the
-   dispatch graph could mark the slots that can ever need stacking and leave every other slot a
-   plain field. The run-time test is simpler and cannot be wrong about an analysis it never made.
-5. **Which of `VarRegistry`'s existing pushes survive?** §8's last paragraph — this design may
-   shrink the scope stack rather than add to it.
+### Settled *(2026-09-13)*
+
+| | ruling | where |
+|---|---|---|
+| **Declaration** | A variable must be declared, with a scope and a type. Using an undeclared name is a compile error, as an unwritable name already is — so scope and type are never inferred from position. Every native fixture gains declarations, which §0 permits and which is real work. | §4 |
+| **Typing** | The type is part of the declaration, not inferred from first assignment. Inference survives as a check. | §5 |
+| **Types** | All four: scalar, list, map, set. | §5 |
+| **Collections** | Are `TypedValue`s, and therefore nest. The earlier flat restriction was wrong and its reasoning is kept in §5. | §5 |
+| **Equality** | **Canonical per type, everywhere** — set membership, map keys, conditions, `ValueMap` lookup. Numbers compare numerically; text compares by decoded string, so encoding is irrelevant; different types are never equal, so `1` and `"1"` differ. Replaces both `DistinctValues`' `asString()` keying and the variants' structural `equals`. | §5 |
+| **Nesting and keys** | Collections are refused as set members and map keys, at compile time. | §5 |
+| **Counters** | Become functions resolved to `CompiledRef.Context` at compile time, not reserved `__` variable names. Special forms, never registry functions. | §6 |
+| **Holes** | A failed capture appends absence, so positions stay aligned by the configuration saying so rather than by a hole appearing as a side effect. | §8 |
+| **`last`** | Does not skip absence — it returns the last element. Can only move a golden when the *final* match's capture failed; §10 is the gate and E19 the precedent for recording a divergence. | §8 |
+| **DS3 migration** | Declares **everything global**. `root.clear()` runs once per parse and never between records, so global is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
+
+### Still open
+
+1. **What are the counter functions called?** §6 — the eight are distinct questions, so one
+   `count()` will not do, and flat versus grouped naming is undecided.
+2. **What does the size guard count once collections nest?** §5 — the only consequence of nesting
+   that threatens the bounded-space promise rather than merely needing a refusal.
+3. **Is the lazy stack promoted at run time or decided at compile time?** §4 — a cycle search over
+   the dispatch graph could mark the slots that can ever need stacking. The run-time test is
+   simpler and cannot be wrong about an analysis it never made.
+4. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
+   and recursive applies all push today; template lifetime no longer needs a frame, so this design
+   may shrink the scope stack rather than extend it.
+
+*These four are implementation questions rather than model questions. The model is settled enough
+to build against.*
 
 ## 10. How it would be gated
 
