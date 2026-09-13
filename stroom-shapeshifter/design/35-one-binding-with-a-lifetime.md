@@ -230,11 +230,12 @@ name indexed by token position, and neither survives.
 
 A `Store` holds `TypedValue[]`, and `TypedValue` is a sealed interface — `Integer`, `Double`,
 `Bool`, `Instant`, and the byte-backed forms. So **there is exactly one element type in the
-engine**. `Cast` converts a value's variant; it does not give a collection an element type.
+engine**, and the collection types join that interface rather than sitting outside it.
 
-`list` therefore means list-of-`TypedValue` and `map` means key-to-`TypedValue`. There is nothing
-to parameterise, so generics, nested types and element-type inference are not questions this design
-has to answer. That fact is what makes the rest of this section short.
+`list` therefore means list-of-`TypedValue` and `map` means key-to-`TypedValue`, where a
+`TypedValue` may itself be a list or a map. There is nothing to parameterise: generics, nested type
+declarations and element-type inference are not questions this design has to answer, and they stay
+that way *because* collections are values.
 
 ### The list
 
@@ -294,34 +295,52 @@ As with the list, plain assignment is a compile error.
 name indexed by token position; with `put(kv, key, value)` there is no dynamic name and no
 positional index, so the defect has nowhere to live.
 
-### Collections do not nest
+### Collections are values, and therefore nest
 
-**A collection holds `TypedValue`, and a collection is not a `TypedValue`.** So there is no list of
-lists, no map of lists, and no map of maps. This is a deliberate restriction and it is what keeps
-the previous subsection true: the moment a collection can hold a collection, "what does this list
-contain" becomes a real question, and generics, nested type declarations and recursive type
-checking all arrive with it.
+**A collection is a `TypedValue`.** `list` and `map` join `Integer`, `Double`, `Bool`, `Instant`
+and the byte-backed forms as variants of the same sealed interface. A list may hold a list, a map
+may hold a list, and nothing special has to be said for that to work.
 
-*Nothing needs it.* The three shapes that motivated this design are flat — CSV headings are a list
-of values, key-value pairs are a map of values, and a grouped walk is an instruction. The only
-nested structure in the engine is `private record Filed(TypedValue key, List<Integer> members)`,
-which is `Body`'s own bookkeeping for `ForEachGroup` and is not something a configuration can
-build or name. Everything a configuration *can* bind today — `Sequence`, `DistinctValues`,
-`ValueMap` — is flat.
+*This was first written the other way — collections flat, nesting refused — on the grounds that
+allowing it would drag in generics. That was wrong and the record is worth keeping.* A list holds
+`TypedValue`; making a collection **be** a `TypedValue` keeps that true, so there is still exactly
+one element type and still nothing to parameterise. Nesting is free *because* collections are
+values. The restriction would have bought nothing and cost the expressiveness.
 
-*And there are two escapes if a nested shape is ever wanted*, in this order:
+**The blast radius is small, which is the other thing that was got wrong.** Consumers do not
+pattern-match on `TypedValue`'s variants — there are **no** `case final TypedValue.X` arms in the
+engine, across two files that mention the type at all. Everything goes through the interface:
+`isEmpty()`, `asBytes()`, `asString()`. So the cost of two new variants is those three methods,
+not a sweep of call sites.
 
-1. **An instruction that does the nested thing**, which is how grouping already works. The
-   configuration says "walk these, grouped by that"; the map of lists exists for the duration of
-   the walk and is never a variable. Most nesting wanted in a parser is of this shape.
-2. **Parallel collections** — two lists indexed alike, or a map to a key of a second map. Clumsy,
-   but it is the honest clumsiness of a flat model rather than a type system arriving by the back
-   door.
+**And declared types (§5) are what make it safe.** The compiler knows a variable is a list, so a
+list reaching `value-of`, a cast, or a comparison is refused where it is written rather than
+discovered at run time. The two rulings hold each other up: values-that-nest would be far less
+attractive under inference, where the same mistakes would surface as run-time surprises.
 
-**What would overturn this** is a use that is genuinely a value and genuinely nested — a record
-with repeated sub-records that has to be *held* rather than walked. If one turns up, the choice is
-to make collections values and accept the type system that follows, and that should be a design of
-its own rather than a patch to this one.
+#### What the collection variants still have to answer
+
+These are contained, but each needs a decision and none has an obvious default:
+
+| question | why it is not obvious |
+|---|---|
+| `asString()` / `asBytes()` on a list or map | there is no natural serialisation, and inventing one (join with commas?) is the kind of magic §5 removes. **A refusal is the likely answer**, made at compile time by the declared type |
+| `isEmpty()` | genuinely easy — no entries |
+| `Cast` applied to a collection | refuse; a cast converts a scalar's variant |
+| equality and ordering in a condition | deep or by identity? Ordering of collections probably has no meaning and should be refused |
+| `guardSequenceSize` and `maxSequenceEntries` | the existing size guard counts entries in a flat sequence. With nesting, "how big is this" is recursive, and an unbounded nested structure is a new way to exhaust memory on a stream of unknown length |
+
+*The last one is the only one with teeth.* The engine's promise is that a stream of unbounded
+length runs in bounded space, and design 30's unwinding is what keeps it. A nested collection that
+grows per record has to be caught by the same guard, and that guard now has to walk.
+
+#### What nesting does not have to carry
+
+A grouped walk stays an instruction. `ForEachGroup` builds `Body`'s private
+`Filed(TypedValue key, List<Integer> members)` for the duration of the walk and it is never a
+variable — that remains the right shape, because the configuration wants to *walk* groups, not
+hold them. Nesting being available is not a reason to rebuild grouping out of map-of-list
+primitives.
 
 ### Typing: declared, not inferred
 
@@ -409,7 +428,9 @@ assuming the stack stays as it is.
    issues, with map and set following?
    *Note §5's map is what removes the data-name map, so it is not optional if that is wanted.*
    **Set is the one with no established use** — no open issue needs it and no fixture implies it.
-*(Ruled 2026-09-13: types are declared, §5. Collections do not nest, §5.)*
+*(Ruled 2026-09-13: types are declared, and collections are values that nest — §5.)*
+7. **What does the size guard count once collections nest?** §5's last question, and the only one
+   of the five that threatens the bounded-space promise rather than merely needing a refusal.
 4. **Is the lazy stack promoted at run time or decided at compile time?** A cycle search over the
    dispatch graph could mark the slots that can ever need stacking and leave every other slot a
    plain field. The run-time test is simpler and cannot be wrong about an analysis it never made.
@@ -442,6 +463,11 @@ it was reading DS3's source. So:
   written instruction. That is more honest and it is more to write, and a CSV heading row is the
   most common thing anyone configures. If the explicit form is materially worse to author, the
   magic was buying something and this trades correctness for ergonomics.
+- **If nesting breaks the bounded-space promise.** The engine's guarantee is that a stream of
+  unbounded length runs in bounded space, and `guardSequenceSize` is what enforces it today over a
+  flat sequence. A nested collection that grows per record is a new way to exhaust memory, and the
+  guard has to walk to catch it. §9's seventh ruling; of everything nesting costs, this is the one
+  that is not merely a refusal to write.
 - **If the model does not come out smaller.** §4 sets that as the test: thirteen binding
   constructs with two exceptions should become one declaration with several value sources. A
   unification that adds a concept and keeps the old ones has failed on its own terms.
