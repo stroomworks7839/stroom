@@ -496,24 +496,72 @@ is the one place the function form has to sit inside another construct.
 - **The engine-name reservation** — `ReferenceCheck`'s refusal and the `__` prefix, once counters
   stop pretending to be variables (§6).
 
-## 8. What it costs, and where it must not
+## 8. The run-time representation, and what it costs
 
-Most of this is compile-time: which slot each declaration owns, which slot each reference resolves
-to, and which template clears which slots on exit. The run time left over is small and it is worth
-being precise about, because design 33 has just shown that run-state access is where this engine's
-throughput lives — points 31, 32 and 35 are **+26.7 of `apache_httpd`'s +42.8**.
+Most of this design is compile-time: which slot each declaration owns, which slot each reference
+resolves to, which template clears which slots on exit. What is left at run time is small, and the
+shape it should take is largely the shape design 33 already built.
+
+### The slot array becomes genuinely fixed
+
+`VarRegistry.slots` is already an array indexed by slot. It is **not** fixed today for exactly one
+reason: `grow(String name)` mints a slot at run time when a key-value capture invents a variable
+name from the data. §5's map var removes that — a key goes into a declared variable instead — so
+**the collections ruling is what makes the array fixed**, sized once from the declarations the
+configuration carries, never resized and never copied.
+
+### `Store` disappears, and a slot holds a value
+
+`Store` exists to hold per-match history: `set(matchCount, value)`, a `TypedValue[]` that doubles,
+`latest()` reading the highest populated index. That history **is** the magic §5 removes — an
+explicit list says what it accumulates.
+
+And because collections are now `TypedValue` variants (§5), a slot can hold the value directly:
+
+| | today | under this design |
+|---|---|---|
+| slot array | `Store[]` | `TypedValue[]` |
+| a scalar var | a `Store` wrapping a `TypedValue[2]` | the value |
+| a list var | the same `Store`, indexed by match count | a list-valued `TypedValue` |
+| undo log | `Store[] undoSaved` | `TypedValue[]` |
+
+That removes an object and an indirection from **every reference resolution**, which is the
+hottest read in the engine. Point 31 measured +16.7 percentage points on `apache_httpd` from making
+`Store.values` an array; deleting `Store` should be at least as good, and that is an expectation,
+not a measurement — §10 names the row.
+
+### The frame stack
+
+Already right, and worth writing down so it is not redesigned: a flat undo log — `undoSlot`,
+`undoOwner`, `undoSaved`, `undoCount` — with `marks[depth]` recording where each scope began, and
+`pop()` walking back to the mark. It grows by doubling and never shrinks, and `depth` is the
+pointer.
+
+*A flat log beats a per-frame array of restorations*, which is the other way to build this: one
+allocation that amortises rather than one per frame to sit idle, and nothing to reuse or reset
+because `undoCount` is the only cursor.
+
+### What is left to pay
 
 - **Clear on exit** — a walk of the declaring template's slot array. Nothing for a template that
   declares none, which is most of them.
-- **The lazy stack** — one branch on write to test whether a slot is direct or stacked. The
-  promotion itself happens only on a second live declaration of the same site, which no fixture
-  currently does at all.
+- **The lazy stack** (§4) — one branch on write to test direct-or-stacked. Promotion happens only
+  on a second live declaration of the same site, which no fixture currently does.
 
-**And it may take something away.** `VarRegistry` today pushes a scope for grouping, for-each,
-variables, calls and recursive applies, with an undo log restoring on unwind. Some of those are
-genuinely nested and bounded and will keep it; but if template lifetime is per-var rather than per
-frame, it is worth asking which of the remaining pushes are still earning their place rather than
-assuming the stack stays as it is.
+### The hole problem, which this representation raises
+
+Today an unmatched capture calls `store.remove(matchCount)`, leaving a **hole** so that positions
+stay aligned with match numbers — design 25 §9's rule that an unmatched capture reads as empty
+rather than as whatever was there before.
+
+With an explicit `append`, a capture that does not match simply does not append, and every later
+position shifts. The CSV case breaks on exactly this: `data_column` reads the Nth heading by its own
+match count, and if one heading capture failed, N no longer lines up.
+
+So either an append must be able to append *absent* — which is the configuration saying what a
+failed capture means, and is in keeping with the rest of §5 — or alignment must stop being
+positional. **This is the one place the explicit model is harder than the magic**, and it is §9's
+ninth ruling.
 
 ## 9. What has to be ruled before anything is built
 
@@ -530,6 +578,9 @@ assuming the stack stays as it is.
    *(Ruled 2026-09-13: all four types are supported — scalar, list, map, set.)*
 *(Ruled 2026-09-13: types are declared; collections are values that nest; all four types are
 supported; counters become functions — §5, §6.)*
+9. **What happens to a position when a capture does not match?** §8 — today a hole keeps positions
+   aligned with match numbers; with an explicit `append` there is no hole unless something appends
+   absence. The CSV heading case depends on the answer.
 8. **What are the counter functions called?** §6 — eight distinct questions, so one `count()` will
    not do, and whether they are flat names or grouped is open.
 7. **What does the size guard count once collections nest?** §5's last question, and the only one
@@ -566,6 +617,9 @@ it was reading DS3's source. So:
   written instruction. That is more honest and it is more to write, and a CSV heading row is the
   most common thing anyone configures. If the explicit form is materially worse to author, the
   magic was buying something and this trades correctness for ergonomics.
+- **If the hole problem has no clean answer.** §8's last subsection. If keeping positions aligned
+  under an explicit `append` needs a rule as subtle as the magic it replaced, this design has moved
+  the complexity rather than removed it, and the CSV heading case is where that would show.
 - **If nesting breaks the bounded-space promise.** The engine's guarantee is that a stream of
   unbounded length runs in bounded space, and `guardSequenceSize` is what enforces it today over a
   flat sequence. A nested collection that grows per record is a new way to exhaust memory, and the
