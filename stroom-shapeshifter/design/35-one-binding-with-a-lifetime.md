@@ -606,6 +606,13 @@ twenty array writes, and allocates nothing at all.
 The cost therefore tracks **declarations**, not dispatches: a template that declares nothing does
 not touch the stack, and `win_sec`'s field templates would not.
 
+**The stack is bounded by construction and cannot overflow.** Every push is matched by a pop — six
+of each in `Body` — so the log unwinds as the run descends and returns; and dispatch depth is
+already capped, `Body` refusing at `directive.maxDepth()`, 64 by default, which is the runaway
+guard for recursion. So `marks` and the undo log reach a high-water mark of roughly
+*max depth × declarations per scope* and stay there for the run. No additional cap is needed, and
+a depth cap would not catch §11's concern anyway, because that concern is not about depth.
+
 ### Holes: absence is appended *(ruled 2026-09-13)*
 
 Today an unmatched capture calls `store.remove(matchCount)`, leaving a **hole** so positions stay
@@ -710,11 +717,14 @@ it was reading DS3's source. So:
 - **If two scopes are not enough.** The CSV headings are global and the record fields are
   template-scoped, but a third case — something per-dispatch rather than per-execution — would mean
   the model is under-powered and the special cases come back.
-- **If declarations end up everywhere rather than where they are needed.** Entry is an index
-  increment and a few array writes per declared slot — cheap per declaration, but it scales with
-  *declarations × executions*. A configuration declaring seventy names on a template entered
-  569,199 times would pay tens of millions of log writes per operation. The mechanism is not the
-  risk; where declarations are put is, and §10's `win_sec_strict` row is where it would show.
+- **If declarations end up everywhere rather than where they are needed — a throughput concern,
+  not a memory one.** Entry is an index increment and a few array writes per declared slot: cheap
+  per declaration, but it scales with *declarations × executions*. Seventy names declared on a
+  template entered 569,199 times is tens of millions of log writes per operation while the stack
+  stays two deep, because each execution pushes and pops. **A depth cap would not catch this**, and
+  §8 explains why the stack cannot overflow in the first place. The mitigation is measurement, not
+  a limit: §10 names `win_sec_strict` as the row, and the answer if it shows is to move the
+  declarations rather than to bound the mechanism.
 - **If clear-on-exit is not where the cost went.** Design 33 bought +26.7 points on
   `apache_httpd` from run-state access. A lifetime model that spends it back has not earned its
   correctness, and §10 names `win_sec_strict` as the row that would say so.
