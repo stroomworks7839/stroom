@@ -5,22 +5,60 @@ model: lexical declaration, two scopes, var types, counters left alone.*
 
 **Status: open. Nothing is built. §9 lists what has to be ruled first.**
 
-## 1. Captures and variables are one thing
+## 0. What is fixed, and what is not
+
+**Shapeshifter has never been released, so there is no backwards compatibility to keep.** The
+model, the configuration format and run-time behaviour are all free to change. Two things are not:
+
+1. **Every fixture's input and expected output.** A fixture's `project.json` may be rewritten
+   however this design needs; its `.in` and `.out.xml` may not move a byte.
+2. **DS3 migration.** A migrated configuration must keep producing what DS3 produces, and DS3's
+   source is the oracle for what that is.
+
+*This is what E49's revert enforced and it is the right gate.* E49 was not reverted because it
+changed the model — it may — but because four golden **outputs** changed. That test is unaffected
+by how much of the configuration format this design rewrites.
+
+So the question to ask of anything below is never "how much would have to change", only whether
+the golden outputs still match and DS3 migration still reproduces DS3.
+
+## 1. The model already half-agrees, and leaves out the members that needed it
 
 Everything that binds a name writes through `vars.store(name)` or `vars.put(name, store)` into one
 `VarRegistry`, one slot space, one `Store`. The compiler's own refusal says so: *"no capture,
 variable, transform bind or parameter has that name."* Four binders, one namespace, and a reference
 cannot tell which wrote what it reads.
 
-| binder | bound when | value from |
-|---|---|---|
-| capture | before the body runs, so a later template can read it | the match |
-| variable | during the body, in order | running instructions |
-| parameter, call argument | at the call | the caller |
-| transform bind (`as`) | at the instruction | the transform's result |
+**And the configuration model already says it too, for most of them.** `OutputNode` declares
 
-A capture is a variable whose value comes from the match and is bound early. That is the whole
-difference, and it is a difference of *binding time*, not of kind.
+```java
+sealed interface Binding extends OutputNode
+        permits Transform, Variable, Sequence, Key, KeyGet, Count, Sum, Avg, Min, Max,
+                DistinctValues, ValueMap {
+    String name();
+```
+
+Eleven instructions, each of which binds a name rather than writing output. Somebody already saw
+that these are one kind of thing.
+
+**Two sit outside it, and they are the two that caused everything in this design.**
+
+- **`CaptureBinding`** — its own record, its own file, not a `Binding`. It is the one with a
+  lifetime rule (E19's), the one whose key-value form invents names from the data, and the one
+  whose index means three different things depending on what a match is.
+- **`Param`** — `record Param(String name, RefExpression value)`, also outside.
+
+So the model has a unification concept and omits precisely the members that needed it. And none of
+the thirteen carries a **scope** or a **type**, because there was nowhere to put one.
+
+| binder | bound when | value from | in `Binding`? |
+|---|---|---|---|
+| capture | before the body runs, so a later template can read it | the match | **no** |
+| variable, transform, sequence, aggregate… | during the body, in order | running instructions | yes |
+| parameter, call argument | at the call | the caller | **no** |
+
+A capture is a variable whose value comes from the match and is bound early. That is a difference
+of *binding time*, not of kind — and §0 means the model can finally say so.
 
 ## 2. What is missing: declaration, and type
 
@@ -68,6 +106,20 @@ rules every language already has, and adopting them is the point: nothing here h
 - **Template** — visible within that template and any descendant execution, and destroyed when that
   template's execution ends.
 
+*Global is not simply "declared in the root template", and the difference is load-bearing.* Under
+an ordered root the two coincide — the root's execution spans the run. Under a `classify` or `any`
+root they do not: `Run.dispatchInput` sets `chunkedRoot`, the input is read in pieces and the root
+is re-entered per chunk, so a root declaration would have **chunk** lifetime. `Body.guardAccumulation`
+already says so about capture stores — "accumulates across records at the root level and is cleared
+per chunk". Collapsing the two words would make a variable's lifetime depend on the root's dispatch
+mode, which is lifetime inferred from dispatch shape, which is what this design exists to remove.
+`global` means the run.
+
+*And it closes a hole that guard names and cannot catch.* Its comment ends: "No refusal catches
+it, because nothing at the read site distinguishes a capture store from a per-record binding — it
+is named here rather than left for someone to find." A declared lifetime is exactly that
+distinction.
+
 **It is var scope, not template scope.** There is no frame per template execution. A template
 holds the list of slots declared in it, and on exit it clears them. That is the whole run-time
 cost of lifetime: a walk of a small per-template array, and nothing at all for a template that
@@ -94,6 +146,13 @@ decided at run time on the second declaration, or at compile time by looking for
 dispatch graph, is §9's business; the run-time test is simpler and cannot be wrong about a graph
 it did not have to analyse.
 
+*Banning shadowing outright was considered and does not help.* Refusing a second declaration of
+a name at compile time removes the lexical case — which is already free, being a compile-time slot
+assignment, and which the corpus does once. It does nothing about the case that actually needs
+storage: **one** declaration site live at two depths, which is not a re-declaration at all. A
+recursive template declares `x` once and can still be inside itself. So the ban would cost a
+legal construct and leave the stack exactly where it was.
+
 ### Why declaration must be separable from capture
 
 This is forced by the corpus, not chosen. In `win_sec`, **`event_record` reads 71 names captured
@@ -109,6 +168,32 @@ what they wrote — which is ordinary lexical scoping and needs no new idea.
 **global**, and E19's pinned behaviour becomes a declaration rather than an inference. A native
 configuration that wants per-record lifetime declares on the record template. The two stop
 competing.
+
+### One declaration, several ways to give it a value
+
+A **declaration** carries a name, a scope (§4) and a type (§5). Everything else is a way of
+supplying its value:
+
+- from the match — what a capture is today;
+- from a body run in order — `Variable`;
+- from an instruction's result — `Transform`, `Count`, `Sum`, `Key`, and the rest of `Binding`;
+- from the caller — `Param`.
+
+`CaptureBinding` and `Param` fold into `Binding`. Lifetime and type then live on the declaration,
+where **every** binder gets them at once, instead of on captures alone — which is the accident this
+whole design has been unwinding. E19's residual predicted variables and transform results would
+tail-leak in the same shape as captures, and E28 was that prediction coming true; a declaration
+they all share is why that cannot recur.
+
+*The test this must pass is that the model gets smaller.* Thirteen binding constructs with one
+shared interface and two exceptions becomes one declaration with several value sources. If it does
+not come out smaller, it is not this design.
+
+**Two things not to gloss.** `Binding` is a *compile-time* construct and says nothing about the
+run-time `Store`; §5's types are a different run-time shape, not merely a different declaration,
+and that is where the work actually is. And folding in `Param` may be the least valuable part —
+parameters are bound at a call and scoped to it, which the existing push and pop already get
+right — so it wants a reason beyond uniformity.
 
 ## 5. Var types
 
@@ -163,6 +248,8 @@ Leaving them alone costs nothing and removes the risk.
   declaration on binders that never had a rule.
 - **The `latest()` ambiguity** — a type says what indexes it.
 - **The data-name map** — design 33 §11 B's last data-keyed run-time structure.
+- **The two constructs outside `Binding`** — `CaptureBinding` and `Param`, which is why the
+  lifetime rule could only ever be written for captures.
 
 ## 8. What it costs, and where it must not
 
@@ -186,12 +273,14 @@ assuming the stack stays as it is.
 ## 9. What has to be ruled before anything is built
 
 1. **What does a configuration that declares nothing get?** Implicit global is lenient; a compile
-   error matches how the engine already treats an unwritable name. This decides how much every
-   existing native fixture has to change.
+   error matches how the engine already treats an unwritable name. *Not* a question about how much
+   the fixtures have to change — §0 says they may be rewritten freely — but about what a
+   hand-written configuration should mean.
 2. **Does the DS3 migration declare everything global, or only what DS3's semantics require?**
    Global is faithful and blunt; narrower is more useful and needs proof per case.
 3. **Are the four var types all needed at once**, or is scalar-plus-list enough to close the open
    issues, with map and set following?
+   *Note §5's map is what removes the data-name map, so it is not optional if that is wanted.*
 4. **Is the lazy stack promoted at run time or decided at compile time?** A cycle search over the
    dispatch graph could mark the slots that can ever need stacking and leave every other slot a
    plain field. The run-time test is simpler and cannot be wrong about an analysis it never made.
@@ -207,15 +296,21 @@ it was reading DS3's source. So:
   demonstrations are the start of that set.
 - **DS3's source is the oracle for anything a migration emits**, not our reading of what is
   reasonable.
-- **No golden fixture may change.** If one does, either the rule is wrong or the divergence is
+- **No golden fixture's output may change**, though its configuration may be rewritten as much as
+  the design needs (§0). If an output does move, either the rule is wrong or the divergence is
   deliberate and ruled — E19 is the precedent for recording that.
 - **`win_sec_strict` is the performance gate**, for §8's push-per-execution.
 
 ## 11. What would make this a mistake
 
 - **If declaration turns out to be a burden authors cannot carry.** DS3 authors never declared
-  anything; they got DS3's lifetime. A declaration every configuration must write, and most get
-  wrong, is worse than a default that occasionally surprises.
+  anything; they got DS3's lifetime, and the migration will keep giving it to them. The risk is to
+  *hand-written* configurations: a declaration every one must carry, and most get wrong, is worse
+  than a default that occasionally surprises. This is a usability question, not a compatibility
+  one.
+- **If the model does not come out smaller.** §4 sets that as the test: thirteen binding
+  constructs with two exceptions should become one declaration with several value sources. A
+  unification that adds a concept and keeps the old ones has failed on its own terms.
 - **If two scopes are not enough.** The CSV headings are global and the record fields are
   template-scoped, but a third case — something per-dispatch rather than per-execution — would mean
   the model is under-powered and the special cases come back.
