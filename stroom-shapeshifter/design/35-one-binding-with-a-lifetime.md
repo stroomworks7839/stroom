@@ -295,6 +295,53 @@ As with the list, plain assignment is a compile error.
 name indexed by token position; with `put(kv, key, value)` there is no dynamic name and no
 positional index, so the defect has nowhere to live.
 
+### The set
+
+**Supported** *(ruled 2026-09-13)*. Membership without duplicates, and **insertion-ordered**,
+because a set that reaches output must produce the same bytes every run — determinism is not
+optional in a parser whose goldens are byte-compared.
+
+| operation | meaning |
+|---|---|
+| `add(set, value)` | add if absent; no-op if present |
+| `has(set, value)` | membership |
+| `remove(set, value)` | drop |
+| `size(set)` | how many |
+| `clear(set)` | empty it |
+
+**It subsumes an instruction, which is the point.** `DistinctValues` exists today as one of
+`Binding`'s eleven — it walks a sequence, keeps `LinkedHashSet<String>` of what it has seen, and
+binds the distinct values in order. That is a set, built by an instruction because there was no set
+type to build it into. With one, `DistinctValues` is `add` in a loop and the instruction goes. §11's
+test is that the model gets smaller; this is one of the places it does.
+
+#### Which equality?
+
+**The engine already has two notions of "same value" and a set forces the choice.**
+
+- `DistinctValues` keys on `value.asString()`. Under that rule the integer `1` and the text `"1"`
+  are the same member.
+- `TypedValue`'s variants define real `equals`/`hashCode` — `Bytes` compares UTF-8 bytes, `Encoded`
+  compares bytes **and** encoding. Under that rule they are different members, and so are the same
+  text in two encodings.
+
+Neither is obviously right. The string rule matches what an author writing a parser probably means
+by "distinct"; the structural rule is what the type system already says. What is *not* acceptable
+is keeping both, so that `has(set, x)` and a condition's `=` disagree about the same pair of
+values. **This is the ruling that matters more than whether set exists**, because it is really a
+ruling about equality everywhere — conditions, `ValueMap` lookup, map keys — and the set is just
+where it becomes impossible to avoid.
+
+#### Sets and nesting
+
+A set of collections needs equality on collections, and the two candidates fail differently: the
+string rule cannot work because `asString()` on a collection is refused (§5), and the structural
+rule works but is recursive, so `add` costs the size of the element rather than a hash.
+
+The likely answer is to **refuse collections as set members and as map keys**, which keeps
+membership O(1) and costs nothing anyone has asked for. It should be a refusal at compile time,
+which the declared types make possible.
+
 ### Collections are values, and therefore nest
 
 **A collection is a `TypedValue`.** `list` and `map` join `Integer`, `Double`, `Bool`, `Instant`
@@ -424,10 +471,11 @@ assuming the stack stays as it is.
    hand-written configuration should mean.
 2. **Does the DS3 migration declare everything global, or only what DS3's semantics require?**
    Global is faithful and blunt; narrower is more useful and needs proof per case.
-3. **Are the four var types all needed at once**, or is scalar-plus-list enough to close the open
-   issues, with map and set following?
-   *Note §5's map is what removes the data-name map, so it is not optional if that is wanted.*
-   **Set is the one with no established use** — no open issue needs it and no fixture implies it.
+3. **Which equality does a set use, and therefore which does the engine use?** `DistinctValues`
+   keys on `asString()`; `TypedValue` defines structural `equals`. Keeping both would let
+   `has(set, x)` and a condition's `=` disagree. §5 says this is really a ruling about equality
+   everywhere, and the set is only where it becomes unavoidable.
+   *(Ruled 2026-09-13: all four types are supported — scalar, list, map, set.)*
 *(Ruled 2026-09-13: types are declared, and collections are values that nest — §5.)*
 7. **What does the size guard count once collections nest?** §5's last question, and the only one
    of the five that threatens the bounded-space promise rather than merely needing a refusal.
