@@ -37,7 +37,7 @@ import java.util.UUID;
  * @param mode         the dispatch partition, or null to be a candidate in every dispatch
  * @param consume      this template's matches exist to advance the cursor, not to count
  *                     (D36): an eater. Its wins move no match number, bind no captures —
- *                     declaring any is a compile-time error — and trip no store clearing
+ *                     declaring any is a compile-time error — and restart no list
  * @param guard        a pre-filter over scope, or null
  * @param param        parameters this template expects from its callers
  * @param match        how this template matches content

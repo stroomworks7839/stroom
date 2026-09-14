@@ -356,7 +356,7 @@ final class BodyCompiler {
     /**
      * A call to a registered function (design 26 §3): the name resolved now, by name; the
      * arity checked now against the signature; a {@code SEQUENCE} position required to name a
-     * store, since that is what it receives. The definition is remembered so the run can bind it.
+     * list, since that is what it receives. The definition is remembered so the run can bind it.
      */
     private CompiledOp.CallFunction call(final OutputNode.Call value) {
         final FunctionDefinition definition = functions.resolve(value.function());

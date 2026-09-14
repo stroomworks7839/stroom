@@ -76,18 +76,14 @@ final class RefCompiler {
                 }
                 yield new CompiledRef.RemoteVar(names.intern(capture.varId()), index(capture.matchIndex(), names));
             }
-            // A function is a compile-time pointer to the frame that answers it (design 35 §6);
-            // group() is the one that answers a sequence, which lives in the registry under its
-            // own spelling.
             case final RefPart.Accessor accessor -> new CompiledRef.Accessor(accessor.kind(),
                     compile(accessor.of(), names),
                     accessor.key() == null ? null : compile(accessor.key(), names),
                     accessor.orElse() == null ? null : compile(accessor.orElse(), names),
                     accessor.as());
-            case final RefPart.Counter counter -> counter.counter().framed()
-                    ? new CompiledRef.Context(counter.counter(), index(counter.matchIndex(), names))
-                    : new CompiledRef.RemoteVar(names.intern(counter.counter().spelling()),
-                            index(counter.matchIndex(), names));
+            // A function is a compile-time pointer to the frame that answers it (design 35 §6).
+            case final RefPart.Counter counter ->
+                    new CompiledRef.Context(counter.counter(), index(counter.matchIndex(), names));
         };
     }
 

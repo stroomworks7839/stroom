@@ -17,7 +17,6 @@
 package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.Declaration;
-import stroom.shapeshifter.engine.config.EngineVars;
 
 import java.util.Map;
 
@@ -48,27 +47,9 @@ public record Names(Map<String, VarName> all, Map<String, Declaration.Type> type
 
     public Names {
         types = Map.copyOf(types);
-        if (!all.containsKey(EngineVars.GROUP.spelling())) {
-            // The interner interns it in a field initialiser, so every table the compiler makes
-            // has it. Said here too, because this became a public record when the builder was
-            // pulled out of it, and Body reads group() without asking whether it is there.
-            throw new IllegalArgumentException(
-                    "A name table always holds " + EngineVars.GROUP.spelling()
-                    + ": the interpreter binds it whether or not a configuration reads it");
-        }
         all = Map.copyOf(all);
     }
 
-    /**
-     * The slot a grouping binds its members to.
-     *
-     * <p>{@code group()} is always here, because the interpreter binds it whether or not the
-     * configuration reads it — it is the one engine variable that is a sequence, so design 30
-     * phase 4 left it a slot rather than a frame.
-     */
-    public VarName group() {
-        return all.get(EngineVars.GROUP.spelling());
-    }
 
     /** What a name was declared to hold: its declaration's type, or a scalar for a name declared in place. */
     public Declaration.Type typeOf(final VarName name) {

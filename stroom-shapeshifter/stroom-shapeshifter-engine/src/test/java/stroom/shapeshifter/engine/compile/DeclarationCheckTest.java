@@ -197,10 +197,4 @@ class DeclarationCheckTest {
         assertThatCode(() -> Shapeshifter.compile(byKey)).doesNotThrowAnyException();
     }
 
-    @Test
-    void nameIsNotACall() {
-        assertThatThrownBy(() -> new Declaration("matchCount()", Declaration.Type.SCALAR))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("matchCount()");
-    }
 }

@@ -104,14 +104,34 @@ final class ReferenceJson {
     }
 
 
-    /** A collection: a name as a string, or a reference reaching one. */
+    /**
+     * A collection: a name as a string, a function's spelling as a string — {@code "group()"} —
+     * or a reference reaching one.
+     */
     static RefExpression readRefOrName(final JsonNode node) {
-        return node.isString() ? nameRef(node.asString()) : readRef(node);
+        if (!node.isString()) {
+            return readRef(node);
+        }
+        final String text = node.asString();
+        if (text.endsWith("()")) {
+            final EngineVars function = EngineVars.byName(text.substring(0, text.length() - 2));
+            if (function != null) {
+                return new RefExpression(List.of(new RefPart.Counter(function, null)));
+            }
+        }
+        return nameRef(text);
     }
 
     static JsonNode writeRefOrName(final RefExpression ref) {
         final String name = ref.bareName();
-        return name != null ? JsonFields.NODES.stringNode(name) : writeRef(ref);
+        if (name != null) {
+            return JsonFields.NODES.stringNode(name);
+        }
+        if (ref.parts().size() == 1 && ref.parts().getFirst() instanceof RefPart.Counter counter
+            && counter.matchIndex() == null) {
+            return JsonFields.NODES.stringNode(counter.counter().spelling());
+        }
+        return writeRef(ref);
     }
 
     /** A key, position, value or default: a literal as a string or a number, or a reference. */

@@ -554,8 +554,6 @@ final class OutputJson {
         return body;
     }
 
-    /** A sequence instruction's body: the store it reads and, where it binds, its name. */
-
     private static WhenBranch readWhen(final JsonNode node) {
         JsonFields.checkFields(node, "when", "test", "body");
         return new WhenBranch(

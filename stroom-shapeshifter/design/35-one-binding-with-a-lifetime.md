@@ -1191,9 +1191,10 @@ argument and a loop's `as` are declarations in place (§4) and owe no other. A k
 stands the rule down, as it already stood the read check down. Counters became functions:
 `EngineVars` carries the eight function names, `RefPart.Counter` and `MatchIndex.counter` carry a
 reference to one, and the JSON spells them `{"function": {"name": "matchCount"}}` and, in an index
-rule, `"function": "matchCount"` beside `var_ref`. `group()` is interned under its own spelling,
-so a `for-each` whose select is `group()` resolves to the same slot with no special case, and a
-declaration refuses parentheses so nothing can take that name. The reservation refusal,
+rule, `"function": "matchCount"` beside `var_ref`. `group()` was interned under its own spelling
+as a slot — the one counter that still lived in the registry, because a frame could not hold a
+list until phase 3 — with a declaration refusing parentheses so nothing could take that name;
+phase 5 moved it into the frame and removed both. The reservation refusal,
 `EngineVars.ALL` and the `__` prefix are gone from the engine's own names; author names that
 happen to carry the prefix (`__record_body__`) are untouched, because nothing is reserved now. The
 DS3 migration declares every bound name once, on the envelope, as a list: DS3 clears its stores
@@ -1503,6 +1504,24 @@ it. And a record whose first `Security ID` lies inside a section a section templ
 `fields` carrying the previous record's. Every event here opens with `Subject:` except the 4688,
 whose first `Security ID` is under `Creator Subject:`, which no section template takes, so the two
 agree on all eleven.
+
+*The last reservation went with this phase.* `group()` was the one engine function still held as
+a registry slot — interned first and always under the spelling `"group()"`, with `Names.group()`,
+`Body.groupMembers`, two exemptions in `ReferenceCheck` and a refusal of parentheses in
+`Declaration` all existing to keep it apart from the author's names. §6 rules that the counters
+are special forms and not variables; this one was a variable in all but name, because design 30
+phase 4 could not put a list in a frame. Now the group frame holds its members beside its key and
+size, `group()` compiles to `CompiledRef.Context` like the other seven, a walk over it reads the
+frame, and every one of those five special cases is gone. The registry holds the author's names
+and nothing else; a configuration may declare any name it likes. `"select": "group()"` stays as
+the JSON sugar for the function part, read as one rather than as a name.
+
+*What the audit found.* With `group()` a value the accessor path can reach, a mutation could
+name it as its target — `append(target = group(), …)` — and change the frame's list in place,
+which no variable had been written to and which the live-element counter had never counted. A
+function answers a value; it is not a collection to act on. The check refuses a mutation whose
+target is a function part, by name, and the read forms — walk, `size`, `get`, a copy into a
+declared list — are pinned as the ones that work.
 
 *`win_sec_strict`, `win_sec_xml` and the `win_app` pair are not rewritten* and pass as they were:
 the strict row keeps the 63-template configuration as the A/B on the search-versus-strict idiom,

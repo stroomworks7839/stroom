@@ -17,7 +17,6 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.Declaration;
-import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
 
@@ -47,14 +46,6 @@ final class Interner {
 
     /** What each declared name holds, recorded before any body compiles (design 35 §5). */
     private final Map<String, Declaration.Type> types = new HashMap<>();
-
-    Interner() {
-        // group() is interned first and always, because the interpreter binds it whether or not
-        // the configuration reads it — it is the one engine function that answers a sequence, so
-        // design 30 phase 4 left it a store rather than a frame, and a store needs a slot. It is
-        // interned under its spelling, which no declaration can take (design 35 §6).
-        intern(EngineVars.GROUP.spelling());
-    }
 
     /** Record a declaration: its name gets a slot, and its type travels with the table. */
     VarName declare(final Declaration declaration) {

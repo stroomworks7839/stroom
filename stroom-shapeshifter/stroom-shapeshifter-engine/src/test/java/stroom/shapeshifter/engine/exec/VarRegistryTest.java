@@ -17,7 +17,6 @@
 package stroom.shapeshifter.engine.exec;
 
 import stroom.shapeshifter.engine.config.Declaration;
-import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
 import stroom.shapeshifter.engine.value.TypedValue;
@@ -34,14 +33,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class VarRegistryTest {
 
-    private static final VarName X = new VarName("x", 1);
-    private static final VarName L = new VarName("l", 2);
-    private static final VarName M = new VarName("m", 3);
+    private static final VarName X = new VarName("x", 0);
+    private static final VarName L = new VarName("l", 1);
+    private static final VarName M = new VarName("m", 2);
 
-    /** A name table as the compiler builds one: {@code group()} is always slot 0. */
+    /** A name table as the compiler builds one: the author's names, dense from zero. */
     private static Names names() {
-        final VarName group = new VarName(EngineVars.GROUP.spelling(), 0);
-        return new Names(Map.of(group.name(), group, X.name(), X, L.name(), L, M.name(), M), Map.of(L.name(),
+        return new Names(Map.of(X.name(), X, L.name(), L, M.name(), M), Map.of(L.name(),
                 Declaration.Type.LIST, M.name(), Declaration.Type.MAP));
     }
 

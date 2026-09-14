@@ -74,7 +74,7 @@ public sealed interface CompiledRef {
      * {@code for-each} precisely because it knows. This carries the same knowledge into the run
      * instead of resolving the name against the scope stack on every read. The index rule
      * travels because an author may still write one; a scalar answers to index one and to
-     * nothing else, which is what the store that used to hold it did. No group travels, for the same
+     * nothing else, which is what the single-valued store of design 30 did. No group travels, for the same
      * reason it does not on {@link RemoteVar}.
      */
     record Context(EngineVars var, CompiledIndex matchIndex) implements CompiledRef {

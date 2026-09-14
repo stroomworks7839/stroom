@@ -357,13 +357,6 @@ final class ReferenceCheck {
                 iterationDepth--;
             }
             case OutputNode.ForEach value -> {
-                // Walking group() is only meaningful inside a grouping, and the type check
-                // cannot see that: group() is answered everywhere, being the engine's.
-                if (EngineVars.GROUP.spelling().equals(value.select().bareName()) && groupDepth == 0) {
-                    warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                            + "' walks " + EngineVars.GROUP.spelling() + " outside any"
-                            + " for-each-group, where nothing sets it."));
-                }
                 target(value.select(), "walks", Declaration.Type.LIST, Declaration.Type.MAP, Declaration.Type.SET);
                 if (value.as() != null) {
                     bindImplicit(value.as());
@@ -389,6 +382,14 @@ final class ReferenceCheck {
      * accepts. Reached through an accessor, its type is a run-time fact (design 35 §5).
      */
     private void target(final RefExpression ref, final String verb, final Declaration.Type... accepts) {
+        if (ref.parts().size() == 1 && ref.parts().getFirst() instanceof RefExpression.RefPart.Counter counter
+            && mutation(verb)) {
+            // What a function answers is the engine's — group()'s members are the frame's list —
+            // and a mutation of it would change what the engine says without any variable
+            // changing. Read it, walk it, copy it into a declared list; do not act on it.
+            throw new ConfigException("Template '" + templateName + "' " + verb + " " + counter.counter().spelling()
+                    + ", which is a function, not a variable: copy it into a declared list to change it.");
+        }
         final String name = ref.bareName();
         if (name != null) {
             // A bare name is judged as a typed use, not read: the operation is the writer.
@@ -396,6 +397,12 @@ final class ReferenceCheck {
             return;
         }
         value(ref);
+    }
+
+    /** Whether a target verb changes its collection, as opposed to walking or reading it. */
+    private static boolean mutation(final String verb) {
+        return verb.startsWith("appends") || verb.startsWith("inserts") || verb.startsWith("puts")
+               || verb.startsWith("removes") || verb.startsWith("clears");
     }
 
     /** A reference read for its value, which may be a collection. */
@@ -591,7 +598,7 @@ final class ReferenceCheck {
     /**
      * A sort key decides the order, so it cannot ask where an entry will land: nothing
      * has a position until the keys have been compared. {@code index()} is fine there —
-     * it names the record, which is known — and is how a key reaches a parallel store.
+     * it names the record, which is known — and is how a key reaches a parallel list.
      */
     private void sortKeyPositional(final EngineVars function) {
         if (function == EngineVars.POSITION || function == EngineVars.LAST) {
@@ -648,7 +655,7 @@ final class ReferenceCheck {
             // An operation that disagrees with the declared type (design 35 §5): every
             // collection operation on a bare name, judged against what the name holds.
             for (final TypedUse use : typedUses) {
-                if (EngineVars.GROUP.spelling().equals(use.name()) || implicitIn(use.templateName(), use.name())) {
+                if (implicitIn(use.templateName(), use.name())) {
                     continue;
                 }
                 declared(use.templateName(), use.name(), use.verb());
@@ -713,7 +720,7 @@ final class ReferenceCheck {
     private void checkRead(final Read read) {
         for (final RefExpression.RefPart part : read.ref().parts()) {
             if (part instanceof RefExpression.RefPart.Capture capture) {
-                if (capture.varId() != null && !EngineVars.GROUP.spelling().equals(capture.varId())) {
+                if (capture.varId() != null) {
                     declaredAndWritten(read.templateName(), capture.varId(), "reads");
                     final Declaration declaration = declarations.get(capture.varId());
                     // A name bound in place — a loop's as, a parameter — shadows a declaration

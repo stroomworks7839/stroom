@@ -281,7 +281,7 @@ public sealed interface CompiledOp {
 
     /**
      * A call to a registered function (design 26): {@code select.get(i)} is the reference at
-     * position {@code i}, or null where {@code sequences.get(i)} names the store whose entries
+     * position {@code i}, or null where {@code sequences.get(i)} names the list whose entries
      * that position receives.
      *
      * @param slot where the run's bindings hold this function, so the call reads an array rather

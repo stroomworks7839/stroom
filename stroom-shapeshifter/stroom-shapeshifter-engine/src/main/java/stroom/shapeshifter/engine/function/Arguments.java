@@ -26,7 +26,7 @@ import java.util.List;
  * {@link #miscast(int)} when something was there and the kind could not read it — what
  * Stroom's {@code getSafeString} warns about, left to the function to decide.
  *
- * <p>A {@link Kind#SEQUENCE} position holds every entry of the store its select named, in
+ * <p>A {@link Kind#SEQUENCE} position holds every entry of the list its select named, in
  * order, under {@link #sequence(int)}; its {@link #value(int)} is null.
  */
 public final class Arguments {

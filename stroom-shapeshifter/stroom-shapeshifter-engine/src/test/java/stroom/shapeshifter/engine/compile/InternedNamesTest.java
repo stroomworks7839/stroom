@@ -72,13 +72,10 @@ class InternedNamesTest {
     }
 
     @Test
-    void everyTableHoldsTheGroupSlot() {
-        // The interpreter binds __group whether or not a configuration reads it, and Body reads
-        // group() without asking whether it is there. The interner interns it in a field
-        // initialiser; this is the same thing said where a hand-built table would break it.
-        assertThat(compiled().names().group()).isNotNull();
-        assertThatThrownBy(() -> new Names(java.util.Map.of(), java.util.Map.of()))
-                .isInstanceOf(IllegalArgumentException.class);
+    void theTableHoldsTheAuthorsNamesAndNothingElse() {
+        // Nothing is reserved (design 35 §6): every engine function is a frame read, and the
+        // table has no slot for any of them — group() included, since phase 5.
+        assertThat(compiled().names().all().keySet()).noneMatch(name -> name.endsWith("()"));
     }
 
     /** A configuration binding one name, which a guard is the only thing to read. */

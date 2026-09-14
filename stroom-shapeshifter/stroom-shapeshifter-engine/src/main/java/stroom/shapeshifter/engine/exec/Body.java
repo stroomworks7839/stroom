@@ -70,9 +70,6 @@ final class Body {
     private final FunctionRuntime functions;
     private final VarRegistry vars;
 
-    /** The slot a grouping binds its members to, which is a name the interpreter binds itself. */
-    private final VarName groupMembers;
-
     /**
      * The arithmetic sites that have already drawn a strict_values warning this run — once
      * per instruction site, because once per record on a million-record input is not a
@@ -117,7 +114,6 @@ final class Body {
          final Encoding encoding) {
         this.compiled = compiled;
         this.vars = new VarRegistry(compiled.names());
-        this.groupMembers = compiled.names().group();
         this.instrument = instrument;
         this.messages = messages;
         this.functions = functions;
@@ -785,7 +781,7 @@ final class Body {
      *
      * <p>Groups form in order of first appearance — a {@link java.util.LinkedHashMap} built in
      * one pass, which is the whole implementation. What is grouped is the <b>position set</b>:
-     * members are 1-based positions, bound as {@code group()}, so a nested walk over them can
+     * members are 1-based positions, answered by {@code group()}, so a nested walk over them can
      * read any parallel list at the record each names. Keys are compared by string form, the
      * same total reading an uncast ordering uses.
      *
@@ -809,23 +805,22 @@ final class Body {
             return;
         }
 
-        // The members are a list declared over the grouping; the key and the size are
-        // scalars the group frame holds (design 30 phase 4).
-        vars.push();
-        vars.declare(groupMembers);
+        // The key, the members and the size are the group frame's (design 30 phase 4; the
+        // members since design 35 phase 5): group() reads them, and nothing is a name.
         vars.frames().pushGroup();
         for (final Filed group : members.values()) {
             final List<Integer> indices = group.members();
-            bindDense(groupMembers, indices.stream()
-                    .map(index -> (TypedValue) new TypedValue.Integer(index))
-                    .toList());
+            final TypedValue.List positions = new TypedValue.List();
+            for (final Integer index : indices) {
+                positions.append(new TypedValue.Integer(index));
+            }
+            vars.frames().groupMembers(positions);
             vars.frames().groupKey(group.key());
             vars.frames().groupSize(indices.size());
             body(op.body(), match, matchCount, content, out,
                     inputBase, ignoreErrors, depth);
         }
         vars.frames().popGroup();
-        vars.pop();
     }
 
     /** One entry of a walk: its 1-based index in the collection, its key for a map, its value. */

@@ -69,9 +69,9 @@ import java.util.Arrays;
  * against {@code max_sequence_entries}; it is exact while no collection is reachable from two
  * slots, which nothing here does.
  *
- * <p>What is in here is the <b>author's</b> names. The engine's own are {@link Frames}, which
- * design 30 phase 4 gave them; the one exception is {@code group()}, a sequence rather than a
- * scalar, which is a slot like any other.
+ * <p>What is in here is the <b>author's</b> names, and only those. The engine's own are
+ * {@link Frames}, which design 30 phase 4 gave them — every one of them, since design 35 phase 5
+ * moved the group's members there too. Nothing is reserved.
  */
 public final class VarRegistry {
 

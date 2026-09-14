@@ -467,13 +467,38 @@ class SequenceIterationTest {
     }
 
     @Test
+    void mutatingTheGroupIsRefused() {
+        // group() answers the frame's list: walk it, size it, copy it, but a mutation of it
+        // would change what the engine says without any variable changing.
+        final String body = """
+                {"for-each-group": {"select": "items", "body": [
+                  {"append": {"target": {"parts": [{"function": {"name": "group"}}]},
+                     "select": {"parts": [{"text": "9"}]}}}]}}
+                """;
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config(body, APPEND_FIELD))))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("appends to group(), which is a function");
+    }
+
+    @Test
+    void theGroupCanBeCopiedSizedAndIndexed() {
+        // A read of group() is any list read: size, get by position, a copy into a declared list.
+        final String body = """
+                {"for-each-group": {"select": "items", "body": [
+                  {"value-of": {"parts": [{"size": {"of": "group()"}}, {"text": ":"},
+                     {"get": {"of": "group()", "key": 1}}, {"text": " "}]}}]}}
+                """;
+        assertThat(run(config(body, APPEND_FIELD), "b\na\nb\n")).isEqualTo("2:1 1:2 ");
+    }
+
+    @Test
     void walkingTheGroupOutsideAGroupingDrawsTheLint() {
-        // group() is answered everywhere, being the engine's, so the type check cannot catch
-        // this on its own.
+        // group() is a function read, and the lint on reading a grouping's function outside a
+        // grouping is what catches it — a walk over it is a read of it.
         final String json = config(
                 "{\"for-each\": {\"select\": \"group()\", \"body\": []}}", APPEND_FIELD);
         assertThat(Shapeshifter.compile(ProjectReader.read(json)).warnings())
-                .anyMatch(m -> m.text().contains("walks group() outside any for-each-group"));
+                .anyMatch(m -> m.text().contains("group() outside any for-each-group"));
     }
 
     // -----------------------------------------------------------------------------------

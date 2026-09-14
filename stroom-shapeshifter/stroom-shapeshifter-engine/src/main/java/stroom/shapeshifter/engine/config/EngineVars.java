@@ -37,10 +37,13 @@ import java.util.stream.Collectors;
  * {@code __} prefix and a refusal to keep configurations from colliding with it. As functions they
  * reserve nothing: a configuration may declare a variable called {@code match_count}.
  *
- * <p><b>They are special forms, not registry functions.</b> The compiler recognises them and
- * resolves each to a read of the frame that holds it — a compile-time pointer, exactly as design
- * 30 phase 4 made it — rather than a call through {@code FunctionRegistry}, which would put a
- * dispatch on the hottest path in the engine.
+ * <p><b>They are special forms, not registry functions and not variables.</b> The compiler
+ * recognises them and resolves each to a read of the frame that holds it — a compile-time
+ * pointer, exactly as design 30 phase 4 made it — rather than a call through
+ * {@code FunctionRegistry}, which would put a dispatch on the hottest path in the engine, or a
+ * slot in the registry, which would make one of them a name. {@link #GROUP} was the last to
+ * leave the registry: it answers a list, and the frame could not hold one until collections
+ * were values (design 35 phase 3).
  *
  * <p><b>A name belongs here only once something sets it.</b> A function the reader accepts but
  * nothing writes reads as absent for ever, which is exactly what E21 deleted the
@@ -50,43 +53,37 @@ import java.util.stream.Collectors;
 public enum EngineVars {
 
     /** How many times the current template has matched, 1-based. */
-    MATCH_COUNT("matchCount", true),
+    MATCH_COUNT("matchCount"),
 
     /** The same count, 0-based, for the XSLT-shaped reading. */
-    MATCH_INDEX("matchIndex", true),
+    MATCH_INDEX("matchIndex"),
 
-    /** Within a {@code for-each}: the current entry's <b>store index</b> (design/16 §4.3). */
-    INDEX("index", true),
+    /** Within a {@code for-each}: the current entry's 1-based position in its list (design/16 §4.3). */
+    INDEX("index"),
 
     /** Within a {@code for-each}: the 1-based position in this iteration. */
-    POSITION("position", true),
+    POSITION("position"),
 
     /** Within a {@code for-each}: how many entries the iteration will run. */
-    LAST("last", true),
+    LAST("last"),
 
     /** Within a {@code for-each-group}: the key this group was formed on. */
-    GROUP_KEY("groupKey", true),
+    GROUP_KEY("groupKey"),
 
     /**
-     * Within a {@code for-each-group}: the members, as a list of 1-based positions.
-     *
-     * <p><b>The one that is not framed.</b> Every other function here answers a scalar the
-     * engine overwrites; this one is a sequence that is walked, indexed and folded exactly as an
-     * authored sequence is, so it stays a store in the registry, which is what it is. Its slot is
-     * interned under its {@link #spelling()}, which no declaration can take, so it collides with
-     * nothing an author names.
+     * Within a {@code for-each-group}: the members, as a list of 1-based positions — a
+     * collection the frame holds like any other value, walked, indexed and folded as a
+     * declared list is.
      */
-    GROUP("group", false),
+    GROUP("group"),
 
     /** Within a {@code for-each-group}: how many members — known before the group opens. */
-    GROUP_SIZE("groupSize", true);
+    GROUP_SIZE("groupSize");
 
     private final String functionName;
-    private final boolean framed;
 
-    EngineVars(final String functionName, final boolean framed) {
+    EngineVars(final String functionName) {
         this.functionName = functionName;
-        this.framed = framed;
     }
 
     /** The function's name, as the configuration spells it in a {@code function} part. */
@@ -99,13 +96,6 @@ public enum EngineVars {
         return functionName + "()";
     }
 
-    /**
-     * Whether the run holds this in an execution frame rather than in the variable registry.
-     * True for every scalar; false for {@link #GROUP}, which is a sequence.
-     */
-    public boolean framed() {
-        return framed;
-    }
 
     private static final Map<String, EngineVars> BY_NAME = Arrays.stream(values())
             .collect(Collectors.toMap(EngineVars::functionName, Function.identity()));

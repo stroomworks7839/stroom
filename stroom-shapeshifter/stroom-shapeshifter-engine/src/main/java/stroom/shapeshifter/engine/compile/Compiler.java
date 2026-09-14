@@ -169,7 +169,7 @@ public final class Compiler {
     /** What a template's captures alone can be wrong about. */
     private static void refuseCaptures(final Template template) {
         // An eater's matches do not count, so its captures would have no index to bind
-        // at — and a binding would trip the first-match store clearing (D36, §8b).
+        // at — and a binding would trip the first-match restart of a list (D36, §8b).
         if (template.consume() && !template.captures().isEmpty()) {
             throw new ConfigException("Template '" + template.name()
                                       + "' is marked consume but declares captures: an eater's"

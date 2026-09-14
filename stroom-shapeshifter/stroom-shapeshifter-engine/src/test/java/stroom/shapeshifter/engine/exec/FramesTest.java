@@ -22,7 +22,6 @@ import stroom.shapeshifter.engine.value.TypedValue;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The execution frames, and the scoping the registry used to give them by shadowing names.
@@ -178,13 +177,19 @@ class FramesTest {
     }
 
     @Test
-    void theMembersAreNotAFrameField() {
+    void theMembersAreAFrameField() {
+        // The group's members are a list the frame holds, like its key and size: absent outside
+        // any group, the list inside one, and gone again when the group closes.
         final Frames frames = new Frames();
-
-        // __group is a sequence, so it stays a store in the registry. Nothing should route it
-        // here, and EngineVars.framed() is what says so.
-        assertThat(EngineVars.GROUP.framed()).isFalse();
-        assertThatThrownBy(() -> frames.value(EngineVars.GROUP))
-                .isInstanceOf(IllegalStateException.class);
+        assertThat(frames.value(EngineVars.GROUP)).isNull();
+        frames.pushGroup();
+        assertThat(frames.value(EngineVars.GROUP)).isNull();
+        final TypedValue.List members = new TypedValue.List();
+        members.append(new TypedValue.Integer(2));
+        members.append(new TypedValue.Integer(5));
+        frames.groupMembers(members);
+        assertThat(frames.value(EngineVars.GROUP)).isSameAs(members);
+        frames.popGroup();
+        assertThat(frames.value(EngineVars.GROUP)).isNull();
     }
 }

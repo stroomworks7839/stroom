@@ -34,7 +34,8 @@ import java.util.Arrays;
  * {@code element_storm} 100% of all name resolutions were engine variables, almost all of them
  * {@code matchCount()} and {@code matchIndex()} written per match by {@code Level} — and
  * {@code element_storm}'s configuration reads neither. That traffic is not resolving
- * references; it is a hash per match to store two numbers nobody asks for.
+ * references; it is a hash per match to store two numbers nobody asks for. The group's members
+ * followed in design 35 phase 5, once a frame could hold a list.
  *
  * <p><b>The stacks are exact, not approximate.</b> An iteration frame inherits its enclosing
  * frame's position and last at the push, because the two index-only pushes — a grouping's
@@ -128,6 +129,7 @@ public final class Frames {
             groups[groupDepth] = frame;
         }
         frame.key = null;
+        frame.members = null;
         frame.hasSize = false;
         frame.sizeValue = null;
         groupDepth++;
@@ -141,6 +143,11 @@ public final class Frames {
     /** The key this group was formed on, or null for the group of entries that had none. */
     public void groupKey(final TypedValue key) {
         groups[groupDepth - 1].key = key;
+    }
+
+    /** The members of this group, as a list of 1-based positions into what was grouped. */
+    public void groupMembers(final TypedValue.List members) {
+        groups[groupDepth - 1].members = members;
     }
 
     /** How many members this group has. */
@@ -168,8 +175,7 @@ public final class Frames {
             case LAST -> iteration == null || !iteration.hasLast ? null : iteration.lastValue();
             case GROUP_KEY -> group == null ? null : group.key;
             case GROUP_SIZE -> group == null || !group.hasSize ? null : group.sizeValue();
-            // Nothing routes it here: a sequence is a store, and EngineVars.framed() says so.
-            case GROUP -> throw new IllegalStateException("group() is a store, not a frame field");
+            case GROUP -> group == null ? null : group.members;
         };
     }
 
@@ -247,10 +253,11 @@ public final class Frames {
         }
     }
 
-    /** One grouping's frame. The members themselves stay a store, bound as {@code group()}. */
+    /** One grouping's frame: the key, the members and the size. */
     private static final class Group {
 
         private TypedValue key;
+        private TypedValue.List members;
 
         private long size;
         private boolean hasSize;

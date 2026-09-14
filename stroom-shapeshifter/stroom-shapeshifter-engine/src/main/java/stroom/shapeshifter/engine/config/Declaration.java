@@ -46,10 +46,6 @@ public record Declaration(String name, Type type, List<Entry> entries) {
         if (name == null || name.isEmpty()) {
             throw new ConfigException("A declaration needs a name");
         }
-        if (name.indexOf('(') >= 0 || name.indexOf(')') >= 0) {
-            throw new ConfigException("Declaration '" + name + "' is not a name: the functions"
-                    + " are " + EngineVars.spellings() + ", and nothing else takes parentheses");
-        }
         if (type == null) {
             throw new ConfigException("Declaration '" + name + "' needs a type: scalar, list, map or set");
         }

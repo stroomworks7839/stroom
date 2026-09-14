@@ -376,9 +376,13 @@ final class CompiledRefs {
                                      final int matchCount,
                                      final VarRegistry vars) {
         final TypedValue value = vars.frames().value(context.var());
-        return value == null
-                ? null
-                : scalar(value, index(context.matchIndex(), matchCount, vars), matchCount);
+        if (value == null) {
+            return null;
+        }
+        final Integer index = index(context.matchIndex(), matchCount, vars);
+        return value instanceof final TypedValue.List list
+                ? indexed(list, index)
+                : scalar(value, index, matchCount);
     }
 
     /**

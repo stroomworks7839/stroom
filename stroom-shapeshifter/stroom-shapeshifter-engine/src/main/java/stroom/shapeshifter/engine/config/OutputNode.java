@@ -693,7 +693,7 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
 
     /**
      * One key of an iteration's ordering (design/16 §5). {@code by} is evaluated once per
-     * entry with {@code index()} bound, so a key can read the item, a parallel store at the
+     * entry with {@code index()} bound, so a key can read the item, a parallel list at the
      * same match, or a concatenation.
      *
      * <p>Ordering is by the same {@code as} cast every typed read in the engine uses; uncast
