@@ -779,6 +779,21 @@ branch at dispatch time — the matching template emits its own output from curr
 — rather than exists-testing optional captures after the fact. `nasty_xml`'s `deep` variable
 is the same shape and passes only because its optional field sits on the last entry; the live
 byte-parity contract would catch any reordering, so it stays as-is, noted here.
+
+**Addendum 2026-09-14: the pinned half is being replaced, not un-pinned.** This entry was
+rediscovered as [E49](#e49--a-capture-holds-the-previous-records-value-when-this-record-did-not-overwrite-it),
+which proposed clearing at dispatch entry instead. That was built, broke four golden fixtures —
+`win_sec`, `win_sec_strict`, `win_app`, `win_app_xml` — and was reverted, because the pinned half is
+DS3's own behaviour and the goldens record it. **Read E49 before reopening this.**
+
+The real answer is that the lifetime should be *declared* rather than inferred from where a
+template sits, which is what `design/35-one-binding-with-a-lifetime.md` does: the DS3 migration
+declares on the source, giving run lifetime and reproducing `root.clear()`-once-per-parse exactly,
+while a native configuration wanting per-record lifetime declares on the record template. Both
+become statable, and the split this entry had to make — half fixed, half pinned — stops being a
+split. The residual above about `Variable` and transform results tail-leaking is the same missing
+declaration, and design 35 covers it too.
+
 ### E20 — Strict dispatch: the cursor moves only by matching at it
 **`in progress` — core implemented 2026-08-21: modes strict/lax/classify/lexer live, `consume`
 and `emit-error` live, zero-advance errors, version-gated defaults (v4+ strict), validation
@@ -1851,97 +1866,62 @@ at :337), `ds3/LegacyRefs.java`, `exec/CompiledRefs.java` `indexed`, `exec/Level
 `bindCaptures`, `exec/VarRegistry.java`.
 
 ### E49 — A capture holds the previous record's value when this record did not overwrite it
-**`open` 2026-09-11.** Found while asking what the variable registry's data-derived names are
-*for* and what their lifetime should be (design 33 §11 E, E48's neighbour). The answer turned out
-to be that captures have no reliable lifetime at all, and that this is not specific to
-key-value ones.
+**`superseded` 2026-09-14 by design 35.** Opened 2026-09-11, built, measured, reverted the same
+day, and then found to be two-thirds a rediscovery of a question already settled. Nothing is left
+to fix here; what is left is worth reading, because how it went wrong is the useful part.
 
-**The mechanism.** A template's captures are emptied in `Level.processMatch`:
+**What it claimed.** A template's captures are emptied in `Level.processMatch` only when
+`matchCount == 1`, so a template that never matches on a record leaves its stores holding the last
+record that did. Three demonstrations were run against the engine:
 
-```java
-if (matchCount == 1) {
-    for (final VarName name : candidate.clearNames()) {
-        vars.store(name).clear();
-    }
-}
-```
-
-**The clear is keyed to a match happening.** A template that does not match on a record never
-reaches `matchCount == 1`, so nothing is cleared and its stores still hold the last record that
-did match. And key-value captures are excluded from `clearNames` altogether — `Compiler` skips
-any binding whose select is a `CaptureSource.KeyValue`, because the names are not knowable at
-compile time — so they are never cleared under any circumstances.
-
-**Three demonstrations, each run against the engine as it stands.** The configuration is the same
-shape each time: a record template that dispatches into a field template and then reads a name the
-field template binds.
-
-*A compiled capture, on a record where its template does not match.* Input `k=1`, `nothing here`,
-`k=3`; the field template matches `k=([0-9]+)` and captures `v`:
-
-```
-[v=1][v=1][v=3]
-```
-
-The middle record contains no `k=` at all and reads the previous record's value.
-
-*A key-value capture, same shape.* Input `k=one`, `other=two`, `k=three`:
-
-```
-[k=one][k=one][k=three]
-```
-
-*And the one that is worse than staleness.* Input `a=1 b=2 key=old` then `key=new`:
-
-```
-[key=old][key=old]
-```
-
-**The second record binds `key` to `new` and still reads `old`.** A data-derived name's store is
-indexed by the declaring template's match count — *which token of the record this was* — so `old`
-sits at index 3 (third token of record one) and `new` at index 1 (first token of record two). A
-reference with no index reads `latest()`, the highest populated index, and 3 beats 1. The engine
-has the right answer and returns the wrong one, on a record where everything matched.
-
-**That last case also shows the index means two different things.** For a compiled capture the
-match index is "the Nth match of this template" and `$field[2]` is meaningful. For a data-derived
-name it is "the Nth token of the record", so `$key[2]` is whatever field happened to be second.
-`latest()` is only coherent if the store is emptied per record, which is the defect.
-
-**The proposed fix, and why it is this one.** Move the clear from *first match* to **dispatch
-entry**: when `Level.dispatch` is entered for a set of candidates, clear each candidate's
-`clearNames` unconditionally, and give key-value captures the same treatment by recording at run
-time which slots they wrote. The lifetime stays keyed to the declaring template, which needs no
-reasoning about ancestry, and both cases in the corpus come out right for the same reason:
-
-| template | dispatched | so its captures clear |
+| input | output | expected |
 |---|---|---|
-| `kv_pair`, or any per-field template | once per record | once per record, matched or not |
-| `header_column` in the CSV fixture | once per stream | once — the headings survive every data row |
+| `k=1`, `nothing here`, `k=3` — a compiled capture | `[v=1][v=1][v=3]` | the middle record has no `k=` at all |
+| `k=one`, `other=two`, `k=three` — a key-value capture | `[k=one][k=one][k=three]` | same shape |
+| `a=1 b=2 key=old` then `key=new` | `[key=old][key=old]` | **the second record binds `key` and still reads `old`** |
 
-*Two alternatives were considered and rejected.* **A scope per dispatch** — push on entry, pop on
-exit — is unconditional and would fix the staleness, but it destroys the CSV headings: they are
-captured by `header_column`, dispatched once from `header_row`'s body, and read much later by
-`data_column` in a different dispatch chain. **Binding into the enclosing scope** makes the
-lifetime depend on who dispatched the template, which is dynamic scoping: the same template would
-get different lifetimes from different call sites.
+**Why the first two are not defects.** They are E19's deliberately pinned half, resolved
+2026-08-20 — *"half fixed, half pinned, split exactly where DS3 splits it"* — and this entry was
+written without finding it. DS3 calls `root.clear()` once per `parse()` and **never between
+records**, so carrying a capture forward is DS3's own behaviour and the golden fixtures record it.
+Direct evidence: the 4625 event at `win_sec/input.txt:165` has no `Logon Type:` line at all, and
+DS3's own output still emits `<LogonType>Interactive</LogonType>`, carried from the 4624 event at
+line 21. There is even a test pinning it, `templateThatNeverMatchesLeavesItsStoreUntouched`, whose
+comment says *"Real DS3 does exactly this."*
 
-**What it costs.** The clear moves from per-match to per-dispatch-entry for every candidate in the
-mode, so it runs on dispatches where nothing matches — which is the point — at O(candidates ×
-captures) per dispatch. `win_sec_strict` makes 569,199 dispatches per operation, so this wants
-measuring rather than assuming.
+**What the proposed fix did.** Moving the clear from first-match to dispatch entry was implemented.
+It fixed the first demonstration and broke **four golden fixtures** — `win_sec`, `win_sec_strict`,
+`win_app`, `win_app_xml` — because it was correcting behaviour the oracle defines. Reverted.
 
-**And it is a behaviour change, not only a fix.** Any configuration relying on a capture surviving
-a record that did not rebind it would produce different output. The current behaviour is hard to
-defend — a record with no `k=` answering `v=1` is the engine answering a question the data did not
-— but the change belongs to whoever owns the porting-fidelity contract, not to the person who
-found it.
+**The third demonstration was real, and design 35 deletes it.** `key=old` beating `key=new` is not
+the pinned case: that record *did* bind `key`. It happens because a key-value capture invents a
+variable name from the data and indexes it by which token of the record it was, so `old` sits at
+index 3 and `new` at index 1, and an unindexed read takes the highest. Design 35 removes both
+halves — a map var writes a **key into a declared variable**, so there is no dynamic name and no
+positional index, and the defect has nowhere to live. See design 35 §5.
 
-**Why the corpus never caught it.** Only `projects/ausearch` uses key-value captures. It reads
-`$auid`, `$success`, `$key` and `$res`; `$res` is read inside a branch guarded on
-`type == USER_AUTH`, and none of its 16 records is a `USER_AUTH` lacking `res` after one that had
-it. The compiled-capture case needs a record where a template that usually matches does not, which
-no golden exercises either.
+**What design 35 replaces this with.** The question E49 was really asking — *what is a capture's
+lifetime?* — is answered by declaration rather than by a clearing heuristic. A variable declared on
+the record template lives for the record; one declared on the source lasts the run; the DS3
+migration declares everything on the source, which is provably faithful because `root.clear()`
+runs once per parse. E19's pinned behaviour becomes a declaration rather than an inference, and
+fidelity stops competing with correctness.
 
-Sites: `exec/Level.java` `processMatch` (the clear), `compile/Compiler.java` (the `KeyValue`
-exclusion from `clearNames`), `exec/Level.java` `bindCaptures`, `exec/Store.java` `latest`.
+**Three things worth keeping from this.**
+
+*Search the ledger before writing an entry.* E19 had settled two-thirds of this three weeks
+earlier, and had a test with a comment saying so. An hour of implementation and an evening of
+measurement bought what one grep would have.
+
+*The golden fixtures are the oracle and they caught it.* No unit test did — the fix passed
+everything it was given. Four goldens moved, and that is what §0 of design 35 now states as the
+only hard constraint: a fixture's configuration may be rewritten freely, its output may not move.
+
+*Three incompatible answers to one question is a missing concept, not three bugs.* E19's
+first-match clear, the key-value captures' absence of any rule, and this entry's dispatch-entry
+clear were each derived from where a template sits rather than from what its author meant. That
+observation is what opened design 35.
+
+Sites: `exec/Level.java` `processMatch`, `compile/Compiler.java` (the `KeyValue` exclusion from
+`clearNames`), `exec/Store.java` `latest`. Superseded by `design/35-one-binding-with-a-lifetime.md`;
+see also [E19](#e19--a-capture-not-re-matched-keeps-the-previous-records-value).
