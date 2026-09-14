@@ -855,19 +855,14 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **The collapse** | Design 16's `Sequence`, `Append`, `DistinctValues`, the five folds, `Key`, `KeyGet` and `ValueMap` fold into declarations, collection types, operations and functions — ten of `Binding`'s twelve, plus the separate key and sequence namespaces. `Transform` and `Variable` remain as *value sources*, not binders. | §5 |
 | **DS3 migration** | Declares **everything on the source**, which is run lifetime. `root.clear()` runs once per parse and never between records, so that is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
 
-### Still open
+### Nothing open
 
-1. ~~Is a name allowed more than one declaration?~~ **Ruled 2026-09-14: once per namespace.**
-   Today a configuration has one implicit namespace, so that is once per configuration, and it
-   makes resolution unambiguous at no cost — the corpus declares a name twice exactly once, in a
-   feature §5 removes. Recursion still shadows, being one declaration with several live
-   activations. **§4 records what libraries will need**, and the rule is written as *per namespace*
-   so that it survives them.
-2. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
-   and recursive applies all push today; template lifetime no longer needs a frame, so this design
-   may shrink the scope stack rather than extend it.
+The last question — which of `VarRegistry`'s pushes survive — is answered by the block-scope ruling
+in §4: all of them become the one declaration mechanism, and `recursiveShadow()` goes. Earlier
+entries in this section are folded into the table above as they were ruled.
 
-*One implementation question. The model is settled.*
+**The model is settled and so is its implementation shape.** What remains is building it, and §10
+is the gate.
 
 ## 10. How it would be gated
 
