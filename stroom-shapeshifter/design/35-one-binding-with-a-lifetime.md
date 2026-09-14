@@ -301,6 +301,40 @@ instruction instead.
 collapse accordingly. That is where §11's get-smaller test is won, and it is won against a
 limitation the codebase already documented rather than against a design preference.
 
+### The collapse, stated *(ruled 2026-09-14)*
+
+Design 16's constructs fold into the declaration and its types. Ten of `Binding`'s twelve go, and
+so do two separate namespaces.
+
+| design 16 | becomes |
+|---|---|
+| `Sequence(name)` — declare and empty | **declare a list** (§4, §5) |
+| `Append(name, select)` | **`append(list, value)`** — an operation, not an instruction |
+| `DistinctValues(select, name)` | **a set** |
+| `Count`, `Sum`, `Avg`, `Min`, `Max` | **functions over a collection** — `count()`, `sum()`, `avg()`, `min()`, `max()` |
+| `Key(name, select, groupBy)` | **a map of key to list of positions** — which needs the nesting §5 rules in |
+| `KeyGet(key, select, name)` | **`get(map, key)`** |
+| `ValueMap(select, entries, default, name)` | **a map declared with initial entries**, read with a default |
+
+**`Transform` and `Variable` stay**, because they are not collection-shaped. Under §4 they are not
+binders either — they are *value sources*, ways of supplying a declaration's value, alongside the
+match and the caller.
+
+**Two namespaces dissolve with them.** `Key`'s javadoc: *"Key names are their own namespace: a key
+and a sequence may share a name without colliding, because nothing can confuse the two at a use
+site."* Sequences were a third. One namespace with declared types replaces all of it, and the
+collision rules each namespace needed go with them — including `Sequence`'s refusal of a name that
+collides with a capture, which existed because *"a template's first-match clearing would empty the
+accumulation underneath it mid-run (design/16 §9)"*. Scoped declarations remove the clearing that
+refusal was defending against.
+
+**One property to preserve deliberately.** `Key` is *"an instruction rather than a project-level
+declaration, so it runs where its inputs are ready — typically the epilogue, once the level that
+fills the sequence has finished — and its cost is paid somewhere an author can see."* Building an
+index is expensive and design 16 made that visible on purpose. A map filled by a written `for-each`
+and `put` keeps the cost visible in the same way; a map that filled itself would not, and would be
+the magic §5 removes.
+
 ### Two things design 16 decided that this design changes
 
 **`Append` today refuses to append absence.** Its javadoc: *"An absent value appends nothing — not a
@@ -706,6 +740,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Counter names** | Eight flat, explicit names: `matchCount()`, `matchIndex()`, `index()`, `position()`, `last()`, `groupKey()`, `group()`, `groupSize()`. | §6 |
 | **`Param`** | Stays outside the unified declaration. Call scoping is already correct and uniformity alone was not a reason. | §4 |
 | **Size guard** | One run-wide live-element counter: every `append` or `put` increments it, every collection caches its own total so a clear or scope-exit decrements in O(1). Nesting is irrelevant because the counter measures exactly what the promise is about — total live elements — whatever shape they are in. | §5, §8 |
+| **The collapse** | Design 16's `Sequence`, `Append`, `DistinctValues`, the five folds, `Key`, `KeyGet` and `ValueMap` fold into declarations, collection types, operations and functions — ten of `Binding`'s twelve, plus the separate key and sequence namespaces. `Transform` and `Variable` remain as *value sources*, not binders. | §5 |
 | **DS3 migration** | Declares **everything global**. `root.clear()` runs once per parse and never between records, so global is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
 
 ### Still open
