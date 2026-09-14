@@ -100,6 +100,10 @@
      "type": "scalar"
     },
     {
+     "name": "eventCodeText",
+     "type": "scalar"
+    },
+    {
      "name": "failedAccount",
      "type": "scalar"
     },
@@ -225,6 +229,10 @@
     },
     {
      "name": "sourceNameText",
+     "type": "scalar"
+    },
+    {
+     "name": "sourceNetworkAddressText",
      "type": "scalar"
     },
     {
@@ -1813,7 +1821,7 @@
             "&#xA;",
             "&#xD;"
            ],
-           "name": "yearText"
+           "name": "sourceNetworkAddressText"
           }
          },
          {
@@ -1824,7 +1832,7 @@
             },
             {
              "Store": {
-              "var_id": "yearText",
+              "var_id": "sourceNetworkAddressText",
               "group": 0,
               "match_index": null
              }
@@ -2269,7 +2277,7 @@
        "&#xA;",
        "&#xD;"
       ],
-      "name": "yearText"
+      "name": "eventCodeText"
      }
     },
     {
@@ -2280,7 +2288,7 @@
        },
        {
         "Store": {
-         "var_id": "yearText",
+         "var_id": "eventCodeText",
          "group": 0,
          "match_index": null
         }
