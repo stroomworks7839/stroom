@@ -263,7 +263,7 @@ final class Level {
      */
     private void enter(final CompiledTemplate candidate) {
         if (candidate.declared().length > 0) {
-            vars.push(candidate.declared());
+            vars.push(candidate.declared(), candidate.initial());
         }
     }
 
@@ -745,7 +745,8 @@ final class Level {
             // that failed — is absence, assigned or appended the same way (design 25 §9, 35 §8),
             // so a name never keeps what the previous record left and positions stay aligned.
             if (capture.target() == Declaration.Type.LIST) {
-                vars.setAt(capture.name(), matchCount, value);
+                // Match numbers are 1-based positions; the list is indexed from 0 (design 35 §5).
+                vars.setAt(capture.name(), matchCount - 1, value);
             } else {
                 vars.set(capture.name(), value);
             }

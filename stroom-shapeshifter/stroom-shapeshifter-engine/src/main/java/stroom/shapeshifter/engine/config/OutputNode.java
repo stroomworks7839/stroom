@@ -50,12 +50,12 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
 
     /**
      * An instruction that may bind a name instead of, or as well as, writing (D47). The
-     * transforms bind when named and write when not; a variable, a sequence and a key always
-     * bind, their constructors refusing a missing name.
+     * transforms bind when named and write when not; a variable always binds. These are the
+     * two value sources that are not collection-shaped (design 35 §4, §5): everything design 16
+     * built for one collection type is now a declared type and an operation on it.
      */
     sealed interface Binding extends OutputNode
-            permits Transform, Variable, Sequence, Key, KeyGet, Count, Sum, Avg, Min, Max,
-                    DistinctValues, ValueMap {
+            permits Transform, Variable {
 
         String name();
 
@@ -80,7 +80,8 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
 
     /** Everything else: writes, reads or declares, and holds nothing (D47). */
     sealed interface Leaf extends OutputNode
-            permits Text, ValueOf, EmitError, ApplyTemplates, CallTemplate, Namespace, Append {
+            permits Text, ValueOf, EmitError, ApplyTemplates, CallTemplate, Namespace,
+                    Append, Insert, Put, Remove, Clear {
 
     }
 
@@ -256,24 +257,6 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
 
         public Namespace {
             prefix = prefix == null ? "" : prefix;
-        }
-    }
-
-    /**
-     * Map a value through a lookup table.
-     *
-     * @param select       the value to look up
-     * @param entries      the table
-     * @param defaultValue what to produce when nothing matches, or null to produce nothing
-     * @param name         bind the result to this variable instead of writing it, or null
-     */
-    record ValueMap(RefExpression select,
-                    List<Entry> entries,
-                    String defaultValue,
-                    String name) implements Binding {
-
-        public ValueMap {
-            entries = entries == null ? List.of() : List.copyOf(entries);
         }
     }
 
@@ -560,64 +543,113 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
     }
 
     // -----------------------------------------------------------------------------------
-    // Sequences (design/16). A store is the sequence type — there is no new value kind —
-    // and these are the instructions that declare one, add to one, and walk one.
+    // Collections (design 35 §5). A declaration says what a name holds — a list, a map, a set —
+    // and these are the mutations on it, named after XPath 3.1's array: and map: libraries.
+    // A mutation is a statement in a body; an accessor is a function in an expression
+    // (RefExpression.RefPart.Accessor). Nothing mutates from inside an expression.
     // -----------------------------------------------------------------------------------
 
     /**
-     * Declare a sequence, and empty it. XSLT has no equivalent: it is what makes a value
-     * captured in a nested level outlive the level, which nesting alone cannot do because a
-     * child level's stores are cleared on its first match of each new parent match (E19).
+     * Add a value to a list — {@code array:append}. The list is a reference, so a nested list
+     * reached through {@code get} is appended to in place; a bare name is the common case.
      *
-     * <p>Declaring is required rather than implied. It is what puts the accumulation's
-     * lifetime where an author can see it, and it gives the compiler somewhere to stand:
-     * an {@code append} to a name no {@code sequence} declares is refused, and a name that
-     * collides with a capture is refused, because a template's first-match clearing would
-     * empty the accumulation underneath it mid-run (design/16 §9).
+     * <p>An absent value appends nothing: the value was not there, so there is nothing to
+     * add. (A <i>capture</i> into a list appends absence, to keep positions aligned with match
+     * numbers — that is the capture's rule, not this instruction's.)
      */
-    record Sequence(String name) implements Binding {
-
-        public Sequence {
-            if (name == null || name.isEmpty()) {
-                throw new ConfigException("A sequence needs a name");
-            }
-        }
-    }
-
-    /**
-     * Add a value to a declared sequence, at its next free index.
-     *
-     * <p>An absent value appends nothing — not a hole. A dense sequence's index is its
-     * position, so a hole in one would mean nothing at all; the sparse reading belongs to
-     * capture-indexed stores, where an index is a match number and a gap is meaningful.
-     */
-    record Append(String name, RefExpression select) implements Leaf {
+    record Append(RefExpression target, RefExpression select) implements Leaf {
 
         public Append {
-            if (name == null || name.isEmpty()) {
-                throw new ConfigException("An append needs the name of a sequence");
+            requireTarget(target, "append");
+            if (select == null) {
+                throw new ConfigException("An append needs a value to add");
             }
         }
     }
 
     /**
-     * Walk a sequence, running a body once per populated entry — XSLT's {@code xsl:for-each},
-     * over what has been captured rather than over a tree.
+     * Insert a value before a position of a list — {@code array:insert-before}. Positions are
+     * 1-based, as XPath's are; inserting at {@code size + 1} appends.
+     */
+    record Insert(RefExpression target, RefExpression position, RefExpression select)
+            implements Leaf {
+
+        public Insert {
+            requireTarget(target, "insert");
+            if (position == null || select == null) {
+                throw new ConfigException("An insert needs a position and a value");
+            }
+        }
+    }
+
+    /**
+     * Put a value somewhere — {@code array:put} at a position of a list, {@code map:put} under
+     * a key of a map, and with no key: into a set as a member, or into a scalar as its value.
+     * "Put this value at this location" is one idea, and the declared type says which.
      *
-     * @param select the sequence's <b>name</b>, not a reference (design/16 §4.1, ruled): a
-     *               {@link RefExpression} resolves to exactly one value by construction, and
-     *               making it sometimes mean "all of them" would put a second reading into
-     *               the one type every instruction shares
-     * @param as     binds the item's value for the body, or null to read it by index alone
+     * @param key the position (list) or key (map), or null for a set or a scalar
+     */
+    record Put(RefExpression target, RefExpression key, RefExpression select) implements Leaf {
+
+        public Put {
+            requireTarget(target, "put");
+            if (select == null) {
+                throw new ConfigException("A put needs a value");
+            }
+        }
+    }
+
+    /**
+     * Remove an entry — {@code array:remove} by position, {@code map:remove} by key, and from
+     * a set by value. There is deliberately no remove-by-value for a list: XPath has none
+     * either, and a filter-and-rebuild is its answer.
+     */
+    record Remove(RefExpression target, RefExpression key) implements Leaf {
+
+        public Remove {
+            requireTarget(target, "remove");
+            if (key == null) {
+                throw new ConfigException("A remove needs a position, key or value");
+            }
+        }
+    }
+
+    /**
+     * Empty a collection. XPath needs no {@code clear} because its values are immutable and
+     * a name is rebound; these mutate in place, so the start of an accumulation is said.
+     */
+    record Clear(RefExpression target) implements Leaf {
+
+        public Clear {
+            requireTarget(target, "clear");
+        }
+    }
+
+    private static void requireTarget(final RefExpression target, final String what) {
+        if (target == null || target.parts().isEmpty()) {
+            throw new ConfigException("A " + what + " needs a collection to act on");
+        }
+    }
+
+    /**
+     * Walk a collection, running a body once per entry — XSLT's {@code xsl:for-each}, over
+     * what has been declared rather than over a tree. A list's populated entries in order; a
+     * set's members in insertion order; a map's entries, with the key bound too
+     * (design 35 §5: {@code map:for-each}'s reading).
+     *
+     * @param select the collection: a reference, so a nested one reached through {@code get}
+     *               is walked in place; a bare name is the common case
+     * @param as     binds the entry's value for the body, or null to read it by index alone
+     * @param asKey  binds the entry's key, for a map, or null
      * @param body   what runs per entry, with {@code index()}, {@code position()} and
      *               {@code last()} bound (§4.3)
      */
-    record ForEach(String select, String as, List<Sort> sort, List<OutputNode> body)
+    record ForEach(RefExpression select, String as, String asKey, List<Sort> sort, List<OutputNode> body)
             implements Holder {
 
         public ForEach {
-            if (select == null || select.isEmpty()) {
-                throw new ConfigException("A for-each needs the name of a sequence to walk");
+            if (select == null || select.parts().isEmpty()) {
+                throw new ConfigException("A for-each needs a collection to walk");
             }
             sort = sort == null ? List.of() : List.copyOf(sort);
             body = body == null ? List.of() : List.copyOf(body);
@@ -630,25 +662,25 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
     }
 
     /**
-     * Group a sequence's entries and run a body once per group — XSLT's
+     * Group a list's entries and run a body once per group — XSLT's
      * {@code xsl:for-each-group} with {@code group-by} (design/16 §6).
      *
      * <p>Groups form in <b>order of first appearance</b>, XSLT's rule and the one a log
      * summary wants. What is grouped is the <b>index set</b>, not the values: two captures of
      * one template at match <i>i</i> belong to the same record, so a group's members are
-     * positions that any parallel store can be read at. That is how a byte engine with no
+     * positions that any parallel list can be read at. That is how a byte engine with no
      * tree reaches what {@code current-group()} reaches.
      *
-     * @param select  the sequence whose indices are grouped
+     * @param select  the list whose positions are grouped
      * @param groupBy the key, evaluated per entry with {@code index()} bound, or null to
      *                group by the entry's own value
      */
-    record ForEachGroup(String select, RefExpression groupBy, List<OutputNode> body)
+    record ForEachGroup(RefExpression select, RefExpression groupBy, List<OutputNode> body)
             implements Holder {
 
         public ForEachGroup {
-            if (select == null || select.isEmpty()) {
-                throw new ConfigException("A for-each-group needs the name of a sequence");
+            if (select == null || select.parts().isEmpty()) {
+                throw new ConfigException("A for-each-group needs a list to group");
             }
             body = body == null ? List.of() : List.copyOf(body);
         }
@@ -656,58 +688,6 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
         @Override
         public List<List<OutputNode>> bodies() {
             return List.of(body);
-        }
-    }
-
-    /**
-     * Build a random-access index over a sequence — XSLT's {@code xsl:key} (design/16 §8).
-     *
-     * <p>The index is the same {@code Map<String, int[]>} a grouping builds; what a key adds
-     * is reaching **one** entry of it by value, without walking the groups. It is an
-     * instruction rather than a project-level declaration, so it runs where its inputs are
-     * ready — typically the epilogue, once the level that fills the sequence has finished —
-     * and its cost is paid somewhere an author can see.
-     *
-     * <p>A key is declared as a {@code map} (design 35 §5): one namespace, so a key and a
-     * sequence may not share a name. The run time still keeps keys in their own table until
-     * design 35's phase 4 collapses the two.
-     *
-     * @param groupBy the key each entry is filed under, evaluated with {@code index()}
-     *                bound, or null to file each entry under its own value
-     */
-    record Key(String name, String select, RefExpression groupBy) implements Binding {
-
-        public Key {
-            if (name == null || name.isEmpty()) {
-                throw new ConfigException("A key needs a name");
-            }
-            if (select == null || select.isEmpty()) {
-                throw new ConfigException("A key needs the name of a sequence to index");
-            }
-        }
-    }
-
-    /**
-     * Look one value up in a key — XSLT's {@code key()} — binding the matching entries as a
-     * dense sequence of store indices, the same shape as {@code group()}.
-     *
-     * <p>A value with no entry binds an <b>empty</b> sequence, which a walk runs over zero
-     * times and {@code count} reports as 0: the same non-answer XSLT's {@code key()} gives,
-     * and not an error.
-     */
-    record KeyGet(String key, RefExpression select, String name) implements Binding {
-
-        public KeyGet {
-            if (key == null || key.isEmpty()) {
-                throw new ConfigException("A key-get needs the name of a key");
-            }
-            if (select == null) {
-                throw new ConfigException("A key-get needs a value to look up");
-            }
-            if (name == null || name.isEmpty()) {
-                throw new ConfigException("A key-get needs a name to bind: it produces a"
-                                          + " sequence, which has nothing to write to output");
-            }
         }
     }
 
@@ -733,79 +713,6 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
     /** Which way a sort key runs. */
     enum Order {
         ASCENDING, DESCENDING
-    }
-
-    /**
-     * The folds (design/16 §8). Each names a <b>sequence</b> rather than taking a reference,
-     * for §4.1's reason: a reference resolves to exactly one value by construction. Where a
-     * fold over computed values is wanted it is composed — walk the source, {@code append}
-     * the computed value, fold that.
-     */
-    record Count(String select, String name) implements Binding {
-
-        public Count {
-            requireSequence(select, "count");
-        }
-    }
-
-    /**
-     * Add up a sequence. Whole while every entry is whole and nothing overflows, promoting to
-     * fractional otherwise (design/17 §11); <b>zero</b> over an empty sequence, which is
-     * XPath's answer for {@code sum(())}.
-     */
-    record Sum(String select, String name) implements Binding {
-
-        public Sum {
-            requireSequence(select, "sum");
-        }
-    }
-
-    /**
-     * The mean. <b>Absent</b> over an empty sequence rather than zero — XPath's answer for
-     * {@code avg(())} too, and the engine's own word for "there was no value".
-     */
-    record Avg(String select, String name) implements Binding {
-
-        public Avg {
-            requireSequence(select, "avg");
-        }
-    }
-
-    /** The smallest entry, ordered by {@code as} — uncast orders by string form (17 §8). */
-    record Min(String select, Cast as, String name) implements Binding {
-
-        public Min {
-            requireSequence(select, "min");
-        }
-    }
-
-    /** The largest entry, under the same ordering. */
-    record Max(String select, Cast as, String name) implements Binding {
-
-        public Max {
-            requireSequence(select, "max");
-        }
-    }
-
-    /**
-     * The distinct entries of a sequence, bound as a dense one — first appearance order,
-     * compared by string form, which is the same total reading an uncast ordering uses.
-     */
-    record DistinctValues(String select, String name) implements Binding {
-
-        public DistinctValues {
-            requireSequence(select, "distinct-values");
-            if (name == null || name.isEmpty()) {
-                throw new ConfigException("A distinct-values needs a name to bind: it produces"
-                                          + " a sequence, which has nothing to write to output");
-            }
-        }
-    }
-
-    private static void requireSequence(final String select, final String what) {
-        if (select == null || select.isEmpty()) {
-            throw new ConfigException("A " + what + " needs the name of a sequence");
-        }
     }
 
     // -----------------------------------------------------------------------------------
@@ -871,11 +778,6 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
         public SwitchCase {
             body = body == null ? List.of() : List.copyOf(body);
         }
-    }
-
-    /** One entry of a {@link ValueMap} table. */
-    record Entry(String from, String to) {
-
     }
 
     /** One parameter passed to a template. */

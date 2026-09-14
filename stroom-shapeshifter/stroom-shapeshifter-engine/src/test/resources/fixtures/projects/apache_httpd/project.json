@@ -11,6 +11,62 @@
     {
       "id": "8c5913a4-3ed6-4f06-8a07-01519b8f4314",
       "name": "source",
+      "declarations": [
+        {
+          "name": "table_1",
+          "type": "map",
+          "entries": [
+            {
+              "from": "Jan",
+              "to": "01"
+            },
+            {
+              "from": "Feb",
+              "to": "02"
+            },
+            {
+              "from": "Mar",
+              "to": "03"
+            },
+            {
+              "from": "Apr",
+              "to": "04"
+            },
+            {
+              "from": "May",
+              "to": "05"
+            },
+            {
+              "from": "Jun",
+              "to": "06"
+            },
+            {
+              "from": "Jul",
+              "to": "07"
+            },
+            {
+              "from": "Aug",
+              "to": "08"
+            },
+            {
+              "from": "Sep",
+              "to": "09"
+            },
+            {
+              "from": "Oct",
+              "to": "10"
+            },
+            {
+              "from": "Nov",
+              "to": "11"
+            },
+            {
+              "from": "Dec",
+              "to": "12"
+            }
+          ]
+        }
+      ],
       "match": "source",
       "match_limits": {
         "min_match": 0,
@@ -981,69 +1037,28 @@
           }
         },
         {
-          "value-map": {
+          "put": {
+            "name": "monthNum",
             "select": {
               "parts": [
                 {
-                  "capture": {
-                    "var_id": "monthNum",
-                    "group": 0,
-                    "match_index": null
+                  "get": {
+                    "of": "table_1",
+                    "key": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "var_id": "monthNum",
+                            "group": 0,
+                            "match_index": null
+                          }
+                        }
+                      ]
+                    }
                   }
                 }
               ]
-            },
-            "entries": [
-              {
-                "from": "Jan",
-                "to": "01"
-              },
-              {
-                "from": "Feb",
-                "to": "02"
-              },
-              {
-                "from": "Mar",
-                "to": "03"
-              },
-              {
-                "from": "Apr",
-                "to": "04"
-              },
-              {
-                "from": "May",
-                "to": "05"
-              },
-              {
-                "from": "Jun",
-                "to": "06"
-              },
-              {
-                "from": "Jul",
-                "to": "07"
-              },
-              {
-                "from": "Aug",
-                "to": "08"
-              },
-              {
-                "from": "Sep",
-                "to": "09"
-              },
-              {
-                "from": "Oct",
-                "to": "10"
-              },
-              {
-                "from": "Nov",
-                "to": "11"
-              },
-              {
-                "from": "Dec",
-                "to": "12"
-              }
-            ],
-            "name": "monthNum"
+            }
           }
         },
         {
@@ -1524,10 +1539,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_0",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_0"
                               }
                             }
                           ]
@@ -1554,10 +1567,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_1",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_1"
                               }
                             }
                           ]
@@ -1584,10 +1595,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_2",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_2"
                               }
                             }
                           ]
@@ -1614,10 +1623,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_3",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_3"
                               }
                             }
                           ]
@@ -2384,10 +2391,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_4",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_4"
                               }
                             }
                           ]
@@ -2414,10 +2419,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_5",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_5"
                               }
                             }
                           ]
@@ -2444,10 +2447,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_6",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_6"
                               }
                             }
                           ]
@@ -3201,10 +3202,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_7",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_7"
                               }
                             }
                           ]
@@ -3231,10 +3230,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_8",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_8"
                               }
                             }
                           ]
@@ -3261,10 +3258,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_9",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_9"
                               }
                             }
                           ]
@@ -4064,10 +4059,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_10",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_10"
                               }
                             }
                           ]
@@ -4094,10 +4087,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_11",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_11"
                               }
                             }
                           ]
@@ -4124,10 +4115,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_12",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_12"
                               }
                             }
                           ]
@@ -4154,10 +4143,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_13",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_13"
                               }
                             }
                           ]
@@ -4184,10 +4171,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_14",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_14"
                               }
                             }
                           ]
@@ -6737,10 +6722,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_15",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_15"
                               }
                             }
                           ]
@@ -6767,10 +6750,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_16",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_16"
                               }
                             }
                           ]
@@ -6797,10 +6778,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_17",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_17"
                               }
                             }
                           ]
@@ -6827,10 +6806,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_18",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_18"
                               }
                             }
                           ]
@@ -7589,10 +7566,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_19",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_19"
                               }
                             }
                           ]
@@ -7619,10 +7594,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_20",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_20"
                               }
                             }
                           ]
@@ -7649,10 +7622,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_21",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_21"
                               }
                             }
                           ]
@@ -7679,10 +7650,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_22",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_22"
                               }
                             }
                           ]
@@ -8441,10 +8410,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_23",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_23"
                               }
                             }
                           ]
@@ -8471,10 +8438,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_24",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_24"
                               }
                             }
                           ]
@@ -8501,10 +8466,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_25",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_25"
                               }
                             }
                           ]
@@ -8531,10 +8494,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_26",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_26"
                               }
                             }
                           ]
@@ -9313,10 +9274,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_27",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_27"
                               }
                             }
                           ]
@@ -9343,10 +9302,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_28",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_28"
                               }
                             }
                           ]
@@ -9373,10 +9330,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_29",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_29"
                               }
                             }
                           ]
@@ -9403,10 +9358,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_30",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_30"
                               }
                             }
                           ]
@@ -10185,10 +10138,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_31",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_31"
                               }
                             }
                           ]
@@ -10215,10 +10166,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_32",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_32"
                               }
                             }
                           ]
@@ -10245,10 +10194,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_33",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_33"
                               }
                             }
                           ]
@@ -10275,10 +10222,8 @@
                         {
                           "parts": [
                             {
-                              "capture": {
-                                "var_id": "__esc_34",
-                                "group": 0,
-                                "match_index": null
+                              "last": {
+                                "of": "__esc_34"
                               }
                             }
                           ]
@@ -14418,7 +14363,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "eb127d02-665f-4495-9c70-ee8df0447b9f",
@@ -14455,7 +14401,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "58ebef17-de38-4ab2-927e-70bc3db8d56c",

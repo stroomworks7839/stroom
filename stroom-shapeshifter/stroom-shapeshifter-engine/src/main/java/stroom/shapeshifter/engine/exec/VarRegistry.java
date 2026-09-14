@@ -155,6 +155,20 @@ public final class VarRegistry {
         }
     }
 
+    /**
+     * The same, with what each name starts as: a map declared with entries starts as a copy
+     * of its table (design 35 §5); null starts unset, which costs nothing.
+     */
+    public void push(final VarName[] declared, final TypedValue[] initial) {
+        push();
+        for (int i = 0; i < declared.length; i++) {
+            declare(declared[i]);
+            if (initial[i] != null) {
+                set(declared[i], initial[i]);
+            }
+        }
+    }
+
     /** Leave the current scope, restoring every name it declared to what it held outside. */
     public void pop() {
         if (depth == 0) {
@@ -177,16 +191,33 @@ public final class VarRegistry {
     }
 
     /**
-     * Set a name's value in the slot its declaration owns. A collection replaced here leaves the
-     * count, as one discarded on exit does.
+     * Set a name's value in the slot its declaration owns. A collection is <b>copied</b> on the
+     * way in (design 35 §11, ruled 2026-09-14): every collection has one owner, so the
+     * live-element count stays exact and no mutation is visible through a second name. A
+     * collection replaced here leaves the count, as one discarded on exit does.
      */
     public void set(final VarName name, final TypedValue value) {
         final int slot = name.slot();
         release(slots[slot]);
-        slots[slot] = value;
-        if (value instanceof final TypedValue.Collection collection) {
-            live += collection.size();
-        }
+        final TypedValue stored = TypedValue.Collection.stored(value);
+        slots[slot] = stored;
+        live += TypedValue.Collection.elementsOf(stored);
+    }
+
+    /**
+     * Install a collection this registry already owns — one made and counted here, and
+     * being moved rather than stored — without copying or recounting it.
+     */
+    public void adopt(final VarName name, final TypedValue.Collection owned) {
+        final int slot = name.slot();
+        release(slots[slot]);
+        slots[slot] = owned;
+        live += owned.elements();
+    }
+
+    /** Count elements a mutation added to, or took from, a collection reached by reference. */
+    public void grew(final long delta) {
+        live += delta;
     }
 
     /**
@@ -235,7 +266,7 @@ public final class VarRegistry {
             return list;
         }
         final TypedValue.List made = new TypedValue.List();
-        set(name, made);
+        adopt(name, made);
         return made;
     }
 
@@ -246,34 +277,51 @@ public final class VarRegistry {
             return map;
         }
         final TypedValue.Map made = new TypedValue.Map();
-        set(name, made);
+        adopt(name, made);
         return made;
     }
 
-    /** Put a value at a position of a name's list — absence included — counting what that grows. */
-    public void setAt(final VarName name, final int position, final TypedValue value) {
-        live += list(name).set(position, value);
+    /** The set a name holds, made on first use — see {@link #list}. */
+    public TypedValue.Set setOf(final VarName name) {
+        final int slot = name.slot();
+        if (slots[slot] instanceof final TypedValue.Set set) {
+            return set;
+        }
+        final TypedValue.Set made = new TypedValue.Set();
+        adopt(name, made);
+        return made;
     }
 
-    /** Append to a name's list, counting the element. */
+    /**
+     * Put a value at a 0-based index of a name's list — absence included — counting what that
+     * grows. The capture's write: a match number is a 1-based position, and the caller says
+     * which index that is.
+     */
+    public void setAt(final VarName name, final int index, final TypedValue value) {
+        final TypedValue stored = TypedValue.Collection.stored(value);
+        live += list(name).set(index, stored) + TypedValue.Collection.elementsOf(stored);
+    }
+
+    /** Append to a name's list, counting the element and what it brings. */
     public void append(final VarName name, final TypedValue value) {
-        list(name).append(value);
-        live++;
+        final TypedValue stored = TypedValue.Collection.stored(value);
+        list(name).append(stored);
+        live += 1 + TypedValue.Collection.elementsOf(stored);
     }
 
-    /** Put an entry in a name's map, counting a new key. */
+    /** Put an entry in a name's map, counting a new key and what its value brings. */
     public void put(final VarName name, final TypedValue key, final TypedValue value) {
         final TypedValue.Map map = map(name);
-        if (!map.contains(key)) {
-            live++;
-        }
-        map.put(key, value);
+        final TypedValue stored = TypedValue.Collection.stored(value);
+        live += (map.contains(key) ? 0 : 1) + TypedValue.Collection.elementsOf(stored)
+                - TypedValue.Collection.elementsOf(map.get(key));
+        map.put(key, stored);
     }
 
     /** Empty a name's collection, if it holds one, releasing its elements from the count. */
     public void clear(final VarName name) {
         if (slots[name.slot()] instanceof final TypedValue.Collection collection) {
-            live -= collection.size();
+            live -= collection.elements();
             collection.clear();
         }
     }
@@ -284,8 +332,6 @@ public final class VarRegistry {
     }
 
     private void release(final TypedValue value) {
-        if (value instanceof final TypedValue.Collection collection) {
-            live -= collection.size();
-        }
+        live -= TypedValue.Collection.elementsOf(value);
     }
 }

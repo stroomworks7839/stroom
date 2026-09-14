@@ -24,10 +24,8 @@ import java.util.Map;
 /**
  * Every name a configuration uses, each with its slot (design 30 phases 5 and 7).
  *
- * <p>Two namespaces, two slot spaces. Variables and keys are separate here because they are
- * separate in the language — the compiler keeps its own declared set for keys, and a key and a
- * variable may share a name without meaning the same thing. They index different arrays at run
- * time and carry different types so that they cannot be indexed into each other's.
+ * <p>One namespace (design 35 §4): a key is a declared map, and a sequence a declared list,
+ * so what used to be three slot spaces is one table with a type per name.
  *
  * <p><b>This is a table, not a table-builder.</b> Assigning slots is compilation, and it lives in
  * {@code compile.Interner}; what a run holds is the finished thing. That separation is why there
@@ -43,11 +41,10 @@ import java.util.Map;
  * and the slot array is sized once from here and never grows.
  *
  * @param all   every variable name, by the name an author writes
- * @param keys  every key name, in its own namespace
  * @param types what each declared name holds (design 35 §5), by name; a name declared in
  *              place — a parameter, a loop's {@code as} — is absent here and holds a scalar
  */
-public record Names(Map<String, VarName> all, Map<String, KeyName> keys, Map<String, Declaration.Type> types) {
+public record Names(Map<String, VarName> all, Map<String, Declaration.Type> types) {
 
     public Names {
         types = Map.copyOf(types);
@@ -60,7 +57,6 @@ public record Names(Map<String, VarName> all, Map<String, KeyName> keys, Map<Str
                     + ": the interpreter binds it whether or not a configuration reads it");
         }
         all = Map.copyOf(all);
-        keys = Map.copyOf(keys);
     }
 
     /**
@@ -85,8 +81,4 @@ public record Names(Map<String, VarName> all, Map<String, KeyName> keys, Map<Str
         return all.size();
     }
 
-    /** How many key indexes a run needs room for. */
-    public int keyCount() {
-        return keys.size();
-    }
 }

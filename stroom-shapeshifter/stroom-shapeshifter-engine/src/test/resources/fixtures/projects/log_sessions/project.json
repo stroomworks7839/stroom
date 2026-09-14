@@ -20,10 +20,6 @@
      "type": "list"
     },
     {
-     "name": "denied",
-     "type": "list"
-    },
-    {
      "name": "host",
      "type": "list"
     },
@@ -73,39 +69,23 @@
     },
     {
      "name": "uniq_hosts",
-     "type": "list"
+     "type": "set"
     },
     {
      "name": "uniq_users",
-     "type": "list"
+     "type": "set"
     },
     {
      "name": "user",
+     "type": "list"
+    },
+    {
+     "name": "empty",
      "type": "list"
     }
    ],
    "match": "source",
    "body": [
-    {
-     "sequence": {
-      "name": "rows"
-     }
-    },
-    {
-     "sequence": {
-      "name": "sizes"
-     }
-    },
-    {
-     "sequence": {
-      "name": "people"
-     }
-    },
-    {
-     "sequence": {
-      "name": "hostnames"
-     }
-    },
     {
      "text": "<summary>"
     },
@@ -127,48 +107,116 @@
      "text": "\n  <totals requests=\""
     },
     {
-     "count": {
-      "select": "rows"
+     "value-of": {
+      "parts": [
+       {
+        "size": {
+         "of": "rows"
+        }
+       }
+      ]
      }
     },
     {
      "text": "\" bytes=\""
     },
     {
-     "sum": {
-      "select": "sizes"
+     "value-of": {
+      "parts": [
+       {
+        "sum": {
+         "of": "sizes"
+        }
+       }
+      ]
      }
     },
     {
      "text": "\" largest=\""
     },
     {
-     "max": {
-      "select": "sizes",
-      "as": "number"
+     "value-of": {
+      "parts": [
+       {
+        "max": {
+         "of": "sizes",
+         "as": "number"
+        }
+       }
+      ]
      }
     },
     {
      "text": "\" hosts=\""
     },
     {
-     "distinct-values": {
-      "select": "hostnames",
+     "clear": {
       "name": "uniq_hosts"
      }
     },
     {
-     "count": {
-      "select": "uniq_hosts"
+     "for-each": {
+      "select": "hostnames",
+      "as": "_v",
+      "body": [
+       {
+        "put": {
+         "name": "uniq_hosts",
+         "select": {
+          "parts": [
+           {
+            "capture": {
+             "var_id": "_v",
+             "group": 0
+            }
+           }
+          ]
+         }
+        }
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "size": {
+         "of": "uniq_hosts"
+        }
+       }
+      ]
      }
     },
     {
      "text": "\"/>\n  <users>"
     },
     {
-     "distinct-values": {
-      "select": "people",
+     "clear": {
       "name": "uniq_users"
+     }
+    },
+    {
+     "for-each": {
+      "select": "people",
+      "as": "_v",
+      "body": [
+       {
+        "put": {
+         "name": "uniq_users",
+         "select": {
+          "parts": [
+           {
+            "capture": {
+             "var_id": "_v",
+             "group": 0
+            }
+           }
+          ]
+         }
+        }
+       }
+      ]
      }
     },
     {
@@ -525,40 +573,128 @@
      "text": "\n  </hosts>\n  <failures status=\"401\">"
     },
     {
-     "key": {
-      "name": "by_status",
+     "for-each": {
       "select": "rows",
-      "group_by": {
-       "parts": [
-        {
-         "capture": {
-          "var_id": "status",
-          "group": 0,
-          "match_index": {
-           "function": "index"
+      "as": "_e",
+      "body": [
+       {
+        "if": {
+         "test": {
+          "not": {
+           "exists": {
+            "select": {
+             "parts": [
+              {
+               "get": {
+                "of": "by_status",
+                "key": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "status",
+                    "group": 0,
+                    "match_index": {
+                     "function": "index"
+                    }
+                   }
+                  }
+                 ]
+                }
+               }
+              }
+             ]
+            }
+           }
           }
+         },
+         "then": [
+          {
+           "put": {
+            "name": "by_status",
+            "key": {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "status",
+                "group": 0,
+                "match_index": {
+                 "function": "index"
+                }
+               }
+              }
+             ]
+            },
+            "select": {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "empty",
+                "group": 0
+               }
+              }
+             ]
+            }
+           }
+          }
+         ]
+        }
+       },
+       {
+        "append": {
+         "target": {
+          "parts": [
+           {
+            "get": {
+             "of": "by_status",
+             "key": {
+              "parts": [
+               {
+                "capture": {
+                 "var_id": "status",
+                 "group": 0,
+                 "match_index": {
+                  "function": "index"
+                 }
+                }
+               }
+              ]
+             }
+            }
+           }
+          ]
+         },
+         "select": {
+          "parts": [
+           {
+            "function": {
+             "name": "index"
+            }
+           }
+          ]
          }
         }
-       ]
-      }
-     }
-    },
-    {
-     "key-get": {
-      "key": "by_status",
-      "select": {
-       "parts": [
-        {
-         "text": "401"
-        }
-       ]
-      },
-      "name": "denied"
+       }
+      ]
      }
     },
     {
      "for-each": {
-      "select": "denied",
+      "select": {
+       "parts": [
+        {
+         "get": {
+          "of": "by_status",
+          "key": {
+           "parts": [
+            {
+             "text": "401"
+            }
+           ]
+          }
+         }
+        }
+       ]
+      },
       "as": "d",
       "body": [
        {
@@ -682,9 +818,8 @@
       "select": {
        "parts": [
         {
-         "capture": {
-          "var_id": "bytes",
-          "group": 0
+         "last": {
+          "of": "bytes"
          }
         }
        ]
@@ -697,9 +832,8 @@
       "select": {
        "parts": [
         {
-         "capture": {
-          "var_id": "user",
-          "group": 0
+         "last": {
+          "of": "user"
          }
         }
        ]
@@ -712,9 +846,8 @@
       "select": {
        "parts": [
         {
-         "capture": {
-          "var_id": "host",
-          "group": 0
+         "last": {
+          "of": "host"
          }
         }
        ]

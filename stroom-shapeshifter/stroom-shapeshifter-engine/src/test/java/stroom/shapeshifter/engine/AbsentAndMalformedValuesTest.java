@@ -112,8 +112,6 @@ class AbsentAndMalformedValuesTest {
                                + "], \"substring\": \"x\"%s}}", "false", "true"),
                 of("string-length", "{\"string-length\": {\"select\": [" + FIELD + "]%s}}",
                         "2", "2"),
-                of("tokenize", "{\"tokenize\": {\"select\": [" + FIELD
-                               + "], \"delimiter\": \",\"%s}}", "42", "xx"),
                 of("number", "{\"number\": {\"select\": [" + FIELD + "]%s}}", "42", ""),
                 of("add", "{\"add\": {\"select\": [" + FIELD + ", " + literal("2") + "]%s}}",
                         "44", ""),
@@ -260,7 +258,6 @@ class AbsentAndMalformedValuesTest {
                                     {"name": "out", "type": "scalar"}],
                    "match": "source",
                    "body": [
-                     {"sequence": {"name": "items"}},
                      {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                        "mode": "doc"}},
                      {"for-each": {"select": "items", "as": "i", "body": [

@@ -27,6 +27,8 @@ import stroom.shapeshifter.engine.config.RefExpression.RefPart;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.util.List;
+
 /**
  * The reference family of the wire format: captures, capture sources, reference expressions,
  * their parts and match indexes — read and written together.
@@ -96,6 +98,39 @@ final class ReferenceJson {
         return node;
     }
 
+    /** A reference to a declared name: the sugar every collection site accepts. */
+    static RefExpression nameRef(final String name) {
+        return new RefExpression(List.of(new RefPart.Capture(name, 0, null)));
+    }
+
+
+    /** A collection: a name as a string, or a reference reaching one. */
+    static RefExpression readRefOrName(final JsonNode node) {
+        return node.isString() ? nameRef(node.asString()) : readRef(node);
+    }
+
+    static JsonNode writeRefOrName(final RefExpression ref) {
+        final String name = ref.bareName();
+        return name != null ? JsonFields.NODES.stringNode(name) : writeRef(ref);
+    }
+
+    /** A key, position, value or default: a literal as a string or a number, or a reference. */
+    static RefExpression readRefOrText(final JsonNode node) {
+        if (node.isString()) {
+            return RefExpression.text(node.asString());
+        }
+        if (node.isNumber()) {
+            return RefExpression.text(node.asString());
+        }
+        return readRef(node);
+    }
+
+    static JsonNode writeRefOrText(final RefExpression ref) {
+        return ref.isText()
+                ? JsonFields.NODES.stringNode(((RefPart.Text) ref.parts().getFirst()).value())
+                : writeRef(ref);
+    }
+
     /** A reference field, or null where it is absent or JSON null. */
     static RefExpression optionalRef(final JsonNode node, final String field) {
         final JsonNode value = JsonFields.optional(node, field);
@@ -117,9 +152,19 @@ final class ReferenceJson {
                         matchIndex == null ? null : readMatchIndex(matchIndex));
             }
             case "text" -> new RefPart.Text(JsonFields.text(body, "text"));
-            case "get" -> {
-                JsonFields.checkFields(body, "get", "var_id", "key");
-                yield new RefPart.Get(JsonFields.text(body, "var_id", "get"), JsonFields.text(body, "key", "get"));
+            case "get", "size", "contains", "last", "head", "keys", "values", "sum", "avg", "min", "max" -> {
+                JsonFields.checkFields(body, tagged.name(), "of", "key", "value", "default", "as");
+                final RefPart.Accessor.Kind kind = JsonFields.lowercase(RefPart.Accessor.Kind.class, tagged.name(),
+                        "accessor");
+                // get takes its position or key as "key"; contains takes what it looks for as "value"
+                final JsonNode key = JsonFields.optional(body, kind == RefPart.Accessor.Kind.CONTAINS ? "value"
+                        : "key");
+                final JsonNode orElse = JsonFields.optional(body, "default");
+                yield new RefPart.Accessor(kind,
+                        readRefOrName(JsonFields.required(body, "of", tagged.name())),
+                        key == null ? null : readRefOrText(key),
+                        orElse == null ? null : readRefOrText(orElse),
+                        JsonFields.readCast(body));
             }
             case "function" -> {
                 JsonFields.checkFields(body, "function", "name", "match_index");
@@ -144,11 +189,18 @@ final class ReferenceJson {
                 yield JsonFields.wrap("capture", body);
             }
             case RefPart.Text value -> JsonFields.wrap("text", JsonFields.NODES.stringNode(value.value()));
-            case RefPart.Get get -> {
+            case RefPart.Accessor accessor -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();
-                body.put("var_id", get.varId());
-                body.put("key", get.key());
-                yield JsonFields.wrap("get", body);
+                body.set("of", writeRefOrName(accessor.of()));
+                if (accessor.key() != null) {
+                    body.set(accessor.kind() == RefPart.Accessor.Kind.CONTAINS ? "value" : "key",
+                            writeRefOrText(accessor.key()));
+                }
+                if (accessor.orElse() != null) {
+                    body.set("default", writeRefOrText(accessor.orElse()));
+                }
+                JsonFields.writeCast(body, accessor.as());
+                yield JsonFields.wrap(accessor.kind().spelling(), body);
             }
             case RefPart.Counter counter -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();

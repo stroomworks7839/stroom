@@ -135,27 +135,151 @@ class CaptureCastTest {
     void selectAndKeyValueCapturesBindThroughTheCompiledReference() {
         final String config = """
                 {
-                  "name": "compiled", "version": 5,
-                  "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                  "name": "compiled",
+                  "version": 5,
+                  "source": {
+                    "buffer_size": 2000,
+                    "ignore_errors": true,
+                    "encoding": "utf-8"
+                  },
                   "templates": [
-                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
-                     "declarations": [{"name": "joined", "type": "list"}],
-                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
-                                                   "mode": "row"}}]},
-                    {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
-                     "declarations": [{"name": "pairs", "type": "map"}],
-                     "match": {"regex": {"pattern": "(\\\\w+) (\\\\w+) (\\\\w+)\\n"}},
-                     "captures": [
-                       {"name": "joined", "select": {"select": {"parts": [
-                          {"capture": {"group": 1}}, {"text": "-"}, {"capture": {"group": 2}}, {"text": "+"},
-                          {"capture": {"var_id": "joined", "group": 0,
-                                       "match_index": {"index": -1, "is_offset": true}}}]}}},
-                       {"name": "pairs", "as": "integer", "select": {"key-value": {
-                          "key_ref": {"parts": [{"capture": {"group": 1}}]},
-                          "value_ref": {"parts": [{"capture": {"group": 3}}]}}}}],
-                     "body": [{"value-of": {"parts": [{"capture": {"var_id": "joined", "group": 0}}]}},
-                              {"text": "="}, {"value-of": {"parts": [{"get": {"var_id": "pairs", "key": "k"}}]}},
-                              {"text": "|"}]}
+                    {
+                      "id": "00000000-0000-0000-0000-000000000001",
+                      "name": "source",
+                      "match": "source",
+                      "declarations": [
+                        {
+                          "name": "joined",
+                          "type": "list"
+                        }
+                      ],
+                      "body": [
+                        {
+                          "apply-templates": {
+                            "select": {
+                              "parts": [
+                                {
+                                  "capture": {
+                                    "group": 0
+                                  }
+                                }
+                              ]
+                            },
+                            "mode": "row"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "00000000-0000-0000-0000-000000000002",
+                      "name": "row",
+                      "mode": "row",
+                      "declarations": [
+                        {
+                          "name": "pairs",
+                          "type": "map"
+                        }
+                      ],
+                      "match": {
+                        "regex": {
+                          "pattern": "(\\\\w+) (\\\\w+) (\\\\w+)\\n"
+                        }
+                      },
+                      "captures": [
+                        {
+                          "name": "joined",
+                          "select": {
+                            "select": {
+                              "parts": [
+                                {
+                                  "capture": {
+                                    "group": 1
+                                  }
+                                },
+                                {
+                                  "text": "-"
+                                },
+                                {
+                                  "capture": {
+                                    "group": 2
+                                  }
+                                },
+                                {
+                                  "text": "+"
+                                },
+                                {
+                                  "capture": {
+                                    "var_id": "joined",
+                                    "group": 0,
+                                    "match_index": {
+                                      "index": -1,
+                                      "is_offset": true
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "name": "pairs",
+                          "as": "integer",
+                          "select": {
+                            "key-value": {
+                              "key_ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "group": 1
+                                    }
+                                  }
+                                ]
+                              },
+                              "value_ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "group": 3
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "body": [
+                        {
+                          "value-of": {
+                            "parts": [
+                              {
+                                "last": {
+                                  "of": "joined"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "text": "="
+                        },
+                        {
+                          "value-of": {
+                            "parts": [
+                              {
+                                "get": {
+                                  "of": "pairs",
+                                  "key": "k"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "text": "|"
+                        }
+                      ]
+                    }
                   ]
                 }
                 """;

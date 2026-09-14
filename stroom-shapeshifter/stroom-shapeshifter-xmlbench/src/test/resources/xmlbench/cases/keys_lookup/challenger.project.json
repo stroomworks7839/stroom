@@ -24,10 +24,6 @@
      "type": "list"
     },
     {
-     "name": "hits",
-     "type": "list"
-    },
-    {
      "name": "id",
      "type": "list"
     },
@@ -42,6 +38,10 @@
     {
      "name": "wants",
      "type": "list"
+    },
+    {
+     "name": "empty",
+     "type": "list"
     }
    ],
    "match": "source",
@@ -50,12 +50,12 @@
      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><r>"
     },
     {
-     "sequence": {
+     "clear": {
       "name": "orders"
      }
     },
     {
-     "sequence": {
+     "clear": {
       "name": "wants"
      }
     },
@@ -74,22 +74,108 @@
      }
     },
     {
-     "key": {
-      "name": "by_cat",
+     "for-each": {
       "select": "orders",
-      "group_by": {
-       "parts": [
-        {
-         "capture": {
-          "var_id": "cat",
-          "group": 0,
-          "match_index": {
-           "function": "index"
+      "as": "_e",
+      "body": [
+       {
+        "if": {
+         "test": {
+          "not": {
+           "exists": {
+            "select": {
+             "parts": [
+              {
+               "get": {
+                "of": "by_cat",
+                "key": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "cat",
+                    "group": 0,
+                    "match_index": {
+                     "function": "index"
+                    }
+                   }
+                  }
+                 ]
+                }
+               }
+              }
+             ]
+            }
+           }
           }
+         },
+         "then": [
+          {
+           "put": {
+            "name": "by_cat",
+            "key": {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "cat",
+                "group": 0,
+                "match_index": {
+                 "function": "index"
+                }
+               }
+              }
+             ]
+            },
+            "select": {
+             "parts": [
+              {
+               "capture": {
+                "var_id": "empty",
+                "group": 0
+               }
+              }
+             ]
+            }
+           }
+          }
+         ]
+        }
+       },
+       {
+        "append": {
+         "target": {
+          "parts": [
+           {
+            "get": {
+             "of": "by_cat",
+             "key": {
+              "parts": [
+               {
+                "capture": {
+                 "var_id": "cat",
+                 "group": 0,
+                 "match_index": {
+                  "function": "index"
+                 }
+                }
+               }
+              ]
+             }
+            }
+           }
+          ]
+         },
+         "select": {
+          "parts": [
+           {
+            "function": {
+             "name": "index"
+            }
+           }
+          ]
          }
         }
-       ]
-      }
+       }
+      ]
      }
     },
     {
@@ -98,28 +184,38 @@
       "as": "w",
       "body": [
        {
-        "key-get": {
-         "key": "by_cat",
+        "put": {
+         "name": "n",
          "select": {
           "parts": [
            {
-            "capture": {
-             "var_id": "c",
-             "group": 0,
-             "match_index": {
-              "var_ref": "w"
+            "size": {
+             "of": {
+              "parts": [
+               {
+                "get": {
+                 "of": "by_cat",
+                 "key": {
+                  "parts": [
+                   {
+                    "capture": {
+                     "var_id": "c",
+                     "group": 0,
+                     "match_index": {
+                      "var_ref": "w"
+                     }
+                    }
+                   }
+                  ]
+                 }
+                }
+               }
+              ]
              }
             }
            }
           ]
-         },
-         "name": "hits"
-        }
-       },
-       {
-        "count": {
-         "select": "hits",
-         "name": "n"
+         }
         }
        },
        {
@@ -195,7 +291,28 @@
           },
           {
            "for-each": {
-            "select": "hits",
+            "select": {
+             "parts": [
+              {
+               "get": {
+                "of": "by_cat",
+                "key": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "c",
+                    "group": 0,
+                    "match_index": {
+                     "var_ref": "w"
+                    }
+                   }
+                  }
+                 ]
+                }
+               }
+              }
+             ]
+            },
             "as": "h",
             "body": [
              {

@@ -20,7 +20,6 @@ import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
-import stroom.shapeshifter.engine.config.OutputNode.Entry;
 import stroom.shapeshifter.engine.config.OutputNode.Param;
 import stroom.shapeshifter.engine.config.OutputNode.SwitchCase;
 import stroom.shapeshifter.engine.config.OutputNode.WhenBranch;
@@ -111,14 +110,6 @@ final class OutputJson {
                 JsonFields.checkFields(body, "namespace", "prefix", "uri");
                 yield new OutputNode.Namespace(JsonFields.optionalText(body, "prefix"), JsonFields.text(body,
                         "uri", "namespace"));
-            }
-            case "value-map" -> {
-                JsonFields.checkFields(body, "value-map", "select", "entries", "default", "name");
-                yield new OutputNode.ValueMap(
-                        ReferenceJson.readRef(JsonFields.required(body, "select", "value-map")),
-                        JsonFields.list(body.get("entries"), "entries", OutputJson::readEntry),
-                        JsonFields.optionalText(body, "default"),
-                        JsonFields.optionalText(body, "name"));
             }
             case "translate" -> {
                 JsonFields.checkFields(body, "translate", "select", "from", "to", "name");
@@ -225,71 +216,46 @@ final class OutputJson {
                         JsonFields.text(body, "picture", "format-number"),
                         JsonFields.optionalText(body, "name"));
             }
-            case "count" -> {
-                JsonFields.checkFields(body, "count", "select", "name");
-                yield new OutputNode.Count(JsonFields.text(body, "select", "count"),
-                        JsonFields.optionalText(body, "name"));
-            }
-            case "sum" -> {
-                JsonFields.checkFields(body, "sum", "select", "name");
-                yield new OutputNode.Sum(JsonFields.text(body, "select", "sum"), JsonFields.optionalText(body, "name"));
-            }
-            case "avg" -> {
-                JsonFields.checkFields(body, "avg", "select", "name");
-                yield new OutputNode.Avg(JsonFields.text(body, "select", "avg"), JsonFields.optionalText(body, "name"));
-            }
-            case "min" -> {
-                JsonFields.checkFields(body, "min", "select", "as", "name");
-                yield new OutputNode.Min(JsonFields.text(body, "select", "min"),
-                        JsonFields.readCast(body), JsonFields.optionalText(body, "name"));
-            }
-            case "max" -> {
-                JsonFields.checkFields(body, "max", "select", "as", "name");
-                yield new OutputNode.Max(JsonFields.text(body, "select", "max"),
-                        JsonFields.readCast(body), JsonFields.optionalText(body, "name"));
-            }
-            case "distinct-values" -> {
-                JsonFields.checkFields(body, "distinct-values", "select", "name");
-                yield new OutputNode.DistinctValues(
-                        JsonFields.text(body, "select", "distinct-values"), JsonFields.text(body, "name",
-                        "distinct-values"));
-            }
-            case "sequence" -> {
-                JsonFields.checkFields(body, "sequence", "name");
-                yield new OutputNode.Sequence(JsonFields.text(body, "name", "sequence"));
-            }
             case "append" -> {
-                JsonFields.checkFields(body, "append", "name", "select");
-                yield new OutputNode.Append(
-                        JsonFields.text(body, "name", "append"),
+                JsonFields.checkFields(body, "append", "name", "target", "select");
+                yield new OutputNode.Append(target(body, "append"),
                         ReferenceJson.readRef(JsonFields.required(body, "select", "append")));
             }
-            case "key" -> {
-                JsonFields.checkFields(body, "key", "name", "select", "group_by");
-                yield new OutputNode.Key(
-                        JsonFields.text(body, "name", "key"),
-                        JsonFields.text(body, "select", "key"),
-                        ReferenceJson.optionalRef(body, "group_by"));
+            case "insert" -> {
+                JsonFields.checkFields(body, "insert", "name", "target", "position", "select");
+                yield new OutputNode.Insert(target(body, "insert"),
+                        ReferenceJson.readRefOrText(JsonFields.required(body, "position", "insert")),
+                        ReferenceJson.readRef(JsonFields.required(body, "select", "insert")));
             }
-            case "key-get" -> {
-                JsonFields.checkFields(body, "key-get", "key", "select", "name");
-                yield new OutputNode.KeyGet(
-                        JsonFields.text(body, "key", "key-get"),
-                        ReferenceJson.readRef(JsonFields.required(body, "select", "key-get")),
-                        JsonFields.text(body, "name", "key-get"));
+            case "put" -> {
+                JsonFields.checkFields(body, "put", "name", "target", "key", "select");
+                final JsonNode key = JsonFields.optional(body, "key");
+                yield new OutputNode.Put(target(body, "put"),
+                        key == null ? null : ReferenceJson.readRefOrText(key),
+                        ReferenceJson.readRef(JsonFields.required(body, "select", "put")));
+            }
+            case "remove" -> {
+                JsonFields.checkFields(body, "remove", "name", "target", "key");
+                yield new OutputNode.Remove(target(body, "remove"),
+                        ReferenceJson.readRefOrText(JsonFields.required(body, "key", "remove")));
+            }
+            case "clear" -> {
+                JsonFields.checkFields(body, "clear", "name", "target");
+                yield new OutputNode.Clear(target(body, "clear"));
             }
             case "for-each-group" -> {
                 JsonFields.checkFields(body, "for-each-group", "select", "group_by", "body");
                 yield new OutputNode.ForEachGroup(
-                        JsonFields.text(body, "select", "for-each-group"),
+                        ReferenceJson.readRefOrName(JsonFields.required(body, "select", "for-each-group")),
                         ReferenceJson.optionalRef(body, "group_by"),
                         JsonFields.list(body.get("body"), "body", OutputJson::readOutput));
             }
             case "for-each" -> {
-                JsonFields.checkFields(body, "for-each", "select", "as", "sort", "body");
+                JsonFields.checkFields(body, "for-each", "select", "as", "as_key", "sort", "body");
                 yield new OutputNode.ForEach(
-                        JsonFields.text(body, "select", "for-each"),
+                        ReferenceJson.readRefOrName(JsonFields.required(body, "select", "for-each")),
                         JsonFields.optionalText(body, "as"),
+                        JsonFields.optionalText(body, "as_key"),
                         JsonFields.list(body.get("sort"), "sort", OutputJson::readSort),
                         JsonFields.list(body.get("body"), "body", OutputJson::readOutput));
             }
@@ -403,14 +369,6 @@ final class OutputJson {
                 body.put("uri", value.uri());
                 yield JsonFields.wrap("namespace", body);
             }
-            case OutputNode.ValueMap value -> {
-                final ObjectNode body = JsonFields.NODES.objectNode();
-                body.set("select", ReferenceJson.writeRef(value.select()));
-                body.set("entries", JsonFields.array(value.entries(), OutputJson::writeEntry));
-                JsonFields.putIfPresent(body, "default", value.defaultValue());
-                JsonFields.putIfPresent(body, "name", value.name());
-                yield JsonFields.wrap("value-map", body);
-            }
             case OutputNode.Translate value -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();
                 body.set("select", JsonFields.array(value.select(), ReferenceJson::writeRef));
@@ -496,51 +454,34 @@ final class OutputJson {
             case OutputNode.FormatNumber value ->
                     JsonFields.wrap("format-number", selectAndMarker(value.select(), "picture",
                             value.picture(), value.name()));
-            case OutputNode.Count value -> JsonFields.wrap("count", sequenceAndName(value.select(), value.name()));
-            case OutputNode.Sum value -> JsonFields.wrap("sum", sequenceAndName(value.select(), value.name()));
-            case OutputNode.Avg value -> JsonFields.wrap("avg", sequenceAndName(value.select(), value.name()));
-            case OutputNode.Min value -> {
-                final ObjectNode body = sequenceAndName(value.select(), value.name());
-                JsonFields.writeCast(body, value.as());
-                yield JsonFields.wrap("min", body);
-            }
-            case OutputNode.Max value -> {
-                final ObjectNode body = sequenceAndName(value.select(), value.name());
-                JsonFields.writeCast(body, value.as());
-                yield JsonFields.wrap("max", body);
-            }
-            case OutputNode.DistinctValues value ->
-                    JsonFields.wrap("distinct-values", sequenceAndName(value.select(), value.name()));
-            case OutputNode.Sequence value -> {
-                final ObjectNode body = JsonFields.NODES.objectNode();
-                body.put("name", value.name());
-                yield JsonFields.wrap("sequence", body);
-            }
             case OutputNode.Append value -> {
-                final ObjectNode body = JsonFields.NODES.objectNode();
-                body.put("name", value.name());
+                final ObjectNode body = target(value.target());
                 body.set("select", ReferenceJson.writeRef(value.select()));
                 yield JsonFields.wrap("append", body);
             }
-            case OutputNode.Key value -> {
-                final ObjectNode body = JsonFields.NODES.objectNode();
-                body.put("name", value.name());
-                body.put("select", value.select());
-                if (value.groupBy() != null) {
-                    body.set("group_by", ReferenceJson.writeRef(value.groupBy()));
-                }
-                yield JsonFields.wrap("key", body);
-            }
-            case OutputNode.KeyGet value -> {
-                final ObjectNode body = JsonFields.NODES.objectNode();
-                body.put("key", value.key());
+            case OutputNode.Insert value -> {
+                final ObjectNode body = target(value.target());
+                body.set("position", ReferenceJson.writeRefOrText(value.position()));
                 body.set("select", ReferenceJson.writeRef(value.select()));
-                body.put("name", value.name());
-                yield JsonFields.wrap("key-get", body);
+                yield JsonFields.wrap("insert", body);
             }
+            case OutputNode.Put value -> {
+                final ObjectNode body = target(value.target());
+                if (value.key() != null) {
+                    body.set("key", ReferenceJson.writeRefOrText(value.key()));
+                }
+                body.set("select", ReferenceJson.writeRef(value.select()));
+                yield JsonFields.wrap("put", body);
+            }
+            case OutputNode.Remove value -> {
+                final ObjectNode body = target(value.target());
+                body.set("key", ReferenceJson.writeRefOrText(value.key()));
+                yield JsonFields.wrap("remove", body);
+            }
+            case OutputNode.Clear value -> JsonFields.wrap("clear", target(value.target()));
             case OutputNode.ForEachGroup value -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();
-                body.put("select", value.select());
+                body.set("select", ReferenceJson.writeRefOrName(value.select()));
                 if (value.groupBy() != null) {
                     body.set("group_by", ReferenceJson.writeRef(value.groupBy()));
                 }
@@ -549,8 +490,9 @@ final class OutputJson {
             }
             case OutputNode.ForEach value -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();
-                body.put("select", value.select());
+                body.set("select", ReferenceJson.writeRefOrName(value.select()));
                 JsonFields.putIfPresent(body, "as", value.as());
+                JsonFields.putIfPresent(body, "as_key", value.asKey());
                 if (!value.sort().isEmpty()) {
                     body.set("sort", JsonFields.array(value.sort(), OutputJson::writeSort));
                 }
@@ -613,12 +555,6 @@ final class OutputJson {
     }
 
     /** A sequence instruction's body: the store it reads and, where it binds, its name. */
-    private static ObjectNode sequenceAndName(final String select, final String name) {
-        final ObjectNode body = JsonFields.NODES.objectNode();
-        body.put("select", select);
-        JsonFields.putIfPresent(body, "name", name);
-        return body;
-    }
 
     private static WhenBranch readWhen(final JsonNode node) {
         JsonFields.checkFields(node, "when", "test", "body");
@@ -648,16 +584,28 @@ final class OutputJson {
         return node;
     }
 
-    private static Entry readEntry(final JsonNode node) {
-        JsonFields.checkFields(node, "entry", "from", "to");
-        return new Entry(JsonFields.text(node, "from", "entry"), JsonFields.text(node, "to", "entry"));
+    /**
+     * A mutation's target: {@code "name"} is the sugar for a declared name, {@code "target"} a
+     * reference reaching a nested collection. One or the other.
+     */
+    private static RefExpression target(final JsonNode body, final String what) {
+        final String name = JsonFields.optionalText(body, "name");
+        final JsonNode target = JsonFields.optional(body, "target");
+        if ((name == null) == (target == null)) {
+            throw new ConfigException("A " + what + " names its collection with name or target, one of them");
+        }
+        return name != null ? ReferenceJson.nameRef(name) : ReferenceJson.readRef(target);
     }
 
-    private static ObjectNode writeEntry(final Entry entry) {
-        final ObjectNode node = JsonFields.NODES.objectNode();
-        node.put("from", entry.from());
-        node.put("to", entry.to());
-        return node;
+    private static ObjectNode target(final RefExpression target) {
+        final ObjectNode body = JsonFields.NODES.objectNode();
+        final String name = target.bareName();
+        if (name != null) {
+            body.put("name", name);
+        } else {
+            body.set("target", ReferenceJson.writeRef(target));
+        }
+        return body;
     }
 
     /** A parameter is a two-element array: the wire format spells a tuple as a {@code [name, value]} pair. */

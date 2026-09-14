@@ -90,7 +90,7 @@ final class CompiledRefs {
             }
             case final CompiledRef.RemoteVar remote -> {
                 final TypedValue value = lookup(remote, matchCount, vars);
-                if (value == null || value.isEmpty()) {
+                if (absent(value)) {
                     return false;
                 }
                 out.write(value);
@@ -104,9 +104,9 @@ final class CompiledRefs {
                 out.write(value);
                 return true;
             }
-            case final CompiledRef.Entry entry -> {
-                final TypedValue value = lookup(entry, vars);
-                if (value == null || value.isEmpty()) {
+            case final CompiledRef.Accessor accessor -> {
+                final TypedValue value = accessor(accessor, match, matchCount, vars);
+                if (absent(value)) {
                     return false;
                 }
                 out.write(value);
@@ -151,15 +151,15 @@ final class CompiledRefs {
             }
             case final CompiledRef.RemoteVar remote -> {
                 final TypedValue value = lookup(remote, matchCount, vars);
-                return value == null || value.isEmpty() ? null : value;
+                return absent(value) ? null : value;
             }
             case final CompiledRef.Context context -> {
                 final TypedValue value = lookup(context, matchCount, vars);
                 return value == null || value.isEmpty() ? null : value;
             }
-            case final CompiledRef.Entry entry -> {
-                final TypedValue value = lookup(entry, vars);
-                return value == null || value.isEmpty() ? null : value;
+            case final CompiledRef.Accessor accessor -> {
+                final TypedValue value = accessor(accessor, match, matchCount, vars);
+                return absent(value) ? null : value;
             }
         }
     }
@@ -183,17 +183,29 @@ final class CompiledRefs {
     }
 
     /**
-     * One value out of a name's list, under an index rule already resolved to a number.
+     * "Empty is absent" — for a scalar. An empty collection is a value: a list with nothing
+     * in it is what an append adds to, and what {@code size} counts as zero.
+     */
+    private static boolean absent(final TypedValue value) {
+        return value == null || (!(value instanceof TypedValue.Collection) && value.isEmpty());
+    }
+
+    /**
+     * One value out of a list, under an index rule already resolved to a 1-based position.
      *
-     * <p>"The latest" and "the last" are both the last element (design 35 §8): a failed capture
-     * appended absence to keep positions aligned, and a read that walked back past it would be
-     * returning a value from a position the data did not fill.
+     * <p>"The last" is the last element (design 35 §8): a failed capture appended absence to
+     * keep positions aligned, and a read that walked back past it would be returning a value
+     * from a position the data did not fill. No rule at all means the list itself: a reference
+     * denotes a collection (design 35 §5), and {@code last(l)} is the read that used to be bare.
      */
     private static TypedValue indexed(final TypedValue.List list, final Integer index) {
-        if (index == null || index == LAST) {
+        if (index == null) {
+            return list;
+        }
+        if (index == LAST) {
             return list.last();
         }
-        return list.get(index);
+        return list.get(index - 1);
     }
 
     /**
@@ -247,19 +259,113 @@ final class CompiledRefs {
                                      final int matchCount,
                                      final VarRegistry vars) {
         final TypedValue value = vars.get(remote.varId());
-        // Nothing to index is nothing to resolve the rule for, and absent is the common case.
+        // Nothing to index is nothing to resolve the rule for, and absent is the common case —
+        // except for a declared collection nothing has filled, which read whole is the empty
+        // one of its type: what an append adds to and what size counts as zero.
         if (value == null) {
-            return null;
+            return remote.matchIndex() == null ? emptyDeclared(remote, vars) : null;
         }
         final Integer index = index(remote.matchIndex(), matchCount, vars);
-        return value instanceof final TypedValue.List list
-                ? indexed(list, index)
+        if (value instanceof final TypedValue.List list) {
+            return indexed(list, index);
+        }
+        // A map or a set has no positions: a bare reference is the collection, an index nothing.
+        return value instanceof TypedValue.Collection
+                ? (index == null ? value : null)
                 : scalar(value, index, matchCount);
     }
 
-    /** One entry of a map, or null when the map is unset or has no such key. */
-    private static TypedValue lookup(final CompiledRef.Entry entry, final VarRegistry vars) {
-        return vars.get(entry.map()) instanceof final TypedValue.Map map ? map.get(entry.key()) : null;
+    /**
+     * A function over a collection (design 35 §5), typed one level deep: the collection is
+     * whatever the reference reached, and a kind that does not apply to it answers absent.
+     */
+    private static TypedValue accessor(final CompiledRef.Accessor accessor,
+                                       final MatchResult match,
+                                       final int matchCount,
+                                       final VarRegistry vars) {
+        final TypedValue of = resolveValue(accessor.of(), match, matchCount, vars);
+        final TypedValue.Collection collection = of instanceof final TypedValue.Collection reached
+                ? reached
+                : emptyDeclared(accessor.of(), vars);
+        if (collection == null) {
+            // Nothing there — a lookup that missed, a nested get into a scalar. A count of
+            // nothing is zero and nothing contains nothing, as sum(()) is zero; every other
+            // question about nothing has no answer.
+            return switch (accessor.kind()) {
+                case SIZE, SUM -> new TypedValue.Integer(0);
+                case CONTAINS -> new TypedValue.Bool(false);
+                default -> null;
+            };
+        }
+        return switch (accessor.kind()) {
+            case GET -> {
+                final TypedValue key = resolveValue(accessor.key(), match, matchCount, vars);
+                final TypedValue found = switch (collection) {
+                    case final TypedValue.List list -> {
+                        final Long position = key == null ? null : key.asInteger();
+                        yield position == null ? null : list.get((int) (long) position - 1);
+                    }
+                    case final TypedValue.Map map -> map.get(key);
+                    case final TypedValue.Set ignored -> null;
+                };
+                yield found != null || accessor.orElse() == null
+                        ? found
+                        : resolveValue(accessor.orElse(), match, matchCount, vars);
+            }
+            case SIZE -> new TypedValue.Integer(collection.size());
+            case CONTAINS -> {
+                final TypedValue key = resolveValue(accessor.key(), match, matchCount, vars);
+                final boolean has = switch (collection) {
+                    case final TypedValue.List list -> list.contains(key);
+                    case final TypedValue.Map map -> map.contains(key);
+                    case final TypedValue.Set set -> set.contains(key);
+                };
+                yield new TypedValue.Bool(has);
+            }
+            case LAST -> collection instanceof final TypedValue.List list ? list.last() : null;
+            case HEAD -> collection instanceof final TypedValue.List list ? list.get(0) : null;
+            case KEYS -> collection instanceof final TypedValue.Map map ? map.keys() : null;
+            case VALUES -> switch (collection) {
+                case final TypedValue.Map map -> map.values();
+                case final TypedValue.Set set -> set.values();
+                case final TypedValue.List ignored -> null;
+            };
+            case SUM, AVG, MIN, MAX -> Folds.fold(accessor.kind(), members(collection), accessor.as());
+        };
+    }
+
+    /**
+     * A declared collection nothing has filled, read as the empty one of its type: {@code size}
+     * of it is zero and {@code sum} of it is zero, as XPath answers over {@code ()}.
+     */
+    private static TypedValue.Collection emptyDeclared(final CompiledRef of, final VarRegistry vars) {
+        if (of instanceof final CompiledRef.RemoteVar remote && remote.matchIndex() == null
+                && vars.get(remote.varId()) == null) {
+            return switch (vars.typeOf(remote.varId())) {
+                case LIST -> new TypedValue.List();
+                case MAP -> new TypedValue.Map();
+                case SET -> new TypedValue.Set();
+                case SCALAR -> null;
+            };
+        }
+        return null;
+    }
+
+    /** What a fold runs over: a list's populated entries, a set's members, a map's values. */
+    private static java.util.List<TypedValue> members(final TypedValue.Collection collection) {
+        final TypedValue.List source = switch (collection) {
+            case final TypedValue.List list -> list;
+            case final TypedValue.Set set -> set.values();
+            case final TypedValue.Map map -> map.values();
+        };
+        final java.util.List<TypedValue> values = new java.util.ArrayList<>(source.size());
+        for (int i = 0; i < source.size(); i++) {
+            final TypedValue value = source.get(i);
+            if (value != null) {
+                values.add(value);
+            }
+        }
+        return values;
     }
 
     /**

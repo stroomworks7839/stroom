@@ -74,28 +74,6 @@ final class Body {
     private final VarName groupMembers;
 
     /**
-     * The built key indexes, in their own namespace (design/16 §8) — a key and a sequence may
-     * share a name because nothing at a use site can confuse the two. Per run, like the
-     * registry: an index outliving its stream would answer this one with the last one's
-     * records.
-     *
-     * <p><b>Unscoped, where a sequence is scoped</b>, which is deliberate and is the shape
-     * XSLT has: a key is an index over data rather than a binding, and every realistic
-     * configuration builds one and uses it at the same level. The sharp edge that buys, named
-     * rather than discovered: a key holds <i>store indices</i>, so one built inside a scope that
-     * later pops still answers, with positions into a store that may since have been cleared.
-     * Index staleness is a property of every index-carrying
-     * sequence here, not of keys — scoping is what usually hides it, and a key steps outside
-     * that. No case needs a key to outlive its sequence, so nothing is built to prevent it.
-     *
-     * <p><b>By slot rather than by name</b> since design 30 phase 7. A key was found by hashing
-     * its name, which was the last run-time lookup in the engine on a key the compiler already
-     * knew. The <i>inner</i> index stays a map and should: it is keyed by the key's value, which
-     * is data, and §1 is about keys the compiler knew rather than about maps.
-     */
-    private final List<Map<String, Filed>> keyIndexes;
-
-    /**
      * The arithmetic sites that have already drawn a strict_values warning this run — once
      * per instruction site, because once per record on a million-record input is not a
      * diagnostic, it is a flood (design/17 §10).
@@ -139,10 +117,6 @@ final class Body {
          final Encoding encoding) {
         this.compiled = compiled;
         this.vars = new VarRegistry(compiled.names());
-        this.keyIndexes = new ArrayList<>(compiled.names().keyCount());
-        for (int i = 0; i < compiled.names().keyCount(); i++) {
-            keyIndexes.add(null);
-        }
         this.groupMembers = compiled.names().group();
         this.instrument = instrument;
         this.messages = messages;
@@ -174,7 +148,7 @@ final class Body {
     void enterSource() {
         final CompiledTemplate source = source();
         if (source != null && source.declared().length > 0) {
-            vars.push(source.declared());
+            vars.push(source.declared(), source.initial());
         }
     }
 
@@ -266,15 +240,6 @@ final class Body {
                 case final CompiledOp.CallTemplate value ->
                         callTemplate(value, match, matchCount, content, out, inputBase,
                                 ignoreErrors, depth);
-                case final CompiledOp.ValueMap value -> {
-                    // Looked up by value, canonically (design 35 §5): a number does not find a
-                    // text entry, and an absent selection finds nothing rather than an "" entry.
-                    final TypedValue selected = CompiledRefs.resolveValue(value.select(), match,
-                            matchCount, vars);
-                    final TypedValue mapped = selected == null ? null : value.entries().get(selected);
-                    emit(mapped == null ? value.defaultValue() : mapped, value.name(), matchCount,
-                            out);
-                }
                 case final CompiledOp.Transform value ->
                         transform(value, match, matchCount, out);
                 case final CompiledOp.Replace value -> {
@@ -287,24 +252,72 @@ final class Body {
                 }
                 case final CompiledOp.CallFunction value ->
                         callFunction(value, match, matchCount, out, inputBase);
-                case final CompiledOp.Sequence value ->
-                        // Emptied where it is written: the list itself lives where it is declared
-                        // (design 35 §4), so this is the start of an accumulation, not a scope.
-                        vars.clear(value.name());
                 case final CompiledOp.Append value -> {
                     final TypedValue appended = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars);
                     if (appended != null) {
-                        guardAccumulation(value.name());
-                        // Absent appends nothing rather than a hole: in a dense sequence an
-                        // index is a position, so a gap would mean nothing at all. Dense from
-                        // one, as every index-carrying sequence is until design 35 phase 4.
-                        vars.setAt(value.name(), Math.max(1, vars.list(value.name()).size()), appended);
-                        guardLive(value.name());
+                        final TypedValue.List list = listTarget(value.target(), match, matchCount, "append");
+                        if (list != null) {
+                            guardAccumulation(value.target());
+                            final TypedValue stored = TypedValue.Collection.stored(appended);
+                            list.append(stored);
+                            vars.grew(1 + TypedValue.Collection.elementsOf(stored));
+                            guardLive(value.target());
+                        }
                     }
                 }
-                case final CompiledOp.Fold value -> emit(fold(value), value.name(), matchCount, out);
-                case final CompiledOp.DistinctValues value -> distinct(value);
+                case final CompiledOp.Insert value -> {
+                    final TypedValue inserted = CompiledRefs.resolveValue(
+                            value.select(), match, matchCount, vars);
+                    final TypedValue.List list = listTarget(value.target(), match, matchCount, "insert");
+                    if (list != null && inserted != null) {
+                        final int position = position(value.position(), match, matchCount, "insert");
+                        if (position < 1 || position > list.size() + 1) {
+                            fatal("insert at position " + position + " of a list of " + list.size()
+                                  + ": positions run from 1 to the size plus one");
+                        }
+                        final TypedValue stored = TypedValue.Collection.stored(inserted);
+                        list.insert(position - 1, stored);
+                        vars.grew(1 + TypedValue.Collection.elementsOf(stored));
+                        guardLive(value.target());
+                    }
+                }
+                case final CompiledOp.Put value -> put(value, match, matchCount);
+                case final CompiledOp.Remove value -> {
+                    final TypedValue target = CompiledRefs.resolveValue(value.target(), match, matchCount, vars);
+                    final TypedValue key = CompiledRefs.resolveValue(value.key(), match, matchCount, vars);
+                    switch (target) {
+                        case final TypedValue.List list -> {
+                            final int position = position(value.key(), match, matchCount, "remove");
+                            if (position >= 1 && position <= list.size()) {
+                                vars.grew(-1 - TypedValue.Collection.elementsOf(list.get(position - 1)));
+                                list.remove(position - 1);
+                            }
+                        }
+                        case final TypedValue.Map map -> {
+                            if (map.contains(key)) {
+                                vars.grew(-1 - TypedValue.Collection.elementsOf(map.get(key)));
+                                map.remove(key);
+                            }
+                        }
+                        case final TypedValue.Set set -> {
+                            if (set.contains(key)) {
+                                set.remove(key);
+                                vars.grew(-1);
+                            }
+                        }
+                        case null -> {
+                        }
+                        default -> fatal("remove from something that is not a collection: " + describe(value.target()));
+                    }
+                }
+                case final CompiledOp.Clear value -> {
+                    if (CompiledRefs.resolveValue(value.target(), match, matchCount, vars)
+                        instanceof final TypedValue.Collection collection) {
+                        vars.grew(-collection.elements());
+                        collection.clear();
+                    }
+                }
                 case final CompiledOp.Tokenize value -> {
                     final TypedValue input = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars);
@@ -320,30 +333,6 @@ final class Body {
                                 ? List.of()
                                 : Transforms.split(input, value.delimiter()));
                     }
-                }
-                case final CompiledOp.Key value -> {
-                    // Built where it is written, so the cost is paid somewhere visible.
-                    keyIndexes.set(value.name().slot(), file(value.select(), value.groupBy(),
-                            match, matchCount));
-                }
-                case final CompiledOp.KeyGet value -> {
-                    final TypedValue wanted = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars);
-                    final Map<String, Filed> built = keyIndexes.get(value.key().slot());
-                    // A key-get before its key has run reads an empty index, which binds an
-                    // empty sequence — the same non-answer as a value with no entry.
-                    final Map<String, Filed> index = built == null ? Map.of() : built;
-                    // A value with no entry binds an empty sequence, which a walk runs over
-                    // zero times — the same non-answer XSLT's key() gives, not an error.
-                    // An absent lookup value finds the entries that had no key — the same
-                    // symmetry grouping uses, where absence is a group rather than an
-                    // exclusion. XSLT would return empty for key('k', ()); this engine treats
-                    // "no value" as a value one can ask about, consistently.
-                    final Filed filed = index.get(wanted == null ? null : wanted.asString());
-                    final List<Integer> found = filed == null ? List.of() : filed.members();
-                    bindDense(value.name(), found.stream()
-                            .map(entry -> (TypedValue) new TypedValue.Integer(entry))
-                            .toList());
                 }
                 case final CompiledOp.ForEachGroup value ->
                         forEachGroup(value, match, matchCount, content, out,
@@ -532,7 +521,8 @@ final class Body {
      */
     private void bind(final VarName name, final int matchCount, final TypedValue value) {
         if (vars.typeOf(name) == Declaration.Type.LIST) {
-            vars.setAt(name, matchCount, value);
+            // Match numbers are 1-based positions; the list is indexed from 0 (design 35 §5).
+            vars.setAt(name, matchCount - 1, value);
         } else {
             vars.set(name, value);
         }
@@ -553,9 +543,9 @@ final class Body {
      * the compiler, which could warn; nothing does yet, and it is named here rather than left
      * for someone to find.
      */
-    private void guardAccumulation(final VarName name) {
+    private void guardAccumulation(final CompiledRef target) {
         if (chunkedRoot) {
-            messages.add(new Message(Severity.FATAL, "Appends to sequence '" + name + "' under "
+            messages.add(new Message(Severity.FATAL, "Appends to '" + describe(target) + "' under "
                     + "a classify or any root: the input is read in pieces whose counters "
                     + "restart, so the accumulation would summarise only the last piece. Use "
                     + "an ordered root dispatch, or read the input whole."));
@@ -568,10 +558,10 @@ final class Body {
      * between them (design 35 §11: one run-wide live-element counter), and the stop when they do.
      * Judged after the write that grew a collection, and named for the collection that grew.
      */
-    private void guardLive(final VarName name) {
+    private void guardLive(final CompiledRef target) {
         final int limit = maxSequenceEntries;
         if (vars.live() > limit) {
-            messages.add(new Message(Severity.FATAL, "Sequence '" + name + "' exceeded "
+            messages.add(new Message(Severity.FATAL, "Collection '" + describe(target) + "' exceeded "
                     + "max_sequence_entries (" + limit + "). A truncated aggregate is a wrong "
                     + "answer rather than a partial one, so the run stops here. Raise the "
                     + "limit if the accumulation is genuinely this large."));
@@ -584,7 +574,7 @@ final class Body {
         return vars.get(name) instanceof final TypedValue.List list ? list : null;
     }
 
-    /** The populated entries of a named sequence, in ascending index order, or empty. */
+    /** The populated entries of a named list, in ascending position, or empty. */
     private List<TypedValue> entries(final VarName name) {
         final TypedValue.List list = listOf(name);
         if (list == null) {
@@ -600,102 +590,189 @@ final class Body {
         return values;
     }
 
-    /** Bind values as a dense sequence, indexed from one — position, with no holes. */
+    /** Bind values as a dense list — position, with no holes. */
     private void bindDense(final VarName name, final List<TypedValue> values) {
         final TypedValue.List list = new TypedValue.List();
-        for (int i = 0; i < values.size(); i++) {
-            list.set(i + 1, values.get(i));
+        for (final TypedValue value : values) {
+            list.append(TypedValue.Collection.stored(value));
         }
-        vars.set(name, list);
-        guardLive(name);
+        vars.adopt(name, list);
+        guardLive(new CompiledRef.RemoteVar(name, null));
+    }
+
+    /** The list a mutation's target reaches, or null with a message when it reaches something else. */
+    private TypedValue.List listTarget(final CompiledRef target,
+                                       final MatchResult match,
+                                       final int matchCount,
+                                       final String what) {
+        if (target instanceof final CompiledRef.RemoteVar remote && remote.matchIndex() == null
+            && vars.typeOf(remote.varId()) == Declaration.Type.LIST) {
+            // A declared list: the slot's own, made on first use.
+            return vars.list(remote.varId());
+        }
+        final TypedValue reached = CompiledRefs.resolveValue(target, match, matchCount, vars);
+        if (reached instanceof final TypedValue.List list) {
+            return list;
+        }
+        if (reached == null) {
+            // A nested get that found nothing: nothing to act on.
+            return null;
+        }
+        fatal(what + " on something that is not a list: " + describe(target) + " is a "
+              + (reached instanceof final TypedValue.Collection collection ? collection.kind() : "scalar"));
+        return null;
     }
 
     /**
-     * Fold a sequence to one value (design/16 §8).
-     *
-     * <p>The empty sequence answers as XPath does, which is not the same answer twice:
-     * {@code sum(())} is zero and {@code avg(())} is empty. Zero is a real total of nothing;
-     * a mean of nothing is not a number, and returning zero for it would be a number that
-     * looks like an answer.
+     * Put: at a position of a list, under a key of a map, into a set, or into a scalar
+     * (design 35 §5). Which is the target's declared type when it is a bare name, or what is
+     * actually there when it is reached through an accessor.
      */
-    private TypedValue fold(final CompiledOp.Fold op) {
-        final List<TypedValue> values = entries(op.select());
-        return switch (op.kind()) {
-            case COUNT -> new TypedValue.Integer(values.size());
-            case SUM -> values.isEmpty() ? new TypedValue.Integer(0) : Transforms.add(values);
-            case AVG -> {
-                if (values.isEmpty()) {
-                    yield null;
-                }
-                final TypedValue total = Transforms.add(values);
-                final Double sum = total == null ? null : total.asNumber();
-                yield sum == null ? null : new TypedValue.Double(sum / values.size());
+    private void put(final CompiledOp.Put op, final MatchResult match, final int matchCount) {
+        final TypedValue value = CompiledRefs.resolveValue(op.select(), match, matchCount, vars);
+        final Declaration.Type declared = op.declared();
+        if (declared == Declaration.Type.SCALAR) {
+            vars.set(((CompiledRef.RemoteVar) op.target()).varId(), value);
+            return;
+        }
+        if (declared == Declaration.Type.SET) {
+            if (value instanceof final TypedValue.Collection member) {
+                fatal("put into '" + describe(op.target()) + "' of a " + member.kind()
+                      + ": a set member must be a scalar");
             }
-            case MIN, MAX -> extreme(values, op.as(), op.kind() == CompiledOp.FoldKind.MIN);
+            final TypedValue.Set set = vars.setOf(((CompiledRef.RemoteVar) op.target()).varId());
+            if (value != null && !set.contains(value)) {
+                set.add(value);
+                vars.grew(1);
+                guardLive(op.target());
+            }
+            return;
+        }
+        // A declared collection is the slot's own, made on its first put; anything else is
+        // reached through an accessor and is whatever is there.
+        final TypedValue target = op.target() instanceof final CompiledRef.RemoteVar remote
+                && remote.matchIndex() == null
+                ? declaredCollection(remote.varId())
+                : CompiledRefs.resolveValue(op.target(), match, matchCount, vars);
+        final TypedValue key = op.key() == null ? null : CompiledRefs.resolveValue(op.key(), match, matchCount, vars);
+        switch (target) {
+            case final TypedValue.List list -> {
+                if (op.key() == null) {
+                    fatal("put into a list needs a position");
+                }
+                final int position = position(op.key(), match, matchCount, "put");
+                if (position < 1 || position > list.size()) {
+                    fatal("put at position " + position + " of a list of " + list.size()
+                          + ": positions run from 1 to the size; append adds one");
+                }
+                final TypedValue stored = TypedValue.Collection.stored(value);
+                vars.grew(TypedValue.Collection.elementsOf(stored) -
+                        TypedValue.Collection.elementsOf(list.get(position - 1)));
+                list.put(position - 1, stored);
+                guardLive(op.target());
+            }
+            case final TypedValue.Map map -> {
+                if (op.key() == null) {
+                    fatal("put into a map needs a key");
+                }
+                if (key == null) {
+                    // A map's keys are values: an absent one could be stored but never read
+                    // back, since get and contains answer absent for it (design 35 §5).
+                    fatal("put into '" + describe(op.target()) + "' under an absent key: a map key must be present");
+                }
+                final TypedValue stored = TypedValue.Collection.stored(value);
+                vars.grew((map.contains(key) ? 0 : 1) + TypedValue.Collection.elementsOf(stored)
+                          - TypedValue.Collection.elementsOf(map.get(key)));
+                if (key instanceof final TypedValue.Collection collectionKey) {
+                    fatal("put into '" + describe(op.target()) + "' under a " + collectionKey.kind()
+                          + " as the key: a map key must be a scalar");
+                }
+                map.put(key, stored);
+                guardLive(op.target());
+            }
+            case final TypedValue.Set set -> {
+                if (value instanceof final TypedValue.Collection member) {
+                    fatal("put into '" + describe(op.target()) + "' of a " + member.kind()
+                          + ": a set member must be a scalar");
+                }
+                if (value != null && !set.contains(value)) {
+                    set.add(value);
+                    vars.grew(1);
+                    guardLive(op.target());
+                }
+            }
+            case null -> {
+            }
+            default -> fatal("put into something that is not a collection: " + describe(op.target()));
+        }
+    }
+
+    /** A declared collection, the slot's own, made on first use; null for a scalar. */
+    private TypedValue declaredCollection(final VarName name) {
+        return switch (vars.typeOf(name)) {
+            case LIST -> vars.list(name);
+            case MAP -> vars.map(name);
+            case SET -> vars.setOf(name);
+            case SCALAR -> null;
         };
     }
 
-    /**
-     * The smallest or largest entry under §8's ordering. An entry whose cast fails does not
-     * participate — the same "this value did not participate" that reads false in a condition
-     * and sorts last in an ordering — and if none participates the answer is absent.
-     */
-    private static TypedValue extreme(final List<TypedValue> values,
-                                      final Cast as,
-                                      final boolean smallest) {
-        TypedValue best = null;
-        for (final TypedValue value : values) {
-            // Uncast, an ordering compares string forms: the one total reading (17 §8).
-            final TypedValue candidate = Comparisons.cast(value, as == null ? Cast.STRING : as);
-            if (candidate == null) {
-                continue;
-            }
-            if (best == null) {
-                best = candidate;
-                continue;
-            }
-            final Integer order = Comparisons.compare(candidate, best);
-            if (order != null && (smallest ? order < 0 : order > 0)) {
-                best = candidate;
-            }
+    /** A 1-based position, from whatever resolved; nothing readable as a number is position 0. */
+    private int position(final CompiledRef ref, final MatchResult match, final int matchCount, final String what) {
+        final TypedValue value = CompiledRefs.resolveValue(ref, match, matchCount, vars);
+        final Long whole = value == null ? null : value.asInteger();
+        if (whole == null) {
+            fatal(what + ": the position " + (value == null ? "is absent" : "'" + value.asString()
+                    + "' is not a whole number"));
         }
-        return best;
+        return (int) (long) whole;
+    }
+
+    /** The target as an author would recognise it, for a message. */
+    private static String describe(final CompiledRef target) {
+        return switch (target) {
+            case final CompiledRef.RemoteVar remote -> remote.varId().name();
+            case final CompiledRef.Accessor accessor -> accessor.kind().spelling() + "(" + describe(accessor.of())
+                    + ", …)";
+            default -> target.getClass().getSimpleName();
+        };
+    }
+
+    private void fatal(final String text) {
+        messages.add(new Message(Severity.FATAL, text + ". The run stops here."));
+        throw new AbortRun();
     }
 
     /**
-     * File a sequence's entries by key, in order of first appearance — the one index both
-     * grouping and {@code key} are built on (design/16 §6, §8). Keys resolve with
-     * {@code index()} bound, so a key can name a parallel store: "these records, by their
-     * category" is said by indexing positions rather than values.
+     * File a list's entries by key, in order of first appearance — the index a grouping is
+     * built on (design/16 §6). Keys resolve with {@code index()} bound, so a key can name a
+     * parallel list: "these records, by their category" is said by indexing positions rather
+     * than values.
      */
-    private Map<String, Filed> file(final VarName select,
+    private Map<String, Filed> file(final TypedValue.List store,
                                     final CompiledRef groupBy,
                                     final MatchResult match,
                                     final int matchCount) {
         final Map<String, Filed> members = new LinkedHashMap<>();
-        final TypedValue.List store = listOf(select);
-        if (store == null) {
-            return members;
-        }
         vars.frames().pushIteration();
         for (int index = 0; index < store.size(); index++) {
             final TypedValue entry = store.get(index);
             if (entry == null) {
                 continue;
             }
-            vars.frames().index(index);
+            vars.frames().index(index + 1);
             final TypedValue key = groupBy == null
                     ? entry
                     : CompiledRefs.resolveValue(groupBy, match, matchCount, vars);
             members.computeIfAbsent(key == null ? null : key.asString(),
-                    ignored -> new Filed(key, new ArrayList<>())).members().add(index);
+                    ignored -> new Filed(key, new ArrayList<>())).members().add(index + 1);
         }
         vars.frames().popIteration();
         return members;
     }
 
     /**
-     * One entry of an index: the key as it was read, and the store positions filed under it.
+     * One entry of an index: the key as it was read, and the 1-based positions filed under it.
      * The key is kept as a value rather than as its identity string because a grouping binds
      * it to {@code groupKey()}, where an author expects what they grouped on.
      */
@@ -704,13 +781,13 @@ final class Body {
     }
 
     /**
-     * Group a sequence's entries and run the body once per group (design/16 §6).
+     * Group a list's entries and run the body once per group (design/16 §6).
      *
      * <p>Groups form in order of first appearance — a {@link java.util.LinkedHashMap} built in
-     * one pass, which is the whole implementation. What is grouped is the <b>index set</b>:
-     * members are store indices, bound as {@code group()}, so a nested walk over them can read
-     * any parallel store at the record each names. Keys are compared by string form, the same
-     * total reading an uncast ordering uses.
+     * one pass, which is the whole implementation. What is grouped is the <b>position set</b>:
+     * members are 1-based positions, bound as {@code group()}, so a nested walk over them can
+     * read any parallel list at the record each names. Keys are compared by string form, the
+     * same total reading an uncast ordering uses.
      *
      * <p>{@code groupSize()} is known before the group's body opens, which is what lets an
      * author write a count into the opening tag — the {@code adjacent_groups} fixture's
@@ -724,19 +801,16 @@ final class Body {
                               final long inputBase,
                               final boolean ignoreErrors,
                               final int depth) {
-        if (listOf(op.select()) == null) {
+        if (!(CompiledRefs.resolveValue(op.select(), match, matchCount, vars) instanceof final TypedValue.List store)) {
             return;
         }
-
-        // The same index a key builds (design/16 §8): grouping walks every entry of it,
-        // a key reaches one entry by value. One builder, two readings.
-        final Map<String, Filed> members = file(op.select(), op.groupBy(), match, matchCount);
+        final Map<String, Filed> members = file(store, op.groupBy(), match, matchCount);
         if (members.isEmpty()) {
             return;
         }
 
-        // The members are a sequence, so they are a list declared over the grouping; the key
-        // and the size are scalars the group frame holds (design 30 phase 4).
+        // The members are a list declared over the grouping; the key and the size are
+        // scalars the group frame holds (design 30 phase 4).
         vars.push();
         vars.declare(groupMembers);
         vars.frames().pushGroup();
@@ -754,44 +828,73 @@ final class Body {
         vars.pop();
     }
 
+    /** One entry of a walk: its 1-based index in the collection, its key for a map, its value. */
+    private record Item(int index, TypedValue key, TypedValue value) {
+
+    }
+
+    /** What a walk runs over: a list's populated entries, a set's members, a map's entries, in order. */
+    private static List<Item> items(final TypedValue collection) {
+        final List<Item> items = new ArrayList<>();
+        switch (collection) {
+            case final TypedValue.List list -> {
+                for (int i = 0; i < list.size(); i++) {
+                    if (list.get(i) != null) {
+                        items.add(new Item(i + 1, null, list.get(i)));
+                    }
+                }
+            }
+            case final TypedValue.Set set -> {
+                final TypedValue.List members = set.values();
+                for (int i = 0; i < members.size(); i++) {
+                    items.add(new Item(i + 1, null, members.get(i)));
+                }
+            }
+            case final TypedValue.Map map -> {
+                final TypedValue.List keys = map.keys();
+                for (int i = 0; i < keys.size(); i++) {
+                    items.add(new Item(i + 1, keys.get(i), map.get(keys.get(i))));
+                }
+            }
+            case null, default -> {
+            }
+        }
+        return items;
+    }
+
     /**
-     * The entries in sorted order (design/16 §5) — <b>as an {@code int[]}, not as buffered
+     * The entries in sorted order (design/16 §5) — <b>as positions, not as buffered
      * output</b>, which is the whole reason sorting is cheap here: the values are already in
-     * memory, so ordering them reorders indices into a store rather than deferring anything
-     * that has been written.
+     * memory, so ordering them reorders positions rather than deferring anything that has
+     * been written.
      *
      * <p>Keys are evaluated once per entry, up front, with {@code index()} and the item
-     * binding in scope so a key can read the item or a parallel store at the same match.
+     * binding in scope so a key can read the item or a parallel list at the same match.
      * Evaluating per comparison instead would re-resolve a reference O(n log n) times.
      *
-     * <p>The sort is <b>stable</b>, and the list it sorts is in ascending store index, so
-     * ties keep data order without an explicit tie-break — that is the same guarantee said
-     * once rather than twice.
+     * <p>The sort is <b>stable</b>, and the list it sorts is in ascending position, so ties
+     * keep data order without an explicit tie-break — that is the same guarantee said once
+     * rather than twice.
      */
-    private List<Integer> sorted(final CompiledOp.ForEach op,
-                                 final List<Integer> populated,
-                                 final TypedValue.List store,
-                                 final MatchResult match,
-                                 final int matchCount) {
+    private List<Item> sorted(final CompiledOp.ForEach op,
+                              final List<Item> items,
+                              final MatchResult match,
+                              final int matchCount) {
         final int keyCount = op.sort().length;
-        final TypedValue[][] keys = new TypedValue[populated.size()][keyCount];
+        final TypedValue[][] keys = new TypedValue[items.size()][keyCount];
 
         vars.push();
-        if (op.as() != null) {
-            vars.declare(op.as());
-        }
+        declareBindings(op);
         // position() and last() are deliberately left alone here: this walk's frame binds only
         // the index, so they inherit an *enclosing* walk's position, which is a real value and
         // legitimately readable, as everywhere else in the scoping model. The compiler still
         // warns, because reading them here is far more likely to mean "this entry's position",
         // which is what does not exist.
         vars.frames().pushIteration();
-        for (int i = 0; i < populated.size(); i++) {
-            final int index = populated.get(i);
-            vars.frames().index(index);
-            if (op.as() != null) {
-                vars.set(op.as(), store.get(index));
-            }
+        for (int i = 0; i < items.size(); i++) {
+            final Item item = items.get(i);
+            vars.frames().index(item.index());
+            bindItem(op, item);
             for (int k = 0; k < keyCount; k++) {
                 final CompiledOp.SortKey key = op.sort()[k];
                 final TypedValue raw = CompiledRefs.resolveValue(
@@ -803,11 +906,11 @@ final class Body {
         vars.frames().popIteration();
         vars.pop();
 
-        final List<Integer> positions = new ArrayList<>(populated.size());
-        for (int i = 0; i < populated.size(); i++) {
-            positions.add(i);
+        final List<Integer> order = new ArrayList<>(items.size());
+        for (int i = 0; i < items.size(); i++) {
+            order.add(i);
         }
-        positions.sort((left, right) -> {
+        order.sort((left, right) -> {
             for (int k = 0; k < keyCount; k++) {
                 final int comparison = compareKeys(keys[left][k], keys[right][k], op.sort()[k].order());
                 if (comparison != 0) {
@@ -816,7 +919,25 @@ final class Body {
             }
             return 0;
         });
-        return positions.stream().map(populated::get).toList();
+        return order.stream().map(items::get).toList();
+    }
+
+    private void declareBindings(final CompiledOp.ForEach op) {
+        if (op.as() != null) {
+            vars.declare(op.as());
+        }
+        if (op.asKey() != null) {
+            vars.declare(op.asKey());
+        }
+    }
+
+    private void bindItem(final CompiledOp.ForEach op, final Item item) {
+        if (op.as() != null) {
+            vars.set(op.as(), item.value());
+        }
+        if (op.asKey() != null) {
+            vars.set(op.asKey(), item.key());
+        }
     }
 
     /**
@@ -838,32 +959,17 @@ final class Body {
     }
 
     /**
-     * The distinct entries, first appearance kept, compared canonically (design 35 §5): a number
-     * and its text are two entries, the same text in two encodings is one. Until design 35 phase
-     * 4 makes this {@code add} on a declared set, the set here is that rule spelled locally.
-     */
-    private void distinct(final CompiledOp.DistinctValues op) {
-        final Set<TypedValue> seen = new LinkedHashSet<>();
-        final List<TypedValue> distinct = new ArrayList<>();
-        for (final TypedValue value : entries(op.select())) {
-            if (seen.add(value)) {
-                distinct.add(value);
-            }
-        }
-        bindDense(op.name(), distinct);
-    }
-
-    /**
-     * Walk a sequence, running the body once per populated entry (design/16 §4).
+     * Walk a collection, running the body once per entry (design/16 §4, design 35 §5): a
+     * list's populated entries in ascending position, a set's members, a map's entries with
+     * the key bound too.
      *
-     * <p>Populated entries in ascending index order, which is the one rule that reads both
-     * indexing disciplines: a capture-indexed store's holes are skipped and its index still
-     * means the match that produced it, while a dense one has no holes to skip. Index and
-     * position are bound separately because they answer different questions — the index
-     * reaches sibling data at the same match, the position is what {@code position()} means.
+     * <p>Index and position are bound separately because they answer different questions —
+     * the index reaches sibling data at the same match, the position is what
+     * {@code position()} means and follows the ordering.
      *
      * <p>The iteration runs in its own scope, so the bindings do not outlive it and a nested
-     * {@code for-each} shadows rather than overwrites the one around it.
+     * {@code for-each} shadows rather than overwrites the one around it. The entries are
+     * taken before the body runs, so a body that appends to what it walks terminates.
      */
     private void forEach(final CompiledOp.ForEach op,
                          final MatchResult match,
@@ -873,27 +979,16 @@ final class Body {
                          final long inputBase,
                          final boolean ignoreErrors,
                          final int depth) {
-        final TypedValue.List store = listOf(op.select());
-        if (store == null) {
+        final List<Item> items = items(CompiledRefs.resolveValue(op.select(), match, matchCount, vars));
+        if (items.isEmpty()) {
             return;
         }
-        final List<Integer> populated = new ArrayList<>();
-        for (int i = 0; i < store.size(); i++) {
-            if (store.get(i) != null) {
-                populated.add(i);
-            }
-        }
-        if (populated.isEmpty()) {
-            return;
-        }
-        final List<Integer> order = op.sort().length == 0
-                ? populated
-                : sorted(op, populated, store, match, matchCount);
+        final List<Item> order = op.sort().length == 0
+                ? items
+                : sorted(op, items, match, matchCount);
 
         vars.push();
-        if (op.as() != null) {
-            vars.declare(op.as());
-        }
+        declareBindings(op);
         vars.frames().pushIteration();
         // Known before the first body runs, which is what makes a last-entry test cheap and
         // correct (the adjacent_groups fixture's trailing-empty-group case).
@@ -901,12 +996,10 @@ final class Body {
         for (int position = 0; position < order.size(); position++) {
             // Position follows the ordering; the index still points at the record, so a key
             // that reordered the walk does not disturb what a body reads (design/16 §5).
-            final int index = order.get(position);
-            vars.frames().index(index);
+            final Item item = order.get(position);
+            vars.frames().index(item.index());
             vars.frames().position(position + 1L);
-            if (op.as() != null) {
-                vars.set(op.as(), store.get(index));
-            }
+            bindItem(op, item);
             body(op.body(), match, matchCount, content, out,
                     inputBase, ignoreErrors, depth);
         }

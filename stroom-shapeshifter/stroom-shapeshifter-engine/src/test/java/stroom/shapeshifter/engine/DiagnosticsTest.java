@@ -83,7 +83,7 @@ class DiagnosticsTest {
     @Test
     void knownNamesPassIncludingEngineCounters() {
         final String body = "{\"value-of\": {\"parts\": ["
-                + "{\"capture\": {\"var_id\": \"field\", \"group\": 0}},"
+                + "{\"last\": {\"of\": \"field\"}},"
                 + "{\"function\": {\"name\": \"matchCount\"}}]}}";
         assertThat(run(config(4, "", body), "a\n").messages()).isEmpty();
     }
@@ -109,8 +109,7 @@ class DiagnosticsTest {
     void keyValueCaptureIntoANameNotDeclaredAsAMapIsRefused() {
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(KV_CONFIG.replace("TYPE", "scalar"))))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("'kv' as a map")
-                .hasMessageContaining("declared as a scalar");
+                .hasMessageContaining("reads 'kv', which is declared as a scalar");
     }
 
     private static final String KV_CONFIG = """
@@ -126,7 +125,7 @@ class DiagnosticsTest {
                "captures": [{"name": "kv", "select": {"key-value": {
                  "key_ref": {"parts": [{"capture": {"group": 1}}]},
                  "value_ref": {"parts": [{"capture": {"group": 2}}]}}}}],
-               "body": [{"value-of": {"parts": [{"get": {"var_id": "kv", "key": "auid"}}]}}]}]}
+               "body": [{"value-of": {"parts": [{"get": {"of": "kv", "key": "auid"}}]}}]}]}
             """;
 
     // -----------------------------------------------------------------------------------
@@ -134,7 +133,7 @@ class DiagnosticsTest {
     // -----------------------------------------------------------------------------------
 
     private static final String ADD_BODY =
-            "{\"add\": {\"select\": [{\"parts\": [{\"capture\": {\"var_id\": \"field\", \"group\": 0}}]},"
+            "{\"add\": {\"select\": [{\"parts\": [{\"last\": {\"of\": \"field\"}}]},"
             + " {\"parts\": [{\"text\": \"1\"}]}]}}";
 
     @Test
@@ -158,8 +157,8 @@ class DiagnosticsTest {
     // -----------------------------------------------------------------------------------
 
     private static final String SUBSTRING_BODY =
-            "{\"substring\": {\"select\": [{\"parts\": [{\"capture\": {\"var_id\": \"field\","
-            + " \"group\": 0}}]}], \"start\": 1, \"length\": 3}}";
+            "{\"substring\": {\"select\": [{\"parts\": [{\"last\": {\"of\": \"field\"}}]}], \"start\": 1, "
+                    + "\"length\": 3}}";
 
     @Test
     void substringIsOneBasedFromVersionFive() {
@@ -169,8 +168,8 @@ class DiagnosticsTest {
     }
 
     private static final String SUBSTRING_ZERO_BODY =
-            "{\"substring\": {\"select\": [{\"parts\": [{\"capture\": {\"var_id\": \"field\","
-            + " \"group\": 0}}]}], \"start\": 0, \"length\": 3}}";
+            "{\"substring\": {\"select\": [{\"parts\": [{\"last\": {\"of\": \"field\"}}]}], \"start\": 0, "
+                    + "\"length\": 3}}";
 
     @Test
     void versionFiveStartBelowOneShrinksTheWindowLikeXpath() {
@@ -195,8 +194,8 @@ class DiagnosticsTest {
     void omittedStartIsBumpSafeAndDrawsNoWarning() {
         // An omitted start means "from the beginning" under either base — the phase 6
         // migration proved it with byte-identical goldens — so no warning fires for it.
-        final String body = "{\"substring\": {\"select\": [{\"parts\": [{\"capture\":"
-                + " {\"var_id\": \"field\", \"group\": 0}}]}], \"length\": 3}}";
+        final String body = "{\"substring\": {\"select\": [{\"parts\": [{\"last\":"
+                + " {\"of\": \"field\"}}]}], \"length\": 3}}";
         assertThat(run(config(4, "", body), "abcdef\n").output()).isEqualTo("abc");
         assertThat(run(config(5, "", body), "abcdef\n").output()).isEqualTo("abc");
         assertThat(run(config(4, "", body), "abcdef\n").messages())
@@ -205,7 +204,7 @@ class DiagnosticsTest {
 
     @Test
     void configurationWithoutSubstringDrawsNoBumpWarning() {
-        final String body = "{\"value-of\": {\"parts\": [{\"capture\": {\"var_id\": \"field\", \"group\": 0}}]}}";
+        final String body = "{\"value-of\": {\"parts\": [{\"last\": {\"of\": \"field\"}}]}}";
         assertThat(run(config(4, "", body), "a\n").messages())
                 .noneMatch(m -> m.text().contains("0-based"));
     }

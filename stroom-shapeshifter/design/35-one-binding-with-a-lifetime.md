@@ -362,7 +362,7 @@ expression.
 
 | list | map | set | after |
 |---|---|---|---|
-| `append(list, value)` | | `add(set, value)` | `array:append` |
+| `append(list, value)` | | `put(set, value)` — *was `add`; see phase 4* | `array:append` |
 | `insert(list, position, value)` | | | `array:insert-before` |
 | `put(list, position, value)` — replaces | `put(map, key, value)` | | `array:put`, `map:put` |
 | `remove(list, position)` | `remove(map, key)` | `remove(set, value)` | `array:remove`, `map:remove` |
@@ -1370,6 +1370,94 @@ whichever `Key`/`ValueMap` users phase 0 finds.
 
 *Gate:* the model is smaller — `Binding` is gone or holds only `Transform` and `Variable` as value
 sources — or §11 says this is not the design. *Point:* `log_sessions` is the sequence-and-fold row.
+
+**Done 2026-09-14, uncommitted pending review; not yet measured.** The gate is met: `Binding`
+permits `Transform` and `Variable`, and nothing else. No golden moved: 1,195 tests across the four
+modules, 0 failures, every fixture and xmlbench case byte-identical. `OutputNode` has 53 records
+where it had 60 — twelve gone (`Sequence`, `Key`, `KeyGet`, the five folds, `DistinctValues`,
+`ValueMap` and its `Entry`), five come (the mutations); `KeyName`, `Names.keys` and `Body`'s key
+table are gone with the second namespace.
+
+*What was built.* The mutations, as statements: `append`, `insert`, `put`, `remove`, `clear`,
+each on a **target** reference — a bare name is the JSON sugar, `"target"` a reference reaching a
+nested collection through `get`, mutated in place. The accessors, as one expression part with a
+kind: `get`, `size`, `contains`, `last`, `head`, `keys`, `values`, and the folds `sum`, `avg`,
+`min`, `max`, each over `of` (a name or a reference) with `key`, `value`, `default` and `as` as
+the kind takes them. `for-each` and `for-each-group` take a reference, and a map walk binds
+`as_key` beside `as`. A map declared with `entries` starts as that table on every entry, which is
+what `value-map` was; `count` is `size`; `distinct-values` is a set filled by a walk. Positions
+are 1-based at the surface and 0-based inside, so the absent position 0 that phase 3 carried is
+gone, and the live-element counter now counts nested elements, since a stored collection brings
+its own. `Folds` holds design/16 §8's rules for the four folds; `size` is an accessor and applies
+to every collection.
+
+*Rulings taken while building, each asked and answered on the day.*
+
+1. **`put(set, value)`, not `add`.** The tag `add` is design 17's numeric addition; `put` already
+   means "put this value at this location" for lists and maps, and a set has no location. The
+   table above is amended.
+2. **Walks and folds take a reference.** So a lookup needs no intermediate: `for-each` walks
+   `get(by_cat, k)` and `size(get(by_cat, k))` counts it, and `KeyGet`'s `hits` and
+   `log_sessions`' `denied` vanish rather than being replaced.
+3. **A store copies a collection.** Value semantics for storage — `put`, `append`, `insert`, a
+   loop's `as` — so every collection has one owner, the counter stays exact (§11), and no
+   mutation is visible through a second name. A mutation target reached through `get` still acts
+   in place: the accessor yields the object. `Collection.stored` is the one place, held by a
+   sabotage that removed it.
+4. **The empty list is a declared one, put by copy.** Building a map of lists — the former
+   `key` — is `if not exists(get(m, k)): put(m, k, $empty)` then `append(get(m, k), index())`,
+   where `empty` is a list declared once and never filled. No literal, no collection that fills
+   itself.
+
+*What the corpus settled beyond the rulings.* A bare reference to a collection **denotes the
+collection** — that is what lets a target, a walk and an accessor take one — so `last(l)` is the
+read that used to be bare, and the check refuses a whole collection where text is wanted while a
+value context (an append's value, a put's, a walk) takes it. `size` and `sum` of nothing are zero
+and `contains` of nothing is false — a lookup that misses is absent, and a count of nothing is
+zero, as `sum(())` is — while every other accessor answers absent; the `keys_lookup` xmlbench
+case is where that was decided. A `put` under an absent key stops the run: a map's keys are
+values, `get` and `contains` already answer absent for one, and a key that could be stored but
+never read back is a wrong answer waiting. An empty collection is a value, not absence:
+"empty is absent" is a scalar's rule. A declared collection nothing has filled reads as the
+empty one of its type. A parameter or loop binding shadows a declaration of the same name and
+holds a scalar. A function call's arguments are values, since a `SEQUENCE` position receives a
+whole collection.
+
+*The rewrite.* Ten JSON configurations — `apache_httpd`, `ausearch`, `log_sessions`, the two
+`text_02x` fixtures and five xmlbench cases — by a script over the parsed configuration: a
+`sequence` at the head of the source dropped (a declared list starts empty) or `clear` elsewhere;
+folds to accessors, bound through `put`; `distinct-values` to a set and a walk; `key` to the
+explicit build above; `key-get` to a `get` at each use; `value-map` to a declared table and a
+`get` with a default; bare reads of list-declared names in text contexts to `last`. Two DS3-shaped
+fixtures had fold and transform results declared as lists and read at the current match, which
+are scalars, and say so now. `SequenceIterationTest` was rewritten by hand to the surface;
+`CollectionSurfaceTest` pins what the phase adds.
+
+*Sabotage, each against the engine suite:*
+
+| mechanism | sabotage | failing |
+|---|---|---|
+| a store copies | `Collection.stored` returns the value | 1 |
+| positions are 1-based | `get` reads 0-based | 62 |
+| a count of nothing is zero | `size` of nothing absent | 2 |
+| a whole collection is not text | the refusal disabled | 2 |
+| a bare reference is the collection | `last` again | 95 |
+
+*What the audit found.* A collection used as a key or a position — `put(m, key = $l)` — passed
+the check, which read keys as values, and then threw an uncaught `IllegalArgumentException` from
+`Collection.scalar` at run time; keys and positions are scalars and are read as text is now, so a
+collection there is refused where it is written, and the nested case that the check cannot see is
+a run message. A capture into a map- or set-declared name was not judged at all, and `Level` would
+have overwritten the collection with one value; a capture is a `scalar | list` operation and is
+judged as one. `Collection.elements()` built a Java list to walk on every store and every scope
+exit that discards a collection, for what is a loop over an array; it allocates nothing now.
+`bareName` existed twice and lives on `RefExpression`. Five stale sentences still described two
+namespaces or sequences and say what is there; `max_sequence_entries` keeps its name while
+bounding the run's collections together, which its documentation now says. Both refusals are
+pinned.
+
+*Not measured.* `log_sessions` is the sequence-and-fold row; the point waits for a quiet box with
+phase 3's.
 
 ### Phase 5 — Closing
 

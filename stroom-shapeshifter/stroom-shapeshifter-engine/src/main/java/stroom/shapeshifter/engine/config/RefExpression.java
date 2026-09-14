@@ -52,6 +52,18 @@ public record RefExpression(List<RefPart> parts) {
         return parts.size() == 1 && parts.getFirst() instanceof RefPart.Text;
     }
 
+    /**
+     * The name this is, when it is exactly a bare read of one — no index, no other part — else
+     * null. A bare name is what a collection site means by its target (design 35 §5).
+     */
+    public String bareName() {
+        return parts.size() == 1
+               && parts.getFirst() instanceof RefPart.Capture capture
+               && capture.varId() != null && capture.matchIndex() == null
+                ? capture.varId()
+                : null;
+    }
+
     /** One part of a {@link RefExpression}. */
     public sealed interface RefPart {
 
@@ -73,15 +85,43 @@ public record RefExpression(List<RefPart> parts) {
         }
 
         /**
-         * One entry of a map, by key — XPath's {@code map:get} (design 35 §5). The key is
-         * literal here; what a key-value capture read out of the data is read back by the name
-         * the configuration knows.
+         * A function over a collection, in an expression (design 35 §5's accessors and folds,
+         * named after XPath 3.1's {@code array:} and {@code map:} libraries): {@code get},
+         * {@code size}, {@code contains}, {@code last}, {@code head}, {@code keys},
+         * {@code values}, {@code sum}, {@code avg}, {@code min}, {@code max}. Nothing here
+         * mutates; a mutation is a statement in a body.
+         *
+         * @param of     the collection, as a reference — a declared name, or another accessor,
+         *               which is how nesting is read one level at a time
+         * @param key    {@code get}'s position or key and {@code contains}'s value, else null
+         * @param orElse {@code get}'s default when there is no such entry, or null
+         * @param as     {@code min} and {@code max}'s ordering cast, or null for string form
          */
-        record Get(String varId, String key) implements RefPart {
+        record Accessor(Kind kind, RefExpression of, RefExpression key, RefExpression orElse, Cast as)
+                implements RefPart {
 
-            public Get {
-                if (varId == null || varId.isEmpty() || key == null) {
-                    throw new ConfigException("A get names a map and a key");
+            public Accessor {
+                if (kind == null || of == null || of.parts().isEmpty()) {
+                    throw new ConfigException("An accessor needs a kind and a collection to read");
+                }
+                if ((kind == Kind.GET || kind == Kind.CONTAINS) == (key == null)) {
+                    throw new ConfigException(kind.spelling() + (key == null
+                            ? " needs a key" : " takes no key"));
+                }
+                if (orElse != null && kind != Kind.GET) {
+                    throw new ConfigException(kind.spelling() + " takes no default");
+                }
+                if (as != null && kind != Kind.MIN && kind != Kind.MAX) {
+                    throw new ConfigException(kind.spelling() + " takes no as");
+                }
+            }
+
+            /** The accessors and folds, each with the spelling a configuration uses. */
+            public enum Kind {
+                GET, SIZE, CONTAINS, LAST, HEAD, KEYS, VALUES, SUM, AVG, MIN, MAX;
+
+                public String spelling() {
+                    return name().toLowerCase(java.util.Locale.ROOT);
                 }
             }
         }

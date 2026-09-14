@@ -128,9 +128,9 @@ public final class Conditions {
                 yield position != null && position.equals(last);
             }
             case final CompiledCondition.Exists value -> {
-                final byte[] resolved =
-                        CompiledRefs.resolve(value.select(), match, matchCount, vars);
-                yield resolved != null && resolved.length > 0;
+                // A value is there or it is not; "empty is absent" already made an empty
+                // scalar null, and an empty collection is a value (design 35 §5).
+                yield CompiledRefs.resolveValue(value.select(), match, matchCount, vars) != null;
             }
         };
     }

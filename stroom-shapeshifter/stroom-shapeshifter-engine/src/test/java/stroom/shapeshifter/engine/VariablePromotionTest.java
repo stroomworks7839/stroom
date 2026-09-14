@@ -65,7 +65,7 @@ class VariablePromotionTest {
                                         "match_index": {"index": 2, "is_offset": false}}}]}},
                        {"value-of": {"parts": [
                            {"text": " latest="},
-                           {"capture": {"var_id": "word", "group": 0}}]}}
+                           {"last": {"of": "word"}}]}}
                      ]},
 
                     {"id": "00000000-0000-0000-0000-000000000003", "name": "word", "mode": "word",

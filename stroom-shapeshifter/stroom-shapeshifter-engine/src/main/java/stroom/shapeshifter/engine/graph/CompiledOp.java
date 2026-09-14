@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.Cast;
+import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
@@ -279,22 +280,6 @@ public sealed interface CompiledOp {
     }
 
     /**
-     * Map a value to another, from a table written in the configuration.
-     *
-     * @param entries      the mapped value for each input, encoded once — first declaration
-     *                     winning, and an entry mapping to nothing holding the default, so a
-     *                     lookup that misses and one that finds nothing agree as they did
-     * @param defaultValue what an unmapped value produces, never null: an undeclared default
-     *                     is the empty value
-     */
-    record ValueMap(CompiledRef select,
-                    Map<TypedValue, TypedValue> entries,
-                    TypedValue defaultValue,
-                    VarName name) implements CompiledOp {
-
-    }
-
-    /**
      * A call to a registered function (design 26): {@code select.get(i)} is the reference at
      * position {@code i}, or null where {@code sequences.get(i)} names the store whose entries
      * that position receives.
@@ -354,63 +339,57 @@ public sealed interface CompiledOp {
 
     }
 
-    /** Declare a sequence and empty it (design/16 §9). */
-    record Sequence(VarName name) implements CompiledOp {
+    /** Add a value to a list, reached by reference (design 35 §5). */
+    record Append(CompiledRef target, CompiledRef select) implements CompiledOp {
 
     }
 
-    /** Add a value to a declared sequence, at its next free index. */
-    record Append(VarName name, CompiledRef select) implements CompiledOp {
+    /** Insert a value before a 1-based position of a list. */
+    record Insert(CompiledRef target, CompiledRef position, CompiledRef select) implements CompiledOp {
 
     }
 
-    /** Walk a sequence, running a body per populated entry (design/16 §4). */
-    record ForEach(VarName select,
+    /**
+     * Put a value at a position of a list, under a key of a map, into a set, or into a scalar
+     * — which is the declared type's to say, settled here when the target is a declared name.
+     *
+     * @param key      the position or key, or null for a set or a scalar
+     * @param declared the target's declared type when it is a bare name, or null when the
+     *                 target is reached through an accessor and the type is a run-time fact
+     */
+    record Put(CompiledRef target, CompiledRef key, CompiledRef select, Declaration.Type declared)
+            implements CompiledOp {
+
+    }
+
+    /** Remove by position, key or member. */
+    record Remove(CompiledRef target, CompiledRef key) implements CompiledOp {
+
+    }
+
+    /** Empty a collection. */
+    record Clear(CompiledRef target) implements CompiledOp {
+
+    }
+
+    /** Walk a collection, running a body per entry (design/16 §4, design 35 §5). */
+    record ForEach(CompiledRef select,
                    VarName as,
+                   VarName asKey,
                    SortKey[] sort,
                    CompiledOp[] body) implements CompiledOp {
 
     }
 
-    /** Group a sequence's entries, running a body per group (design/16 §6). */
-    record ForEachGroup(VarName select,
+    /** Group a list's entries, running a body per group (design/16 §6). */
+    record ForEachGroup(CompiledRef select,
                         CompiledRef groupBy,
                         CompiledOp[] body) implements CompiledOp {
 
     }
 
-    /** Build a random-access index over a sequence (design/16 §8). */
-    record Key(KeyName name, VarName select, CompiledRef groupBy) implements CompiledOp {
-
-    }
-
-    /** Look one value up in a key, binding the entries it names. */
-    record KeyGet(KeyName key, CompiledRef select, VarName name) implements CompiledOp {
-
-    }
-
     /** One compiled ordering key: the reference resolved once, the cast decided once. */
     record SortKey(CompiledRef by, OutputNode.Order order, Cast as) {
-
-    }
-
-    /** What a {@link Fold} does. The authored vocabulary is five instructions; this is one. */
-    enum FoldKind {
-        COUNT, SUM, AVG, MIN, MAX
-    }
-
-    /**
-     * Fold a sequence to one value (design/16 §8). Five authored instructions collapse here
-     * the way the transforms collapse to {@link Transform}: what kind it was matters at
-     * authoring time, and at run time there is only "read the sequence, fold it, write or
-     * bind the result".
-     */
-    record Fold(VarName select, FoldKind kind, Cast as, VarName name) implements CompiledOp {
-
-    }
-
-    /** The distinct entries of a sequence, bound as a dense one. */
-    record DistinctValues(VarName select, VarName name) implements CompiledOp {
 
     }
 

@@ -67,19 +67,96 @@ class EqualityCharacterisationTest {
     void valueMapDoesNotMatchANumberAgainstATextEntry() {
         final String json = """
                 {
-                  "name": "vm", "version": 3,
-                  "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                  "name": "vm",
+                  "version": 3,
+                  "source": {
+                    "buffer_size": 2000,
+                    "ignore_errors": true,
+                    "encoding": "utf-8"
+                  },
                   "templates": [
-                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
-                     "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
-                                                   "mode": "line"}}]},
-                    {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "line",
-                     "declarations": [{"name": "n", "type": "scalar"}],
-                     "match": {"regex": {"pattern": "([0-9]+)\\n"}},
-                     "captures": [{"name": "n", "select": {"group": 1}, "as": "number"}],
-                     "body": [{"value-map": {
-                       "select": {"parts": [{"capture": {"var_id": "n", "group": 0}}]},
-                       "entries": [{"from": "7", "to": "seven"}], "default": "none"}}]}
+                    {
+                      "id": "00000000-0000-0000-0000-000000000001",
+                      "name": "source",
+                      "declarations": [
+                        {
+                          "name": "table_1",
+                          "type": "map",
+                          "entries": [
+                            {
+                              "from": "7",
+                              "to": "seven"
+                            }
+                          ]
+                        }
+                      ],
+                      "match": "source",
+                      "body": [
+                        {
+                          "apply-templates": {
+                            "select": {
+                              "parts": [
+                                {
+                                  "capture": {
+                                    "group": 0
+                                  }
+                                }
+                              ]
+                            },
+                            "mode": "line"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "00000000-0000-0000-0000-000000000002",
+                      "name": "line",
+                      "mode": "line",
+                      "declarations": [
+                        {
+                          "name": "n",
+                          "type": "scalar"
+                        }
+                      ],
+                      "match": {
+                        "regex": {
+                          "pattern": "([0-9]+)\\n"
+                        }
+                      },
+                      "captures": [
+                        {
+                          "name": "n",
+                          "select": {
+                            "group": 1
+                          },
+                          "as": "number"
+                        }
+                      ],
+                      "body": [
+                        {
+                          "value-of": {
+                            "parts": [
+                              {
+                                "get": {
+                                  "of": "table_1",
+                                  "key": {
+                                    "parts": [
+                                      {
+                                        "capture": {
+                                          "var_id": "n",
+                                          "group": 0
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "default": "none"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
                   ]
                 }
                 """;
@@ -105,30 +182,163 @@ class EqualityCharacterisationTest {
     private static String distinct() {
         return """
                 {
-                  "name": "dv", "version": 5,
-                  "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                  "name": "dv",
+                  "version": 5,
+                  "source": {
+                    "buffer_size": 2000,
+                    "ignore_errors": true,
+                    "encoding": "utf-8"
+                  },
                   "templates": [
-                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
-                     "declarations": [{"name": "items", "type": "list"}, {"name": "seen", "type": "list"}],
-                     "match": "source",
-                     "body": [
-                       {"sequence": {"name": "items"}},
-                       {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
-                                            "mode": "line"}},
-                       {"distinct-values": {"select": "items", "name": "seen"}},
-                       {"for-each": {"select": "seen", "as": "s", "body": [
-                         {"value-of": {"parts": [{"capture": {"var_id": "s", "group": 0}}]}},
-                         {"text": ","}]}}]},
-                    {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "line",
-                     "declarations": [{"name": "asNumber", "type": "scalar"}, {"name": "asText", "type": "scalar"}],
-                     "match": {"regex": {"pattern": "([0-9]+)\\n"}},
-                     "captures": [{"name": "asText", "select": {"group": 1}},
-                                  {"name": "asNumber", "select": {"group": 1}, "as": "number"}],
-                     "body": [
-                       {"append": {"name": "items",
-                                   "select": {"parts": [{"capture": {"var_id": "asText", "group": 0}}]}}},
-                       {"append": {"name": "items",
-                                   "select": {"parts": [{"capture": {"var_id": "asNumber", "group": 0}}]}}}]}
+                    {
+                      "id": "00000000-0000-0000-0000-000000000001",
+                      "name": "source",
+                      "declarations": [
+                        {
+                          "name": "items",
+                          "type": "list"
+                        },
+                        {
+                          "name": "seen",
+                          "type": "set"
+                        }
+                      ],
+                      "match": "source",
+                      "body": [
+                        {
+                          "apply-templates": {
+                            "select": {
+                              "parts": [
+                                {
+                                  "capture": {
+                                    "group": 0
+                                  }
+                                }
+                              ]
+                            },
+                            "mode": "line"
+                          }
+                        },
+                        {
+                          "clear": {
+                            "name": "seen"
+                          }
+                        },
+                        {
+                          "for-each": {
+                            "select": "items",
+                            "as": "_v",
+                            "body": [
+                              {
+                                "put": {
+                                  "name": "seen",
+                                  "select": {
+                                    "parts": [
+                                      {
+                                        "capture": {
+                                          "var_id": "_v",
+                                          "group": 0
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "for-each": {
+                            "select": "seen",
+                            "as": "s",
+                            "body": [
+                              {
+                                "value-of": {
+                                  "parts": [
+                                    {
+                                      "capture": {
+                                        "var_id": "s",
+                                        "group": 0
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "text": ","
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "00000000-0000-0000-0000-000000000002",
+                      "name": "line",
+                      "mode": "line",
+                      "declarations": [
+                        {
+                          "name": "asNumber",
+                          "type": "scalar"
+                        },
+                        {
+                          "name": "asText",
+                          "type": "scalar"
+                        }
+                      ],
+                      "match": {
+                        "regex": {
+                          "pattern": "([0-9]+)\\n"
+                        }
+                      },
+                      "captures": [
+                        {
+                          "name": "asText",
+                          "select": {
+                            "group": 1
+                          }
+                        },
+                        {
+                          "name": "asNumber",
+                          "select": {
+                            "group": 1
+                          },
+                          "as": "number"
+                        }
+                      ],
+                      "body": [
+                        {
+                          "append": {
+                            "name": "items",
+                            "select": {
+                              "parts": [
+                                {
+                                  "capture": {
+                                    "var_id": "asText",
+                                    "group": 0
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "append": {
+                            "name": "items",
+                            "select": {
+                              "parts": [
+                                {
+                                  "capture": {
+                                    "var_id": "asNumber",
+                                    "group": 0
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
                   ]
                 }
                 """;

@@ -47,7 +47,7 @@ class CompilerWalksTest {
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "root",
                    "declarations": [{"name": "s", "type": "list"}],
                    "match": "source",
-                   "body": [{"sequence": {"name": "s"}}, %s,
+                   "body": [%s,
                             {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                  "mode": "lines"}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "lines",
@@ -61,7 +61,7 @@ class CompilerWalksTest {
     void regexReplaceInsideAnIterationIsInterned() {
         final CompiledProject compiled = compile("""
                 {"for-each": {"select": "s", "body": [
-                   {"replace": {"select": [{"parts": [{"capture": {"var_id": "s", "group": 0}}]}],
+                   {"replace": {"select": [{"parts": [{"last": {"of": "s"}}]}],
                                 "pattern": "x+", "replacement": "y", "is_regex": true}}]}}""");
         // The pattern reached the instruction that runs it, which is what interning was for
         // and which the map this replaces could never show.
@@ -72,7 +72,7 @@ class CompilerWalksTest {
     void matchesConditionInsideAnIterationIsInterned() {
         final CompiledProject compiled = compile("""
                 {"for-each": {"select": "s", "body": [
-                   {"if": {"test": {"matches": {"select": {"parts": [{"capture": {"var_id": "s", "group": 0}}]},
+                   {"if": {"test": {"matches": {"select": {"parts": [{"last": {"of": "s"}}]},
                                                 "pattern": "z+"}},
                            "then": [{"text": "!"}]}}]}}""");
         // Stronger than the map this replaces: the pattern reached the node that runs it, which
@@ -130,7 +130,7 @@ class CompilerWalksTest {
     void strictApplyInsideAnIterationFeedsTheDispatchLint() {
         final CompiledProject compiled = compile("""
                 {"for-each": {"select": "s", "body": [
-                   {"apply-templates": {"select": {"parts": [{"capture": {"var_id": "s", "group": 0}}]},
+                   {"apply-templates": {"select": {"parts": [{"last": {"of": "s"}}]},
                                         "mode": "lines", "dispatch": "strict"}}]}}""");
         assertThat(compiled.warnings()).anySatisfy(warning ->
                 assertThat(warning.text()).contains("line-anchored pattern in a strict level"));

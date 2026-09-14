@@ -142,7 +142,7 @@ class StructureTest {
     /** A call inside an iteration names a template like any other; a missing one is refused (design 27). */
     @Test
     void callToAMissingTemplateInsideAForEachIsACompileError() {
-        final String json = project(APPLY + ", {\"sequence\": {\"name\": \"s\"}}, {\"for-each\": {\"select\": \"s\","
+        final String json = project(APPLY + ", {\"for-each\": {\"select\": \"s\","
                                     + " \"body\": [{\"call-template\": {\"name\": \"ghost\", \"with-param\": []}}]}}");
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(json)))
                 .isInstanceOf(ConfigException.class)

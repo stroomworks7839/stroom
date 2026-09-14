@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
@@ -187,7 +188,6 @@ final class BodyCompiler {
                                 compile(value.body()));
                 case final OutputNode.Namespace value ->
                         new CompiledOp.Namespace(value.prefix(), value.uri());
-                case final OutputNode.ValueMap value -> valueMap(value);
                 case final OutputNode.Translate value -> transform(single("translate", value.select()),
                         value.name(), inputs ->
                                 Transforms.translate(inputs, value.from(), value.to()));
@@ -290,37 +290,26 @@ final class BodyCompiler {
                             parser,
                             names.intern(value.name()));
                 }
-                case final OutputNode.Count value ->
-                        new CompiledOp.Fold(names.intern(value.select()), CompiledOp.FoldKind.COUNT, null,
-                                names.intern(value.name()));
-                case final OutputNode.Sum value ->
-                        new CompiledOp.Fold(names.intern(value.select()), CompiledOp.FoldKind.SUM, null,
-                                names.intern(value.name()));
-                case final OutputNode.Avg value ->
-                        new CompiledOp.Fold(names.intern(value.select()), CompiledOp.FoldKind.AVG, null,
-                                names.intern(value.name()));
-                case final OutputNode.Min value ->
-                        new CompiledOp.Fold(names.intern(value.select()), CompiledOp.FoldKind.MIN,
-                                value.as(), names.intern(value.name()));
-                case final OutputNode.Max value ->
-                        new CompiledOp.Fold(names.intern(value.select()), CompiledOp.FoldKind.MAX,
-                                value.as(), names.intern(value.name()));
-                case final OutputNode.DistinctValues value ->
-                        new CompiledOp.DistinctValues(names.intern(value.select()), names.intern(value.name()));
-                case final OutputNode.Sequence value -> new CompiledOp.Sequence(names.intern(value.name()));
-                case final OutputNode.Append value ->
-                        new CompiledOp.Append(names.intern(value.name()), RefCompiler.compile(value.select(), names));
-                case final OutputNode.Key value -> new CompiledOp.Key(
-                        names.internKey(value.name()), names.intern(value.select()),
-                        value.groupBy() == null ? null : RefCompiler.compile(value.groupBy(), names));
-                case final OutputNode.KeyGet value -> new CompiledOp.KeyGet(names.internKey(value.key()),
-                        RefCompiler.compile(value.select(), names), names.intern(value.name()));
+                case final OutputNode.Append value -> new CompiledOp.Append(
+                        RefCompiler.compile(value.target(), names), RefCompiler.compile(value.select(), names));
+                case final OutputNode.Insert value -> new CompiledOp.Insert(
+                        RefCompiler.compile(value.target(), names), RefCompiler.compile(value.position(), names),
+                        RefCompiler.compile(value.select(), names));
+                case final OutputNode.Put value -> new CompiledOp.Put(
+                        RefCompiler.compile(value.target(), names),
+                        value.key() == null ? null : RefCompiler.compile(value.key(), names),
+                        RefCompiler.compile(value.select(), names),
+                        declaredType(value.target()));
+                case final OutputNode.Remove value -> new CompiledOp.Remove(
+                        RefCompiler.compile(value.target(), names), RefCompiler.compile(value.key(), names));
+                case final OutputNode.Clear value -> new CompiledOp.Clear(RefCompiler.compile(value.target(), names));
                 case final OutputNode.ForEachGroup value -> new CompiledOp.ForEachGroup(
-                        names.intern(value.select()),
+                        RefCompiler.compile(value.select(), names),
                         value.groupBy() == null ? null : RefCompiler.compile(value.groupBy(), names),
                         compile(value.body()));
                 case final OutputNode.ForEach value -> new CompiledOp.ForEach(
-                        names.intern(value.select()), names.intern(value.as()),
+                        RefCompiler.compile(value.select(), names), names.intern(value.as()),
+                                names.intern(value.asKey()),
                         value.sort().stream()
                                 .map(key ->
                                         new CompiledOp.SortKey(RefCompiler.compile(key.by(), names),
@@ -348,6 +337,20 @@ final class BodyCompiler {
             ops.add(op);
         }
         return ops.toArray(new CompiledOp[0]);
+    }
+
+    /**
+     * The declared type of a mutation's target when it is a bare name, or null when the target
+     * is reached through an accessor and its type is a run-time fact (design 35 §5: typing is
+     * one level deep).
+     */
+    private Declaration.Type declaredType(final RefExpression target) {
+        if (target.parts().size() == 1
+            && target.parts().getFirst() instanceof RefExpression.RefPart.Capture capture
+            && capture.varId() != null && capture.matchIndex() == null) {
+            return names.typeOf(capture.varId());
+        }
+        return null;
     }
 
     /**
@@ -477,28 +480,6 @@ final class BodyCompiler {
             cases.putIfAbsent(branch.value(), compile(branch.body()));
         }
         return Map.copyOf(cases);
-    }
-
-    /**
-     * A value map as a table of encoded results.
-     *
-     * <p>Two shapes of the authored scan are preserved. First declaration wins, as
-     * {@link #cases} does. And an entry that maps to nothing produced the default rather than
-     * nothing, because the scan could not tell "mapped to null" from "not mapped" — so such an
-     * entry holds the default here, and the two stay indistinguishable.
-     */
-    private CompiledOp.ValueMap valueMap(final OutputNode.ValueMap value) {
-        final TypedValue defaultValue = TypedValue.of(
-                value.defaultValue() == null ? "" : value.defaultValue());
-        // Keyed by value, so the lookup is canonical equality (design 35 §5): an entry's text is a
-        // byte value, and only a byte value of the same text finds it.
-        final Map<TypedValue, TypedValue> entries = new HashMap<>();
-        for (final OutputNode.Entry entry : value.entries()) {
-            entries.putIfAbsent(TypedValue.of(entry.from()),
-                    entry.to() == null ? defaultValue : TypedValue.of(entry.to()));
-        }
-        return new CompiledOp.ValueMap(RefCompiler.compile(value.select(), names), Map.copyOf(entries),
-                defaultValue, names.intern(value.name()));
     }
 
     /** A regex replace closes over its compiled pattern; a literal one over its text. */

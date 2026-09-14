@@ -215,7 +215,7 @@ class FunctionsTest {
 
     @Test
     void sequenceArgumentReceivesEveryEntryOfTheNamedStore() {
-        final String body = "{\"sequence\": {\"name\": \"nums\"}},"
+        final String body = ""
                             + " {\"append\": {\"select\": {\"parts\": [{\"text\": \"1\"}]}, \"name\": \"nums\"}},"
                             + " {\"append\": {\"select\": {\"parts\": [{\"text\": \"2\"}]}, \"name\": \"nums\"}},"
                             + " {\"append\": {\"select\": " + GROUP1 + ", \"name\": \"nums\"}}, "

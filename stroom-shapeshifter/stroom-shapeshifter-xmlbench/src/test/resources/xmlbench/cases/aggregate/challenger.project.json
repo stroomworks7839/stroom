@@ -21,7 +21,7 @@
     },
     {
      "name": "uniq",
-     "type": "list"
+     "type": "set"
     },
     {
      "name": "vals",
@@ -34,12 +34,12 @@
      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><s>"
     },
     {
-     "sequence": {
+     "clear": {
       "name": "vals"
      }
     },
     {
-     "sequence": {
+     "clear": {
       "name": "keys"
      }
     },
@@ -61,8 +61,14 @@
      "text": "<n>"
     },
     {
-     "count": {
-      "select": "vals"
+     "value-of": {
+      "parts": [
+       {
+        "size": {
+         "of": "vals"
+        }
+       }
+      ]
      }
     },
     {
@@ -72,8 +78,14 @@
      "text": "<t>"
     },
     {
-     "sum": {
-      "select": "vals"
+     "value-of": {
+      "parts": [
+       {
+        "sum": {
+         "of": "vals"
+        }
+       }
+      ]
      }
     },
     {
@@ -83,8 +95,14 @@
      "text": "<a>"
     },
     {
-     "avg": {
-      "select": "vals"
+     "value-of": {
+      "parts": [
+       {
+        "avg": {
+         "of": "vals"
+        }
+       }
+      ]
      }
     },
     {
@@ -94,9 +112,15 @@
      "text": "<lo>"
     },
     {
-     "min": {
-      "select": "vals",
-      "as": "number"
+     "value-of": {
+      "parts": [
+       {
+        "min": {
+         "of": "vals",
+         "as": "number"
+        }
+       }
+      ]
      }
     },
     {
@@ -106,9 +130,15 @@
      "text": "<hi>"
     },
     {
-     "max": {
-      "select": "vals",
-      "as": "number"
+     "value-of": {
+      "parts": [
+       {
+        "max": {
+         "of": "vals",
+         "as": "number"
+        }
+       }
+      ]
      }
     },
     {
@@ -118,9 +148,31 @@
      "text": "<d>"
     },
     {
-     "distinct-values": {
-      "select": "keys",
+     "clear": {
       "name": "uniq"
+     }
+    },
+    {
+     "for-each": {
+      "select": "keys",
+      "as": "_v",
+      "body": [
+       {
+        "put": {
+         "name": "uniq",
+         "select": {
+          "parts": [
+           {
+            "capture": {
+             "var_id": "_v",
+             "group": 0
+            }
+           }
+          ]
+         }
+        }
+       }
+      ]
      }
     },
     {

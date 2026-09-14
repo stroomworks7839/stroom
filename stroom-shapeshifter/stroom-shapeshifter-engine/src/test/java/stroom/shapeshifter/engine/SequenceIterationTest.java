@@ -31,15 +31,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Iteration over a sequence (design/16 phase 1): the walk itself, what it binds, the
- * lifetime that makes it possible, and the two compile-time checks that keep an
- * accumulation's lifetime visible.
+ * Iteration over a declared collection (design/16 phase 1, under design 35 phase 4's surface):
+ * the walk itself, what it binds, the lifetime that makes it possible, grouping, sorting, the
+ * folds as functions, and the checks that keep a collection's use honest.
  */
 class SequenceIterationTest {
 
     /**
-     * A configuration whose record template captures a field per line, hoists it into a
-     * declared sequence, and — after the level that fills it has finished, which is what
+     * A configuration whose record template captures a field per line, appends it to a list
+     * declared on the source, and — after the level that fills it has finished, which is what
      * makes the summary possible at all — walks it.
      */
     private static String config(final String epilogue, final String recordBody) {
@@ -48,19 +48,18 @@ class SequenceIterationTest {
                  "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
                    "declarations": [{"name": "field", "type": "list"}, {"name": "items", "type": "list"},
-                                    {"name": "hits", "type": "list"},
-                                    {"name": "seen", "type": "list"},
+                                    {"name": "by_value", "type": "map"}, {"name": "empty", "type": "list"},
+                                    {"name": "seen", "type": "set"},
                                     {"name": "parts", "type": "list"},
                                     {"name": "n", "type": "scalar"}],
                    "match": "source",
                    "body": [
-                     {"sequence": {"name": "items"}},
                      {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                        "mode": "doc"}},
                      %s]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
                    "declarations": [{"name": "p", "type": "list"}],
-                   "match": {"regex": {"pattern": "([^\\\\n]*)\\\\n"}},
+                   "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
                    "captures": [{"name": "field", "select": {"group": 1}}],
                    "body": [%s]}]}
                 """.formatted(epilogue, recordBody);
@@ -68,7 +67,7 @@ class SequenceIterationTest {
 
     private static final String APPEND_FIELD =
             "{\"append\": {\"name\": \"items\", \"select\": {\"parts\": ["
-            + "{\"capture\": {\"var_id\": \"field\", \"group\": 0}}]}}}";
+            + "{\"last\": {\"of\": \"field\"}}]}}}";
 
     private static String run(final String json, final String input) {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -112,11 +111,11 @@ class SequenceIterationTest {
     }
 
     @Test
-    void theIndexReachesAParallelStoreAtTheSameEntry() {
-        // Two captures of one template share an index, which is the whole of current-group():
-        // the sequence carries positions, and $field[$__index] reads the record they name.
+    void theIndexReachesAParallelListAtTheSameEntry() {
+        // Two captures of one template share a position, which is the whole of current-group():
+        // the list carries positions, and field[at] reads the record they name.
         final String record = APPEND_FIELD.replace("\"select\": {\"parts\": ["
-                        + "{\"capture\": {\"var_id\": \"field\", \"group\": 0}}]}",
+                        + "{\"last\": {\"of\": \"field\"}}]}",
                 "\"select\": {\"parts\": [{\"function\": {\"name\": \"matchCount\"}}]}");
         final String epilogue = """
                 {"for-each": {"select": "items", "as": "at", "body": [
@@ -141,7 +140,7 @@ class SequenceIterationTest {
     }
 
     @Test
-    void anEmptySequenceRunsTheBodyNoTimes() {
+    void anEmptyListRunsTheBodyNoTimes() {
         final String epilogue = """
                 {"text": "<none/>"}, {"for-each": {"select": "items", "body": [{"text": "x"}]}}
                 """;
@@ -150,20 +149,16 @@ class SequenceIterationTest {
 
     @Test
     void anAbsentValueAppendsNothingRatherThanAHole() {
-        // The optional capture never matches, so the sequence stays empty and the iteration
-        // has nothing to walk — no hole, because a dense index is a position.
+        // The optional capture never matches, so the list stays empty and the iteration has
+        // nothing to walk: the value was not there, so there was nothing to add. (A capture
+        // into a list appends absence to keep positions aligned; an append does not.)
         final String json = """
                 {"name": "t", "version": 5,
                  "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
-                   "declarations": [{"name": "field", "type": "list"}, {"name": "items", "type": "list"},
-                                    {"name": "hits", "type": "list"},
-                                    {"name": "seen", "type": "list"},
-                                    {"name": "parts", "type": "list"},
-                                    {"name": "n", "type": "scalar"}],
+                   "declarations": [{"name": "items", "type": "list"}],
                    "match": "source",
                    "body": [
-                     {"sequence": {"name": "items"}},
                      {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                        "mode": "doc"}},
                      {"for-each": {"select": "items", "body": [{"text": "x"}]}}]},
@@ -210,7 +205,7 @@ class SequenceIterationTest {
     }
 
     @Test
-    void sequenceOutgrowingItsLimitStopsTheRun() {
+    void collectionsOutgrowingTheLimitStopTheRun() {
         // Fatal rather than truncate-and-warn: a summary missing its tail is a wrong answer
         // that looks right, which is worse than one that does not arrive.
         final String json = withSource("\"max_sequence_entries\": 3", "{\"text\": \"\"}");
@@ -222,11 +217,11 @@ class SequenceIterationTest {
     }
 
     @Test
-    void sequenceInsideItsLimitIsUntouched() {
+    void collectionsInsideTheLimitAreUntouched() {
         // The limit bounds the run's collections together (design 35 §11): three items and
-        // three fields, each list carrying an absent position 0 until design 35 phase 4 moves
-        // positions, is eight elements.
-        final String json = withSource("\"max_sequence_entries\": 8", "{\"count\": {\"select\": \"items\"}}");
+        // three fields is six elements.
+        final String json = withSource("\"max_sequence_entries\": 6",
+                "{\"value-of\": {\"parts\": [{\"size\": {\"of\": \"items\"}}]}}");
         assertThat(messagesFrom(json, "a\nb\nc\n"))
                 .noneMatch(m -> m.severity() == Severity.FATAL);
     }
@@ -243,7 +238,7 @@ class SequenceIterationTest {
     }
 
     @Test
-    void perRecordSequenceIsFineUnderAChunkedRoot() {
+    void perRecordListIsFineUnderAChunkedRoot() {
         // It crosses no record boundary, so it cannot be summarised wrongly — and was being
         // refused fatally for a hazard it does not have (phase 6 audit).
         final String json = """
@@ -270,101 +265,88 @@ class SequenceIterationTest {
 
     @Test
     void orderedRootAccumulatesNormally() {
-        final String json = withSource("\"buffer_size\": 8", "{\"count\": {\"select\": \"items\"}}");
+        final String json = withSource("\"buffer_size\": 8",
+                "{\"value-of\": {\"parts\": [{\"size\": {\"of\": \"items\"}}]}}");
         assertThat(messagesFrom(json, "aaaa\nbbbb\n"))
                 .noneMatch(m -> m.severity() == Severity.FATAL);
     }
 
     // -----------------------------------------------------------------------------------
-    // Keys (design/16 §8)
+    // A lookup is a map of positions, built where it is written (design 35 §5)
     // -----------------------------------------------------------------------------------
 
-    /** Builds a key over the items and looks one value up in it. */
+    /** Files every item's position under its value, then looks one value up. */
     private static String lookup(final String wanted) {
         final String epilogue = """
-                {"key": {"name": "by_value", "select": "items"}},
-                {"key-get": {"key": "by_value",
-                  "select": {"parts": [{"text": "%s"}]}, "name": "hits"}},
-                {"count": {"select": "hits"}},
+                {"for-each": {"select": "items", "as": "e", "body": [
+                  {"if": {"test": {"not": {"exists": {"select": {"parts": [{"get": {"of": "by_value",
+                       "key": {"parts": [{"capture": {"var_id": "e", "group": 0}}]}}}]}}}},
+                   "then": [{"put": {"name": "by_value",
+                       "key": {"parts": [{"capture": {"var_id": "e", "group": 0}}]},
+                       "select": {"parts": [{"capture": {"var_id": "empty", "group": 0}}]}}}]}},
+                  {"append": {"target": {"parts": [{"get": {"of": "by_value",
+                       "key": {"parts": [{"capture": {"var_id": "e", "group": 0}}]}}}]},
+                     "select": {"parts": [{"function": {"name": "index"}}]}}}]}},
+                {"value-of": {"parts": [{"size": {"of": {"parts": [{"get": {"of": "by_value", "key": "%s"}}]}}}]}},
                 {"text": ":"},
-                {"for-each": {"select": "hits", "as": "h", "body": [
+                {"for-each": {"select": {"parts": [{"get": {"of": "by_value", "key": "%s"}}]}, "as": "h", "body": [
                   {"value-of": {"parts": [{"capture": {"var_id": "field", "group": 0,
                      "match_index": {"var_ref": "h"}}}]}},
                   {"text": ","}]}}
-                """.formatted(wanted);
+                """.formatted(wanted, wanted);
         return run(config(epilogue, APPEND_FIELD), "a\nb\na\nc\n");
     }
 
     @Test
-    void keyReachesItsEntriesByValue() {
+    void mapOfPositionsReachesItsEntriesByValue() {
         assertThat(lookup("a")).isEqualTo("2:a,a,");
         assertThat(lookup("c")).isEqualTo("1:c,");
     }
 
     @Test
-    void lookupThatMissesIsAnEmptySequenceNotAnError() {
-        // The same non-answer XSLT's key() gives: a walk runs zero times and count says 0,
-        // which is what lets an author self-close the empty case rather than discover it
-        // after the opening tag has gone out.
+    void lookupThatMissesIsAbsentAndAWalkOverItRunsNoTimes() {
+        // The same non-answer XSLT's key() gives: a walk runs zero times and size says 0
+        // rather than an error, which is what lets an author self-close the empty case.
         assertThat(lookup("zzz")).isEqualTo("0:");
     }
 
     @Test
-    void keyAndASequenceMayNotShareAName() {
-        // Design 35: one namespace, one declaration per name, with a type. A key is a map, so
-        // building one under a list's name is an operation disagreeing with the declared type.
-        final String epilogue = """
-                {"key": {"name": "items", "select": "items"}},
-                {"key-get": {"key": "items",
-                  "select": {"parts": [{"text": "b"}]}, "name": "hits"}},
-                {"count": {"select": "hits"}}
-                """;
-        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config(epilogue, APPEND_FIELD))))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("'items' as a map")
-                .hasMessageContaining("declared as a list");
-    }
-
-    @Test
-    void anAbsentLookupFindsTheEntriesThatHadNoKey() {
-        // The symmetry grouping uses: absence is a value one can ask about, not an
-        // exclusion. XSLT returns empty for key('k', ()); this engine is consistent with its
-        // own grouping rule instead (phase 5 audit — a decision, now pinned). The lookup
-        // value is an empty literal, which "empty is absent" makes absent.
+    void mapKeyMustBePresent() {
+        // A map's keys are values (design 35 §5): get and contains answer absent for an absent
+        // key, so a put under one could never be read back and stops the run instead. (The
+        // grouping keeps its own rule — entries with no key form a group — because a walk over
+        // groups is not a lookup.) Two records have no category, and the first of them is
+        // where the run stops.
         final String json = """
                 {"name": "t", "version": 5,
                  "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
-                   "declarations": [{"name": "by_cat", "type": "map"},
+                   "declarations": [{"name": "by_cat", "type": "map"}, {"name": "empty", "type": "list"},
                                     {"name": "cat", "type": "list"},
-                                    {"name": "hits", "type": "list"},
                                     {"name": "items", "type": "list"}],
                    "match": "source",
                    "body": [
-                     {"sequence": {"name": "items"}},
                      {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                        "mode": "doc"}},
-                     {"key": {"name": "by_cat", "select": "items",
-                       "group_by": {"parts": [{"capture": {"var_id": "cat", "group": 0,
-                          "match_index": {"function": "index"}}}]}}},
-                     {"key-get": {"key": "by_cat",
-                       "select": {"parts": [{"text": ""}]}, "name": "hits"}},
-                     {"count": {"select": "hits"}}]},
+                     {"for-each": {"select": "items", "as": "e", "body": [
+                       {"put": {"name": "by_cat",
+                           "key": {"parts": [{"capture": {"var_id": "cat", "group": 0,
+                              "match_index": {"function": "index"}}}]},
+                           "select": {"parts": [{"capture": {"var_id": "empty", "group": 0}}]}}}]}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
                    "match": {"regex": {"pattern": "(?:(x)|y)\\n"}},
                    "captures": [{"name": "cat", "select": {"group": 1}}],
                    "body": [{"append": {"name": "items", "select": {"parts": [
                       {"function": {"name": "matchCount"}}]}}}]}]}
                 """;
-        // Two records have no category; an absent lookup finds exactly those.
-        assertThat(run(json, "x\ny\ny\n")).isEqualTo("2");
+        assertThat(messagesFrom(json, "x\ny\ny\n"))
+                .anyMatch(m -> m.severity() == Severity.FATAL && m.text().contains("absent key"));
     }
 
     @Test
-    void lookingUpInAKeyNothingBuildsIsRefused() {
+    void readingAKeyOfSomethingUndeclaredIsRefusedByName() {
         final String epilogue = """
-                {"key-get": {"key": "nosuch",
-                  "select": {"parts": [{"text": "a"}]}, "name": "hits"}}
+                {"value-of": {"parts": [{"get": {"of": "nosuch", "key": "a"}}]}}
                 """;
         assertThatThrownBy(() -> Shapeshifter.compile(
                 ProjectReader.read(config(epilogue, APPEND_FIELD))))
@@ -376,7 +358,7 @@ class SequenceIterationTest {
     // Grouping (design/16 §6)
     // -----------------------------------------------------------------------------------
 
-    /** Emits each group as key:members, members read back through the index set. */
+    /** Emits each group as key:members, members read back through the position set. */
     private static final String GROUP_BODY = """
             {"for-each-group": {"select": "items", "body": [
               {"value-of": {"parts": [{"function": {"name": "groupKey"}}]}},
@@ -397,8 +379,8 @@ class SequenceIterationTest {
     }
 
     @Test
-    void theGroupIsAnIndexSetSoParallelStoresAreReachable() {
-        // The members are store indices, so reading a *different* capture at each one is how
+    void theGroupIsAPositionSetSoParallelListsAreReachable() {
+        // The members are positions, so reading a *different* capture at each one is how
         // current-group() is reached without a tree.
         final String record = "{\"append\": {\"name\": \"items\", \"select\": {\"parts\": ["
                 + "{\"function\": {\"name\": \"matchCount\"}}]}}}";
@@ -433,7 +415,7 @@ class SequenceIterationTest {
         // A deliberate divergence from XSLT, which excludes an item whose group-by yields an
         // empty sequence. Silently dropping records is the wrong default for a log engine:
         // "the ones with no category" is a thing worth summarising, so absence is a group,
-        // and its __group_key reads absent.
+        // and its groupKey() reads absent.
         final String json = """
                 {"name": "t", "version": 5,
                  "templates": [
@@ -441,7 +423,6 @@ class SequenceIterationTest {
                    "declarations": [{"name": "cat", "type": "list"}, {"name": "items", "type": "list"}],
                    "match": "source",
                    "body": [
-                     {"sequence": {"name": "items"}},
                      {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                        "mode": "doc"}},
                      {"for-each-group": {"select": "items",
@@ -459,9 +440,8 @@ class SequenceIterationTest {
                    "body": [{"append": {"name": "items", "select": {"parts": [
                       {"function": {"name": "matchCount"}}]}}}]}]}
                 """;
-        // The sequence carries positions, so the key is read *at* each record rather than
-        // as "the latest", which is what a bare reference means and would have made the
-        // keyless record inherit its predecessor's category.
+        // The list carries positions, so the key is read *at* each record rather than as
+        // "the last", which would have made the keyless record inherit its predecessor's.
         assertThat(run(json, "x\ny\nx\n")).isEqualTo("[x=2][=1]");
     }
 
@@ -488,8 +468,8 @@ class SequenceIterationTest {
 
     @Test
     void walkingTheGroupOutsideAGroupingDrawsTheLint() {
-        // __group is writable everywhere, being a name the engine sets, so the sequence
-        // check cannot catch this on its own.
+        // group() is answered everywhere, being the engine's, so the type check cannot catch
+        // this on its own.
         final String json = config(
                 "{\"for-each\": {\"select\": \"group()\", \"body\": []}}", APPEND_FIELD);
         assertThat(Shapeshifter.compile(ProjectReader.read(json)).warnings())
@@ -544,8 +524,8 @@ class SequenceIterationTest {
     @Test
     void tiesKeepDataOrder() {
         // A constant key makes every entry tie, so what comes out is what stability gives:
-        // ascending store index, which is data order. That is the tie-break, said once by
-        // the sort being stable rather than twice by an explicit fallback.
+        // ascending position, which is data order. That is the tie-break, said once by the
+        // sort being stable rather than twice by an explicit fallback.
         final String constant = "{\"by\": {\"parts\": [{\"text\": \"same\"}]}}";
         assertThat(sortedBy(constant, "b\na\nc\na\n")).isEqualTo("b,a,c,a,");
     }
@@ -568,7 +548,7 @@ class SequenceIterationTest {
                      {"function": {"name": "index"}},
                      {"text": " "}]}}]}}
                 """.formatted(key);
-        // Sorted 2,9,10 came from store indices 3,1,2 — position renumbers, index does not.
+        // Sorted 2,9,10 came from positions 3,1,2 — position renumbers, index does not.
         assertThat(run(config(epilogue, APPEND_FIELD), "9\n10\n2\n")).isEqualTo("1:3 2:1 3:2 ");
     }
 
@@ -589,8 +569,8 @@ class SequenceIterationTest {
 
     @Test
     void sortKeyReadingTheIndexDrawsNothing() {
-        // __index names the record, which is known before any comparison, and is how a key
-        // reaches a parallel store.
+        // index() names the record, which is known before any comparison, and is how a key
+        // reaches a parallel list.
         final String key = "{\"by\": {\"parts\": [{\"capture\": {\"var_id\": \"field\","
                 + " \"group\": 0, \"match_index\": {\"function\": \"index\"}}}]}}";
         final String epilogue = """
@@ -602,8 +582,8 @@ class SequenceIterationTest {
     }
 
     @Test
-    void sortKeyCanReadAParallelStoreAtTheSameEntry() {
-        // The key is evaluated with __index bound, so it can order by a sibling field.
+    void sortKeyCanReadAParallelListAtTheSameEntry() {
+        // The key is evaluated with index() bound, so it can order by a sibling field.
         final String key = "{\"by\": {\"parts\": [{\"capture\": {\"var_id\": \"field\","
                 + " \"group\": 0, \"match_index\": {\"function\": \"index\"}}}]},"
                 + " \"as\": \"number\"}";
@@ -611,68 +591,70 @@ class SequenceIterationTest {
     }
 
     // -----------------------------------------------------------------------------------
-    // The folds (design/16 §8)
+    // The folds, as functions over a collection (design 35 §5)
     // -----------------------------------------------------------------------------------
 
-    private static String fold(final String instruction, final String input) {
-        return run(config(instruction, APPEND_FIELD), input);
+    private static String fold(final String accessor, final String input) {
+        return run(config("{\"value-of\": {\"parts\": [" + accessor + "]}}", APPEND_FIELD), input);
     }
 
     @Test
-    void countIsThePopulatedEntries() {
-        assertThat(fold("{\"count\": {\"select\": \"items\"}}", "a\nb\nc\n")).isEqualTo("3");
+    void sizeIsTheNumberOfEntries() {
+        assertThat(fold("{\"size\": {\"of\": \"items\"}}", "a\nb\nc\n")).isEqualTo("3");
     }
 
     @Test
     void sumIsExactOverWholeNumbersAndPromotesOverFractions() {
-        assertThat(fold("{\"sum\": {\"select\": \"items\"}}", "2\n3\n4\n")).isEqualTo("9");
-        assertThat(fold("{\"sum\": {\"select\": \"items\"}}", "1.5\n2.5\n")).isEqualTo("4");
+        assertThat(fold("{\"sum\": {\"of\": \"items\"}}", "2\n3\n4\n")).isEqualTo("9");
+        assertThat(fold("{\"sum\": {\"of\": \"items\"}}", "1.5\n2.5\n")).isEqualTo("4");
     }
 
     @Test
-    void theEmptySequenceAnswersAsXpathDoes() {
+    void theEmptyListAnswersAsXpathDoes() {
         // Not the same answer twice: a total of nothing is zero, a mean of nothing is not a
         // number, and returning zero for it would be a number that looks like an answer.
-        assertThat(fold("{\"sum\": {\"select\": \"items\"}}", "")).isEqualTo("0");
-        assertThat(fold("{\"avg\": {\"select\": \"items\"}}", "")).isEmpty();
-        assertThat(fold("{\"count\": {\"select\": \"items\"}}", "")).isEqualTo("0");
+        assertThat(fold("{\"sum\": {\"of\": \"items\"}}", "")).isEqualTo("0");
+        assertThat(fold("{\"avg\": {\"of\": \"items\"}}", "")).isEmpty();
+        assertThat(fold("{\"size\": {\"of\": \"items\"}}", "")).isEqualTo("0");
     }
 
     @Test
     void avgIsTheMean() {
-        assertThat(fold("{\"avg\": {\"select\": \"items\"}}", "1\n2\n3\n")).isEqualTo("2");
-        assertThat(fold("{\"avg\": {\"select\": \"items\"}}", "1\n2\n")).isEqualTo("1.5");
+        assertThat(fold("{\"avg\": {\"of\": \"items\"}}", "1\n2\n3\n")).isEqualTo("2");
+        assertThat(fold("{\"avg\": {\"of\": \"items\"}}", "1\n2\n")).isEqualTo("1.5");
     }
 
     @Test
     void nonNumericEntryMakesSumAndAvgAbsent() {
-        assertThat(fold("{\"sum\": {\"select\": \"items\"}}", "1\nn/a\n")).isEmpty();
-        assertThat(fold("{\"avg\": {\"select\": \"items\"}}", "1\nn/a\n")).isEmpty();
+        assertThat(fold("{\"sum\": {\"of\": \"items\"}}", "1\nn/a\n")).isEmpty();
+        assertThat(fold("{\"avg\": {\"of\": \"items\"}}", "1\nn/a\n")).isEmpty();
     }
 
     @Test
     void minAndMaxOrderByStringFormUntilToldOtherwise() {
         // Uncast is the string reading, where "9" is larger than "10" — the documented
         // total ordering (17 §8), not a bug. as:number is how an author says otherwise.
-        assertThat(fold("{\"max\": {\"select\": \"items\"}}", "9\n10\n")).isEqualTo("9");
-        assertThat(fold("{\"max\": {\"select\": \"items\", \"as\": \"number\"}}", "9\n10\n"))
+        assertThat(fold("{\"max\": {\"of\": \"items\"}}", "9\n10\n")).isEqualTo("9");
+        assertThat(fold("{\"max\": {\"of\": \"items\", \"as\": \"number\"}}", "9\n10\n"))
                 .isEqualTo("10");
-        assertThat(fold("{\"min\": {\"select\": \"items\", \"as\": \"number\"}}", "9\n10\n"))
+        assertThat(fold("{\"min\": {\"of\": \"items\", \"as\": \"number\"}}", "9\n10\n"))
                 .isEqualTo("9");
     }
 
     @Test
     void anEntryThatFailsItsCastDoesNotParticipate() {
         // The same "did not participate" that reads false in a condition and sorts last.
-        assertThat(fold("{\"max\": {\"select\": \"items\", \"as\": \"number\"}}", "5\nn/a\n7\n"))
+        assertThat(fold("{\"max\": {\"of\": \"items\", \"as\": \"number\"}}", "5\nn/a\n7\n"))
                 .isEqualTo("7");
-        assertThat(fold("{\"max\": {\"select\": \"items\", \"as\": \"number\"}}", "n/a\n")).isEmpty();
+        assertThat(fold("{\"max\": {\"of\": \"items\", \"as\": \"number\"}}", "n/a\n")).isEmpty();
     }
 
     @Test
-    void distinctValuesKeepsFirstAppearanceOrder() {
+    void setKeepsFirstAppearanceOrderAndDropsRepeats() {
+        // What distinct-values used to do, as a declared set filled by a walk (design 35 §5).
         final String epilogue = """
-                {"distinct-values": {"select": "items", "name": "seen"}},
+                {"for-each": {"select": "items", "as": "v", "body": [
+                  {"put": {"name": "seen", "select": {"parts": [{"capture": {"var_id": "v", "group": 0}}]}}}]}},
                 {"for-each": {"select": "seen", "as": "s", "body": [
                   {"value-of": {"parts": [{"capture": {"var_id": "s", "group": 0}}]}},
                   {"text": ","}]}}
@@ -681,19 +663,7 @@ class SequenceIterationTest {
     }
 
     @Test
-    void distinctValuesCanRebindItsOwnSource() {
-        // The entries are read out before the target is cleared, so a fold onto its own
-        // source is not self-destructive — worth pinning, since the target is cleared first.
-        final String epilogue = """
-                {"distinct-values": {"select": "items", "name": "items"}},
-                {"for-each": {"select": "items", "as": "s", "body": [
-                  {"value-of": {"parts": [{"capture": {"var_id": "s", "group": 0}}]}}]}}
-                """;
-        assertThat(run(config(epilogue, APPEND_FIELD), "b\na\nb\n")).isEqualTo("ba");
-    }
-
-    @Test
-    void tokenizeBindsASequenceAndStillWritesJoined() {
+    void tokenizeBindsAListAndStillWritesJoined() {
         // Design/17 §16.4's ruling, which has been waiting on sequences existing.
         final String bindThenWalk = """
                 {"tokenize": {"select": [{"parts": [{"text": "a,b,c"}]}],
@@ -712,7 +682,7 @@ class SequenceIterationTest {
     }
 
     // -----------------------------------------------------------------------------------
-    // The checks that keep a lifetime visible (design/16 §9)
+    // The checks that keep a collection's use honest
     // -----------------------------------------------------------------------------------
 
     @Test
@@ -733,35 +703,41 @@ class SequenceIterationTest {
     }
 
     @Test
-    void appendingToAnUndeclaredSequenceIsRefusedByName() {
-        final String json = config("{\"text\": \"\"}", APPEND_FIELD).replace(
-                "{\"sequence\": {\"name\": \"items\"}},", "");
+    void appendingToAnUndeclaredNameIsRefusedByName() {
+        final String json = config("{\"text\": \"\"}", APPEND_FIELD.replace("items", "nosuch"));
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(json)))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("items")
-                .hasMessageContaining("no sequence");
+                .hasMessageContaining("nosuch")
+                .hasMessageContaining("no declaration names");
     }
 
     @Test
-    void sequenceNamedAfterACaptureIsRefused() {
-        // Rename the sequence and the append, not the declaration: a declaration renamed too would
-        // draw design 35's declared-twice refusal first, which is a different rule.
-        final String json = config("{\"text\": \"\"}", APPEND_FIELD)
-                .replace("{\"sequence\": {\"name\": \"items\"}}", "{\"sequence\": {\"name\": \"field\"}}")
-                .replace("\"append\": {\"name\": \"items\"", "\"append\": {\"name\": \"field\"");
+    void appendingToAScalarIsRefusedByType() {
+        final String json = config("{\"text\": \"\"}", APPEND_FIELD.replace("items", "n"));
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(json)))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("field")
-                .hasMessageContaining("clears its captures");
+                .hasMessageContaining("appends to 'n'")
+                .hasMessageContaining("declared as a scalar");
     }
 
     @Test
-    void walkingSomethingNothingWritesIsRefused() {
+    void walkingSomethingUndeclaredIsRefused() {
         final String epilogue = "{\"for-each\": {\"select\": \"nosuch\", \"body\": []}}";
         assertThatThrownBy(() -> Shapeshifter.compile(
                 ProjectReader.read(config(epilogue, APPEND_FIELD))))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("nosuch");
+    }
+
+    @Test
+    void readingAListWhereTextIsWantedIsRefused() {
+        // A collection has no text form; the read that used to be bare is last(l).
+        final String epilogue = "{\"value-of\": {\"parts\": [{\"capture\": {\"var_id\": \"items\", \"group\": 0}}]}}";
+        assertThatThrownBy(() -> Shapeshifter.compile(
+                ProjectReader.read(config(epilogue, APPEND_FIELD))))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("reads 'items'")
+                .hasMessageContaining("get or last");
     }
 
     @Test
@@ -774,8 +750,6 @@ class SequenceIterationTest {
 
     @Test
     void readingAnIterationVariableOutsideAnIterationDrawsTheLint() {
-        // The conditions' hazard applies to the variables too, and is worse for an index:
-        // absence makes $x[$__index] fall back to the first entry rather than to nothing.
         final String json = config("{\"text\": \"\"}",
                 "{\"value-of\": {\"parts\": [{\"function\": {\"name\": \"position\"}}]}}");
         assertThat(Shapeshifter.compile(ProjectReader.read(json)).warnings())
@@ -793,8 +767,8 @@ class SequenceIterationTest {
 
     @Test
     void appendingDuringAWalkDoesNotExtendIt() {
-        // The entries are snapshotted before the body runs, so a body that appends to the
-        // sequence it is walking terminates. The alternative is a loop that never ends.
+        // The entries are taken before the body runs, so a body that appends to the list it
+        // is walking terminates. The alternative is a loop that never ends.
         final String epilogue = """
                 {"for-each": {"select": "items", "as": "item", "body": [
                   {"value-of": {"parts": [{"capture": {"var_id": "item", "group": 0}}]}},
@@ -821,14 +795,14 @@ class SequenceIterationTest {
     /**
      * Found by the {@code log_sessions} fixture, not by reading the code: a log line whose
      * tags field was empty was given the previous line's tags. Nothing to split is the empty
-     * sequence, and the name has to say so; leaving it alone leaves the last record's pieces
+     * list, and the name has to say so; leaving it alone leaves the last record's pieces
      * standing where a walk will find them.
      */
     @Test
-    void tokenizingAnAbsentValueBindsTheEmptySequenceNotTheLastRecordsPieces() {
+    void tokenizingAnAbsentValueBindsTheEmptyListNotTheLastRecordsPieces() {
         final String body = """
                 {"text": "<r>"},
-                {"tokenize": {"select": [{"parts": [{"capture": {"var_id": "field", "group": 0}}]}],
+                {"tokenize": {"select": [{"parts": [{"last": {"of": "field"}}]}],
                   "delimiter": ",", "name": "p"}},
                 {"for-each": {"select": "p", "as": "t", "body": [
                    {"text": "<t>"},
@@ -841,8 +815,8 @@ class SequenceIterationTest {
 
     /**
      * The same rule for a scalar, in the place design/16 made ordinary. Inside an iteration
-     * the enclosing match index does not move, so every entry binds the same cell: an entry
-     * with no answer that skipped its bind would leave the previous entry's answer to be read.
+     * an entry with no answer that skipped its bind would leave the previous entry's answer
+     * to be read.
      */
     @Test
     void anAbsentComputedValueInsideAnIterationBindsAbsence() {

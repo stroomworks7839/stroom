@@ -33,6 +33,7 @@ import stroom.shapeshifter.engine.graph.CompiledTemplate;
 import stroom.shapeshifter.engine.graph.VarName;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -299,8 +300,22 @@ public final class Compiler {
         // What the template declares is what its entry pushes and its exit restores (design 35
         // §4): the slots, settled here so the run never asks the model.
         final List<VarName> declared = new ArrayList<>();
+        final List<TypedValue> initial = new ArrayList<>();
         for (final Declaration declaration : template.declarations()) {
             declared.add(names.intern(declaration.name()));
+            // A map declared with entries starts as that table on every entry (design 35 §5,
+            // what value-map used to be); everything else starts unset.
+            TypedValue start = null;
+            if (!declaration.entries().isEmpty()) {
+                final TypedValue.Map table = new TypedValue.Map();
+                for (final Declaration.Entry entry : declaration.entries()) {
+                    if (!table.contains(TypedValue.of(entry.from()))) {
+                        table.put(TypedValue.of(entry.from()), TypedValue.of(entry.to()));
+                    }
+                }
+                start = table;
+            }
+            initial.add(start);
         }
         // The lists a capture fills restart at the template's first match of a sequence —
         // DS3's own rule (E19), kept as the capture's: a list declared for the run would
@@ -323,6 +338,7 @@ public final class Compiler {
                 onlyMatch(template),
                 guard,
                 clear.toArray(VarName[]::new),
-                declared.toArray(VarName[]::new));
+                declared.toArray(VarName[]::new),
+                initial.toArray(TypedValue[]::new));
     }
 }

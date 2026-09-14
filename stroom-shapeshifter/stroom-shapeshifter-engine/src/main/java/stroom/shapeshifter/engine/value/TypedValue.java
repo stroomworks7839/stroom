@@ -596,6 +596,26 @@ public sealed interface TypedValue {
             return null;
         }
 
+        /** A deep copy: what a store makes of a collection, so that every one has one owner (design 35 §11). */
+        TypedValue copy();
+
+        /**
+         * How many elements this holds, nested collections' elements included: what the live
+         * count counts. A loop over what is held, allocating nothing, because it runs on every
+         * store of a collection and on every scope exit that discards one.
+         */
+        long elements();
+
+        /** The elements a stored value brings with it: none for a scalar, all of them for a collection. */
+        static long elementsOf(final TypedValue value) {
+            return value instanceof final Collection collection ? collection.elements() : 0;
+        }
+
+        /** The value a store keeps: a scalar as it is, a collection copied. */
+        static TypedValue stored(final TypedValue value) {
+            return value instanceof final Collection collection ? collection.copy() : value;
+        }
+
         /** Refuse a collection where a scalar key or member is required. */
         static TypedValue scalar(final TypedValue value, final String role) {
             if (value instanceof Collection collection) {
@@ -704,6 +724,26 @@ public sealed interface TypedValue {
         }
 
         @Override
+        public long elements() {
+            long total = size;
+            for (int i = 0; i < size; i++) {
+                total += Collection.elementsOf(values[i]);
+            }
+            return total;
+        }
+
+        @Override
+        public List copy() {
+            final List made = new List();
+            made.grow(size);
+            for (int i = 0; i < size; i++) {
+                made.values[i] = Collection.stored(values[i]);
+            }
+            made.size = size;
+            return made;
+        }
+
+        @Override
         public String kind() {
             return "list";
         }
@@ -803,6 +843,22 @@ public sealed interface TypedValue {
         }
 
         @Override
+        public long elements() {
+            long total = entries.size();
+            for (final TypedValue value : entries.values()) {
+                total += Collection.elementsOf(value);
+            }
+            return total;
+        }
+
+        @Override
+        public Map copy() {
+            final Map made = new Map();
+            entries.forEach((key, value) -> made.entries.put(key, Collection.stored(value)));
+            return made;
+        }
+
+        @Override
         public String kind() {
             return "map";
         }
@@ -864,6 +920,18 @@ public sealed interface TypedValue {
         @Override
         public void clear() {
             members.clear();
+        }
+
+        @Override
+        public long elements() {
+            return members.size();
+        }
+
+        @Override
+        public Set copy() {
+            final Set made = new Set();
+            made.members.addAll(members);
+            return made;
         }
 
         @Override

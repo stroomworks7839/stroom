@@ -45,7 +45,7 @@ import java.util.Set;
  * <p>Some decide as they go — the comparison lint and the substring count need nothing but
  * the node in front of them. The rest cannot: a read in the first template may name
  * something the last one writes, a call chain may reach a template not yet seen, so reads,
- * names, sequences, keys and calls are collected and judged against the finished
+ * names, collection operations and calls are collected and judged against the finished
  * configuration in {@link #report()}.
  *
  * <p>{@link #visit} is deliberately <b>exhaustive</b> — no {@code default} arm. An
@@ -55,16 +55,11 @@ import java.util.Set;
  */
 final class ReferenceCheck {
 
-    private record Read(String templateName, RefExpression ref) {
+    private record Read(String templateName, RefExpression ref, boolean asText) {
 
     }
 
-    /**
-     * A use of a name rather than of a reference — a sequence walked or appended to.
-     * Its own record rather than a {@link Read} wrapping a synthetic reference: the
-     * accessor that unwrapped one would have been a cast that only held for the entries
-     * built that way.
-     */
+    /** A use of a name, by a template. */
     private record NamedUse(String templateName, String name) {
 
     }
@@ -90,8 +85,7 @@ final class ReferenceCheck {
      */
     private final Set<NamedUse> implicit = new HashSet<>();
     private final List<NamedUse> binds = new ArrayList<>();
-    /** Names an instruction fills as a list, or builds as a map: the type it needs declared. */
-    private final List<NamedUse> listNames = new ArrayList<>();
+    /** Names a key-value capture puts its pairs into: they must be declared as maps. */
     private final List<NamedUse> mapNames = new ArrayList<>();
 
     private int explicitSubstringStarts;
@@ -116,15 +110,19 @@ final class ReferenceCheck {
     /** The first match read in each template, for the message that names it. */
     private final Map<String, String> matchReadByTemplate = new HashMap<>();
 
-    /** Sequence bookkeeping (design/16 §9): what is declared, what is captured, what is used. */
-    private final Set<String> declaredSequences = new HashSet<>();
-    private final Set<String> captureNames = new HashSet<>();
-    private final List<NamedUse> sequenceUses = new ArrayList<>();
-    private final List<NamedUse> appendTargets = new ArrayList<>();
+    /**
+     * An operation on a collection named by a bare reference, with the types it accepts
+     * (design 35 §5): judged against the declaration in {@link #report()}. A collection
+     * reached through an accessor is a run-time fact and is not here.
+     */
+    private record TypedUse(String templateName, String name, String verb, Set<Declaration.Type> accepts) {
 
-    /** Keys are their own namespace, so they get their own declared set and use list. */
-    private final Set<String> declaredKeys = new HashSet<>();
-    private final List<NamedUse> keyUses = new ArrayList<>();
+    }
+
+    private final List<TypedUse> typedUses = new ArrayList<>();
+
+    /** Whether the reference being read must produce text — a collection there is refused. */
+    private boolean asText = true;
 
     /** How many {@code for-each} bodies enclose the node being visited. */
     private int iterationDepth;
@@ -141,9 +139,9 @@ final class ReferenceCheck {
     }
 
     /**
-     * Note that a name is bound: a capture, a variable, a transform's target, a sequence, a
-     * key. Every such site comes through here, so the rule that a bound name is a declared name
-     * is judged once, in {@link #report()}, against every declaration in the configuration.
+     * Note that a name is bound: a capture, a variable, a transform's target, a put into a
+     * scalar. Every such site comes through here, so the rule that a bound name is a declared
+     * name is judged once, in {@link #report()}, against every declaration in the configuration.
      */
     private void bind(final String name) {
         writable.add(name);
@@ -199,7 +197,12 @@ final class ReferenceCheck {
         }
         for (final CaptureBinding capture : template.captures()) {
             bind(capture.name());
-            captureNames.add(capture.name());
+            if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
+                // A capture assigns a scalar or appends to a list (design 35 §4): into a map or a
+                // set it would overwrite the collection with one value.
+                typedUses.add(new TypedUse(templateName, capture.name(), "captures into",
+                        Set.of(Declaration.Type.SCALAR, Declaration.Type.LIST)));
+            }
             switch (capture.select()) {
                 case CaptureBinding.CaptureSource.Select select -> read(select.select());
                 case CaptureBinding.CaptureSource.KeyValue keyValue -> {
@@ -278,7 +281,22 @@ final class ReferenceCheck {
             case OutputNode.Attribute value -> body(value.body());
             case OutputNode.Namespace ignored -> {
             }
-            case OutputNode.ValueMap value -> transform(List.of(value.select()), value.name());
+            // A call's arguments are values: a SEQUENCE position receives a whole collection,
+            // which the function's signature settles at compile time and its casts at run time.
+            case OutputNode.Call value -> {
+                value.select().forEach(this::value);
+                if (value.name() != null) {
+                    bind(value.name());
+                }
+            }
+            // Tokenize with a name fills a list with the pieces (design/17 §16.4).
+            case OutputNode.Tokenize value -> {
+                transform(value.select(), value.name());
+                if (value.name() != null) {
+                    typedUses.add(new TypedUse(templateName, value.name(), "tokenizes into",
+                            Set.of(Declaration.Type.LIST)));
+                }
+            }
             case OutputNode.Substring value -> {
                 // Only an explicit start moves at the version gate; an omitted one means
                 // "from the beginning" under either base (design/17 §7).
@@ -293,47 +311,40 @@ final class ReferenceCheck {
             }
             // Every other transform: its selects read, its name bound when it has one.
             case OutputNode.Transform value -> transform(value.select(), value.name());
-            case OutputNode.Sequence value -> {
-                declaredSequences.add(value.name());
-                listNames.add(new NamedUse(templateName, value.name()));
-                bind(value.name());
-            }
+            // The mutations (design 35 §5): the target is a collection, read as one; the value
+            // may be a collection too, which is how nesting is built.
             case OutputNode.Append value -> {
-                appendTargets.add(new NamedUse(templateName, value.name()));
-                bind(value.name());
-                read(value.select());
+                target(value.target(), "appends to", Declaration.Type.LIST);
+                value(value.select());
             }
-            // The folds name a sequence rather than referencing one, so they join the
-            // same use list a for-each does — checked against what anything writes, not
-            // against the reference rules.
-            case OutputNode.Count value -> fold(value.select(), value.name());
-            case OutputNode.Sum value -> fold(value.select(), value.name());
-            case OutputNode.Avg value -> fold(value.select(), value.name());
-            case OutputNode.Min value -> fold(value.select(), value.name());
-            case OutputNode.Max value -> fold(value.select(), value.name());
-            case OutputNode.DistinctValues value -> {
-                fold(value.select(), value.name());
-                if (value.name() != null) {
-                    listNames.add(new NamedUse(templateName, value.name()));
+            case OutputNode.Insert value -> {
+                target(value.target(), "inserts into", Declaration.Type.LIST);
+                read(value.position());
+                value(value.select());
+            }
+            case OutputNode.Put value -> {
+                if (value.key() != null) {
+                    target(value.target(), "puts at a key of", Declaration.Type.LIST, Declaration.Type.MAP);
+                    read(value.key());
+                } else {
+                    target(value.target(), "puts into", Declaration.Type.SET, Declaration.Type.SCALAR);
+                    final String name = value.target().bareName();
+                    if (name != null) {
+                        // A put into a scalar is the assignment that binds it.
+                        bind(name);
+                    }
                 }
+                value(value.select());
             }
-            case OutputNode.Key value -> {
-                declaredKeys.add(value.name());
-                mapNames.add(new NamedUse(templateName, value.name()));
-                sequenceUses.add(new NamedUse(templateName, value.select()));
-                // Like a grouping's key, resolved with index() bound.
-                iterationDepth++;
-                read(value.groupBy());
-                iterationDepth--;
+            case OutputNode.Remove value -> {
+                target(value.target(), "removes from", Declaration.Type.LIST, Declaration.Type.MAP,
+                        Declaration.Type.SET);
+                read(value.key());
             }
-            case OutputNode.KeyGet value -> {
-                keyUses.add(new NamedUse(templateName, value.key()));
-                read(value.select());
-                listNames.add(new NamedUse(templateName, value.name()));
-                bind(value.name());
-            }
+            case OutputNode.Clear value ->
+                    target(value.target(), "clears", Declaration.Type.LIST, Declaration.Type.MAP, Declaration.Type.SET);
             case OutputNode.ForEachGroup value -> {
-                sequenceUses.add(new NamedUse(templateName, value.select()));
+                target(value.select(), "groups", Declaration.Type.LIST);
                 // index() is bound while the key is resolved, so the key counts as
                 // inside the iteration — but *not* yet inside the group: the key is what
                 // forms it, so reading this grouping's own names there is the same
@@ -346,16 +357,19 @@ final class ReferenceCheck {
                 iterationDepth--;
             }
             case OutputNode.ForEach value -> {
-                // Walking group() is only meaningful inside a grouping, and the sequence
-                // check cannot see that: group() is answered everywhere, being the engine's.
-                if (EngineVars.GROUP.spelling().equals(value.select()) && groupDepth == 0) {
+                // Walking group() is only meaningful inside a grouping, and the type check
+                // cannot see that: group() is answered everywhere, being the engine's.
+                if (EngineVars.GROUP.spelling().equals(value.select().bareName()) && groupDepth == 0) {
                     warnings.add(new Message(Severity.WARNING, "Template '" + templateName
                             + "' walks " + EngineVars.GROUP.spelling() + " outside any"
                             + " for-each-group, where nothing sets it."));
                 }
-                sequenceUses.add(new NamedUse(templateName, value.select()));
+                target(value.select(), "walks", Declaration.Type.LIST, Declaration.Type.MAP, Declaration.Type.SET);
                 if (value.as() != null) {
                     bindImplicit(value.as());
+                }
+                if (value.asKey() != null) {
+                    bindImplicit(value.asKey());
                 }
                 // The sort keys are evaluated with index() bound, so they count as inside
                 // the iteration: a key reading it is correct, not the lint's hazard.
@@ -369,13 +383,42 @@ final class ReferenceCheck {
         }
     }
 
-    /** A fold: the named sequence is used, and the result may bind a name of its own. */
-    private void fold(final String select, final String name) {
-        sequenceUses.add(new NamedUse(templateName, select));
+    /**
+     * A collection an operation acts on, as a reference: read as a collection rather than as
+     * text, and — when it is a bare declared name — judged against the types the operation
+     * accepts. Reached through an accessor, its type is a run-time fact (design 35 §5).
+     */
+    private void target(final RefExpression ref, final String verb, final Declaration.Type... accepts) {
+        final String name = ref.bareName();
         if (name != null) {
-            bind(name);
+            // A bare name is judged as a typed use, not read: the operation is the writer.
+            typedUses.add(new TypedUse(templateName, name, verb, Set.of(accepts)));
+            return;
         }
+        value(ref);
     }
+
+    /** A reference read for its value, which may be a collection. */
+    private void value(final RefExpression ref) {
+        final boolean was = asText;
+        asText = false;
+        read(ref);
+        asText = was;
+    }
+
+    /** What each accessor reads (design 35 §5's table). */
+    private static Declaration.Type[] accepts(final RefExpression.RefPart.Accessor.Kind kind) {
+        return switch (kind) {
+            case GET -> new Declaration.Type[]{Declaration.Type.LIST, Declaration.Type.MAP};
+            case SIZE, CONTAINS -> new Declaration.Type[]{Declaration.Type.LIST, Declaration.Type.MAP,
+                    Declaration.Type.SET};
+            case LAST, HEAD -> new Declaration.Type[]{Declaration.Type.LIST};
+            case KEYS -> new Declaration.Type[]{Declaration.Type.MAP};
+            case VALUES -> new Declaration.Type[]{Declaration.Type.MAP, Declaration.Type.SET};
+            case SUM, AVG, MIN, MAX -> new Declaration.Type[]{Declaration.Type.LIST, Declaration.Type.SET};
+        };
+    }
+
 
     /** The shape almost every instruction has: some selects read, an optional name bound. */
     private void transform(final List<RefExpression> select, final String name) {
@@ -481,7 +524,22 @@ final class ReferenceCheck {
         if (ref == null) {
             return;
         }
-        reads.add(new Read(templateName, ref));
+        reads.add(new Read(templateName, ref, asText));
+        // An accessor's collection and arguments are references of their own: the collection
+        // read as one, the arguments as values.
+        for (final RefExpression.RefPart part : ref.parts()) {
+            if (part instanceof RefExpression.RefPart.Accessor accessor) {
+                target(accessor.of(), accessor.kind().spelling() + " reads", accepts(accessor.kind()));
+                if (accessor.key() != null) {
+                    // A key or position is a scalar, so it is read as text is: a collection
+                    // there is refused where it is written.
+                    read(accessor.key());
+                }
+                if (accessor.orElse() != null) {
+                    value(accessor.orElse());
+                }
+            }
+        }
         for (final RefExpression.RefPart part : ref.parts()) {
             if (part instanceof RefExpression.RefPart.Capture capture
                 && (capture.varId() == null || ownCaptures.contains(capture.varId()))) {
@@ -506,7 +564,7 @@ final class ReferenceCheck {
                 case RefExpression.RefPart.Capture capture -> capture.matchIndex();
                 case RefExpression.RefPart.Counter counter -> counter.matchIndex();
                 case RefExpression.RefPart.Text ignored -> null;
-                case RefExpression.RefPart.Get ignored -> null;
+                case RefExpression.RefPart.Accessor ignored -> null;
             };
             if (part instanceof RefExpression.RefPart.Counter counter) {
                 function(counter.counter());
@@ -587,58 +645,27 @@ final class ReferenceCheck {
             for (final Read read : reads) {
                 checkRead(read);
             }
-            // An operation that disagrees with the declared type. Only the operations that
-            // are list- or map-shaped are judged here: what a scalar bind means for a list is
-            // the operation surface's question (design 35 §12 phase 4), not the declaration's.
-            for (final NamedUse use : sequenceUses) {
-                requireType(use, Declaration.Type.LIST, "walks");
-            }
-            for (final NamedUse use : appendTargets) {
-                requireType(use, Declaration.Type.LIST, "appends to");
-            }
-            for (final NamedUse use : listNames) {
-                requireType(use, Declaration.Type.LIST, "fills");
-            }
-            for (final NamedUse use : keyUses) {
-                requireType(use, Declaration.Type.MAP, "looks up in");
+            // An operation that disagrees with the declared type (design 35 §5): every
+            // collection operation on a bare name, judged against what the name holds.
+            for (final TypedUse use : typedUses) {
+                if (EngineVars.GROUP.spelling().equals(use.name()) || implicitIn(use.templateName(), use.name())) {
+                    continue;
+                }
+                declared(use.templateName(), use.name(), use.verb());
+                final Declaration declaration = declarations.get(use.name());
+                final Declaration.Type type = declaration != null
+                        ? declaration.type()
+                        : Declaration.Type.SCALAR;
+                if (!use.accepts().contains(type)) {
+                    throw new ConfigException("Template '" + use.templateName() + "' " + use.verb()
+                            + " '" + use.name() + "', which is declared as a "
+                            + type.name().toLowerCase(Locale.ROOT) + "; that takes "
+                            + use.accepts().stream().map(t -> t.name().toLowerCase(Locale.ROOT))
+                                    .sorted().collect(java.util.stream.Collectors.joining(" or ")) + ".");
+                }
             }
             for (final NamedUse use : mapNames) {
-                requireType(use, Declaration.Type.MAP, "builds");
-            }
-        }
-        // Design/16 §9's two checks. An append to a name no sequence declares would
-        // create the store in the innermost scope and lose it on the way out — a
-        // configuration that appears to work and accumulates nothing.
-        for (final NamedUse append : appendTargets) {
-            if (!declaredSequences.contains(append.name())) {
-                throw new ConfigException("Template '" + append.templateName()
-                        + "' appends to '" + append.name() + "', which no sequence"
-                        + " declares. Declare it where the accumulation should live.");
-            }
-        }
-        // A sequence sharing a capture's name would be emptied mid-run by that
-        // template's first-match clearing (E19), which is not a thing an author can see.
-        for (final String declared : declaredSequences) {
-            if (captureNames.contains(declared)) {
-                throw new ConfigException("Sequence '" + declared + "' has the same name"
-                        + " as a capture. A template's first match clears its captures,"
-                        + " which would empty the sequence underneath it mid-run.");
-            }
-        }
-        // The same refusal an append gets, for the same reason: a lookup in a key that
-        // nothing builds answers nothing, for ever, and looks like a configuration that
-        // works.
-        for (final NamedUse use : keyUses) {
-            if (!declaredKeys.contains(use.name())) {
-                throw new ConfigException("Template '" + use.templateName()
-                        + "' looks up in key '" + use.name() + "', which no key builds.");
-            }
-        }
-        for (final NamedUse use : sequenceUses) {
-            if (!writable.contains(use.name()) && !EngineVars.GROUP.spelling().equals(use.name())) {
-                throw new ConfigException("Template '" + use.templateName()
-                        + "' walks '" + use.name() + "', which nothing writes — no"
-                        + " sequence declares it and no capture binds it.");
+                requireType(use, Declaration.Type.MAP, "puts pairs into");
             }
         }
         if (project.version() < 5 && explicitSubstringStarts > 0) {
@@ -685,20 +712,22 @@ final class ReferenceCheck {
      */
     private void checkRead(final Read read) {
         for (final RefExpression.RefPart part : read.ref().parts()) {
-            if (part instanceof RefExpression.RefPart.Get get) {
-                declaredAndWritten(read.templateName(), get.varId(), "reads a key of");
-                requireType(new NamedUse(read.templateName(), get.varId()), Declaration.Type.MAP, "reads a key of");
-            }
             if (part instanceof RefExpression.RefPart.Capture capture) {
-                if (capture.varId() != null) {
+                if (capture.varId() != null && !EngineVars.GROUP.spelling().equals(capture.varId())) {
                     declaredAndWritten(read.templateName(), capture.varId(), "reads");
                     final Declaration declaration = declarations.get(capture.varId());
-                    if (declaration != null && declaration.type() == Declaration.Type.MAP) {
-                        // A map has no text form to write and no position to index, so a
-                        // reference to the whole of one could only fail at run time.
+                    // A name bound in place — a loop's as, a parameter — shadows a declaration
+                    // of the same name and holds a scalar, whatever the declaration says.
+                    final boolean collection = declaration != null && declaration.type() != Declaration.Type.SCALAR
+                                               && !implicitIn(read.templateName(), capture.varId());
+                    if (collection && capture.matchIndex() == null && read.asText()) {
+                        // A collection has no text form, so a reference to the whole of one
+                        // where text is wanted could only fail at run time. Where a value is
+                        // wanted — appended, put, walked — the whole collection is the value.
                         throw new ConfigException("Template '" + read.templateName() + "' reads '"
-                                + capture.varId() + "', which is declared as a map: read one entry"
-                                + " of it with get.");
+                                + capture.varId() + "', which is declared as a "
+                                + declaration.type().name().toLowerCase(Locale.ROOT)
+                                + ", where text is wanted: read one entry of it with get or last.");
                     }
                     if (capture.matchIndex() != null) {
                         requireType(new NamedUse(read.templateName(), capture.varId()),
@@ -712,19 +741,32 @@ final class ReferenceCheck {
         }
     }
 
-    /** Design 35's two halves of an unknown reference: no declaration names it; nothing writes it. */
+    /**
+     * Design 35's two halves of an unknown reference: no declaration names it; nothing writes
+     * it. The second half is for scalars — a declared collection nothing fills is legitimately
+     * empty, and is walked zero times or sized at nothing.
+     */
     private void declaredAndWritten(final String template, final String name, final String verb) {
-        if (!declarations.containsKey(name) && !implicitIn(template, name)) {
-            throw new ConfigException("Template '" + template + "' " + verb + " '" + name
-                    + "', which no declaration names. A misspelt name would otherwise read as"
-                    + " absent for ever; declare it, with its type, on the template whose"
-                    + " executions it should live for.");
+        declared(template, name, verb);
+        final Declaration declaration = declarations.get(name);
+        if (declaration != null && declaration.type() != Declaration.Type.SCALAR) {
+            return;
         }
         if (!writable.contains(name)) {
             throw new ConfigException("Template '" + template + "' " + verb + " '" + name
                     + "', which nothing writes — no capture, variable, transform bind or"
                     + " parameter has that name. A misspelt name would otherwise read as absent"
                     + " for ever.");
+        }
+    }
+
+    /** The first half on its own: a mutation's target owes a declaration, and is itself the writer. */
+    private void declared(final String template, final String name, final String verb) {
+        if (!declarations.containsKey(name) && !implicitIn(template, name)) {
+            throw new ConfigException("Template '" + template + "' " + verb + " '" + name
+                    + "', which no declaration names. A misspelt name would otherwise read as"
+                    + " absent for ever; declare it, with its type, on the template whose"
+                    + " executions it should live for.");
         }
     }
 

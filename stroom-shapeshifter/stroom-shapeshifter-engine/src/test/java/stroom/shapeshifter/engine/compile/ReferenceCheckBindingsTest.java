@@ -64,8 +64,12 @@ class ReferenceCheckBindingsTest {
 
     /** Design 35: every name the helpers bind or read is declared, once, on the line template. */
     private static List<Declaration> declared(final String... names) {
+        return declared(Declaration.Type.SCALAR, names);
+    }
+
+    private static List<Declaration> declared(final Declaration.Type boundType, final String... names) {
         return java.util.Arrays.stream(names).distinct()
-                .map(name -> new Declaration(name, Declaration.Type.SCALAR)).toList();
+                .map(name -> new Declaration(name, name.equals("seed") ? Declaration.Type.SCALAR : boundType)).toList();
     }
 
     private static final List<RefExpression> SELECT = List.of(ref("seed"));
@@ -74,8 +78,7 @@ class ReferenceCheckBindingsTest {
     private static Map<String, OutputNode> binders(final String bound) {
         final Map<String, OutputNode> out = new LinkedHashMap<>();
         out.put("variable", new OutputNode.Variable(bound, List.of(new OutputNode.Text("x"))));
-        out.put("value-map", new OutputNode.ValueMap(ref("seed"),
-                List.of(new OutputNode.Entry("a", "b")), null, bound));
+        out.put("put", new OutputNode.Put(ref(bound), null, ref("seed")));
         out.put("translate", new OutputNode.Translate(SELECT, List.of("a"), List.of("b"), bound));
         out.put("string-join", new OutputNode.StringJoin(SELECT, ",", bound));
         out.put("replace", new OutputNode.Replace(SELECT, "a", "b", false, bound));
@@ -155,11 +158,17 @@ class ReferenceCheckBindingsTest {
     /** The binder writes the name; the instruction after it reads the same name back. */
     private static Project project(final OutputNode binder, final String bound) {
         final Template line = new Template(
-                UUID.randomUUID(), "line", "doc", false, null, List.of(), declared("seed", bound),
+                UUID.randomUUID(), "line", "doc", false, null, List.of(),
+                // tokenize fills a list with the pieces; every other binder binds one value
+                declared(binder instanceof OutputNode.Tokenize ? Declaration.Type.LIST : Declaration.Type.SCALAR,
+                        "seed", bound),
                 new MatchExpression.Regex("([^\n]*)\n", null, 0),
                 new Template.MatchLimits(0, -1, null),
                 List.of(new CaptureBinding("seed", new CaptureBinding.CaptureSource.Group(1), null)),
-                List.of(binder, new OutputNode.ValueOf(ref(bound))),
+                List.of(binder, new OutputNode.ValueOf(binder instanceof OutputNode.Tokenize
+                        ? new RefExpression(List.of(new RefExpression.RefPart.Accessor(
+                                RefExpression.RefPart.Accessor.Kind.LAST, ref(bound), null, null, null)))
+                        : ref(bound))),
                 null, false);
         final Template source = new Template(
                 UUID.randomUUID(), "source", null, false, null, List.of(), List.of(),

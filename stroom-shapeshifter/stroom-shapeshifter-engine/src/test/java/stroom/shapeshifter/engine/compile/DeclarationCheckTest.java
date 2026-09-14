@@ -183,13 +183,16 @@ class DeclarationCheckTest {
         assertThatThrownBy(() -> Shapeshifter.compile(whole))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("reads 'pairs', which is declared as a map")
-                .hasMessageContaining("get");
+                .hasMessageContaining("get or last");
         final Project byKey = new Project("t", 5, Project.SourceConfig.defaults(),
                 List.of(base.templates().getFirst(), new Template(
                         line.id(), line.name(), line.mode(), false, null, List.of(), line.declarations(),
                         line.match(), line.matchLimits(), line.captures(),
                         List.of(new OutputNode.ValueOf(new RefExpression(
-                                List.of(new RefExpression.RefPart.Get("pairs", "k"))))),
+                                List.of(new RefExpression.RefPart.Accessor(
+                                        RefExpression.RefPart.Accessor.Kind.GET,
+                                        new RefExpression(List.of(new RefExpression.RefPart.Capture("pairs", 0, null))),
+                                        RefExpression.text("k"), null, null))))),
                         null, false)), List.of());
         assertThatCode(() -> Shapeshifter.compile(byKey)).doesNotThrowAnyException();
     }

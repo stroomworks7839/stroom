@@ -419,13 +419,14 @@ class EngineBehaviourTest {
                   "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "declarations": [{"name": "months", "type": "map",
+                       "entries": [{"from": "Jan", "to": "01"}, {"from": "Feb", "to": "02"}]}],
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
                      "match": {"delimiter": {"delimiter": "\\n"}},
-                     "body": [{"value-map": {
-                       "select": {"parts": [{"capture": {"group": 1}}]},
-                       "entries": [{"from": "Jan", "to": "01"}, {"from": "Feb", "to": "02"}]DEFAULT}}]}
+                     "body": [{"value-of": {"parts": [{"get": {"of": "months",
+                       "key": {"parts": [{"capture": {"group": 1}}]}DEFAULT}}]}}]}
                   ]
                 }
                 """.replace("DEFAULT", defaultClause);
@@ -788,8 +789,9 @@ class EngineBehaviourTest {
      */
     @Test
     void newMatchSequenceRestartsTheCapturesList() {
-        final String listed = STALE_CONFIG.replace(
-                "{\"name\": \"val\", \"type\": \"scalar\"}", "{\"name\": \"val\", \"type\": \"list\"}");
+        final String listed = STALE_CONFIG
+                .replace("{\"name\": \"val\", \"type\": \"scalar\"}", "{\"name\": \"val\", \"type\": \"list\"}")
+                .replace("{\"capture\": {\"var_id\": \"val\", \"group\": 0}}", "{\"last\": {\"of\": \"val\"}}");
         assertThat(run(listed, "x=a,x=b;x=c").output()).isEqualTo("<b><c>");
     }
 

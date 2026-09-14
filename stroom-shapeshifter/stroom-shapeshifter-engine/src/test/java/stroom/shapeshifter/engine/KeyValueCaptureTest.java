@@ -63,12 +63,12 @@ class KeyValueCaptureTest {
     }
 
     private static final String CONFIG = config("""
-            {"text": "[a="}, {"get": {"var_id": "kv", "key": "a"}},
-            {"text": ",b="}, {"get": {"var_id": "kv", "key": "b"}},
-            {"text": ",k="}, {"get": {"var_id": "kv", "key": "k"}}, {"text": "]"}""");
+            {"text": "[a="}, {"get": {"of": "kv", "key": "a"}},
+            {"text": ",b="}, {"get": {"of": "kv", "key": "b"}},
+            {"text": ",k="}, {"get": {"of": "kv", "key": "k"}}, {"text": "]"}""");
 
     private static final String KEY_CONFIG = config("""
-            {"text": "[key="}, {"get": {"var_id": "kv", "key": "key"}}, {"text": "]"}""");
+            {"text": "[key="}, {"get": {"of": "kv", "key": "key"}}, {"text": "]"}""");
 
     private static String config(final String reads) {
         return """

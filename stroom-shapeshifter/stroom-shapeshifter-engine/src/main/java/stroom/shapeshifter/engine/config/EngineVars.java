@@ -68,7 +68,7 @@ public enum EngineVars {
     GROUP_KEY("groupKey", true),
 
     /**
-     * Within a {@code for-each-group}: the members, as a dense sequence of store indices.
+     * Within a {@code for-each-group}: the members, as a list of 1-based positions.
      *
      * <p><b>The one that is not framed.</b> Every other function here answers a scalar the
      * engine overwrites; this one is a sequence that is walked, indexed and folded exactly as an

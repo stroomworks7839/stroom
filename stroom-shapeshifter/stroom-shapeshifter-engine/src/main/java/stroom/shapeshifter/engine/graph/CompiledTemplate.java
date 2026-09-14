@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.util.List;
 import java.util.Set;
@@ -66,7 +67,8 @@ public record CompiledTemplate(Template template,
                                int[] onlyMatch,
                                CompiledCondition guard,
                                VarName[] clearNames,
-                               VarName[] declared) {
+                               VarName[] declared,
+                               TypedValue[] initial) {
 
     public CompiledTemplate {
         // The body is not copied, and the omission is deliberate. The line this replaced read

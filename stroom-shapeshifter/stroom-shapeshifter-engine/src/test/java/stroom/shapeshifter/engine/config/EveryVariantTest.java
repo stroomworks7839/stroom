@@ -22,7 +22,6 @@ import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
-import stroom.shapeshifter.engine.config.OutputNode.Entry;
 import stroom.shapeshifter.engine.config.OutputNode.Param;
 import stroom.shapeshifter.engine.config.OutputNode.SwitchCase;
 import stroom.shapeshifter.engine.config.OutputNode.WhenBranch;
@@ -30,6 +29,7 @@ import stroom.shapeshifter.engine.config.Predicate.CharSet;
 import stroom.shapeshifter.engine.config.Project.SourceConfig;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
+import stroom.shapeshifter.engine.config.RefExpression.RefPart.Accessor;
 import stroom.shapeshifter.engine.config.Template.MatchLimits;
 import stroom.shapeshifter.engine.config.Template.ParamDecl;
 import stroom.shapeshifter.engine.config.Template.RegexFlags;
@@ -133,6 +133,15 @@ class EveryVariantTest {
     // One of everything
     // -----------------------------------------------------------------------------------
 
+    private static RefExpression name(final String name) {
+        return new RefExpression(List.of(new RefPart.Capture(name, 0, null)));
+    }
+
+    private static RefExpression accessorRef(final Accessor.Kind kind, final RefExpression of,
+            final RefExpression key) {
+        return new RefExpression(List.of(new Accessor(kind, of, key, null, null)));
+    }
+
     private static Project oneOfEverything() {
         final List<Template> templates = new ArrayList<>(List.of(everyMatch(), everyOutput()));
         // One template per remaining match expression. A match expression only exists as a
@@ -212,7 +221,9 @@ class EveryVariantTest {
                 List.of(new ParamDecl("depth", "0"), new ParamDecl("required", null)),
                 List.of(new Declaration("declared", Declaration.Type.LIST),
                         new Declaration("total", Declaration.Type.SCALAR),
-                        new Declaration("lookup", Declaration.Type.MAP)),
+                        new Declaration("seq", Declaration.Type.LIST),
+                        new Declaration("lookup", Declaration.Type.MAP,
+                                List.of(new Declaration.Entry("1", "one"), new Declaration.Entry("2", "two")))),
                 new MatchExpression.Progressive(steps),
                 new MatchLimits(1, 9, Set.of(1, 2, 5)),
                 List.of(
@@ -254,7 +265,6 @@ class EveryVariantTest {
                         new OutputNode.Namespace("p", "urn:p"),
                         new OutputNode.Attribute("p:a", true, List.of(new OutputNode.Text("v"))),
                         new OutputNode.Text("content"))),
-                new OutputNode.ValueMap(ref(), List.of(new Entry("1", "one")), "unknown", "mapped"),
                 new OutputNode.Translate(select, List.of("ab"), List.of("AB"), "translated"),
                 new OutputNode.StringJoin(select, ", ", null),
                 new OutputNode.Replace(select, "\\s+", " ", true, null),
@@ -287,25 +297,37 @@ class EveryVariantTest {
                 new OutputNode.ParseDate(select, "iso", null, null, null),
                 new OutputNode.FormatDate(select, "uuuu-MM-dd", "UTC", null),
                 new OutputNode.FormatDate(select, "epoch-millis", null, "ms"),
-                new OutputNode.Sequence("seq"),
-                new OutputNode.Append("seq", ref()),
-                new OutputNode.ForEach("seq", "item", List.of(),
+                new OutputNode.Append(name("seq"), ref()),
+                new OutputNode.Append(accessorRef(Accessor.Kind.GET, name("lookup"), RefExpression.text("k")), ref()),
+                new OutputNode.Insert(name("seq"), RefExpression.text("1"), ref()),
+                new OutputNode.Put(name("seq"), RefExpression.text("1"), ref()),
+                new OutputNode.Put(name("lookup"), ref(), ref()),
+                new OutputNode.Put(name("total"), null, ref()),
+                new OutputNode.Remove(name("seq"), RefExpression.text("1")),
+                new OutputNode.Remove(name("lookup"), ref()),
+                new OutputNode.Clear(name("seq")),
+                new OutputNode.ForEach(name("seq"), "item", null, List.of(),
                         List.of(new OutputNode.Text("each"))),
-                new OutputNode.ForEach("seq", null,
+                new OutputNode.ForEach(name("lookup"), "v", "k", List.of(), List.of()),
+                new OutputNode.ForEach(name("seq"), null, null,
                         List.of(new OutputNode.Sort(ref(), OutputNode.Order.DESCENDING, Cast.NUMBER),
                                 new OutputNode.Sort(ref(), null, null)),
                         List.of()),
-                new OutputNode.Key("k", "seq", ref()),
-                new OutputNode.Key("k2", "seq", null),
-                new OutputNode.KeyGet("k", ref(), "hits"),
-                new OutputNode.ForEachGroup("seq", ref(), List.of(new OutputNode.Text("g"))),
-                new OutputNode.ForEachGroup("seq", null, List.of()),
-                new OutputNode.Count("seq", "n"),
-                new OutputNode.Sum("seq", "total"),
-                new OutputNode.Avg("seq", "mean"),
-                new OutputNode.Min("seq", Cast.NUMBER, "low"),
-                new OutputNode.Max("seq", null, "high"),
-                new OutputNode.DistinctValues("seq", "unique")));
+                new OutputNode.ForEachGroup(name("seq"), ref(), List.of(new OutputNode.Text("g"))),
+                new OutputNode.ForEachGroup(name("seq"), null, List.of()),
+                new OutputNode.ValueOf(new RefExpression(List.of(
+                        new Accessor(Accessor.Kind.GET, name("lookup"), RefExpression.text("k"),
+                                RefExpression.text("none"), null),
+                        new Accessor(Accessor.Kind.SIZE, name("seq"), null, null, null),
+                        new Accessor(Accessor.Kind.CONTAINS, name("seq"), ref(), null, null),
+                        new Accessor(Accessor.Kind.LAST, name("seq"), null, null, null),
+                        new Accessor(Accessor.Kind.HEAD, name("seq"), null, null, null),
+                        new Accessor(Accessor.Kind.KEYS, name("lookup"), null, null, null),
+                        new Accessor(Accessor.Kind.VALUES, name("lookup"), null, null, null),
+                        new Accessor(Accessor.Kind.SUM, name("seq"), null, null, null),
+                        new Accessor(Accessor.Kind.AVG, name("seq"), null, null, null),
+                        new Accessor(Accessor.Kind.MIN, name("seq"), null, null, Cast.NUMBER),
+                        new Accessor(Accessor.Kind.MAX, name("seq"), null, null, null))))));
 
         // The remaining conditions, each inside its own guard-shaped instruction so that the
         // walker sees them all.
@@ -362,7 +384,6 @@ class EveryVariantTest {
                 new RefPart.Capture("var", 1, new MatchIndex(1, true, false, null, null)),
                 new RefPart.Capture("var", 2, new MatchIndex(0, false, true, null, EngineVars.MATCH_COUNT)),
                 new RefPart.Counter(EngineVars.INDEX, new MatchIndex(0, false, true, null, null)),
-                new RefPart.Get("lookup", "k"),
                 new RefPart.Text("]")));
     }
 

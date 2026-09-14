@@ -18,7 +18,6 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.EngineVars;
-import stroom.shapeshifter.engine.graph.KeyName;
 import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
 
@@ -29,15 +28,12 @@ import java.util.Map;
  * Assigning a slot to every name a configuration uses (design 30 phases 5 and 7).
  *
  * <p>Names are interned as the graph is built rather than by a walk of their own: whatever
- * compiles a node that names something asks for the {@link VarName} or {@link KeyName}, and the
+ * compiles a node that names something asks for the {@link VarName}, and the
  * first ask assigns the slot. That is the same shape the match compiler interns patterns with,
  * and it means there is no second walk to keep in step with the first (E27).
  *
- * <p><b>Two namespaces, two slot spaces.</b> Variables and keys are separate here because they
- * are separate in the language — the compiler keeps its own declared set for keys, and a key and
- * a variable may share a name without meaning the same thing. They therefore index different
- * arrays at run time, and carry different types so that they cannot be indexed into each
- * other's.
+ * <p><b>One namespace</b> (design 35 §4): a key is a declared map and a sequence a declared list,
+ * so a name is a slot and nothing else, whatever it holds.
  *
  * <p><b>It is a builder and nothing else.</b> What a run holds is {@link Names}, which this
  * hands over once and is then discarded — so a name cannot be interned after compilation because
@@ -48,13 +44,6 @@ import java.util.Map;
 final class Interner {
 
     private final Map<String, VarName> byName = new HashMap<>();
-
-    /**
-     * Keys, which are their own namespace: the compiler keeps a separate declared set for them,
-     * and a key and a variable may share a name without meaning the same thing. Two tables, so
-     * two slot spaces, so two arrays that cannot be indexed into each other.
-     */
-    private final Map<String, KeyName> keysByName = new HashMap<>();
 
     /** What each declared name holds, recorded before any body compiles (design 35 §5). */
     private final Map<String, Declaration.Type> types = new HashMap<>();
@@ -86,29 +75,8 @@ final class Interner {
         return byName.computeIfAbsent(name, key -> new VarName(key, byName.size()));
     }
 
-
-    /**
-     * The interned key, assigning a slot if this is the first sight of it.
-     *
-     * <p>A {@code key-get} may compile before the {@code key} that builds what it reads — they
-     * can be in different templates — so the slot is assigned by whichever arrives first, exactly
-     * as a variable's is.
-     */
-    KeyName internKey(final String name) {
-        if (name == null) {
-            return null;
-        }
-        return keysByName.computeIfAbsent(name, key -> new KeyName(key, keysByName.size()));
-    }
-
-
-
-
-
-
-
     /** The table, finished. The interner is done with once this is taken. */
     Names names() {
-        return new Names(byName, keysByName, types);
+        return new Names(byName, types);
     }
 }

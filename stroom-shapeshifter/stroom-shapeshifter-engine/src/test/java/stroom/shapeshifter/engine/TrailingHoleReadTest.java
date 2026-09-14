@@ -47,7 +47,9 @@ class TrailingHoleReadTest {
      */
     @Test
     void failedFinalCaptureIntoAListAppendsAbsence() {
-        assertThat(run(CONFIG.replace("TYPE", "list"), "1 2 x\n")).isEqualTo("[]");
+        final String listed = CONFIG.replace("TYPE", "list")
+                .replace("{\"capture\": {\"var_id\": \"v\", \"group\": 0}}", "{\"last\": {\"of\": \"v\"}}");
+        assertThat(run(listed, "1 2 x\n")).isEqualTo("[]");
     }
 
     /** And a failed middle capture keeps the positions after it aligned with their matches. */

@@ -150,15 +150,31 @@ public final class ProjectJson {
     }
 
     private static Declaration readDeclaration(final JsonNode node) {
-        JsonFields.checkFields(node, "declaration", "name", "type");
+        JsonFields.checkFields(node, "declaration", "name", "type", "entries");
         return new Declaration(JsonFields.text(node, "name", "declaration"),
-                JsonFields.lowercase(Declaration.Type.class, JsonFields.text(node, "type", "declaration"), "type"));
+                JsonFields.lowercase(Declaration.Type.class, JsonFields.text(node, "type", "declaration"), "type"),
+                JsonFields.list(node.get("entries"), "entries", ProjectJson::readEntry));
+    }
+
+    private static Declaration.Entry readEntry(final JsonNode node) {
+        JsonFields.checkFields(node, "entry", "from", "to");
+        return new Declaration.Entry(JsonFields.text(node, "from", "entry"), JsonFields.text(node, "to", "entry"));
+    }
+
+    private static ObjectNode writeEntry(final Declaration.Entry entry) {
+        final ObjectNode node = JsonFields.NODES.objectNode();
+        node.put("from", entry.from());
+        node.put("to", entry.to());
+        return node;
     }
 
     private static ObjectNode writeDeclaration(final Declaration declaration) {
         final ObjectNode node = JsonFields.NODES.objectNode();
         node.put("name", declaration.name());
         node.put("type", JsonFields.label(declaration.type()));
+        if (!declaration.entries().isEmpty()) {
+            node.set("entries", JsonFields.array(declaration.entries(), ProjectJson::writeEntry));
+        }
         return node;
     }
 

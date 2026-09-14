@@ -112,6 +112,18 @@ final class StructureCheck {
                 case OutputNode.Append ignored -> {
                     // Accumulates; writes nothing.
                 }
+                case OutputNode.Insert ignored -> {
+                    // Accumulates; writes nothing.
+                }
+                case OutputNode.Put ignored -> {
+                    // Accumulates; writes nothing.
+                }
+                case OutputNode.Remove ignored -> {
+                    // Accumulates; writes nothing.
+                }
+                case OutputNode.Clear ignored -> {
+                    // Accumulates; writes nothing.
+                }
             }
         }
         return contentSeen;

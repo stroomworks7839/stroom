@@ -16,7 +16,9 @@
 
 package stroom.shapeshifter.engine.graph;
 
+import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.EngineVars;
+import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 /**
@@ -79,8 +81,16 @@ public sealed interface CompiledRef {
 
     }
 
-    /** One entry of a map by a key made once: what {@code get} reads (design 35 §5). */
-    record Entry(VarName map, TypedValue key) implements CompiledRef {
+    /**
+     * A function over a collection (design 35 §5): the kind decided at authoring, the
+     * collection and its argument resolved at run time — a nested collection is a run-time
+     * fact, typed one level deep.
+     */
+    record Accessor(RefExpression.RefPart.Accessor.Kind kind,
+                    CompiledRef of,
+                    CompiledRef key,
+                    CompiledRef orElse,
+                    Cast as) implements CompiledRef {
 
     }
 

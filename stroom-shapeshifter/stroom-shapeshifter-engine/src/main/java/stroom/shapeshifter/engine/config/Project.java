@@ -64,7 +64,8 @@ public record Project(String name,
      * @param strictValues warn when a non-numeric value reaches an arithmetic instruction
      *                     (design/17 §10) — off by default, because messy data is the normal
      *                     case; on when "why is this element empty" needs evidence
-     * @param maxSequenceEntries how many entries one sequence may hold before the run is
+     * @param maxSequenceEntries how many elements the run's collections may hold between them —
+     *                           design 35 §11's one counter; the key keeps design/16's name — before the run is
      *                     stopped (design/16 §10). A configuration that accumulates nothing
      *                     keeps the sliding window's bound exactly; one that accumulates is
      *                     bounded by this instead, and says so
@@ -79,7 +80,7 @@ public record Project(String name,
         /** The buffer size a configuration gets if it does not ask for one. */
         public static final int DEFAULT_BUFFER_SIZE = 20_000;
 
-        /** How many entries one sequence may hold before the run stops (design/16 §10). */
+        /** How many elements the run's collections may hold between them before the run stops (design 35 §11). */
         public static final int DEFAULT_MAX_SEQUENCE_ENTRIES = 100_000;
 
         /** The encoding label meaning "detect it". */
