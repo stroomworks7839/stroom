@@ -1,7 +1,7 @@
 # Design 35 — One binding, declared in a scope, with a type
 
 *Opened 2026-09-11 after E49 was built, measured and reverted. Reshaped 2026-09-12 on the owner's
-model: lexical declaration, two scopes, var types, counters left alone.*
+model: lexical declaration, one scope rule, var types, counters left alone.*
 
 **Status: open. Nothing is built. §9 lists what has to be ruled first.**
 
@@ -817,7 +817,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Size guard** | One run-wide live-element counter: every `append` or `put` increments it, every collection caches its own total so a clear or scope-exit decrements in O(1). Nesting is irrelevant because the counter measures exactly what the promise is about — total live elements — whatever shape they are in. | §5, §8 |
 | **Operation names** | After XPath 3.1's `array:` and `map:` libraries, which this language already follows: `append`, `insert`, `put`, `remove`, `get`, `size`, `contains`, `keys`, plus `add` for a set, which XPath has no equivalent of. Positions are 1-based, as XPath's are and as the engine's match counts already are. `for-each` over a map binds two names, after `map:for-each`. | §5 |
 | **The collapse** | Design 16's `Sequence`, `Append`, `DistinctValues`, the five folds, `Key`, `KeyGet` and `ValueMap` fold into declarations, collection types, operations and functions — ten of `Binding`'s twelve, plus the separate key and sequence namespaces. `Transform` and `Variable` remain as *value sources*, not binders. | §5 |
-| **DS3 migration** | Declares **everything global**. `root.clear()` runs once per parse and never between records, so global is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
+| **DS3 migration** | Declares **everything on the source**, which is run lifetime. `root.clear()` runs once per parse and never between records, so that is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
 
 ### Still open
 
@@ -865,9 +865,11 @@ it was reading DS3's source. So:
 - **If the model does not come out smaller.** §4 sets that as the test: thirteen binding
   constructs with two exceptions should become one declaration with several value sources. A
   unification that adds a concept and keeps the old ones has failed on its own terms.
-- **If two scopes are not enough.** The CSV headings are global and the record fields are
-  template-scoped, but a third case — something per-dispatch rather than per-execution — would mean
-  the model is under-powered and the special cases come back.
+- **If lexical nesting is not enough.** The CSV headings live on the source and the record fields
+  on the record template, both of which the one rule covers. A case wanting something *per
+  dispatch* rather than per execution would mean the model is under-powered and the special cases
+  come back — and the chunked root is the near miss, since a root-mode declaration is per chunk by
+  position rather than by choice.
 - **If declarations end up everywhere rather than where they are needed — a throughput concern,
   not a memory one.** Entry is an index increment and a few array writes per declared slot: cheap
   per declaration, but it scales with *declarations × executions*. Seventy names declared on a
