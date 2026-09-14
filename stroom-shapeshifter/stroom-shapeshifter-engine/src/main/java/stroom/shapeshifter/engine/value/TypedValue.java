@@ -87,6 +87,19 @@ public sealed interface TypedValue {
     Boolean asBoolean();
 
     /**
+     * Whether an object is exactly one of the byte variants — the two classes that share text
+     * equality. An exact class compare rather than {@code instanceof Bytes}: every variant here
+     * is final, so on a final class the two are the same klass-word compare, but {@code Bytes}
+     * and {@link Collection} are <i>interfaces</i>, and an interface test is a secondary-supers
+     * lookup. The equalities below test classes, not interfaces, for that reason; where two
+     * classes qualify, two compares are written out.
+     */
+    private static boolean isBytes(final Object other) {
+        return other != null
+               && (other.getClass() == Utf8Bytes.class || other.getClass() == EncodedBytes.class);
+    }
+
+    /**
      * The value as UTF-8 bytes: captured bytes decoded by their encoding, once; the rest ASCII,
      * which is already UTF-8.
      */
@@ -202,7 +215,7 @@ public sealed interface TypedValue {
 
         @Override
         public boolean equals(final Object other) {
-            return other instanceof Bytes bytes && Arrays.equals(value, bytes.asUtf8());
+            return isBytes(other) && Arrays.equals(value, ((Bytes) other).asUtf8());
         }
 
         @Override
@@ -265,16 +278,17 @@ public sealed interface TypedValue {
 
         @Override
         public boolean equals(final Object other) {
-            if (!(other instanceof Bytes bytes)) {
+            if (!isBytes(other)) {
                 return false;
             }
             // The same bytes in the same encoding decode the same way; no need to find out.
-            if (bytes instanceof EncodedBytes encoded
-                && encoding == encoded.encoding
-                && Arrays.equals(value, encoded.value)) {
-                return true;
+            if (other.getClass() == EncodedBytes.class) {
+                final EncodedBytes encoded = (EncodedBytes) other;
+                if (encoding == encoded.encoding && Arrays.equals(value, encoded.value)) {
+                    return true;
+                }
             }
-            return Arrays.equals(asUtf8(), bytes.asUtf8());
+            return Arrays.equals(asUtf8(), ((Bytes) other).asUtf8());
         }
 
         @Override
@@ -294,6 +308,31 @@ public sealed interface TypedValue {
 
     /** A whole number, as XSLT 2.0's {@code xs:integer}; held in a {@code long} (D49). */
     record Integer(long value) implements TypedValue {
+
+        /**
+         * Numbers compare numerically (design 35 §5): a whole {@code Double} equals the
+         * {@code Integer} of the same value, and the hash codes agree because a whole double
+         * hashes as its long.
+         */
+        @Override
+        public boolean equals(final Object other) {
+            if (other == null) {
+                return false;
+            }
+            if (other.getClass() == Integer.class) {
+                return value == ((Integer) other).value;
+            }
+            if (other.getClass() == Double.class) {
+                final Long exact = ((Double) other).asInteger();
+                return exact != null && exact == value;
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            return Long.hashCode(value);
+        }
 
         @Override
         public boolean isEmpty() {
@@ -328,6 +367,31 @@ public sealed interface TypedValue {
 
     /** A number with a fractional part, as XSLT 2.0's {@code xs:double} (D49). */
     record Double(double value) implements TypedValue {
+
+        /**
+         * As {@link Integer#equals}: a whole double is the integer of the same value. Exactness is
+         * {@link #asInteger()}'s, so a long that a double would round is not equal to that double.
+         */
+        @Override
+        public boolean equals(final Object other) {
+            if (other == null) {
+                return false;
+            }
+            if (other.getClass() == Double.class) {
+                return java.lang.Double.compare(value, ((Double) other).value) == 0;
+            }
+            if (other.getClass() == Integer.class) {
+                final Long exact = asInteger();
+                return exact != null && exact == ((Integer) other).value();
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            final Long exact = asInteger();
+            return exact != null ? Long.hashCode(exact) : java.lang.Double.hashCode(value);
+        }
 
         @Override
         public boolean isEmpty() {
@@ -410,6 +474,24 @@ public sealed interface TypedValue {
                    int nano,
                    java.lang.Integer offsetSeconds) implements TypedValue {
 
+        /**
+         * The timeline point alone: the offset is inert in comparison, as this class's javadoc
+         * says, and the record's generated equality was contradicting it (design 35 §5).
+         */
+        @Override
+        public boolean equals(final Object other) {
+            if (other == null || other.getClass() != Instant.class) {
+                return false;
+            }
+            final Instant instant = (Instant) other;
+            return epochSecond == instant.epochSecond && nano == instant.nano;
+        }
+
+        @Override
+        public int hashCode() {
+            return Long.hashCode(epochSecond) * 31 + nano;
+        }
+
         public Instant {
             if (nano < 0 || nano > 999_999_999) {
                 throw new IllegalArgumentException("Nanos out of range: " + nano);
@@ -458,6 +540,332 @@ public sealed interface TypedValue {
         @Override
         public Boolean asBoolean() {
             return null;
+        }
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Collections: values that hold values (design 35 §5)
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * A value that holds other values. A collection is a {@code TypedValue} so that it can sit in
+     * a slot, be appended to another collection, and be passed where a value is passed. It is
+     * <b>mutable</b>, deliberately: a parser accumulates, and an immutable append is quadratic
+     * (design 35 §5). It has no text or numeric reading — asking is a programming error the
+     * compiler is meant to have refused by the declared type — and it is refused as a map key and
+     * a set member, so that membership stays a hash rather than a walk.
+     */
+    sealed interface Collection extends TypedValue permits List, Map, Set {
+
+        /** How many entries. */
+        int size();
+
+        /** Drop every entry. */
+        void clear();
+
+        /** The word for this collection in a message. */
+        String kind();
+
+        @Override
+        default boolean isEmpty() {
+            return size() == 0;
+        }
+
+        @Override
+        default byte[] asBytes() {
+            throw new IllegalStateException("A " + kind() + " has no byte form; read an entry");
+        }
+
+        @Override
+        default String asString() {
+            throw new IllegalStateException("A " + kind() + " has no text form; read an entry");
+        }
+
+        @Override
+        default java.lang.Double asNumber() {
+            return null;
+        }
+
+        @Override
+        default Long asInteger() {
+            return null;
+        }
+
+        @Override
+        default Boolean asBoolean() {
+            return null;
+        }
+
+        /** Refuse a collection where a scalar key or member is required. */
+        static TypedValue scalar(final TypedValue value, final String role) {
+            if (value instanceof Collection collection) {
+                throw new IllegalArgumentException(
+                        "A " + collection.kind() + " cannot be a " + role + "; only a scalar can");
+            }
+            return value;
+        }
+    }
+
+    /**
+     * Values in order, addressed by position. An array and a count — the shape design 33 moved
+     * the run state to — and it may hold <b>absence</b> as an entry, because a failed capture
+     * appends one to keep positions aligned (design 35 §8). Positions here are 0-based as any
+     * Java array is; the configuration surface counts from 1, as XPath does, and translates at
+     * the operation.
+     */
+    final class List implements Collection {
+
+        private static final int INITIAL = 4;
+
+        private TypedValue[] values = new TypedValue[INITIAL];
+        private int size;
+
+        @Override
+        public int size() {
+            return size;
+        }
+
+        /** The entry at a position, absent included, or null past the end. */
+        public TypedValue get(final int position) {
+            return position >= 0 && position < size ? values[position] : null;
+        }
+
+        /** The last entry, absent included — it does not skip (design 35 §8). */
+        public TypedValue last() {
+            return size == 0 ? null : values[size - 1];
+        }
+
+        /** Add at the end; null is absence and is kept. */
+        public void append(final TypedValue value) {
+            grow(size + 1);
+            values[size++] = value;
+        }
+
+        /** Add before a position, shifting what follows. */
+        public void insert(final int position, final TypedValue value) {
+            if (position < 0 || position > size) {
+                throw new IndexOutOfBoundsException(position + " of " + size);
+            }
+            grow(size + 1);
+            System.arraycopy(values, position, values, position + 1, size - position);
+            values[position] = value;
+            size++;
+        }
+
+        /** Replace at a position, which must exist. */
+        public void put(final int position, final TypedValue value) {
+            if (position < 0 || position >= size) {
+                throw new IndexOutOfBoundsException(position + " of " + size);
+            }
+            values[position] = value;
+        }
+
+        /** Drop a position, shifting what follows. */
+        public void remove(final int position) {
+            if (position < 0 || position >= size) {
+                throw new IndexOutOfBoundsException(position + " of " + size);
+            }
+            System.arraycopy(values, position + 1, values, position, size - position - 1);
+            values[--size] = null;
+        }
+
+        /** Whether an entry equal to the value is present, canonically. */
+        public boolean contains(final TypedValue value) {
+            for (int i = 0; i < size; i++) {
+                if (java.util.Objects.equals(values[i], value)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public void clear() {
+            Arrays.fill(values, 0, size, null);
+            size = 0;
+        }
+
+        @Override
+        public String kind() {
+            return "list";
+        }
+
+        private void grow(final int needed) {
+            if (needed > values.length) {
+                values = Arrays.copyOf(values, Math.max(needed, values.length * 2));
+            }
+        }
+
+        /** Entry by entry, canonically. */
+        @Override
+        public boolean equals(final Object other) {
+            if (other == null || other.getClass() != List.class || ((List) other).size != size) {
+                return false;
+            }
+            final List list = (List) other;
+            for (int i = 0; i < size; i++) {
+                if (!java.util.Objects.equals(values[i], list.values[i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 1;
+            for (int i = 0; i < size; i++) {
+                hash = 31 * hash + java.util.Objects.hashCode(values[i]);
+            }
+            return hash;
+        }
+
+        @Override
+        public String toString() {
+            return "list" + Arrays.toString(Arrays.copyOf(values, size));
+        }
+    }
+
+    /**
+     * Scalar keys to values, in insertion order — so that a walk over one produces the same bytes
+     * every run. Keys compare canonically (design 35 §5), which is what the variants' {@code equals}
+     * and {@code hashCode} now are; a collection is refused as a key.
+     *
+     * <p>Backed by {@code LinkedHashMap} for now. Whether that survives design 35 phase 3's
+     * run-time work is that phase's measurement to make, not a decision taken here.
+     */
+    final class Map implements Collection {
+
+        private final java.util.Map<TypedValue, TypedValue> entries = new java.util.LinkedHashMap<>();
+
+        @Override
+        public int size() {
+            return entries.size();
+        }
+
+        /** Bind a key, replacing what it held. The key must be a scalar. */
+        public void put(final TypedValue key, final TypedValue value) {
+            entries.put(Collection.scalar(key, "map key"), value);
+        }
+
+        /** The value at a key, or null when unbound. */
+        public TypedValue get(final TypedValue key) {
+            return key == null ? null : entries.get(key);
+        }
+
+        /** Whether a key is bound. */
+        public boolean contains(final TypedValue key) {
+            return key != null && entries.containsKey(key);
+        }
+
+        /** Unbind a key. */
+        public void remove(final TypedValue key) {
+            if (key != null) {
+                entries.remove(key);
+            }
+        }
+
+        /** The keys, in insertion order, as a list. */
+        public List keys() {
+            final List keys = new List();
+            entries.keySet().forEach(keys::append);
+            return keys;
+        }
+
+        /** The values, in insertion order, as a list. */
+        public List values() {
+            final List values = new List();
+            entries.values().forEach(values::append);
+            return values;
+        }
+
+        @Override
+        public void clear() {
+            entries.clear();
+        }
+
+        @Override
+        public String kind() {
+            return "map";
+        }
+
+        @Override
+        public boolean equals(final Object other) {
+            return other != null && other.getClass() == Map.class && entries.equals(((Map) other).entries);
+        }
+
+        @Override
+        public int hashCode() {
+            return entries.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return "map" + entries;
+        }
+    }
+
+    /**
+     * Distinct scalar values, in insertion order. Membership is canonical equality (design 35 §5),
+     * which is what makes {@code DistinctValues} a set built by {@code add}. A collection is
+     * refused as a member, so that membership stays O(1).
+     */
+    final class Set implements Collection {
+
+        private final java.util.Set<TypedValue> members = new java.util.LinkedHashSet<>();
+
+        @Override
+        public int size() {
+            return members.size();
+        }
+
+        /** Add if absent; a no-op if present. The member must be a scalar. */
+        public void add(final TypedValue value) {
+            members.add(Collection.scalar(value, "set member"));
+        }
+
+        /** Whether an equal member is present. */
+        public boolean contains(final TypedValue value) {
+            return value != null && members.contains(value);
+        }
+
+        /** Drop a member. */
+        public void remove(final TypedValue value) {
+            if (value != null) {
+                members.remove(value);
+            }
+        }
+
+        /** The members, in insertion order, as a list. */
+        public List values() {
+            final List values = new List();
+            members.forEach(values::append);
+            return values;
+        }
+
+        @Override
+        public void clear() {
+            members.clear();
+        }
+
+        @Override
+        public String kind() {
+            return "set";
+        }
+
+        @Override
+        public boolean equals(final Object other) {
+            return other != null && other.getClass() == Set.class && members.equals(((Set) other).members);
+        }
+
+        @Override
+        public int hashCode() {
+            return members.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return "set" + members;
         }
     }
 

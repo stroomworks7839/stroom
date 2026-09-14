@@ -188,33 +188,45 @@
       "guard": {
         "or": [
           {
-            "equals": {
-              "select": {
-                "parts": [
-                  {
-                    "capture": {
-                      "var_id": "__match_idx",
-                      "group": 0
+            "eq": {
+              "left": {
+                "ref": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__match_idx",
+                        "group": 0
+                      }
                     }
-                  }
-                ]
+                  ]
+                },
+                "as": "string"
               },
-              "value": "0"
+              "right": {
+                "value": "0",
+                "as": "string"
+              }
             }
           },
           {
-            "equals": {
-              "select": {
-                "parts": [
-                  {
-                    "capture": {
-                      "var_id": "__match_idx",
-                      "group": 0
+            "eq": {
+              "left": {
+                "ref": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__match_idx",
+                        "group": 0
+                      }
                     }
-                  }
-                ]
+                  ]
+                },
+                "as": "string"
               },
-              "value": "2"
+              "right": {
+                "value": "2",
+                "as": "string"
+              }
             }
           }
         ]
@@ -303,33 +315,45 @@
       "guard": {
         "or": [
           {
-            "equals": {
-              "select": {
-                "parts": [
-                  {
-                    "capture": {
-                      "var_id": "__match_idx",
-                      "group": 0
+            "eq": {
+              "left": {
+                "ref": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__match_idx",
+                        "group": 0
+                      }
                     }
-                  }
-                ]
+                  ]
+                },
+                "as": "string"
               },
-              "value": "3"
+              "right": {
+                "value": "3",
+                "as": "string"
+              }
             }
           },
           {
-            "equals": {
-              "select": {
-                "parts": [
-                  {
-                    "capture": {
-                      "var_id": "__match_idx",
-                      "group": 0
+            "eq": {
+              "left": {
+                "ref": {
+                  "parts": [
+                    {
+                      "capture": {
+                        "var_id": "__match_idx",
+                        "group": 0
+                      }
                     }
-                  }
-                ]
+                  ]
+                },
+                "as": "string"
               },
-              "value": "5"
+              "right": {
+                "value": "5",
+                "as": "string"
+              }
             }
           }
         ]

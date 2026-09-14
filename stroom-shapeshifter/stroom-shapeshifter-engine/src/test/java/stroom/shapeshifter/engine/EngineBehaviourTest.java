@@ -535,7 +535,8 @@ class EngineBehaviourTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "guarded", "mode": "row",
-                     "guard": {"equals": {"select": {"parts": [{"text": "no"}]}, "value": "yes"}},
+                     "guard": {"eq": {"left": {"ref": {"parts": [{"text": "no"}]}, "as": "string"},
+                                      "right": {"value": "yes", "as": "string"}}},
                      "match": {"delimiter": {"delimiter": "\\n"}},
                      "body": [{"text": "matched"}]}
                   ]

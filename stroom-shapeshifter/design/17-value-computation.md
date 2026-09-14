@@ -313,6 +313,11 @@ non-comparison conditions — `matches`, `contains`, `starts-with`, `exists`, th
 connectives — keep their names; they are predicates, not comparisons, and have no operator
 to borrow.
 
+> *Addendum 2026-09-14: the string trio — `equals`, `not-equals`, `ref-equals` — was retired by
+> design 35 phase 1. A string comparison is written as `eq` with `as: "string"`; an empty literal
+> as `not(exists)`; both-absent-is-equal, if ever wanted, as the `or(eq, and(not exists, not
+> exists))` the alias compiled to. `greater-than`/`less-than`, the numeric pair, remain aliases.*
+
 **Why the equality aliases carry `as: "string"` rather than no cast — a phase 1 audit
 finding (2026-08-25), and the corpus-safety argument corrected.** The draft claimed every
 value is `Bytes` today, so uncast `eq` would preserve legacy `equals`. False: the engine's

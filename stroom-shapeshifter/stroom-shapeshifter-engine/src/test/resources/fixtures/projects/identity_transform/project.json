@@ -72,19 +72,25 @@
             "when": [
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": null,
-                            "group": 1,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": null,
+                              "group": 1,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "oldName"
+                    "right": {
+                      "value": "oldName",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [

@@ -52,6 +52,10 @@ public final class Comparisons {
         if (value == null || as == null) {
             return value;
         }
+        if (value instanceof TypedValue.Collection collection) {
+            throw new IllegalStateException("A " + collection.kind() + " cannot be cast to " + as
+                    + "; a cast converts a scalar's variant (design 35 §5)");
+        }
         return switch (as) {
             case STRING -> value instanceof TypedValue.Bytes ? value : TypedValue.of(value.asString());
             case NUMBER -> {
@@ -122,6 +126,8 @@ public final class Comparisons {
             final int seconds = Long.compare(a.epochSecond(), b.epochSecond());
             return seconds != 0 ? seconds : Integer.compare(a.nano(), b.nano());
         }
+        // Anything else — two kinds, or a collection on either side — has no order (design 35
+        // §5). A collection is not a separate case: it is simply none of the pairs above.
         return null;
     }
 

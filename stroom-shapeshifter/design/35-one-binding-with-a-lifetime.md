@@ -618,7 +618,10 @@ test is that the model gets smaller; this is one of the places it does.
 - `TypedValue`'s variants define real `equals`/`hashCode`. `Encoded.equals` short-cuts on identical
   bytes *and* encoding, then falls through to `Arrays.equals(asUtf8(), …)` — so it already compares
   text by decoded content, and the same text in two encodings is **one** value. Under that rule
-  `1` and `"1"` are different members, because an `Integer` is not `Bytes`.
+  `1` and `"1"` are different members, because an `Integer` is not `Bytes`. *Phase 1 found two
+  places the records' generated equality disagreed with `Comparisons.compare` on the same pair:
+  `Integer(7)` ordered equal to `Double(7.0)` but was not `equals` to it, and two `Instant`s of one
+  moment through different offsets ordered equal but were not `equals`. Both now agree.*
   *(Phase 0 corrected this paragraph: it had claimed the structural rule distinguished encodings,
   and `EqualityCharacterisationTest.sameTextInTwoEncodingsIsOneValue` shows it does not.)*
 
@@ -960,7 +963,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Size guard** | One run-wide live-element counter: every `append` or `put` increments it, every collection caches its own total so a clear or scope-exit decrements in O(1). Nesting is irrelevant because the counter measures exactly what the promise is about — total live elements — whatever shape they are in. | §5, §8 |
 | **Operation names** | After XPath 3.1's `array:` and `map:` libraries, which this language already follows: `append`, `insert`, `put`, `remove`, `get`, `size`, `contains`, `keys`, plus `add` for a set, which XPath has no equivalent of. Positions are 1-based, as XPath's are and as the engine's match counts already are. `for-each` over a map binds two names, after `map:for-each`. | §5 |
 | **The collapse** | Design 16's `Sequence`, `Append`, `DistinctValues`, the five folds, `Key`, `KeyGet` and `ValueMap` fold into declarations, collection types, operations and functions — ten of `Binding`'s twelve, plus the separate key and sequence namespaces. `Transform` and `Variable` remain as *value sources*, not binders. | §5 |
-| **`equals` alias** | **Retired** *(ruled 2026-09-14)*. It was the one condition still comparing string forms, by documented design (design 17 §8). A string comparison is now written as `eq` with `as: string` on the operands — said, not implied by a spelling — and `equals($x, "")` keeps compiling to `not(exists($x))`. Phase 0 checked the blast radius: `Ds3Migration` never emits `equals`, so the legacy goldens are untouched; twelve native fixtures and four unit tests use it and are rewritten in phase 1. One equality rule, no exceptions. | §5 |
+| **`equals`, `not-equals`, `ref-equals`** | **Retired** *(ruled 2026-09-14)* — the whole string-form family design 17 §8 names together. `ref-equals` compared two references with both-absent-is-equal, the DS3-era rule the strict `eq` rejects; it had no users, no writer arm and no migration emitting it. A string comparison is now written as `eq` with `as: string` on the operands — said, not implied by a spelling — and `equals($x, "")` keeps compiling to `not(exists($x))`. Phase 0 checked the blast radius: `Ds3Migration` never emits `equals`, so the legacy goldens are untouched; twelve native fixtures and four unit tests use it and are rewritten in phase 1. One equality rule, no exceptions. | §5 |
 | **DS3 migration** | Declares **everything on the source**, which is run lifetime. `root.clear()` runs once per parse and never between records, so that is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
 
 ### Nothing open
@@ -1098,6 +1101,63 @@ Nothing declares or uses the new variants yet.
 itself in two encodings. If one moves, E19 is the precedent for ruling it. *Point:* conditions are
 evaluated per record — `apache_httpd` runs 7,152 `and` per operation — so that row is the control
 for the equality path; expect flat.
+
+**Done 2026-09-14, uncommitted pending review.** No golden moved: 1,223 tests across the four
+modules, 0 failures, byte-identical output through both the native and the migrated families.
+
+*What was built.* `TypedValue.Collection`, sealed over `List`, `Map` and `Set`: mutable, ordered,
+canonically keyed, no text form (`asString`/`asBytes` refuse), no numeric reading (absent), a
+collection refused as a key or member, and `List.last()` returning absence rather than skipping.
+Equality made canonical on the variants that were not: `Integer` and `Double` are equal when the
+double is exactly that whole number and hash alike, and `Instant` ignores its carried offset —
+**both were already how `Comparisons.compare` ordered them, so `equals` had disagreed with `<` on
+the same pairs.** `Comparisons.cast` refuses a collection; `DistinctValues` keys on the value;
+`ValueMap` looks up by value. The `equals`/`not-equals`/`ref-equals` reader cases and `stringEquality` are gone — `ref-equals` on
+the owner's ruling once it was found: the third string-form alias, comparing two references with
+both-absent-is-equal, used by nothing, written by nothing.
+
+*The rewrite.* Eighteen JSON resources carried the alias — thirteen fixtures, the E17 original
+`win_sec` resource, three pipeline configs, one xmlbench case — 281 fixture uses and a handful more, rewritten JSON-aware with each file's own indent and
+trailing-newline convention so nothing else in them moved. Two things the rewrite had to know
+that a naive `equals → eq` would have got wrong: an empty literal compiled to `not(exists)` /
+`exists`, and **`not-equals` compiled to `not(eq)`, not `ne`** — they differ on an absent field,
+and `CompareSpineTest` had pinned it. Three alias tests in that class go with the alias; three
+others move to the `eq` spelling.
+
+*Sabotage, each against the engine suite:*
+
+| behaviour | sabotage | failing |
+|---|---|---|
+| `distinct-values` canonical | keyed on string form again | 1 |
+| `value-map` by value | looked up by string form again | 1 |
+| `Integer` equals whole `Double` | cross-kind branch removed | 1 |
+| `Instant` ignores offset | offset compared again | 1 |
+| collection refused as key/member | guard disabled | 1 |
+| cast refuses a collection | guard disabled | 1 (the `NUMBER` cast; a `STRING` cast refuses through `asString` anyway) |
+| `last()` does not skip absence | made to skip | 1 |
+
+*Two things the sabotage corrected.* A guard in `Comparisons.compare` refusing collections was
+redundant — an unknown pair already falls through to null — and is replaced by a comment on the
+fallthrough. And the cast guard matters only for the non-text casts, which would otherwise answer
+*absent* silently; the test now casts to a number.
+
+*Equality tests classes, not interfaces.* On the owner's request the `equals` methods use exact
+class compares rather than `instanceof`. The honest scope: every variant is final, and on a final
+class the two forms are the same klass-word compare — the change can only matter where the test
+was against an *interface*, `Bytes` and `Collection`, which is a secondary-supers lookup. `Bytes`
+equality now writes its two classes out (`isBytes`), and the four rewritten equalities are each
+re-held by a sabotage: `isBytes` accepting one variant, the whole-`Double` branch removed, the
+`Instant` offset compared again, a `List` ignoring a size difference — one test failing each.
+Unmeasured, like the rest of this phase.
+
+*Audited.* The eighteen rewritten JSON files are structurally identical to `HEAD` everywhere
+except at the condition nodes (a path-walking diff, after a first marker-based diff flagged
+`apache_httpd` for an original `not(equals(…))` its marker could not see through); no file had a
+duplicate key for `json.loads` to collapse; no `value-map` entry has an empty `from` for an absent
+selection to have matched; no import in the six edited main files is unused; and
+`CompareSpineTest`'s helpers all still have callers after its three alias tests went.
+
+*Not measured.* The benchmark point waits for a quiet box, as every point in this sequence has.
 
 ### Phase 2 — Declarations, in the model and the compiler
 

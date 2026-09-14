@@ -30,29 +30,21 @@ import java.nio.charset.StandardCharsets;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The engine's notions of "same value" as they stand, pinned before design 35 phase 1 replaces
- * them with one canonical-per-type rule (design 35 §5). Each of these is expected to flip when it
- * does, and the flip should be a deliberate edit of a failing test.
+ * The engine's notions of "same value". Pinned in design 35 phase 0 as they stood, then flipped
+ * deliberately in phase 1 where canonical-per-type (design 35 §5) changed them — the string-form
+ * family — and left as they were where it did not.
  */
 class EqualityCharacterisationTest {
 
-    /** {@code distinct-values} keys on {@code asString()}, so a number and its text are one entry. */
-    @Test
-    void distinctValuesTreatsANumberAndItsTextAsOneEntry() {
-        assertThat(run(distinct(), "1\n1\n")).isEqualTo("1,");
-    }
-
     /**
-     * The legacy {@code equals} compares string forms, whatever the types — documented as such,
-     * and the one condition that does. Ruled retired (design 35 §9): phase 1 replaces it with
-     * {@code eq} on {@code as: string} operands and deletes this test with it.
+     * {@code distinct-values} compares canonically (design 35 §5, phase 1): a number and its text
+     * are two entries. It keyed on {@code asString()} and made them one, until phase 1.
      */
     @Test
-    void equalsAliasComparesStringForms() {
-        assertThat(run(compare("""
-                {"equals": {"select": {"parts": [{"capture": {"var_id": "n", "group": 0}}]},
-                            "value": "7"}}"""), "7\n")).isEqualTo("yes");
+    void distinctValuesTellsANumberFromItsText() {
+        assertThat(run(distinct(), "1\n1\n")).isEqualTo("1,1,");
     }
+
 
     /**
      * The typed {@code eq} already tells a number from its text: a number-cast 7 is <b>not</b>
@@ -66,9 +58,13 @@ class EqualityCharacterisationTest {
                         "right": {"value": "7"}}}"""), "7\n")).isEqualTo("");
     }
 
-    /** {@code value-map} finds an entry by the string form of the value, as it stands. */
+    /**
+     * {@code value-map} looks its entry up by value, canonically (design 35 §5, phase 1): a
+     * number does not find a text entry and falls to the default. It matched by string form,
+     * until phase 1.
+     */
     @Test
-    void valueMapMatchesANumberAgainstATextEntry() {
+    void valueMapDoesNotMatchANumberAgainstATextEntry() {
         final String json = """
                 {
                   "name": "vm", "version": 3,
@@ -86,7 +82,7 @@ class EqualityCharacterisationTest {
                   ]
                 }
                 """;
-        assertThat(run(json, "7\n")).isEqualTo("seven");
+        assertThat(run(json, "7\n")).isEqualTo("none");
     }
 
     /**

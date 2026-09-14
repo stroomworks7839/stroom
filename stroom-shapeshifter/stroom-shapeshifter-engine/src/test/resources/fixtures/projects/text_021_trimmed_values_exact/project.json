@@ -45,22 +45,28 @@
       "when": [
        {
         "test": {
-         "equals": {
-          "select": {
-           "parts": [
-            {
-             "capture": {
-              "var_id": "__written",
-              "group": 0,
-              "match_index": {
-               "index": 0,
-               "is_offset": true
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "capture": {
+               "var_id": "__written",
+               "group": 0,
+               "match_index": {
+                "index": 0,
+                "is_offset": true
+               }
               }
              }
-            }
-           ]
+            ]
+           },
+           "as": "string"
           },
-          "value": "0"
+          "right": {
+           "value": "0",
+           "as": "string"
+          }
          }
         },
         "body": [
@@ -98,22 +104,28 @@
     {
      "if": {
       "test": {
-       "equals": {
-        "select": {
-         "parts": [
-          {
-           "capture": {
-            "var_id": "__before",
-            "group": 0,
-            "match_index": {
-             "index": 0,
-             "is_offset": true
+       "eq": {
+        "left": {
+         "ref": {
+          "parts": [
+           {
+            "capture": {
+             "var_id": "__before",
+             "group": 0,
+             "match_index": {
+              "index": 0,
+              "is_offset": true
+             }
             }
            }
-          }
-         ]
+          ]
+         },
+         "as": "string"
         },
-        "value": "0"
+        "right": {
+         "value": "0",
+         "as": "string"
+        }
        }
       },
       "then": [
@@ -176,7 +188,7 @@
     {
      "if": {
       "test": {
-       "not-equals": {
+       "exists": {
         "select": {
          "parts": [
           {
@@ -190,8 +202,7 @@
            }
           }
          ]
-        },
-        "value": ""
+        }
        }
       },
       "then": [
@@ -262,7 +273,7 @@
     {
      "if": {
       "test": {
-       "not-equals": {
+       "exists": {
         "select": {
          "parts": [
           {
@@ -276,8 +287,7 @@
            }
           }
          ]
-        },
-        "value": ""
+        }
        }
       },
       "then": [

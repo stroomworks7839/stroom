@@ -73,18 +73,24 @@
       "when": [
        {
         "test": {
-         "equals": {
-          "select": {
-           "parts": [
-            {
-             "capture": {
-              "var_id": "__match_count",
-              "group": 0
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "capture": {
+               "var_id": "__match_count",
+               "group": 0
+              }
              }
-            }
-           ]
+            ]
+           },
+           "as": "string"
           },
-          "value": "1"
+          "right": {
+           "value": "1",
+           "as": "string"
+          }
          }
         },
         "body": [

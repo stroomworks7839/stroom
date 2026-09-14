@@ -490,9 +490,11 @@ final class BodyCompiler {
     private CompiledOp.ValueMap valueMap(final OutputNode.ValueMap value) {
         final TypedValue defaultValue = TypedValue.of(
                 value.defaultValue() == null ? "" : value.defaultValue());
-        final Map<String, TypedValue> entries = new HashMap<>();
+        // Keyed by value, so the lookup is canonical equality (design 35 §5): an entry's text is a
+        // byte value, and only a byte value of the same text finds it.
+        final Map<TypedValue, TypedValue> entries = new HashMap<>();
         for (final OutputNode.Entry entry : value.entries()) {
-            entries.putIfAbsent(entry.from(),
+            entries.putIfAbsent(TypedValue.of(entry.from()),
                     entry.to() == null ? defaultValue : TypedValue.of(entry.to()));
         }
         return new CompiledOp.ValueMap(RefCompiler.compile(value.select(), names), Map.copyOf(entries),

@@ -35,11 +35,12 @@ public sealed interface Condition {
      * {@code ge}, XPath 2.0's value-comparison operators (design/17 §8). Same kind compares
      * natively ({@code Int}↔{@code Real} promoting within the numeric kind), a cross-kind
      * comparison is <b>false</b>, and the cast is explicit on the operand — there is no
-     * coercion. The legacy spellings {@code equals}, {@code not-equals}, {@code ref-equals},
-     * {@code greater-than} and {@code less-than} read forever as aliases carrying the casts
-     * their semantics always implied: {@code as: "string"} on both sides for the equality
-     * trio — the engine's counters are already typed, and legacy equality compares string
-     * forms — and {@code as: "number"} on the left for the ordered pair.
+     * coercion. The legacy spellings {@code greater-than} and {@code less-than} read as aliases
+     * carrying the cast their semantics always implied, {@code as: "number"} on the left. The
+     * string-equality trio — {@code equals}, {@code not-equals}, {@code ref-equals} — was
+     * retired by design 35 phase 1: a string comparison is written as {@code eq} with
+     * {@code as: "string"} on both sides, so that the comparison is said rather than implied
+     * by a spelling.
      */
     record Compare(Op op, Operand left, Operand right) implements Condition {
 

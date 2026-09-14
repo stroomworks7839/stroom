@@ -97,10 +97,10 @@ class InternedNamesTest {
                    "captures": [{"name": "%1$s", "select": {"group": 1}}],
                    "body": [
                      {"element": {"name": "row", "body": [
-                        {"if": {"test": {"equals": {
-                            "select": {"parts": [{"capture":
-                                {"var_id": "%1$s", "group": 0}}]},
-                            "value": "match me"}},
+                        {"if": {"test": {"eq": {
+                            "left": {"ref": {"parts": [{"capture":
+                                {"var_id": "%1$s", "group": 0}}]}, "as": "string"},
+                            "right": {"value": "match me", "as": "string"}}},
                           "then": [{"text": "yes"}]}}]}}]}]}
                 """.formatted(name);
     }

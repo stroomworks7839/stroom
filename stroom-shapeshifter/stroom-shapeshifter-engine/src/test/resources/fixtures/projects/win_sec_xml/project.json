@@ -440,19 +440,25 @@
             "when": [
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4624"
+                    "right": {
+                      "value": "4624",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -494,19 +500,25 @@
             "when": [
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4624"
+                    "right": {
+                      "value": "4624",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -555,51 +567,69 @@
                 "test": {
                   "or": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "EventID",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "EventID",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "4672"
+                        "right": {
+                          "value": "4672",
+                          "as": "string"
+                        }
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "EventID",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "EventID",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "4688"
+                        "right": {
+                          "value": "4688",
+                          "as": "string"
+                        }
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "EventID",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "EventID",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "4648"
+                        "right": {
+                          "value": "4648",
+                          "as": "string"
+                        }
                       }
                     }
                   ]
@@ -648,19 +678,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4625"
+                    "right": {
+                      "value": "4625",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": []
@@ -669,35 +705,47 @@
                 "test": {
                   "or": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "EventID",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "EventID",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "4720"
+                        "right": {
+                          "value": "4720",
+                          "as": "string"
+                        }
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "EventID",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "EventID",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "4732"
+                        "right": {
+                          "value": "4732",
+                          "as": "string"
+                        }
                       }
                     }
                   ]
@@ -748,35 +796,47 @@
                 "test": {
                   "or": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "EventID",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "EventID",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "4663"
+                        "right": {
+                          "value": "4663",
+                          "as": "string"
+                        }
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "EventID",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "EventID",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "4656"
+                        "right": {
+                          "value": "4656",
+                          "as": "string"
+                        }
                       }
                     }
                   ]
@@ -825,19 +885,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4634"
+                    "right": {
+                      "value": "4634",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -943,19 +1009,25 @@
             "when": [
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4624"
+                    "right": {
+                      "value": "4624",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -973,19 +1045,25 @@
                       "when": [
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "2"
+                              "right": {
+                                "value": "2",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1002,19 +1080,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "3"
+                              "right": {
+                                "value": "3",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1031,19 +1115,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "4"
+                              "right": {
+                                "value": "4",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1060,19 +1150,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "5"
+                              "right": {
+                                "value": "5",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1089,19 +1185,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "7"
+                              "right": {
+                                "value": "7",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1118,19 +1220,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "10"
+                              "right": {
+                                "value": "10",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1311,19 +1419,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4672"
+                    "right": {
+                      "value": "4672",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1390,19 +1504,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4688"
+                    "right": {
+                      "value": "4688",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1519,19 +1639,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4625"
+                    "right": {
+                      "value": "4625",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1549,19 +1675,25 @@
                       "when": [
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "2"
+                              "right": {
+                                "value": "2",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1578,19 +1710,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "3"
+                              "right": {
+                                "value": "3",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1607,19 +1745,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "4"
+                              "right": {
+                                "value": "4",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1636,19 +1780,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "5"
+                              "right": {
+                                "value": "5",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1665,19 +1815,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "7"
+                              "right": {
+                                "value": "7",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1694,19 +1850,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "LogonType",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "LogonType",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "10"
+                              "right": {
+                                "value": "10",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -1887,19 +2049,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4720"
+                    "right": {
+                      "value": "4720",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -2038,19 +2206,20 @@
                         {
                           "test": {
                             "not": {
-                              "equals": {
-                                "select": {
-                                  "parts": [
-                                    {
-                                      "Store": {
-                                        "var_id": "PasswordLastSet",
-                                        "group": 0,
-                                        "match_index": null
+                              "not": {
+                                "exists": {
+                                  "select": {
+                                    "parts": [
+                                      {
+                                        "Store": {
+                                          "var_id": "PasswordLastSet",
+                                          "group": 0,
+                                          "match_index": null
+                                        }
                                       }
-                                    }
-                                  ]
-                                },
-                                "value": ""
+                                    ]
+                                  }
+                                }
                               }
                             }
                           },
@@ -2122,19 +2291,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4732"
+                    "right": {
+                      "value": "4732",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -2251,19 +2426,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4663"
+                    "right": {
+                      "value": "4663",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -2390,19 +2571,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4656"
+                    "right": {
+                      "value": "4656",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -2529,19 +2716,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4648"
+                    "right": {
+                      "value": "4648",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -2708,19 +2901,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "4634"
+                    "right": {
+                      "value": "4634",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [

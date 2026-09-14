@@ -59,7 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class EveryVariantTest {
 
-    /** A string equality in the new spelling — the shape the legacy "equals" alias maps to. */
+    /** A string equality: {@code eq} with both operands cast to string (design 35 §5 retired the alias). */
     private static Condition eq(final RefExpression select, final String value) {
         return new Condition.Compare(Condition.Compare.Op.EQ,
                 new Condition.Operand(select, null, Cast.STRING),

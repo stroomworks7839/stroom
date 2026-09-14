@@ -139,16 +139,6 @@ class CompareSpineTest {
                 new Condition.Operand(null, new Condition.Literal.Fractional(5.0), null)));
     }
 
-    @Test
-    void legacyEqualsConstructsEqWithStringCastsOnBothSides() {
-        // The phase 1 audit's correction: the engine's counters are already Int, and legacy
-        // equality compares string forms — so the alias casts both sides to string.
-        final Condition condition = readGuard(
-                "{\"equals\": {\"select\": {\"parts\": []}, \"value\": \"3\"}}");
-        assertThat(condition).isEqualTo(new Condition.Compare(Condition.Compare.Op.EQ,
-                new Condition.Operand(readGuardRef(), null, Cast.STRING),
-                new Condition.Operand(null, new Condition.Literal.Text("3"), Cast.STRING)));
-    }
 
     private static stroom.shapeshifter.engine.config.RefExpression readGuardRef() {
         return new stroom.shapeshifter.engine.config.RefExpression(java.util.List.of());
@@ -201,37 +191,8 @@ class CompareSpineTest {
     private static final String MISSING_REF =
             "{\"parts\": [{\"capture\": {\"var_id\": \"missing\", \"group\": 0}}]}";
 
-    @Test
-    void legacyNotEqualsIsTrueOnAnAbsentField() {
-        // Old reading: "" != "x". The plain ne would say false; the alias spells not(eq).
-        final Condition condition = readGuard(
-                "{\"not-equals\": {\"select\": " + MISSING_REF + ", \"value\": \"x\"}}");
-        assertThat(condition).isInstanceOf(Condition.Not.class);
-        assertThat(evaluate(condition)).isTrue();
-    }
 
-    @Test
-    void legacyEqualsWithAnEmptyLiteralIsAnAbsenceTest() {
-        // Old reading: text("") equals "" — true exactly when the field is missing, because
-        // empty is absent. The alias spells it as what it is: not(exists).
-        final Condition condition = readGuard(
-                "{\"equals\": {\"select\": " + MISSING_REF + ", \"value\": \"\"}}");
-        assertThat(condition).isEqualTo(new Condition.Not(new Condition.Exists(
-                new stroom.shapeshifter.engine.config.RefExpression(java.util.List.of(
-                        new stroom.shapeshifter.engine.config.RefExpression.RefPart.Capture(
-                                "missing", 0, null))))));
-        assertThat(evaluate(condition)).isTrue();
-    }
 
-    @Test
-    void legacyRefEqualsIsTrueWhenBothSidesAreAbsent() {
-        // Old reading: "" equals "". The strict eq alone would say false; the both-absent
-        // case rides alongside explicitly.
-        final Condition condition = readGuard(
-                "{\"ref-equals\": {\"left\": " + MISSING_REF + ", \"right\": " + MISSING_REF + "}}");
-        assertThat(condition).isInstanceOf(Condition.Or.class);
-        assertThat(evaluate(condition)).isTrue();
-    }
 
     @Test
     void theNewSpellingsKeepTheStrictRuleOnAbsence() {

@@ -239,18 +239,26 @@
                               {
                                 "if": {
                                   "test": {
-                                    "not-equals": {
-                                      "select": {
-                                        "parts": [
-                                          {
-                                            "capture": {
-                                              "group": 3,
-                                              "var_id": null
-                                            }
-                                          }
-                                        ]
-                                      },
-                                      "value": "-"
+                                    "not": {
+                                      "eq": {
+                                        "left": {
+                                          "ref": {
+                                            "parts": [
+                                              {
+                                                "capture": {
+                                                  "group": 3,
+                                                  "var_id": null
+                                                }
+                                              }
+                                            ]
+                                          },
+                                          "as": "string"
+                                        },
+                                        "right": {
+                                          "value": "-",
+                                          "as": "string"
+                                        }
+                                      }
                                     }
                                   },
                                   "then": [
@@ -330,18 +338,26 @@
                                           {
                                             "if": {
                                               "test": {
-                                                "not-equals": {
-                                                  "select": {
-                                                    "parts": [
-                                                      {
-                                                        "capture": {
-                                                          "group": 10,
-                                                          "var_id": null
-                                                        }
-                                                      }
-                                                    ]
-                                                  },
-                                                  "value": "-"
+                                                "not": {
+                                                  "eq": {
+                                                    "left": {
+                                                      "ref": {
+                                                        "parts": [
+                                                          {
+                                                            "capture": {
+                                                              "group": 10,
+                                                              "var_id": null
+                                                            }
+                                                          }
+                                                        ]
+                                                      },
+                                                      "as": "string"
+                                                    },
+                                                    "right": {
+                                                      "value": "-",
+                                                      "as": "string"
+                                                    }
+                                                  }
                                                 }
                                               },
                                               "then": [
@@ -603,18 +619,26 @@
                           {
                             "if": {
                               "test": {
-                                "not-equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "group": 3,
-                                          "var_id": null
-                                        }
-                                      }
-                                    ]
-                                  },
-                                  "value": "-"
+                                "not": {
+                                  "eq": {
+                                    "left": {
+                                      "ref": {
+                                        "parts": [
+                                          {
+                                            "capture": {
+                                              "group": 3,
+                                              "var_id": null
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "as": "string"
+                                    },
+                                    "right": {
+                                      "value": "-",
+                                      "as": "string"
+                                    }
+                                  }
                                 }
                               },
                               "then": [
@@ -694,18 +718,26 @@
                                       {
                                         "if": {
                                           "test": {
-                                            "not-equals": {
-                                              "select": {
-                                                "parts": [
-                                                  {
-                                                    "capture": {
-                                                      "group": 10,
-                                                      "var_id": null
-                                                    }
-                                                  }
-                                                ]
-                                              },
-                                              "value": "-"
+                                            "not": {
+                                              "eq": {
+                                                "left": {
+                                                  "ref": {
+                                                    "parts": [
+                                                      {
+                                                        "capture": {
+                                                          "group": 10,
+                                                          "var_id": null
+                                                        }
+                                                      }
+                                                    ]
+                                                  },
+                                                  "as": "string"
+                                                },
+                                                "right": {
+                                                  "value": "-",
+                                                  "as": "string"
+                                                }
+                                              }
                                             }
                                           },
                                           "then": [

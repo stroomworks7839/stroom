@@ -244,8 +244,11 @@ final class Body {
                         callTemplate(value, match, matchCount, content, out, inputBase,
                                 ignoreErrors, depth);
                 case final CompiledOp.ValueMap value -> {
-                    final String selected = textOf(value.select(), match, matchCount);
-                    final TypedValue mapped = value.entries().get(selected);
+                    // Looked up by value, canonically (design 35 §5): a number does not find a
+                    // text entry, and an absent selection finds nothing rather than an "" entry.
+                    final TypedValue selected = CompiledRefs.resolveValue(value.select(), match,
+                            matchCount, vars);
+                    final TypedValue mapped = selected == null ? null : value.entries().get(selected);
                     emit(mapped == null ? value.defaultValue() : mapped, value.name(), matchCount,
                             out);
                 }
@@ -796,12 +799,16 @@ final class Body {
         return order == OutputNode.Order.DESCENDING ? -comparison : comparison;
     }
 
-    /** The distinct entries, first appearance kept, compared by string form. */
+    /**
+     * The distinct entries, first appearance kept, compared canonically (design 35 §5): a number
+     * and its text are two entries, the same text in two encodings is one. Until design 35 phase
+     * 4 makes this {@code add} on a declared set, the set here is that rule spelled locally.
+     */
     private void distinct(final CompiledOp.DistinctValues op) {
-        final Set<String> seen = new LinkedHashSet<>();
+        final Set<TypedValue> seen = new LinkedHashSet<>();
         final List<TypedValue> distinct = new ArrayList<>();
         for (final TypedValue value : entries(op.select())) {
-            if (seen.add(value.asString())) {
+            if (seen.add(value)) {
                 distinct.add(value);
             }
         }

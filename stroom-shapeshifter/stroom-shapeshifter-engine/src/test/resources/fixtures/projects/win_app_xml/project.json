@@ -339,35 +339,47 @@
                 "test": {
                   "or": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "EventID",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "EventID",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "1"
+                        "right": {
+                          "value": "1",
+                          "as": "string"
+                        }
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "EventID",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "EventID",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "2"
+                        "right": {
+                          "value": "2",
+                          "as": "string"
+                        }
                       }
                     }
                   ]
@@ -416,19 +428,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "10000"
+                    "right": {
+                      "value": "10000",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -514,19 +532,25 @@
             "when": [
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "1"
+                    "right": {
+                      "value": "1",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -583,19 +607,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "2"
+                    "right": {
+                      "value": "2",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -662,19 +692,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "12291"
+                    "right": {
+                      "value": "12291",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -751,19 +787,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "1000"
+                    "right": {
+                      "value": "1000",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -950,19 +992,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "1001"
+                    "right": {
+                      "value": "1001",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1139,19 +1187,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "1033"
+                    "right": {
+                      "value": "1033",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1278,19 +1332,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "17162"
+                    "right": {
+                      "value": "17162",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1327,19 +1387,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "18456"
+                    "right": {
+                      "value": "18456",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1406,19 +1472,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "18454"
+                    "right": {
+                      "value": "18454",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1485,19 +1557,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "8193"
+                    "right": {
+                      "value": "8193",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1594,19 +1672,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "1003"
+                    "right": {
+                      "value": "1003",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1633,19 +1717,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "1026"
+                    "right": {
+                      "value": "1026",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -1742,19 +1832,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "EventID",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "EventID",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "10000"
+                    "right": {
+                      "value": "10000",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [

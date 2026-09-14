@@ -296,7 +296,7 @@ public sealed interface CompiledOp {
      *                     is the empty value
      */
     record ValueMap(CompiledRef select,
-                    Map<String, TypedValue> entries,
+                    Map<TypedValue, TypedValue> entries,
                     TypedValue defaultValue,
                     VarName name) implements CompiledOp {
 

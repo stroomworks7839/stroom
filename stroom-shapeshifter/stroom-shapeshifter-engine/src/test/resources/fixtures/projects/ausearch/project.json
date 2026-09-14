@@ -117,19 +117,25 @@
             "when": [
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "audit_record_2",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "audit_record_2",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "SYSCALL"
+                    "right": {
+                      "value": "SYSCALL",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -147,19 +153,25 @@
                       "when": [
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "key",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "key",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "user_modification"
+                              "right": {
+                                "value": "user_modification",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -188,35 +200,47 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "Store": {
-                                          "var_id": "key",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "Store": {
+                                            "var_id": "key",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "password_change"
+                                  "right": {
+                                    "value": "password_change",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "Store": {
-                                          "var_id": "key",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "Store": {
+                                            "var_id": "key",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "permission_change"
+                                  "right": {
+                                    "value": "permission_change",
+                                    "as": "string"
+                                  }
                                 }
                               }
                             ]
@@ -245,19 +269,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "key",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "key",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "file_deletion"
+                              "right": {
+                                "value": "file_deletion",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -284,19 +314,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "key",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "key",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "privilege_escalation"
+                              "right": {
+                                "value": "privilege_escalation",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -323,19 +359,25 @@
                         },
                         {
                           "test": {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "Store": {
-                                      "var_id": "key",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "Store": {
+                                        "var_id": "key",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "network_connection"
+                              "right": {
+                                "value": "network_connection",
+                                "as": "string"
+                              }
                             }
                           },
                           "body": [
@@ -390,51 +432,69 @@
                 "test": {
                   "or": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "audit_record_2",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "audit_record_2",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "USER_LOGIN"
+                        "right": {
+                          "value": "USER_LOGIN",
+                          "as": "string"
+                        }
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "audit_record_2",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "audit_record_2",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "USER_START"
+                        "right": {
+                          "value": "USER_START",
+                          "as": "string"
+                        }
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "audit_record_2",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "audit_record_2",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "USER_AUTH"
+                        "right": {
+                          "value": "USER_AUTH",
+                          "as": "string"
+                        }
                       }
                     }
                   ]
@@ -473,19 +533,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "Store": {
-                            "var_id": "audit_record_2",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "Store": {
+                              "var_id": "audit_record_2",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "USER_ACCT"
+                    "right": {
+                      "value": "USER_ACCT",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -514,35 +580,47 @@
                 "test": {
                   "or": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "audit_record_2",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "audit_record_2",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "USER_END"
+                        "right": {
+                          "value": "USER_END",
+                          "as": "string"
+                        }
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "Store": {
-                                "var_id": "audit_record_2",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "Store": {
+                                  "var_id": "audit_record_2",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "USER_LOGOUT"
+                        "right": {
+                          "value": "USER_LOGOUT",
+                          "as": "string"
+                        }
                       }
                     }
                   ]

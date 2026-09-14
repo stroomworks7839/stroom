@@ -24,7 +24,6 @@ import stroom.shapeshifter.engine.config.RefExpression;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
-import java.util.List;
 
 /**
  * The condition family of the wire format: conditions, the six comparisons and their five
@@ -50,33 +49,6 @@ final class ConditionJson {
             case "le" -> readCompare(body, Condition.Compare.Op.LE);
             case "gt" -> readCompare(body, Condition.Compare.Op.GT);
             case "ge" -> readCompare(body, Condition.Compare.Op.GE);
-            case "equals" -> {
-                JsonFields.checkFields(body, "equals", "select", "value");
-                yield stringEquality(Condition.Compare.Op.EQ,
-                        ReferenceJson.readRef(JsonFields.required(body, "select", "equals")),
-                        JsonFields.text(body, "value", "equals"));
-            }
-            case "not-equals" -> {
-                JsonFields.checkFields(body, "not-equals", "select", "value");
-                yield stringEquality(Condition.Compare.Op.NE,
-                        ReferenceJson.readRef(JsonFields.required(body, "select", "not-equals")),
-                        JsonFields.text(body, "value", "not-equals"));
-            }
-            case "ref-equals" -> {
-                JsonFields.checkFields(body, "ref-equals", "left", "right");
-                // Legacy ref-equals read both sides through "absent counts as empty", so two
-                // absent sides were equal. The strict eq says absent never compares — the
-                // both-absent case rides alongside explicitly.
-                final RefExpression left = ReferenceJson.readRef(JsonFields.required(body, "left", "ref-equals"));
-                final RefExpression right = ReferenceJson.readRef(JsonFields.required(body, "right", "ref-equals"));
-                yield new Condition.Or(List.of(
-                        new Condition.Compare(Condition.Compare.Op.EQ,
-                                new Condition.Operand(left, null, Cast.STRING),
-                                new Condition.Operand(right, null, Cast.STRING)),
-                        new Condition.And(List.of(
-                                new Condition.Not(new Condition.Exists(left)),
-                                new Condition.Not(new Condition.Exists(right))))));
-            }
             case "matches" -> {
                 JsonFields.checkFields(body, "matches", "select", "pattern");
                 yield new Condition.Matches(
@@ -164,28 +136,6 @@ final class ConditionJson {
                 readOperand(JsonFields.required(body, "right", "comparison")));
     }
 
-    /**
-     * A legacy equality: string forms compared, whatever the types (design/17 §8) — with the
-     * legacy absent rule preserved exactly. The old evaluator
-     * read an absent side as the empty string, so {@code equals($x, "")} was an absence test
-     * and {@code not-equals($x, "v")} was true on a missing field. The strict {@code eq}
-     * says absent never compares, so the aliases spell those cases out: an empty literal
-     * becomes an {@code exists} test, and {@code not-equals} becomes {@code not(eq(...))},
-     * which is true on absence exactly as the old reading was.
-     */
-    private static Condition stringEquality(final Condition.Compare.Op op,
-                                            final RefExpression select,
-                                            final String value) {
-        if (value.isEmpty()) {
-            // Empty is absent: matching "" is exactly "there is no value".
-            final Condition missing = new Condition.Not(new Condition.Exists(select));
-            return op == Condition.Compare.Op.EQ ? missing : new Condition.Exists(select);
-        }
-        final Condition equal = new Condition.Compare(Condition.Compare.Op.EQ,
-                new Condition.Operand(select, null, Cast.STRING),
-                new Condition.Operand(null, new Condition.Literal.Text(value), Cast.STRING));
-        return op == Condition.Compare.Op.EQ ? equal : new Condition.Not(equal);
-    }
 
     /** A legacy ordering: the numeric parse it always performed, made visible. */
     private static Condition numericOrdering(final Condition.Compare.Op op,

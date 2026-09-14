@@ -406,19 +406,25 @@
           "if": {
             "test": {
               "not": {
-                "equals": {
-                  "select": {
-                    "parts": [
-                      {
-                        "capture": {
-                          "var_id": "user",
-                          "group": 0,
-                          "match_index": null
+                "eq": {
+                  "left": {
+                    "ref": {
+                      "parts": [
+                        {
+                          "capture": {
+                            "var_id": "user",
+                            "group": 0,
+                            "match_index": null
+                          }
                         }
-                      }
-                    ]
+                      ]
+                    },
+                    "as": "string"
                   },
-                  "value": "-"
+                  "right": {
+                    "value": "-",
+                    "as": "string"
+                  }
                 }
               }
             },
@@ -510,19 +516,25 @@
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "status",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "var_id": "status",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "302"
+                        "right": {
+                          "value": "302",
+                          "as": "string"
+                        }
                       }
                     }
                   ]
@@ -1161,19 +1173,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -1240,19 +1258,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -1348,19 +1372,25 @@
                 "test": {
                   "and": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "method",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "var_id": "method",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "POST"
+                        "right": {
+                          "value": "POST",
+                          "as": "string"
+                        }
                       }
                     },
                     {
@@ -1380,19 +1410,25 @@
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "status",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "var_id": "status",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "401"
+                        "right": {
+                          "value": "401",
+                          "as": "string"
+                        }
                       }
                     }
                   ]
@@ -1954,19 +1990,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -2033,19 +2075,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -2141,19 +2189,25 @@
                 "test": {
                   "and": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "method",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "var_id": "method",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "POST"
+                        "right": {
+                          "value": "POST",
+                          "as": "string"
+                        }
                       }
                     },
                     {
@@ -2173,19 +2227,25 @@
                       }
                     },
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "status",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "var_id": "status",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "403"
+                        "right": {
+                          "value": "403",
+                          "as": "string"
+                        }
                       }
                     }
                   ]
@@ -2747,19 +2807,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -2826,19 +2892,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -2934,19 +3006,25 @@
                 "test": {
                   "and": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "status",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "var_id": "status",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "400"
+                        "right": {
+                          "value": "400",
+                          "as": "string"
+                        }
                       }
                     },
                     {
@@ -3678,19 +3756,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -3757,19 +3841,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -4384,19 +4474,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -4463,19 +4559,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -4571,19 +4673,25 @@
                 "test": {
                   "and": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "status",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "var_id": "status",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "404"
+                        "right": {
+                          "value": "404",
+                          "as": "string"
+                        }
                       }
                     },
                     {
@@ -5426,19 +5534,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -5505,19 +5619,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -5611,19 +5731,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "capture": {
-                            "var_id": "status",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": "status",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "500"
+                    "right": {
+                      "value": "500",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -6260,19 +6386,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -6339,19 +6471,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -6445,19 +6583,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "capture": {
-                            "var_id": "status",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": "status",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "503"
+                    "right": {
+                      "value": "503",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -7094,19 +7238,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -7173,19 +7323,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -7279,19 +7435,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "capture": {
-                            "var_id": "status",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": "status",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "403"
+                    "right": {
+                      "value": "403",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -7928,19 +8090,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -8007,19 +8175,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -8115,19 +8289,25 @@
                 "test": {
                   "and": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "method",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "var_id": "method",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "POST"
+                        "right": {
+                          "value": "POST",
+                          "as": "string"
+                        }
                       }
                     },
                     {
@@ -8782,19 +8962,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -8861,19 +9047,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -8969,19 +9161,25 @@
                 "test": {
                   "and": [
                     {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "method",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "var_id": "method",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "POST"
+                        "right": {
+                          "value": "POST",
+                          "as": "string"
+                        }
                       }
                     },
                     {
@@ -9636,19 +9834,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -9715,19 +9919,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -9884,19 +10094,25 @@
                             "when": [
                               {
                                 "test": {
-                                  "equals": {
-                                    "select": {
-                                      "parts": [
-                                        {
-                                          "capture": {
-                                            "var_id": "status",
-                                            "group": 0,
-                                            "match_index": null
+                                  "eq": {
+                                    "left": {
+                                      "ref": {
+                                        "parts": [
+                                          {
+                                            "capture": {
+                                              "var_id": "status",
+                                              "group": 0,
+                                              "match_index": null
+                                            }
                                           }
-                                        }
-                                      ]
+                                        ]
+                                      },
+                                      "as": "string"
                                     },
-                                    "value": "304"
+                                    "right": {
+                                      "value": "304",
+                                      "as": "string"
+                                    }
                                   }
                                 },
                                 "body": [
@@ -10554,19 +10770,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -10633,19 +10855,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -10776,19 +11004,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "capture": {
-                            "var_id": "method",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": "method",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "PUT"
+                    "right": {
+                      "value": "PUT",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -11263,19 +11497,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -11342,19 +11582,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -11448,19 +11694,25 @@
               },
               {
                 "test": {
-                  "equals": {
-                    "select": {
-                      "parts": [
-                        {
-                          "capture": {
-                            "var_id": "method",
-                            "group": 0,
-                            "match_index": null
+                  "eq": {
+                    "left": {
+                      "ref": {
+                        "parts": [
+                          {
+                            "capture": {
+                              "var_id": "method",
+                              "group": 0,
+                              "match_index": null
+                            }
                           }
-                        }
-                      ]
+                        ]
+                      },
+                      "as": "string"
                     },
-                    "value": "DELETE"
+                    "right": {
+                      "value": "DELETE",
+                      "as": "string"
+                    }
                   }
                 },
                 "body": [
@@ -11935,19 +12187,25 @@
                     "if": {
                       "test": {
                         "not": {
-                          "equals": {
-                            "select": {
-                              "parts": [
-                                {
-                                  "capture": {
-                                    "var_id": "referer",
-                                    "group": 0,
-                                    "match_index": null
+                          "eq": {
+                            "left": {
+                              "ref": {
+                                "parts": [
+                                  {
+                                    "capture": {
+                                      "var_id": "referer",
+                                      "group": 0,
+                                      "match_index": null
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              },
+                              "as": "string"
                             },
-                            "value": "-"
+                            "right": {
+                              "value": "-",
+                              "as": "string"
+                            }
                           }
                         }
                       },
@@ -12014,19 +12272,25 @@
                           "test": {
                             "or": [
                               {
-                                "equals": {
-                                  "select": {
-                                    "parts": [
-                                      {
-                                        "capture": {
-                                          "var_id": "referer",
-                                          "group": 0,
-                                          "match_index": null
+                                "eq": {
+                                  "left": {
+                                    "ref": {
+                                      "parts": [
+                                        {
+                                          "capture": {
+                                            "var_id": "referer",
+                                            "group": 0,
+                                            "match_index": null
+                                          }
                                         }
-                                      }
-                                    ]
+                                      ]
+                                    },
+                                    "as": "string"
                                   },
-                                  "value": "-"
+                                  "right": {
+                                    "value": "-",
+                                    "as": "string"
+                                  }
                                 }
                               },
                               {
@@ -12125,19 +12389,25 @@
                   "when": [
                     {
                       "test": {
-                        "equals": {
-                          "select": {
-                            "parts": [
-                              {
-                                "capture": {
-                                  "var_id": "status",
-                                  "group": 0,
-                                  "match_index": null
+                        "eq": {
+                          "left": {
+                            "ref": {
+                              "parts": [
+                                {
+                                  "capture": {
+                                    "var_id": "status",
+                                    "group": 0,
+                                    "match_index": null
+                                  }
                                 }
-                              }
-                            ]
+                              ]
+                            },
+                            "as": "string"
                           },
-                          "value": "304"
+                          "right": {
+                            "value": "304",
+                            "as": "string"
+                          }
                         }
                       },
                       "body": [
@@ -12872,19 +13142,25 @@
                 "if": {
                   "test": {
                     "not": {
-                      "equals": {
-                        "select": {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "referer",
-                                "group": 0,
-                                "match_index": null
+                      "eq": {
+                        "left": {
+                          "ref": {
+                            "parts": [
+                              {
+                                "capture": {
+                                  "var_id": "referer",
+                                  "group": 0,
+                                  "match_index": null
+                                }
                               }
-                            }
-                          ]
+                            ]
+                          },
+                          "as": "string"
                         },
-                        "value": "-"
+                        "right": {
+                          "value": "-",
+                          "as": "string"
+                        }
                       }
                     }
                   },
@@ -12951,19 +13227,25 @@
                       "test": {
                         "or": [
                           {
-                            "equals": {
-                              "select": {
-                                "parts": [
-                                  {
-                                    "capture": {
-                                      "var_id": "referer",
-                                      "group": 0,
-                                      "match_index": null
+                            "eq": {
+                              "left": {
+                                "ref": {
+                                  "parts": [
+                                    {
+                                      "capture": {
+                                        "var_id": "referer",
+                                        "group": 0,
+                                        "match_index": null
+                                      }
                                     }
-                                  }
-                                ]
+                                  ]
+                                },
+                                "as": "string"
                               },
-                              "value": "-"
+                              "right": {
+                                "value": "-",
+                                "as": "string"
+                              }
                             }
                           },
                           {
