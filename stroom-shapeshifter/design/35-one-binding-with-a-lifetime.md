@@ -395,6 +395,47 @@ wanted later, rather than inventing a name.
 
 #### Two places this deliberately diverges
 
+#### Why XSLT is immutable, and why this is not
+
+Worth setting down, because "we diverged from XSLT" reads better with what the divergence costs.
+
+**XSLT's immutability buys the processor freedom, not the author safety.** `xsl:variable` binds a
+name to a value; it does not allocate a cell. The language is declarative and descends from a
+Scheme-based ancestor, and it deliberately leaves evaluation order to the processor. That is what
+pays for:
+
+- **laziness and reordering** — a variable can be evaluated when first read, or never, or hoisted;
+  Saxon leans on this heavily;
+- **streamability** — XSLT 3.0's streaming analysis has to prove a stylesheet processes its input
+  in one downward pass, which mutation would defeat;
+- **parallel evaluation** — a mutable accumulator across a parallel `for-each` is a data race;
+- **referential transparency** — a name means the same thing everywhere in its scope, so a reader
+  and an optimiser can both reason locally.
+
+**The cost lands on exactly the tasks a parser is made of.** Accumulating a list means recursion,
+sequence construction, or `fold-left`; counting means `position()` or a recursive template;
+building a lookup means `xsl:key`, a special form, rather than a map you fill. *How do I increment
+a counter* is a perennial XSLT question with an unsatisfying answer, and that is not an accident —
+it is the trade being paid.
+
+**This engine has already declined every freedom that trade buys.** `Body.body(CompiledOp[] ops)`
+walks its ops in array order: no laziness, no reordering, no parallelism, and a bounded-space
+promise enforced by explicit guards and chunking rather than by a streamability analysis. So
+immutability here would cost the author the same and buy the processor nothing.
+
+**And accumulation is the job, not an edge case.** XSLT transforms a tree that already exists;
+this engine builds structure out of a byte stream, where a CSV heading row, a session grouping and
+a key index are the ordinary shapes. Design 16 hit the wall from the other side and said so —
+`Sequence`'s javadoc reads *"XSLT has no equivalent: it is what makes a value captured in a nested
+level outlive the level"*. The immutable model had no way to express the engine's central act.
+
+**What is actually given up.** Not performance and not clarity of order, but referential
+transparency: a reference to a name no longer means the same thing at two points in a run. That is
+a real loss and it is why §4 spends so much on declarations and scopes — **making lifetime visible
+in the configuration is the compensation for a value that can change.** It is also where the one
+open hazard comes from: §11's live-element counter can drift under aliasing, and an immutable
+collection could not alias.
+
 **XPath's arrays and maps are immutable; these are not.** `array:append` *returns a new array*;
 `map:put` *returns a new map*. Ours mutate in place, which is why they are instructions rather than
 functions (§5) and why `clear` exists at all — XPath needs no `clear` because you rebind instead.
