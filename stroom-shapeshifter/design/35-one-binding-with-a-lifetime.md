@@ -455,16 +455,9 @@ template matching repeatedly accumulates a list **as a side effect of matching**
 read takes the highest populated index. Nothing says "append". That is where §2's three meanings
 for one index come from, and it is why `latest()` is well defined and meaningless.
 
-Operations, all explicit:
-
-| operation | meaning |
-|---|---|
-| `append(list, value)` | add at the end — what a per-column capture does today by accident |
-| `insert(list, index, value)` | add at a position |
-| `remove(list, index)` | drop a position |
-| `get(list, index)` | read a position |
-| `size(list)` | how many |
-| `clear(list)` | empty it |
+The operations are named in *The operation surface* above, which is the one place they are listed.
+The point here is only that accumulation is **said** rather than inferred: `append` is written, and
+a per-column capture no longer grows a list as a side effect of matching.
 
 **Plain assignment to a list is a compile error.** There is no sensible reading of it: replacing a
 whole list is `clear` then `append`, and letting `=` mean either "replace" or "append" is exactly
@@ -487,16 +480,8 @@ invents a *variable name* from the data and needs `Names.keys` to allocate a slo
 writes a **key into a declared variable** and needs nothing dynamic. Design 33 §11 B's last
 data-keyed run-time structure goes with it.
 
-| operation | meaning |
-|---|---|
-| `put(map, key, value)` | bind a key |
-| `get(map, key)` | read a key, absent if unbound |
-| `has(map, key)` | whether a key is bound |
-| `remove(map, key)` | unbind |
-| `size(map)` | how many |
-| `clear(map)` | empty it |
-
-As with the list, plain assignment is a compile error.
+As with the list, the operations are listed once in *The operation surface*, and plain assignment
+is a compile error.
 
 *This also deletes E49's third demonstration outright.* `key=old` beating `key=new` is a dynamic
 name indexed by token position; with `put(kv, key, value)` there is no dynamic name and no
@@ -507,14 +492,6 @@ positional index, so the defect has nowhere to live.
 **Supported** *(ruled 2026-09-13)*. Membership without duplicates, and **insertion-ordered**,
 because a set that reaches output must produce the same bytes every run — determinism is not
 optional in a parser whose goldens are byte-compared.
-
-| operation | meaning |
-|---|---|
-| `add(set, value)` | add if absent; no-op if present |
-| `has(set, value)` | membership |
-| `remove(set, value)` | drop |
-| `size(set)` | how many |
-| `clear(set)` | empty it |
 
 **It subsumes an instruction, which is the point.** `DistinctValues` exists today as one of
 `Binding`'s eleven — it walks a sequence, keeps `LinkedHashSet<String>` of what it has seen, and
@@ -535,8 +512,8 @@ test is that the model gets smaller; this is one of the places it does.
 **Ruled 2026-09-13: neither. Equality is canonical per type, everywhere.** Numbers compare
 numerically; text compares by its decoded string, so the same text in two encodings is one value;
 different types are never equal, so `1` and `"1"` are two. That governs set membership, map keys,
-conditions and `ValueMap` lookup alike — one rule, so `has(set, x)` and a condition's `=` cannot
-disagree about the same pair.
+conditions and `ValueMap` lookup alike — one rule, so `contains(set, x)` and a condition's `=`
+cannot disagree about the same pair.
 
 *What it costs:* every `TypedValue` variant needs its comparison stated, and both existing notions
 change. `DistinctValues` treated `1` and `"1"` as one value and will not; the structural `equals`
