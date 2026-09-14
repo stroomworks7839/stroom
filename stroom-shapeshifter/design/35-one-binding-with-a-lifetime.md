@@ -1019,3 +1019,108 @@ it was reading DS3's source. So:
 - **If restore-on-exit is not where the cost went.** Design 33 bought +26.7 points on
   `apache_httpd` from run-state access. A lifetime model that spends it back has not earned its
   correctness, and §10 names `win_sec_strict` as the row that would say so.
+
+## 12. The plan, in phases
+
+**Six phases, each a commit and a benchmark point, each leaving every golden output byte-identical.**
+The ordering follows three rules that this codebase has paid for learning:
+
+1. **Characterise before rewriting** (design 34 §5, §8). Every path a phase will change gets a test
+   of its *current* behaviour first, and the test is sabotaged to prove it holds. The corpus does
+   not run most of what this design touches — `sequence`, the folds, `Key`, key-value captures,
+   recursive applies — so the goldens alone will not catch a wrong phase.
+2. **The run time changes once.** `Store` going, slots becoming `TypedValue[]`, declaration
+   push/pop and the live-element counter are one coherent unit and land together, so there is one
+   hot-path change to measure rather than four half-states to reason about.
+3. **A fixture is rewritten in the phase that removes what it used**, and the DS3 migration is
+   updated in the phase that changes the shape it emits — never a phase later, because the legacy
+   goldens run through the migration and would move.
+
+### Phase 0 — Tests for what the corpus does not run
+
+*Nothing changes.* Characterisation tests, at configuration level, for every construct a later
+phase rewrites: each of `Binding`'s twelve, `Append`, key-value captures, `Param` binding, all six
+of `Body`'s push sites including a recursive apply, `latest()` skipping a hole, `DistinctValues`'
+string-form equality, and the chunked-root accumulation guard. Each test sabotaged: the construct
+disabled, the test fails.
+
+*Gate:* the count of new tests and their sabotage table, recorded here. *Point:* none — no code
+moves.
+
+### Phase 1 — Collections are values, and equality is canonical
+
+`TypedValue.List`, `TypedValue.Map`, `TypedValue.Set` join the sealed interface. `isEmpty()` is
+"no entries"; `asBytes()` and `asString()` refuse; `Cast` refuses; ordering in a condition refuses.
+Equality becomes **canonical per type** on every variant, and both existing notions change with it:
+`DistinctValues` stops keying on `asString()`, and structural `equals` stops distinguishing
+encodings. `Set` is insertion-ordered. Nothing declares or uses the new variants yet.
+
+*What can move a golden:* the equality change, exactly where `1` met `"1"` or the same text met
+itself in two encodings. If one moves, E19 is the precedent for ruling it. *Point:* conditions are
+evaluated per record — `apache_httpd` runs 7,152 `and` per operation — so that row is the control
+for the equality path; expect flat.
+
+### Phase 2 — Declarations, in the model and the compiler
+
+`Declaration(name, type)` on a template and on the source; the JSON to read and write it.
+`ReferenceCheck` gains three refusals: an undeclared name; a second declaration of a name; an
+operation that disagrees with a declared type. Counters become functions here too — `matchCount()`
+and the rest, resolved to `CompiledRef.Context` as today — because the reservation refusal lives in
+the same class and goes in the same edit, and because it changes the same fixture text.
+
+**The compiler still targets today's run time.** A declaration compiles to a registered slot and
+nothing else, so this phase is compile-time only. *Every native fixture gains declarations* and
+every `__match_count` spelling changes, in one pass, with output byte-identical. The DS3 migration
+emits its declarations on the source.
+
+*Gate:* every fixture passes; a fixture with a declaration removed fails at compile time with a
+message naming the reference. *Point:* the compile rows may rise; every run row must be flat — this
+phase is a control, and a run row moving means something leaked.
+
+### Phase 3 — The run time changes once
+
+The payoff phase, and the one that must be measured rather than reasoned about.
+
+- `VarRegistry.slots` becomes `TypedValue[]`; `undoSaved` with it; `Store` is deleted.
+- Entering a declaring block is `push(declared)`; leaving is `pop`; `recursiveShadow()` goes.
+- **Captures become value sources.** A capture assigns to a declared scalar, or appends to a
+  declared list — appending absence when it does not match (§8). E19's first-match clear in
+  `Level.processMatch` goes, because restore-on-exit replaces it.
+- **Key-value captures put into a declared map.** `Names.keys`, `grow(String)` and the dynamic slot
+  path go; the slot array is fixed from the declarations.
+- The live-element counter replaces `guardSequenceSize`'s flat count.
+- `append` and `put` exist as instructions because captures need them; the rest of the surface
+  waits for phase 4.
+
+*Gate:* every golden byte-identical, including the legacy family through the migration — this is
+where E49's four fixtures would move if the declared lifetime were wrong. Sabotage the restore on
+exit, the absence append, and the counter's decrement. *Point:* **the reference-heavy rows** —
+`apache_httpd`, `log_sessions`, `csv_header`, `ausearch` — for the `Store` indirection going; and
+**`win_sec_strict`** for the push per declaring execution, which is §10's gate. Expect the first
+four up and the last flat; if `win_sec_strict` falls, §11's throughput risk is real and the answer
+is to move declarations, not to bound the mechanism.
+
+### Phase 4 — The operation surface, and design 16 folds in
+
+The rest of §5: `insert`, `put(list, …)`, `remove`, `clear`; `get`, `size`, `contains`, `keys`,
+`values`, `last`, `head`; `sum`, `avg`, `min`, `max` as functions over a reference; `for-each` over
+a map binding two names. Then the removals — `Sequence`, `Append` (the instruction), `DistinctValues`,
+the five folds, `Key`, `KeyGet`, `ValueMap` — and the rewrite of every fixture that used them:
+`log_sessions`, `text_021_trimmed_values_exact`, `text_022_empty_input_exact`, `ausearch`, and
+whichever `Key`/`ValueMap` users phase 0 finds.
+
+*Gate:* the model is smaller — `Binding` is gone or holds only `Transform` and `Variable` as value
+sources — or §11 says this is not the design. *Point:* `log_sessions` is the sequence-and-fold row.
+
+### Phase 5 — Closing
+
+`win_sec` rewritten under the new model, **as the test of §11's existential risk**: if 60 templates
+and 71 variables become materially fewer, the complexity was the fixture's; if not, it is the
+domain's, and that is worth knowing either way. E19 and E28 gain closing addenda. The full point set
+is read together, points 1 to 5 against the floor at phase 0's commit.
+
+### Out of scope, deliberately
+
+Namespaces and libraries (§4 records what they will need); `removeValue` and any remove-by-value
+on a list; the ambiguity tooling design 36 §4 names; `head`/`tail` beyond `head`; and any
+declaration syntax richer than name, type and where it sits.
