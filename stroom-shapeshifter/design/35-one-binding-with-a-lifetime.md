@@ -343,8 +343,32 @@ XPath offers both readings: `map:keys($m)` to walk the keys and look each value 
 better fit** — `ForEach(select, as, …)` gains a second binding, so a map walk has its key and value
 without a lookup per entry. `keys(map)` remains for when only the keys are wanted.
 
-*These names are from XPath 3.1 as recalled, not read from the spec.* They should be checked
-against it before implementation — the shapes are certain, the exact spellings less so.
+#### Verified against Saxon
+
+*Checked 2026-09-14 against Saxon-HE 11.4's function-set classes, which this repository already
+depends on.* Every name above exists: `ArrayAppend`, `ArrayInsertBefore`, `ArrayPut`,
+`ArrayRemove`, `ArrayGet`, `ArraySize`; `MapPut`, `MapGet`, `MapRemove`, `MapContains`, `MapKeys`,
+`MapSize`, `MapForEach`. The `array:` library also has `head`, `tail`, `subarray`, `reverse`,
+`sort`, `filter`, `fold-left`, `fold-right`, `join` and `flatten`, and `map:` has `entry`,
+`entries`, `merge` and `find` — worth knowing as the vocabulary to reach for if any of those are
+wanted later, rather than inventing a name.
+
+#### Two places this deliberately diverges
+
+**XPath's arrays and maps are immutable; these are not.** `array:append` *returns a new array*;
+`map:put` *returns a new map*. Ours mutate in place, which is why they are instructions rather than
+functions (§5) and why `clear` exists at all — XPath needs no `clear` because you rebind instead.
+
+*The divergence is forced by what this engine does.* A parser accumulates: a CSV heading row
+appends once per column, a session groups rows per record. Immutable collections copy on every
+append, so accumulating n values costs O(n²) and the bounded-space promise goes with it. Borrowing
+the names while mutating is the trade, and it is visible at the call site because a mutation is a
+statement and an accessor is an expression.
+
+**`last(list)` is not XPath's.** XPath has `array:head` for the first member and no `last` — it
+would write `array:get($a, array:size($a))`. §8 keeps `last` because the most recent value is the
+commonest read in this engine and spelling it out every time would be worse; `head` should probably
+come with it for symmetry.
 
 ### Design 16 already built this, for one type
 
