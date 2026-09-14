@@ -82,14 +82,14 @@ class ScopeCharacterisationTest {
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
                      "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 1}}]},
-                                                   "mode": "__rec_head", "max_depth": 8}}]},
-                    {"id": "00000000-0000-0000-0000-000000000003", "name": "head", "mode": "__rec_head",
+                                                   "mode": "head", "max_depth": 8}}]},
+                    {"id": "00000000-0000-0000-0000-000000000003", "name": "head", "mode": "head",
                      "declarations": [{"name": "c", "type": "scalar"}],
                      "match": {"regex": {"pattern": "^(.)(.*)$"}},
                      "captures": [{"name": "c", "select": {"group": 1}}],
                      "body": [
                        {"apply-templates": {"select": {"parts": [{"capture": {"group": 2}}]},
-                                            "mode": "__rec_head", "max_depth": 8}},
+                                            "mode": "head", "max_depth": 8}},
                        {"value-of": {"parts": [{"capture": {"var_id": "c", "group": 0}}]}}]}
                   ]
                 }

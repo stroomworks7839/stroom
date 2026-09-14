@@ -133,13 +133,13 @@ class EngineBehaviourTest {
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
                      "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 1}}]},
-                                                   "mode": "__rec_head", "max_depth": %d}},
+                                                   "mode": "head", "max_depth": %d}},
                               {"text": ";"}]},
-                    {"id": "00000000-0000-0000-0000-000000000003", "name": "head", "mode": "__rec_head",
+                    {"id": "00000000-0000-0000-0000-000000000003", "name": "head", "mode": "head",
                      "match": {"regex": {"pattern": "^(.)(.*)$"}},
                      "body": [{"text": "<"}, {"value-of": {"parts": [{"capture": {"group": 1}}]}}, {"text": ">"},
                               {"apply-templates": {"select": {"parts": [{"capture": {"group": 2}}]},
-                                                   "mode": "__rec_head", "max_depth": %d}}]}
+                                                   "mode": "head", "max_depth": %d}}]}
                   ]
                 }
                 """.formatted(maxDepth, maxDepth);

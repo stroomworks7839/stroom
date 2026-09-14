@@ -12,11 +12,11 @@
    "name": "source",
    "declarations": [
     {
-     "name": "__records",
+     "name": "records",
      "type": "list"
     },
     {
-     "name": "__written",
+     "name": "written",
      "type": "scalar"
     }
    ],
@@ -27,7 +27,7 @@
     },
     {
      "clear": {
-      "name": "__records"
+      "name": "records"
      }
     },
     {
@@ -46,12 +46,12 @@
     },
     {
      "put": {
-      "name": "__written",
+      "name": "written",
       "select": {
        "parts": [
         {
          "size": {
-          "of": "__records"
+          "of": "records"
          }
         }
        ]
@@ -69,7 +69,7 @@
             "parts": [
              {
               "capture": {
-               "var_id": "__written",
+               "var_id": "written",
                "group": 0
               }
              }
@@ -105,23 +105,23 @@
    "mode": "lines",
    "declarations": [
     {
-     "name": "__before",
+     "name": "before",
      "type": "scalar"
     },
     {
-     "name": "__ename",
+     "name": "nameText",
      "type": "scalar"
     },
     {
-     "name": "__evalue",
+     "name": "valueText",
      "type": "scalar"
     },
     {
-     "name": "__name",
+     "name": "name",
      "type": "scalar"
     },
     {
-     "name": "__value",
+     "name": "value",
      "type": "scalar"
     }
    ],
@@ -133,12 +133,12 @@
    "body": [
     {
      "put": {
-      "name": "__before",
+      "name": "before",
       "select": {
        "parts": [
         {
          "size": {
-          "of": "__records"
+          "of": "records"
          }
         }
        ]
@@ -154,7 +154,7 @@
           "parts": [
            {
             "capture": {
-             "var_id": "__before",
+             "var_id": "before",
              "group": 0
             }
            }
@@ -177,7 +177,7 @@
     },
     {
      "append": {
-      "name": "__records",
+      "name": "records",
       "select": {
        "parts": [
         {
@@ -203,7 +203,7 @@
         ]
        }
       ],
-      "name": "__name"
+      "name": "name"
      }
     },
     {
@@ -219,7 +219,7 @@
         ]
        }
       ],
-      "name": "__value"
+      "name": "value"
      }
     },
     {
@@ -233,7 +233,7 @@
          "parts": [
           {
            "capture": {
-            "var_id": "__name",
+            "var_id": "name",
             "group": 0
            }
           }
@@ -249,7 +249,7 @@
            "parts": [
             {
              "capture": {
-              "var_id": "__name",
+              "var_id": "name",
               "group": 0
              }
             }
@@ -274,7 +274,7 @@
           "&#xD;",
           "&#x9;"
          ],
-         "name": "__ename"
+         "name": "nameText"
         }
        },
        {
@@ -285,7 +285,7 @@
           },
           {
            "capture": {
-            "var_id": "__ename",
+            "var_id": "nameText",
             "group": 0
            }
           },
@@ -306,7 +306,7 @@
          "parts": [
           {
            "capture": {
-            "var_id": "__value",
+            "var_id": "value",
             "group": 0
            }
           }
@@ -322,7 +322,7 @@
            "parts": [
             {
              "capture": {
-              "var_id": "__value",
+              "var_id": "value",
               "group": 0
              }
             }
@@ -347,7 +347,7 @@
           "&#xD;",
           "&#x9;"
          ],
-         "name": "__evalue"
+         "name": "valueText"
         }
        },
        {
@@ -358,7 +358,7 @@
           },
           {
            "capture": {
-            "var_id": "__evalue",
+            "var_id": "valueText",
             "group": 0
            }
           },

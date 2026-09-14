@@ -40,6 +40,10 @@
           "type": "scalar"
         },
         {
+          "name": "ComputerText",
+          "type": "scalar"
+        },
+        {
           "name": "DisplayName",
           "type": "scalar"
         },
@@ -49,6 +53,10 @@
         },
         {
           "name": "EventID",
+          "type": "scalar"
+        },
+        {
+          "name": "EventIDText",
           "type": "scalar"
         },
         {
@@ -148,6 +156,10 @@
           "type": "scalar"
         },
         {
+          "name": "ProviderNameText",
+          "type": "scalar"
+        },
+        {
           "name": "RestrictedSidCount",
           "type": "scalar"
         },
@@ -236,18 +248,6 @@
           "type": "scalar"
         },
         {
-          "name": "__esc_0",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_1",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_2",
-          "type": "scalar"
-        },
-        {
           "name": "cn_extract",
           "type": "scalar"
         },
@@ -265,6 +265,10 @@
         },
         {
           "name": "timestamp_truncate",
+          "type": "scalar"
+        },
+        {
+          "name": "timestamp_truncateText",
           "type": "scalar"
         },
         {
@@ -587,7 +591,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_0"
+            "name": "timestamp_truncateText"
           }
         },
         {
@@ -621,7 +625,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_1"
+            "name": "ProviderNameText"
           }
         },
         {
@@ -655,7 +659,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_2"
+            "name": "ComputerText"
           }
         },
         {
@@ -665,30 +669,27 @@
                 "text": "\n  <Event>\n    <EventTime>\n      <TimeCreated>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_0",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "timestamp_truncateText",
+                  "group": 0
                 }
               },
               {
                 "text": "Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_1",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "ProviderNameText",
+                  "group": 0
                 }
               },
               {
                 "text": "</Name>\n        <Environment>Windows</Environment>\n      </System>\n      <Generator>wevtutil</Generator>\n      <Device>\n        <HostName>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_2",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "ComputerText",
+                  "group": 0
                 }
               },
               {
@@ -1244,7 +1245,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_0"
+            "name": "EventIDText"
           }
         },
         {
@@ -1254,10 +1255,9 @@
                 "text": "\n    </EventSource>\n    <EventDetail>\n      <TypeId>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_0",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "EventIDText",
+                  "group": 0
                 }
               },
               {

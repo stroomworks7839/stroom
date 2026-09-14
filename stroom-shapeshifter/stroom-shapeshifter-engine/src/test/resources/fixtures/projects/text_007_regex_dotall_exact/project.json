@@ -52,7 +52,7 @@
    "mode": "root",
    "declarations": [
     {
-     "name": "__record_body__",
+     "name": "record_body",
      "type": "list"
     }
    ],
@@ -68,7 +68,7 @@
    "body": [
     {
      "variable": {
-      "name": "__record_body__",
+      "name": "record_body",
       "body": [
        {
         "apply-templates": {
@@ -95,7 +95,7 @@
          "parts": [
           {
            "capture": {
-            "var_id": "__record_body__",
+            "var_id": "record_body",
             "group": 0,
             "match_index": {
              "index": 0,
@@ -122,7 +122,7 @@
          "parts": [
           {
            "capture": {
-            "var_id": "__record_body__",
+            "var_id": "record_body",
             "group": 0,
             "match_index": {
              "index": 0,
@@ -153,51 +153,51 @@
    "mode": "entry_fields",
    "declarations": [
     {
-     "name": "__e_level",
+     "name": "levelText",
      "type": "list"
     },
     {
-     "name": "__e_logger",
+     "name": "loggerText",
      "type": "list"
     },
     {
-     "name": "__e_message",
+     "name": "messageText",
      "type": "list"
     },
     {
-     "name": "__l_level",
+     "name": "levelLength",
      "type": "list"
     },
     {
-     "name": "__l_logger",
+     "name": "loggerLength",
      "type": "list"
     },
     {
-     "name": "__l_message",
+     "name": "messageLength",
      "type": "list"
     },
     {
-     "name": "__s_level",
+     "name": "levelWidth",
      "type": "list"
     },
     {
-     "name": "__s_logger",
+     "name": "loggerWidth",
      "type": "list"
     },
     {
-     "name": "__s_message",
+     "name": "messageWidth",
      "type": "list"
     },
     {
-     "name": "__v_level",
+     "name": "level",
      "type": "list"
     },
     {
-     "name": "__v_logger",
+     "name": "logger",
      "type": "list"
     },
     {
-     "name": "__v_message",
+     "name": "message",
      "type": "list"
     }
    ],
@@ -224,7 +224,7 @@
         ]
        }
       ],
-      "name": "__v_level"
+      "name": "level"
      }
     },
     {
@@ -237,7 +237,7 @@
            "parts": [
             {
              "capture": {
-              "var_id": "__v_level",
+              "var_id": "level",
               "group": 0,
               "match_index": {
                "index": 0,
@@ -257,7 +257,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "__v_level",
+                "var_id": "level",
                 "group": 0,
                 "match_index": {
                  "index": 0,
@@ -286,7 +286,7 @@
             "&#xD;",
             "&#x9;"
            ],
-           "name": "__e_level"
+           "name": "levelText"
           }
          },
          {
@@ -296,7 +296,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "__v_level",
+                "var_id": "level",
                 "group": 0,
                 "match_index": {
                  "index": 0,
@@ -307,7 +307,7 @@
              ]
             }
            ],
-           "name": "__l_level"
+           "name": "levelLength"
           }
          },
          {
@@ -317,7 +317,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "__l_level",
+                "var_id": "levelLength",
                 "group": 0,
                 "match_index": {
                  "index": 0,
@@ -335,7 +335,7 @@
              ]
             }
            ],
-           "name": "__s_level"
+           "name": "levelWidth"
           }
          },
          {
@@ -348,7 +348,7 @@
                 "parts": [
                  {
                   "capture": {
-                   "var_id": "__s_level",
+                   "var_id": "levelWidth",
                    "group": 0,
                    "match_index": {
                     "index": 0,
@@ -370,7 +370,7 @@
                  },
                  {
                   "capture": {
-                   "var_id": "__e_level",
+                   "var_id": "levelText",
                    "group": 0,
                    "match_index": {
                     "index": 0,
@@ -396,7 +396,7 @@
                },
                {
                 "capture": {
-                 "var_id": "__e_level",
+                 "var_id": "levelText",
                  "group": 0,
                  "match_index": {
                   "index": 0,
@@ -436,7 +436,7 @@
         ]
        }
       ],
-      "name": "__v_logger"
+      "name": "logger"
      }
     },
     {
@@ -449,7 +449,7 @@
            "parts": [
             {
              "capture": {
-              "var_id": "__v_logger",
+              "var_id": "logger",
               "group": 0,
               "match_index": {
                "index": 0,
@@ -469,7 +469,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "__v_logger",
+                "var_id": "logger",
                 "group": 0,
                 "match_index": {
                  "index": 0,
@@ -498,7 +498,7 @@
             "&#xD;",
             "&#x9;"
            ],
-           "name": "__e_logger"
+           "name": "loggerText"
           }
          },
          {
@@ -508,7 +508,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "__v_logger",
+                "var_id": "logger",
                 "group": 0,
                 "match_index": {
                  "index": 0,
@@ -519,7 +519,7 @@
              ]
             }
            ],
-           "name": "__l_logger"
+           "name": "loggerLength"
           }
          },
          {
@@ -529,7 +529,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "__l_logger",
+                "var_id": "loggerLength",
                 "group": 0,
                 "match_index": {
                  "index": 0,
@@ -547,7 +547,7 @@
              ]
             }
            ],
-           "name": "__s_logger"
+           "name": "loggerWidth"
           }
          },
          {
@@ -560,7 +560,7 @@
                 "parts": [
                  {
                   "capture": {
-                   "var_id": "__s_logger",
+                   "var_id": "loggerWidth",
                    "group": 0,
                    "match_index": {
                     "index": 0,
@@ -582,7 +582,7 @@
                  },
                  {
                   "capture": {
-                   "var_id": "__e_logger",
+                   "var_id": "loggerText",
                    "group": 0,
                    "match_index": {
                     "index": 0,
@@ -608,7 +608,7 @@
                },
                {
                 "capture": {
-                 "var_id": "__e_logger",
+                 "var_id": "loggerText",
                  "group": 0,
                  "match_index": {
                   "index": 0,
@@ -648,7 +648,7 @@
         ]
        }
       ],
-      "name": "__v_message"
+      "name": "message"
      }
     },
     {
@@ -661,7 +661,7 @@
            "parts": [
             {
              "capture": {
-              "var_id": "__v_message",
+              "var_id": "message",
               "group": 0,
               "match_index": {
                "index": 0,
@@ -681,7 +681,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "__v_message",
+                "var_id": "message",
                 "group": 0,
                 "match_index": {
                  "index": 0,
@@ -710,7 +710,7 @@
             "&#xD;",
             "&#x9;"
            ],
-           "name": "__e_message"
+           "name": "messageText"
           }
          },
          {
@@ -720,7 +720,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "__v_message",
+                "var_id": "message",
                 "group": 0,
                 "match_index": {
                  "index": 0,
@@ -731,7 +731,7 @@
              ]
             }
            ],
-           "name": "__l_message"
+           "name": "messageLength"
           }
          },
          {
@@ -741,7 +741,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "__l_message",
+                "var_id": "messageLength",
                 "group": 0,
                 "match_index": {
                  "index": 0,
@@ -759,7 +759,7 @@
              ]
             }
            ],
-           "name": "__s_message"
+           "name": "messageWidth"
           }
          },
          {
@@ -772,7 +772,7 @@
                 "parts": [
                  {
                   "capture": {
-                   "var_id": "__s_message",
+                   "var_id": "messageWidth",
                    "group": 0,
                    "match_index": {
                     "index": 0,
@@ -794,7 +794,7 @@
                  },
                  {
                   "capture": {
-                   "var_id": "__e_message",
+                   "var_id": "messageText",
                    "group": 0,
                    "match_index": {
                     "index": 0,
@@ -820,7 +820,7 @@
                },
                {
                 "capture": {
-                 "var_id": "__e_message",
+                 "var_id": "messageText",
                  "group": 0,
                  "match_index": {
                   "index": 0,

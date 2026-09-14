@@ -84,6 +84,10 @@
           "type": "scalar"
         },
         {
+          "name": "ComputerNameText",
+          "type": "scalar"
+        },
+        {
           "name": "CreatorProcessID",
           "type": "scalar"
         },
@@ -101,6 +105,10 @@
         },
         {
           "name": "EventCode",
+          "type": "scalar"
+        },
+        {
+          "name": "EventCodeText",
           "type": "scalar"
         },
         {
@@ -264,7 +272,15 @@
           "type": "scalar"
         },
         {
+          "name": "SourceNameText",
+          "type": "scalar"
+        },
+        {
           "name": "SourceNetworkAddress",
+          "type": "scalar"
+        },
+        {
+          "name": "SourceNetworkAddressText",
           "type": "scalar"
         },
         {
@@ -293,38 +309,6 @@
         },
         {
           "name": "WorkstationName",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_0",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_1",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_2",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_3",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_4",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_5",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_6",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_7",
           "type": "scalar"
         },
         {
@@ -360,11 +344,23 @@
           "type": "scalar"
         },
         {
+          "name": "event_time_1Text",
+          "type": "scalar"
+        },
+        {
           "name": "event_time_2",
           "type": "scalar"
         },
         {
+          "name": "event_time_2Text",
+          "type": "scalar"
+        },
+        {
           "name": "event_time_3",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_3Text",
           "type": "scalar"
         },
         {
@@ -376,7 +372,15 @@
           "type": "scalar"
         },
         {
+          "name": "event_time_5Text",
+          "type": "scalar"
+        },
+        {
           "name": "event_time_6",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_6Text",
           "type": "scalar"
         },
         {
@@ -389,6 +393,10 @@
         },
         {
           "name": "hour24",
+          "type": "scalar"
+        },
+        {
+          "name": "hour24Text",
           "type": "scalar"
         }
       ],
@@ -1631,7 +1639,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_0"
+            "name": "event_time_3Text"
           }
         },
         {
@@ -1665,7 +1673,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_1"
+            "name": "event_time_1Text"
           }
         },
         {
@@ -1699,7 +1707,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_2"
+            "name": "event_time_2Text"
           }
         },
         {
@@ -1733,7 +1741,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_3"
+            "name": "hour24Text"
           }
         },
         {
@@ -1767,7 +1775,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_4"
+            "name": "event_time_5Text"
           }
         },
         {
@@ -1801,7 +1809,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_5"
+            "name": "event_time_6Text"
           }
         },
         {
@@ -1835,7 +1843,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_6"
+            "name": "SourceNameText"
           }
         },
         {
@@ -1869,7 +1877,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_7"
+            "name": "ComputerNameText"
           }
         },
         {
@@ -1879,80 +1887,72 @@
                 "text": "\n  <Event>\n    <EventTime>\n      <TimeCreated>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_0",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "event_time_3Text",
+                  "group": 0
                 }
               },
               {
                 "text": "-"
               },
               {
-                "Store": {
-                  "var_id": "__esc_1",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "event_time_1Text",
+                  "group": 0
                 }
               },
               {
                 "text": "-"
               },
               {
-                "Store": {
-                  "var_id": "__esc_2",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "event_time_2Text",
+                  "group": 0
                 }
               },
               {
                 "text": "T"
               },
               {
-                "Store": {
-                  "var_id": "__esc_3",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "hour24Text",
+                  "group": 0
                 }
               },
               {
                 "text": ":"
               },
               {
-                "Store": {
-                  "var_id": "__esc_4",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "event_time_5Text",
+                  "group": 0
                 }
               },
               {
                 "text": ":"
               },
               {
-                "Store": {
-                  "var_id": "__esc_5",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "event_time_6Text",
+                  "group": 0
                 }
               },
               {
                 "text": ".000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_6",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "SourceNameText",
+                  "group": 0
                 }
               },
               {
                 "text": "</Name>\n        <Environment>Windows</Environment>\n      </System>\n      <Generator>Windows Security Event Log</Generator>\n      <Device>\n        <HostName>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_7",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "ComputerNameText",
+                  "group": 0
                 }
               },
               {
@@ -2019,7 +2019,7 @@
                         "&#xA;",
                         "&#xD;"
                       ],
-                      "name": "__esc_0"
+                      "name": "SourceNetworkAddressText"
                     }
                   },
                   {
@@ -2029,10 +2029,9 @@
                           "text": "\n        <IPAddress>"
                         },
                         {
-                          "Store": {
-                            "var_id": "__esc_0",
-                            "group": 0,
-                            "match_index": null
+                          "capture": {
+                            "var_id": "SourceNetworkAddressText",
+                            "group": 0
                           }
                         },
                         {
@@ -2495,7 +2494,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_0"
+            "name": "EventCodeText"
           }
         },
         {
@@ -2505,10 +2504,9 @@
                 "text": "\n    </EventSource>\n    <EventDetail>\n      <TypeId>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_0",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "EventCodeText",
+                  "group": 0
                 }
               },
               {

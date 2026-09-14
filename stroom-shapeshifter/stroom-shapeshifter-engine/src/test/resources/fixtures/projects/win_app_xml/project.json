@@ -16,6 +16,10 @@
           "type": "scalar"
         },
         {
+          "name": "ComputerText",
+          "type": "scalar"
+        },
+        {
           "name": "DataField_1",
           "type": "scalar"
         },
@@ -88,6 +92,10 @@
           "type": "scalar"
         },
         {
+          "name": "EventIDText",
+          "type": "scalar"
+        },
+        {
           "name": "EventRecordID",
           "type": "scalar"
         },
@@ -105,6 +113,10 @@
         },
         {
           "name": "ProviderName",
+          "type": "scalar"
+        },
+        {
+          "name": "ProviderNameText",
           "type": "scalar"
         },
         {
@@ -129,18 +141,6 @@
         },
         {
           "name": "UTCStartTime",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_0",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_1",
-          "type": "scalar"
-        },
-        {
-          "name": "__esc_2",
           "type": "scalar"
         },
         {
@@ -181,6 +181,10 @@
         },
         {
           "name": "timestamp_truncate",
+          "type": "scalar"
+        },
+        {
+          "name": "timestamp_truncateText",
           "type": "scalar"
         }
       ],
@@ -396,7 +400,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_0"
+            "name": "timestamp_truncateText"
           }
         },
         {
@@ -430,7 +434,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_1"
+            "name": "ProviderNameText"
           }
         },
         {
@@ -464,7 +468,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_2"
+            "name": "ComputerText"
           }
         },
         {
@@ -474,30 +478,27 @@
                 "text": "\n  <Event>\n    <EventTime>\n      <TimeCreated>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_0",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "timestamp_truncateText",
+                  "group": 0
                 }
               },
               {
                 "text": "Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_1",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "ProviderNameText",
+                  "group": 0
                 }
               },
               {
                 "text": "</Name>\n        <Environment>Windows</Environment>\n      </System>\n      <Generator>wevtutil</Generator>\n      <Device>\n        <HostName>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_2",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "ComputerText",
+                  "group": 0
                 }
               },
               {
@@ -679,7 +680,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_0"
+            "name": "EventIDText"
           }
         },
         {
@@ -689,10 +690,9 @@
                 "text": "\n    </EventSource>\n    <EventDetail>\n      <TypeId>"
               },
               {
-                "Store": {
-                  "var_id": "__esc_0",
-                  "group": 0,
-                  "match_index": null
+                "capture": {
+                  "var_id": "EventIDText",
+                  "group": 0
                 }
               },
               {
@@ -2200,7 +2200,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "7bf85a90-bc0f-42cf-ab27-87a776e75b06",
@@ -2237,7 +2238,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "f6cf8456-e1cd-480c-a16d-783959b1cba1",
@@ -2274,7 +2276,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "b4e326c1-96c9-477d-a9bd-87d5fe992e56",
@@ -2311,7 +2314,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "56e3eb04-fa33-4eaf-b30e-6eed18e9bd3e",
@@ -2348,7 +2352,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "c154e937-3dbc-4e6e-ba80-11c132311b22",
@@ -2385,7 +2390,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "c1786d4e-2529-46a4-8cf0-4a8d908e9176",
@@ -2422,7 +2428,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "48044a30-4d16-4d33-8096-3e02862815ea",
@@ -2459,7 +2466,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "941e8896-0a84-4145-a9cf-7a1e8cd0fa4c",
@@ -2496,7 +2504,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "33b759ef-f61a-4d01-9e89-7a53b0955274",
@@ -2533,7 +2542,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "5b99c8c7-8f20-4d76-8420-08b7cc26568e",
@@ -2570,7 +2580,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "38cd22e8-87aa-419c-a07f-22d0b3f89ab5",
@@ -2607,7 +2618,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "b49f7c4f-fec9-49f5-9626-205de94b4317",
@@ -2644,7 +2656,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "5274f851-6440-43ae-9109-dfda4eabcc6f",
@@ -2681,7 +2694,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "f87658e1-a934-46cf-8e5a-5b819a2c7d25",
@@ -2718,7 +2732,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "1dad3594-97b4-471e-8f05-5287ce6f3682",
@@ -2755,7 +2770,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "8c88ae90-6c2c-4889-a812-649e1f51fc86",
@@ -2792,7 +2808,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "fe67f7c3-0393-4120-ae8f-f67798e2f0bd",
@@ -2829,7 +2846,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "fbf434e7-3c26-4911-83c2-a672b79782a7",
@@ -2866,7 +2884,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "9e0efb4b-a9f8-41a2-b137-eb953517eca8",
@@ -2903,7 +2922,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "406dfc0b-1a86-4091-bc0f-03776c0ee749",
@@ -2940,7 +2960,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "ec0af432-f022-448a-9141-2daff01e3401",
@@ -2977,7 +2998,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "b2a2b597-146c-48e6-93a6-a1de16cbefdf",
@@ -3014,7 +3036,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "a29ab697-0cd3-4f84-ab15-f185a7e5001c",
@@ -3051,7 +3074,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "3c82cd72-3dab-4f4a-a238-8c0621592b46",
@@ -3088,7 +3112,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "28213771-4c04-4781-9bf9-edf8f8769ba0",
@@ -3125,7 +3150,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "df368f7c-47e8-409e-b243-d62bc6ce61f9",
@@ -3162,7 +3188,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "d613291e-edfa-456b-bdfa-ee5548d2d6b5",
@@ -3199,7 +3226,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "3b81ae62-a650-4974-afc0-18c1ef3d49a8",
@@ -3236,7 +3264,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "3ac1d99b-3ba0-42f9-92ac-9fd1d36843c1",
@@ -3273,7 +3302,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "4a1171c4-71f5-4f72-8c73-ebbf4aaa705d",
@@ -3310,7 +3340,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "6a29a852-d9a7-47e6-a4e0-26b5aa54a704",
@@ -3363,7 +3394,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "5d6cf3b2-22d2-4ebd-b6c9-c552dc247ff9",
@@ -3400,7 +3432,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "8e12c03a-d0b3-42fc-a473-4e9e2c95430c",
@@ -3437,7 +3470,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "f9f9700a-1c56-4975-99bb-29cafe344d6a",
@@ -3474,7 +3508,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "96edebee-d2f7-4d7e-919b-7443376d05fe",
@@ -3511,7 +3546,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "4c8c6cf9-185c-4cc8-bc7d-33d8a0abe3e3",
@@ -3548,7 +3584,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     },
     {
       "id": "e3ea47ce-2109-40b1-9df9-48c2f42d3f82",
@@ -3585,7 +3622,8 @@
             }
           }
         }
-      ]
+      ],
+      "body": []
     }
   ]
 }

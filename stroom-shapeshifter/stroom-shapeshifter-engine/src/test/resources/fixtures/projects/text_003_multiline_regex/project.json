@@ -52,7 +52,7 @@
       "mode": "root",
       "declarations": [
         {
-          "name": "__record_body__",
+          "name": "record_body",
           "type": "list"
         }
       ],
@@ -64,7 +64,7 @@
       "body": [
         {
           "variable": {
-            "name": "__record_body__",
+            "name": "record_body",
             "body": [
               {
                 "apply-templates": {
@@ -91,7 +91,7 @@
                   "parts": [
                     {
                       "capture": {
-                        "var_id": "__record_body__",
+                        "var_id": "record_body",
                         "group": 0,
                         "match_index": {
                           "index": 0,
@@ -118,7 +118,7 @@
                   "parts": [
                     {
                       "capture": {
-                        "var_id": "__record_body__",
+                        "var_id": "record_body",
                         "group": 0,
                         "match_index": {
                           "index": 0,
@@ -175,16 +175,16 @@
       "mode": "line_parsers",
       "declarations": [
         {
-          "name": "__data_type_body__",
+          "name": "data_type_body",
           "type": "list"
         },
         {
-          "name": "__esc_node",
-          "type": "list"
+          "name": "nodeText",
+          "type": "scalar"
         },
         {
-          "name": "__esc_type",
-          "type": "list"
+          "name": "typeText",
+          "type": "scalar"
         }
       ],
       "match": {
@@ -222,7 +222,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_type"
+            "name": "typeText"
           }
         },
         {
@@ -254,12 +254,12 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_node"
+            "name": "nodeText"
           }
         },
         {
           "variable": {
-            "name": "__data_type_body__",
+            "name": "data_type_body",
             "body": [
               {
                 "value-of": {
@@ -269,12 +269,8 @@
                     },
                     {
                       "capture": {
-                        "var_id": "__esc_type",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "var_id": "typeText",
+                        "group": 0
                       }
                     },
                     {
@@ -291,12 +287,8 @@
                     },
                     {
                       "capture": {
-                        "var_id": "__esc_node",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "var_id": "nodeText",
+                        "group": 0
                       }
                     },
                     {
@@ -344,7 +336,7 @@
                   "parts": [
                     {
                       "capture": {
-                        "var_id": "__data_type_body__",
+                        "var_id": "data_type_body",
                         "group": 0,
                         "match_index": {
                           "index": 0,
@@ -365,12 +357,8 @@
                     },
                     {
                       "capture": {
-                        "var_id": "__esc_type",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "var_id": "typeText",
+                        "group": 0
                       }
                     },
                     {
@@ -384,7 +372,7 @@
                   "parts": [
                     {
                       "capture": {
-                        "var_id": "__data_type_body__",
+                        "var_id": "data_type_body",
                         "group": 0,
                         "match_index": {
                           "index": 0,
@@ -416,7 +404,7 @@
                     "parts": [
                       {
                         "capture": {
-                          "var_id": "__data_type_body__",
+                          "var_id": "data_type_body",
                           "group": 0,
                           "match_index": {
                             "index": 0,
@@ -438,12 +426,8 @@
                     },
                     {
                       "capture": {
-                        "var_id": "__esc_type",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "var_id": "typeText",
+                        "group": 0
                       }
                     },
                     {
@@ -474,12 +458,12 @@
       "mode": "event_fields",
       "declarations": [
         {
-          "name": "__esc_eid",
-          "type": "list"
+          "name": "eidText",
+          "type": "scalar"
         },
         {
-          "name": "__esc_etime",
-          "type": "list"
+          "name": "etimeText",
+          "type": "scalar"
         }
       ],
       "match": {
@@ -517,7 +501,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_etime"
+            "name": "etimeText"
           }
         },
         {
@@ -549,7 +533,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_eid"
+            "name": "eidText"
           }
         },
         {
@@ -560,12 +544,8 @@
               },
               {
                 "capture": {
-                  "var_id": "__esc_etime",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
+                  "var_id": "etimeText",
+                  "group": 0
                 }
               },
               {
@@ -582,12 +562,8 @@
               },
               {
                 "capture": {
-                  "var_id": "__esc_eid",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
+                  "var_id": "eidText",
+                  "group": 0
                 }
               },
               {
@@ -605,16 +581,16 @@
       "ignore_errors": true,
       "declarations": [
         {
-          "name": "__esc_a0",
-          "type": "list"
+          "name": "a0Text",
+          "type": "scalar"
         },
         {
-          "name": "__esc_a1",
-          "type": "list"
+          "name": "a1Text",
+          "type": "scalar"
         },
         {
-          "name": "__esc_argc",
-          "type": "list"
+          "name": "argcText",
+          "type": "scalar"
         }
       ],
       "match": {
@@ -652,7 +628,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_argc"
+            "name": "argcText"
           }
         },
         {
@@ -684,7 +660,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_a0"
+            "name": "a0Text"
           }
         },
         {
@@ -716,7 +692,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_a1"
+            "name": "a1Text"
           }
         },
         {
@@ -727,12 +703,8 @@
               },
               {
                 "capture": {
-                  "var_id": "__esc_argc",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
+                  "var_id": "argcText",
+                  "group": 0
                 }
               },
               {
@@ -749,12 +721,8 @@
               },
               {
                 "capture": {
-                  "var_id": "__esc_a0",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
+                  "var_id": "a0Text",
+                  "group": 0
                 }
               },
               {
@@ -771,12 +739,8 @@
               },
               {
                 "capture": {
-                  "var_id": "__esc_a1",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
+                  "var_id": "a1Text",
+                  "group": 0
                 }
               },
               {
@@ -794,12 +758,12 @@
       "ignore_errors": true,
       "declarations": [
         {
-          "name": "__esc_kv_name",
-          "type": "list"
+          "name": "kv_nameText",
+          "type": "scalar"
         },
         {
-          "name": "__esc_kv_val",
-          "type": "list"
+          "name": "kv_valText",
+          "type": "scalar"
         }
       ],
       "match": {
@@ -837,7 +801,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_kv_name"
+            "name": "kv_nameText"
           }
         },
         {
@@ -869,7 +833,7 @@
               "&#xA;",
               "&#xD;"
             ],
-            "name": "__esc_kv_val"
+            "name": "kv_valText"
           }
         },
         {
@@ -880,12 +844,8 @@
               },
               {
                 "capture": {
-                  "var_id": "__esc_kv_name",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
+                  "var_id": "kv_nameText",
+                  "group": 0
                 }
               },
               {
@@ -893,12 +853,8 @@
               },
               {
                 "capture": {
-                  "var_id": "__esc_kv_val",
-                  "group": 0,
-                  "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                  }
+                  "var_id": "kv_valText",
+                  "group": 0
                 }
               },
               {

@@ -807,16 +807,6 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
                           boolean ignoreErrors,
                           Dispatch dispatch) {
 
-        /** The prefix that marks a mode as the recursive form, minted once here. */
-        private static final String RECURSIVE_PREFIX = "__rec_";
-
-        /**
-         * Whether this is the recursive form, which runs in its own scope: a directive whose
-         * mode is spelt with the recursive prefix (design/16 §1).
-         */
-        public boolean recursive() {
-            return mode != null && mode.startsWith(RECURSIVE_PREFIX);
-        }
 
         /** How deep recursion goes before the engine calls it a runaway. */
         public static final int DEFAULT_MAX_DEPTH = 64;

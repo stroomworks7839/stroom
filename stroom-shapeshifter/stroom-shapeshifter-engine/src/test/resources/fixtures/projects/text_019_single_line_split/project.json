@@ -108,7 +108,7 @@
       "mode": "root",
       "declarations": [
         {
-          "name": "__record_body__",
+          "name": "record_body",
           "type": "list"
         }
       ],
@@ -120,7 +120,7 @@
       "body": [
         {
           "variable": {
-            "name": "__record_body__",
+            "name": "record_body",
             "body": [
               {
                 "apply-templates": {
@@ -147,7 +147,7 @@
                   "parts": [
                     {
                       "capture": {
-                        "var_id": "__record_body__",
+                        "var_id": "record_body",
                         "group": 0,
                         "match_index": {
                           "index": 0,
@@ -174,7 +174,7 @@
                   "parts": [
                     {
                       "capture": {
-                        "var_id": "__record_body__",
+                        "var_id": "record_body",
                         "group": 0,
                         "match_index": {
                           "index": 0,

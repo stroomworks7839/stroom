@@ -77,7 +77,7 @@ public final class Ds3Migration {
     private static final String RECORDS_VERSION = "2.0";
 
     /** The mode the envelope dispatches to, and therefore the one root expressions carry. */
-    private static final String ROOT_MODE = "__root";
+    private static final String ROOT_MODE = "root";
 
     private final List<Template> templates = new ArrayList<>();
     private int modeCounter;
@@ -575,7 +575,7 @@ public final class Ds3Migration {
     }
 
     private String nextMode() {
-        return "__auto_" + modeCounter++;
+        return "auto_" + modeCounter++;
     }
 
     private static MatchExpression matchExpression(final Ds3Config node) {

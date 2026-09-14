@@ -1,476 +1,641 @@
 {
-  "name" : "009_multiline_regex_2",
-  "version" : 3,
-  "source" : {
-    "buffer_size" : 20000,
-    "ignore_errors" : false,
-    "encoding" : "auto"
+ "name": "009_multiline_regex_2",
+ "version": 3,
+ "source": {
+  "buffer_size": 20000,
+  "ignore_errors": false,
+  "encoding": "auto"
+ },
+ "templates": [
+  {
+   "id": "a3df0c0b-0ad1-33c9-ac55-0770a7f096ac",
+   "name": "envelope",
+   "match": "source",
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "body": [
+    {
+     "text": "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n"
+    },
+    {
+     "element": {
+      "name": "records",
+      "body": [
+       {
+        "namespace": {
+         "prefix": "",
+         "uri": "records:2"
+        }
+       },
+       {
+        "namespace": {
+         "prefix": "xsi",
+         "uri": "http://www.w3.org/2001/XMLSchema-instance"
+        }
+       },
+       {
+        "attribute": {
+         "name": "xsi:schemaLocation",
+         "body": [
+          {
+           "text": "records:2 file://records-v2.0.xsd"
+          }
+         ]
+        }
+       },
+       {
+        "attribute": {
+         "name": "version",
+         "body": [
+          {
+           "text": "2.0"
+          }
+         ]
+        }
+       },
+       {
+        "apply-templates": {
+         "select": {
+          "parts": [
+           {
+            "capture": {
+             "group": 0
+            }
+           }
+          ]
+         },
+         "mode": "root",
+         "max_depth": 64
+        }
+       }
+      ]
+     }
+    }
+   ]
   },
-  "templates" : [ {
-    "id" : "a3df0c0b-0ad1-33c9-ac55-0770a7f096ac",
-    "name" : "envelope",
-    "match" : "source",
-    "match_limits" : {
-      "min_match" : 0,
-      "max_match" : -1
-    },
-    "body" : [ {
-      "text" : "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n"
-    }, {
-      "element" : {
-        "name" : "records",
-        "body" : [ {
-          "namespace" : {
-            "prefix" : "",
-            "uri" : "records:2"
+  {
+   "id": "02edd755-4e30-387c-8d6a-a9c91d61dadd",
+   "name": "unnamed",
+   "mode": "auto_0",
+   "match": {
+    "regex": {
+     "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "body": [
+    {
+     "element": {
+      "name": "data",
+      "body": [
+       {
+        "attribute": {
+         "name": "name",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "text": "date"
+               }
+              ]
+             }
+            ]
+           }
           }
-        }, {
-          "namespace" : {
-            "prefix" : "xsi",
-            "uri" : "http://www.w3.org/2001/XMLSchema-instance"
-          }
-        }, {
-          "attribute" : {
-            "name" : "xsi:schemaLocation",
-            "body" : [ {
-              "text" : "records:2 file://records-v2.0.xsd"
-            } ]
-          }
-        }, {
-          "attribute" : {
-            "name" : "version",
-            "body" : [ {
-              "text" : "2.0"
-            } ]
-          }
-        }, {
-          "apply-templates" : {
-            "select" : {
-              "parts" : [ {
-                "capture" : {
-                  "group" : 0
+         ]
+        }
+       },
+       {
+        "attribute": {
+         "name": "value",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "group": 1
                 }
-              } ]
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "element": {
+      "name": "data",
+      "body": [
+       {
+        "attribute": {
+         "name": "name",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "text": "time"
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       },
+       {
+        "attribute": {
+         "name": "value",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "group": 2
+                }
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "element": {
+      "name": "data",
+      "body": [
+       {
+        "attribute": {
+         "name": "name",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "group": 3
+                }
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       },
+       {
+        "attribute": {
+         "name": "value",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "group": 4
+                }
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "dfedb74a-2832-3519-bab3-50c34d993dd3",
+   "name": "unnamed",
+   "mode": "auto_0",
+   "match": {
+    "regex": {
+     "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "body": [
+    {
+     "element": {
+      "name": "data",
+      "body": [
+       {
+        "attribute": {
+         "name": "name",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "group": 3
+                }
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       },
+       {
+        "attribute": {
+         "name": "value",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "group": 4
+                }
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "d278fb7f-4768-3236-b553-79d5fa7889bb",
+   "name": "unnamed",
+   "mode": "auto_1",
+   "match": {
+    "regex": {
+     "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*):+",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "body": [
+    {
+     "element": {
+      "name": "data",
+      "body": [
+       {
+        "attribute": {
+         "name": "name",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "text": "date"
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       },
+       {
+        "attribute": {
+         "name": "value",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "group": 1
+                }
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "element": {
+      "name": "data",
+      "body": [
+       {
+        "attribute": {
+         "name": "name",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "text": "time"
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       },
+       {
+        "attribute": {
+         "name": "value",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "group": 2
+                }
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "0fb6ed65-c774-30a1-8491-53654f2ab0e9",
+   "name": "unnamed",
+   "mode": "auto_1",
+   "match": {
+    "regex": {
+     "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "body": [
+    {
+     "element": {
+      "name": "data",
+      "body": [
+       {
+        "attribute": {
+         "name": "name",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "group": 3
+                }
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       },
+       {
+        "attribute": {
+         "name": "value",
+         "omit-if-empty": true,
+         "body": [
+          {
+           "trim": {
+            "select": [
+             {
+              "parts": [
+               {
+                "capture": {
+                 "group": 4
+                }
+               }
+              ]
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "add425a4-7dd5-34a2-9dd6-ad0d376192db",
+   "name": "unnamed",
+   "mode": "root",
+   "match": {
+    "regex": {
+     "pattern": "((?>\\n*|^)(?>.*\\n)+?)\\n((?>\\n*|^)(?>.*\\n)+?(?>\\n|$))",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "body": [
+    {
+     "element": {
+      "name": "record",
+      "omit-if-empty": true,
+      "body": [
+       {
+        "element": {
+         "name": "data",
+         "body": [
+          {
+           "attribute": {
+            "name": "name",
+            "omit-if-empty": true,
+            "body": [
+             {
+              "trim": {
+               "select": [
+                {
+                 "parts": [
+                  {
+                   "text": "query"
+                  }
+                 ]
+                }
+               ]
+              }
+             }
+            ]
+           }
+          },
+          {
+           "apply-templates": {
+            "select": {
+             "parts": [
+              {
+               "capture": {
+                "group": 1
+               }
+              }
+             ]
             },
-            "mode" : "__root",
-            "max_depth" : 64
+            "mode": "auto_0",
+            "max_depth": 64
+           }
           }
-        } ]
-      }
-    } ]
-  }, {
-    "id" : "02edd755-4e30-387c-8d6a-a9c91d61dadd",
-    "name" : "unnamed",
-    "mode" : "__auto_0",
-    "match" : {
-      "regex" : {
-        "pattern" : "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)",
-        "flags" : {
-          "case_insensitive" : false,
-          "dot_all" : false
-        },
-        "advance" : 0
-      }
-    },
-    "match_limits" : {
-      "min_match" : 0,
-      "max_match" : 1
-    },
-    "body" : [ {
-      "element" : {
-        "name" : "data",
-        "body" : [ {
-          "attribute" : {
-            "name" : "name",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "text" : "date"
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        }, {
-          "attribute" : {
-            "name" : "value",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 1
-                    }
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        } ]
-      }
-    }, {
-      "element" : {
-        "name" : "data",
-        "body" : [ {
-          "attribute" : {
-            "name" : "name",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "text" : "time"
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        }, {
-          "attribute" : {
-            "name" : "value",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 2
-                    }
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        } ]
-      }
-    }, {
-      "element" : {
-        "name" : "data",
-        "body" : [ {
-          "attribute" : {
-            "name" : "name",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 3
-                    }
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        }, {
-          "attribute" : {
-            "name" : "value",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 4
-                    }
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        } ]
-      }
-    } ]
-  }, {
-    "id" : "dfedb74a-2832-3519-bab3-50c34d993dd3",
-    "name" : "unnamed",
-    "mode" : "__auto_0",
-    "match" : {
-      "regex" : {
-        "pattern" : "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)",
-        "flags" : {
-          "case_insensitive" : false,
-          "dot_all" : false
-        },
-        "advance" : 0
-      }
-    },
-    "match_limits" : {
-      "min_match" : 0,
-      "max_match" : -1
-    },
-    "body" : [ {
-      "element" : {
-        "name" : "data",
-        "body" : [ {
-          "attribute" : {
-            "name" : "name",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 3
-                    }
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        }, {
-          "attribute" : {
-            "name" : "value",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 4
-                    }
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        } ]
-      }
-    } ]
-  }, {
-    "id" : "d278fb7f-4768-3236-b553-79d5fa7889bb",
-    "name" : "unnamed",
-    "mode" : "__auto_1",
-    "match" : {
-      "regex" : {
-        "pattern" : "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*):+",
-        "flags" : {
-          "case_insensitive" : false,
-          "dot_all" : false
-        },
-        "advance" : 0
-      }
-    },
-    "match_limits" : {
-      "min_match" : 0,
-      "max_match" : 1
-    },
-    "body" : [ {
-      "element" : {
-        "name" : "data",
-        "body" : [ {
-          "attribute" : {
-            "name" : "name",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "text" : "date"
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        }, {
-          "attribute" : {
-            "name" : "value",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 1
-                    }
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        } ]
-      }
-    }, {
-      "element" : {
-        "name" : "data",
-        "body" : [ {
-          "attribute" : {
-            "name" : "name",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "text" : "time"
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        }, {
-          "attribute" : {
-            "name" : "value",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 2
-                    }
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        } ]
-      }
-    } ]
-  }, {
-    "id" : "0fb6ed65-c774-30a1-8491-53654f2ab0e9",
-    "name" : "unnamed",
-    "mode" : "__auto_1",
-    "match" : {
-      "regex" : {
-        "pattern" : "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)",
-        "flags" : {
-          "case_insensitive" : false,
-          "dot_all" : false
-        },
-        "advance" : 0
-      }
-    },
-    "match_limits" : {
-      "min_match" : 0,
-      "max_match" : -1
-    },
-    "body" : [ {
-      "element" : {
-        "name" : "data",
-        "body" : [ {
-          "attribute" : {
-            "name" : "name",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 3
-                    }
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        }, {
-          "attribute" : {
-            "name" : "value",
-            "omit-if-empty" : true,
-            "body" : [ {
-              "trim" : {
-                "select" : [ {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 4
-                    }
-                  } ]
-                } ]
-              }
-            } ]
-          }
-        } ]
-      }
-    } ]
-  }, {
-    "id" : "add425a4-7dd5-34a2-9dd6-ad0d376192db",
-    "name" : "unnamed",
-    "mode" : "__root",
-    "match" : {
-      "regex" : {
-        "pattern" : "((?>\\n*|^)(?>.*\\n)+?)\\n((?>\\n*|^)(?>.*\\n)+?(?>\\n|$))",
-        "flags" : {
-          "case_insensitive" : false,
-          "dot_all" : false
-        },
-        "advance" : 0
-      }
-    },
-    "match_limits" : {
-      "min_match" : 0,
-      "max_match" : -1
-    },
-    "body" : [ {
-      "element" : {
-        "name" : "record",
-        "omit-if-empty" : true,
-        "body" : [ {
-          "element" : {
-            "name" : "data",
-            "body" : [ {
-              "attribute" : {
-                "name" : "name",
-                "omit-if-empty" : true,
-                "body" : [ {
-                  "trim" : {
-                    "select" : [ {
-                      "parts" : [ {
-                        "text" : "query"
-                      } ]
-                    } ]
+         ]
+        }
+       },
+       {
+        "element": {
+         "name": "data",
+         "body": [
+          {
+           "attribute": {
+            "name": "name",
+            "omit-if-empty": true,
+            "body": [
+             {
+              "trim": {
+               "select": [
+                {
+                 "parts": [
+                  {
+                   "text": "results"
                   }
-                } ]
+                 ]
+                }
+               ]
               }
-            }, {
-              "apply-templates" : {
-                "select" : {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 1
-                    }
-                  } ]
-                },
-                "mode" : "__auto_0",
-                "max_depth" : 64
+             }
+            ]
+           }
+          },
+          {
+           "apply-templates": {
+            "select": {
+             "parts": [
+              {
+               "capture": {
+                "group": 2
+               }
               }
-            } ]
+             ]
+            },
+            "mode": "auto_1",
+            "max_depth": 64
+           }
           }
-        }, {
-          "element" : {
-            "name" : "data",
-            "body" : [ {
-              "attribute" : {
-                "name" : "name",
-                "omit-if-empty" : true,
-                "body" : [ {
-                  "trim" : {
-                    "select" : [ {
-                      "parts" : [ {
-                        "text" : "results"
-                      } ]
-                    } ]
-                  }
-                } ]
-              }
-            }, {
-              "apply-templates" : {
-                "select" : {
-                  "parts" : [ {
-                    "capture" : {
-                      "group" : 2
-                    }
-                  } ]
-                },
-                "mode" : "__auto_1",
-                "max_depth" : 64
-              }
-            } ]
-          }
-        } ]
-      }
-    } ]
-  } ]
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
 }

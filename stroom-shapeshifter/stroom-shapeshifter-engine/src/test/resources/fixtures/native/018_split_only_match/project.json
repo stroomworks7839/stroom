@@ -52,7 +52,7 @@
       "mode": "root",
       "declarations": [
         {
-          "name": "__record_body__",
+          "name": "record_body",
           "type": "list"
         }
       ],
@@ -64,7 +64,7 @@
       "body": [
         {
           "variable": {
-            "name": "__record_body__",
+            "name": "record_body",
             "body": [
               {
                 "value-of": {
@@ -109,7 +109,7 @@
                   "parts": [
                     {
                       "capture": {
-                        "var_id": "__record_body__",
+                        "var_id": "record_body",
                         "group": 0,
                         "match_index": {
                           "index": 0,
@@ -136,7 +136,7 @@
                   "parts": [
                     {
                       "capture": {
-                        "var_id": "__record_body__",
+                        "var_id": "record_body",
                         "group": 0,
                         "match_index": {
                           "index": 0,
@@ -167,7 +167,7 @@
       "mode": "section_lines",
       "declarations": [
         {
-          "name": "__row_body__",
+          "name": "row_body",
           "type": "list"
         }
       ],
@@ -179,7 +179,7 @@
       "body": [
         {
           "variable": {
-            "name": "__row_body__",
+            "name": "row_body",
             "body": [
               {
                 "apply-templates": {
@@ -208,7 +208,7 @@
                       "parts": [
                         {
                           "capture": {
-                            "var_id": "__row_body__",
+                            "var_id": "row_body",
                             "group": 0,
                             "match_index": {
                               "index": 0,
@@ -235,7 +235,7 @@
                       "parts": [
                         {
                           "capture": {
-                            "var_id": "__row_body__",
+                            "var_id": "row_body",
                             "group": 0,
                             "match_index": {
                               "index": 0,
