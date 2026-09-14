@@ -188,10 +188,6 @@
           "type": "scalar"
         },
         {
-          "name": "methodTextText",
-          "type": "scalar"
-        },
-        {
           "name": "monthNumText",
           "type": "scalar"
         },
@@ -201,10 +197,6 @@
         },
         {
           "name": "protocolText",
-          "type": "scalar"
-        },
-        {
-          "name": "protocolTextText",
           "type": "scalar"
         },
         {
@@ -232,19 +224,11 @@
           "type": "scalar"
         },
         {
-          "name": "urlTextText",
-          "type": "scalar"
-        },
-        {
           "name": "userAgentText",
           "type": "scalar"
         },
         {
           "name": "userText",
-          "type": "scalar"
-        },
-        {
-          "name": "userTextText",
           "type": "scalar"
         },
         {
@@ -806,122 +790,6 @@
                     }
                   },
                   {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "methodText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "methodTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "protocolText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "protocolTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "userText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "userTextText"
-                    }
-                  },
-                  {
                     "value-of": {
                       "parts": [
                         {
@@ -929,7 +797,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "methodTextText",
+                            "var_id": "methodText",
                             "group": 0
                           }
                         },
@@ -938,7 +806,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -947,7 +815,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "protocolTextText",
+                            "var_id": "protocolText",
                             "group": 0
                           }
                         },
@@ -956,7 +824,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "userTextText",
+                            "var_id": "userText",
                             "group": 0
                           }
                         },
@@ -1614,93 +1482,6 @@
                     }
                   },
                   {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "methodText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "methodTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "protocolText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "protocolTextText"
-                    }
-                  },
-                  {
                     "value-of": {
                       "parts": [
                         {
@@ -1708,7 +1489,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "methodTextText",
+                            "var_id": "methodText",
                             "group": 0
                           }
                         },
@@ -1717,7 +1498,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -1726,7 +1507,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "protocolTextText",
+                            "var_id": "protocolText",
                             "group": 0
                           }
                         },
@@ -2384,93 +2165,6 @@
                     }
                   },
                   {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "methodText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "methodTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "protocolText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "protocolTextText"
-                    }
-                  },
-                  {
                     "value-of": {
                       "parts": [
                         {
@@ -2478,7 +2172,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "methodTextText",
+                            "var_id": "methodText",
                             "group": 0
                           }
                         },
@@ -2487,7 +2181,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -2496,7 +2190,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "protocolTextText",
+                            "var_id": "protocolText",
                             "group": 0
                           }
                         },
@@ -3200,151 +2894,6 @@
                     }
                   },
                   {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "methodText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "methodTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "protocolText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "protocolTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "methodText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "methodTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
                     "value-of": {
                       "parts": [
                         {
@@ -3352,7 +2901,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "methodTextText",
+                            "var_id": "methodText",
                             "group": 0
                           }
                         },
@@ -3361,7 +2910,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -3370,7 +2919,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "protocolTextText",
+                            "var_id": "protocolText",
                             "group": 0
                           }
                         },
@@ -3379,7 +2928,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "methodTextText",
+                            "var_id": "methodText",
                             "group": 0
                           }
                         },
@@ -3388,7 +2937,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -5700,122 +5249,6 @@
                     }
                   },
                   {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "methodText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "methodTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "protocolText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "protocolTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
                     "value-of": {
                       "parts": [
                         {
@@ -5823,7 +5256,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "methodTextText",
+                            "var_id": "methodText",
                             "group": 0
                           }
                         },
@@ -5832,7 +5265,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -5841,7 +5274,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "protocolTextText",
+                            "var_id": "protocolText",
                             "group": 0
                           }
                         },
@@ -5850,7 +5283,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -6500,122 +5933,6 @@
                     }
                   },
                   {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "methodText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "methodTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "protocolText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "protocolTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
                     "value-of": {
                       "parts": [
                         {
@@ -6623,7 +5940,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "methodTextText",
+                            "var_id": "methodText",
                             "group": 0
                           }
                         },
@@ -6632,7 +5949,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -6641,7 +5958,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "protocolTextText",
+                            "var_id": "protocolText",
                             "group": 0
                           }
                         },
@@ -6650,7 +5967,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -7300,122 +6617,6 @@
                     }
                   },
                   {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "methodText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "methodTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "protocolText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "protocolTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
                     "value-of": {
                       "parts": [
                         {
@@ -7423,7 +6624,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "methodTextText",
+                            "var_id": "methodText",
                             "group": 0
                           }
                         },
@@ -7432,7 +6633,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -7441,7 +6642,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "protocolTextText",
+                            "var_id": "protocolText",
                             "group": 0
                           }
                         },
@@ -7450,7 +6651,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -8120,122 +7321,6 @@
                     }
                   },
                   {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "methodText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "methodTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "protocolText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "protocolTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
                     "value-of": {
                       "parts": [
                         {
@@ -8243,7 +7328,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "methodTextText",
+                            "var_id": "methodText",
                             "group": 0
                           }
                         },
@@ -8252,7 +7337,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -8261,7 +7346,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "protocolTextText",
+                            "var_id": "protocolText",
                             "group": 0
                           }
                         },
@@ -8270,7 +7355,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -8940,122 +8025,6 @@
                     }
                   },
                   {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "methodText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "methodTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "protocolText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "protocolTextText"
-                    }
-                  },
-                  {
-                    "translate": {
-                      "select": [
-                        {
-                          "parts": [
-                            {
-                              "capture": {
-                                "var_id": "urlText",
-                                "group": 0
-                              }
-                            }
-                          ]
-                        }
-                      ],
-                      "from": [
-                        "&",
-                        "\"",
-                        "<",
-                        ">"
-                      ],
-                      "to": [
-                        "&amp;",
-                        "&#34;",
-                        "&lt;",
-                        "&gt;"
-                      ],
-                      "name": "urlTextText"
-                    }
-                  },
-                  {
                     "value-of": {
                       "parts": [
                         {
@@ -9063,7 +8032,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "methodTextText",
+                            "var_id": "methodText",
                             "group": 0
                           }
                         },
@@ -9072,7 +8041,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
@@ -9081,7 +8050,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "protocolTextText",
+                            "var_id": "protocolText",
                             "group": 0
                           }
                         },
@@ -9090,7 +8059,7 @@
                         },
                         {
                           "capture": {
-                            "var_id": "urlTextText",
+                            "var_id": "urlText",
                             "group": 0
                           }
                         },
