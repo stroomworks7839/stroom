@@ -1,9 +1,9 @@
 # Design 35 — One binding, declared in a scope, with a type
 
 *Opened 2026-09-11 after E49 was built, measured and reverted. Reshaped 2026-09-12 on the owner's
-model: lexical declaration, one scope rule, var types, counters left alone.*
+model: declaration, one scope rule, dynamic resolution, var types, counters as functions.*
 
-**Status: open. Nothing is built. §9 lists what has to be ruled first.**
+**Status: settled, nothing built. §9 has no open rulings; §12 is the plan.**
 
 ## 0. What is fixed, and what is not
 
@@ -38,7 +38,7 @@ sealed interface Binding extends OutputNode
     String name();
 ```
 
-Eleven instructions, each of which binds a name rather than writing output. Somebody already saw
+Twelve instructions, each of which binds a name rather than writing output. Somebody already saw
 that these are one kind of thing.
 
 **Two sit outside it, and they are the two that caused everything in this design.**
@@ -49,7 +49,7 @@ that these are one kind of thing.
 - **`Param`** — `record Param(String name, RefExpression value)`, also outside.
 
 So the model has a unification concept and omits precisely the members that needed it. And none of
-the thirteen carries a **scope** or a **type**, because there was nowhere to put one.
+the fourteen carries a **scope** or a **type**, because there was nowhere to put one.
 
 | binder | bound when | value from | in `Binding`? |
 |---|---|---|---|
@@ -97,8 +97,9 @@ had to pick one and lose the other. That is what a missing concept looks like.
 ## 4. The model
 
 **A variable's scope is where it is declared.** Assignment may happen deeper — in a descendant
-template's execution. Re-declaring a name in a deeper scope shadows the outer one. These are the
-rules every language already has, and adopting them is the point: nothing here has to be learned.
+template's execution. A name is declared once per namespace (below), so the only shadowing is a
+recursive execution re-entering its own declaration. Familiar rules, deliberately: nothing here has
+to be learned.
 
 **Where a declaration is written is its scope, and that is the whole rule.** It is never spelled as
 an attribute, so a run-long variable cannot be written by omission and two templates cannot declare
@@ -159,6 +160,32 @@ one another, declare-once holds within each namespace, and a library's internals
 *None of that is built now* — there is no import or library concept in the configuration, and one
 implicit namespace, so the rule today reads "once per configuration". It is stated per namespace so
 that libraries do not have to reopen it.
+
+### Scopes are per block, not per template *(ruled 2026-09-14)*
+
+The rule is *a declaration's scope is the execution it is written in*, and a template execution is
+not the only kind. A `for-each` body, a `call-template` body and a `variable` body are executions
+too, so the rule covers them and there is no template-granularity exception.
+
+**All six of `Body`'s pushes become the one mechanism** — they already share `VarRegistry`'s
+stack — but they stop being special forms:
+
+| push | today shadows | becomes |
+|---|---|---|
+| `forEach()`, `sorted()` | the loop variable `as` | a declaration scoped to the loop body |
+| `forEachGroup()` | `groupMembers` and a group frame | the same, plus the frame §6 keeps |
+| `callTemplate()` | arguments and parameters | declarations scoped to the callee's body |
+| `variable()` | the name being computed | a shadow over its own body, so the computation cannot read a half-built value |
+| `apply()` | `recursiveShadow()` — every capture name of every candidate | **gone**: recursion shadows by re-declaring, which is precise where this was coarse |
+
+*`recursiveShadow()` going is worth its own line.* It flattens the capture names of **all**
+candidates in a mode and shadows the lot, because it could not know which would match. Declaration
+on entry shadows exactly what the entered template declares, so the coarse version is replaced by a
+correct one rather than merely relocated.
+
+*What this obliges the model to say:* where a block declaration is written. A loop's `as` and a
+template's `param` list are the declaration sites, so they already exist — the work is treating them
+as declarations with a type and a scope rather than as bare names.
 
 **Declaring and shadowing are the same mechanism, and it is already built.** Entering a template
 that declares names pushes a scope over exactly those names; leaving it pops. `VarRegistry` already
@@ -223,15 +250,15 @@ template's **parent**, and the repeating one appends to it.
 **Recursion shadows, and this is exactly why.** A template that declares `x` and then re-enters
 itself declares `x` again at the inner entry, so the inner execution gets its own — which is the
 frame restore of §8, and this pins when stacking actually occurs: **at a declaration made inside a
-cycle**, not at any re-entry. A template that declares nothing and recurses costs nothing, and a variable declared
-*above* the recursion is shared and mutable by every level, which is usually what a recursive walk
-wants.
+cycle**, not at any re-entry. A template that declares nothing and recurses costs nothing, and a
+variable declared *above* the recursion is shared and mutable by every level, which is usually what
+a recursive walk wants.
 
 *Both motivating cases fall out.* `event_record` declares, its descendants assign, it reads after
 the apply returns, and everything dies with the record — E49's fix by construction rather than by a
 clearing rule. And the CSV headings cannot live on `header_column`, which runs once per column;
 they would go on `header_row`, except that they must outlive it to reach the data rows, so they are
-**global** — which §4 already said and this confirms from the other direction.
+declared **on the source** — which §4 already said and this confirms from the other direction.
 
 ### Why declaration must be separable from capture
 
@@ -242,10 +269,10 @@ reads*.
 
 If a capture also declared, every one of those 71 would live in the capturing template's scope and
 be invisible to the reader. So the record template declares, its descendants assign, and it reads
-what they wrote — which is ordinary lexical scoping and needs no new idea.
+what they wrote — declare above, assign below — and it needs no new idea.
 
-*And it is how DS3 fidelity is kept.* DS3 clears once per `parse()`, so migrated declarations are
-**global**, and E19's pinned behaviour becomes a declaration rather than an inference. A native
+*And it is how DS3 fidelity is kept.* DS3 clears once per `parse()`, so migrated declarations go
+**on the source**, and E19's pinned behaviour becomes a declaration rather than an inference. A native
 configuration that wants per-record lifetime declares on the record template. The two stop
 competing.
 
@@ -265,16 +292,17 @@ whole design has been unwinding. E19's residual predicted variables and transfor
 tail-leak in the same shape as captures, and E28 was that prediction coming true; a declaration
 they all share is why that cannot recur.
 
-*The test this must pass is that the model gets smaller.* Thirteen binding constructs with one
-shared interface and two exceptions becomes one declaration with several value sources. If it does
-not come out smaller, it is not this design.
+*The test this must pass is that the model gets smaller.* Fourteen binding constructs — twelve in
+`Binding` and two outside it — become one declaration with several value sources. If it does not
+come out smaller, it is not this design.
 
 **Two things not to gloss.** `Binding` is a *compile-time* construct and says nothing about the
 run-time `Store`; §5's types are a different run-time shape, not merely a different declaration,
-and that is where the work actually is. And `Param` **stays as it is** *(ruled 2026-09-13)* — parameters are bound at a call and scoped to
-it, which the existing push and pop already get right, and folding it in wanted a reason beyond
-uniformity that did not appear. `CaptureBinding` folds in; `Param` does not. One binder remains
-outside the unified model, deliberately.
+and that is where the work actually is. And `Param` folds in too *(ruled 2026-09-14, reversing
+2026-09-13)*. It was kept out while scopes were per template, because a parameter's lifetime is a
+call and the existing push already got it right. Block scope supplies the reason that was missing:
+a parameter **is** a declaration scoped to the callee's body, and excluding it would leave one
+binder whose lifetime the general rule can express but does not. No binder remains outside.
 
 ## 5. Var types
 
@@ -351,10 +379,11 @@ expression.
 
 #### Folds
 
-`sum()`, `avg()`, `min()`, `max()`, `distinct()` — design 16's folds, now taking a reference
-because a reference can denote a collection. **`count()` is not among them: it is `size()`.**
-Design 16's `Count` counts a sequence's entries, which is what `size` does, and `size` applies to
-all three types.
+`sum()`, `avg()`, `min()`, `max()` — design 16's folds, now taking a reference because a reference
+can denote a collection. **`count()` is not among them: it is `size()`.** Design 16's `Count` counts
+a sequence's entries, which is what `size` does, and `size` applies to all three types. **Nor is
+`distinct()`:** `DistinctValues` becomes a set, and `values(set)` is the list of distinct entries in
+first-appearance order.
 
 #### What following XPath settled
 
@@ -392,8 +421,6 @@ depends on.* Every name above exists: `ArrayAppend`, `ArrayInsertBefore`, `Array
 `sort`, `filter`, `fold-left`, `fold-right`, `join` and `flatten`, and `map:` has `entry`,
 `entries`, `merge` and `find` — worth knowing as the vocabulary to reach for if any of those are
 wanted later, rather than inventing a name.
-
-#### Two places this deliberately diverges
 
 #### Why XSLT is immutable, and why this is not
 
@@ -436,6 +463,8 @@ in the configuration is the compensation for a value that can change.** It is al
 open hazard comes from: §11's live-element counter can drift under aliasing, and an immutable
 collection could not alias.
 
+#### Two places this deliberately diverges from XPath
+
 **XPath's arrays and maps are immutable; these are not.** `array:append` *returns a new array*;
 `map:put` *returns a new map*. Ours mutate in place, which is why they are instructions rather than
 functions (§5) and why `clear` exists at all — XPath needs no `clear` because you rebind instead.
@@ -470,7 +499,7 @@ reference, and why `DistinctValues` does too. They are functions over a collecti
 spelled as functions, because a reference could not denote a collection. So each became an
 instruction instead.
 
-**Collections being values (§5) removes that constraint**, and the eleven `Binding` constructs
+**Collections being values (§5) removes that constraint**, and the twelve `Binding` constructs
 collapse accordingly. That is where §11's get-smaller test is won, and it is won against a
 limitation the codebase already documented rather than against a design preference.
 
@@ -484,7 +513,7 @@ so do two separate namespaces.
 | `Sequence(name)` — declare and empty | **declare a list** (§4, §5) |
 | `Append(name, select)` | **`append(list, value)`** — an operation, not an instruction |
 | `DistinctValues(select, name)` | **a set** |
-| `Count`, `Sum`, `Avg`, `Min`, `Max` | **functions over a collection** — `count()`, `sum()`, `avg()`, `min()`, `max()` |
+| `Count`, `Sum`, `Avg`, `Min`, `Max` | **functions over a collection** — `size()`, `sum()`, `avg()`, `min()`, `max()` |
 | `Key(name, select, groupBy)` | **a map of key to list of positions** — which needs the nesting §5 rules in |
 | `KeyGet(key, select, name)` | **`get(map, key)`** |
 | `ValueMap(select, entries, default, name)` | **a map declared with initial entries**, read with a default |
@@ -518,7 +547,7 @@ meaningful."*
 Design 16 kept two readings apart: a **dense sequence**, where an index is a position, and a
 **capture-indexed store**, where an index is a match number and a gap means "did not match". §8
 merges them — one list type, and a failed capture appends absence to keep positions aligned. That
-is a deliberate reversal of design 16 §16's rule, and it is what lets one type serve both readings
+is a deliberate reversal of design 16's rule, and it is what lets one type serve both readings
 instead of the engine carrying two.
 
 **`DistinctValues` compares by string form**, which §5's equality ruling replaces with canonical per
@@ -575,7 +604,7 @@ because a set that reaches output must produce the same bytes every run — dete
 optional in a parser whose goldens are byte-compared.
 
 **It subsumes an instruction, which is the point.** `DistinctValues` exists today as one of
-`Binding`'s eleven — it walks a sequence, keeps `LinkedHashSet<String>` of what it has seen, and
+`Binding`'s twelve — it walks a sequence, keeps `LinkedHashSet<String>` of what it has seen, and
 binds the distinct values in order. That is a set, built by an instruction because there was no set
 type to build it into. With one, `DistinctValues` is `add` in a loop and the instruction goes. §11's
 test is that the model gets smaller; this is one of the places it does.
@@ -782,7 +811,7 @@ is the one place the function form has to sit inside another construct.
 
 ## 7. What this subsumes
 
-- **E19's pinned half** — becomes "declared global", faithful by construction.
+- **E19's pinned half** — becomes "declared on the source", faithful by construction.
 - **E49 entirely** — its first two demonstrations are E19's pinned behaviour; its third is the
   dynamic-name map, which goes. **E49 should be closed by this design, not fixed.**
 - **E19's residual and E28** — `Variable` and transform results tail-leaking is the same missing
@@ -797,7 +826,8 @@ is the one place the function form has to sit inside another construct.
 ## 8. The run-time representation, and what it costs
 
 Most of this design is compile-time: which slot each declaration owns, which slot each reference
-resolves to, which template clears which slots on exit. What is left at run time is small, and the
+resolves to, which template's entry declares which slots and restores them on exit. What is left
+at run time is small, and the
 shape it should take is largely the shape design 33 already built.
 
 ### The slot array becomes genuinely fixed
@@ -878,13 +908,13 @@ own match count.
 configuration saying what a failed capture means rather than by a hole appearing as a side effect.
 That is the same move as `append` itself.
 
-#### What that leaves open: does `last` skip absence?
+#### `last` does not skip absence *(ruled 2026-09-13)*
 
 `Store.lastIndex()` walks back past nulls, so today "the latest value" is *the latest present
 value* — a template that matched three times with the third capture failing reads the second
 match's value.
 
-**The recommendation is that it does not skip.** `last(list)` returns the last element, absent
+**Ruled: it does not skip.** `last(list)` returns the last element, absent
 included. Skipping is the magic this design removes, and a read that walks back to an earlier match
 is returning a value from a position the data did not fill — the same shape of defect as E49, where
 a record with no `k=` answered with the previous record's `v`.
@@ -899,7 +929,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 
 ## 9. Rulings
 
-### Settled *(2026-09-13)*
+### Settled *(2026-09-13 and 2026-09-14)*
 
 | | ruling | where |
 |---|---|---|
@@ -917,7 +947,8 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Declaration timing** | A declaration is an action on entry to the declaring template's execution; the variable lives entry to exit. A descendant that does not re-declare shares it and may mutate it, which is how accumulation works — so a template cannot accumulate into a variable it declares itself. Recursion shadows because a recursive execution re-declares, which is the existing frame restore rather than anything new. | §4 |
 | **Where declared** | Where a declaration is written *is* its scope; there is no scope attribute and no second scope kind. The source template is the outermost execution — `Run.document()` runs once per stream with the chunk loop inside it — so declaring there lasts the run. Declaring on a **root-mode** template under a `classify` or `any` root gives *chunk* lifetime, which the compiler can see and should refuse or warn. | §4 |
 | **Counter names** | Eight flat, explicit names: `matchCount()`, `matchIndex()`, `index()`, `position()`, `last()`, `groupKey()`, `group()`, `groupSize()`. | §6 |
-| **`Param`** | Stays outside the unified declaration. Call scoping is already correct and uniformity alone was not a reason. | §4 |
+| **Block scope** | A declaration's scope is the execution it is written in, and a `for-each`, `call-template` or `variable` body is an execution. All six of `Body`'s pushes become the one declaration mechanism; `recursiveShadow()` goes, since declaration-on-entry shadows exactly what the entered template declares where that flattened every candidate's capture names. | §4 |
+| **`Param`** | Folds into the unified declaration *(reversing the 2026-09-13 ruling)*: under block scope a parameter is a declaration scoped to the callee's body. No binder remains outside. | §4 |
 | **Size guard** | One run-wide live-element counter: every `append` or `put` increments it, every collection caches its own total so a clear or scope-exit decrements in O(1). Nesting is irrelevant because the counter measures exactly what the promise is about — total live elements — whatever shape they are in. | §5, §8 |
 | **Operation names** | After XPath 3.1's `array:` and `map:` libraries, which this language already follows: `append`, `insert`, `put`, `remove`, `get`, `size`, `contains`, `keys`, plus `add` for a set, which XPath has no equivalent of. Positions are 1-based, as XPath's are and as the engine's match counts already are. `for-each` over a map binds two names, after `map:for-each`. | §5 |
 | **The collapse** | Design 16's `Sequence`, `Append`, `DistinctValues`, the five folds, `Key`, `KeyGet` and `ValueMap` fold into declarations, collection types, operations and functions — ten of `Binding`'s twelve, plus the separate key and sequence namespaces. `Transform` and `Variable` remain as *value sources*, not binders. | §5 |
@@ -944,7 +975,8 @@ it was reading DS3's source. So:
 - **No golden fixture's output may change**, though its configuration may be rewritten as much as
   the design needs (§0). If an output does move, either the rule is wrong or the divergence is
   deliberate and ruled — E19 is the precedent for recording that.
-- **`win_sec_strict` is the performance gate**, for §8's push-per-execution.
+- **`win_sec_strict` is the performance gate**, for §8's cost, which scales with declarations ×
+  executions.
 
 ## 11. What would make this a mistake
 
@@ -967,10 +999,11 @@ it was reading DS3's source. So:
   places — would double-count on append and under-decrement on clear, so either aliasing is
   refused or the counter is wrong in a way nothing would notice until a long stream ran out of
   memory.
-- **If the model does not come out smaller.** §4 sets that as the test: thirteen binding
-  constructs with two exceptions should become one declaration with several value sources. A
+- **If the model does not come out smaller.** §4 sets that as the test: fourteen binding
+  constructs — twelve in `Binding` and two outside it — should become one declaration with several
+  value sources. A
   unification that adds a concept and keeps the old ones has failed on its own terms.
-- **If lexical nesting is not enough.** The CSV headings live on the source and the record fields
+- **If one scope rule is not enough.** The CSV headings live on the source and the record fields
   on the record template, both of which the one rule covers. A case wanting something *per
   dispatch* rather than per execution would mean the model is under-powered and the special cases
   come back — and the chunked root is the near miss, since a root-mode declaration is per chunk by
@@ -983,6 +1016,6 @@ it was reading DS3's source. So:
   §8 explains why the stack cannot overflow in the first place. The mitigation is measurement, not
   a limit: §10 names `win_sec_strict` as the row, and the answer if it shows is to move the
   declarations rather than to bound the mechanism.
-- **If clear-on-exit is not where the cost went.** Design 33 bought +26.7 points on
+- **If restore-on-exit is not where the cost went.** Design 33 bought +26.7 points on
   `apache_httpd` from run-state access. A lifetime model that spends it back has not earned its
   correctness, and §10 names `win_sec_strict` as the row that would say so.
