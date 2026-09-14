@@ -801,6 +801,13 @@ restore-on-exit for a list declared for the run. The pinned half is a declaratio
 a scalar declared there lasts the run, and a record that never binds it reads what the last one
 bound. The test that pinned it says so, and a list-declared twin holds the clear.
 
+**Closing addendum 2026-09-14, design 35 phase 5.** Closed by construction. There is no store to
+leak from: a name holds what its declaration says, for as long as the execution it is declared on.
+DS3's carry-over — a field a record does not write reads the last one that did — is what a
+declaration on the source means, and `win_sec` rewritten under the model keeps it that way with
+two maps declared there; the per-sequence restart of a capture's list is the capture's own rule
+and is pinned. Nothing about a lifetime is inferred any more, so nothing about one can surprise.
+
 ### E20 — Strict dispatch: the cursor moves only by matching at it
 **`in progress` — core implemented 2026-08-21: modes strict/lax/classify/lexer live, `consume`
 and `emit-error` live, zero-advance errors, version-gated defaults (v4+ strict), validation
@@ -936,6 +943,12 @@ positive infinity). Mutation-checked: reverting the fix in `Executor.emit` fails
 absence included, so there is no match index to fall back across. `Body.emit` binds through one
 method for scalars and lists alike; the "reads at the current match index" premise is gone with
 the store.
+
+**Closing addendum 2026-09-14, design 35 phase 5.** Closed by construction. Naming a result binds
+it — absence included — because a named result is a `put` into a declared scalar, or a value
+appended at the match's position of a declared list, and there is no other cell for a stale answer
+to sit in. The fold and transform results that the DS3-shaped fixtures had declared as lists and
+read at the current match are declared as the scalars they are.
 
 ### E29 — Regex steps ignore the template's declared encoding
 **`resolved` 2026-08-28, same day it was found — phase 3 of design 19.** The regex library

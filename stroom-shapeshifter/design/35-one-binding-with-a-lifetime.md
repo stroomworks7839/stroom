@@ -1466,6 +1466,51 @@ and 71 variables become materially fewer, the complexity was the fixture's; if n
 domain's, and that is worth knowing either way. E19 and E28 gain closing addenda. The full point set
 is read together, points 1 to 5 against the floor at phase 0's commit.
 
+**Done 2026-09-14, uncommitted pending review; the reading waits for the run.** `win_sec` is 16
+templates and 43 declarations where it was 61 and 95, with its golden byte-identical. **The
+complexity was the fixture's**: the 48 single-field templates — one regex per `Key=` header and
+per `\tLabel:` line, each binding one scalar declared for the run — are two templates, a header
+one putting `Key` into a `header` map and a labelled one putting `Label` into a `fields` map, and
+their 48 scalars plus the six variables the `trim`s bound are two maps. 122 of `event_record`'s
+205 read parts became `get(fields, "Logon Type")` and `get(header, "EventCode")` by a walk over
+its body; the 83 left read the section groups, the timestamp and its own variables. What
+stayed is the domain's: the timestamp's seven groups, the six section templates whose value is
+*which* `Security ID` they name (`New Logon:`, `Account For Which Logon Failed:` and the rest —
+a labelled line cannot say that), the two multi-line captures (`Privileges`, `Accesses`), the
+body's own variables and its eight escapes.
+
+*Three things the rewrite had to get right, and how.*
+
+1. **DS3's carry-over survives.** `fields` and `header` are declared on the source, so a label a
+   record lacks reads the last record's — the 4625 event's `LogonType` — exactly as 48 scalars
+   declared there did. No clearing rule was written; the lifetime is where the declaration is.
+2. **First occurrence wins within a record.** A DS3 template took the first `Security ID:` at or
+   after its cursor — `Subject:`'s — and the section templates took the rest by name. A generic
+   line template sees every occurrence, so `labelled_field` puts only when a `seen` map declared
+   on `event_record` (per record, restored on exit) has not seen the label. Written, not inferred.
+3. **The fields level is anchored.** Ordered dispatch picks by *template order*, not position,
+   over unanchored searches: a generic line template listed first would always win and the
+   section templates never, listed last it would never run. Under `strict` — `win_sec_strict`'s
+   idiom, with its trailing eater — each template matches at the cursor, the sections at their
+   title lines and the generic on any labelled line, in input order. The root level is unchanged.
+
+*Two divergences, named; neither reaches this input.* Six of DS3's templates trimmed their
+value; the generic one trims none, and no value here carries surrounding whitespace, so the bytes
+agree — on padded input the six would differ by the padding, and a per-label trim would restore
+it. And a record whose first `Security ID` lies inside a section a section template takes —
+`New Logon:` before any `Subject:` — would name it differently: DS3's ordered search gave it to
+`SecurityID` and starved the section, the anchored rewrite gives it to the section and leaves
+`fields` carrying the previous record's. Every event here opens with `Subject:` except the 4688,
+whose first `Security ID` is under `Creator Subject:`, which no section template takes, so the two
+agree on all eleven.
+
+*`win_sec_strict`, `win_sec_xml` and the `win_app` pair are not rewritten* and pass as they were:
+the strict row keeps the 63-template configuration as the A/B on the search-versus-strict idiom,
+which the rewrite would otherwise dissolve. E19 and E28 are closed by construction in the ledger.
+The point set — phases 1 to 5 against the floor at phase 0's commit — is read together on the
+evening run; phase 5's row follows its commit, since the benchmark's `win_sec` workload loads the
+rewritten configuration.
+
 ### Out of scope, deliberately
 
 Namespaces and libraries (§4 records what they will need); `removeValue` and any remove-by-value
