@@ -615,9 +615,12 @@ test is that the model gets smaller; this is one of the places it does.
 
 - `DistinctValues` keys on `value.asString()`. Under that rule the integer `1` and the text `"1"`
   are the same member.
-- `TypedValue`'s variants define real `equals`/`hashCode` — `Bytes` compares UTF-8 bytes, `Encoded`
-  compares bytes **and** encoding. Under that rule they are different members, and so are the same
-  text in two encodings.
+- `TypedValue`'s variants define real `equals`/`hashCode`. `Encoded.equals` short-cuts on identical
+  bytes *and* encoding, then falls through to `Arrays.equals(asUtf8(), …)` — so it already compares
+  text by decoded content, and the same text in two encodings is **one** value. Under that rule
+  `1` and `"1"` are different members, because an `Integer` is not `Bytes`.
+  *(Phase 0 corrected this paragraph: it had claimed the structural rule distinguished encodings,
+  and `EqualityCharacterisationTest.sameTextInTwoEncodingsIsOneValue` shows it does not.)*
 
 **Ruled 2026-09-13: neither. Equality is canonical per type, everywhere.** Numbers compare
 numerically; text compares by its decoded string, so the same text in two encodings is one value;
@@ -625,10 +628,14 @@ different types are never equal, so `1` and `"1"` are two. That governs set memb
 conditions and `ValueMap` lookup alike — one rule, so `contains(set, x)` and a condition's `=`
 cannot disagree about the same pair.
 
-*What it costs:* every `TypedValue` variant needs its comparison stated, and both existing notions
-change. `DistinctValues` treated `1` and `"1"` as one value and will not; the structural `equals`
-treated the same text in two encodings as two and will not. Either may move a golden, and §10 is
-the gate.
+*What it costs, corrected by phase 0's characterisation:* less than first thought. The structural
+`equals` already compares text by decoded content and already tells a number from its text, and the
+typed `eq` condition does too — `EqualityCharacterisationTest` pins both. What actually changes is
+the **string-form** family: `DistinctValues` treats `1` and `"1"` as one entry and will not,
+`ValueMap` matches a number against a text entry and will not, and the legacy `equals` alias — the
+one condition comparing string forms, by documented design (design 17 §8) — is **retired**: a string
+comparison is written as `eq` with `as: string`, and the migration emits that. Any of the three may
+move a golden, and §10 is the gate.
 
 #### Sets and nesting
 
@@ -910,9 +917,10 @@ That is the same move as `append` itself.
 
 #### `last` does not skip absence *(ruled 2026-09-13)*
 
-`Store.lastIndex()` walks back past nulls, so today "the latest value" is *the latest present
-value* — a template that matched three times with the third capture failing reads the second
-match's value.
+Today "the latest value" is *the latest present value*: `Store.lastIndex()` walks back past nulls,
+and — phase 0 found — a failed **final** capture is not recorded at all, since `Store.remove` does
+not grow the store. Either way a template that matched three times with the third capture failing
+reads the second match's value (`TrailingHoleReadTest`).
 
 **Ruled: it does not skip.** `last(list)` returns the last element, absent
 included. Skipping is the magic this design removes, and a read that walks back to an earlier match
@@ -937,7 +945,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Typing** | The type is part of the declaration, not inferred from first assignment. Inference survives as a check. | §5 |
 | **Types** | All four: scalar, list, map, set. | §5 |
 | **Collections** | Are `TypedValue`s, and therefore nest. The earlier flat restriction was wrong and its reasoning is kept in §5. | §5 |
-| **Equality** | **Canonical per type, everywhere** — set membership, map keys, conditions, `ValueMap` lookup. Numbers compare numerically; text compares by decoded string, so encoding is irrelevant; different types are never equal, so `1` and `"1"` differ. Replaces both `DistinctValues`' `asString()` keying and the variants' structural `equals`. | §5 |
+| **Equality** | **Canonical per type, everywhere** — set membership, map keys, conditions, `ValueMap` lookup. Numbers compare numerically; text compares by decoded string, so encoding is irrelevant; different types are never equal, so `1` and `"1"` differ. *Phase 0 found the structural `equals` and the typed `eq` already behave this way*; what changes is the string-form family — `DistinctValues`, `ValueMap`, and the legacy `equals` alias, which needs its own ruling. | §5 |
 | **Nesting and keys** | Collections nest as *values* — `map` of `map`, `map` of `list`, `list` of `list`. They are refused as set members and map keys, at compile time. Type checking is one level deep: a declaration says `map`, not `map of map`, so a nested read is a run-time fact. That is the price of no generics, and it is paid where the shapes this engine builds are one level deep anyway. | §5 |
 | **Counters** | Become functions resolved to `CompiledRef.Context` at compile time, not reserved `__` variable names. Special forms, never registry functions. | §6 |
 | **Holes** | A failed capture appends absence, so positions stay aligned by the configuration saying so rather than by a hole appearing as a side effect. | §8 |
@@ -952,16 +960,14 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Size guard** | One run-wide live-element counter: every `append` or `put` increments it, every collection caches its own total so a clear or scope-exit decrements in O(1). Nesting is irrelevant because the counter measures exactly what the promise is about — total live elements — whatever shape they are in. | §5, §8 |
 | **Operation names** | After XPath 3.1's `array:` and `map:` libraries, which this language already follows: `append`, `insert`, `put`, `remove`, `get`, `size`, `contains`, `keys`, plus `add` for a set, which XPath has no equivalent of. Positions are 1-based, as XPath's are and as the engine's match counts already are. `for-each` over a map binds two names, after `map:for-each`. | §5 |
 | **The collapse** | Design 16's `Sequence`, `Append`, `DistinctValues`, the five folds, `Key`, `KeyGet` and `ValueMap` fold into declarations, collection types, operations and functions — ten of `Binding`'s twelve, plus the separate key and sequence namespaces. `Transform` and `Variable` remain as *value sources*, not binders. | §5 |
+| **`equals` alias** | **Retired** *(ruled 2026-09-14)*. It was the one condition still comparing string forms, by documented design (design 17 §8). A string comparison is now written as `eq` with `as: string` on the operands — said, not implied by a spelling — and `equals($x, "")` keeps compiling to `not(exists($x))`. Phase 0 checked the blast radius: `Ds3Migration` never emits `equals`, so the legacy goldens are untouched; twelve native fixtures and four unit tests use it and are rewritten in phase 1. One equality rule, no exceptions. | §5 |
 | **DS3 migration** | Declares **everything on the source**, which is run lifetime. `root.clear()` runs once per parse and never between records, so that is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
 
 ### Nothing open
 
-The last question — which of `VarRegistry`'s pushes survive — is answered by the block-scope ruling
-in §4: all of them become the one declaration mechanism, and `recursiveShadow()` goes. Earlier
-entries in this section are folded into the table above as they were ruled.
-
-**The model is settled and so is its implementation shape.** What remains is building it, and §10
-is the gate.
+The last two questions are answered: which of `VarRegistry`'s pushes survive, by the block-scope
+ruling in §4; and the legacy `equals` alias, retired (table above). **The model is settled and so is
+its implementation shape.** What remains is building it, and §10 is the gate.
 
 ## 10. How it would be gated
 
@@ -1047,13 +1053,46 @@ disabled, the test fails.
 *Gate:* the count of new tests and their sabotage table, recorded here. *Point:* none — no code
 moves.
 
+**Done 2026-09-14, uncommitted pending review.** Existing coverage was far broader than this list
+assumed: `SequenceIterationTest` already pins `sequence`/`append` (including absence appending
+nothing), all five folds, `key`/`key-get`, grouping, sorting and the chunked-root guard;
+`EngineBehaviourTest` pins params (including shadowing captures), recursion's structure, `value-map`'s
+default, and E19; `StoreTest` pins `latest()` over a middle hole. So the gaps were narrower —
+**twelve new tests in five classes**, each held by at least one sabotage:
+
+| test | sabotage | failing |
+|---|---|---|
+| `KeyValueCaptureTest` ×3 — pairs readable; E49 demo 2; E49 demo 3 | key-value branch in `bindCaptures` disabled | 3 |
+| `variableBodyCannotReadTheValueItIsComputing` | `variable()`'s self-shadow removed | 1 |
+| `recursionLevelsKeepTheirOwnCaptures` | `recursiveShadow()` not pushed | 1 |
+| `distinctValuesTreatsANumberAndItsTextAsOneEntry` | keyed by type as well as string | 1 |
+| `equalsAliasComparesStringForms` | operand cast `STRING` → typed | 1 |
+| `eqAlreadyTellsANumberFromItsText` | mixed types compare equal | 1 |
+| `valueMapMatchesANumberAgainstATextEntry` | lookup key altered | 1 |
+| `sameTextInTwoEncodingsIsOneValue` | `Bytes.equals` by identity | 1 |
+| `readAfterAFailedFinalCaptureWalksBackToThePreviousMatch` | failed cast writes a marker | 1 |
+| `namedTransformBindsRatherThanWrites` | `emit()` writes even when named | 1 |
+
+*Three of these deliberately pin behaviour phase 3 flips* — E49's demonstrations 2 and 3, and the
+trailing-capture read — and say so in their javadoc, so that the flip is an edit of a failing test.
+
+*And characterising corrected the design twice.* Structural `equals` already compares text by decoded
+content and the typed `eq` already tells a number from its text (§5 had claimed otherwise); what
+canonical-per-type actually changes is the string-form family. And a failed *final* capture is not
+recorded at all — `Store.remove` does not grow the store — so today's read lands on the previous
+match by absence of a record, not by skipping a hole (§8 wording).
+
 ### Phase 1 — Collections are values, and equality is canonical
 
 `TypedValue.List`, `TypedValue.Map`, `TypedValue.Set` join the sealed interface. `isEmpty()` is
 "no entries"; `asBytes()` and `asString()` refuse; `Cast` refuses; ordering in a condition refuses.
-Equality becomes **canonical per type** on every variant, and both existing notions change with it:
-`DistinctValues` stops keying on `asString()`, and structural `equals` stops distinguishing
-encodings. `Set` is insertion-ordered. Nothing declares or uses the new variants yet.
+Equality becomes **canonical per type** on every variant. Phase 0 found the structural `equals` and
+the typed `eq` already behave that way, so what changes is the string-form family: `DistinctValues`
+stops keying on `asString()`, `ValueMap` stops matching a number against a text entry, and the
+legacy `equals` condition is **retired** — the twelve native fixtures and four tests using it move
+to `eq` with `as: string` (the migration never emitted it), and `equals($x, "")` keeps compiling to
+`not(exists)`. `Set` is insertion-ordered.
+Nothing declares or uses the new variants yet.
 
 *What can move a golden:* the equality change, exactly where `1` met `"1"` or the same text met
 itself in two encodings. If one moves, E19 is the precedent for ruling it. *Point:* conditions are
