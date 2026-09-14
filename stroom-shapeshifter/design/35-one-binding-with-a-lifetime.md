@@ -278,6 +278,46 @@ engine**, and the collection types join that interface rather than sitting outsi
 declarations and element-type inference are not questions this design has to answer, and they stay
 that way *because* collections are values.
 
+### Design 16 already built this, for one type
+
+Worth stating plainly, because it changes what this design is claiming. `OutputNode` already has
+`Sequence(name)` — *"Declare a sequence, and empty it"* — and `Append(name, select)`. Its javadoc
+gives the same justification this design gives:
+
+> *"Declaring is required rather than implied. It is what puts the accumulation's lifetime where an
+> author can see it, and it gives the compiler somewhere to stand: an `append` to a name no
+> `sequence` declares is refused."*
+
+So declared accumulation with an explicit append is **not new**. It was built for sequences, and it
+works. What design 16 could not do was generalise it, and the reason is written down too.
+
+**The constraint that stopped it: "a reference resolves to exactly one value by construction."**
+That is why the folds — `Count`, `Sum`, `Avg`, `Min`, `Max` — take a **sequence name** rather than a
+reference, and why `DistinctValues` does too. They are functions over a collection that could not be
+spelled as functions, because a reference could not denote a collection. So each became an
+instruction instead.
+
+**Collections being values (§5) removes that constraint**, and the eleven `Binding` constructs
+collapse accordingly. That is where §11's get-smaller test is won, and it is won against a
+limitation the codebase already documented rather than against a design preference.
+
+### Two things design 16 decided that this design changes
+
+**`Append` today refuses to append absence.** Its javadoc: *"An absent value appends nothing — not a
+hole. A dense sequence's index is its position, so a hole in one would mean nothing at all; the
+sparse reading belongs to capture-indexed stores, where an index is a match number and a gap is
+meaningful."*
+
+Design 16 kept two readings apart: a **dense sequence**, where an index is a position, and a
+**capture-indexed store**, where an index is a match number and a gap means "did not match". §8
+merges them — one list type, and a failed capture appends absence to keep positions aligned. That
+is a deliberate reversal of design 16 §16's rule, and it is what lets one type serve both readings
+instead of the engine carrying two.
+
+**`DistinctValues` compares by string form**, which §5's equality ruling replaces with canonical per
+type. So `1` and `"1"` stop being the same entry. That is a behaviour change with a golden-output
+gate on it (§10), and it is the same change the equality ruling makes everywhere else.
+
 ### The list
 
 **Backed by a `TypedValue[]` and a count** — the same shape `Store` already has, and the shape
