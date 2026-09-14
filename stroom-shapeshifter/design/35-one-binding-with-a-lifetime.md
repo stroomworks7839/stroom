@@ -280,58 +280,71 @@ that way *because* collections are values.
 
 ### The operation surface
 
-**Mutations are instructions; accessors are functions.** Both are spelled like calls, but they sit
-in different places and it matters: a mutation is a statement in a body, where `Append` already is
-(it is a `Leaf`, not a `Binding`); an accessor appears inside a reference expression, where a value
-is wanted. Nothing mutates from inside an expression.
+**Named after XPath 3.1's `array:` and `map:` libraries**, because this configuration language
+already follows XSLT deliberately — `KeyGet` is *"XSLT's `key()`"*, `Sum` is *"XPath's answer for
+`sum(())`"*, and `OutputNode` cites one or the other a dozen times. Inventing a parallel vocabulary
+for the same operations would be the port artefact this codebase avoids.
+
+**Mutations are instructions; accessors are functions.** Both are spelled like calls, but a
+mutation is a statement in a body — where `Append` already sits, as a `Leaf` rather than a
+`Binding` — and an accessor appears inside a reference expression. Nothing mutates from inside an
+expression.
 
 #### Mutations — statements in a body
 
-| list | map | set |
-|---|---|---|
-| `append(list, value)` | `put(map, key, value)` | `add(set, value)` |
-| `insert(list, index, value)` — shifts | | |
-| `replace(list, index, value)` — does not shift | | |
-| `removeAt(list, index)` | `remove(map, key)` | `remove(set, value)` |
-| `clear(list)` | `clear(map)` | `clear(set)` |
-
-*Three names for "put a thing in" is deliberate.* `append` always grows, `add` may be a no-op
-because the value is already there, and `put` may replace an existing key. They behave differently,
-so they read differently.
+| list | map | set | after |
+|---|---|---|---|
+| `append(list, value)` | | `add(set, value)` | `array:append` |
+| `insert(list, position, value)` | | | `array:insert-before` |
+| `put(list, position, value)` — replaces | `put(map, key, value)` | | `array:put`, `map:put` |
+| `remove(list, position)` | `remove(map, key)` | `remove(set, value)` | `array:remove`, `map:remove` |
+| `clear(list)` | `clear(map)` | `clear(set)` | — |
 
 #### Accessors — functions in an expression
 
-| list | map | set |
-|---|---|---|
-| `get(list, index)` | `get(map, key)` | |
-| `last(list)` — §8: does not skip absence | | |
-| `has(list, value)` | `has(map, key)` | `has(set, value)` |
-| `size(list)` | `size(map)` | `size(set)` |
-| | `keys(map)` → a list | `values(set)` → a list |
-| | `values(map)` → a list | |
+| list | map | set | after |
+|---|---|---|---|
+| `get(list, position)` | `get(map, key)` | | `array:get`, `map:get` |
+| `size(list)` | `size(map)` | `size(set)` | `array:size`, `map:size` |
+| `contains(list, value)` | `contains(map, key)` | `contains(set, value)` | `map:contains` |
+| `last(list)` — §8: does not skip absence | `keys(map)` → list | `values(set)` → list | `map:keys` |
 
-`get` serving both a list index and a map key is unambiguous because the type is declared (§5).
+#### Folds
 
-#### Folds — functions over any collection
+`sum()`, `avg()`, `min()`, `max()`, `distinct()` — design 16's folds, now taking a reference
+because a reference can denote a collection. **`count()` is not among them: it is `size()`.**
+Design 16's `Count` counts a sequence's entries, which is what `size` does, and `size` applies to
+all three types.
 
-`sum()`, `avg()`, `min()`, `max()`, `distinct()`. These are design 16's folds, now taking a
-reference because a reference can denote a collection.
+#### What following XPath settled
 
-**`count()` is not in that list: it is `size()`.** Design 16's `Count` counts a sequence's entries,
-which is exactly what `size` does, and keeping both would be two names for one operation. `size`
-wins because it applies to all three types.
+- **`append`, not `add`, for a list.** `array:append` is the standard's name and `Append` is
+  already the engine's. `add` would have been Java's word in an XSLT-shaped language.
+- **`put` covers replace-at-a-position and bind-a-key**, which read as one idea — *put this value
+  at this location* — and are `array:put` and `map:put` respectively. This deletes `replace`, and
+  with it the collision against the set *type* that `set(list, i, v)` would have had.
+- **`remove` is positional on a list**, as `array:remove` is. That resolves the ambiguity by
+  convention rather than by inventing `removeAt`. **There is deliberately no remove-by-value for a
+  list** — XPath has none either, and a filter-and-rebuild is its answer. If one is wanted it needs
+  its own name, `removeValue`, rather than an overload nobody can read.
+- **`contains`, not `has`**, after `map:contains`.
 
-#### Three decisions this surface forces
+#### Positions are 1-based
 
-1. **`removeAt` versus `remove` on a list.** `remove(list, 3)` is ambiguous — index three, or the
-   value three? The table above splits them: `removeAt` takes a position, and there is deliberately
-   no remove-by-value for a list. If one is wanted it needs its own name.
-2. **Not `set(list, index, value)`.** The obvious name for replace-at-a-position collides with the
-   set *type* at every reading. `replace` avoids it.
-3. **How `for-each` walks a map.** A list and a set walk their values. A map has two things to
-   offer, and `ForEach(select, as, …)` binds one name. Either it walks `keys(map)` and the body
-   looks each value up, or `for-each` gains a second binding for the value. **Unresolved**, and it
-   is the only gap left in the surface.
+`array:get($a, 1)` is the first member, and the engine's own match counts already start at 1 —
+`counts[winner]++` before `set(matchCount, …)`. So 1-based indexing is both the standard's and the
+engine's existing convention, and a 0-based collection beside a 1-based match count would be a
+trap.
+
+#### `for-each` over a map binds two names
+
+XPath offers both readings: `map:keys($m)` to walk the keys and look each value up, and
+`map:for-each($m, function($k, $v) {…})` to walk entries with both bound. **The second is the
+better fit** — `ForEach(select, as, …)` gains a second binding, so a map walk has its key and value
+without a lookup per entry. `keys(map)` remains for when only the keys are wanted.
+
+*These names are from XPath 3.1 as recalled, not read from the spec.* They should be checked
+against it before implementation — the shapes are certain, the exact spellings less so.
 
 ### Design 16 already built this, for one type
 
@@ -795,19 +808,17 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Counter names** | Eight flat, explicit names: `matchCount()`, `matchIndex()`, `index()`, `position()`, `last()`, `groupKey()`, `group()`, `groupSize()`. | §6 |
 | **`Param`** | Stays outside the unified declaration. Call scoping is already correct and uniformity alone was not a reason. | §4 |
 | **Size guard** | One run-wide live-element counter: every `append` or `put` increments it, every collection caches its own total so a clear or scope-exit decrements in O(1). Nesting is irrelevant because the counter measures exactly what the promise is about — total live elements — whatever shape they are in. | §5, §8 |
+| **Operation names** | After XPath 3.1's `array:` and `map:` libraries, which this language already follows: `append`, `insert`, `put`, `remove`, `get`, `size`, `contains`, `keys`, plus `add` for a set, which XPath has no equivalent of. Positions are 1-based, as XPath's are and as the engine's match counts already are. `for-each` over a map binds two names, after `map:for-each`. | §5 |
 | **The collapse** | Design 16's `Sequence`, `Append`, `DistinctValues`, the five folds, `Key`, `KeyGet` and `ValueMap` fold into declarations, collection types, operations and functions — ten of `Binding`'s twelve, plus the separate key and sequence namespaces. `Transform` and `Variable` remain as *value sources*, not binders. | §5 |
 | **DS3 migration** | Declares **everything global**. `root.clear()` runs once per parse and never between records, so global is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
 
 ### Still open
 
-1. **How does `for-each` walk a map?** §5 — a list and a set offer values, a map offers two
-   things, and `ForEach` binds one name. Walk `keys(map)` and look up in the body, or give
-   `for-each` a second binding.
-2. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
+1. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
    and recursive applies all push today; template lifetime no longer needs a frame, so this design
    may shrink the scope stack rather than extend it.
 
-*One model question and one implementation question left.*
+*One implementation question left. The model is settled.*
 
 ## 10. How it would be gated
 
