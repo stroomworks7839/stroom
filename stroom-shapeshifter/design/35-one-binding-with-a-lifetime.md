@@ -147,30 +147,35 @@ too, because an inner execution's declaration logs and restores just the same.
 template pushes nothing — so the cost tracks declarations, not the 569,199 dispatches
 `win_sec_strict` makes.
 
-**Shadowing is mostly a compile-time resolution, not a stack.** Two declarations of the same name
-at two declaration sites are two slots; every reference is resolved to one of them when the
-configuration is compiled, exactly as design 30 resolved names to slots. Nothing shadows at run
-time and nothing is pushed.
+**Shadowing is a run-time stack, not a compile-time resolution.** *This was first written the other
+way and the correction matters more than the claim.*
 
-*The corpus says how common that even is:* across every fixture, **one** name is declared by two
-templates — `__kv`, by `kv_pair` and `extra_kv_pair` in `ausearch` — and it is a key-value capture,
-which §5 removes. Lexical shadowing is close to nonexistent.
+The wrong version said two declarations of the same name at two sites are two slots, each reference
+resolved to one of them when the configuration compiles. That cannot work, because **templates are
+not lexically nested**. `Project` holds a flat `List<Template>` wired together by modes, so the
+template enclosing an execution is *whichever one dispatched it*, and that is a match outcome
+decided by the data.
 
-**The one case that needs real storage is the same declaration site live twice**, which compile
-time cannot resolve away because whether it happens is data-driven: which child template matches
-depends on the input, and a mode graph with a cycle — the `__rec_` recursive form is the explicit
-one — can re-enter a template while an outer activation is still live. One slot cannot hold both.
+Concretely: `A` declares `x`, `B` declares `x`, both apply into mode `M`, and `C` sits in `M` and
+reads `x`. Whether `C` sees `A`'s or `B`'s depends on which of them matched. No compile-time
+analysis has that answer.
 
-*And it needs nothing new.* A slot holds one value; the stacking lives in the flat undo log, where
-an inner declaration's entry sits above an outer one's and `pop` unwinds them in order. That is the
-frame mechanism §8 describes, shared across all slots rather than built per slot.
+**So there is one slot per name**, which is what `Names` already is —
+`Map<String, VarName>`, name to slot — and a reference resolves to that slot. Which *declaration's*
+value is in it is whatever the innermost live declaration put there, maintained by the frame stack
+(§8). Resolution is therefore **dynamic**, in the precise sense that the scope chain is the dispatch
+chain rather than a nesting in the configuration text.
 
-*Banning shadowing outright was considered and does not help.* Refusing a second declaration of
-a name at compile time removes the lexical case — which is already free, being a compile-time slot
-assignment, and which the corpus does once. It does nothing about the case that actually needs
-storage: **one** declaration site live at two depths, which is not a re-declaration at all. A
-recursive template declares `x` once and can still be inside itself. So the ban would cost a
-legal construct and leave the stack exactly where it was.
+*Lifetime stays static, and the distinction is the whole reason this is tolerable.* A variable
+declared on template `T` lives for `T`'s execution — that is fixed by where it is written and does
+not depend on who dispatched `T`. What is dynamic is only *which* declaration a reference lands on
+when a name is declared in more than one place.
+
+**E49's design rejected dynamic scoping, and this is not the thing it rejected.** It ruled out
+*binding into the enclosing scope*, which would have made a template's captures live as long as
+whoever called it — the same template getting different lifetimes from different call sites. Here
+the lifetime is the declaring template's, always. Only resolution follows the dispatch chain, and
+only when a name has two declarations.
 
 ### When a declaration happens, and what nested executions see
 
@@ -810,6 +815,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Counters** | Become functions resolved to `CompiledRef.Context` at compile time, not reserved `__` variable names. Special forms, never registry functions. | §6 |
 | **Holes** | A failed capture appends absence, so positions stay aligned by the configuration saying so rather than by a hole appearing as a side effect. | §8 |
 | **`last`** | Does not skip absence — it returns the last element. Can only move a golden when the *final* match's capture failed; §10 is the gate and E19 the precedent for recording a divergence. | §8 |
+| **Resolution** | Dynamic, in the precise sense that the scope chain is the *dispatch* chain: templates are a flat list wired by modes, so the enclosing execution is whoever dispatched you. One slot per name, as `Names` already is; the frame stack decides whose value is in it. Lifetime stays static — a variable lives for its declaring template's execution regardless of who dispatched it. | §4 |
 | **Declaration timing** | A declaration is an action on entry to the declaring template's execution; the variable lives entry to exit. A descendant that does not re-declare shares it and may mutate it, which is how accumulation works — so a template cannot accumulate into a variable it declares itself. Recursion shadows because a recursive execution re-declares, which is the existing frame restore rather than anything new. | §4 |
 | **Where declared** | Where a declaration is written *is* its scope; there is no scope attribute and no second scope kind. The source template is the outermost execution — `Run.document()` runs once per stream with the chunk loop inside it — so declaring there lasts the run. Declaring on a **root-mode** template under a `classify` or `any` root gives *chunk* lifetime, which the compiler can see and should refuse or warn. | §4 |
 | **Counter names** | Eight flat, explicit names: `matchCount()`, `matchIndex()`, `index()`, `position()`, `last()`, `groupKey()`, `group()`, `groupSize()`. | §6 |
@@ -821,11 +827,17 @@ default, so that a configuration asking for "the last one that matched" says so.
 
 ### Still open
 
-1. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
+1. **Is a name allowed more than one declaration?** §4 — because templates are wired by modes
+   rather than nested, resolution follows the dispatch chain, so a name declared on two templates
+   resolves differently depending on which matched. Allowing it means accepting that; **refusing a
+   second declaration of a name anywhere in a configuration** makes resolution unambiguous at no
+   cost, since the corpus does it once, in a feature §5 removes. Recursion still shadows either
+   way, because that is one declaration with several live activations.
+2. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
    and recursive applies all push today; template lifetime no longer needs a frame, so this design
    may shrink the scope stack rather than extend it.
 
-*One implementation question left. The model is settled.*
+*One model question and one implementation question.*
 
 ## 10. How it would be gated
 
