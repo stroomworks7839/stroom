@@ -593,6 +593,33 @@ list reaching `value-of`, a cast, or a comparison is refused where it is written
 discovered at run time. The two rulings hold each other up: values-that-nest would be far less
 attractive under inference, where the same mistakes would surface as run-time surprises.
 
+#### Type checking is one level deep, and that is the price of no generics
+
+A declaration says `map`, not `map of map` — that is what §5's *no generics* means. So the compiler
+knows the type of a **declared variable** and nothing about what its entries hold.
+
+```
+get(x, "a")              x is declared a map, so this is checked
+get(get(x, "a"), "b")    the inner get returns a TypedValue; whether it is a map
+                         is a run-time fact, so the outer get cannot be checked
+```
+
+**Nesting therefore works at run time and is typed only at the first level.** `map` of `map`,
+`map` of `list`, `list` of `list` — all legal, all constructible, all readable. What degrades is
+the refusal: applying a map operation to something that turns out to be a scalar is caught where it
+happens rather than where it is written.
+
+*This is the trade §5 made deliberately and it should be visible.* Parameterised declarations —
+`map<string, map<string, string>>` — would restore compile-time checking at depth and bring
+generics, nested type declarations and recursive checking with them. A flat `map` keeps the model
+small and pays for it with a run-time failure at depth two. Given the shapes this engine actually
+builds — a list of headings, a map of fields, a key index of positions — depth two is already
+unusual and depth three is unknown.
+
+**Keys stay scalar.** A collection is refused as a map key and as a set member (below), so
+`map` of `map` means a map whose *values* are maps. There is no nesting on the key side and no
+reason to want it.
+
 #### What the collection variants still have to answer
 
 These are contained, but each needs a decision and none has an obvious default:
@@ -840,7 +867,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Types** | All four: scalar, list, map, set. | §5 |
 | **Collections** | Are `TypedValue`s, and therefore nest. The earlier flat restriction was wrong and its reasoning is kept in §5. | §5 |
 | **Equality** | **Canonical per type, everywhere** — set membership, map keys, conditions, `ValueMap` lookup. Numbers compare numerically; text compares by decoded string, so encoding is irrelevant; different types are never equal, so `1` and `"1"` differ. Replaces both `DistinctValues`' `asString()` keying and the variants' structural `equals`. | §5 |
-| **Nesting and keys** | Collections are refused as set members and map keys, at compile time. | §5 |
+| **Nesting and keys** | Collections nest as *values* — `map` of `map`, `map` of `list`, `list` of `list`. They are refused as set members and map keys, at compile time. Type checking is one level deep: a declaration says `map`, not `map of map`, so a nested read is a run-time fact. That is the price of no generics, and it is paid where the shapes this engine builds are one level deep anyway. | §5 |
 | **Counters** | Become functions resolved to `CompiledRef.Context` at compile time, not reserved `__` variable names. Special forms, never registry functions. | §6 |
 | **Holes** | A failed capture appends absence, so positions stay aligned by the configuration saying so rather than by a hole appearing as a side effect. | §8 |
 | **`last`** | Does not skip absence — it returns the last element. Can only move a golden when the *final* match's capture failed; §10 is the gate and E19 the precedent for recording a divergence. | §8 |
