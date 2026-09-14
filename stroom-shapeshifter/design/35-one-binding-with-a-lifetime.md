@@ -278,6 +278,61 @@ engine**, and the collection types join that interface rather than sitting outsi
 declarations and element-type inference are not questions this design has to answer, and they stay
 that way *because* collections are values.
 
+### The operation surface
+
+**Mutations are instructions; accessors are functions.** Both are spelled like calls, but they sit
+in different places and it matters: a mutation is a statement in a body, where `Append` already is
+(it is a `Leaf`, not a `Binding`); an accessor appears inside a reference expression, where a value
+is wanted. Nothing mutates from inside an expression.
+
+#### Mutations — statements in a body
+
+| list | map | set |
+|---|---|---|
+| `append(list, value)` | `put(map, key, value)` | `add(set, value)` |
+| `insert(list, index, value)` — shifts | | |
+| `replace(list, index, value)` — does not shift | | |
+| `removeAt(list, index)` | `remove(map, key)` | `remove(set, value)` |
+| `clear(list)` | `clear(map)` | `clear(set)` |
+
+*Three names for "put a thing in" is deliberate.* `append` always grows, `add` may be a no-op
+because the value is already there, and `put` may replace an existing key. They behave differently,
+so they read differently.
+
+#### Accessors — functions in an expression
+
+| list | map | set |
+|---|---|---|
+| `get(list, index)` | `get(map, key)` | |
+| `last(list)` — §8: does not skip absence | | |
+| `has(list, value)` | `has(map, key)` | `has(set, value)` |
+| `size(list)` | `size(map)` | `size(set)` |
+| | `keys(map)` → a list | `values(set)` → a list |
+| | `values(map)` → a list | |
+
+`get` serving both a list index and a map key is unambiguous because the type is declared (§5).
+
+#### Folds — functions over any collection
+
+`sum()`, `avg()`, `min()`, `max()`, `distinct()`. These are design 16's folds, now taking a
+reference because a reference can denote a collection.
+
+**`count()` is not in that list: it is `size()`.** Design 16's `Count` counts a sequence's entries,
+which is exactly what `size` does, and keeping both would be two names for one operation. `size`
+wins because it applies to all three types.
+
+#### Three decisions this surface forces
+
+1. **`removeAt` versus `remove` on a list.** `remove(list, 3)` is ambiguous — index three, or the
+   value three? The table above splits them: `removeAt` takes a position, and there is deliberately
+   no remove-by-value for a list. If one is wanted it needs its own name.
+2. **Not `set(list, index, value)`.** The obvious name for replace-at-a-position collides with the
+   set *type* at every reading. `replace` avoids it.
+3. **How `for-each` walks a map.** A list and a set walk their values. A map has two things to
+   offer, and `ForEach(select, as, …)` binds one name. Either it walks `keys(map)` and the body
+   looks each value up, or `for-each` gains a second binding for the value. **Unresolved**, and it
+   is the only gap left in the surface.
+
 ### Design 16 already built this, for one type
 
 Worth stating plainly, because it changes what this design is claiming. `OutputNode` already has
@@ -745,11 +800,14 @@ default, so that a configuration asking for "the last one that matched" says so.
 
 ### Still open
 
-1. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
+1. **How does `for-each` walk a map?** §5 — a list and a set offer values, a map offers two
+   things, and `ForEach` binds one name. Walk `keys(map)` and look up in the body, or give
+   `for-each` a second binding.
+2. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
    and recursive applies all push today; template lifetime no longer needs a frame, so this design
    may shrink the scope stack rather than extend it.
 
-*One implementation question left. The model is settled.*
+*One model question and one implementation question left.*
 
 ## 10. How it would be gated
 
