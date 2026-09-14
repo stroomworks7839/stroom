@@ -56,6 +56,152 @@
     {
       "id": "3aa39e17-e0c9-40b0-9b20-86496ec4dd89",
       "name": "event_record",
+      "declarations": [
+        {
+          "name": "Computer",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_1",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_11",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_12",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_13",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_2",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_3",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_4",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_5",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_6",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_7",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_8",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_9",
+          "type": "scalar"
+        },
+        {
+          "name": "EventID",
+          "type": "scalar"
+        },
+        {
+          "name": "EventRecordID",
+          "type": "scalar"
+        },
+        {
+          "name": "OwnerPID",
+          "type": "scalar"
+        },
+        {
+          "name": "OwnerProcess",
+          "type": "scalar"
+        },
+        {
+          "name": "ProviderName",
+          "type": "scalar"
+        },
+        {
+          "name": "RestartedApplication",
+          "type": "scalar"
+        },
+        {
+          "name": "RestartedPID",
+          "type": "scalar"
+        },
+        {
+          "name": "RmSessionId",
+          "type": "scalar"
+        },
+        {
+          "name": "SecurityUserID",
+          "type": "scalar"
+        },
+        {
+          "name": "SystemTime",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_0",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_1",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_2",
+          "type": "scalar"
+        },
+        {
+          "name": "application_name",
+          "type": "scalar"
+        },
+        {
+          "name": "client_address",
+          "type": "scalar"
+        },
+        {
+          "name": "connection_method",
+          "type": "scalar"
+        },
+        {
+          "name": "domain_user_split_1",
+          "type": "scalar"
+        },
+        {
+          "name": "domain_user_split_2",
+          "type": "scalar"
+        },
+        {
+          "name": "event_record",
+          "type": "scalar"
+        },
+        {
+          "name": "exception_info",
+          "type": "scalar"
+        },
+        {
+          "name": "framework_version",
+          "type": "scalar"
+        },
+        {
+          "name": "reason_extract",
+          "type": "scalar"
+        },
+        {
+          "name": "timestamp_truncate",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "<Event[^>]*>(.+?)</Event>",
@@ -2069,6 +2215,12 @@
       "id": "f6cf8456-e1cd-480c-a16d-783959b1cba1",
       "name": "Level",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "Level",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "<Level>(\\d+)</Level>",
@@ -2587,6 +2739,12 @@
       "id": "8c88ae90-6c2c-4889-a812-649e1f51fc86",
       "name": "DataField_10",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "DataField_10",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
@@ -2735,6 +2893,12 @@
       "id": "406dfc0b-1a86-4091-bc0f-03776c0ee749",
       "name": "DataField_14",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "DataField_14",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
@@ -2772,6 +2936,12 @@
       "id": "ec0af432-f022-448a-9141-2daff01e3401",
       "name": "DataField_15",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "DataField_15",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
@@ -2809,6 +2979,12 @@
       "id": "b2a2b597-146c-48e6-93a6-a1de16cbefdf",
       "name": "DataField_16",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "DataField_16",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
@@ -2846,6 +3022,12 @@
       "id": "a29ab697-0cd3-4f84-ab15-f185a7e5001c",
       "name": "DataField_17",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "DataField_17",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
@@ -2920,6 +3102,12 @@
       "id": "28213771-4c04-4781-9bf9-edf8f8769ba0",
       "name": "UTCStartTime",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "UTCStartTime",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "<Data Name=\"UTCStartTime\">(.*?)</Data>",

@@ -56,6 +56,7 @@ public record Template(UUID id,
                        boolean consume,
                        Condition guard,
                        List<ParamDecl> param,
+                       List<Declaration> declarations,
                        MatchExpression match,
                        MatchLimits matchLimits,
                        List<CaptureBinding> captures,
@@ -65,6 +66,7 @@ public record Template(UUID id,
 
     public Template {
         param = param == null ? List.of() : List.copyOf(param);
+        declarations = declarations == null ? List.of() : List.copyOf(declarations);
         captures = captures == null ? List.of() : List.copyOf(captures);
         body = body == null ? List.of() : List.copyOf(body);
         matchLimits = matchLimits == null ? MatchLimits.unlimited() : matchLimits;

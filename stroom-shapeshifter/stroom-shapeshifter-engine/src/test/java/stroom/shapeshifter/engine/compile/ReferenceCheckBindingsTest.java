@@ -19,7 +19,7 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.EngineVars;
+import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
@@ -60,6 +60,12 @@ class ReferenceCheckBindingsTest {
 
     private static RefExpression ref(final String var) {
         return new RefExpression(List.of(new RefExpression.RefPart.Capture(var, 0, null)));
+    }
+
+    /** Design 35: every name the helpers bind or read is declared, once, on the line template. */
+    private static List<Declaration> declared(final String... names) {
+        return java.util.Arrays.stream(names).distinct()
+                .map(name -> new Declaration(name, Declaration.Type.SCALAR)).toList();
     }
 
     private static final List<RefExpression> SELECT = List.of(ref("seed"));
@@ -124,26 +130,18 @@ class ReferenceCheckBindingsTest {
                 .doesNotThrowAnyException();
     }
 
-    /** The same rule for the engine's own framed names, which are read the same way. */
-    @Test
-    void engineVarReferenceMayNotNameAGroup() {
-        assertThatThrownBy(() -> Shapeshifter.compile(readsGroupOf(EngineVars.INDEX.varName(), 1)))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("asks for group 1");
-    }
-
     private static Project readsGroupOf(final String name, final int group) {
         final OutputNode read = new OutputNode.ValueOf(new RefExpression(
                 List.of(new RefExpression.RefPart.Capture(name, group, null))));
         final Template line = new Template(
-                UUID.randomUUID(), "line", "doc", false, null, List.of(),
+                UUID.randomUUID(), "line", "doc", false, null, List.of(), declared("seed", name),
                 new MatchExpression.Regex("([^\n]*)\n", null, 0),
                 new Template.MatchLimits(0, -1, null),
                 List.of(new CaptureBinding("seed", new CaptureBinding.CaptureSource.Group(1), null)),
                 List.of(read),
                 null, false);
         final Template source = new Template(
-                UUID.randomUUID(), "source", null, false, null, List.of(),
+                UUID.randomUUID(), "source", null, false, null, List.of(), List.of(),
                 new MatchExpression.Source(),
                 new Template.MatchLimits(0, -1, null), List.of(),
                 List.of(new OutputNode.ApplyTemplates(new OutputNode.ApplyDirective(
@@ -157,14 +155,14 @@ class ReferenceCheckBindingsTest {
     /** The binder writes the name; the instruction after it reads the same name back. */
     private static Project project(final OutputNode binder, final String bound) {
         final Template line = new Template(
-                UUID.randomUUID(), "line", "doc", false, null, List.of(),
+                UUID.randomUUID(), "line", "doc", false, null, List.of(), declared("seed", bound),
                 new MatchExpression.Regex("([^\n]*)\n", null, 0),
                 new Template.MatchLimits(0, -1, null),
                 List.of(new CaptureBinding("seed", new CaptureBinding.CaptureSource.Group(1), null)),
                 List.of(binder, new OutputNode.ValueOf(ref(bound))),
                 null, false);
         final Template source = new Template(
-                UUID.randomUUID(), "source", null, false, null, List.of(),
+                UUID.randomUUID(), "source", null, false, null, List.of(), List.of(),
                 new MatchExpression.Source(),
                 new Template.MatchLimits(0, -1, null), List.of(),
                 List.of(new OutputNode.ApplyTemplates(new OutputNode.ApplyDirective(
@@ -185,49 +183,4 @@ class ReferenceCheckBindingsTest {
                 .toList();
     }
 
-    @TestFactory
-    List<DynamicTest> noBinderMayTakeAnEngineName() {
-        final String engine = EngineVars.INDEX.varName();
-        return binders(engine).entrySet().stream()
-                .map(entry -> DynamicTest.dynamicTest(entry.getKey(), () ->
-                        assertThatThrownBy(() ->
-                                Shapeshifter.compile(project(entry.getValue(), engine)))
-                                .as("%s must not bind %s", entry.getKey(), engine)
-                                .isInstanceOf(ConfigException.class)
-                                .hasMessageContaining(engine)))
-                .toList();
-    }
-
-    @TestFactory
-    List<DynamicTest> noCaptureMayTakeAnEngineName() {
-        // Captures bind through the same one place, and are worth their own case because they
-        // are bound before the body is walked at all.
-        return EngineVars.ALL.stream().sorted()
-                .map(name -> DynamicTest.dynamicTest(name, () ->
-                        assertThatThrownBy(() -> Shapeshifter.compile(captureNamed(name)))
-                                .isInstanceOf(ConfigException.class)
-                                .hasMessageContaining(name)))
-                .toList();
-    }
-
-    /** A configuration whose only capture is named after an engine variable. */
-    private static Project captureNamed(final String name) {
-        final Template line = new Template(
-                UUID.randomUUID(), "line", "doc", false, null, List.of(),
-                new MatchExpression.Regex("([^\n]*)\n", null, 0),
-                new Template.MatchLimits(0, -1, null),
-                List.of(new CaptureBinding(name, new CaptureBinding.CaptureSource.Group(1), null)),
-                List.of(new OutputNode.ValueOf(ref(name))),
-                null, false);
-        final Template source = new Template(
-                UUID.randomUUID(), "source", null, false, null, List.of(),
-                new MatchExpression.Source(),
-                new Template.MatchLimits(0, -1, null), List.of(),
-                List.of(new OutputNode.ApplyTemplates(new OutputNode.ApplyDirective(
-                        new RefExpression(List.of(new RefExpression.RefPart.Capture(null, 0, null))),
-                        "doc", List.of(), OutputNode.ApplyDirective.DEFAULT_MAX_DEPTH, false,
-                        null))),
-                null, false);
-        return new Project("t", 5, Project.SourceConfig.defaults(), List.of(source, line), List.of());
-    }
 }

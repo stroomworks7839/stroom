@@ -44,7 +44,9 @@ class CompilerWalksTest {
                 {"name": "walks", "version": 5,
                  "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
                  "templates": [
-                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root",
+                   "declarations": [{"name": "s", "type": "list"}],
+                   "match": "source",
                    "body": [{"sequence": {"name": "s"}}, %s,
                             {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                  "mode": "lines"}}]},

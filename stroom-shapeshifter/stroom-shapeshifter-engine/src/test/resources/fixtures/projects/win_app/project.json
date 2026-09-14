@@ -56,6 +56,272 @@
     {
       "id": "c7609d23-b6ec-40ac-b073-9e47620a8e9a",
       "name": "event_record",
+      "declarations": [
+        {
+          "name": "ComputerName",
+          "type": "scalar"
+        },
+        {
+          "name": "ErrorRoutine_1",
+          "type": "scalar"
+        },
+        {
+          "name": "ErrorRoutine_2",
+          "type": "scalar"
+        },
+        {
+          "name": "ErrorRoutine_3",
+          "type": "scalar"
+        },
+        {
+          "name": "ErrorStatus",
+          "type": "scalar"
+        },
+        {
+          "name": "EventCode",
+          "type": "scalar"
+        },
+        {
+          "name": "EventName",
+          "type": "scalar"
+        },
+        {
+          "name": "Exceptioncode",
+          "type": "scalar"
+        },
+        {
+          "name": "FaultBucket",
+          "type": "scalar"
+        },
+        {
+          "name": "FaultParam1",
+          "type": "scalar"
+        },
+        {
+          "name": "FaultParam2",
+          "type": "scalar"
+        },
+        {
+          "name": "FaultParam4",
+          "type": "scalar"
+        },
+        {
+          "name": "FaultParam7",
+          "type": "scalar"
+        },
+        {
+          "name": "FaultParam8",
+          "type": "scalar"
+        },
+        {
+          "name": "Faultingapplicationname_1",
+          "type": "scalar"
+        },
+        {
+          "name": "Faultingapplicationname_2",
+          "type": "scalar"
+        },
+        {
+          "name": "Faultingapplicationpath",
+          "type": "scalar"
+        },
+        {
+          "name": "Faultingmodulename_1",
+          "type": "scalar"
+        },
+        {
+          "name": "Faultingmodulename_2",
+          "type": "scalar"
+        },
+        {
+          "name": "Faultingmodulepath",
+          "type": "scalar"
+        },
+        {
+          "name": "Faultingprocessid",
+          "type": "scalar"
+        },
+        {
+          "name": "Faultoffset",
+          "type": "scalar"
+        },
+        {
+          "name": "GraceTime",
+          "type": "scalar"
+        },
+        {
+          "name": "LicenseStatus",
+          "type": "scalar"
+        },
+        {
+          "name": "LoginUser",
+          "type": "scalar"
+        },
+        {
+          "name": "Manufacturer",
+          "type": "scalar"
+        },
+        {
+          "name": "Message",
+          "type": "scalar"
+        },
+        {
+          "name": "OfficeVersion_1",
+          "type": "scalar"
+        },
+        {
+          "name": "OfficeVersion_2",
+          "type": "scalar"
+        },
+        {
+          "name": "OwnerProcess_1",
+          "type": "scalar"
+        },
+        {
+          "name": "OwnerProcess_2",
+          "type": "scalar"
+        },
+        {
+          "name": "ProductLanguage",
+          "type": "scalar"
+        },
+        {
+          "name": "ProductName",
+          "type": "scalar"
+        },
+        {
+          "name": "ProductVersion",
+          "type": "scalar"
+        },
+        {
+          "name": "RecordNumber",
+          "type": "scalar"
+        },
+        {
+          "name": "RemainingRearmCount",
+          "type": "scalar"
+        },
+        {
+          "name": "ReportId",
+          "type": "scalar"
+        },
+        {
+          "name": "RestartedApplication_1",
+          "type": "scalar"
+        },
+        {
+          "name": "RestartedApplication_2",
+          "type": "scalar"
+        },
+        {
+          "name": "RmSessionId",
+          "type": "scalar"
+        },
+        {
+          "name": "SourceName",
+          "type": "scalar"
+        },
+        {
+          "name": "UserDomainSplit_1",
+          "type": "scalar"
+        },
+        {
+          "name": "UserDomainSplit_2",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_0",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_1",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_2",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_3",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_4",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_5",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_6",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_7",
+          "type": "scalar"
+        },
+        {
+          "name": "application_name",
+          "type": "scalar"
+        },
+        {
+          "name": "client_address",
+          "type": "scalar"
+        },
+        {
+          "name": "connection_method",
+          "type": "scalar"
+        },
+        {
+          "name": "event_record",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_1",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_2",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_3",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_4",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_5",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_6",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_7",
+          "type": "scalar"
+        },
+        {
+          "name": "exception_info",
+          "type": "scalar"
+        },
+        {
+          "name": "framework_version",
+          "type": "scalar"
+        },
+        {
+          "name": "hour24",
+          "type": "scalar"
+        },
+        {
+          "name": "reason_extract",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M\\n(?:(?!\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M).)*?)(?=\\n\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M|\\z)",
@@ -3261,6 +3527,12 @@
       "id": "7cbe0b34-4f8a-4d79-8cfe-984431af0104",
       "name": "EventType",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "EventType",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)^EventType=(.*)$",

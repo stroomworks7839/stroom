@@ -116,7 +116,7 @@ public final class Conditions {
             case final CompiledCondition.Not value ->
                     !evaluate(value.condition(), match, matchCount, vars);
             // Set by the iteration (design/16 §4.3). Outside a
-            // for-each nothing sets __position, so both read false — E21's hazard, which the
+            // for-each nothing sets position(), so both read false — E21's hazard, which the
             // compiler now warns about rather than leaving to be discovered.
             case final CompiledCondition.IsFirst ignored -> {
                 final Long position = engineNumber(vars, EngineVars.POSITION);

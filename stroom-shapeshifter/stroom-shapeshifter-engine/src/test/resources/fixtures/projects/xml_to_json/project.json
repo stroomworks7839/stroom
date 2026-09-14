@@ -122,10 +122,8 @@
                 "select": {
                   "parts": [
                     {
-                      "Store": {
-                        "var_id": "__match_idx",
-                        "group": 0,
-                        "match_index": null
+                      "function": {
+                        "name": "matchIndex"
                       }
                     }
                   ]

@@ -10,6 +10,20 @@
     {
       "id": "b1a7c2d0-0003-4a10-9f03-cccccccccccc",
       "name": "protobuf_message",
+      "declarations": [
+        {
+          "name": "eid",
+          "type": "scalar"
+        },
+        {
+          "name": "ekind",
+          "type": "scalar"
+        },
+        {
+          "name": "eok",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "protobuf": {
           "descriptor_path": "__FIXTURE_DIR__/schema.desc",
@@ -21,21 +35,62 @@
         "max_match": -1
       },
       "captures": [
-        { "name": "eid", "select": { "field": "id" } },
-        { "name": "ekind", "select": { "field": "kind" } },
-        { "name": "eok", "select": { "field": "ok" } }
+        {
+          "name": "eid",
+          "select": {
+            "field": "id"
+          }
+        },
+        {
+          "name": "ekind",
+          "select": {
+            "field": "kind"
+          }
+        },
+        {
+          "name": "eok",
+          "select": {
+            "field": "ok"
+          }
+        }
       ],
       "body": [
         {
           "value-of": {
             "parts": [
-              { "text": "<event id=\"" },
-              { "capture": { "var_id": "eid", "group": 0, "match_index": null } },
-              { "text": "\" kind=\"" },
-              { "capture": { "var_id": "ekind", "group": 0, "match_index": null } },
-              { "text": "\" ok=\"" },
-              { "capture": { "var_id": "eok", "group": 0, "match_index": null } },
-              { "text": "\"/>\n" }
+              {
+                "text": "<event id=\""
+              },
+              {
+                "capture": {
+                  "var_id": "eid",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\" kind=\""
+              },
+              {
+                "capture": {
+                  "var_id": "ekind",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\" ok=\""
+              },
+              {
+                "capture": {
+                  "var_id": "eok",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\"/>\n"
+              }
             ]
           }
         }

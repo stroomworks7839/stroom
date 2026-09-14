@@ -125,6 +125,7 @@ class FunctionsTest {
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
                    "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "l"}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "l",
+                   "declarations": [{"name": "nums", "type": "list"}, {"name": "u", "type": "scalar"}],
                    "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
                    "body": [BODY, {"text": "|"}]}
                  ]}

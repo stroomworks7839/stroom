@@ -48,6 +48,7 @@ class DiagnosticsTest {
                    "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                              "mode": "doc"}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "declarations": [{"name": "field", "type": "list"}],
                    "match": {"regex": {"pattern": "([^\\\\n]*)\\\\n"}},
                    "captures": [{"name": "field", "select": {"group": 1}}],
                    "body": [%s]}]}
@@ -83,7 +84,7 @@ class DiagnosticsTest {
     void knownNamesPassIncludingEngineCounters() {
         final String body = "{\"value-of\": {\"parts\": ["
                 + "{\"capture\": {\"var_id\": \"field\", \"group\": 0}},"
-                + "{\"capture\": {\"var_id\": \"__match_count\", \"group\": 0}}]}}";
+                + "{\"function\": {\"name\": \"matchCount\"}}]}}";
         assertThat(run(config(4, "", body), "a\n").messages()).isEmpty();
     }
 
@@ -108,6 +109,7 @@ class DiagnosticsTest {
                    "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                              "mode": "doc"}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "pair", "mode": "doc",
+                   "declarations": [{"name": "auid", "type": "scalar"}],
                    "match": {"regex": {"pattern": "(\\\\w+)=(\\\\w+)\\\\n"}},
                    "captures": [{"name": "kv", "select": {"key-value": {
                      "key_ref": {"parts": [{"capture": {"group": 1}}]},

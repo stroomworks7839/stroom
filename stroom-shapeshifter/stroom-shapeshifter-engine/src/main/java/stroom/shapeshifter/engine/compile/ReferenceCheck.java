@@ -22,6 +22,7 @@ import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
@@ -74,6 +75,26 @@ final class ReferenceCheck {
     private final List<Read> reads = new ArrayList<>();
 
     /**
+     * Design 35: every name a configuration binds or reads is declared once, with a type.
+     * Declarations are collected first and judged in {@link #report()}, because a name is
+     * declared on the template whose executions it lives for, which may be far from where
+     * it is bound.
+     */
+    private final Map<String, Declaration> declarations = new HashMap<>();
+    private final Map<String, String> declaredIn = new HashMap<>();
+    /**
+     * Names a block declares in place — a parameter, a loop's {@code as} — which are
+     * declarations already, scoped to that block (design 35 §4), so no separate one is owed.
+     * Held per template, because the scope is the block: a parameter of one template says
+     * nothing about a name in another.
+     */
+    private final Set<NamedUse> implicit = new HashSet<>();
+    private final List<NamedUse> binds = new ArrayList<>();
+    /** Names an instruction fills as a list, or builds as a map: the type it needs declared. */
+    private final List<NamedUse> listNames = new ArrayList<>();
+    private final List<NamedUse> mapNames = new ArrayList<>();
+
+    /**
      * A key-value capture binds names read out of the data itself, so the writable set is
      * not statically knowable and the refusal stands down for the whole configuration
      * rather than accusing every data-driven read.
@@ -123,33 +144,30 @@ final class ReferenceCheck {
     ReferenceCheck(final Project project, final List<Message> warnings) {
         this.project = project;
         this.warnings = warnings;
-        // Every name the engine sets is writable by definition, named once in EngineVars
-        // so that setting, reading and refusing cannot drift apart.
-        writable.addAll(EngineVars.ALL);
     }
 
     /**
-     * Note that a name is bound, refusing the engine's own.
-     *
-     * <p>Every binding — a capture, a parameter, a variable, a transform's target, a
-     * {@code for-each}'s {@code as} — comes through here, so the refusal is stated once rather
-     * than at eleven sites. It exists because design 30 phase 4 moved the engine's variables
-     * into execution frames: a binding named {@code __index} would still write the registry,
-     * while every reference to that name now reads the frame, so the value would be written and
-     * unreadable. Before the frames it was worse rather than better — the binding landed on the
-     * engine's own store and the counter it clobbered stayed clobbered for the rest of the run.
-     *
-     * <p>Refused rather than warned, on this class's own precedent: a name that cannot be read
-     * is the configuration that "appears to work and quietly reads absence for ever".
+     * Note that a name is bound: a capture, a variable, a transform's target, a sequence, a
+     * key. Every such site comes through here, so the rule that a bound name is a declared name
+     * is judged once, in {@link #report()}, against every declaration in the configuration.
      */
     private void bind(final String name) {
-        if (EngineVars.byName(name) != null) {
-            throw new ConfigException("Template '" + templateName + "' binds '" + name
-                    + "', which is one of the names the engine sets for itself. Nothing could"
-                    + " read it: a reference to that name reads the engine's value. Choose"
-                    + " another name.");
-        }
         writable.add(name);
+        binds.add(new NamedUse(templateName, name));
+    }
+
+    /**
+     * A block's own declaration — a parameter, an argument, a loop's {@code as} — which is a
+     * declaration in place, scoped to the block (design 35 §4), so it owes no other.
+     */
+    private void bindImplicit(final String name) {
+        writable.add(name);
+        implicit.add(new NamedUse(templateName, name));
+    }
+
+    /** Whether the template declares the name in place — see {@link #bindImplicit}. */
+    private boolean implicitIn(final String template, final String name) {
+        return implicit.contains(new NamedUse(template, name));
     }
 
     /**
@@ -162,6 +180,17 @@ final class ReferenceCheck {
         inDocumentTemplate = template.match() instanceof MatchExpression.Source;
         if (inDocumentTemplate) {
             documentTemplates.add(template.name());
+        }
+        for (final Declaration declaration : template.declarations()) {
+            final String before = declaredIn.putIfAbsent(declaration.name(), template.name());
+            if (before != null) {
+                throw new ConfigException("Template '" + template.name() + "' declares '"
+                        + declaration.name() + "', which template '" + before + "' already"
+                        + " declares. A name is declared once: a second declaration would be a"
+                        + " second variable under the same name, and a reference could not say"
+                        + " which it meant.");
+            }
+            declarations.put(declaration.name(), declaration);
         }
         ownCaptures.clear();
         ownCasts.clear();
@@ -193,7 +222,7 @@ final class ReferenceCheck {
             }
         }
         for (final Template.ParamDecl declared : template.param()) {
-            bind(declared.name());
+            bindImplicit(declared.name());
         }
         body(template.body());
     }
@@ -233,14 +262,14 @@ final class ReferenceCheck {
                 read(value.directive().select());
                 inApplySelect = false;
                 for (final OutputNode.Param param : value.directive().withParam()) {
-                    bind(param.name());
+                    writable.add(param.name());
                     read(param.value());
                 }
             }
             case OutputNode.CallTemplate value -> {
                 callsByTemplate.computeIfAbsent(templateName, name -> new LinkedHashSet<>()).add(value.name());
                 for (final OutputNode.Param param : value.withParam()) {
-                    bind(param.name());
+                    writable.add(param.name());
                     read(param.value());
                 }
             }
@@ -269,6 +298,7 @@ final class ReferenceCheck {
             case OutputNode.Transform value -> transform(value.select(), value.name());
             case OutputNode.Sequence value -> {
                 declaredSequences.add(value.name());
+                listNames.add(new NamedUse(templateName, value.name()));
                 bind(value.name());
             }
             case OutputNode.Append value -> {
@@ -284,11 +314,17 @@ final class ReferenceCheck {
             case OutputNode.Avg value -> fold(value.select(), value.name());
             case OutputNode.Min value -> fold(value.select(), value.name());
             case OutputNode.Max value -> fold(value.select(), value.name());
-            case OutputNode.DistinctValues value -> fold(value.select(), value.name());
+            case OutputNode.DistinctValues value -> {
+                fold(value.select(), value.name());
+                if (value.name() != null) {
+                    listNames.add(new NamedUse(templateName, value.name()));
+                }
+            }
             case OutputNode.Key value -> {
                 declaredKeys.add(value.name());
+                mapNames.add(new NamedUse(templateName, value.name()));
                 sequenceUses.add(new NamedUse(templateName, value.select()));
-                // Like a grouping's key, resolved with __index bound.
+                // Like a grouping's key, resolved with index() bound.
                 iterationDepth++;
                 read(value.groupBy());
                 iterationDepth--;
@@ -296,11 +332,12 @@ final class ReferenceCheck {
             case OutputNode.KeyGet value -> {
                 keyUses.add(new NamedUse(templateName, value.key()));
                 read(value.select());
+                listNames.add(new NamedUse(templateName, value.name()));
                 bind(value.name());
             }
             case OutputNode.ForEachGroup value -> {
                 sequenceUses.add(new NamedUse(templateName, value.select()));
-                // __index is bound while the key is resolved, so the key counts as
+                // index() is bound while the key is resolved, so the key counts as
                 // inside the iteration — but *not* yet inside the group: the key is what
                 // forms it, so reading this grouping's own names there is the same
                 // mistake as reading a position in a sort key.
@@ -312,19 +349,18 @@ final class ReferenceCheck {
                 iterationDepth--;
             }
             case OutputNode.ForEach value -> {
-                // Walking __group is only meaningful inside a grouping, and the sequence
-                // check cannot see that: __group is writable everywhere, being a name the
-                // engine sets.
-                if (EngineVars.GROUP.varName().equals(value.select()) && groupDepth == 0) {
+                // Walking group() is only meaningful inside a grouping, and the sequence
+                // check cannot see that: group() is answered everywhere, being the engine's.
+                if (EngineVars.GROUP.spelling().equals(value.select()) && groupDepth == 0) {
                     warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                            + "' walks " + EngineVars.GROUP.varName() + " outside any"
+                            + "' walks " + EngineVars.GROUP.spelling() + " outside any"
                             + " for-each-group, where nothing sets it."));
                 }
                 sequenceUses.add(new NamedUse(templateName, value.select()));
                 if (value.as() != null) {
-                    bind(value.as());
+                    bindImplicit(value.as());
                 }
-                // The sort keys are evaluated with __index bound, so they count as inside
+                // The sort keys are evaluated with index() bound, so they count as inside
                 // the iteration: a key reading it is correct, not the lint's hazard.
                 iterationDepth++;
                 inSortKey = true;
@@ -402,7 +438,7 @@ final class ReferenceCheck {
 
     /**
      * E21's hazard, caught rather than rediscovered: outside an iteration nothing sets
-     * {@code __position}, so these read false on every record. Inside one they are exact.
+     * {@code position()}, so these read false on every record. Inside one they are exact.
      */
     private void positional(final String spelling) {
         if (iterationDepth == 0) {
@@ -467,54 +503,54 @@ final class ReferenceCheck {
                 }
             }
         }
-        if (inSortKey) {
-            for (final RefExpression.RefPart part : ref.parts()) {
-                if (part instanceof RefExpression.RefPart.Capture capture) {
-                    sortKeyPositional(capture.varId());
-                    if (capture.matchIndex() != null) {
-                        sortKeyPositional(capture.matchIndex().varRef());
-                    }
-                }
+        // The functions' lints: on a function part, and on the function an index rule reads.
+        for (final RefExpression.RefPart part : ref.parts()) {
+            final RefExpression.MatchIndex index = switch (part) {
+                case RefExpression.RefPart.Capture capture -> capture.matchIndex();
+                case RefExpression.RefPart.Counter counter -> counter.matchIndex();
+                case RefExpression.RefPart.Text ignored -> null;
+            };
+            if (part instanceof RefExpression.RefPart.Counter counter) {
+                function(counter.counter());
+            }
+            if (index != null && index.counter() != null) {
+                function(index.counter());
             }
         }
-        for (final RefExpression.RefPart part : ref.parts()) {
-            if (part instanceof RefExpression.RefPart.Capture capture) {
-                if (iterationDepth == 0) {
-                    iterationOnly(capture.varId());
-                    if (capture.matchIndex() != null) {
-                        iterationOnly(capture.matchIndex().varRef());
-                    }
-                }
-                if (groupDepth == 0) {
-                    groupOnly(capture.varId());
-                    if (capture.matchIndex() != null) {
-                        groupOnly(capture.matchIndex().varRef());
-                    }
-                }
-            }
+    }
+
+    /** One function read, wherever it sits: the hazards are about where, not about what. */
+    private void function(final EngineVars function) {
+        if (inSortKey) {
+            sortKeyPositional(function);
+        }
+        if (iterationDepth == 0) {
+            iterationOnly(function);
+        }
+        if (groupDepth == 0) {
+            groupOnly(function);
         }
     }
 
     /**
      * A sort key decides the order, so it cannot ask where an entry will land: nothing
-     * has a position until the keys have been compared. {@code __index} is fine there —
+     * has a position until the keys have been compared. {@code index()} is fine there —
      * it names the record, which is known — and is how a key reaches a parallel store.
      */
-    private void sortKeyPositional(final String name) {
-        if (EngineVars.POSITION.varName().equals(name)
-            || EngineVars.LAST.varName().equals(name)) {
+    private void sortKeyPositional(final EngineVars function) {
+        if (function == EngineVars.POSITION || function == EngineVars.LAST) {
             warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                    + "' reads " + name + " in a sort key, which decides the order: this"
+                    + "' reads " + function.spelling() + " in a sort key, which decides the order: this"
                     + " entry has no position until the keys have been compared, so this"
                     + " reads the enclosing iteration's, if there is one."));
         }
     }
 
     /** The grouping names carry the iteration names' hazard, outside a grouping. */
-    private void groupOnly(final String name) {
-        if (name != null && EngineVars.GROUP_ONLY.contains(name)) {
+    private void groupOnly(final EngineVars function) {
+        if (EngineVars.GROUP_ONLY.contains(function)) {
             warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                    + "' reads " + name + " outside any for-each-group, where nothing"
+                    + "' reads " + function.spelling() + " outside any for-each-group, where nothing"
                     + " sets it."));
         }
     }
@@ -522,13 +558,13 @@ final class ReferenceCheck {
     /**
      * The same hazard the positional conditions carry, on the variables that carry it
      * too: outside an iteration nothing sets these, and absence here is
-     * quiet — {@code $__position} writes nothing, and an index reference falls back to
+     * quiet — {@code position()} writes nothing, and an index reference falls back to
      * the first entry, which is a wrong value rather than no value.
      */
-    private void iterationOnly(final String name) {
-        if (name != null && EngineVars.ITERATION_ONLY.contains(name)) {
+    private void iterationOnly(final EngineVars function) {
+        if (EngineVars.ITERATION_ONLY.contains(function)) {
             warnings.add(new Message(Severity.WARNING, "Template '" + templateName
-                    + "' reads " + name + " outside any for-each, where nothing sets it."));
+                    + "' reads " + function.spelling() + " outside any for-each, where nothing sets it."));
         }
     }
 
@@ -542,8 +578,36 @@ final class ReferenceCheck {
             refuseMatchReadsCalledFrom(document, document, new HashSet<>(), new StringBuilder());
         }
         if (referencesKnowable) {
+            // Design 35's rule: a bound name is a declared name. A key-value capture binds names
+            // read out of the data, which no declaration can foresee, so the rule stands down
+            // with the read check when one is present.
+            for (final NamedUse bound : binds) {
+                if (!declarations.containsKey(bound.name()) && !implicitIn(bound.templateName(), bound.name())) {
+                    throw new ConfigException("Template '" + bound.templateName() + "' binds '"
+                            + bound.name() + "', which no declaration names. Declare it, with"
+                            + " its type, on the template whose executions it should live for.");
+                }
+            }
             for (final Read read : reads) {
                 checkRead(read);
+            }
+            // An operation that disagrees with the declared type. Only the operations that
+            // are list- or map-shaped are judged here: what a scalar bind means for a list is
+            // the operation surface's question (design 35 §12 phase 4), not the declaration's.
+            for (final NamedUse use : sequenceUses) {
+                requireType(use, Declaration.Type.LIST, "walks");
+            }
+            for (final NamedUse use : appendTargets) {
+                requireType(use, Declaration.Type.LIST, "appends to");
+            }
+            for (final NamedUse use : listNames) {
+                requireType(use, Declaration.Type.LIST, "fills");
+            }
+            for (final NamedUse use : keyUses) {
+                requireType(use, Declaration.Type.MAP, "looks up in");
+            }
+            for (final NamedUse use : mapNames) {
+                requireType(use, Declaration.Type.MAP, "builds");
             }
         }
         // Design/16 §9's two checks. An append to a name no sequence declares would
@@ -575,7 +639,7 @@ final class ReferenceCheck {
             }
         }
         for (final NamedUse use : sequenceUses) {
-            if (!writable.contains(use.name())) {
+            if (!writable.contains(use.name()) && !EngineVars.GROUP.spelling().equals(use.name())) {
                 throw new ConfigException("Template '" + use.templateName()
                         + "' walks '" + use.name() + "', which nothing writes — no"
                         + " sequence declares it and no capture binds it.");
@@ -626,20 +690,44 @@ final class ReferenceCheck {
     private void checkRead(final Read read) {
         for (final RefExpression.RefPart part : read.ref().parts()) {
             if (part instanceof RefExpression.RefPart.Capture capture) {
-                if (capture.varId() != null && !writable.contains(capture.varId())) {
-                    throw new ConfigException("Template '" + read.templateName()
-                            + "' reads '" + capture.varId() + "', which nothing writes —"
-                            + " no capture, variable, transform bind or parameter has that"
-                            + " name. A misspelt name would otherwise read as absent for"
-                            + " ever.");
+                if (capture.varId() != null) {
+                    declaredAndWritten(read.templateName(), capture.varId(), "reads");
+                    if (capture.matchIndex() != null) {
+                        requireType(new NamedUse(read.templateName(), capture.varId()),
+                                Declaration.Type.LIST, "indexes into");
+                    }
                 }
-                if (capture.matchIndex() != null && capture.matchIndex().varRef() != null
-                    && !writable.contains(capture.matchIndex().varRef())) {
-                    throw new ConfigException("Template '" + read.templateName()
-                            + "' indexes by '" + capture.matchIndex().varRef()
-                            + "', which nothing writes.");
+                if (capture.matchIndex() != null && capture.matchIndex().varRef() != null) {
+                    declaredAndWritten(read.templateName(), capture.matchIndex().varRef(), "indexes by");
                 }
             }
+        }
+    }
+
+    /** Design 35's two halves of an unknown reference: no declaration names it; nothing writes it. */
+    private void declaredAndWritten(final String template, final String name, final String verb) {
+        if (!declarations.containsKey(name) && !implicitIn(template, name)) {
+            throw new ConfigException("Template '" + template + "' " + verb + " '" + name
+                    + "', which no declaration names. A misspelt name would otherwise read as"
+                    + " absent for ever; declare it, with its type, on the template whose"
+                    + " executions it should live for.");
+        }
+        if (!writable.contains(name)) {
+            throw new ConfigException("Template '" + template + "' " + verb + " '" + name
+                    + "', which nothing writes — no capture, variable, transform bind or"
+                    + " parameter has that name. A misspelt name would otherwise read as absent"
+                    + " for ever.");
+        }
+    }
+
+    /** The declared type must be the one the operation needs; an undeclared name was refused already. */
+    private void requireType(final NamedUse use, final Declaration.Type type, final String verb) {
+        final Declaration declaration = declarations.get(use.name());
+        if (declaration != null && declaration.type() != type) {
+            throw new ConfigException("Template '" + use.templateName() + "' " + verb + " '"
+                    + use.name() + "' as a " + type.name().toLowerCase(Locale.ROOT)
+                    + ", but it is declared as a "
+                    + declaration.type().name().toLowerCase(Locale.ROOT) + ".");
         }
     }
 }

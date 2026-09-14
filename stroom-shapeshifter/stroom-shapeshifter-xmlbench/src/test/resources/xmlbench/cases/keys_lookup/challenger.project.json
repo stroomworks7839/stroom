@@ -10,6 +10,40 @@
   {
    "id": "00000000-0000-0000-0000-000000000001",
    "name": "source",
+   "declarations": [
+    {
+     "name": "by_cat",
+     "type": "map"
+    },
+    {
+     "name": "c",
+     "type": "list"
+    },
+    {
+     "name": "cat",
+     "type": "list"
+    },
+    {
+     "name": "hits",
+     "type": "list"
+    },
+    {
+     "name": "id",
+     "type": "list"
+    },
+    {
+     "name": "n",
+     "type": "scalar"
+    },
+    {
+     "name": "orders",
+     "type": "list"
+    },
+    {
+     "name": "wants",
+     "type": "list"
+    }
+   ],
    "match": "source",
    "body": [
     {
@@ -50,7 +84,7 @@
           "var_id": "cat",
           "group": 0,
           "match_index": {
-           "var_ref": "__index"
+           "function": "index"
           }
          }
         }
@@ -256,9 +290,8 @@
       "select": {
        "parts": [
         {
-         "capture": {
-          "var_id": "__match_count",
-          "group": 0
+         "function": {
+          "name": "matchCount"
          }
         }
        ]
@@ -291,9 +324,8 @@
       "select": {
        "parts": [
         {
-         "capture": {
-          "var_id": "__match_count",
-          "group": 0
+         "function": {
+          "name": "matchCount"
          }
         }
        ]

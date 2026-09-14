@@ -56,6 +56,340 @@
     {
       "id": "0054cd4c-6b4f-4a3b-bea1-6b488081a901",
       "name": "event_record",
+      "declarations": [
+        {
+          "name": "27b7fa43-4fce-49a1-a283-0ce909c31de3",
+          "type": "scalar"
+        },
+        {
+          "name": "AccessMask",
+          "type": "scalar"
+        },
+        {
+          "name": "Accesses",
+          "type": "scalar"
+        },
+        {
+          "name": "AccountDomain",
+          "type": "scalar"
+        },
+        {
+          "name": "AccountExpires",
+          "type": "scalar"
+        },
+        {
+          "name": "AccountForWhichLogonFailed_2",
+          "type": "scalar"
+        },
+        {
+          "name": "AccountForWhichLogonFailed_3",
+          "type": "scalar"
+        },
+        {
+          "name": "AccountName",
+          "type": "scalar"
+        },
+        {
+          "name": "AccountWhoseCredentialsWereUsed_1",
+          "type": "scalar"
+        },
+        {
+          "name": "AccountWhoseCredentialsWereUsed_2",
+          "type": "scalar"
+        },
+        {
+          "name": "AccountWhoseCredentialsWereUsed_3",
+          "type": "scalar"
+        },
+        {
+          "name": "AdditionalInformation",
+          "type": "scalar"
+        },
+        {
+          "name": "AuthenticationPackage",
+          "type": "scalar"
+        },
+        {
+          "name": "ComputerName",
+          "type": "scalar"
+        },
+        {
+          "name": "CreatorProcessID",
+          "type": "scalar"
+        },
+        {
+          "name": "CreatorProcessName",
+          "type": "scalar"
+        },
+        {
+          "name": "DisplayName",
+          "type": "scalar"
+        },
+        {
+          "name": "ElevatedToken",
+          "type": "scalar"
+        },
+        {
+          "name": "EventCode",
+          "type": "scalar"
+        },
+        {
+          "name": "FailureReason",
+          "type": "scalar"
+        },
+        {
+          "name": "Group_1",
+          "type": "scalar"
+        },
+        {
+          "name": "Group_2",
+          "type": "scalar"
+        },
+        {
+          "name": "Group_3",
+          "type": "scalar"
+        },
+        {
+          "name": "HandleID",
+          "type": "scalar"
+        },
+        {
+          "name": "LogonID",
+          "type": "scalar"
+        },
+        {
+          "name": "LogonProcess",
+          "type": "scalar"
+        },
+        {
+          "name": "LogonType",
+          "type": "scalar"
+        },
+        {
+          "name": "MandatoryLabel",
+          "type": "scalar"
+        },
+        {
+          "name": "Member_1",
+          "type": "scalar"
+        },
+        {
+          "name": "Member_2",
+          "type": "scalar"
+        },
+        {
+          "name": "NetworkAddress",
+          "type": "scalar"
+        },
+        {
+          "name": "NewAccount_1",
+          "type": "scalar"
+        },
+        {
+          "name": "NewAccount_2",
+          "type": "scalar"
+        },
+        {
+          "name": "NewAccount_3",
+          "type": "scalar"
+        },
+        {
+          "name": "NewLogon_1",
+          "type": "scalar"
+        },
+        {
+          "name": "NewLogon_2",
+          "type": "scalar"
+        },
+        {
+          "name": "NewLogon_3",
+          "type": "scalar"
+        },
+        {
+          "name": "NewLogon_4",
+          "type": "scalar"
+        },
+        {
+          "name": "NewProcessID",
+          "type": "scalar"
+        },
+        {
+          "name": "NewProcessName",
+          "type": "scalar"
+        },
+        {
+          "name": "NewUACValue",
+          "type": "scalar"
+        },
+        {
+          "name": "ObjectName",
+          "type": "scalar"
+        },
+        {
+          "name": "ObjectServer",
+          "type": "scalar"
+        },
+        {
+          "name": "ObjectType",
+          "type": "scalar"
+        },
+        {
+          "name": "PasswordLastSet",
+          "type": "scalar"
+        },
+        {
+          "name": "Port",
+          "type": "scalar"
+        },
+        {
+          "name": "PrimaryGroupID",
+          "type": "scalar"
+        },
+        {
+          "name": "Privileges",
+          "type": "scalar"
+        },
+        {
+          "name": "ProcessCommandLine",
+          "type": "scalar"
+        },
+        {
+          "name": "ProcessID",
+          "type": "scalar"
+        },
+        {
+          "name": "ProcessName",
+          "type": "scalar"
+        },
+        {
+          "name": "RecordNumber",
+          "type": "scalar"
+        },
+        {
+          "name": "SAMAccountName",
+          "type": "scalar"
+        },
+        {
+          "name": "SecurityID",
+          "type": "scalar"
+        },
+        {
+          "name": "SourceName",
+          "type": "scalar"
+        },
+        {
+          "name": "SourceNetworkAddress",
+          "type": "scalar"
+        },
+        {
+          "name": "SourcePort",
+          "type": "scalar"
+        },
+        {
+          "name": "Status",
+          "type": "scalar"
+        },
+        {
+          "name": "SubStatus",
+          "type": "scalar"
+        },
+        {
+          "name": "TargetServerName",
+          "type": "scalar"
+        },
+        {
+          "name": "TokenElevationType",
+          "type": "scalar"
+        },
+        {
+          "name": "UserPrincipalName",
+          "type": "scalar"
+        },
+        {
+          "name": "WorkstationName",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_0",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_1",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_2",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_3",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_4",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_5",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_6",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_7",
+          "type": "scalar"
+        },
+        {
+          "name": "cn_extract",
+          "type": "scalar"
+        },
+        {
+          "name": "d37d61ef-893c-441f-a490-1aea60d3594c",
+          "type": "scalar"
+        },
+        {
+          "name": "event_record",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_1",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_2",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_3",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_4",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_5",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_6",
+          "type": "scalar"
+        },
+        {
+          "name": "event_time_7",
+          "type": "scalar"
+        },
+        {
+          "name": "filename_extract",
+          "type": "scalar"
+        },
+        {
+          "name": "hour24",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M\\n(?:(?!\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M).)*?)(?=\\n\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M|\\z)",
@@ -4174,6 +4508,12 @@
       "id": "656fb8e9-d219-49a1-98a2-5ea5c04eba2f",
       "name": "Keywords",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "Keywords",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)^Keywords=(.*)$",
@@ -4212,6 +4552,12 @@
       "id": "efae9eac-28fa-4f3e-ab47-aeb85fc2d146",
       "name": "SecurityID",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "efec2e12-737a-46aa-8fb4-a692309df494",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)\\tSecurity ID:\\t+(.+)$",
@@ -4269,6 +4615,12 @@
       "id": "bbb9fcf4-ae8a-4a3e-a09e-b6d30d0510a6",
       "name": "AccountName",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "13e89287-8fa3-49e8-838a-c8dfd5c82520",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)\\tAccount Name:\\t+(.+)$",
@@ -4326,6 +4678,12 @@
       "id": "555db592-0d2d-4743-aa22-9ad3ee7f55d1",
       "name": "AccountDomain",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "ddc0e60e-1901-4c96-b70a-12da0fbc9632",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)\\tAccount Domain:\\t+(.+)$",
@@ -4383,6 +4741,12 @@
       "id": "d853f29c-8436-4d37-bd90-d890bfc09fc1",
       "name": "LogonID",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "d7785674-1b2f-42e9-97c2-379e018eed26",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)\\tLogon ID:\\t+(.+)$",
@@ -4440,6 +4804,12 @@
       "id": "0fc8bb9a-94ef-4c08-9ad2-b5d35ca3d994",
       "name": "LogonType",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "33dab954-7363-432f-93f5-f6d9c504a626",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)\\tLogon Type:\\t+(.+)$",
@@ -4497,6 +4867,12 @@
       "id": "f0e8d9b2-1a9d-42c4-a430-159f390d2830",
       "name": "ElevatedToken",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "a1c73ad1-fca8-4792-bfaa-92cd298b55f0",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)\\tElevated Token:\\t+(.+)$",
@@ -4554,6 +4930,12 @@
       "id": "70fbd5cc-343e-441b-970a-5e2f8cbfad0b",
       "name": "AccountForWhichLogonFailed",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "AccountForWhichLogonFailed_1",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?ms)Account For Which Logon Failed:\\n\\tSecurity ID:\\t+(\\S+)\\n\\tAccount Name:\\t+(\\S+)\\n\\tAccount Domain:\\t+(\\S+)",
@@ -4824,6 +5206,12 @@
       "id": "bf2b8a17-9f94-4bd4-a419-1929f613ba24",
       "name": "LinkedLogonID",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "LinkedLogonID",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)\\tLinked Logon ID:\\t+(\\S+)",
@@ -4862,6 +5250,12 @@
       "id": "a2b437b5-16db-4452-aae0-9878b3c0da8e",
       "name": "LogonGUID",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "LogonGUID",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)\\tLogon GUID:\\t+(\\{[^}]+\\})",
@@ -5470,6 +5864,12 @@
       "id": "eafa1afb-dfa7-4169-bda8-9324d164e067",
       "name": "CallerProcessID",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "CallerProcessID",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)\\tCaller Process ID:\\t(\\S+)",
@@ -6196,6 +6596,12 @@
       "id": "6ccd94bc-e146-41c5-8cd9-7a67436e0a40",
       "name": "RestrictedSIDCount",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "RestrictedSIDCount",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(?m)\\tRestricted SID Count:\\t(\\d+)",

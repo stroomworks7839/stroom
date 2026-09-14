@@ -49,6 +49,7 @@ class VariablePromotionTest {
                                                    "mode": "outer"}}]},
 
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "outer", "mode": "outer",
+                     "declarations": [{"name": "word", "type": "list"}],
                      "match": {"regex": {"pattern": ".+"}},
                      "body": [
                        {"variable": {"name": "word", "body": [

@@ -68,7 +68,7 @@ public sealed interface CompiledRef {
      * which writes it is true and is not the distinction the other kinds are drawn on.
      *
      * <p>Which frame is a compile-time fact, and was already being treated as one — the
-     * compiler's {@code ReferenceCheck} warns about reading {@code __position} outside a
+     * compiler's {@code ReferenceCheck} warns about reading {@code position()} outside a
      * {@code for-each} precisely because it knows. This carries the same knowledge into the run
      * instead of resolving the name against the scope stack on every read. The index rule
      * travels because an author may still write one; a scalar answers to index one and to

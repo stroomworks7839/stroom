@@ -72,6 +72,12 @@
     {
       "id": "00000000-0000-0000-0000-000000000002",
       "name": "record",
+      "declarations": [
+        {
+          "name": "t",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "\\s*<record>.*?name=\"host\" value=\"([^\"]*)\".*?name=\"user\" value=\"([^\"]*)\".*?name=\"time\" value=\"([^\"]*)\".*?name=\"url\" value=\"([^ ]+) ([^ ]+) ([^\"]+)\".*?name=\"response\" value=\"([^\"]*)\".*?name=\"size\" value=\"([^\"]*)\".*?name=\"referrer\" value=\"([^\"]*)\".*?name=\"userAgent\" value=\"([^\"]*)\".*?</record>",

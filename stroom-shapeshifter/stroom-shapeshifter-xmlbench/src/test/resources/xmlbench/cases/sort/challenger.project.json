@@ -10,6 +10,24 @@
   {
    "id": "00000000-0000-0000-0000-000000000001",
    "name": "source",
+   "declarations": [
+    {
+     "name": "at",
+     "type": "list"
+    },
+    {
+     "name": "name",
+     "type": "list"
+    },
+    {
+     "name": "score",
+     "type": "list"
+    },
+    {
+     "name": "team",
+     "type": "list"
+    }
+   ],
    "match": "source",
    "body": [
     {
@@ -211,9 +229,8 @@
       "select": {
        "parts": [
         {
-         "capture": {
-          "var_id": "__match_count",
-          "group": 0
+         "function": {
+          "name": "matchCount"
          }
         }
        ]

@@ -48,12 +48,12 @@ import java.util.Map;
 public record Names(Map<String, VarName> all, Map<String, KeyName> keys) {
 
     public Names {
-        if (!all.containsKey(EngineVars.GROUP.varName())) {
+        if (!all.containsKey(EngineVars.GROUP.spelling())) {
             // The interner interns it in a field initialiser, so every table the compiler makes
             // has it. Said here too, because this became a public record when the builder was
             // pulled out of it, and Body reads group() without asking whether it is there.
             throw new IllegalArgumentException(
-                    "A name table always holds " + EngineVars.GROUP.varName()
+                    "A name table always holds " + EngineVars.GROUP.spelling()
                     + ": the interpreter binds it whether or not a configuration reads it");
         }
         all = Map.copyOf(all);
@@ -63,12 +63,12 @@ public record Names(Map<String, VarName> all, Map<String, KeyName> keys) {
     /**
      * The slot a grouping binds its members to.
      *
-     * <p>{@code __group} is always here, because the interpreter binds it whether or not the
+     * <p>{@code group()} is always here, because the interpreter binds it whether or not the
      * configuration reads it — it is the one engine variable that is a sequence, so design 30
      * phase 4 left it a store rather than a frame, and a store needs a slot.
      */
     public VarName group() {
-        return all.get(EngineVars.GROUP.varName());
+        return all.get(EngineVars.GROUP.spelling());
     }
 
     /** The name if the configuration mentions it, or null — the run's one string lookup. */

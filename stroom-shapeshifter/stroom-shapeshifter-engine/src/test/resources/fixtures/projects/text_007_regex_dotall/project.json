@@ -50,6 +50,12 @@
       "id": "00000000-0000-0000-0000-000000000002",
       "name": "log_entry",
       "mode": "root",
+      "declarations": [
+        {
+          "name": "__record_body__",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "^(?:INFO|DEBUG|WARN|ERROR|TRACE) +.*?(?=(?:(?:INFO|DEBUG|WARN|ERROR|TRACE) +)|\\z)",
@@ -145,6 +151,20 @@
       "id": "00000000-0000-0000-0000-000000000003",
       "name": "log_fields",
       "mode": "entry_fields",
+      "declarations": [
+        {
+          "name": "__esc_level",
+          "type": "list"
+        },
+        {
+          "name": "__esc_logger",
+          "type": "list"
+        },
+        {
+          "name": "__esc_message",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "^([A-Z]+) +([\\S]+) - (.*)",

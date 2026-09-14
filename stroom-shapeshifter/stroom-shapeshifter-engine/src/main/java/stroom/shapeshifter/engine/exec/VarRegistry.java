@@ -57,7 +57,7 @@ import java.util.Map;
  * hottest path in the engine, carrying a value that was always the same.
  *
  * <p>What is in here is the <b>author's</b> names. The engine's own are {@link Frames}, which
- * design 30 phase 4 gave them; the one exception is {@code __group}, a sequence rather than a
+ * design 30 phase 4 gave them; the one exception is {@code group()}, a sequence rather than a
  * scalar, which is a slot like any other.
  */
 public final class VarRegistry {

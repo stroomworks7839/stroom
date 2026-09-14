@@ -45,6 +45,7 @@ class NamedTransformTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "line"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "line",
+                     "declarations": [{"name": "lc", "type": "scalar"}, {"name": "w", "type": "scalar"}],
                      "match": {"regex": {"pattern": "([A-Za-z]+)\\n"}},
                      "captures": [{"name": "w", "select": {"group": 1}}],
                      "body": [

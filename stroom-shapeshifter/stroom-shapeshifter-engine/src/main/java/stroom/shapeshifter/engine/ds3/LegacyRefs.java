@@ -185,7 +185,7 @@ public final class LegacyRefs {
         }
         final boolean relative = text.charAt(0) == '+' || text.charAt(0) == '-';
         final String digits = text.charAt(0) == '+' ? text.substring(1) : text;
-        return new MatchIndex(number(digits, reference), relative, false, null);
+        return new MatchIndex(number(digits, reference), relative, false, null, null);
     }
 
     private static int number(final String text, final String reference) {

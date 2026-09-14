@@ -74,6 +74,12 @@
    "id": "00000000-0000-0000-0000-000000000005",
    "name": "batch",
    "mode": "doc",
+   "declarations": [
+    {
+     "name": "batch",
+     "type": "scalar"
+    }
+   ],
    "match": {
     "regex": {
      "pattern": "  <batch id=\"([^\"]*)\">\\n((?s).*?)  </batch>\\n"
@@ -132,6 +138,32 @@
    "id": "00000000-0000-0000-0000-000000000008",
    "name": "entry",
    "mode": "entries",
+   "declarations": [
+    {
+     "name": "deep",
+     "type": "scalar"
+    },
+    {
+     "name": "detail",
+     "type": "scalar"
+    },
+    {
+     "name": "name",
+     "type": "scalar"
+    },
+    {
+     "name": "note",
+     "type": "scalar"
+    },
+    {
+     "name": "seq",
+     "type": "scalar"
+    },
+    {
+     "name": "tier",
+     "type": "scalar"
+    }
+   ],
    "match": {
     "regex": {
      "pattern": "    <entry seq=\"([0-9]+)\">\\n((?s).*?    </entry>)\\n"
@@ -248,6 +280,20 @@
    "id": "00000000-0000-0000-0000-000000000020",
    "name": "emit",
    "mode": "__rec_fields",
+   "declarations": [
+    {
+     "name": "e1",
+     "type": "scalar"
+    },
+    {
+     "name": "e2",
+     "type": "scalar"
+    },
+    {
+     "name": "sqlText",
+     "type": "scalar"
+    }
+   ],
    "match": {
     "regex": {
      "pattern": "    </entry>"

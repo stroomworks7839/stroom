@@ -50,6 +50,7 @@ class CaptureCastTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "declarations": [{"name": "n", "type": "list"}],
                      "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
                      "captures": [{"name": "n", "select": {"group": 1}AS}],
                      "body": [BODY]}
@@ -141,6 +142,7 @@ class CaptureCastTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "declarations": [{"name": "joined", "type": "list"}, {"name": "k", "type": "list"}],
                      "match": {"regex": {"pattern": "(\\\\w+) (\\\\w+) (\\\\w+)\\n"}},
                      "captures": [
                        {"name": "joined", "select": {"select": {"parts": [

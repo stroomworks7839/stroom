@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.ds3;
 
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.Project;
@@ -146,7 +147,7 @@ class Ds3ImportTest {
                 </dataSplitter>
                 """);
         assertThat(variableReads(project, "b")).containsExactly(
-                new RefPart.Capture("a$1", 0, new MatchIndex(0, false, false, "__match_count")));
+                new RefPart.Capture("a$1", 0, new MatchIndex(0, false, false, null, EngineVars.MATCH_COUNT)));
     }
 
     @Test
@@ -166,7 +167,7 @@ class Ds3ImportTest {
                 </dataSplitter>
                 """);
         assertThat(variableReads(project, "v")).containsExactly(
-                new RefPart.Capture("q", 0, new MatchIndex(0, false, false, "__match_count")));
+                new RefPart.Capture("q", 0, new MatchIndex(0, false, false, null, EngineVars.MATCH_COUNT)));
     }
 
     @Test

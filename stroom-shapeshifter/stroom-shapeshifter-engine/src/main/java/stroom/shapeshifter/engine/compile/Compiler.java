@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine.compile;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
@@ -287,6 +288,12 @@ public final class Compiler {
                                              final CompiledCapture[] captures,
                                              final CompiledCondition guard,
                                              final Interner names) {
+        // A declaration compiles to a slot and, in this phase, to nothing else (design 35 §12,
+        // phase 2): the run time still targets the store it always did, and what the declaration
+        // will own — lifetime and shape — arrives in phase 3.
+        for (final Declaration declaration : template.declarations()) {
+            names.intern(declaration.name());
+        }
         final List<VarName> clear = new ArrayList<>();
         final List<VarName> named = new ArrayList<>();
         for (final CaptureBinding capture : template.captures()) {

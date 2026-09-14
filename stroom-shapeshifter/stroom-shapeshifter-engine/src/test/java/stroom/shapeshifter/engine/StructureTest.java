@@ -42,7 +42,9 @@ class StructureTest {
                 {"name": "structure", "version": 5,
                  "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
                  "templates": [
-                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root",
+                   "declarations": [{"name": "flag", "type": "scalar"}, {"name": "v", "type": "scalar"}],
+                   "match": "source",
                    "body": [%s]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "lines",
                    "match": {"regex": {"pattern": "([a-z]+)=([^\\n]*)\\n"}},
@@ -90,7 +92,9 @@ class StructureTest {
                 {"name": "e37", "version": 5,
                  "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
                  "templates": [
-                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root",
+                   "declarations": [{"name": "flag", "type": "scalar"}, {"name": "v", "type": "scalar"}],
+                   "match": "source",
                    "body": [%s %s]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "lines",
                    "match": {"regex": {"pattern": "([a-z]+)=([^\\n]*)\\n"}},
@@ -118,9 +122,12 @@ class StructureTest {
                 {"name": "field", "version": 5,
                  "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
                  "templates": [
-                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root",
+                   "declarations": [{"name": "flag", "type": "scalar"}, {"name": "v", "type": "scalar"}],
+                   "match": "source",
                    "body": [%s]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "lines",
+                   "declarations": [{"name": "f", "type": "scalar"}],
                    "match": {"regex": {"pattern": "([a-z]+)\\n"}},
                    "captures": [{"name": "f", "select": {"field": "x"}}],
                    "body": []}
@@ -187,7 +194,9 @@ class StructureTest {
                 {"name": "runtime", "version": 5,
                  "source": {"buffer_size": 20000, "ignore_errors": true, "encoding": "utf-8"},
                  "templates": [
-                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root", "match": "source",
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "root",
+                   "declarations": [{"name": "flag", "type": "scalar"}, {"name": "v", "type": "scalar"}],
+                   "match": "source",
                    "body": [{"element": {"name": "e", "body": [%s]}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "text-line", "mode": "lines",
                    "match": {"regex": {"pattern": "a=([^\\n]*)\\n"}},

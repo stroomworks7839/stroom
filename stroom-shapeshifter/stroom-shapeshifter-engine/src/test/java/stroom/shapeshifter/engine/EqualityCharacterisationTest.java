@@ -74,6 +74,7 @@ class EqualityCharacterisationTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "line"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "line",
+                     "declarations": [{"name": "n", "type": "scalar"}],
                      "match": {"regex": {"pattern": "([0-9]+)\\n"}},
                      "captures": [{"name": "n", "select": {"group": 1}, "as": "number"}],
                      "body": [{"value-map": {
@@ -107,7 +108,9 @@ class EqualityCharacterisationTest {
                   "name": "dv", "version": 5,
                   "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
                   "templates": [
-                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                     "declarations": [{"name": "items", "type": "list"}, {"name": "seen", "type": "list"}],
+                     "match": "source",
                      "body": [
                        {"sequence": {"name": "items"}},
                        {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
@@ -117,6 +120,7 @@ class EqualityCharacterisationTest {
                          {"value-of": {"parts": [{"capture": {"var_id": "s", "group": 0}}]}},
                          {"text": ","}]}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "line",
+                     "declarations": [{"name": "asNumber", "type": "scalar"}, {"name": "asText", "type": "scalar"}],
                      "match": {"regex": {"pattern": "([0-9]+)\\n"}},
                      "captures": [{"name": "asText", "select": {"group": 1}},
                                   {"name": "asNumber", "select": {"group": 1}, "as": "number"}],
@@ -140,6 +144,7 @@ class EqualityCharacterisationTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "line"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "line",
+                     "declarations": [{"name": "n", "type": "scalar"}],
                      "match": {"regex": {"pattern": "([0-9]+)\\n"}},
                      "captures": [{"name": "n", "select": {"group": 1}, "as": "number"}],
                      "body": [{"if": {"test": TEST, "then": [{"text": "yes"}]}}]}

@@ -255,6 +255,7 @@ class AbsentAndMalformedValuesTest {
                  "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
                  "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                   "declarations": [{"name": "items", "type": "list"}, {"name": "out", "type": "scalar"}],
                    "match": "source",
                    "body": [
                      {"sequence": {"name": "items"}},
@@ -268,10 +269,11 @@ class AbsentAndMalformedValuesTest {
                         {"value-of": {"parts": [{"capture": {"var_id": "out", "group": 0}}]}},
                         {"text": "] "}]}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "declarations": [{"name": "field", "type": "list"}],
                    "match": {"regex": {"pattern": "([^\\\\n]*)\\\\n"}},
                    "captures": [{"name": "field", "select": {"group": 1}}],
                    "body": [{"append": {"name": "items", "select": {"parts": [
-                     {"capture": {"var_id": "__match_count", "group": 0}}]}}}]}]}
+                     {"function": {"name": "matchCount"}}]}}}]}]}
                 """.formatted(instruction.formatted(""),
                 instruction.formatted(", \"name\": \"out\""));
 

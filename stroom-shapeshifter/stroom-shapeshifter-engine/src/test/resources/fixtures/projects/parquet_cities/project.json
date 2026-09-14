@@ -10,6 +10,20 @@
     {
       "id": "b1a7c2d0-0002-4a10-9f02-bbbbbbbbbbbb",
       "name": "parquet_row",
+      "declarations": [
+        {
+          "name": "cid",
+          "type": "scalar"
+        },
+        {
+          "name": "cname",
+          "type": "scalar"
+        },
+        {
+          "name": "cpop",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "parquet": {}
       },
@@ -18,21 +32,62 @@
         "max_match": -1
       },
       "captures": [
-        { "name": "cid", "select": { "field": "id" } },
-        { "name": "cname", "select": { "field": "city" } },
-        { "name": "cpop", "select": { "field": "population" } }
+        {
+          "name": "cid",
+          "select": {
+            "field": "id"
+          }
+        },
+        {
+          "name": "cname",
+          "select": {
+            "field": "city"
+          }
+        },
+        {
+          "name": "cpop",
+          "select": {
+            "field": "population"
+          }
+        }
       ],
       "body": [
         {
           "value-of": {
             "parts": [
-              { "text": "<city id=\"" },
-              { "capture": { "var_id": "cid", "group": 0, "match_index": null } },
-              { "text": "\" name=\"" },
-              { "capture": { "var_id": "cname", "group": 0, "match_index": null } },
-              { "text": "\" pop=\"" },
-              { "capture": { "var_id": "cpop", "group": 0, "match_index": null } },
-              { "text": "\"/>\n" }
+              {
+                "text": "<city id=\""
+              },
+              {
+                "capture": {
+                  "var_id": "cid",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\" name=\""
+              },
+              {
+                "capture": {
+                  "var_id": "cname",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\" pop=\""
+              },
+              {
+                "capture": {
+                  "var_id": "cpop",
+                  "group": 0,
+                  "match_index": null
+                }
+              },
+              {
+                "text": "\"/>\n"
+              }
             ]
           }
         }

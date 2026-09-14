@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.graph.KeyName;
 import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
@@ -42,7 +43,7 @@ class VarRegistrySlotsTest {
 
     private static Names names(final String... compiled) {
         final Map<String, VarName> all = new LinkedHashMap<>();
-        all.put("__group", new VarName("__group", 0));
+        all.put(EngineVars.GROUP.spelling(), new VarName(EngineVars.GROUP.spelling(), 0));
         for (int i = 0; i < compiled.length; i++) {
             all.put(compiled[i], new VarName(compiled[i], i + 1));
         }

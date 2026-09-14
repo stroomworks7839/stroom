@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine.config.json;
 import stroom.shapeshifter.engine.config.CaptureBinding;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
@@ -116,6 +117,13 @@ final class ReferenceJson {
                         matchIndex == null ? null : readMatchIndex(matchIndex));
             }
             case "text" -> new RefPart.Text(JsonFields.text(body, "text"));
+            case "function" -> {
+                JsonFields.checkFields(body, "function", "name", "match_index");
+                final JsonNode matchIndex = JsonFields.optional(body, "match_index");
+                yield new RefPart.Counter(
+                        function(JsonFields.text(body, "name", "function")),
+                        matchIndex == null ? null : readMatchIndex(matchIndex));
+            }
             default -> throw new ConfigException("Unknown reference part: " + tagged.name());
         };
     }
@@ -132,16 +140,36 @@ final class ReferenceJson {
                 yield JsonFields.wrap("capture", body);
             }
             case RefPart.Text value -> JsonFields.wrap("text", JsonFields.NODES.stringNode(value.value()));
+            case RefPart.Counter counter -> {
+                final ObjectNode body = JsonFields.NODES.objectNode();
+                body.put("name", counter.counter().functionName());
+                if (counter.matchIndex() != null) {
+                    body.set("match_index", writeMatchIndex(counter.matchIndex()));
+                }
+                yield JsonFields.wrap("function", body);
+            }
         };
     }
 
     private static MatchIndex readMatchIndex(final JsonNode node) {
-        JsonFields.checkFields(node, "match index", "index", "is_offset", "is_last", "var_ref");
+        JsonFields.checkFields(node, "match index", "index", "is_offset", "is_last", "var_ref", "function");
+        final String function = JsonFields.optionalText(node, "function");
         return new MatchIndex(
                 JsonFields.integer(node, "index", "match index", 0),
                 node.path("is_offset").asBoolean(false),
                 node.path("is_last").asBoolean(false),
-                JsonFields.optionalText(node, "var_ref"));
+                JsonFields.optionalText(node, "var_ref"),
+                function == null ? null : function(function));
+    }
+
+    /** The engine function a name means, refused by name when there is none. */
+    private static EngineVars function(final String name) {
+        final EngineVars function = EngineVars.byName(name);
+        if (function == null) {
+            throw new ConfigException("Unknown function '" + name + "': the functions are "
+                    + EngineVars.spellings());
+        }
+        return function;
     }
 
     private static ObjectNode writeMatchIndex(final MatchIndex index) {
@@ -150,6 +178,9 @@ final class ReferenceJson {
         node.put("is_offset", index.isOffset());
         node.put("is_last", index.isLast());
         JsonFields.putIfPresent(node, "var_ref", index.varRef());
+        if (index.counter() != null) {
+            node.put("function", index.counter().functionName());
+        }
         return node;
     }
 }

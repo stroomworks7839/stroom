@@ -56,6 +56,268 @@
     {
       "id": "91da8ab2-998d-404c-9722-74b25863caed",
       "name": "event_record",
+      "declarations": [
+        {
+          "name": "61d10d51-55fb-4735-b1d1-ad0993979b1c",
+          "type": "scalar"
+        },
+        {
+          "name": "AccessList",
+          "type": "scalar"
+        },
+        {
+          "name": "AccessMask",
+          "type": "scalar"
+        },
+        {
+          "name": "AccountExpires",
+          "type": "scalar"
+        },
+        {
+          "name": "AuthenticationPackageName",
+          "type": "scalar"
+        },
+        {
+          "name": "CommandLine",
+          "type": "scalar"
+        },
+        {
+          "name": "Computer",
+          "type": "scalar"
+        },
+        {
+          "name": "DisplayName",
+          "type": "scalar"
+        },
+        {
+          "name": "ElevatedToken",
+          "type": "scalar"
+        },
+        {
+          "name": "EventID",
+          "type": "scalar"
+        },
+        {
+          "name": "EventRecordID",
+          "type": "scalar"
+        },
+        {
+          "name": "FailureReason",
+          "type": "scalar"
+        },
+        {
+          "name": "HandleId",
+          "type": "scalar"
+        },
+        {
+          "name": "IpAddress",
+          "type": "scalar"
+        },
+        {
+          "name": "IpPort",
+          "type": "scalar"
+        },
+        {
+          "name": "LogonProcessName",
+          "type": "scalar"
+        },
+        {
+          "name": "LogonType",
+          "type": "scalar"
+        },
+        {
+          "name": "MandatoryLabel",
+          "type": "scalar"
+        },
+        {
+          "name": "MemberName",
+          "type": "scalar"
+        },
+        {
+          "name": "MemberSid",
+          "type": "scalar"
+        },
+        {
+          "name": "NewProcessId",
+          "type": "scalar"
+        },
+        {
+          "name": "NewProcessName",
+          "type": "scalar"
+        },
+        {
+          "name": "NewUacValue",
+          "type": "scalar"
+        },
+        {
+          "name": "ObjectName",
+          "type": "scalar"
+        },
+        {
+          "name": "ObjectServer",
+          "type": "scalar"
+        },
+        {
+          "name": "ObjectType",
+          "type": "scalar"
+        },
+        {
+          "name": "OldUacValue",
+          "type": "scalar"
+        },
+        {
+          "name": "ParentProcessName",
+          "type": "scalar"
+        },
+        {
+          "name": "PasswordLastSet",
+          "type": "scalar"
+        },
+        {
+          "name": "PrimaryGroupId",
+          "type": "scalar"
+        },
+        {
+          "name": "PrivilegeList",
+          "type": "scalar"
+        },
+        {
+          "name": "ProcessId",
+          "type": "scalar"
+        },
+        {
+          "name": "ProcessName",
+          "type": "scalar"
+        },
+        {
+          "name": "ProviderName",
+          "type": "scalar"
+        },
+        {
+          "name": "RestrictedSidCount",
+          "type": "scalar"
+        },
+        {
+          "name": "SamAccountName",
+          "type": "scalar"
+        },
+        {
+          "name": "Status",
+          "type": "scalar"
+        },
+        {
+          "name": "SubStatus",
+          "type": "scalar"
+        },
+        {
+          "name": "SubjectDomainName",
+          "type": "scalar"
+        },
+        {
+          "name": "SubjectLogonId",
+          "type": "scalar"
+        },
+        {
+          "name": "SubjectUserName",
+          "type": "scalar"
+        },
+        {
+          "name": "SubjectUserSid",
+          "type": "scalar"
+        },
+        {
+          "name": "SystemTime",
+          "type": "scalar"
+        },
+        {
+          "name": "TargetDomainName",
+          "type": "scalar"
+        },
+        {
+          "name": "TargetInfo",
+          "type": "scalar"
+        },
+        {
+          "name": "TargetLinkedLogonId",
+          "type": "scalar"
+        },
+        {
+          "name": "TargetLogonGuid",
+          "type": "scalar"
+        },
+        {
+          "name": "TargetLogonId",
+          "type": "scalar"
+        },
+        {
+          "name": "TargetServerName",
+          "type": "scalar"
+        },
+        {
+          "name": "TargetSid",
+          "type": "scalar"
+        },
+        {
+          "name": "TargetUserName",
+          "type": "scalar"
+        },
+        {
+          "name": "TargetUserSid",
+          "type": "scalar"
+        },
+        {
+          "name": "TokenElevationType",
+          "type": "scalar"
+        },
+        {
+          "name": "UserAccountControl",
+          "type": "scalar"
+        },
+        {
+          "name": "UserPrincipalName",
+          "type": "scalar"
+        },
+        {
+          "name": "WorkstationName",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_0",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_1",
+          "type": "scalar"
+        },
+        {
+          "name": "__esc_2",
+          "type": "scalar"
+        },
+        {
+          "name": "cn_extract",
+          "type": "scalar"
+        },
+        {
+          "name": "e2c29788-0b50-475f-946f-d659f6a402a5",
+          "type": "scalar"
+        },
+        {
+          "name": "event_record",
+          "type": "scalar"
+        },
+        {
+          "name": "filename_extract",
+          "type": "scalar"
+        },
+        {
+          "name": "timestamp_truncate",
+          "type": "scalar"
+        },
+        {
+          "name": "whitespace_trim",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "<Event[^>]*>(.+?)</Event>",

@@ -56,10 +56,11 @@ final class Interner {
     private final Map<String, KeyName> keysByName = new HashMap<>();
 
     Interner() {
-        // __group is interned first and always, because the interpreter binds it whether or not
-        // the configuration reads it — it is the one engine variable that is a sequence, so
-        // design 30 phase 4 left it a store rather than a frame, and a store needs a slot.
-        intern(EngineVars.GROUP.varName());
+        // group() is interned first and always, because the interpreter binds it whether or not
+        // the configuration reads it — it is the one engine function that answers a sequence, so
+        // design 30 phase 4 left it a store rather than a frame, and a store needs a slot. It is
+        // interned under its spelling, which no declaration can take (design 35 §6).
+        intern(EngineVars.GROUP.spelling());
     }
 
     VarName intern(final String name) {

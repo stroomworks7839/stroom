@@ -71,6 +71,19 @@ public record RefExpression(List<RefPart> parts) {
         record Text(String value) implements RefPart {
 
         }
+
+        /**
+         * One of the engine's functions — {@code matchCount()}, {@code index()} and the rest
+         * (design 35 §6) — with an index rule for the one that answers a sequence.
+         */
+        record Counter(EngineVars counter, MatchIndex matchIndex) implements RefPart {
+
+            public Counter {
+                if (counter == null) {
+                    throw new ConfigException("A function part needs one of: " + EngineVars.spellings());
+                }
+            }
+        }
     }
 
     /**
@@ -79,15 +92,24 @@ public record RefExpression(List<RefPart> parts) {
      * <p>A variable captured inside a repeating match accumulates one value per match, so a
      * reference to it has to say which. Absolute ({@code [3]}), relative to the current match
      * ({@code [+1]}), the last populated entry, or an index read from another variable at
-     * runtime — which is how the engine's own {@code __match_count} threads a parent's position
+     * runtime — which is how the engine's own {@code matchCount()} threads a parent's position
      * into a child's lookup.
      *
      * @param index    the index, ignored when {@code varRef} is set
      * @param isOffset whether {@code index} is relative to the current match rather than absolute
      * @param isLast   whether this means the last populated entry, ignoring {@code index}
      * @param varRef   a variable whose value is the index, or null
+     * @param counter  one of the engine's functions whose value is the index, or null; at most
+     *                 one of {@code varRef} and {@code counter} is set
      */
-    public record MatchIndex(int index, boolean isOffset, boolean isLast, String varRef) {
+    public record MatchIndex(int index, boolean isOffset, boolean isLast, String varRef,
+                             EngineVars counter) {
 
+        public MatchIndex {
+            if (varRef != null && counter != null) {
+                throw new ConfigException("An index rule reads its index from a variable or from a"
+                        + " function, not both: '" + varRef + "' and " + counter.spelling());
+            }
+        }
     }
 }

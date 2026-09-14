@@ -22,14 +22,14 @@ import stroom.shapeshifter.engine.config.EngineVars;
  * Which of a variable's values a reference means, compiled (design 30 phase 5).
  *
  * <p>The authored {@link MatchIndex}'s fourth form reads the index out of <em>another
- * variable</em> at run time — {@code $heading[$__match_count]} is how a column's name is read
+ * variable</em> at run time — {@code $heading[matchCount()]} is how a column's name is read
  * beside its value — and that variable was being found by name on every such reference. Here it
  * is a {@link VarName}, resolved when the reference compiled.
  *
  * <p>The four forms are kept as they are authored, including that nothing makes them mutually
  * exclusive: which is asked first is behaviour, and the resolver asks in this order.
  *
- * <p>That variable may be one of the engine's own — {@code $heading[$__match_count]} is the
+ * <p>Or the index may be one of the engine's functions — {@code $heading[matchCount()]} is the
  * common shape — and those live in frames rather than in the registry since phase 4, so which of
  * the two holds it is settled here as well. At most one of {@code varRef} and {@code varContext}
  * is set.

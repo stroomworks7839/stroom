@@ -32,19 +32,19 @@ import java.util.Arrays;
  *
  * <p><b>What the counting found</b> (design 30 §5.3): on {@code ausearch} 72% and on
  * {@code element_storm} 100% of all name resolutions were engine variables, almost all of them
- * {@code __match_count} and {@code __match_idx} written per match by {@code Level} — and
+ * {@code matchCount()} and {@code matchIndex()} written per match by {@code Level} — and
  * {@code element_storm}'s configuration reads neither. That traffic is not resolving
  * references; it is a hash per match to store two numbers nobody asks for.
  *
  * <p><b>The stacks are exact, not approximate.</b> An iteration frame inherits its enclosing
  * frame's position and last at the push, because the two index-only pushes — a grouping's
  * filing walk and an ordering's key evaluation — deliberately leave those reading the
- * enclosing walk's values, which is what shadowing only {@code __index} used to say. Nothing
+ * enclosing walk's values, which is what shadowing only {@code index()} used to say. Nothing
  * is allocated per push after the first: the frame objects are reused down the stack.
  *
  * <p><b>Values are made on the read, not on the write.</b> A frame keeps a {@code long} and
  * remembers the {@link TypedValue} it was last asked for. A configuration that never reads
- * {@code __match_count} never builds one.
+ * {@code matchCount()} never builds one.
  */
 public final class Frames {
 
@@ -61,7 +61,7 @@ public final class Frames {
     private int groupDepth;
 
     /**
-     * Count a match, which is what {@code __match_count} and {@code __match_idx} both read.
+     * Count a match, which is what {@code matchCount()} and {@code matchIndex()} both read.
      *
      * <p>One field for two names: the index is the count less one, so there is nothing to keep
      * consistent. The match frame is <b>not</b> a stack, which is the behaviour it replaces —
@@ -153,7 +153,7 @@ public final class Frames {
 
     /**
      * What an engine variable currently reads as, or null when its frame is not open — the
-     * absence that {@code $__position} outside a {@code for-each} has always had.
+     * absence that {@code position()} outside a {@code for-each} has always had.
      */
     public TypedValue value(final EngineVars var) {
         final Iteration iteration = iterationDepth == 0 ? null : iterations[iterationDepth - 1];
@@ -169,7 +169,7 @@ public final class Frames {
             case GROUP_KEY -> group == null ? null : group.key;
             case GROUP_SIZE -> group == null || !group.hasSize ? null : group.sizeValue();
             // Nothing routes it here: a sequence is a store, and EngineVars.framed() says so.
-            case GROUP -> throw new IllegalStateException("__group is a store, not a frame field");
+            case GROUP -> throw new IllegalStateException("group() is a store, not a frame field");
         };
     }
 
@@ -247,7 +247,7 @@ public final class Frames {
         }
     }
 
-    /** One grouping's frame. The members themselves stay a store, bound as {@code __group}. */
+    /** One grouping's frame. The members themselves stay a store, bound as {@code group()}. */
     private static final class Group {
 
         private TypedValue key;

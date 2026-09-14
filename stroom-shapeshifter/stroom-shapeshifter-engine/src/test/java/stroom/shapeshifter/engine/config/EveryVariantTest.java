@@ -20,6 +20,7 @@ import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Dispatch;
+import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.OutputNode.Entry;
 import stroom.shapeshifter.engine.config.OutputNode.Param;
@@ -67,7 +68,6 @@ class EveryVariantTest {
     }
 
     private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-0000000000ff");
-
 
     /**
      * A payload-less condition is written as the bare string, like every other payload-less
@@ -145,7 +145,7 @@ class EveryVariantTest {
                 new MatchExpression.Avro("{\"type\":\"record\"}"),
                 new MatchExpression.Parquet(List.of("city", "population")),
                 new MatchExpression.Protobuf("/tmp/schema.desc", "example.Event"))) {
-            templates.add(new Template(ID, "carrier", null, false, null, List.of(), match,
+            templates.add(new Template(ID, "carrier", null, false, null, List.of(), List.of(), match,
                     MatchLimits.unlimited(), List.of(), List.of(), null, false));
         }
         return new Project(
@@ -210,6 +210,8 @@ class EveryVariantTest {
                 false,
                 new Condition.Exists(ref()),
                 List.of(new ParamDecl("depth", "0"), new ParamDecl("required", null)),
+                List.of(new Declaration("declared", Declaration.Type.LIST),
+                        new Declaration("total", Declaration.Type.SCALAR)),
                 new MatchExpression.Progressive(steps),
                 new MatchLimits(1, 9, Set.of(1, 2, 5)),
                 List.of(
@@ -343,6 +345,7 @@ class EveryVariantTest {
                 true,
                 null,
                 List.of(),
+                List.of(),
                 new MatchExpression.All(),
                 MatchLimits.unlimited(),
                 List.of(),
@@ -355,8 +358,9 @@ class EveryVariantTest {
         return new RefExpression(List.of(
                 new RefPart.Text("["),
                 new RefPart.Capture(null, 0, null),
-                new RefPart.Capture("var", 1, new MatchIndex(1, true, false, null)),
-                new RefPart.Capture("var", 2, new MatchIndex(0, false, true, "__match_count")),
+                new RefPart.Capture("var", 1, new MatchIndex(1, true, false, null, null)),
+                new RefPart.Capture("var", 2, new MatchIndex(0, false, true, null, EngineVars.MATCH_COUNT)),
+                new RefPart.Counter(EngineVars.INDEX, new MatchIndex(0, false, true, null, null)),
                 new RefPart.Text("]")));
     }
 

@@ -50,6 +50,12 @@
       "id": "00000000-0000-0000-0000-000000000002",
       "name": "person_line",
       "mode": "root",
+      "declarations": [
+        {
+          "name": "__record_body__",
+          "type": "list"
+        }
+      ],
       "match": {
         "delimiter": {
           "delimiter": "\n"

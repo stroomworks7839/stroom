@@ -10,6 +10,24 @@
   {
    "id": "00000000-0000-0000-0000-000000000001",
    "name": "source",
+   "declarations": [
+    {
+     "name": "keys",
+     "type": "list"
+    },
+    {
+     "name": "pieces",
+     "type": "list"
+    },
+    {
+     "name": "uniq",
+     "type": "list"
+    },
+    {
+     "name": "vals",
+     "type": "list"
+    }
+   ],
    "match": "source",
    "body": [
     {
@@ -208,6 +226,16 @@
    "id": "00000000-0000-0000-0000-000000000004",
    "name": "row",
    "mode": "doc",
+   "declarations": [
+    {
+     "name": "k",
+     "type": "scalar"
+    },
+    {
+     "name": "v",
+     "type": "scalar"
+    }
+   ],
    "match": {
     "regex": {
      "pattern": "  <row k=\"([^\"]*)\" v=\"([^\"]*)\"/>\\n"

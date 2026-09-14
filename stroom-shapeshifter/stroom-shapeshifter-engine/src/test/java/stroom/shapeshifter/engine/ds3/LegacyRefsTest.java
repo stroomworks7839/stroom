@@ -69,11 +69,11 @@ class LegacyRefsTest {
     @Test
     void readsMatchIndices() {
         assertThat(capture("$heading$1[+1]"))
-                .isEqualTo(new RefPart.Capture("heading", 1, new MatchIndex(1, true, false, null)));
+                .isEqualTo(new RefPart.Capture("heading", 1, new MatchIndex(1, true, false, null, null)));
         assertThat(capture("$heading$1[3]"))
-                .isEqualTo(new RefPart.Capture("heading", 1, new MatchIndex(3, false, false, null)));
+                .isEqualTo(new RefPart.Capture("heading", 1, new MatchIndex(3, false, false, null, null)));
         assertThat(capture("$1[-2]"))
-                .isEqualTo(new RefPart.Capture(null, 1, new MatchIndex(-2, true, false, null)));
+                .isEqualTo(new RefPart.Capture(null, 1, new MatchIndex(-2, true, false, null, null)));
     }
 
     // -----------------------------------------------------------------------------------
@@ -130,11 +130,11 @@ class LegacyRefsTest {
         assertThat(capture("@foo.2")).isEqualTo(new RefPart.Capture("foo", 2, null));
         assertThat(capture("@foo.0")).isEqualTo(new RefPart.Capture("foo", 0, null));
         assertThat(capture("@foo.2[+1]"))
-                .isEqualTo(new RefPart.Capture("foo", 2, new MatchIndex(1, true, false, null)));
+                .isEqualTo(new RefPart.Capture("foo", 2, new MatchIndex(1, true, false, null, null)));
         assertThat(capture("@foo.2[5]"))
-                .isEqualTo(new RefPart.Capture("foo", 2, new MatchIndex(5, false, false, null)));
+                .isEqualTo(new RefPart.Capture("foo", 2, new MatchIndex(5, false, false, null, null)));
         assertThat(capture("@foo.1[-1]"))
-                .isEqualTo(new RefPart.Capture("foo", 1, new MatchIndex(-1, true, false, null)));
+                .isEqualTo(new RefPart.Capture("foo", 1, new MatchIndex(-1, true, false, null, null)));
         assertThat(capture("@my_var")).isEqualTo(new RefPart.Capture("my_var", 0, null));
     }
 

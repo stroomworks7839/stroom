@@ -113,6 +113,7 @@ class InstrumentTest {
                  "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                "mode": "row"}}]},
                 {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                 "declarations": [{"name": "line", "type": "scalar"}],
                  "match": {"delimiter": {"delimiter": "\\n"}},
                  "captures": [{"name": "line", "select": {"group": 1}}],
                  "body": [{"value-of": {"parts": [
@@ -302,6 +303,7 @@ class InstrumentTest {
                              "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                            "mode": "row"}}]},
                             {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                             "declarations": [{"name": "held", "type": "scalar"}],
                              "match": {"delimiter": {"delimiter": "\\n"}},
                              "captures": [{"name": "held", "select": {"group": 1}}],
                              "body": [{"apply-templates": {

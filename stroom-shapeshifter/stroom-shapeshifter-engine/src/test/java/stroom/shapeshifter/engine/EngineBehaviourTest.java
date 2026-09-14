@@ -69,6 +69,7 @@ class EngineBehaviourTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "declarations": [{"name": "word", "type": "scalar"}],
                      "match": {"progressive": [
                        {"Tag": "L:"},
                        {"Regex": {"pattern": "[a-z]+", "flags": {"case_insensitive": true}}},
@@ -159,6 +160,7 @@ class EngineBehaviourTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "declarations": [{"name": "v", "type": "scalar"}],
                      "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
                      "body": [{"variable": {"name": "v", "body": [
                                  {"element": {"name": "a", "body": [
@@ -445,7 +447,7 @@ class EngineBehaviourTest {
                        ["label", {"parts": [{"text": "row"}]}],
                        ["value", {"parts": [{"capture": {"group": 1}}]}]]}}]},
                     {"id": "00000000-0000-0000-0000-000000000003", "name": "wrap", "match": "named",
-                     "param": [{"name": "label"}, {"name": "sep", "default": "="}],
+                     "param": [{"name": "label"}, {"name": "sep", "default": "="}, {"name": "value"}],
                      "body": [{"value-of": {"parts": [
                        {"capture": {"var_id": "label", "group": 0}},
                        {"capture": {"var_id": "sep", "group": 0}},
@@ -471,6 +473,7 @@ class EngineBehaviourTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "declarations": [{"name": "p", "type": "scalar"}],
                      "match": {"delimiter": {"delimiter": "\\n"}},
                      "body": [
                        {"call-template": {"name": "inner", "with-param": [
@@ -479,6 +482,7 @@ class EngineBehaviourTest {
                                                {"capture": {"var_id": "p", "group": 0}},
                                                {"text": ">"}]}}]},
                     {"id": "00000000-0000-0000-0000-000000000003", "name": "inner", "match": "named",
+                     "param": [{"name": "p"}],
                      "body": [{"value-of": {"parts": [{"capture": {"var_id": "p", "group": 0}}]}}]}
                   ]
                 }
@@ -502,6 +506,7 @@ class EngineBehaviourTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                     "declarations": [{"name": "c", "type": "scalar"}],
                      "match": {"delimiter": {"delimiter": "\\n"}},
                      "captures": [{"name": "c", "select": {"group": 1}}],
                      "body": [
@@ -511,6 +516,7 @@ class EngineBehaviourTest {
                                                {"capture": {"var_id": "c", "group": 0}},
                                                {"text": ">"}]}}]},
                     {"id": "00000000-0000-0000-0000-000000000003", "name": "inner", "match": "named",
+                     "param": [{"name": "c"}],
                      "body": [{"value-of": {"parts": [{"capture": {"var_id": "c", "group": 0}}]}}]}
                   ]
                 }
@@ -758,6 +764,7 @@ class EngineBehaviourTest {
                  "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                "mode": "rec"}}]},
                 {"id": "00000000-0000-0000-0000-000000000002", "name": "rec", "mode": "rec",
+                 "declarations": [{"name": "val", "type": "scalar"}],
                  "match": {"delimiter": {"delimiter": ";"}},
                  "body": [
                    {"apply-templates": {"select": {"parts": [{"capture": {"group": 1}}]},

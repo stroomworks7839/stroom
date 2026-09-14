@@ -175,7 +175,8 @@ class StrictDispatchTest {
     @Test
     void classifyGuardsAreEvaluatedOnceOnTheWayIn() {
         final Run result = run(project(4, "classify",
-                row("02", "has_a", "a", ", \"captures\": [{\"name\": \"seen\", \"select\": {\"group\": 0}}]",
+                row("02", "has_a", "a", ", \"declarations\": [{\"name\": \"seen\", \"type\": \"scalar\"}],"
+                        + " \"captures\": [{\"name\": \"seen\", \"select\": {\"group\": 0}}]",
                         "{\"value-of\": {\"parts\": [{\"text\": \"[A]\"}]}}") + ",\n"
                 + row("03", "has_b", "b",
                         ", \"guard\": {\"exists\": {\"select\": {\"parts\": [{\"capture\": {\"var_id\": \"seen\","

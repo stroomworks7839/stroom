@@ -56,6 +56,32 @@
     {
       "id": "7eaf2704-2ace-4f11-b9a6-ff6d7c4de259",
       "name": "audit_section",
+      "declarations": [
+        {
+          "name": "audit_record_1",
+          "type": "scalar"
+        },
+        {
+          "name": "audit_record_2",
+          "type": "scalar"
+        },
+        {
+          "name": "auid",
+          "type": "scalar"
+        },
+        {
+          "name": "key",
+          "type": "scalar"
+        },
+        {
+          "name": "res",
+          "type": "scalar"
+        },
+        {
+          "name": "success",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "delimiter": {
           "delimiter": "----\n"
@@ -891,6 +917,16 @@
       "id": "989221c7-cedb-4791-9596-19ebb21e0344",
       "name": "extra_line",
       "mode": "extra_lines",
+      "declarations": [
+        {
+          "name": "extra_line_1",
+          "type": "scalar"
+        },
+        {
+          "name": "extra_line_2",
+          "type": "scalar"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "^type=(\\S+)\\s+msg=audit\\(([^)]+)\\):\\s*(.*)",

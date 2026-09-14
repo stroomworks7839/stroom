@@ -50,6 +50,12 @@
       "id": "00000000-0000-0000-0000-000000000002",
       "name": "audit_section",
       "mode": "root",
+      "declarations": [
+        {
+          "name": "__record_body__",
+          "type": "list"
+        }
+      ],
       "match": {
         "delimiter": {
           "delimiter": "\n----\n"
@@ -167,6 +173,20 @@
       "id": "00000000-0000-0000-0000-000000000004",
       "name": "audit_event",
       "mode": "line_parsers",
+      "declarations": [
+        {
+          "name": "__data_type_body__",
+          "type": "list"
+        },
+        {
+          "name": "__esc_node",
+          "type": "list"
+        },
+        {
+          "name": "__esc_type",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "^(\\s*node=)?([^ ]+) type=([^ ]+) msg=audit\\(([^\\)]+)(\\) :)?(.+)"
@@ -452,6 +472,16 @@
       "id": "00000000-0000-0000-0000-000000000006",
       "name": "event_timestamp",
       "mode": "event_fields",
+      "declarations": [
+        {
+          "name": "__esc_eid",
+          "type": "list"
+        },
+        {
+          "name": "__esc_etime",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "^(.+):(.+)"
@@ -573,6 +603,20 @@
       "name": "argc_fields",
       "mode": "tail_fields",
       "ignore_errors": true,
+      "declarations": [
+        {
+          "name": "__esc_a0",
+          "type": "list"
+        },
+        {
+          "name": "__esc_a1",
+          "type": "list"
+        },
+        {
+          "name": "__esc_argc",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "argc=(.+) a0=([^\\s]+) (.+)"
@@ -748,6 +792,16 @@
       "name": "kv_pair",
       "mode": "tail_fields",
       "ignore_errors": true,
+      "declarations": [
+        {
+          "name": "__esc_kv_name",
+          "type": "list"
+        },
+        {
+          "name": "__esc_kv_val",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "\\(?([^= ]+)=([^ \\(]+(\\([^\\)]+\\))?|\\([^\\)]+\\))"

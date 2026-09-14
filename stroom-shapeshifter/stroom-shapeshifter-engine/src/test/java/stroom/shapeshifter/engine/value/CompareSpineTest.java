@@ -169,6 +169,8 @@ class CompareSpineTest {
                 new stroom.shapeshifter.engine.config.Template(
                         java.util.UUID.randomUUID(), "guarded", "doc", false, condition,
                         java.util.List.of(),
+                        java.util.List.of(new stroom.shapeshifter.engine.config.Declaration("missing",
+                                stroom.shapeshifter.engine.config.Declaration.Type.SCALAR)),
                         new stroom.shapeshifter.engine.config.MatchExpression.Regex(".*", null, 0),
                         new stroom.shapeshifter.engine.config.Template.MatchLimits(0, -1, null),
                         java.util.List.of(new stroom.shapeshifter.engine.config.CaptureBinding(

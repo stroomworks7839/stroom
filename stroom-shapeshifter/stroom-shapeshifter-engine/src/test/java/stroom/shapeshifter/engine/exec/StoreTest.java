@@ -42,8 +42,8 @@ class StoreTest {
      */
     private static Names table(final VarName... names) {
         final java.util.Map<String, VarName> byName = new java.util.HashMap<>();
-        byName.put(stroom.shapeshifter.engine.config.EngineVars.GROUP.varName(),
-                new VarName(stroom.shapeshifter.engine.config.EngineVars.GROUP.varName(), 0));
+        byName.put(stroom.shapeshifter.engine.config.EngineVars.GROUP.spelling(),
+                new VarName(stroom.shapeshifter.engine.config.EngineVars.GROUP.spelling(), 0));
         for (final VarName name : names) {
             byName.put(name.name(), name);
         }

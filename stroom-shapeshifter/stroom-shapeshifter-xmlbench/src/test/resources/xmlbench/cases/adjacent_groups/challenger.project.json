@@ -78,9 +78,8 @@
            "ref": {
             "parts": [
              {
-              "capture": {
-               "var_id": "__match_count",
-               "group": 0
+              "function": {
+               "name": "matchCount"
               }
              }
             ]
@@ -109,9 +108,8 @@
              "text": "\" n=\""
             },
             {
-             "capture": {
-              "var_id": "__match_count",
-              "group": 0
+             "function": {
+              "name": "matchCount"
              }
             },
             {
@@ -142,9 +140,8 @@
            "text": "\" n=\""
           },
           {
-           "capture": {
-            "var_id": "__match_count",
-            "group": 0
+           "function": {
+            "name": "matchCount"
            }
           },
           {

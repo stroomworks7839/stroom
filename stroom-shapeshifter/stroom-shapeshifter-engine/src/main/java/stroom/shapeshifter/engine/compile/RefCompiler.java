@@ -17,7 +17,6 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.RefExpression;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
@@ -75,30 +74,30 @@ final class RefCompiler {
                             + capture.group() + ", but a variable holds one value and has no "
                             + "groups to select from. Bind the group you want as its own capture.");
                 }
-                final CompiledIndex index = index(capture.matchIndex(), names);
-                final EngineVars engine = EngineVars.byName(capture.varId());
-                yield engine != null && engine.framed()
-                        ? new CompiledRef.Context(engine, index)
-                        : new CompiledRef.RemoteVar(names.intern(capture.varId()), index);
+                yield new CompiledRef.RemoteVar(names.intern(capture.varId()), index(capture.matchIndex(), names));
             }
+            // A function is a compile-time pointer to the frame that answers it (design 35 §6);
+            // group() is the one that answers a sequence, which lives in the registry under its
+            // own spelling.
+            case final RefPart.Counter counter -> counter.counter().framed()
+                    ? new CompiledRef.Context(counter.counter(), index(counter.matchIndex(), names))
+                    : new CompiledRef.RemoteVar(names.intern(counter.counter().spelling()),
+                            index(counter.matchIndex(), names));
         };
     }
 
     /**
      * Compile an authored index rule, or null when the reference carries none.
      *
-     * <p>Its fourth form reads the index out of another variable at run time, and that variable
-     * may be one of the engine's own — {@code $heading[$__match_count]} is the common shape — so
-     * which of the two places holds it is decided here as well.
+     * <p>Its fourth form reads the index at run time, out of a variable or out of one of the
+     * engine's functions — {@code $heading[matchCount()]} is the common shape — so which of the
+     * two places holds it is decided here as well.
      */
     static CompiledIndex index(final MatchIndex matchIndex, final Interner names) {
         if (matchIndex == null) {
             return null;
         }
-        final EngineVars engine = EngineVars.byName(matchIndex.varRef());
-        final boolean framed = engine != null && engine.framed();
         return new CompiledIndex(matchIndex.index(), matchIndex.isOffset(), matchIndex.isLast(),
-                framed ? null : names.intern(matchIndex.varRef()),
-                framed ? engine : null);
+                names.intern(matchIndex.varRef()), matchIndex.counter());
     }
 }

@@ -10,6 +10,12 @@
     {
       "id": "00000000-0000-0000-0000-000000000001",
       "name": "source",
+      "declarations": [
+        {
+          "name": "heading",
+          "type": "list"
+        }
+      ],
       "match": "source",
       "body": [
         {
@@ -100,6 +106,12 @@
       "id": "00000000-0000-0000-0000-000000000004",
       "name": "data_record",
       "mode": "root",
+      "declarations": [
+        {
+          "name": "__record_body__",
+          "type": "list"
+        }
+      ],
       "match": {
         "delimiter": {
           "delimiter": "|"
@@ -210,7 +222,7 @@
                   "var_id": "heading",
                   "group": 0,
                   "match_index": {
-                    "var_ref": "__match_count"
+                    "function": "matchCount"
                   }
                 }
               },

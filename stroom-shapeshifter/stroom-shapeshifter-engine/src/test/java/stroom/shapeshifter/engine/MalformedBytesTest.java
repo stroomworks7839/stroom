@@ -73,6 +73,7 @@ class MalformedBytesTest {
                        {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                          "mode": "doc"}}]}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "declarations": [{"name": "field", "type": "scalar"}],
                    "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
                    "captures": [{"name": "field", "select": {"group": 1}}],
                    "body": [

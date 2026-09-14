@@ -619,6 +619,7 @@ class EncodedInputTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "rec", "mode": "row",
+                     "declarations": [{"name": "payload", "type": "scalar"}],
                      "match": {"regex": {"pattern": "X([\\\\x80-\\\\xff]+)X"}},
                      "captures": [{"name": "payload", "select": {"group": 1}}],
                      "body": [{"value-of": {"parts": [
@@ -654,7 +655,9 @@ class EncodedInputTest {
                   "name": "cross", "version": 4,
                   "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "windows-1252"},
                   "templates": [
-                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                    {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                     "declarations": [{"name": "held", "type": "scalar"}],
+                     "match": "source",
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "a", "mode": "row",

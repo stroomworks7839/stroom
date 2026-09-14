@@ -93,6 +93,7 @@ class InternedNamesTest {
                      {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                        "mode": "doc"}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "declarations": [{"name": "%1$s", "type": "scalar"}],
                    "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
                    "captures": [{"name": "%1$s", "select": {"group": 1}}],
                    "body": [

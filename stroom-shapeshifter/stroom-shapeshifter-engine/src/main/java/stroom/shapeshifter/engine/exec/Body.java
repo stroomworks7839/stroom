@@ -626,7 +626,7 @@ final class Body {
     /**
      * File a sequence's entries by key, in order of first appearance — the one index both
      * grouping and {@code key} are built on (design/16 §6, §8). Keys resolve with
-     * {@code __index} bound, so a key can name a parallel store: "these records, by their
+     * {@code index()} bound, so a key can name a parallel store: "these records, by their
      * category" is said by indexing positions rather than values.
      */
     private Map<String, Filed> file(final VarName select,
@@ -658,7 +658,7 @@ final class Body {
     /**
      * One entry of an index: the key as it was read, and the store positions filed under it.
      * The key is kept as a value rather than as its identity string because a grouping binds
-     * it to {@code __group_key}, where an author expects what they grouped on.
+     * it to {@code groupKey()}, where an author expects what they grouped on.
      */
     private record Filed(TypedValue key, List<Integer> members) {
 
@@ -669,11 +669,11 @@ final class Body {
      *
      * <p>Groups form in order of first appearance — a {@link java.util.LinkedHashMap} built in
      * one pass, which is the whole implementation. What is grouped is the <b>index set</b>:
-     * members are store indices, bound as {@code __group}, so a nested walk over them can read
+     * members are store indices, bound as {@code group()}, so a nested walk over them can read
      * any parallel store at the record each names. Keys are compared by string form, the same
      * total reading an uncast ordering uses.
      *
-     * <p>{@code __group_size} is known before the group's body opens, which is what lets an
+     * <p>{@code groupSize()} is known before the group's body opens, which is what lets an
      * author write a count into the opening tag — the {@code adjacent_groups} fixture's
      * trailing-empty-group case.
      */
@@ -722,7 +722,7 @@ final class Body {
      * memory, so ordering them reorders indices into a store rather than deferring anything
      * that has been written.
      *
-     * <p>Keys are evaluated once per entry, up front, with {@code __index} and the item
+     * <p>Keys are evaluated once per entry, up front, with {@code index()} and the item
      * binding in scope so a key can read the item or a parallel store at the same match.
      * Evaluating per comparison instead would re-resolve a reference O(n log n) times.
      *
@@ -742,7 +742,7 @@ final class Body {
         if (op.as() != null) {
             vars.shadow(op.as());
         }
-        // __position and __last are deliberately left alone here: this walk's frame binds only
+        // position() and last() are deliberately left alone here: this walk's frame binds only
         // the index, so they inherit an *enclosing* walk's position, which is a real value and
         // legitimately readable, as everywhere else in the scoping model. The compiler still
         // warns, because reading them here is far more likely to mean "this entry's position",

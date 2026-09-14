@@ -10,6 +10,16 @@
   {
    "id": "00000000-0000-0000-0000-000000000001",
    "name": "source",
+   "declarations": [
+    {
+     "name": "__records",
+     "type": "list"
+    },
+    {
+     "name": "__written",
+     "type": "list"
+    }
+   ],
    "match": "source",
    "body": [
     {
@@ -89,6 +99,28 @@
    "id": "00000000-0000-0000-0000-000000000002",
    "name": "line",
    "mode": "lines",
+   "declarations": [
+    {
+     "name": "__before",
+     "type": "list"
+    },
+    {
+     "name": "__ename",
+     "type": "list"
+    },
+    {
+     "name": "__evalue",
+     "type": "list"
+    },
+    {
+     "name": "__name",
+     "type": "list"
+    },
+    {
+     "name": "__value",
+     "type": "list"
+    }
+   ],
    "match": {
     "regex": {
      "pattern": "([^=\\n]+)=([^\\n]*)\\n?"

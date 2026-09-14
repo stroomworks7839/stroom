@@ -47,6 +47,11 @@ class SequenceIterationTest {
                 {"name": "t", "version": 5,
                  "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                   "declarations": [{"name": "items", "type": "list"},
+                                    {"name": "hits", "type": "list"},
+                                    {"name": "seen", "type": "list"},
+                                    {"name": "parts", "type": "list"},
+                                    {"name": "n", "type": "scalar"}],
                    "match": "source",
                    "body": [
                      {"sequence": {"name": "items"}},
@@ -54,6 +59,7 @@ class SequenceIterationTest {
                        "mode": "doc"}},
                      %s]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "declarations": [{"name": "field", "type": "list"}, {"name": "p", "type": "list"}],
                    "match": {"regex": {"pattern": "([^\\\\n]*)\\\\n"}},
                    "captures": [{"name": "field", "select": {"group": 1}}],
                    "body": [%s]}]}
@@ -96,9 +102,9 @@ class SequenceIterationTest {
         final String epilogue = """
                 {"for-each": {"select": "items", "body": [
                   {"value-of": {"parts": [
-                     {"capture": {"var_id": "__position", "group": 0}},
+                     {"function": {"name": "position"}},
                      {"text": "/"},
-                     {"capture": {"var_id": "__last", "group": 0}},
+                     {"function": {"name": "last"}},
                      {"text": " "}]}}]}}
                 """;
         assertThat(run(config(epilogue, APPEND_FIELD), "a\nb\nc\n"))
@@ -111,7 +117,7 @@ class SequenceIterationTest {
         // the sequence carries positions, and $field[$__index] reads the record they name.
         final String record = APPEND_FIELD.replace("\"select\": {\"parts\": ["
                         + "{\"capture\": {\"var_id\": \"field\", \"group\": 0}}]}",
-                "\"select\": {\"parts\": [{\"capture\": {\"var_id\": \"__match_count\", \"group\": 0}}]}");
+                "\"select\": {\"parts\": [{\"function\": {\"name\": \"matchCount\"}}]}");
         final String epilogue = """
                 {"for-each": {"select": "items", "as": "at", "body": [
                   {"value-of": {"parts": [
@@ -150,6 +156,11 @@ class SequenceIterationTest {
                 {"name": "t", "version": 5,
                  "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                   "declarations": [{"name": "items", "type": "list"},
+                                    {"name": "hits", "type": "list"},
+                                    {"name": "seen", "type": "list"},
+                                    {"name": "parts", "type": "list"},
+                                    {"name": "n", "type": "scalar"}],
                    "match": "source",
                    "body": [
                      {"sequence": {"name": "items"}},
@@ -157,6 +168,7 @@ class SequenceIterationTest {
                        "mode": "doc"}},
                      {"for-each": {"select": "items", "body": [{"text": "x"}]}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "declarations": [{"name": "never", "type": "scalar"}],
                    "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
                    "captures": [{"name": "never", "select": {"group": 2}}],
                    "body": [{"append": {"name": "items", "select": {"parts": [
@@ -240,6 +252,7 @@ class SequenceIterationTest {
                    "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                              "mode": "doc"}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "declarations": [{"name": "f", "type": "scalar"}, {"name": "parts", "type": "list"}],
                    "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
                    "captures": [{"name": "f", "select": {"group": 1}}],
                    "body": [
@@ -294,15 +307,19 @@ class SequenceIterationTest {
     }
 
     @Test
-    void keyAndASequenceMayShareAName() {
-        // Keys are their own namespace; nothing at a use site can confuse the two.
+    void keyAndASequenceMayNotShareAName() {
+        // Design 35: one namespace, one declaration per name, with a type. A key is a map, so
+        // building one under a list's name is an operation disagreeing with the declared type.
         final String epilogue = """
                 {"key": {"name": "items", "select": "items"}},
                 {"key-get": {"key": "items",
                   "select": {"parts": [{"text": "b"}]}, "name": "hits"}},
                 {"count": {"select": "hits"}}
                 """;
-        assertThat(run(config(epilogue, APPEND_FIELD), "a\nb\n")).isEqualTo("1");
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config(epilogue, APPEND_FIELD))))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("'items' as a map")
+                .hasMessageContaining("declared as a list");
     }
 
     @Test
@@ -315,6 +332,10 @@ class SequenceIterationTest {
                 {"name": "t", "version": 5,
                  "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                   "declarations": [{"name": "by_cat", "type": "map"},
+                                    {"name": "cat", "type": "list"},
+                                    {"name": "hits", "type": "list"},
+                                    {"name": "items", "type": "list"}],
                    "match": "source",
                    "body": [
                      {"sequence": {"name": "items"}},
@@ -322,7 +343,7 @@ class SequenceIterationTest {
                        "mode": "doc"}},
                      {"key": {"name": "by_cat", "select": "items",
                        "group_by": {"parts": [{"capture": {"var_id": "cat", "group": 0,
-                          "match_index": {"var_ref": "__index"}}}]}}},
+                          "match_index": {"function": "index"}}}]}}},
                      {"key-get": {"key": "by_cat",
                        "select": {"parts": [{"text": ""}]}, "name": "hits"}},
                      {"count": {"select": "hits"}}]},
@@ -330,7 +351,7 @@ class SequenceIterationTest {
                    "match": {"regex": {"pattern": "(?:(x)|y)\\n"}},
                    "captures": [{"name": "cat", "select": {"group": 1}}],
                    "body": [{"append": {"name": "items", "select": {"parts": [
-                      {"capture": {"var_id": "__match_count", "group": 0}}]}}}]}]}
+                      {"function": {"name": "matchCount"}}]}}}]}]}
                 """;
         // Two records have no category; an absent lookup finds exactly those.
         assertThat(run(json, "x\ny\ny\n")).isEqualTo("2");
@@ -355,11 +376,11 @@ class SequenceIterationTest {
     /** Emits each group as key:members, members read back through the index set. */
     private static final String GROUP_BODY = """
             {"for-each-group": {"select": "items", "body": [
-              {"value-of": {"parts": [{"capture": {"var_id": "__group_key", "group": 0}}]}},
+              {"value-of": {"parts": [{"function": {"name": "groupKey"}}]}},
               {"text": ":"},
-              {"value-of": {"parts": [{"capture": {"var_id": "__group_size", "group": 0}}]}},
+              {"value-of": {"parts": [{"function": {"name": "groupSize"}}]}},
               {"text": "("},
-              {"for-each": {"select": "__group", "as": "i", "body": [
+              {"for-each": {"select": "group()", "as": "i", "body": [
                  {"value-of": {"parts": [{"capture": {"var_id": "field", "group": 0,
                     "match_index": {"var_ref": "i"}}}]}}]}},
               {"text": ") "}]}}
@@ -377,15 +398,15 @@ class SequenceIterationTest {
         // The members are store indices, so reading a *different* capture at each one is how
         // current-group() is reached without a tree.
         final String record = "{\"append\": {\"name\": \"items\", \"select\": {\"parts\": ["
-                + "{\"capture\": {\"var_id\": \"__match_count\", \"group\": 0}}]}}}";
+                + "{\"function\": {\"name\": \"matchCount\"}}]}}}";
         final String body = """
                 {"for-each-group": {"select": "items",
                   "group_by": {"parts": [{"capture": {"var_id": "field", "group": 0,
-                     "match_index": {"var_ref": "__index"}}}]},
+                     "match_index": {"function": "index"}}}]},
                   "body": [
-                    {"value-of": {"parts": [{"capture": {"var_id": "__group_key", "group": 0}}]}},
+                    {"value-of": {"parts": [{"function": {"name": "groupKey"}}]}},
                     {"text": "="},
-                    {"value-of": {"parts": [{"capture": {"var_id": "__group_size", "group": 0}}]}},
+                    {"value-of": {"parts": [{"function": {"name": "groupSize"}}]}},
                     {"text": " "}]}}
                 """;
         assertThat(run(config(body, record), "x\ny\nx\n")).isEqualTo("x=2 y=1 ");
@@ -398,7 +419,7 @@ class SequenceIterationTest {
         final String body = """
                 {"for-each-group": {"select": "items", "body": [
                   {"text": "<g "},
-                  {"value-of": {"parts": [{"capture": {"var_id": "__group_size", "group": 0}}]}},
+                  {"value-of": {"parts": [{"function": {"name": "groupSize"}}]}},
                   {"text": ">"}]}}
                 """;
         assertThat(run(config(body, APPEND_FIELD), "a\na\nb\n")).isEqualTo("<g 2><g 1>");
@@ -414,6 +435,7 @@ class SequenceIterationTest {
                 {"name": "t", "version": 5,
                  "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                   "declarations": [{"name": "cat", "type": "list"}, {"name": "items", "type": "list"}],
                    "match": "source",
                    "body": [
                      {"sequence": {"name": "items"}},
@@ -421,20 +443,18 @@ class SequenceIterationTest {
                        "mode": "doc"}},
                      {"for-each-group": {"select": "items",
                        "group_by": {"parts": [{"capture": {"var_id": "cat", "group": 0,
-                          "match_index": {"var_ref": "__index"}}}]},
+                          "match_index": {"function": "index"}}}]},
                        "body": [
                        {"text": "["},
-                       {"value-of": {"parts": [{"capture": {"var_id": "__group_key",
-                          "group": 0}}]}},
+                       {"value-of": {"parts": [{"function": {"name": "groupKey"}}]}},
                        {"text": "="},
-                       {"value-of": {"parts": [{"capture": {"var_id": "__group_size",
-                          "group": 0}}]}},
+                       {"value-of": {"parts": [{"function": {"name": "groupSize"}}]}},
                        {"text": "]"}]}}]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
                    "match": {"regex": {"pattern": "(?:(x)|y)\\n"}},
                    "captures": [{"name": "cat", "select": {"group": 1}}],
                    "body": [{"append": {"name": "items", "select": {"parts": [
-                      {"capture": {"var_id": "__match_count", "group": 0}}]}}}]}]}
+                      {"function": {"name": "matchCount"}}]}}}]}]}
                 """;
         // The sequence carries positions, so the key is read *at* each record rather than
         // as "the latest", which is what a bare reference means and would have made the
@@ -448,20 +468,19 @@ class SequenceIterationTest {
         // it — the same mistake as reading a position in a sort key (phase 4 audit).
         final String body = """
                 {"for-each-group": {"select": "items",
-                  "group_by": {"parts": [{"capture": {"var_id": "__group_key", "group": 0}}]},
+                  "group_by": {"parts": [{"function": {"name": "groupKey"}}]},
                   "body": []}}
                 """;
         assertThat(Shapeshifter.compile(ProjectReader.read(config(body, APPEND_FIELD))).warnings())
-                .anyMatch(m -> m.text().contains("__group_key outside any for-each-group"));
+                .anyMatch(m -> m.text().contains("groupKey() outside any for-each-group"));
     }
 
     @Test
     void groupingNamesOutsideAGroupingDrawTheLint() {
         final String json = config("{\"text\": \"\"}",
-                "{\"value-of\": {\"parts\": [{\"capture\": {\"var_id\": \"__group_key\","
-                + " \"group\": 0}}]}}");
+                "{\"value-of\": {\"parts\": [{\"function\": {\"name\": \"groupKey\"}}]}}");
         assertThat(Shapeshifter.compile(ProjectReader.read(json)).warnings())
-                .anyMatch(m -> m.text().contains("__group_key outside any for-each-group"));
+                .anyMatch(m -> m.text().contains("groupKey() outside any for-each-group"));
     }
 
     @Test
@@ -469,9 +488,9 @@ class SequenceIterationTest {
         // __group is writable everywhere, being a name the engine sets, so the sequence
         // check cannot catch this on its own.
         final String json = config(
-                "{\"for-each\": {\"select\": \"__group\", \"body\": []}}", APPEND_FIELD);
+                "{\"for-each\": {\"select\": \"group()\", \"body\": []}}", APPEND_FIELD);
         assertThat(Shapeshifter.compile(ProjectReader.read(json)).warnings())
-                .anyMatch(m -> m.text().contains("walks __group outside any for-each-group"));
+                .anyMatch(m -> m.text().contains("walks group() outside any for-each-group"));
     }
 
     // -----------------------------------------------------------------------------------
@@ -541,9 +560,9 @@ class SequenceIterationTest {
         final String epilogue = """
                 {"for-each": {"select": "items", "as": "item", "sort": [%s], "body": [
                   {"value-of": {"parts": [
-                     {"capture": {"var_id": "__position", "group": 0}},
+                     {"function": {"name": "position"}},
                      {"text": ":"},
-                     {"capture": {"var_id": "__index", "group": 0}},
+                     {"function": {"name": "index"}},
                      {"text": " "}]}}]}}
                 """.formatted(key);
         // Sorted 2,9,10 came from store indices 3,1,2 — position renumbers, index does not.
@@ -555,15 +574,14 @@ class SequenceIterationTest {
         // Nothing has a position until the keys have been compared — and in a nested walk the
         // key would otherwise resolve outward and read the enclosing walk's position, which
         // is a meaningless value that looks like a real one (phase 3 audit).
-        final String key = "{\"by\": {\"parts\": [{\"capture\": {\"var_id\": \"__position\","
-                + " \"group\": 0}}]}}";
+        final String key = "{\"by\": {\"parts\": [{\"function\": {\"name\": \"position\"}}]}}";
         final String epilogue = """
                 {"for-each": {"select": "items", "as": "item", "sort": [%s], "body": [
                   {"value-of": {"parts": [{"capture": {"var_id": "item", "group": 0}}]}}]}}
                 """.formatted(key);
         final var compiled = Shapeshifter.compile(ProjectReader.read(config(epilogue, APPEND_FIELD)));
         assertThat(compiled.warnings())
-                .anyMatch(m -> m.text().contains("__position in a sort key"));
+                .anyMatch(m -> m.text().contains("position() in a sort key"));
     }
 
     @Test
@@ -571,7 +589,7 @@ class SequenceIterationTest {
         // __index names the record, which is known before any comparison, and is how a key
         // reaches a parallel store.
         final String key = "{\"by\": {\"parts\": [{\"capture\": {\"var_id\": \"field\","
-                + " \"group\": 0, \"match_index\": {\"var_ref\": \"__index\"}}}]}}";
+                + " \"group\": 0, \"match_index\": {\"function\": \"index\"}}}]}}";
         final String epilogue = """
                 {"for-each": {"select": "items", "sort": [%s], "body": []}}
                 """.formatted(key);
@@ -584,7 +602,7 @@ class SequenceIterationTest {
     void sortKeyCanReadAParallelStoreAtTheSameEntry() {
         // The key is evaluated with __index bound, so it can order by a sibling field.
         final String key = "{\"by\": {\"parts\": [{\"capture\": {\"var_id\": \"field\","
-                + " \"group\": 0, \"match_index\": {\"var_ref\": \"__index\"}}}]},"
+                + " \"group\": 0, \"match_index\": {\"function\": \"index\"}}}]},"
                 + " \"as\": \"number\"}";
         assertThat(sortedBy(key, "9\n10\n2\n")).isEqualTo("2,9,10,");
     }
@@ -723,8 +741,11 @@ class SequenceIterationTest {
 
     @Test
     void sequenceNamedAfterACaptureIsRefused() {
+        // Rename the sequence and the append, not the declaration: a declaration renamed too would
+        // draw design 35's declared-twice refusal first, which is a different rule.
         final String json = config("{\"text\": \"\"}", APPEND_FIELD)
-                .replace("\"name\": \"items\"", "\"name\": \"field\"");
+                .replace("{\"sequence\": {\"name\": \"items\"}}", "{\"sequence\": {\"name\": \"field\"}}")
+                .replace("\"append\": {\"name\": \"items\"", "\"append\": {\"name\": \"field\"");
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(json)))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("field")
@@ -753,19 +774,18 @@ class SequenceIterationTest {
         // The conditions' hazard applies to the variables too, and is worse for an index:
         // absence makes $x[$__index] fall back to the first entry rather than to nothing.
         final String json = config("{\"text\": \"\"}",
-                "{\"value-of\": {\"parts\": [{\"capture\": {\"var_id\": \"__position\","
-                + " \"group\": 0}}]}}");
+                "{\"value-of\": {\"parts\": [{\"function\": {\"name\": \"position\"}}]}}");
         assertThat(Shapeshifter.compile(ProjectReader.read(json)).warnings())
-                .anyMatch(m -> m.text().contains("__position outside any for-each"));
+                .anyMatch(m -> m.text().contains("position() outside any for-each"));
     }
 
     @Test
     void anIndexReferenceOutsideAnIterationDrawsItToo() {
         final String json = config("{\"text\": \"\"}",
                 "{\"value-of\": {\"parts\": [{\"capture\": {\"var_id\": \"field\","
-                + " \"group\": 0, \"match_index\": {\"var_ref\": \"__index\"}}}]}}");
+                + " \"group\": 0, \"match_index\": {\"function\": \"index\"}}}]}}");
         assertThat(Shapeshifter.compile(ProjectReader.read(json)).warnings())
-                .anyMatch(m -> m.text().contains("__index outside any for-each"));
+                .anyMatch(m -> m.text().contains("index() outside any for-each"));
     }
 
     @Test

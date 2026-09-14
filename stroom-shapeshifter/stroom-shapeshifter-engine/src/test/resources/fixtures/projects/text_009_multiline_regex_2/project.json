@@ -50,6 +50,16 @@
       "id": "00000000-0000-0000-0000-000000000002",
       "name": "query_record",
       "mode": "root",
+      "declarations": [
+        {
+          "name": "__query_body__",
+          "type": "list"
+        },
+        {
+          "name": "__results_body__",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "((?>\n*|^)(?>.+\n)+?)\n((?>\n*|^)(?>.+\n)+?(?>\n|$))",
@@ -312,6 +322,24 @@
       "id": "00000000-0000-0000-0000-000000000010",
       "name": "query_header",
       "mode": "query_fields",
+      "declarations": [
+        {
+          "name": "__esc_q1",
+          "type": "list"
+        },
+        {
+          "name": "__esc_q2",
+          "type": "list"
+        },
+        {
+          "name": "__esc_q3",
+          "type": "list"
+        },
+        {
+          "name": "__esc_q4",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)"
@@ -534,6 +562,16 @@
       "id": "00000000-0000-0000-0000-000000000011",
       "name": "query_continuation",
       "mode": "query_fields",
+      "declarations": [
+        {
+          "name": "__esc_qo3",
+          "type": "list"
+        },
+        {
+          "name": "__esc_qo4",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)"
@@ -645,6 +683,16 @@
       "id": "00000000-0000-0000-0000-000000000020",
       "name": "results_header",
       "mode": "results_fields",
+      "declarations": [
+        {
+          "name": "__esc_r1",
+          "type": "list"
+        },
+        {
+          "name": "__esc_r2",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*):+"
@@ -768,6 +816,16 @@
       "id": "00000000-0000-0000-0000-000000000021",
       "name": "results_continuation",
       "mode": "results_fields",
+      "declarations": [
+        {
+          "name": "__esc_ro3",
+          "type": "list"
+        },
+        {
+          "name": "__esc_ro4",
+          "type": "list"
+        }
+      ],
       "match": {
         "regex": {
           "pattern": "(\\n?[^\\s]*)\\s+([^\\s]*)\\s+([^=:]*)[=:]+\\s+(.*)"

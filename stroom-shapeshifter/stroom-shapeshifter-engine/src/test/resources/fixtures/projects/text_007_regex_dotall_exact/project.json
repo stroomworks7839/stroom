@@ -50,6 +50,12 @@
    "id": "00000000-0000-0000-0000-000000000002",
    "name": "log_entry",
    "mode": "root",
+   "declarations": [
+    {
+     "name": "__record_body__",
+     "type": "list"
+    }
+   ],
    "match": {
     "regex": {
      "pattern": "^(?:INFO|DEBUG|WARN|ERROR|TRACE) +.*?(?=(?:(?:INFO|DEBUG|WARN|ERROR|TRACE) +)|\\z)",
@@ -145,6 +151,56 @@
    "id": "00000000-0000-0000-0000-000000000003",
    "name": "log_fields",
    "mode": "entry_fields",
+   "declarations": [
+    {
+     "name": "__e_level",
+     "type": "list"
+    },
+    {
+     "name": "__e_logger",
+     "type": "list"
+    },
+    {
+     "name": "__e_message",
+     "type": "list"
+    },
+    {
+     "name": "__l_level",
+     "type": "list"
+    },
+    {
+     "name": "__l_logger",
+     "type": "list"
+    },
+    {
+     "name": "__l_message",
+     "type": "list"
+    },
+    {
+     "name": "__s_level",
+     "type": "list"
+    },
+    {
+     "name": "__s_logger",
+     "type": "list"
+    },
+    {
+     "name": "__s_message",
+     "type": "list"
+    },
+    {
+     "name": "__v_level",
+     "type": "list"
+    },
+    {
+     "name": "__v_logger",
+     "type": "list"
+    },
+    {
+     "name": "__v_message",
+     "type": "list"
+    }
+   ],
    "match": {
     "regex": {
      "pattern": "^([A-Z]+) +([\\S]+) - (.*)",

@@ -274,7 +274,7 @@ final class CompiledRefs {
      * <p>Four ways to say it, and they exist because four things genuinely need saying: read the
      * index out of another variable at run time, take the last one there is, count relative to
      * the match being processed, or name it outright. The relative form is the one that makes a
-     * header row line up with a data row — the engine's own {@code __match_count} threads the
+     * header row line up with a data row — the engine's own {@code matchCount()} threads the
      * column number through. Nothing makes the four exclusive, so the order they are asked in is
      * behaviour.
      *

@@ -609,8 +609,8 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
      *               making it sometimes mean "all of them" would put a second reading into
      *               the one type every instruction shares
      * @param as     binds the item's value for the body, or null to read it by index alone
-     * @param body   what runs per entry, with {@code __index}, {@code __position} and
-     *               {@code __last} bound (§4.3)
+     * @param body   what runs per entry, with {@code index()}, {@code position()} and
+     *               {@code last()} bound (§4.3)
      */
     record ForEach(String select, String as, List<Sort> sort, List<OutputNode> body)
             implements Holder {
@@ -640,7 +640,7 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
      * tree reaches what {@code current-group()} reaches.
      *
      * @param select  the sequence whose indices are grouped
-     * @param groupBy the key, evaluated per entry with {@code __index} bound, or null to
+     * @param groupBy the key, evaluated per entry with {@code index()} bound, or null to
      *                group by the entry's own value
      */
     record ForEachGroup(String select, RefExpression groupBy, List<OutputNode> body)
@@ -668,10 +668,11 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
      * ready — typically the epilogue, once the level that fills the sequence has finished —
      * and its cost is paid somewhere an author can see.
      *
-     * <p>Key names are their own namespace: a key and a sequence may share a name without
-     * colliding, because nothing can confuse the two at a use site.
+     * <p>A key is declared as a {@code map} (design 35 §5): one namespace, so a key and a
+     * sequence may not share a name. The run time still keeps keys in their own table until
+     * design 35's phase 4 collapses the two.
      *
-     * @param groupBy the key each entry is filed under, evaluated with {@code __index}
+     * @param groupBy the key each entry is filed under, evaluated with {@code index()}
      *                bound, or null to file each entry under its own value
      */
     record Key(String name, String select, RefExpression groupBy) implements Binding {
@@ -688,7 +689,7 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
 
     /**
      * Look one value up in a key — XSLT's {@code key()} — binding the matching entries as a
-     * dense sequence of store indices, the same shape as {@code __group}.
+     * dense sequence of store indices, the same shape as {@code group()}.
      *
      * <p>A value with no entry binds an <b>empty</b> sequence, which a walk runs over zero
      * times and {@code count} reports as 0: the same non-answer XSLT's {@code key()} gives,
@@ -712,7 +713,7 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
 
     /**
      * One key of an iteration's ordering (design/16 §5). {@code by} is evaluated once per
-     * entry with {@code __index} bound, so a key can read the item, a parallel store at the
+     * entry with {@code index()} bound, so a key can read the item, a parallel store at the
      * same match, or a concatenation.
      *
      * <p>Ordering is by the same {@code as} cast every typed read in the engine uses; uncast

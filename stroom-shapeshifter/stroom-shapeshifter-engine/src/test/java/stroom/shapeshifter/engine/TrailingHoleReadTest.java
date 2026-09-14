@@ -48,6 +48,7 @@ class TrailingHoleReadTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "rec"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "rec", "mode": "rec",
+                     "declarations": [{"name": "v", "type": "scalar"}],
                      "match": {"regex": {"pattern": "[^\\n]*\\n"}},
                      "body": [
                        {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},

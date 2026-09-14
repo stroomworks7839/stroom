@@ -21,6 +21,8 @@ import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.engine.config.Declaration;
+import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
@@ -136,18 +138,60 @@ public final class Ds3Migration {
                 .map(template -> template.mode() != null
                         ? template
                         : new Template(template.id(), template.name(), ROOT_MODE, template.consume(),
-                        template.guard(), template.param(), template.match(), template.matchLimits(),
+                        template.guard(), template.param(), template.declarations(), template.match(),
+                        template.matchLimits(),
                         template.captures(), template.body(), template.encoding(), template.ignoreErrors()))
                 .toList();
 
+        // Every name the migration binds is declared once, on the envelope, as a list. On the
+        // envelope because DS3 clears its stores once per parse and never between records, so run
+        // lifetime is the faithful one (design 35 §4); as a list because indexVarReads indexes every
+        // read by the parent's match count, which is DS3's own match-indexed store (design 35 §5).
         final List<Template> all = new ArrayList<>();
-        all.add(envelope());
+        all.add(envelope(declarations(withModes)));
         all.addAll(withModes);
         return new Project("", 3, source, all, List.of());
     }
 
+    /** Every name the emitted templates bind — captures and the named bindings in their bodies — once each. */
+    private static List<Declaration> declarations(final List<Template> templates) {
+        final java.util.Set<String> names = new java.util.LinkedHashSet<>();
+        for (final Template template : templates) {
+            template.captures().forEach(capture -> names.add(capture.name()));
+            collectBound(template.body(), names);
+        }
+        return names.stream().map(name -> new Declaration(name, Declaration.Type.LIST)).toList();
+    }
+
+    /** The bound names in a body, descending into every instruction that carries one. */
+    private static void collectBound(final List<OutputNode> body, final java.util.Set<String> names) {
+        for (final OutputNode node : body) {
+            if (node instanceof OutputNode.Binding binding && binding.name() != null) {
+                names.add(binding.name());
+            }
+            switch (node) {
+                case OutputNode.Element value -> collectBound(value.body(), names);
+                case OutputNode.Attribute value -> collectBound(value.body(), names);
+                case OutputNode.Variable value -> collectBound(value.body(), names);
+                case OutputNode.If value -> collectBound(value.then(), names);
+                case OutputNode.Choose value -> {
+                    value.when().forEach(branch -> collectBound(branch.body(), names));
+                    collectBound(value.otherwise(), names);
+                }
+                case OutputNode.Switch value -> {
+                    value.cases().forEach(switchCase -> collectBound(switchCase.body(), names));
+                    collectBound(value.defaultBody(), names);
+                }
+                case OutputNode.ForEach value -> collectBound(value.body(), names);
+                case OutputNode.ForEachGroup value -> collectBound(value.body(), names);
+                default -> {
+                }
+            }
+        }
+    }
+
     /** The document template: the {@code records:2} wrapper, written once around everything. */
-    private static Template envelope() {
+    private static Template envelope(final List<Declaration> declarations) {
         return new Template(
                 UUID.nameUUIDFromBytes("ds3:envelope".getBytes(StandardCharsets.UTF_8)),
                 "envelope",
@@ -155,6 +199,7 @@ public final class Ds3Migration {
                 false,
                 null,
                 List.of(),
+                declarations,
                 new MatchExpression.Source(),
                 MatchLimits.unlimited(),
                 List.of(),
@@ -225,6 +270,7 @@ public final class Ds3Migration {
                 mode,
                 false,
                 onlyMatchGuard(node),
+                List.of(),
                 List.of(),
                 matchExpression(node),
                 matchLimits(node),
@@ -445,7 +491,7 @@ public final class Ds3Migration {
                     0,
                     capture.matchIndex() != null
                             ? capture.matchIndex()
-                            : new MatchIndex(0, false, false, "__match_count"));
+                            : new MatchIndex(0, false, false, null, EngineVars.MATCH_COUNT));
         }
         return part;
     }
@@ -570,13 +616,13 @@ public final class Ds3Migration {
         if (onlyMatch == null || onlyMatch.isEmpty()) {
             return null;
         }
-        // The guard reads __match_idx, which the engine binds as Int — the exact case that
+        // The guard reads matchIndex(), which the engine binds as Int — the exact case that
         // makes legacy equality mean "compare string forms": both sides read as strings
         // (design/17 §8).
         final List<Condition> conditions = onlyMatch.stream()
                 .map(index -> (Condition) new Condition.Compare(Condition.Compare.Op.EQ,
                         new Condition.Operand(
-                                new RefExpression(List.of(new RefPart.Capture("__match_idx", 0, null))),
+                                new RefExpression(List.of(new RefPart.Counter(EngineVars.MATCH_INDEX, null))),
                                 null, Cast.STRING),
                         new Condition.Operand(null,
                                 new Condition.Literal.Text(Integer.toString(index - 1)), Cast.STRING)))

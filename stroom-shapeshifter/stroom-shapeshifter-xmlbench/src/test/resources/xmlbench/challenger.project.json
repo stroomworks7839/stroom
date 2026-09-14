@@ -50,6 +50,36 @@
    "id": "00000000-0000-0000-0000-000000000003",
    "name": "event_record",
    "mode": "doc",
+   "declarations": [
+    {
+     "name": "Date",
+     "type": "scalar"
+    },
+    {
+     "name": "FileNo",
+     "type": "scalar"
+    },
+    {
+     "name": "Host",
+     "type": "scalar"
+    },
+    {
+     "name": "LineNo",
+     "type": "scalar"
+    },
+    {
+     "name": "Message",
+     "type": "scalar"
+    },
+    {
+     "name": "Time",
+     "type": "scalar"
+    },
+    {
+     "name": "User",
+     "type": "scalar"
+    }
+   ],
    "match": {
     "regex": {
      "pattern": "  (<record>[^\\n]*</record>)\\n"

@@ -47,6 +47,7 @@ class ScopeCharacterisationTest {
                   "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                     "declarations": [{"name": "x", "type": "scalar"}],
                      "match": "source",
                      "body": [
                        {"variable": {"name": "x", "body": [{"text": "outer"}]}},
@@ -83,6 +84,7 @@ class ScopeCharacterisationTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 1}}]},
                                                    "mode": "__rec_head", "max_depth": 8}}]},
                     {"id": "00000000-0000-0000-0000-000000000003", "name": "head", "mode": "__rec_head",
+                     "declarations": [{"name": "c", "type": "scalar"}],
                      "match": {"regex": {"pattern": "^(.)(.*)$"}},
                      "captures": [{"name": "c", "select": {"group": 1}}],
                      "body": [

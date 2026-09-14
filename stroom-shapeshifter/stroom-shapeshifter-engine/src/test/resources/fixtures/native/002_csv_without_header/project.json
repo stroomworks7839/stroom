@@ -94,6 +94,12 @@
       "id": "00000000-0000-0000-0000-000000000003",
       "name": "csv_field",
       "mode": "columns",
+      "declarations": [
+        {
+          "name": "__esc0",
+          "type": "list"
+        }
+      ],
       "match": {
         "delimiter": {
           "delimiter": ",",

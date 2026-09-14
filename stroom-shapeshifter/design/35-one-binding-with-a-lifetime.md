@@ -1176,6 +1176,83 @@ emits its declarations on the source.
 message naming the reference. *Point:* the compile rows may rise; every run row must be flat — this
 phase is a control, and a run row moving means something leaked.
 
+**Done 2026-09-14, uncommitted pending review.** No golden moved: 1,193 tests across the four
+modules, 0 failures, byte-identical output through both the native and the migrated families.
+Thirty fewer tests than phase 1 counted: the reservation refusal's forty pinned cases went with the
+refusal, and nine declaration tests came.
+
+*What was built.* `Declaration(name, type)` on a template — `scalar`, `list`, `map` or `set` —
+read and written between `param` and `match`; the compiler interns each as a slot and nothing
+else. `ReferenceCheck` gained the three refusals: a name bound or read that no declaration names;
+a second declaration of a name, naming both templates; and an operation disagreeing with the
+declared type — a walk, fold, append, `sequence`, `distinct-values` or `key-get` name must be a
+list, a key built or looked up must be a map, an indexed read must be into a list. A parameter, an
+argument and a loop's `as` are declarations in place (§4) and owe no other. A key-value capture
+stands the rule down, as it already stood the read check down. Counters became functions:
+`EngineVars` carries the eight function names, `RefPart.Counter` and `MatchIndex.counter` carry a
+reference to one, and the JSON spells them `{"function": {"name": "matchCount"}}` and, in an index
+rule, `"function": "matchCount"` beside `var_ref`. `group()` is interned under its own spelling,
+so a `for-each` whose select is `group()` resolves to the same slot with no special case, and a
+declaration refuses parentheses so nothing can take that name. The reservation refusal,
+`EngineVars.ALL` and the `__` prefix are gone from the engine's own names; author names that
+happen to carry the prefix (`__record_body__`) are untouched, because nothing is reserved now. The
+DS3 migration declares every bound name once, on the envelope, as a list: DS3 clears its stores
+once per parse and indexes them by the parent's match count, which is a run-lifetime list.
+
+*Two scope decisions, deferred to phase 4 rather than guessed here.* A scalar bind — a capture, a
+`variable`, a transform — on a list-declared name is accepted: it is what today's match-indexed
+store does, and what it should mean is the operation surface's question. A bare read of a list is
+accepted for the same reason.
+
+*The rewrite.* Forty-six JSON resources gained 851 declarations, placed by an analysis of the
+dispatch graph: a name is declared on the lowest template from which every template that binds or
+reads it is reachable; a `sequence` or `key` instruction's own template wins, because design 16
+already put the lifetime where the author wanted it; a guard reading a name its own template binds
+reads the previous execution's value, so that name is placed above. Fourteen resources and
+twenty-six test classes had the eight spellings changed; four fixture files not in the canonical
+layout were reformatted (019, avro, parquet, protobuf) and everything else moved only at the
+declarations and the function parts, checked structurally against `HEAD` — 46 of 46.
+
+*What the rewrite found.* Fixture 019 has two templates both named `unnamed`; the analysis,
+keyed by name, gave both the block, and the declared-twice refusal caught it — the first thing
+the new refusal refused. `keyAndASequenceMayShareAName` asserted design 16 §9's separate key
+namespace, which the one-namespace rule retires; it now asserts the type refusal instead. And
+several test blocks bind names in Java-supplied fragments the analysis cannot see: those
+declarations were added by hand from the refusals, which is the gate working as described.
+
+*Sabotage, each against the engine suite:*
+
+| refusal | sabotage | failing |
+|---|---|---|
+| a bound name must be declared | check disabled | 1 |
+| a read name must be declared | check disabled | 1 |
+| a name is declared once | check disabled | 1 |
+| an operation agrees with the type | check disabled | 1 |
+
+The gate's own case is pinned as a test: a native fixture compiles as shipped, and the same
+fixture with its declarations removed fails at compile time naming the template and the name.
+
+*Audited.* The forty-six rewritten JSON files are structurally identical to `HEAD` once their
+declarations are removed and the function respelling applied; checkstyle is clean on main and
+test in every module; no engine spelling with the prefix survives in main code, where only
+javadoc changed; and the pipeline and xmlbench suites pass without a change to either module's
+code.
+
+*What the audit found.* The in-place declarations — a parameter, a loop's `as` — were held as a
+configuration-wide set, so a parameter named `x` in one template let an undeclared `x` pass in
+any other; and a `with-param` was marked as the *caller's* in-place declaration, though it names
+the callee's parameter. Both are now per template, and an argument only makes the name writable.
+The placement analysis had the same leak, and had hidden five cases behind it: three
+`EngineBehaviourTest` configurations whose called template read a name its own `param` list never
+declared (the caller's argument had stood in as the declaration, which §4 retires — the callee now
+declares the parameter), and the `sequence_basics` and `sort` xmlbench cases, whose `v` and `at`
+the analysis had skipped because a loop elsewhere used the same name; both were regenerated from
+`HEAD` with the analysis corrected. Four javadoc lines that still described keys as their own
+namespace, or an index rule's function as a variable, were brought up to date.
+
+*Not measured.* The benchmark point waits for a quiet box. This phase is the control: the compile
+rows may rise, and every run row must be flat.
+
 ### Phase 3 — The run time changes once
 
 The payoff phase, and the one that must be measured rather than reasoned about.

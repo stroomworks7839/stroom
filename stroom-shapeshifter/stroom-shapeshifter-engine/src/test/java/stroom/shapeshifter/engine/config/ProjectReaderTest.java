@@ -95,6 +95,9 @@ class ProjectReaderTest {
                       "id": "00000000-0000-0000-0000-000000000002",
                       "name": "row",
                       "mode": "row",
+                      "declarations": [{"name": "key", "type": "scalar"},
+                                       {"name": "old", "type": "scalar"},
+                                       {"name": "prev", "type": "scalar"}],
                       "match": {"regex": {"pattern": "^(\\\\w+)=(\\\\d+)$",
                                           "flags": {"case_insensitive": true, "dot_all": false},
                                           "advance": 1}},
@@ -202,7 +205,9 @@ class ProjectReaderTest {
     void carriesAReferenceExpressionsParts() {
         final Project project = ProjectReader.read("""
                 {"name": "x", "version": 3, "templates": [
-                  {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match": "all",
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "t",
+                   "declarations": [{"name": "heading", "type": "list"}],
+                   "match": "all",
                    "body": [{"value-of": {"parts": [
                      {"text": "["},
                      {"capture": {"var_id": "heading", "group": 1,
@@ -214,7 +219,7 @@ class ProjectReaderTest {
                 .getFirst().body().getFirst();
         assertThat(valueOf.select().parts()).containsExactly(
                 new RefPart.Text("["),
-                new RefPart.Capture("heading", 1, new RefExpression.MatchIndex(1, true, false, null)),
+                new RefPart.Capture("heading", 1, new RefExpression.MatchIndex(1, true, false, null, null)),
                 new RefPart.Text("]"));
     }
 }

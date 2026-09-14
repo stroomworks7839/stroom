@@ -10,6 +10,80 @@
   {
    "id": "00000000-0000-0000-0000-000000000001",
    "name": "source",
+   "declarations": [
+    {
+     "name": "by_status",
+     "type": "map"
+    },
+    {
+     "name": "bytes",
+     "type": "list"
+    },
+    {
+     "name": "denied",
+     "type": "list"
+    },
+    {
+     "name": "host",
+     "type": "list"
+    },
+    {
+     "name": "hostnames",
+     "type": "list"
+    },
+    {
+     "name": "kb_raw",
+     "type": "scalar"
+    },
+    {
+     "name": "path",
+     "type": "list"
+    },
+    {
+     "name": "people",
+     "type": "list"
+    },
+    {
+     "name": "rows",
+     "type": "list"
+    },
+    {
+     "name": "sizes",
+     "type": "list"
+    },
+    {
+     "name": "status",
+     "type": "list"
+    },
+    {
+     "name": "t",
+     "type": "scalar"
+    },
+    {
+     "name": "tag_list",
+     "type": "list"
+    },
+    {
+     "name": "tags",
+     "type": "list"
+    },
+    {
+     "name": "ts",
+     "type": "list"
+    },
+    {
+     "name": "uniq_hosts",
+     "type": "list"
+    },
+    {
+     "name": "uniq_users",
+     "type": "list"
+    },
+    {
+     "name": "user",
+     "type": "list"
+    }
+   ],
    "match": "source",
    "body": [
     {
@@ -150,7 +224,7 @@
           "var_id": "host",
           "group": 0,
           "match_index": {
-           "var_ref": "__index"
+           "function": "index"
           }
          }
         }
@@ -164,9 +238,8 @@
         "value-of": {
          "parts": [
           {
-           "capture": {
-            "var_id": "__group_key",
-            "group": 0
+           "function": {
+            "name": "groupKey"
            }
           }
          ]
@@ -179,9 +252,8 @@
         "value-of": {
          "parts": [
           {
-           "capture": {
-            "var_id": "__group_size",
-            "group": 0
+           "function": {
+            "name": "groupSize"
            }
           }
          ]
@@ -192,7 +264,7 @@
        },
        {
         "for-each": {
-         "select": "__group",
+         "select": "group()",
          "as": "i",
          "sort": [
           {
@@ -463,7 +535,7 @@
           "var_id": "status",
           "group": 0,
           "match_index": {
-           "var_ref": "__index"
+           "function": "index"
           }
          }
         }
@@ -596,9 +668,8 @@
       "select": {
        "parts": [
         {
-         "capture": {
-          "var_id": "__match_count",
-          "group": 0
+         "function": {
+          "name": "matchCount"
          }
         }
        ]

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.config.json;
 
 import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Project.SourceConfig;
 import stroom.shapeshifter.engine.config.Template;
@@ -98,8 +99,8 @@ public final class ProjectJson {
     }
 
     private static Template readTemplate(final JsonNode node) {
-        JsonFields.checkFields(node, "template", "id", "name", "mode", "guard", "param", "match",
-                "match_limits", "captures", "body", "encoding", "ignore_errors", "consume");
+        JsonFields.checkFields(node, "template", "id", "name", "mode", "guard", "param", "declarations",
+                "match", "match_limits", "captures", "body", "encoding", "ignore_errors", "consume");
         return new Template(
                 JsonFields.uuid(node, "id", "template"),
                 JsonFields.text(node, "name", "template"),
@@ -107,6 +108,7 @@ public final class ProjectJson {
                 node.path("consume").asBoolean(false),
                 node.has("guard") ? ConditionJson.readCondition(node.get("guard")) : null,
                 JsonFields.list(node.get("param"), "param", ProjectJson::readParamDecl),
+                JsonFields.list(node.get("declarations"), "declarations", ProjectJson::readDeclaration),
                 MatchJson.readMatch(JsonFields.required(node, "match", "template")),
                 node.has("match_limits") ? readMatchLimits(node.get("match_limits")) : MatchLimits.unlimited(),
                 JsonFields.list(node.get("captures"), "captures", ReferenceJson::readCapture),
@@ -129,6 +131,9 @@ public final class ProjectJson {
         if (!template.param().isEmpty()) {
             node.set("param", JsonFields.array(template.param(), ProjectJson::writeParamDecl));
         }
+        if (!template.declarations().isEmpty()) {
+            node.set("declarations", JsonFields.array(template.declarations(), ProjectJson::writeDeclaration));
+        }
         node.set("match", MatchJson.writeMatch(template.match()));
         node.set("match_limits", writeMatchLimits(template.matchLimits()));
         if (!template.captures().isEmpty()) {
@@ -141,6 +146,19 @@ public final class ProjectJson {
         if (template.ignoreErrors()) {
             node.put("ignore_errors", true);
         }
+        return node;
+    }
+
+    private static Declaration readDeclaration(final JsonNode node) {
+        JsonFields.checkFields(node, "declaration", "name", "type");
+        return new Declaration(JsonFields.text(node, "name", "declaration"),
+                JsonFields.lowercase(Declaration.Type.class, JsonFields.text(node, "type", "declaration"), "type"));
+    }
+
+    private static ObjectNode writeDeclaration(final Declaration declaration) {
+        final ObjectNode node = JsonFields.NODES.objectNode();
+        node.put("name", declaration.name());
+        node.put("type", JsonFields.label(declaration.type()));
         return node;
     }
 
