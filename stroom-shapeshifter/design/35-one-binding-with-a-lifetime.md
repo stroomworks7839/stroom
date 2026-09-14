@@ -100,30 +100,36 @@ had to pick one and lose the other. That is what a missing concept looks like.
 template's execution. Re-declaring a name in a deeper scope shadows the outer one. These are the
 rules every language already has, and adopting them is the point: nothing here has to be learned.
 
-**Where a declaration is written says which scope it is.** A project-level declarations block is
-global; a template-level one beside that template's bindings is template-scoped. The scope is never
-spelled as an attribute, so a global cannot be written by omission and two templates cannot declare
-the same global differently.
+**Where a declaration is written is its scope, and that is the whole rule.** It is never spelled as
+an attribute, so a run-long variable cannot be written by omission and two templates cannot declare
+the same one differently.
 
-**Two scopes.**
+- **On the source template** — outside every other template, so nothing encloses it and it lasts
+  the run. This is "global" in effect without an author ever saying the word.
+- **On any other template** — visible within it and any descendant execution, destroyed when that
+  execution ends.
 
-- **Global** — visible to everything, for the whole run.
-- **Template** — visible within that template and any descendant execution, and destroyed when that
-  template's execution ends.
+*There is one scope rule, not two scope kinds.* An author never marks anything "global"; they write
+it on the source, outside every other template, and the effect is global because nothing encloses
+it. That is how file scope works in any language and it needs no second concept.
 
-*Global is not simply "declared in the root template", and the difference is load-bearing.* Under
-an ordered root the two coincide — the root's execution spans the run. Under a `classify` or `any`
-root they do not: `Run.dispatchInput` sets `chunkedRoot`, the input is read in pieces and the root
-is re-entered per chunk, so a root declaration would have **chunk** lifetime. `Body.guardAccumulation`
-already says so about capture stores — "accumulates across records at the root level and is cleared
-per chunk". Collapsing the two words would make a variable's lifetime depend on the root's dispatch
-mode, which is lifetime inferred from dispatch shape, which is what this design exists to remove.
-`global` means the run.
+`Run.document()` is what makes it true: it runs **once per stream** — prologues, then
+`dispatchInput`, then tails — and the chunk loop lives *inside* `dispatchInput`. So the source
+template's execution spans the whole run however the input is read.
 
-*And it closes a hole that guard names and cannot catch.* Its comment ends: "No refusal catches
+**The sharp edge is the root templates, not the source.** Under a `classify` or `any` root,
+`dispatchInput` reads the input in pieces and re-enters the **root-mode** templates per chunk, so a
+declaration on one of *those* has **chunk** lifetime, not run lifetime.
+`Body.guardAccumulation` already says as much about capture stores — *"accumulates across records
+at the root level and is cleared per chunk"*. That is a real trap: `source` and a root template look
+adjacent in a configuration and are not, and an accumulation meant to span the stream must be
+declared on the source.
+
+*It also closes a hole that guard names and cannot catch.* Its comment ends: *"No refusal catches
 it, because nothing at the read site distinguishes a capture store from a per-record binding — it
-is named here rather than left for someone to find." A declared lifetime is exactly that
-distinction.
+is named here rather than left for someone to find."* A declared lifetime is exactly that
+distinction, and a declaration on a root template under a chunked root is something the compiler
+can see and refuse or warn about.
 
 **Declaring and shadowing are the same mechanism, and it is already built.** Entering a template
 that declares names pushes a scope over exactly those names; leaving it pops. `VarRegistry` already
@@ -805,7 +811,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Holes** | A failed capture appends absence, so positions stay aligned by the configuration saying so rather than by a hole appearing as a side effect. | §8 |
 | **`last`** | Does not skip absence — it returns the last element. Can only move a golden when the *final* match's capture failed; §10 is the gate and E19 the precedent for recording a divergence. | §8 |
 | **Declaration timing** | A declaration is an action on entry to the declaring template's execution; the variable lives entry to exit. A descendant that does not re-declare shares it and may mutate it, which is how accumulation works — so a template cannot accumulate into a variable it declares itself. Recursion shadows because a recursive execution re-declares, which is the existing frame restore rather than anything new. | §4 |
-| **Where declared** | Project-level block for global, template-level for template-scoped. The scope is never an attribute, so a global cannot be written by omission. | §4 |
+| **Where declared** | Where a declaration is written *is* its scope; there is no scope attribute and no second scope kind. The source template is the outermost execution — `Run.document()` runs once per stream with the chunk loop inside it — so declaring there lasts the run. Declaring on a **root-mode** template under a `classify` or `any` root gives *chunk* lifetime, which the compiler can see and should refuse or warn. | §4 |
 | **Counter names** | Eight flat, explicit names: `matchCount()`, `matchIndex()`, `index()`, `position()`, `last()`, `groupKey()`, `group()`, `groupSize()`. | §6 |
 | **`Param`** | Stays outside the unified declaration. Call scoping is already correct and uniformity alone was not a reason. | §4 |
 | **Size guard** | One run-wide live-element counter: every `append` or `put` increments it, every collection caches its own total so a clear or scope-exit decrements in O(1). Nesting is irrelevant because the counter measures exactly what the promise is about — total live elements — whatever shape they are in. | §5, §8 |
