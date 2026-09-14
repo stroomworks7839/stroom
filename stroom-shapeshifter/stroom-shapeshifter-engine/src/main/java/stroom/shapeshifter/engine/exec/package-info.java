@@ -24,7 +24,7 @@
  * {@code Body} interprets the match's body, the switch over the compiled instruction
  * vocabulary; {@code FunctionRuntime} binds the configuration's functions once and makes
  * their calls; {@code AbortRun} is how a fatal message ends a run. What they read and write:
- * the scoped {@code VarRegistry} of match-indexed {@code Store}s, the names the engine sets
+ * the scoped {@code VarRegistry} of declared values, the names the engine sets
  * itself ({@code config.EngineVars}), references resolved by {@code Refs} and {@code CompiledRefs},
  * conditions decided by {@code Conditions}. The values are {@code value}'s, the matching
  * {@code match}'s, the sinks {@code output}'s; this package depends on all three, on the

@@ -660,6 +660,24 @@ public sealed interface TypedValue {
             values[position] = value;
         }
 
+        /**
+         * Put a value at a position, growing the list to reach it with absence in between — the
+         * match-indexed write a capture makes (design 35 §8: a failed capture appends absence, so
+         * positions stay aligned with match numbers). Returns how many elements that added.
+         */
+        public int set(final int position, final TypedValue value) {
+            if (position < 0) {
+                throw new IndexOutOfBoundsException(position + " of " + size);
+            }
+            final int before = size;
+            if (position >= size) {
+                grow(position + 1);
+                size = position + 1;
+            }
+            values[position] = value;
+            return size - before;
+        }
+
         /** Drop a position, shifting what follows. */
         public void remove(final int position) {
             if (position < 0 || position >= size) {

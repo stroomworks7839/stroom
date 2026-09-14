@@ -47,7 +47,7 @@ class SequenceIterationTest {
                 {"name": "t", "version": 5,
                  "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
-                   "declarations": [{"name": "items", "type": "list"},
+                   "declarations": [{"name": "field", "type": "list"}, {"name": "items", "type": "list"},
                                     {"name": "hits", "type": "list"},
                                     {"name": "seen", "type": "list"},
                                     {"name": "parts", "type": "list"},
@@ -59,7 +59,7 @@ class SequenceIterationTest {
                        "mode": "doc"}},
                      %s]},
                   {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
-                   "declarations": [{"name": "field", "type": "list"}, {"name": "p", "type": "list"}],
+                   "declarations": [{"name": "p", "type": "list"}],
                    "match": {"regex": {"pattern": "([^\\\\n]*)\\\\n"}},
                    "captures": [{"name": "field", "select": {"group": 1}}],
                    "body": [%s]}]}
@@ -156,7 +156,7 @@ class SequenceIterationTest {
                 {"name": "t", "version": 5,
                  "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
-                   "declarations": [{"name": "items", "type": "list"},
+                   "declarations": [{"name": "field", "type": "list"}, {"name": "items", "type": "list"},
                                     {"name": "hits", "type": "list"},
                                     {"name": "seen", "type": "list"},
                                     {"name": "parts", "type": "list"},
@@ -223,7 +223,10 @@ class SequenceIterationTest {
 
     @Test
     void sequenceInsideItsLimitIsUntouched() {
-        final String json = withSource("\"max_sequence_entries\": 3", "{\"count\": {\"select\": \"items\"}}");
+        // The limit bounds the run's collections together (design 35 §11): three items and
+        // three fields, each list carrying an absent position 0 until design 35 phase 4 moves
+        // positions, is eight elements.
+        final String json = withSource("\"max_sequence_entries\": 8", "{\"count\": {\"select\": \"items\"}}");
         assertThat(messagesFrom(json, "a\nb\nc\n"))
                 .noneMatch(m -> m.severity() == Severity.FATAL);
     }

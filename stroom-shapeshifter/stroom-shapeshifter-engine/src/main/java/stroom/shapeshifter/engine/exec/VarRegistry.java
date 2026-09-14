@@ -16,12 +16,12 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * The variables in scope, and their values.
@@ -33,28 +33,41 @@ import java.util.Map;
  * per-level hash on a walk only 1.35 levels deep — many shallow lookups rather than a few deep
  * ones, which is exactly the case where removing the hash is the whole win.
  *
+ * <p><b>A slot holds a value</b> (design 35 §8). A scalar's slot holds the value; a list's holds
+ * a {@link TypedValue.List}; a map's a {@link TypedValue.Map}. What this replaced was a
+ * {@code Store} per slot — a sparse array of per-match history behind every name, scalar or not —
+ * which was an object and an indirection on every reference resolution, the hottest read in the
+ * engine. The history a list needs is now a list, declared as one.
+ *
+ * <p><b>The slot array is fixed.</b> It is sized once from the names the configuration declares
+ * and never grows: a key-value capture puts into a declared map rather than minting a slot per
+ * key it reads out of the data, which was the one thing that used to grow it.
+ *
  * <h2>Scopes are an undo log</h2>
  *
- * <p>There is one array for the run and a log of what to put back. A push records the log's
- * height; a shadow saves the slot's current binding and installs a fresh one; a pop unwinds to
- * the mark <b>in reverse</b>, which is what makes a name shadowed twice in one scope come back to
- * the binding outside it rather than to the one in between. So a scope is an {@code int}, and
- * nothing is allocated to open one.
+ * <p>There is one array for the run and a log of what to put back. Entering a declaring
+ * execution records the log's height and, per declared name, saves the slot's current value and
+ * sets it unset; leaving unwinds to the mark <b>in reverse</b>, which is what makes a name declared
+ * twice on the way down come back to the binding outside both rather than to the one in between.
+ * So a scope is an {@code int}, and nothing is allocated to open one: declaring writes null, and
+ * a collection comes into being on its first mutation, in the slot its declaration owns.
  *
- * <p>Scopes still exist for memory rather than for hygiene. A recursive apply over a large
- * document would otherwise accumulate every capture of every level; unwinding releases them,
- * which is what keeps a stream of unbounded length processable in bounded space.
+ * <p>Restore-on-exit is what gives clear-on-exit: an execution's declarations restore to what was
+ * there before it, which was unset, so the next execution starts unset; and it gives recursion
+ * its own variables for free, because an inner execution's declaration logs and restores just the
+ * same (design 35 §4).
  *
  * <p>{@code owner} is what keeps the log bounded: it holds the depth that installed each slot's
- * current binding, so shadowing a name this scope already holds is the no-op it always was
- * rather than another entry. Without it a {@code sequence} declared inside a loop would log once
- * per iteration.
+ * current binding, so declaring a name this scope already holds is the no-op it always was
+ * rather than another entry.
  *
- * <p>Each name maps to <i>one</i> store. It used to map to an array of them indexed by capture
- * group, mirroring DS3's {@code StoreNode}, but nothing ever wrote above index 0: the group is
- * settled when the configuration is compiled, where a referenced {@code (var, group)} pair
- * becomes a capture of its own (E48). So the group dimension was an indirection on the single
- * hottest path in the engine, carrying a value that was always the same.
+ * <h2>The live-element counter</h2>
+ *
+ * <p>One run-wide count of the elements every collection in a slot holds (design 35 §11): every
+ * append or put increments it, and a clear or a scope exit that discards a collection decrements
+ * it by that collection's size, in O(1). It is a bound on memory, judged by the interpreter
+ * against {@code max_sequence_entries}; it is exact while no collection is reachable from two
+ * slots, which nothing here does.
  *
  * <p>What is in here is the <b>author's</b> names. The engine's own are {@link Frames}, which
  * design 30 phase 4 gave them; the one exception is {@code group()}, a sequence rather than a
@@ -68,46 +81,20 @@ public final class VarRegistry {
     /** How many undo entries the log starts with; it doubles from there. */
     private static final int UNDO_INITIAL = 64;
 
-    private final Names names;
-
-    /**
-     * Every slot's current binding, by {@link VarName#slot()}.
-     *
-     * <p>Arrays rather than a {@code List<List<Store>>}. The inner dimension is the capture
-     * <b>group</b> and stays: DS3's reference syntax can ask for one — {@code @name.2} parses to
-     * a group on a named variable, and {@code LegacyRefs} has done so since the port — so
-     * collapsing a name to a single store would settle a question this engine has not answered.
-     * See E48.
-     *
-     * <p>An array rather than a {@code List<List<Store>>}: this is read on <b>every</b> reference
-     * resolution — {@code get}, {@code entry}, {@code store} and {@code fromCurrentScope} all
-     * index it — which is the hottest read in the engine (design 33 §11 E). It grows only when a
-     * name arrives from the data, beside {@link #owner}, which has always been an array.
-     */
-    private Store[] slots;
-
-    /**
-     * How many slots exist, which is the next free one. The arrays are longer than this once a
-     * data-derived name has grown them, because they grow geometrically.
-     */
-    private int slotCount;
+    /** Every slot's current value, by {@link VarName#slot()}; null is unset. */
+    private final TypedValue[] slots;
 
     /** The scope depth that installed each slot's current binding, or {@link #UNBOUND}. */
-    private int[] owner;
+    private final int[] owner;
 
-    /**
-     * The table, extended with names that arrived from the data. Null until one does, which for
-     * a configuration without key-value captures is forever.
-     */
-    private Map<String, VarName> extended;
+    /** What each name was declared to hold, by slot; {@code SCALAR} for a name declared in place. */
+    private final Declaration.Type[] types;
 
     private int[] marks = new int[16];
     private int depth;
 
     // The undo log, as three parallel arrays: which slot an entry restores, what owned it, and
-    // what it held. They are grown together in bind() and must stay the same length, which is
-    // why all three are sized in one place rather than two — undoSaved cannot be initialised at
-    // its declaration, because a generic array needs the constructor's @SuppressWarnings.
+    // what it held. They are grown together in declare() and must stay the same length.
 
     /** The slot each entry restores. */
     private int[] undoSlot;
@@ -116,22 +103,27 @@ public final class VarRegistry {
     private int[] undoOwner;
 
     /** What each entry replaced. */
-    private Store[] undoSaved;
+    private TypedValue[] undoSaved;
 
     /** How many entries are live, which is also the next free index in all three. */
     private int undoCount;
 
+    /** How many elements the collections in every slot hold between them. */
+    private long live;
+
     private final Frames frames = new Frames();
 
     public VarRegistry(final Names names) {
-        this.names = names;
         this.owner = new int[names.size()];
         Arrays.fill(owner, UNBOUND);
-        this.slots = new Store[names.size()];
-        this.slotCount = names.size();
+        this.slots = new TypedValue[names.size()];
+        this.types = new Declaration.Type[names.size()];
+        for (final VarName name : names.all().values()) {
+            types[name.slot()] = names.typeOf(name);
+        }
         this.undoSlot = new int[UNDO_INITIAL];
         this.undoOwner = new int[UNDO_INITIAL];
-        this.undoSaved = new Store[UNDO_INITIAL];
+        this.undoSaved = new TypedValue[UNDO_INITIAL];
     }
 
     /** The engine's own variables, which are frames rather than names. */
@@ -139,7 +131,12 @@ public final class VarRegistry {
         return frames;
     }
 
-    /** Enter a new scope. */
+    /** What a name was declared to hold. */
+    public Declaration.Type typeOf(final VarName name) {
+        return types[name.slot()];
+    }
+
+    /** Enter a new scope that declares nothing yet. */
     public void push() {
         if (depth == marks.length) {
             marks = Arrays.copyOf(marks, marks.length * 2);
@@ -148,21 +145,17 @@ public final class VarRegistry {
     }
 
     /**
-     * Enter a new scope shadowing a set of names settled at compile time.
-     *
-     * <p>Every one of the interpreter's pushes knows what it shadows before the run starts — a
-     * loop's binding, a call's arguments and parameters, a recursive applies captures — so the
-     * two operations are one, over an array that on the measured workloads is almost always of
-     * length one.
+     * Enter a new scope declaring a set of names settled at compile time — a template's
+     * declarations, a call's parameters, a loop's {@code as}.
      */
-    public void push(final VarName[] shadowed) {
+    public void push(final VarName[] declared) {
         push();
-        for (final VarName name : shadowed) {
-            shadow(name);
+        for (final VarName name : declared) {
+            declare(name);
         }
     }
 
-    /** Leave the current scope, discarding everything written in it. */
+    /** Leave the current scope, restoring every name it declared to what it held outside. */
     public void pop() {
         if (depth == 0) {
             throw new IllegalStateException("Cannot pop the global scope");
@@ -170,6 +163,7 @@ public final class VarRegistry {
         final int mark = marks[--depth];
         for (int i = undoCount - 1; i >= mark; i--) {
             final int slot = undoSlot[i];
+            release(slots[slot]);
             slots[slot] = undoSaved[i];
             undoSaved[i] = null;
             owner[slot] = undoOwner[i];
@@ -177,135 +171,35 @@ public final class VarRegistry {
         undoCount = mark;
     }
 
-    /** The store for a name, or null when nothing holds it. */
-    public Store get(final VarName name) {
+    /** A name's value, or null when it is unset. */
+    public TypedValue get(final VarName name) {
         return slots[name.slot()];
     }
 
-    /** The store for a name the run read out of the data, or null. */
-    public Store get(final String name) {
-        return get(name(name));
-    }
-
-    /** The store for a name, creating it in the innermost scope if nothing holds it yet. */
-    public Store entry(final VarName name) {
+    /**
+     * Set a name's value in the slot its declaration owns. A collection replaced here leaves the
+     * count, as one discarded on exit does.
+     */
+    public void set(final VarName name, final TypedValue value) {
         final int slot = name.slot();
-        final Store found = slots[slot];
-        if (found != null) {
-            return found;
-        }
-        return bind(slot);
-    }
-
-    /**
-     * Install a name's store in the innermost scope, replacing whatever it held.
-     *
-     * <p>What a variable's promotion needs: the nested body's store, kept after its scope has
-     * gone. {@link #entry} first, so the slot is bound in this scope and the undo log knows what
-     * it replaced, and then the store itself.
-     */
-    public void put(final VarName name, final Store store) {
-        entry(name);
-        slots[name.slot()] = store;
-    }
-
-    /**
-     * The store for a name, creating it if needed — which is what {@link #entry} already does,
-     * now that a slot holds a store rather than somewhere to put one.
-     */
-    public Store store(final VarName name) {
-        return entry(name);
-    }
-
-    /** The store for a name the run read out of the data. */
-    public Store store(final String name) {
-        return store(name(name));
-    }
-
-    /**
-     * Note that a name exists, in the global scope, so that a later write from inside a nested
-     * scope finds it there rather than creating a local one.
-     */
-    public void register(final VarName name) {
-        final int slot = name.slot();
-        if (slots[slot] == null) {
-            slots[slot] = new Store();
-            owner[slot] = 0;
+        release(slots[slot]);
+        slots[slot] = value;
+        if (value instanceof final TypedValue.Collection collection) {
+            live += collection.size();
         }
     }
 
-    /** Note a name in the <i>current</i> scope only, so an inner write cannot escape it. */
-    public void shadow(final VarName name) {
+    /**
+     * Declare a name in the <i>current</i> scope: its value outside is logged and restored on
+     * exit, and inside it starts unset.
+     */
+    public void declare(final VarName name) {
         final int slot = name.slot();
         if (owner[slot] == depth) {
             // Already this scope's, which is what the per-scope map said by not replacing an
             // entry it already held.
             return;
         }
-        bind(slot);
-    }
-
-    /** A name's store from the current scope only, ignoring anything outside it. */
-    public Store fromCurrentScope(final VarName name) {
-        final int slot = name.slot();
-        return owner[slot] == depth ? slots[slot] : null;
-    }
-
-    /**
-     * The slot a name from the data belongs in.
-     *
-     * <p>The run's one string lookup, and the rule of design 30 §1 holding rather than failing: a
-     * key-value capture's name <em>is</em> data, and a map is what a data key is for. A name the
-     * configuration never mentions gets a slot of its own rather than being dropped — nothing can
-     * read it, but a capture has to keep operating for something outside the run to present it
-     * (§8 ruling 8).
-     *
-     * <p>A condition's operands still come through here too, because a condition resolves the
-     * authored expression rather than a compiled reference. That is E39's open seam and not this
-     * method's purpose; §5.5 has the count.
-     */
-    private VarName name(final String name) {
-        if (extended != null) {
-            // A plain get first: the names a key-value capture binds repeat every record, so
-            // the hit is the case, and computeIfAbsent is the slower way to take it.
-            final VarName seen = extended.get(name);
-            return seen != null ? seen : extended.computeIfAbsent(name, this::grow);
-        }
-        final VarName known = names.lookup(name);
-        if (known != null) {
-            return known;
-        }
-        // The first name out of the data. Copying the table once, here, is what keeps every
-        // later lookup a single hit: consulting the compiled table and then a separate map of
-        // data-derived names costs a miss and a hit for exactly the names a key-value
-        // configuration resolves most — 14,140 per operation on `ausearch`, which measured as a
-        // regression until this became one lookup.
-        extended = new HashMap<>(names.all());
-        return extended.computeIfAbsent(name, this::grow);
-    }
-
-    /**
-     * A slot for a name that arrived from the data.
-     *
-     * <p><b>The arrays double rather than growing by one.</b> Extending by a single element
-     * copies the whole array per new name, which is quadratic in the number of distinct
-     * key-value names a stream carries — and a stream with a thousand distinct keys is the case
-     * this exists for. The one-at-a-time growth predates the arrays: {@code owner} was already
-     * copied per name when {@code slots} was a list that doubled for itself.
-     */
-    private VarName grow(final String name) {
-        if (slotCount == slots.length) {
-            final int bigger = Math.max(8, slots.length * 2);
-            slots = Arrays.copyOf(slots, bigger);
-            owner = Arrays.copyOf(owner, bigger);
-        }
-        final VarName made = new VarName(name, slotCount++);
-        owner[made.slot()] = UNBOUND;
-        return made;
-    }
-
-    /** Install a fresh binding for a slot in the current scope, logging what it replaced. */
-    private Store bind(final int slot) {
         if (depth > 0) {
             final int at = undoCount;
             if (at == undoSlot.length) {
@@ -317,10 +211,81 @@ public final class VarRegistry {
             undoOwner[at] = owner[slot];
             undoSaved[at] = slots[slot];
             undoCount = at + 1;
+        } else {
+            // The global scope logs nothing to restore, so what it displaces is simply gone.
+            release(slots[slot]);
         }
-        final Store store = new Store();
-        slots[slot] = store;
+        slots[slot] = null;
         owner[slot] = depth;
-        return store;
+    }
+
+    /** A name's value from the current scope only, ignoring anything outside it. */
+    public TypedValue fromCurrentScope(final VarName name) {
+        final int slot = name.slot();
+        return owner[slot] == depth ? slots[slot] : null;
+    }
+
+    /**
+     * The list a name holds, made on first use in the slot its declaration owns. A slot holding
+     * something else — a scalar bound where a list was declared — is replaced, as a bind replaces.
+     */
+    public TypedValue.List list(final VarName name) {
+        final int slot = name.slot();
+        if (slots[slot] instanceof final TypedValue.List list) {
+            return list;
+        }
+        final TypedValue.List made = new TypedValue.List();
+        set(name, made);
+        return made;
+    }
+
+    /** The map a name holds, made on first use — see {@link #list}. */
+    public TypedValue.Map map(final VarName name) {
+        final int slot = name.slot();
+        if (slots[slot] instanceof final TypedValue.Map map) {
+            return map;
+        }
+        final TypedValue.Map made = new TypedValue.Map();
+        set(name, made);
+        return made;
+    }
+
+    /** Put a value at a position of a name's list — absence included — counting what that grows. */
+    public void setAt(final VarName name, final int position, final TypedValue value) {
+        live += list(name).set(position, value);
+    }
+
+    /** Append to a name's list, counting the element. */
+    public void append(final VarName name, final TypedValue value) {
+        list(name).append(value);
+        live++;
+    }
+
+    /** Put an entry in a name's map, counting a new key. */
+    public void put(final VarName name, final TypedValue key, final TypedValue value) {
+        final TypedValue.Map map = map(name);
+        if (!map.contains(key)) {
+            live++;
+        }
+        map.put(key, value);
+    }
+
+    /** Empty a name's collection, if it holds one, releasing its elements from the count. */
+    public void clear(final VarName name) {
+        if (slots[name.slot()] instanceof final TypedValue.Collection collection) {
+            live -= collection.size();
+            collection.clear();
+        }
+    }
+
+    /** How many elements every collection in a slot holds between them. */
+    public long live() {
+        return live;
+    }
+
+    private void release(final TypedValue value) {
+        if (value instanceof final TypedValue.Collection collection) {
+            live -= collection.size();
+        }
     }
 }

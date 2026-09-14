@@ -20,6 +20,7 @@ import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.Cast;
+import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.Dispatch;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.graph.CompiledCapture;
@@ -47,7 +48,7 @@ import java.util.Set;
  * and lexer modes ask the anchored question (D36); the lexer takes the longest. A classify
  * level runs every matching template once and consumes nothing; an {@code any} level searches
  * a working copy and excises what it matches. Skipping is reported, never silent. What a
- * counted match does — clears first-match stores (E19), reports a skipped prefix, sets the
+ * counted match does — restarts its captures' lists on a first match (E19), reports a skipped prefix, sets the
  * engine's counters — is one method the consuming modes share, and what a wanted match with
  * content does — binds captures, runs its body through the body interpreter, measures the
  * output — is one method every mode shares, the classify mode included.
@@ -164,7 +165,7 @@ final class Level {
                 break;
             }
 
-            // An eater: advance, don't count (D36). No counters move, no stores clear,
+            // An eater: advance, don't count (D36). No counters move, no lists restart,
             // no skip report — the eater is the authored skip.
             if (candidate.consume()) {
                 processEater(candidate, match, out, inputBase, ignoreErrors, depth);
@@ -183,7 +184,7 @@ final class Level {
     }
 
     /**
-     * Process a counting winner: the first-match store clearing (E19), the skip report, the
+     * Process a counting winner: the first-match restart of its captures' lists (E19), the skip report, the
      * engine's counter variables, and — when the match is wanted — captures, body and
      * instrumentation. One method because it is the hottest processing the engine does, and
      * every dispatch mode must share its compiled form rather than carrying a copy each.
@@ -208,8 +209,11 @@ final class Level {
         }
         final Template template = candidate.template();
         if (matchCount == 1) {
+            // The lists this template's captures fill restart with its first match of a
+            // sequence — DS3's rule (E19), kept as the capture's own; which names are lists was
+            // settled when the template compiled.
             for (final VarName name : candidate.clearNames()) {
-                vars.store(name).clear();
+                vars.clear(name);
             }
         }
         if (reportSkips && match.matchStart() > 0 && !ignoreErrors && !template.ignoreErrors()) {
@@ -245,8 +249,28 @@ final class Level {
                               final int depth) {
         final TypedValue swallowed = content(candidate, match);
         if (swallowed != null && !swallowed.isEmpty()) {
+            enter(candidate);
             body.body(candidate.body(), match, 1, swallowed.asBytes(), out,
                     locateBase, ignoreErrors, depth);
+            exit(candidate);
+        }
+    }
+
+    /**
+     * Enter a template's execution: its declarations come into being, unset (design 35 §4).
+     * Only a template that declares pays anything — the field templates of a record push
+     * nothing — and what an entry costs is an index and a few array writes per declared name.
+     */
+    private void enter(final CompiledTemplate candidate) {
+        if (candidate.declared().length > 0) {
+            vars.push(candidate.declared());
+        }
+    }
+
+    /** Leave it: every declared name restores to what it held outside, which was unset. */
+    private void exit(final CompiledTemplate candidate) {
+        if (candidate.declared().length > 0) {
+            vars.pop();
         }
     }
 
@@ -595,10 +619,14 @@ final class Level {
         }
         instrument.onMatch(template.id(), template.name(), locate(locateBase, match.matchStart()),
                 match.advance() - match.matchStart(), matchCount, depth);
+        // Declared before the captures bind, so a template capturing a name it declares — a
+        // recursive walk keeping each level's own — binds this execution's, not the outer one's.
+        enter(candidate);
         bindCaptures(candidate, match, matchCount);
         final long before = out.sink().position();
         body.body(candidate.body(), match, matchCount, content.asBytes(), out,
                 locateBase, ignoreErrors, depth);
+        exit(candidate);
         instrument.onOutput(template.id(), matchCount, before, out.sink().position() - before,
                 out.sink().unit());
     }
@@ -683,18 +711,15 @@ final class Level {
                               final int matchCount) {
         for (final CompiledCapture capture : compiledTemplate.captures()) {
             if (capture.source() instanceof final CompiledCapture.Source.KeyValue keyValue) {
-                // The name is computed too; nothing binds under the declared one.
+                // The pair goes into the map the capture names (design 35 §5): the key read out
+                // of the data is a key, not a variable, and a later pair with the same key
+                // replaces the earlier — a map has keys, not positions.
                 final String key = CompiledRefs.resolveText(keyValue.key(), match, matchCount, vars);
                 if (key != null) {
                     final byte[] bytes = CompiledRefs.resolve(keyValue.value(), match, matchCount,
                             vars);
                     if (bytes != null) {
-                        final TypedValue value = cast(TypedValue.utf8(bytes), capture.as());
-                        if (value == null) {
-                            vars.store(key).remove(matchCount);
-                        } else {
-                            vars.store(key).set(matchCount, value);
-                        }
+                        vars.put(capture.name(), TypedValue.of(key), cast(TypedValue.utf8(bytes), capture.as()));
                     }
                 }
                 continue;
@@ -711,17 +736,18 @@ final class Level {
                         throw new IllegalStateException("key-value bound above");
             };
             final TypedValue value = cast(read, capture.as());
-            final Store store = vars.store(capture.name());
             if (value != null) {
                 instrument.onCapture(compiledTemplate.template().id(), capture.name().name(), value,
                         matchCount);
             }
-            if (value == null) {
-                // An unmatched capture must read as empty, not as whatever the previous record
-                // left there — and a cast that failed is absent the same way (design 25 §9).
-                store.remove(matchCount);
+            // A capture is a value source (design 35 §4): it assigns the scalar it names, or puts
+            // at this match's position in the list it names. An unmatched capture — or a cast
+            // that failed — is absence, assigned or appended the same way (design 25 §9, 35 §8),
+            // so a name never keeps what the previous record left and positions stay aligned.
+            if (capture.target() == Declaration.Type.LIST) {
+                vars.setAt(capture.name(), matchCount, value);
             } else {
-                store.set(matchCount, value);
+                vars.set(capture.name(), value);
             }
         }
     }

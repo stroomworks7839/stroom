@@ -117,6 +117,10 @@ final class ReferenceJson {
                         matchIndex == null ? null : readMatchIndex(matchIndex));
             }
             case "text" -> new RefPart.Text(JsonFields.text(body, "text"));
+            case "get" -> {
+                JsonFields.checkFields(body, "get", "var_id", "key");
+                yield new RefPart.Get(JsonFields.text(body, "var_id", "get"), JsonFields.text(body, "key", "get"));
+            }
             case "function" -> {
                 JsonFields.checkFields(body, "function", "name", "match_index");
                 final JsonNode matchIndex = JsonFields.optional(body, "match_index");
@@ -140,6 +144,12 @@ final class ReferenceJson {
                 yield JsonFields.wrap("capture", body);
             }
             case RefPart.Text value -> JsonFields.wrap("text", JsonFields.NODES.stringNode(value.value()));
+            case RefPart.Get get -> {
+                final ObjectNode body = JsonFields.NODES.objectNode();
+                body.put("var_id", get.varId());
+                body.put("key", get.key());
+                yield JsonFields.wrap("get", body);
+            }
             case RefPart.Counter counter -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();
                 body.put("name", counter.counter().functionName());

@@ -21,13 +21,14 @@ import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.Cast;
+import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
-import stroom.shapeshifter.engine.graph.CompiledCapture;
 import stroom.shapeshifter.engine.graph.CompiledCondition;
+import stroom.shapeshifter.engine.graph.CompiledMatch;
 import stroom.shapeshifter.engine.graph.CompiledOp;
 import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.graph.CompiledRef;
@@ -55,7 +56,7 @@ import java.util.function.Function;
 /**
  * The body interpreter: what a template's body does with a match — the switch over the
  * compiled instruction vocabulary, and everything an instruction reaches for: the variable
- * registry with its scopes and match-indexed stores, the key indexes, the sequences, the
+ * registry with its scopes and declared values, the key indexes, the sequences, the
  * transforms and function calls, and {@code apply-templates}, which hands a region to the
  * level. One interpreter over sealed records (design 27 §2.2): the ops are the graph's
  * instruction set, and every state an instruction touches is a field of this class or of the
@@ -106,9 +107,10 @@ final class Body {
      * Whether the root reads the input in pieces whose counters restart (design/16 §10).
      *
      * <p>A {@code classify} or {@code any} root is dispatched chunk-at-a-time by repeated
-     * {@code Level.dispatch} calls, so template counters reset and capture stores clear <b>per
-     * chunk</b>. An accumulation there would summarise the last chunk while presenting itself
-     * as a summary of the input — a wrong answer wearing the shape of a right one, the
+     * {@code Level.dispatch} calls, so template counters reset and a root template's declared
+     * names restore <b>per chunk</b>. An accumulation there would summarise the last chunk while
+     * presenting itself as a summary of the input — a wrong answer wearing the shape of a right
+     * one, the
      * failure design/16 §10 refuses. A whole-buffer run takes the same code path with exactly
      * one chunk, and is therefore fine.
      */
@@ -163,13 +165,34 @@ final class Body {
         this.chunkedRoot = chunkedRoot;
     }
 
-    /** Register every capture the configuration declares, so each has a store from the start. */
-    void registerCaptures() {
+    /**
+     * Enter the source template's execution, which spans the run (design 35 §4): what it
+     * declares is declared once and lasts until {@link #leaveSource}. The template is found
+     * once, here, rather than carried by the plan, because the plan is about what the body
+     * around the input does and this is about what the body declares.
+     */
+    void enterSource() {
+        final CompiledTemplate source = source();
+        if (source != null && source.declared().length > 0) {
+            vars.push(source.declared());
+        }
+    }
+
+    /** Leave it, at the end of the run. */
+    void leaveSource() {
+        final CompiledTemplate source = source();
+        if (source != null && source.declared().length > 0) {
+            vars.pop();
+        }
+    }
+
+    private CompiledTemplate source() {
         for (final CompiledTemplate template : compiled.templates()) {
-            for (final CompiledCapture capture : template.captures()) {
-                vars.register(capture.name());
+            if (template.match() instanceof CompiledMatch.Source) {
+                return template;
             }
         }
+        return null;
     }
 
     /**
@@ -264,23 +287,20 @@ final class Body {
                 }
                 case final CompiledOp.CallFunction value ->
                         callFunction(value, match, matchCount, out, inputBase);
-                case final CompiledOp.Sequence value -> {
-                    // Declared here, emptied here: an accumulation that outlived its previous
-                    // run would carry the last stream's values into this one.
-                    vars.shadow(value.name());
-                    vars.store(value.name()).clear();
-                }
+                case final CompiledOp.Sequence value ->
+                        // Emptied where it is written: the list itself lives where it is declared
+                        // (design 35 §4), so this is the start of an accumulation, not a scope.
+                        vars.clear(value.name());
                 case final CompiledOp.Append value -> {
                     final TypedValue appended = CompiledRefs.resolveValue(
                             value.select(), match, matchCount, vars);
                     if (appended != null) {
                         guardAccumulation(value.name());
                         // Absent appends nothing rather than a hole: in a dense sequence an
-                        // index is a position, so a gap would mean nothing at all.
-                        final Store store = vars.store(value.name());
-                        final int at = Math.max(1, store.lastIndex() + 1);
-                        guardSequenceSize(value.name(), at);
-                        store.set(at, appended);
+                        // index is a position, so a gap would mean nothing at all. Dense from
+                        // one, as every index-carrying sequence is until design 35 phase 4.
+                        vars.setAt(value.name(), Math.max(1, vars.list(value.name()).size()), appended);
+                        guardLive(value.name());
                     }
                 }
                 case final CompiledOp.Fold value -> emit(fold(value), value.name(), matchCount, out);
@@ -498,12 +518,23 @@ final class Body {
             if (value != null) {
                 out.write(value);
             }
-        } else if (value == null) {
-            vars.store(name).remove(matchCount);
         } else {
             // The typed value binds as itself — no re-encode, and the type survives to any
             // later typed read (design/17 §3.2).
-            vars.store(name).set(matchCount, value);
+            bind(name, matchCount, value);
+        }
+    }
+
+    /**
+     * Bind a name to one value, absence included: assign a scalar; put at this match's position
+     * in a list. What a scalar bind means for a list is design 35 phase 4's question; until then
+     * it is the match-indexed write a capture makes.
+     */
+    private void bind(final VarName name, final int matchCount, final TypedValue value) {
+        if (vars.typeOf(name) == Declaration.Type.LIST) {
+            vars.setAt(name, matchCount, value);
+        } else {
+            vars.set(name, value);
         }
     }
 
@@ -516,12 +547,11 @@ final class Body {
      * not guarded: a sequence bound and walked inside one record's body — a {@code tokenize}
      * and a walk over its pieces — crosses no record boundary and cannot be summarised wrongly.
      *
-     * <p>What this deliberately does not cover: reading a <b>capture</b> store under such a
-     * root, which accumulates across records at the root level and is cleared per chunk.
-     * That clearing predates this design; what is new is that a grouping can now read such a
-     * store and present a per-chunk answer. No refusal catches it, because nothing at the
-     * read site distinguishes a capture store from a per-record binding — it is named here
-     * rather than left for someone to find.
+     * <p>What this deliberately does not cover: a list declared on a <b>root</b> template under
+     * such a root, which lives for the chunk rather than the run (design 35 §4's sharp edge),
+     * so a grouping over it presents a per-chunk answer. The declaration makes it visible to
+     * the compiler, which could warn; nothing does yet, and it is named here rather than left
+     * for someone to find.
      */
     private void guardAccumulation(final VarName name) {
         if (chunkedRoot) {
@@ -533,10 +563,14 @@ final class Body {
         }
     }
 
-    /** The size a sequence may not exceed, and the stop when it does. */
-    private void guardSequenceSize(final VarName name, final int size) {
+    /**
+     * The elements every collection in the run holds may not exceed {@code max_sequence_entries}
+     * between them (design 35 §11: one run-wide live-element counter), and the stop when they do.
+     * Judged after the write that grew a collection, and named for the collection that grew.
+     */
+    private void guardLive(final VarName name) {
         final int limit = maxSequenceEntries;
-        if (size > limit) {
+        if (vars.live() > limit) {
             messages.add(new Message(Severity.FATAL, "Sequence '" + name + "' exceeded "
                     + "max_sequence_entries (" + limit + "). A truncated aggregate is a wrong "
                     + "answer rather than a partial one, so the run stops here. Raise the "
@@ -545,15 +579,20 @@ final class Body {
         }
     }
 
+    /** The list a name holds, or null when it holds nothing — or a scalar, which no walk reads. */
+    private TypedValue.List listOf(final VarName name) {
+        return vars.get(name) instanceof final TypedValue.List list ? list : null;
+    }
+
     /** The populated entries of a named sequence, in ascending index order, or empty. */
     private List<TypedValue> entries(final VarName name) {
-        final Store store = vars.get(name);
-        if (store == null) {
+        final TypedValue.List list = listOf(name);
+        if (list == null) {
             return List.of();
         }
-        final List<TypedValue> values = new ArrayList<>(store.size());
-        for (int i = 0; i < store.size(); i++) {
-            final TypedValue value = store.get(i);
+        final List<TypedValue> values = new ArrayList<>(list.size());
+        for (int i = 0; i < list.size(); i++) {
+            final TypedValue value = list.get(i);
             if (value != null) {
                 values.add(value);
             }
@@ -563,12 +602,12 @@ final class Body {
 
     /** Bind values as a dense sequence, indexed from one — position, with no holes. */
     private void bindDense(final VarName name, final List<TypedValue> values) {
-        guardSequenceSize(name, values.size());
-        final Store store = vars.store(name);
-        store.clear();
+        final TypedValue.List list = new TypedValue.List();
         for (int i = 0; i < values.size(); i++) {
-            store.set(i + 1, values.get(i));
+            list.set(i + 1, values.get(i));
         }
+        vars.set(name, list);
+        guardLive(name);
     }
 
     /**
@@ -634,7 +673,7 @@ final class Body {
                                     final MatchResult match,
                                     final int matchCount) {
         final Map<String, Filed> members = new LinkedHashMap<>();
-        final Store store = vars.get(select);
+        final TypedValue.List store = listOf(select);
         if (store == null) {
             return members;
         }
@@ -685,8 +724,7 @@ final class Body {
                               final long inputBase,
                               final boolean ignoreErrors,
                               final int depth) {
-        final Store store = vars.get(op.select());
-        if (store == null) {
+        if (listOf(op.select()) == null) {
             return;
         }
 
@@ -697,10 +735,10 @@ final class Body {
             return;
         }
 
-        // The members are a sequence, so they stay a store and are shadowed like one; the key
+        // The members are a sequence, so they are a list declared over the grouping; the key
         // and the size are scalars the group frame holds (design 30 phase 4).
         vars.push();
-        vars.shadow(groupMembers);
+        vars.declare(groupMembers);
         vars.frames().pushGroup();
         for (final Filed group : members.values()) {
             final List<Integer> indices = group.members();
@@ -732,7 +770,7 @@ final class Body {
      */
     private List<Integer> sorted(final CompiledOp.ForEach op,
                                  final List<Integer> populated,
-                                 final Store store,
+                                 final TypedValue.List store,
                                  final MatchResult match,
                                  final int matchCount) {
         final int keyCount = op.sort().length;
@@ -740,7 +778,7 @@ final class Body {
 
         vars.push();
         if (op.as() != null) {
-            vars.shadow(op.as());
+            vars.declare(op.as());
         }
         // position() and last() are deliberately left alone here: this walk's frame binds only
         // the index, so they inherit an *enclosing* walk's position, which is a real value and
@@ -752,7 +790,7 @@ final class Body {
             final int index = populated.get(i);
             vars.frames().index(index);
             if (op.as() != null) {
-                vars.store(op.as()).set(1, store.get(index));
+                vars.set(op.as(), store.get(index));
             }
             for (int k = 0; k < keyCount; k++) {
                 final CompiledOp.SortKey key = op.sort()[k];
@@ -835,7 +873,7 @@ final class Body {
                          final long inputBase,
                          final boolean ignoreErrors,
                          final int depth) {
-        final Store store = vars.get(op.select());
+        final TypedValue.List store = listOf(op.select());
         if (store == null) {
             return;
         }
@@ -854,7 +892,7 @@ final class Body {
 
         vars.push();
         if (op.as() != null) {
-            vars.shadow(op.as());
+            vars.declare(op.as());
         }
         vars.frames().pushIteration();
         // Known before the first body runs, which is what makes a last-entry test cheap and
@@ -867,7 +905,7 @@ final class Body {
             vars.frames().index(index);
             vars.frames().position(position + 1L);
             if (op.as() != null) {
-                vars.store(op.as()).set(1, store.get(index));
+                vars.set(op.as(), store.get(index));
             }
             body(op.body(), match, matchCount, content, out,
                     inputBase, ignoreErrors, depth);
@@ -912,8 +950,10 @@ final class Body {
                           final long inputBase,
                           final boolean ignoreErrors,
                           final int depth) {
+        // The name is declared over its own body, so the computation cannot read a half-built
+        // value — or the outer value it is about to replace (design 35 §4).
         vars.push();
-        vars.shadow(value.name());
+        vars.declare(value.name());
 
         // A variable is a value, not a document: its text is the bytes its body wrote, with no
         // serialiser's newlines or indent inside it (E41).
@@ -923,23 +963,32 @@ final class Body {
                 ignoreErrors,
                 depth);
 
-        Store captured = vars.fromCurrentScope(value.name());
-        if (captured != null && captured.lastIndex() < 0) {
+        TypedValue captured = vars.fromCurrentScope(value.name());
+        if (captured instanceof final TypedValue.List list && entriesOf(list) == 0) {
             captured = null;
         }
         vars.pop();
 
         if (captured != null) {
-            // Not copied. The line this replaced took List.copyOf because the target list was
-            // then cleared and refilled in place — reading and writing the same list. Nothing
-            // is mutated now: the scope's store is installed whole, and the scope that held it
-            // has gone, so nothing else refers to it.
-            vars.put(value.name(), captured);
+            // Promoted whole, per-match structure kept, so a later reference can still ask for
+            // the third one. The scope that held it has gone, so nothing else refers to it.
+            vars.set(value.name(), captured);
         } else if (buffer.size() > 0) {
-            vars.store(value.name()).set(matchCount, TypedValue.utf8(buffer.toByteArray()));
+            bind(value.name(), matchCount, TypedValue.utf8(buffer.toByteArray()));
         } else {
-            vars.store(value.name()).remove(matchCount);
+            bind(value.name(), matchCount, null);
         }
+    }
+
+    /** How many of a list's positions hold a value. */
+    private static int entriesOf(final TypedValue.List list) {
+        int populated = 0;
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i) != null) {
+                populated++;
+            }
+        }
+        return populated;
     }
 
 
@@ -969,23 +1018,21 @@ final class Body {
             resolved.add(CompiledRefs.resolve(arg.value(), match, matchCount, vars));
         }
 
+        // The parameters are declarations scoped to the callee's body (design 35 §4).
         vars.push();
         for (int i = 0; i < value.args().length; i++) {
             final CompiledOp.Arg arg = value.args()[i];
-            // Shadow before storing: store() searches outwards, and a parameter whose name
-            // collides with a capture registered globally would otherwise write straight
-            // through the new scope and outlive the call.
-            vars.shadow(arg.name());
+            vars.declare(arg.name());
             if (resolved.get(i) != null) {
-                vars.store(arg.name()).set(1, TypedValue.utf8(resolved.get(i)));
+                vars.set(arg.name(), TypedValue.utf8(resolved.get(i)));
             }
         }
         // Which parameters this site leaves unsupplied, and their defaults encoded, were
         // settled when the call was linked to its target.
         for (final CompiledOp.Param declared : value.params()) {
-            vars.shadow(declared.name());
+            vars.declare(declared.name());
             if (declared.defaultValue() != null) {
-                vars.store(declared.name()).set(1, declared.defaultValue());
+                vars.set(declared.name(), declared.defaultValue());
             }
         }
         body(target.body(), match, matchCount, content, out, inputBase, ignoreErrors, depth);
@@ -1037,20 +1084,14 @@ final class Body {
         // bound when the project finished compiling (design 29 §3.2).
         final CompiledTemplate[] candidates = op.candidates();
 
-        // A recursive apply gets its own scope, so that a nested level's captures cannot leak
-        // back into the level that invoked it — and so that they are released on the way out.
-        final boolean recursive = directive.recursive();
-        if (recursive) {
-            vars.push(op.recursiveShadow());
-        }
+        // A recursive apply needs no scope of its own: a level that declares its names
+        // declares them again on re-entry and restores them on exit, which keeps each level's
+        // own exactly where the coarse shadow over every candidate's captures used to
+        // (design 35 §4).
 
         // DS3 inherits ignoreErrors down the tree: a level inside an ignoring container is
         // gated even when its own directive says nothing.
         level.dispatch(candidates, content, 0, content.length, out, childBase,
                 inheritedIgnoreErrors || directive.ignoreErrors(), depth + 1, op.dispatch(), encoding);
-
-        if (recursive) {
-            vars.pop();
-        }
     }
 }

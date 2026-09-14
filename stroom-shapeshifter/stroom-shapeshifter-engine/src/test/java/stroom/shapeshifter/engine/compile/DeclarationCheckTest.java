@@ -163,6 +163,37 @@ class DeclarationCheckTest {
                 .hasMessageMatching("(?s)Template '\\w+' (binds|reads) '\\w+'.*");
     }
 
+    /** A map is read by key: a reference to the whole of one could only fail when written. */
+    @Test
+    void readingAMapWholeIsRefused() {
+        final CaptureBinding pairs = new CaptureBinding("pairs", new CaptureBinding.CaptureSource.KeyValue(
+                new RefExpression(List.of(new RefExpression.RefPart.Capture(null, 1, null))),
+                new RefExpression(List.of(new RefExpression.RefPart.Capture(null, 1, null)))), null);
+        final Template line = new Template(
+                UUID.randomUUID(), "line", "doc", false, null, List.of(),
+                List.of(new Declaration("pairs", Declaration.Type.MAP)),
+                new MatchExpression.Regex("([^\n]*)\n", null, 0),
+                new Template.MatchLimits(0, -1, null),
+                List.of(pairs),
+                List.of(new OutputNode.ValueOf(ref("pairs"))),
+                null, false);
+        final Project base = project(List.of(), List.of(), List.of());
+        final Project whole = new Project("t", 5, Project.SourceConfig.defaults(),
+                List.of(base.templates().getFirst(), line), List.of());
+        assertThatThrownBy(() -> Shapeshifter.compile(whole))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("reads 'pairs', which is declared as a map")
+                .hasMessageContaining("get");
+        final Project byKey = new Project("t", 5, Project.SourceConfig.defaults(),
+                List.of(base.templates().getFirst(), new Template(
+                        line.id(), line.name(), line.mode(), false, null, List.of(), line.declarations(),
+                        line.match(), line.matchLimits(), line.captures(),
+                        List.of(new OutputNode.ValueOf(new RefExpression(
+                                List.of(new RefExpression.RefPart.Get("pairs", "k"))))),
+                        null, false)), List.of());
+        assertThatCode(() -> Shapeshifter.compile(byKey)).doesNotThrowAnyException();
+    }
+
     @Test
     void nameIsNotACall() {
         assertThatThrownBy(() -> new Declaration("matchCount()", Declaration.Type.SCALAR))

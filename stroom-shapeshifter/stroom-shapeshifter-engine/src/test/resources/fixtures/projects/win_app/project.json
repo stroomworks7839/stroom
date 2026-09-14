@@ -10,52 +10,6 @@
     {
       "id": "b13dabda-2335-4677-9f28-c9019a24eb79",
       "name": "source",
-      "match": "source",
-      "match_limits": {
-        "min_match": 0,
-        "max_match": -1
-      },
-      "body": [
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Events xmlns=\"event-logging:3\"\n        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n        xsi:schemaLocation=\"event-logging:3 file://event-logging-v4.1.0.xsd\"\n        Version=\"4.1.0\">\n"
-              }
-            ]
-          }
-        },
-        {
-          "apply-templates": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 0,
-                    "match_index": null
-                  }
-                }
-              ]
-            },
-            "mode": "root",
-            "max_depth": 64
-          }
-        },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n</Events>\n"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "c7609d23-b6ec-40ac-b073-9e47620a8e9a",
-      "name": "event_record",
       "declarations": [
         {
           "name": "ComputerName",
@@ -83,6 +37,10 @@
         },
         {
           "name": "EventName",
+          "type": "scalar"
+        },
+        {
+          "name": "EventType",
           "type": "scalar"
         },
         {
@@ -322,6 +280,52 @@
           "type": "scalar"
         }
       ],
+      "match": "source",
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Events xmlns=\"event-logging:3\"\n        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n        xsi:schemaLocation=\"event-logging:3 file://event-logging-v4.1.0.xsd\"\n        Version=\"4.1.0\">\n"
+              }
+            ]
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "root",
+            "max_depth": 64
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n</Events>\n"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "c7609d23-b6ec-40ac-b073-9e47620a8e9a",
+      "name": "event_record",
       "match": {
         "regex": {
           "pattern": "(\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M\\n(?:(?!\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M).)*?)(?=\\n\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M|\\z)",
@@ -3527,12 +3531,6 @@
       "id": "7cbe0b34-4f8a-4d79-8cfe-984431af0104",
       "name": "EventType",
       "mode": "event_fields",
-      "declarations": [
-        {
-          "name": "EventType",
-          "type": "scalar"
-        }
-      ],
       "match": {
         "regex": {
           "pattern": "(?m)^EventType=(.*)$",

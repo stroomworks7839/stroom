@@ -79,6 +79,7 @@ final class RefCompiler {
             // A function is a compile-time pointer to the frame that answers it (design 35 §6);
             // group() is the one that answers a sequence, which lives in the registry under its
             // own spelling.
+            case final RefPart.Get get -> new CompiledRef.Entry(names.intern(get.varId()), TypedValue.of(get.key()));
             case final RefPart.Counter counter -> counter.counter().framed()
                     ? new CompiledRef.Context(counter.counter(), index(counter.matchIndex(), names))
                     : new CompiledRef.RemoteVar(names.intern(counter.counter().spelling()),

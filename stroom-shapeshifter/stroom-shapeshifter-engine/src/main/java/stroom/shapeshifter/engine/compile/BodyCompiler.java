@@ -120,7 +120,7 @@ final class BodyCompiler {
             final CompiledTemplate[] candidates = byMode
                     .getOrDefault(apply.directive().mode(), List.of())
                     .toArray(new CompiledTemplate[0]);
-            apply.link(candidates, recursiveShadow(candidates));
+            apply.link(candidates);
         }
         for (final CompiledOp.CallTemplate call : calls) {
             final CompiledTemplate target = byName.get(call.name());
@@ -566,23 +566,5 @@ final class BodyCompiler {
                             : null));
         }
         return declared.toArray(CompiledOp.EMPTY_PARAMS);
-    }
-
-    /**
-     * Every capture name a recursive apply shadows, flattened once across its candidates.
-     *
-     * <p>Deduplicated: two candidates declaring the same capture name would otherwise shadow it
-     * twice at every push, which is correct — the undo log unwinds in reverse — but is work done
-     * twice.
-     *
-     * <p>Computed here rather than by the op, for the same reason a call site's parameters are:
-     * the graph holds what it was given (design 27 §2.5.1).
-     */
-    private static VarName[] recursiveShadow(final CompiledTemplate[] candidates) {
-        final Set<VarName> shadow = new LinkedHashSet<>();
-        for (final CompiledTemplate candidate : candidates) {
-            shadow.addAll(Arrays.asList(candidate.captureNames()));
-        }
-        return shadow.toArray(CompiledOp.EMPTY_NAMES);
     }
 }

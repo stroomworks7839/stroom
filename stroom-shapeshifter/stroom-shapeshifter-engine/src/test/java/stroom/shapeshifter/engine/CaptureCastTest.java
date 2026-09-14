@@ -139,28 +139,29 @@ class CaptureCastTest {
                   "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                     "declarations": [{"name": "joined", "type": "list"}],
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
-                     "declarations": [{"name": "joined", "type": "list"}, {"name": "k", "type": "list"}],
+                     "declarations": [{"name": "pairs", "type": "map"}],
                      "match": {"regex": {"pattern": "(\\\\w+) (\\\\w+) (\\\\w+)\\n"}},
                      "captures": [
                        {"name": "joined", "select": {"select": {"parts": [
                           {"capture": {"group": 1}}, {"text": "-"}, {"capture": {"group": 2}}, {"text": "+"},
                           {"capture": {"var_id": "joined", "group": 0,
                                        "match_index": {"index": -1, "is_offset": true}}}]}}},
-                       {"name": "ignored", "as": "integer", "select": {"key-value": {
+                       {"name": "pairs", "as": "integer", "select": {"key-value": {
                           "key_ref": {"parts": [{"capture": {"group": 1}}]},
                           "value_ref": {"parts": [{"capture": {"group": 3}}]}}}}],
                      "body": [{"value-of": {"parts": [{"capture": {"var_id": "joined", "group": 0}}]}},
-                              {"text": "="}, {"value-of": {"parts": [{"capture": {"var_id": "k", "group": 0,
-                                 "match_index": {"index": 0, "is_offset": true}}}]}},
+                              {"text": "="}, {"value-of": {"parts": [{"get": {"var_id": "pairs", "key": "k"}}]}},
                               {"text": "|"}]}
                   ]
                 }
                 """;
         // The composite is a group, a literal and the stored variable's previous value; the
-        // key-value binding under "k" takes the cast: 42 binds, "x" is absent.
+        // key-value pair goes into the declared map with the cast applied: 42 binds under "k",
+        // "x" is absent there (design 35 §5).
         assertThat(run(config, "k v 42\nk w x\n")).isEqualTo("k-v+=42|k-w+k-v+=|");
     }
 

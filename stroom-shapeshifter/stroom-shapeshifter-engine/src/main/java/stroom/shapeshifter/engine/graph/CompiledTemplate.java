@@ -49,7 +49,7 @@ import java.util.Set;
  *                     which is group 1, and the whole match for every other
  * @param onlyMatch    the match indices whose bodies run, or null for all of them
  * @param guard        the compiled guard to evaluate on the way into a level, or null
- * @param clearNames   the captures whose stores a first match clears: every binding but a
+ * @param clearNames   the captures' lists a first match restarts: every list-declared binding but a
  *                     key-value one, which names its own. The compiler's array, never written;
  *                     handed out rather than copied because the run iterates it per record
  * @param captureNames every binding's name, which a recursive apply shadows. The compiler's
@@ -66,7 +66,7 @@ public record CompiledTemplate(Template template,
                                int[] onlyMatch,
                                CompiledCondition guard,
                                VarName[] clearNames,
-                               VarName[] captureNames) {
+                               VarName[] declared) {
 
     public CompiledTemplate {
         // The body is not copied, and the omission is deliberate. The line this replaced read

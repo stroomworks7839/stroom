@@ -10,52 +10,6 @@
     {
       "id": "a842e12c-c9f9-4077-b715-93ae4ec6392e",
       "name": "source",
-      "match": "source",
-      "match_limits": {
-        "min_match": 0,
-        "max_match": -1
-      },
-      "body": [
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Events xmlns=\"event-logging:3\"\n        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n        xsi:schemaLocation=\"event-logging:3 file://event-logging-v4.1.0.xsd\"\n        Version=\"4.1.0\">\n"
-              }
-            ]
-          }
-        },
-        {
-          "apply-templates": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 0,
-                    "match_index": null
-                  }
-                }
-              ]
-            },
-            "mode": "root",
-            "max_depth": 64
-          }
-        },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n</Events>\n"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "3aa39e17-e0c9-40b0-9b20-86496ec4dd89",
-      "name": "event_record",
       "declarations": [
         {
           "name": "Computer",
@@ -63,6 +17,10 @@
         },
         {
           "name": "DataField_1",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_10",
           "type": "scalar"
         },
         {
@@ -75,6 +33,22 @@
         },
         {
           "name": "DataField_13",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_14",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_15",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_16",
+          "type": "scalar"
+        },
+        {
+          "name": "DataField_17",
           "type": "scalar"
         },
         {
@@ -118,6 +92,10 @@
           "type": "scalar"
         },
         {
+          "name": "Level",
+          "type": "scalar"
+        },
+        {
           "name": "OwnerPID",
           "type": "scalar"
         },
@@ -147,6 +125,10 @@
         },
         {
           "name": "SystemTime",
+          "type": "scalar"
+        },
+        {
+          "name": "UTCStartTime",
           "type": "scalar"
         },
         {
@@ -202,6 +184,52 @@
           "type": "scalar"
         }
       ],
+      "match": "source",
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Events xmlns=\"event-logging:3\"\n        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n        xsi:schemaLocation=\"event-logging:3 file://event-logging-v4.1.0.xsd\"\n        Version=\"4.1.0\">\n"
+              }
+            ]
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "root",
+            "max_depth": 64
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n</Events>\n"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "3aa39e17-e0c9-40b0-9b20-86496ec4dd89",
+      "name": "event_record",
       "match": {
         "regex": {
           "pattern": "<Event[^>]*>(.+?)</Event>",
@@ -2215,12 +2243,6 @@
       "id": "f6cf8456-e1cd-480c-a16d-783959b1cba1",
       "name": "Level",
       "mode": "event_fields",
-      "declarations": [
-        {
-          "name": "Level",
-          "type": "scalar"
-        }
-      ],
       "match": {
         "regex": {
           "pattern": "<Level>(\\d+)</Level>",
@@ -2739,12 +2761,6 @@
       "id": "8c88ae90-6c2c-4889-a812-649e1f51fc86",
       "name": "DataField_10",
       "mode": "event_fields",
-      "declarations": [
-        {
-          "name": "DataField_10",
-          "type": "scalar"
-        }
-      ],
       "match": {
         "regex": {
           "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
@@ -2893,12 +2909,6 @@
       "id": "406dfc0b-1a86-4091-bc0f-03776c0ee749",
       "name": "DataField_14",
       "mode": "event_fields",
-      "declarations": [
-        {
-          "name": "DataField_14",
-          "type": "scalar"
-        }
-      ],
       "match": {
         "regex": {
           "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
@@ -2936,12 +2946,6 @@
       "id": "ec0af432-f022-448a-9141-2daff01e3401",
       "name": "DataField_15",
       "mode": "event_fields",
-      "declarations": [
-        {
-          "name": "DataField_15",
-          "type": "scalar"
-        }
-      ],
       "match": {
         "regex": {
           "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
@@ -2979,12 +2983,6 @@
       "id": "b2a2b597-146c-48e6-93a6-a1de16cbefdf",
       "name": "DataField_16",
       "mode": "event_fields",
-      "declarations": [
-        {
-          "name": "DataField_16",
-          "type": "scalar"
-        }
-      ],
       "match": {
         "regex": {
           "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
@@ -3022,12 +3020,6 @@
       "id": "a29ab697-0cd3-4f84-ab15-f185a7e5001c",
       "name": "DataField_17",
       "mode": "event_fields",
-      "declarations": [
-        {
-          "name": "DataField_17",
-          "type": "scalar"
-        }
-      ],
       "match": {
         "regex": {
           "pattern": "<Data>([^<]*(?:<(?!/Data>)[^<]*)*)</Data>",
@@ -3102,12 +3094,6 @@
       "id": "28213771-4c04-4781-9bf9-edf8f8769ba0",
       "name": "UTCStartTime",
       "mode": "event_fields",
-      "declarations": [
-        {
-          "name": "UTCStartTime",
-          "type": "scalar"
-        }
-      ],
       "match": {
         "regex": {
           "pattern": "<Data Name=\"UTCStartTime\">(.*?)</Data>",

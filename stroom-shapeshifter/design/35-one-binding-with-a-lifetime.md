@@ -1276,6 +1276,89 @@ exit, the absence append, and the counter's decrement. *Point:* **the reference-
 four up and the last flat; if `win_sec_strict` falls, §11's throughput risk is real and the answer
 is to move declarations, not to bound the mechanism.
 
+**Done 2026-09-14, uncommitted pending review; not yet measured.** No golden moved: 1,181 tests
+across the four modules, 0 failures, byte-identical output through both families — the legacy
+family through the migration's envelope declarations included, which is where E49's four fixtures
+would have moved.
+
+*What was built.* `VarRegistry.slots` is `TypedValue[]`, `undoSaved` with it, and `Store` is
+deleted: a scalar's slot holds the value, a list's a `TypedValue.List`, a map's a
+`TypedValue.Map`, made on first mutation in the slot the declaration owns — so declaring writes
+null and allocates nothing. Entering an execution that declares is `push(declared)` and leaving
+is `pop`, for templates (`Level`, before the captures bind, so a recursive template binds its
+own level's), the source (`Run`, spanning the run), calls, loops and `variable` bodies; a
+template declaring nothing pushes nothing, and `recursiveShadow()` is gone. Captures are value
+sources: a capture assigns the scalar it names, or puts at this match's position in the list it
+names — absence included, so a failed capture appends absence and positions stay aligned (§8) —
+or puts into the map it names, which is where a key-value pair now goes. `Names.keys` stays for
+the key indexes (phase 4's collapse); `grow(String)`, the extended table and every string lookup
+at run time are gone, and the slot array is fixed from the declarations. One run-wide live-element
+counter replaces `guardSequenceSize`: every append, positional put and new map key increments it,
+and a clear, a replaced collection or a scope exit decrements by the collection's size.
+
+*Three things the corpus corrected, recorded rather than reasoned away.*
+
+1. **The first-match clear stays, as the capture's own rule on a list.** The plan said
+   restore-on-exit replaces it, and it does for a list declared on the capturing template's
+   parent — but the migration and the DS3-derived fixtures declare their lists for the run, and
+   there a template that matches fewer times than the sequence before would leave the earlier
+   tail past its own length, which is exactly E19's "real divergence, fixed" and DS3's
+   `parentMatchCount == 0` clear. So a template's first match of a sequence restarts the lists
+   its captures fill (`Compiler` decides which names those are, from the declared types) and
+   nothing else; a scalar is assigned and needs no clearing. Held by a list-declared twin of the
+   E19 test.
+2. **A map needs one read this phase.** The plan gave captures `put` and left the surface to
+   phase 4, but `ausearch` reads its pairs back. `{"get": {"var_id": m, "key": k}}` arrives now —
+   XPath's name, a literal key, compiled to an `Entry` read — and the check requires the name
+   declared as a map. The key-value stand-down in `ReferenceCheck` is gone with it: nothing
+   arrives from the data that a declaration did not foresee.
+3. **Placement now decides lifetime, and the phase-2 analysis had placed for reachability.**
+   Phase 2's gate could not see it. The DS3-derived native configurations — the `win_*`
+   family, E17's original, `019` — declare on the source, because DS3's lifetime is the run and
+   their goldens record it (§4, §10); `ausearch`'s `__kv` map likewise, since the dynamic slots
+   it replaces were never cleared. Six test configurations moved a name above the template that
+   captured it, each found by its own test: a list the source walks or indexes after the lines
+   that fill it, a capture reading its own previous row's value, the E19 pin whose leak is a
+   declaration on the source now. None of these is a golden moving; each is a declaration
+   saying where the value was always meant to live.
+
+*Two smaller things.* The two phase-0 pins flipped as promised — a name a record did not write
+reads nothing, and this record's binding is what this record reads — and the trailing-capture
+read is absence. And a list written from position one carries an absent position zero until
+phase 4 moves positions, which the live-element counter counts honestly; the one limit test
+says so.
+
+*Sabotage, each against the engine suite:*
+
+| mechanism | sabotage | failing |
+|---|---|---|
+| restore on exit | `pop` does not restore | 6 (2 behaviour, 1 scope, 3 registry) |
+| absence appended | a failed capture into a list writes nothing | 1 |
+| the counter's decrement | released collections not subtracted | 2 |
+| the first-match clear (correction 1) | lists never restart | 1 |
+| declaration on entry | templates do not push | 17 goldens and 103 tests |
+
+*Audited.* The eight JSON files this phase touched are structurally identical to `HEAD` once
+declarations are set aside and `ausearch`'s four reads are mapped to their `get` form; checkstyle
+is clean on main and test in every module; nothing constructs or names a `Store`.
+
+*What the audit found.* A reference to the whole of a map — a `capture` part on a map-declared
+name — resolved to the map itself, and the sink's `asBytes` threw at run time; nothing had refused
+it at compile. It is refused now, by name, with the get spelled out, and pinned. The same shape
+remains for a nested collection reached through a list's last element or a loop's `as`, and that
+is phase 4's, where nesting gets its surface. Eight places still described stores — `Names`
+claiming the table is consulted at run time, `Level`'s first-match wording, `CompiledTemplate`'s
+`clearNames`, the package note, `CompiledRef`, `CompiledRefs`, `Frames`, `Body`'s chunked-root
+notes — and say what is there now. The counter's balance and the restore order were traced by
+hand: a value re-installed in its own scope is counted twice while the log holds it and released
+once at exit, which nets to zero, and the promotion path releases the inner list on its pop and
+counts it again when the outer slot takes it.
+
+*Not measured, and this is the phase that must be.* The point waits for a quiet box: the
+reference-heavy rows for the indirection going, `win_sec_strict` for the push per declaring
+execution — its 95 names are on the source now, so it pushes once per run, which is the shape §11
+asks for.
+
 ### Phase 4 — The operation surface, and design 16 folds in
 
 The rest of §5: `insert`, `put(list, …)`, `remove`, `clear`; `get`, `size`, `contains`, `keys`,

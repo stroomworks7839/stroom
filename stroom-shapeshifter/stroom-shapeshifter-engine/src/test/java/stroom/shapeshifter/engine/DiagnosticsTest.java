@@ -98,26 +98,36 @@ class DiagnosticsTest {
     }
 
     @Test
-    void keyValueCapturesStandTheCheckDown() {
-        // Key-value captures bind names read out of the data, so the writable set is not
-        // statically knowable: any read is legal in such a configuration.
-        final String json = """
-                {"name": "t", "version": 4,
-                 "templates": [
-                  {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
-                   "match": "source",
-                   "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
-                             "mode": "doc"}}]},
-                  {"id": "00000000-0000-0000-0000-000000000002", "name": "pair", "mode": "doc",
-                   "declarations": [{"name": "auid", "type": "scalar"}],
-                   "match": {"regex": {"pattern": "(\\\\w+)=(\\\\w+)\\\\n"}},
-                   "captures": [{"name": "kv", "select": {"key-value": {
-                     "key_ref": {"parts": [{"capture": {"group": 1}}]},
-                     "value_ref": {"parts": [{"capture": {"group": 2}}]}}}}],
-                   "body": [{"value-of": {"parts": [{"capture": {"var_id": "auid", "group": 0}}]}}]}]}
-                """;
-        assertThat(Shapeshifter.compile(ProjectReader.read(json))).isNotNull();
+    void keyValueCapturesPutIntoADeclaredMapReadByKey() {
+        // The pairs go into the map the capture names (design 35 §5), so a read of one is a get
+        // on a name the configuration declares — the check no longer has to stand down for
+        // names that arrive from the data.
+        assertThat(Shapeshifter.compile(ProjectReader.read(KV_CONFIG.replace("TYPE", "map")))).isNotNull();
     }
+
+    @Test
+    void keyValueCaptureIntoANameNotDeclaredAsAMapIsRefused() {
+        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(KV_CONFIG.replace("TYPE", "scalar"))))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("'kv' as a map")
+                .hasMessageContaining("declared as a scalar");
+    }
+
+    private static final String KV_CONFIG = """
+            {"name": "t", "version": 4,
+             "templates": [
+              {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+               "match": "source",
+               "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                         "mode": "doc"}}]},
+              {"id": "00000000-0000-0000-0000-000000000002", "name": "pair", "mode": "doc",
+               "declarations": [{"name": "kv", "type": "TYPE"}],
+               "match": {"regex": {"pattern": "(\\\\w+)=(\\\\w+)\\\\n"}},
+               "captures": [{"name": "kv", "select": {"key-value": {
+                 "key_ref": {"parts": [{"capture": {"group": 1}}]},
+                 "value_ref": {"parts": [{"capture": {"group": 2}}]}}}}],
+               "body": [{"value-of": {"parts": [{"get": {"var_id": "kv", "key": "auid"}}]}}]}]}
+            """;
 
     // -----------------------------------------------------------------------------------
     // strict_values

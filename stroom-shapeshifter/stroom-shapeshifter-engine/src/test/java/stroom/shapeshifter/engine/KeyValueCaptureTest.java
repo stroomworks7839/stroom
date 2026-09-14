@@ -30,10 +30,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Key-value captures, which had no unit test at all (design 35 §12, phase 0).
  *
- * <p>Two of these pin behaviour that design 35 phase 3 changes on purpose — a name a record did
- * not write reads the previous record's value, and a later token of an earlier record beats this
- * record's own binding. They are here so that the change is a deliberate flip of a failing test,
- * not a silent one. E49 records the defect; design 35 §5 records why a map var removes it.
+ * <p>The pairs go into the map the capture names (design 35 §5), read back by key. Two of these
+ * were pinned before phase 3 with the opposite expectation — a name a record did not write read
+ * the previous record's value, and a later token of an earlier record beat this record's own
+ * binding — and were flipped by it, deliberately: a map declared on the record template dies
+ * with the record, and a map has keys, not positions. E49 records the defect.
  */
 class KeyValueCaptureTest {
 
@@ -43,36 +44,31 @@ class KeyValueCaptureTest {
         assertThat(run(CONFIG, "a=1 b=2\n")).isEqualTo("[a=1,b=2,k=]");
     }
 
-    /**
-     * Pins E49's second demonstration. The middle record has no {@code k=}, and reads the
-     * previous record's. Design 35 phase 3 flips this: a map declared on the record template
-     * dies with the record.
-     */
+    /** E49's second demonstration, flipped: the middle record has no {@code k=}, and reads nothing. */
     @Test
-    void nameNotWrittenThisRecordReadsThePreviousRecords() {
+    void nameNotWrittenThisRecordReadsNothing() {
         assertThat(run(CONFIG, "k=one\nother=two\nk=three\n"))
-                .isEqualTo("[a=,b=,k=one][a=,b=,k=one][a=,b=,k=three]");
+                .isEqualTo("[a=,b=,k=one][a=,b=,k=][a=,b=,k=three]");
     }
 
     /**
-     * Pins E49's third demonstration, the one that is not a lifetime question. The second record
-     * binds {@code key} and still reads {@code old}: the store is indexed by token position, so
-     * {@code old} at token 3 outranks {@code new} at token 1 for {@code latest()}. Design 35 phase
-     * 3 flips this: a map has keys, not positions.
+     * E49's third demonstration, flipped: the second record binds {@code key} and reads what it
+     * bound. The store used to be indexed by token position, so {@code old} at token 3 outranked
+     * {@code new} at token 1; a map has keys, not positions.
      */
     @Test
-    void laterTokenOfAnEarlierRecordBeatsThisRecordsBinding() {
+    void thisRecordsBindingIsWhatThisRecordReads() {
         assertThat(run(KEY_CONFIG, "a=1 b=2 key=old\nkey=new\n"))
-                .isEqualTo("[key=old][key=old]");
+                .isEqualTo("[key=old][key=new]");
     }
 
     private static final String CONFIG = config("""
-            {"text": "[a="}, {"capture": {"var_id": "a", "group": 0}},
-            {"text": ",b="}, {"capture": {"var_id": "b", "group": 0}},
-            {"text": ",k="}, {"capture": {"var_id": "k", "group": 0}}, {"text": "]"}""");
+            {"text": "[a="}, {"get": {"var_id": "kv", "key": "a"}},
+            {"text": ",b="}, {"get": {"var_id": "kv", "key": "b"}},
+            {"text": ",k="}, {"get": {"var_id": "kv", "key": "k"}}, {"text": "]"}""");
 
     private static final String KEY_CONFIG = config("""
-            {"text": "[key="}, {"capture": {"var_id": "key", "group": 0}}, {"text": "]"}""");
+            {"text": "[key="}, {"get": {"var_id": "kv", "key": "key"}}, {"text": "]"}""");
 
     private static String config(final String reads) {
         return """
@@ -85,6 +81,7 @@ class KeyValueCaptureTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "rec"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "rec", "mode": "rec",
+                     "declarations": [{"name": "kv", "type": "map"}],
                      "match": {"regex": {"pattern": "[^\\n]*\\n"}},
                      "body": [
                        {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},

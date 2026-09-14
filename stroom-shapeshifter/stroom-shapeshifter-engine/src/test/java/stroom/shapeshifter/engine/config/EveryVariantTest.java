@@ -211,7 +211,8 @@ class EveryVariantTest {
                 new Condition.Exists(ref()),
                 List.of(new ParamDecl("depth", "0"), new ParamDecl("required", null)),
                 List.of(new Declaration("declared", Declaration.Type.LIST),
-                        new Declaration("total", Declaration.Type.SCALAR)),
+                        new Declaration("total", Declaration.Type.SCALAR),
+                        new Declaration("lookup", Declaration.Type.MAP)),
                 new MatchExpression.Progressive(steps),
                 new MatchLimits(1, 9, Set.of(1, 2, 5)),
                 List.of(
@@ -361,6 +362,7 @@ class EveryVariantTest {
                 new RefPart.Capture("var", 1, new MatchIndex(1, true, false, null, null)),
                 new RefPart.Capture("var", 2, new MatchIndex(0, false, true, null, EngineVars.MATCH_COUNT)),
                 new RefPart.Counter(EngineVars.INDEX, new MatchIndex(0, false, true, null, null)),
+                new RefPart.Get("lookup", "k"),
                 new RefPart.Text("]")));
     }
 

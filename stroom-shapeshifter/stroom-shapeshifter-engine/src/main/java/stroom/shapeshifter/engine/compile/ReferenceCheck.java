@@ -94,12 +94,6 @@ final class ReferenceCheck {
     private final List<NamedUse> listNames = new ArrayList<>();
     private final List<NamedUse> mapNames = new ArrayList<>();
 
-    /**
-     * A key-value capture binds names read out of the data itself, so the writable set is
-     * not statically knowable and the refusal stands down for the whole configuration
-     * rather than accusing every data-driven read.
-     */
-    private boolean referencesKnowable = true;
     private int explicitSubstringStarts;
     private String templateName;
 
@@ -209,7 +203,10 @@ final class ReferenceCheck {
             switch (capture.select()) {
                 case CaptureBinding.CaptureSource.Select select -> read(select.select());
                 case CaptureBinding.CaptureSource.KeyValue keyValue -> {
-                    referencesKnowable = false;
+                    // The pairs go into the map the capture names (design 35 §5), so every read
+                    // of one is a get on a name the configuration knows, and nothing arrives
+                    // from the data that a declaration did not foresee.
+                    mapNames.add(new NamedUse(templateName, capture.name()));
                     read(keyValue.keyRef());
                     read(keyValue.valueRef());
                 }
@@ -509,6 +506,7 @@ final class ReferenceCheck {
                 case RefExpression.RefPart.Capture capture -> capture.matchIndex();
                 case RefExpression.RefPart.Counter counter -> counter.matchIndex();
                 case RefExpression.RefPart.Text ignored -> null;
+                case RefExpression.RefPart.Get ignored -> null;
             };
             if (part instanceof RefExpression.RefPart.Counter counter) {
                 function(counter.counter());
@@ -577,10 +575,8 @@ final class ReferenceCheck {
         for (final String document : documentTemplates) {
             refuseMatchReadsCalledFrom(document, document, new HashSet<>(), new StringBuilder());
         }
-        if (referencesKnowable) {
-            // Design 35's rule: a bound name is a declared name. A key-value capture binds names
-            // read out of the data, which no declaration can foresee, so the rule stands down
-            // with the read check when one is present.
+        {
+            // Design 35's rule: a bound name is a declared name.
             for (final NamedUse bound : binds) {
                 if (!declarations.containsKey(bound.name()) && !implicitIn(bound.templateName(), bound.name())) {
                     throw new ConfigException("Template '" + bound.templateName() + "' binds '"
@@ -689,9 +685,21 @@ final class ReferenceCheck {
      */
     private void checkRead(final Read read) {
         for (final RefExpression.RefPart part : read.ref().parts()) {
+            if (part instanceof RefExpression.RefPart.Get get) {
+                declaredAndWritten(read.templateName(), get.varId(), "reads a key of");
+                requireType(new NamedUse(read.templateName(), get.varId()), Declaration.Type.MAP, "reads a key of");
+            }
             if (part instanceof RefExpression.RefPart.Capture capture) {
                 if (capture.varId() != null) {
                     declaredAndWritten(read.templateName(), capture.varId(), "reads");
+                    final Declaration declaration = declarations.get(capture.varId());
+                    if (declaration != null && declaration.type() == Declaration.Type.MAP) {
+                        // A map has no text form to write and no position to index, so a
+                        // reference to the whole of one could only fail at run time.
+                        throw new ConfigException("Template '" + read.templateName() + "' reads '"
+                                + capture.varId() + "', which is declared as a map: read one entry"
+                                + " of it with get.");
+                    }
                     if (capture.matchIndex() != null) {
                         requireType(new NamedUse(read.templateName(), capture.varId()),
                                 Declaration.Type.LIST, "indexes into");

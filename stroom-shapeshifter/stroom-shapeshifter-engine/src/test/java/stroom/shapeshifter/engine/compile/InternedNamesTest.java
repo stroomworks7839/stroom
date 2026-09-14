@@ -77,7 +77,7 @@ class InternedNamesTest {
         // group() without asking whether it is there. The interner interns it in a field
         // initialiser; this is the same thing said where a hand-built table would break it.
         assertThat(compiled().names().group()).isNotNull();
-        assertThatThrownBy(() -> new Names(java.util.Map.of(), java.util.Map.of()))
+        assertThatThrownBy(() -> new Names(java.util.Map.of(), java.util.Map.of(), java.util.Map.of()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

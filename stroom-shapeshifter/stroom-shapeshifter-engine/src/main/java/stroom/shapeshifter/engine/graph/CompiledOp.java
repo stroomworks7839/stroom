@@ -60,8 +60,6 @@ import java.util.function.Function;
  */
 public sealed interface CompiledOp {
 
-    /** Shared empty, so an unlinked or capture-free apply allocates no array. */
-    VarName[] EMPTY_NAMES = new VarName[0];
 
     /** Shared empty, for an apply whose mode no template answers. */
     CompiledTemplate[] EMPTY_CANDIDATES = new CompiledTemplate[0];
@@ -116,7 +114,6 @@ public sealed interface CompiledOp {
         private final boolean locatable;
         private final Dispatch dispatch;
         private CompiledTemplate[] candidates = EMPTY_CANDIDATES;
-        private VarName[] recursiveShadow = EMPTY_NAMES;
 
         /**
          * Match templates against some content.
@@ -150,9 +147,8 @@ public sealed interface CompiledOp {
          * collected as they are made and linked when the list is complete, rather than found
          * again by walking the compiled bodies, so no nesting can hide one.
          */
-        public void link(final CompiledTemplate[] candidates, final VarName[] recursiveShadow) {
+        public void link(final CompiledTemplate[] candidates) {
             this.candidates = candidates;
-            this.recursiveShadow = recursiveShadow;
         }
 
         /** The authored directive — mode, limits, gates. */
@@ -188,10 +184,6 @@ public sealed interface CompiledOp {
             return candidates;
         }
 
-        /** Every capture name a recursive apply shadows, flattened once across the candidates. */
-        public VarName[] recursiveShadow() {
-            return recursiveShadow;
-        }
     }
 
     /** Emit a message into the run's stream; {@code FATAL} aborts the run (D36). */

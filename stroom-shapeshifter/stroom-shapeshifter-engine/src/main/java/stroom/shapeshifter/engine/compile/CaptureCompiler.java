@@ -50,7 +50,11 @@ final class CaptureCompiler {
                         throw new IllegalStateException(
                                 "Field capture sources are refused at compile time");
             };
-            compiled.add(new CompiledCapture(names.intern(capture.name()), source, capture.as()));
+            // A capture is a value source (design 35 §4): it assigns a declared scalar, appends
+            // to a declared list — absence when it fails — or puts into a declared map. Which is
+            // the declaration's to say, and it was recorded before any body compiled.
+            compiled.add(new CompiledCapture(names.intern(capture.name()), source, capture.as(),
+                    names.typeOf(capture.name())));
         }
         return compiled.toArray(new CompiledCapture[0]);
     }

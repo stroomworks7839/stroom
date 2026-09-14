@@ -160,7 +160,9 @@ public final class Run {
 
         final MatchResult nothing = MatchResult.empty();
 
-        body.registerCaptures();
+        // The source template's execution is the run (design 35 §4): what it declares lasts
+        // from before the prologues to after the tails, however the input is read.
+        body.enterSource();
 
         // What comes before the apply-templates, with any element it sits inside opened on the
         // way down (design 21 phase 2b: `element records { apply-templates }` is the shape the
@@ -188,6 +190,7 @@ public final class Run {
                 body.structure(out.sink()::endElement, "element", element.name());
             }
         }
+        body.leaveSource();
     }
 
     /**

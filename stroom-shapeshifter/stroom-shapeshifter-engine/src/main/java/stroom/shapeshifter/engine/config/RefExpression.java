@@ -73,6 +73,20 @@ public record RefExpression(List<RefPart> parts) {
         }
 
         /**
+         * One entry of a map, by key — XPath's {@code map:get} (design 35 §5). The key is
+         * literal here; what a key-value capture read out of the data is read back by the name
+         * the configuration knows.
+         */
+        record Get(String varId, String key) implements RefPart {
+
+            public Get {
+                if (varId == null || varId.isEmpty() || key == null) {
+                    throw new ConfigException("A get names a map and a key");
+                }
+            }
+        }
+
+        /**
          * One of the engine's functions — {@code matchCount()}, {@code index()} and the rest
          * (design 35 §6) — with an index rule for the one that answers a sequence.
          */

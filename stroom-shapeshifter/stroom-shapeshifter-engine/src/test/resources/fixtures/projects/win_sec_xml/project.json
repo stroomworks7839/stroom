@@ -10,52 +10,6 @@
     {
       "id": "20507bbd-b078-4f5e-9f4f-aba5947b70fe",
       "name": "source",
-      "match": "source",
-      "match_limits": {
-        "min_match": 0,
-        "max_match": -1
-      },
-      "body": [
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Events xmlns=\"event-logging:3\"\n        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n        xsi:schemaLocation=\"event-logging:3 file://event-logging-v4.1.0.xsd\"\n        Version=\"4.1.0\">\n"
-              }
-            ]
-          }
-        },
-        {
-          "apply-templates": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 0,
-                    "match_index": null
-                  }
-                }
-              ]
-            },
-            "mode": "root",
-            "max_depth": 64
-          }
-        },
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n</Events>\n"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "91da8ab2-998d-404c-9722-74b25863caed",
-      "name": "event_record",
       "declarations": [
         {
           "name": "61d10d51-55fb-4735-b1d1-ad0993979b1c",
@@ -318,6 +272,52 @@
           "type": "scalar"
         }
       ],
+      "match": "source",
+      "match_limits": {
+        "min_match": 0,
+        "max_match": -1
+      },
+      "body": [
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Events xmlns=\"event-logging:3\"\n        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n        xsi:schemaLocation=\"event-logging:3 file://event-logging-v4.1.0.xsd\"\n        Version=\"4.1.0\">\n"
+              }
+            ]
+          }
+        },
+        {
+          "apply-templates": {
+            "select": {
+              "parts": [
+                {
+                  "Store": {
+                    "var_id": null,
+                    "group": 0,
+                    "match_index": null
+                  }
+                }
+              ]
+            },
+            "mode": "root",
+            "max_depth": 64
+          }
+        },
+        {
+          "value-of": {
+            "parts": [
+              {
+                "text": "\n</Events>\n"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "91da8ab2-998d-404c-9722-74b25863caed",
+      "name": "event_record",
       "match": {
         "regex": {
           "pattern": "<Event[^>]*>(.+?)</Event>",

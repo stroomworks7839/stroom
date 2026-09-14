@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.graph;
 
 import stroom.shapeshifter.engine.config.Cast;
+import stroom.shapeshifter.engine.config.Declaration;
 
 
 /**
@@ -30,7 +31,7 @@ import stroom.shapeshifter.engine.config.Cast;
  * @param source what is read
  * @param as     the cast applied at bind, or null for none
  */
-public record CompiledCapture(VarName name, Source source, Cast as) {
+public record CompiledCapture(VarName name, Source source, Cast as, Declaration.Type target) {
 
     /** What a capture reads. */
     public sealed interface Source {

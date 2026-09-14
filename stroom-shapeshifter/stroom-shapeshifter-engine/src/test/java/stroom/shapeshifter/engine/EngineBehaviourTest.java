@@ -761,10 +761,10 @@ class EngineBehaviourTest {
               "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
               "templates": [
                 {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+                 "declarations": [{"name": "val", "type": "scalar"}],
                  "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                "mode": "rec"}}]},
                 {"id": "00000000-0000-0000-0000-000000000002", "name": "rec", "mode": "rec",
-                 "declarations": [{"name": "val", "type": "scalar"}],
                  "match": {"delimiter": {"delimiter": ";"}},
                  "body": [
                    {"apply-templates": {"select": {"parts": [{"capture": {"group": 1}}]},
@@ -780,6 +780,19 @@ class EngineBehaviourTest {
             }
             """;
 
+    /**
+     * The same rule on a list declared for the run, which is where it is load-bearing under
+     * design 35: a capture's list restarts at the template's first match of a sequence (DS3's
+     * {@code parentMatchCount == 0} clear), so a record with fewer matches than the last does
+     * not read the last one's tail. Restore-on-exit cannot replace this for a run-lifetime list.
+     */
+    @Test
+    void newMatchSequenceRestartsTheCapturesList() {
+        final String listed = STALE_CONFIG.replace(
+                "{\"name\": \"val\", \"type\": \"scalar\"}", "{\"name\": \"val\", \"type\": \"list\"}");
+        assertThat(run(listed, "x=a,x=b;x=c").output()).isEqualTo("<b><c>");
+    }
+
     @Test
     void newMatchSequenceClearsTheCapturesStore() {
         // Record 1 captures twice, record 2 once. Without DS3's clear-on-new-sequence rule the
@@ -790,6 +803,9 @@ class EngineBehaviourTest {
 
     @Test
     void templateThatNeverMatchesLeavesItsStoreUntouched() {
+        // Under design 35 the leak is a declaration: val is declared on the source, so it lasts
+        // the run and a record that never binds it reads what the last one bound — DS3's
+        // lifetime, said by where the declaration is written rather than by a clearing rule.
         // The other half of E19, pinned as DS3-faithful rather than fixed: when the template
         // never matches at all, nothing clears, and the reference reads the previous record's
         // value. Real DS3 does exactly this — its clear only happens on the first *store* of a

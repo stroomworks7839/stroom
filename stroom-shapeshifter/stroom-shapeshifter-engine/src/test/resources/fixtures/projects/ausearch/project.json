@@ -10,6 +10,12 @@
     {
       "id": "cec6641d-4696-4c23-915e-c2902a164401",
       "name": "source",
+      "declarations": [
+        {
+          "name": "__kv",
+          "type": "map"
+        }
+      ],
       "match": "source",
       "match_limits": {
         "min_match": 0,
@@ -64,22 +70,6 @@
         {
           "name": "audit_record_2",
           "type": "scalar"
-        },
-        {
-          "name": "auid",
-          "type": "scalar"
-        },
-        {
-          "name": "key",
-          "type": "scalar"
-        },
-        {
-          "name": "res",
-          "type": "scalar"
-        },
-        {
-          "name": "success",
-          "type": "scalar"
         }
       ],
       "match": {
@@ -126,10 +116,9 @@
                 "text": "</TimeCreated></EventTime><EventSource><System><Name>AuditD</Name></System><User><Id>"
               },
               {
-                "Store": {
-                  "var_id": "auid",
-                  "group": 0,
-                  "match_index": null
+                "get": {
+                  "var_id": "__kv",
+                  "key": "auid"
                 }
               },
               {
@@ -184,10 +173,9 @@
                                 "ref": {
                                   "parts": [
                                     {
-                                      "Store": {
-                                        "var_id": "key",
-                                        "group": 0,
-                                        "match_index": null
+                                      "get": {
+                                        "var_id": "__kv",
+                                        "key": "key"
                                       }
                                     }
                                   ]
@@ -208,10 +196,9 @@
                                     "text": "<Create><Outcome><Success>"
                                   },
                                   {
-                                    "Store": {
-                                      "var_id": "success",
-                                      "group": 0,
-                                      "match_index": null
+                                    "get": {
+                                      "var_id": "__kv",
+                                      "key": "success"
                                     }
                                   },
                                   {
@@ -231,10 +218,9 @@
                                     "ref": {
                                       "parts": [
                                         {
-                                          "Store": {
-                                            "var_id": "key",
-                                            "group": 0,
-                                            "match_index": null
+                                          "get": {
+                                            "var_id": "__kv",
+                                            "key": "key"
                                           }
                                         }
                                       ]
@@ -253,10 +239,9 @@
                                     "ref": {
                                       "parts": [
                                         {
-                                          "Store": {
-                                            "var_id": "key",
-                                            "group": 0,
-                                            "match_index": null
+                                          "get": {
+                                            "var_id": "__kv",
+                                            "key": "key"
                                           }
                                         }
                                       ]
@@ -279,10 +264,9 @@
                                     "text": "<Update><Outcome><Success>"
                                   },
                                   {
-                                    "Store": {
-                                      "var_id": "success",
-                                      "group": 0,
-                                      "match_index": null
+                                    "get": {
+                                      "var_id": "__kv",
+                                      "key": "success"
                                     }
                                   },
                                   {
@@ -300,10 +284,9 @@
                                 "ref": {
                                   "parts": [
                                     {
-                                      "Store": {
-                                        "var_id": "key",
-                                        "group": 0,
-                                        "match_index": null
+                                      "get": {
+                                        "var_id": "__kv",
+                                        "key": "key"
                                       }
                                     }
                                   ]
@@ -324,10 +307,9 @@
                                     "text": "<Delete><Outcome><Success>"
                                   },
                                   {
-                                    "Store": {
-                                      "var_id": "success",
-                                      "group": 0,
-                                      "match_index": null
+                                    "get": {
+                                      "var_id": "__kv",
+                                      "key": "success"
                                     }
                                   },
                                   {
@@ -345,10 +327,9 @@
                                 "ref": {
                                   "parts": [
                                     {
-                                      "Store": {
-                                        "var_id": "key",
-                                        "group": 0,
-                                        "match_index": null
+                                      "get": {
+                                        "var_id": "__kv",
+                                        "key": "key"
                                       }
                                     }
                                   ]
@@ -369,10 +350,9 @@
                                     "text": "<Authorise><Action>Request</Action><Outcome><Success>"
                                   },
                                   {
-                                    "Store": {
-                                      "var_id": "success",
-                                      "group": 0,
-                                      "match_index": null
+                                    "get": {
+                                      "var_id": "__kv",
+                                      "key": "success"
                                     }
                                   },
                                   {
@@ -390,10 +370,9 @@
                                 "ref": {
                                   "parts": [
                                     {
-                                      "Store": {
-                                        "var_id": "key",
-                                        "group": 0,
-                                        "match_index": null
+                                      "get": {
+                                        "var_id": "__kv",
+                                        "key": "key"
                                       }
                                     }
                                   ]
@@ -414,10 +393,9 @@
                                     "text": "<Network><Outcome><Success>"
                                   },
                                   {
-                                    "Store": {
-                                      "var_id": "success",
-                                      "group": 0,
-                                      "match_index": null
+                                    "get": {
+                                      "var_id": "__kv",
+                                      "key": "success"
                                     }
                                   },
                                   {
@@ -437,10 +415,9 @@
                                 "text": "<Process><Outcome><Success>"
                               },
                               {
-                                "Store": {
-                                  "var_id": "success",
-                                  "group": 0,
-                                  "match_index": null
+                                "get": {
+                                  "var_id": "__kv",
+                                  "key": "success"
                                 }
                               },
                               {
@@ -543,10 +520,9 @@
                           "text": "</TypeId><Authenticate><Action>Logon</Action><Outcome><Success>"
                         },
                         {
-                          "Store": {
-                            "var_id": "res",
-                            "group": 0,
-                            "match_index": null
+                          "get": {
+                            "var_id": "__kv",
+                            "key": "res"
                           }
                         },
                         {
@@ -588,10 +564,9 @@
                           "text": "<TypeId>USER_ACCT</TypeId><Authorise><Action>Request</Action><Outcome><Success>"
                         },
                         {
-                          "Store": {
-                            "var_id": "res",
-                            "group": 0,
-                            "match_index": null
+                          "get": {
+                            "var_id": "__kv",
+                            "key": "res"
                           }
                         },
                         {
@@ -669,10 +644,9 @@
                           "text": "</TypeId><Authenticate><Action>Logoff</Action><Outcome><Success>"
                         },
                         {
-                          "Store": {
-                            "var_id": "res",
-                            "group": 0,
-                            "match_index": null
+                          "get": {
+                            "var_id": "__kv",
+                            "key": "res"
                           }
                         },
                         {

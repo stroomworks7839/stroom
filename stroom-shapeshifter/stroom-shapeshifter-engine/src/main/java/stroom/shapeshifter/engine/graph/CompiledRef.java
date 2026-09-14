@@ -51,7 +51,7 @@ public sealed interface CompiledRef {
      *
      * <p>No group travels. A reference names one group, and which group it named is settled when
      * the configuration is compiled — a migrated {@code $h$2} binds a capture of its own (E48) —
-     * so by the time the graph exists there is one store per name and nothing to select within
+     * so by the time the graph exists there is one slot per name and nothing to select within
      * it. A non-zero group is refused in {@code RefCompiler} rather than carried here and
      * silently resolved to nothing.
      */
@@ -72,10 +72,15 @@ public sealed interface CompiledRef {
      * {@code for-each} precisely because it knows. This carries the same knowledge into the run
      * instead of resolving the name against the scope stack on every read. The index rule
      * travels because an author may still write one; a scalar answers to index one and to
-     * nothing else, which is what the store holding it did. No group travels, for the same
+     * nothing else, which is what the store that used to hold it did. No group travels, for the same
      * reason it does not on {@link RemoteVar}.
      */
     record Context(EngineVars var, CompiledIndex matchIndex) implements CompiledRef {
+
+    }
+
+    /** One entry of a map by a key made once: what {@code get} reads (design 35 §5). */
+    record Entry(VarName map, TypedValue key) implements CompiledRef {
 
     }
 

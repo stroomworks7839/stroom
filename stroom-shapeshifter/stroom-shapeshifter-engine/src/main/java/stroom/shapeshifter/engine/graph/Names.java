@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.graph;
 
+import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.EngineVars;
 
 import java.util.Map;
@@ -36,18 +37,20 @@ import java.util.Map;
  * counts, so a name added afterwards would index past the end of every one of them — which is now
  * unrepresentable rather than refused.
  *
- * <p><b>The map is consulted at run time, and that is the rule holding rather than failing.</b> A
- * key-value capture reads its own name out of the data — DS3's shape, where a field's name and
- * its value both come from the input — so that one site has a string and needs a slot. Design 30
- * §1 exempts a key whose value is data, which this is. Every other caller resolved its name when
- * the configuration compiled.
+ * <p><b>Nothing consults the map at run time</b> (design 35 §8). The one site that used to — a
+ * key-value capture reading a variable's name out of the data — puts into a declared map
+ * instead, so every name a run touches was resolved to a slot when the configuration compiled,
+ * and the slot array is sized once from here and never grows.
  *
- * @param all  every variable name, by the name an author writes
- * @param keys every key name, in its own namespace
+ * @param all   every variable name, by the name an author writes
+ * @param keys  every key name, in its own namespace
+ * @param types what each declared name holds (design 35 §5), by name; a name declared in
+ *              place — a parameter, a loop's {@code as} — is absent here and holds a scalar
  */
-public record Names(Map<String, VarName> all, Map<String, KeyName> keys) {
+public record Names(Map<String, VarName> all, Map<String, KeyName> keys, Map<String, Declaration.Type> types) {
 
     public Names {
+        types = Map.copyOf(types);
         if (!all.containsKey(EngineVars.GROUP.spelling())) {
             // The interner interns it in a field initialiser, so every table the compiler makes
             // has it. Said here too, because this became a public record when the builder was
@@ -65,18 +68,19 @@ public record Names(Map<String, VarName> all, Map<String, KeyName> keys) {
      *
      * <p>{@code group()} is always here, because the interpreter binds it whether or not the
      * configuration reads it — it is the one engine variable that is a sequence, so design 30
-     * phase 4 left it a store rather than a frame, and a store needs a slot.
+     * phase 4 left it a slot rather than a frame.
      */
     public VarName group() {
         return all.get(EngineVars.GROUP.spelling());
     }
 
-    /** The name if the configuration mentions it, or null — the run's one string lookup. */
-    public VarName lookup(final String name) {
-        return all.get(name);
+    /** What a name was declared to hold: its declaration's type, or a scalar for a name declared in place. */
+    public Declaration.Type typeOf(final VarName name) {
+        final Declaration.Type declared = types.get(name.name());
+        return declared == null ? Declaration.Type.SCALAR : declared;
     }
 
-    /** How many slots a run needs before anything arrives from the data. */
+    /** How many slots a run needs, which is fixed: nothing arrives from the data (design 35 §8). */
     public int size() {
         return all.size();
     }

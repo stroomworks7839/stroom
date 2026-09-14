@@ -28,18 +28,38 @@ import java.nio.charset.StandardCharsets;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * At configuration level: a capture that fails on a template's <i>last</i> match is simply not
- * recorded — {@code Store.remove} does not grow the store — so the store ends at the previous
- * match and an unindexed read lands there. No hole exists at the end; the read is not skipping
- * anything. Pinned before design 35 phase 3, where a failed capture appends absence and
- * {@code last(list)} returns it (§8) — the one case where that ruling reads differently from
- * today. Sabotage: make the failed cast write a marker instead of removing, and the read shows it.
+ * At configuration level: a capture that fails on a template's <i>last</i> match is absence,
+ * assigned like any value (design 35 §8), so an unindexed read lands on it. Before phase 3 the
+ * failed capture was simply not recorded — the store ended at the previous match and the read
+ * walked back to it — and this test pinned that; phase 3 flipped it, deliberately: a read that
+ * walks back is returning a value from a position the data did not fill.
  */
 class TrailingHoleReadTest {
 
     @Test
-    void readAfterAFailedFinalCaptureWalksBackToThePreviousMatch() {
-        final String json = """
+    void readAfterAFailedFinalCaptureIsAbsent() {
+        assertThat(run(CONFIG.replace("TYPE", "scalar"), "1 2 x\n")).isEqualTo("[]");
+    }
+
+    /**
+     * The same on a list, which is where the ruling bites: the failed final capture is an
+     * appended absence, so {@code last} is absent rather than the previous match's value.
+     */
+    @Test
+    void failedFinalCaptureIntoAListAppendsAbsence() {
+        assertThat(run(CONFIG.replace("TYPE", "list"), "1 2 x\n")).isEqualTo("[]");
+    }
+
+    /** And a failed middle capture keeps the positions after it aligned with their matches. */
+    @Test
+    void failedMiddleCaptureKeepsPositionsAligned() {
+        final String third = CONFIG.replace("TYPE", "list").replace(
+                "{\"capture\": {\"var_id\": \"v\", \"group\": 0}}",
+                "{\"capture\": {\"var_id\": \"v\", \"group\": 0, \"match_index\": {\"index\": 3}}}");
+        assertThat(run(third, "1 x 3\n")).isEqualTo("[3]");
+    }
+
+    private static final String CONFIG = """
                 {
                   "name": "hole", "version": 3,
                   "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
@@ -48,7 +68,7 @@ class TrailingHoleReadTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "rec"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "rec", "mode": "rec",
-                     "declarations": [{"name": "v", "type": "scalar"}],
+                     "declarations": [{"name": "v", "type": "TYPE"}],
                      "match": {"regex": {"pattern": "[^\\n]*\\n"}},
                      "body": [
                        {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
@@ -62,10 +82,6 @@ class TrailingHoleReadTest {
                   ]
                 }
                 """;
-        // Three tokens; the third is not a number, so its cast fails and nothing is recorded at
-        // match 3. The store ends at match 2 and the read lands there.
-        assertThat(run(json, "1 2 x\n")).isEqualTo("[2]");
-    }
 
     private static String run(final String json, final String input) {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();

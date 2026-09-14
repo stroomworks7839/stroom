@@ -93,7 +93,7 @@ public final class Frames {
         iterationDepth--;
     }
 
-    /** The entry this iteration is on, as a store index (design/16 §4.3). */
+    /** The entry this iteration is on, as a list index (design/16 §4.3). */
     public void index(final long index) {
         final Iteration frame = iterations[iterationDepth - 1];
         frame.index = index;

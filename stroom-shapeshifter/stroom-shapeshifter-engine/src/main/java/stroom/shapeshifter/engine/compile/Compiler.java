@@ -122,6 +122,14 @@ public final class Compiler {
         // variable — the same shape the match compiler interns patterns with, and no second
         // walk to keep in step with the first (design 30 §5.5).
         final Interner names = new Interner();
+        // Every declaration first (design 35 §5): what a name holds decides how a capture or a
+        // bind anywhere writes it, and a template's captures may be declared by a template
+        // compiled after it.
+        for (final Template template : project.templates()) {
+            for (final Declaration declaration : template.declarations()) {
+                names.declare(declaration);
+            }
+        }
         final MatchCompiler matches = new MatchCompiler(project);
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
@@ -288,18 +296,21 @@ public final class Compiler {
                                              final CompiledCapture[] captures,
                                              final CompiledCondition guard,
                                              final Interner names) {
-        // A declaration compiles to a slot and, in this phase, to nothing else (design 35 §12,
-        // phase 2): the run time still targets the store it always did, and what the declaration
-        // will own — lifetime and shape — arrives in phase 3.
+        // What the template declares is what its entry pushes and its exit restores (design 35
+        // §4): the slots, settled here so the run never asks the model.
+        final List<VarName> declared = new ArrayList<>();
         for (final Declaration declaration : template.declarations()) {
-            names.intern(declaration.name());
+            declared.add(names.intern(declaration.name()));
         }
+        // The lists a capture fills restart at the template's first match of a sequence —
+        // DS3's own rule (E19), kept as the capture's: a list declared for the run would
+        // otherwise keep an earlier sequence's tail past this one's length. A scalar needs no
+        // clearing, because a capture assigns it.
         final List<VarName> clear = new ArrayList<>();
-        final List<VarName> named = new ArrayList<>();
         for (final CaptureBinding capture : template.captures()) {
             final VarName name = names.intern(capture.name());
-            named.add(name);
-            if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)) {
+            if (!(capture.select() instanceof CaptureBinding.CaptureSource.KeyValue)
+                && names.typeOf(capture.name()) == Declaration.Type.LIST) {
                 clear.add(name);
             }
         }
@@ -312,6 +323,6 @@ public final class Compiler {
                 onlyMatch(template),
                 guard,
                 clear.toArray(VarName[]::new),
-                named.toArray(VarName[]::new));
+                declared.toArray(VarName[]::new));
     }
 }

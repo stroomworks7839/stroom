@@ -794,6 +794,13 @@ become statable, and the split this entry had to make — half fixed, half pinne
 split. The residual above about `Variable` and transform results tail-leaking is the same missing
 declaration, and design 35 covers it too.
 
+**Addendum 2026-09-14, design 35 phase 3.** The two halves are now two declarations. The clear
+stays as the capture's own rule on a *list*: a template's first match of a sequence restarts the
+lists its captures fill, which is DS3's `parentMatchCount == 0` and cannot be replaced by
+restore-on-exit for a list declared for the run. The pinned half is a declaration on the source —
+a scalar declared there lasts the run, and a record that never binds it reads what the last one
+bound. The test that pinned it says so, and a list-declared twin holds the clear.
+
 ### E20 — Strict dispatch: the cursor moves only by matching at it
 **`in progress` — core implemented 2026-08-21: modes strict/lax/classify/lexer live, `consume`
 and `emit-error` live, zero-advance errors, version-gated defaults (v4+ strict), validation
@@ -924,6 +931,11 @@ absent input, answers a malformed one with absence rather than an exception, and
 message at all. The edges are pinned in the same file (division by zero, `MIN_VALUE / -1` and
 overflow, code-point counting and cutting, XPath's substring bounds, `round` half towards
 positive infinity). Mutation-checked: reverting the fix in `Executor.emit` fails 24 of the 28.
+
+**Addendum 2026-09-14, design 35 phase 3.** Subsumed: a named result assigns the scalar it names,
+absence included, so there is no match index to fall back across. `Body.emit` binds through one
+method for scalars and lists alike; the "reads at the current match index" premise is gone with
+the store.
 
 ### E29 — Regex steps ignore the template's declared encoding
 **`resolved` 2026-08-28, same day it was found — phase 3 of design 19.** The regex library
@@ -1925,3 +1937,9 @@ observation is what opened design 35.
 Sites: `exec/Level.java` `processMatch`, `compile/Compiler.java` (the `KeyValue` exclusion from
 `clearNames`), `exec/Store.java` `latest`. Superseded by `design/35-one-binding-with-a-lifetime.md`;
 see also [E19](#e19--a-capture-not-re-matched-keeps-the-previous-records-value).
+
+**Addendum 2026-09-14, design 35 phase 3.** Built. The key-value pairs put into the map the
+capture names, read back by `{"get": {"var_id": m, "key": k}}`; the two demonstrations phase 0
+pinned flipped with the phase, and the four fixtures that moved when the clear was moved did not
+move now, because the migration declares on the envelope.
+

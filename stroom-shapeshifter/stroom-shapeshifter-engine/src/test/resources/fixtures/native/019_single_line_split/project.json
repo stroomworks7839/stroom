@@ -10,6 +10,12 @@
   {
    "id": "a3df0c0b-0ad1-33c9-ac55-0770a7f096ac",
    "name": "envelope",
+   "declarations": [
+    {
+     "name": "heading",
+     "type": "list"
+    }
+   ],
    "match": "source",
    "match_limits": {
     "min_match": 0,
@@ -79,12 +85,6 @@
    "id": "692d518c-364e-3cc0-85c2-309df379ef1e",
    "name": "unnamed",
    "mode": "__auto_0",
-   "declarations": [
-    {
-     "name": "heading",
-     "type": "list"
-    }
-   ],
    "match": {
     "delimiter": {
      "delimiter": ",",

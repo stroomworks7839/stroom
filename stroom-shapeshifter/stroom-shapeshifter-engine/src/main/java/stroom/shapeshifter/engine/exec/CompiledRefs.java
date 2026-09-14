@@ -44,8 +44,8 @@ import java.nio.charset.StandardCharsets;
 final class CompiledRefs {
 
     /**
-     * "The last value there is", which a store answers from its own contents and a frame
-     * answers by having only one. Outside any store's index range by construction.
+     * "The last value there is", which a list answers from its own contents and a scalar
+     * answers by having only one. Outside any list's index range by construction.
      */
     private static final int LAST = Integer.MIN_VALUE;
 
@@ -104,6 +104,14 @@ final class CompiledRefs {
                 out.write(value);
                 return true;
             }
+            case final CompiledRef.Entry entry -> {
+                final TypedValue value = lookup(entry, vars);
+                if (value == null || value.isEmpty()) {
+                    return false;
+                }
+                out.write(value);
+                return true;
+            }
         }
     }
 
@@ -149,6 +157,10 @@ final class CompiledRefs {
                 final TypedValue value = lookup(context, matchCount, vars);
                 return value == null || value.isEmpty() ? null : value;
             }
+            case final CompiledRef.Entry entry -> {
+                final TypedValue value = lookup(entry, vars);
+                return value == null || value.isEmpty() ? null : value;
+            }
         }
     }
 
@@ -171,39 +183,26 @@ final class CompiledRefs {
     }
 
     /**
-     * One value out of a name's store, under an index rule already resolved to a number.
+     * One value out of a name's list, under an index rule already resolved to a number.
      *
-     * <p>Since design 30 phase 6 there is one resolver, so this is no longer shared with an
-     * authored twin — it is simply how an index rule reads a store.
+     * <p>"The latest" and "the last" are both the last element (design 35 §8): a failed capture
+     * appended absence to keep positions aligned, and a read that walked back past it would be
+     * returning a value from a position the data did not fill.
      */
-    private static TypedValue indexed(final Store store,
-                                      final Integer index,
-                                      final int matchCount) {
-        if (store == null) {
-            return null;
+    private static TypedValue indexed(final TypedValue.List list, final Integer index) {
+        if (index == null || index == LAST) {
+            return list.last();
         }
-        if (index == null) {
-            return store.latest();
-        }
-        if (index == LAST) {
-            final int last = store.lastIndex();
-            return store.get(last < 0 ? matchCount : last);
-        }
-        return store.get(index);
+        return list.get(index);
     }
 
     /**
-     * A framed value under the same rule.
-     *
-     * <p>What a frame replaced was a store holding one value, at index one, in a list of one. So
-     * a reference reads it when it asks for the latest, for the last, or for index one, and reads
-     * nothing otherwise — which is what indexing past a single-valued store already did.
+     * A scalar under the same rule: one value, which a reference reads when it asks for the
+     * latest, the last, this match's or the first, and reads nothing when it names another
+     * position — what indexing past a single-valued store did before design 35 phase 3.
      */
-    private static TypedValue framed(final TypedValue value, final Integer index) {
-        if (value == null) {
-            return null;
-        }
-        return index == null || index == LAST || index == 1 ? value : null;
+    private static TypedValue scalar(final TypedValue value, final Integer index, final int matchCount) {
+        return index == null || index == LAST || index == matchCount || index == 1 ? value : null;
     }
 
     /** The three index forms that need no variable. */
@@ -217,9 +216,9 @@ final class CompiledRefs {
         return isOffset ? matchCount + index : index;
     }
 
-    /** The most recent value a name's store holds, or null. */
-    private static TypedValue latest(final Store store) {
-        return store == null ? null : store.latest();
+    /** The value a name holds for a read with no index: a list's last element, a scalar itself. */
+    private static TypedValue latest(final TypedValue value) {
+        return value instanceof final TypedValue.List list ? list.last() : value;
     }
 
     /**
@@ -247,11 +246,20 @@ final class CompiledRefs {
     private static TypedValue lookup(final CompiledRef.RemoteVar remote,
                                      final int matchCount,
                                      final VarRegistry vars) {
-        final Store store = vars.get(remote.varId());
+        final TypedValue value = vars.get(remote.varId());
         // Nothing to index is nothing to resolve the rule for, and absent is the common case.
-        return store == null
-                ? null
-                : indexed(store, index(remote.matchIndex(), matchCount, vars), matchCount);
+        if (value == null) {
+            return null;
+        }
+        final Integer index = index(remote.matchIndex(), matchCount, vars);
+        return value instanceof final TypedValue.List list
+                ? indexed(list, index)
+                : scalar(value, index, matchCount);
+    }
+
+    /** One entry of a map, or null when the map is unset or has no such key. */
+    private static TypedValue lookup(final CompiledRef.Entry entry, final VarRegistry vars) {
+        return vars.get(entry.map()) instanceof final TypedValue.Map map ? map.get(entry.key()) : null;
     }
 
     /**
@@ -264,7 +272,7 @@ final class CompiledRefs {
         final TypedValue value = vars.frames().value(context.var());
         return value == null
                 ? null
-                : framed(value, index(context.matchIndex(), matchCount, vars));
+                : scalar(value, index(context.matchIndex(), matchCount, vars), matchCount);
     }
 
     /**
