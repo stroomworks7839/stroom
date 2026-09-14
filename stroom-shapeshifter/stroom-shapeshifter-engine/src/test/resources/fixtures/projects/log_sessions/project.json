@@ -24,11 +24,7 @@
      "type": "list"
     },
     {
-     "name": "hostnames",
-     "type": "list"
-    },
-    {
-     "name": "kb_raw",
+     "name": "kb",
      "type": "scalar"
     },
     {
@@ -36,27 +32,15 @@
      "type": "list"
     },
     {
-     "name": "people",
-     "type": "list"
-    },
-    {
-     "name": "rows",
-     "type": "list"
-    },
-    {
-     "name": "sizes",
-     "type": "list"
-    },
-    {
      "name": "status",
      "type": "list"
     },
     {
-     "name": "t",
+     "name": "when",
      "type": "scalar"
     },
     {
-     "name": "tag_list",
+     "name": "tag_parts",
      "type": "list"
     },
     {
@@ -80,7 +64,7 @@
      "type": "list"
     },
     {
-     "name": "empty",
+     "name": "no_rows",
      "type": "list"
     }
    ],
@@ -111,7 +95,7 @@
       "parts": [
        {
         "size": {
-         "of": "rows"
+         "of": "host"
         }
        }
       ]
@@ -125,7 +109,7 @@
       "parts": [
        {
         "sum": {
-         "of": "sizes"
+         "of": "bytes"
         }
        }
       ]
@@ -139,7 +123,7 @@
       "parts": [
        {
         "max": {
-         "of": "sizes",
+         "of": "bytes",
          "as": "number"
         }
        }
@@ -156,8 +140,8 @@
     },
     {
      "for-each": {
-      "select": "hostnames",
-      "as": "_v",
+      "select": "host",
+      "as": "h",
       "body": [
        {
         "put": {
@@ -166,7 +150,7 @@
           "parts": [
            {
             "capture": {
-             "var_id": "_v",
+             "var_id": "h",
              "group": 0
             }
            }
@@ -198,8 +182,8 @@
     },
     {
      "for-each": {
-      "select": "people",
-      "as": "_v",
+      "select": "user",
+      "as": "u",
       "body": [
        {
         "put": {
@@ -208,7 +192,7 @@
           "parts": [
            {
             "capture": {
-             "var_id": "_v",
+             "var_id": "u",
              "group": 0
             }
            }
@@ -264,20 +248,7 @@
     },
     {
      "for-each-group": {
-      "select": "rows",
-      "group_by": {
-       "parts": [
-        {
-         "capture": {
-          "var_id": "host",
-          "group": 0,
-          "match_index": {
-           "function": "index"
-          }
-         }
-        }
-       ]
-      },
+      "select": "host",
       "body": [
        {
         "text": "\n    <host name=\""
@@ -352,7 +323,7 @@
              }
             ],
             "pattern": "iso",
-            "name": "t"
+            "name": "when"
            }
           },
           {
@@ -365,7 +336,7 @@
               "parts": [
                {
                 "capture": {
-                 "var_id": "t",
+                 "var_id": "when",
                  "group": 0
                 }
                }
@@ -444,7 +415,7 @@
               ]
              }
             ],
-            "name": "kb_raw"
+            "name": "kb"
            }
           },
           {
@@ -454,7 +425,7 @@
               "parts": [
                {
                 "capture": {
-                 "var_id": "kb_raw",
+                 "var_id": "kb",
                  "group": 0
                 }
                }
@@ -528,12 +499,12 @@
              }
             ],
             "delimiter": ",",
-            "name": "tag_list"
+            "name": "tag_parts"
            }
           },
           {
            "for-each": {
-            "select": "tag_list",
+            "select": "tag_parts",
             "as": "tg",
             "body": [
              {
@@ -574,8 +545,8 @@
     },
     {
      "for-each": {
-      "select": "rows",
-      "as": "_e",
+      "select": "status",
+      "as": "s",
       "body": [
        {
         "if": {
@@ -591,11 +562,8 @@
                  "parts": [
                   {
                    "capture": {
-                    "var_id": "status",
-                    "group": 0,
-                    "match_index": {
-                     "function": "index"
-                    }
+                    "var_id": "s",
+                    "group": 0
                    }
                   }
                  ]
@@ -615,11 +583,8 @@
              "parts": [
               {
                "capture": {
-                "var_id": "status",
-                "group": 0,
-                "match_index": {
-                 "function": "index"
-                }
+                "var_id": "s",
+                "group": 0
                }
               }
              ]
@@ -628,7 +593,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "empty",
+                "var_id": "no_rows",
                 "group": 0
                }
               }
@@ -650,11 +615,8 @@
               "parts": [
                {
                 "capture": {
-                 "var_id": "status",
-                 "group": 0,
-                 "match_index": {
-                  "function": "index"
-                 }
+                 "var_id": "s",
+                 "group": 0
                 }
                }
               ]
@@ -797,64 +759,7 @@
      }
     }
    ],
-   "body": [
-    {
-     "append": {
-      "name": "rows",
-      "select": {
-       "parts": [
-        {
-         "function": {
-          "name": "matchCount"
-         }
-        }
-       ]
-      }
-     }
-    },
-    {
-     "append": {
-      "name": "sizes",
-      "select": {
-       "parts": [
-        {
-         "last": {
-          "of": "bytes"
-         }
-        }
-       ]
-      }
-     }
-    },
-    {
-     "append": {
-      "name": "people",
-      "select": {
-       "parts": [
-        {
-         "last": {
-          "of": "user"
-         }
-        }
-       ]
-      }
-     }
-    },
-    {
-     "append": {
-      "name": "hostnames",
-      "select": {
-       "parts": [
-        {
-         "last": {
-          "of": "host"
-         }
-        }
-       ]
-      }
-     }
-    }
-   ]
+   "body": []
   }
  ]
 }

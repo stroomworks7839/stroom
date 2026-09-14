@@ -10,12 +10,6 @@
     {
       "id": "cec6641d-4696-4c23-915e-c2902a164401",
       "name": "source",
-      "declarations": [
-        {
-          "name": "__kv",
-          "type": "map"
-        }
-      ],
       "match": "source",
       "match_limits": {
         "min_match": 0,
@@ -63,6 +57,10 @@
       "id": "7eaf2704-2ace-4f11-b9a6-ff6d7c4de259",
       "name": "audit_section",
       "declarations": [
+        {
+          "name": "fields",
+          "type": "map"
+        },
         {
           "name": "audit_record_1",
           "type": "scalar"
@@ -117,7 +115,7 @@
               },
               {
                 "get": {
-                  "of": "__kv",
+                  "of": "fields",
                   "key": "auid"
                 }
               },
@@ -174,7 +172,7 @@
                                   "parts": [
                                     {
                                       "get": {
-                                        "of": "__kv",
+                                        "of": "fields",
                                         "key": "key"
                                       }
                                     }
@@ -197,7 +195,7 @@
                                   },
                                   {
                                     "get": {
-                                      "of": "__kv",
+                                      "of": "fields",
                                       "key": "success"
                                     }
                                   },
@@ -219,7 +217,7 @@
                                       "parts": [
                                         {
                                           "get": {
-                                            "of": "__kv",
+                                            "of": "fields",
                                             "key": "key"
                                           }
                                         }
@@ -240,7 +238,7 @@
                                       "parts": [
                                         {
                                           "get": {
-                                            "of": "__kv",
+                                            "of": "fields",
                                             "key": "key"
                                           }
                                         }
@@ -265,7 +263,7 @@
                                   },
                                   {
                                     "get": {
-                                      "of": "__kv",
+                                      "of": "fields",
                                       "key": "success"
                                     }
                                   },
@@ -285,7 +283,7 @@
                                   "parts": [
                                     {
                                       "get": {
-                                        "of": "__kv",
+                                        "of": "fields",
                                         "key": "key"
                                       }
                                     }
@@ -308,7 +306,7 @@
                                   },
                                   {
                                     "get": {
-                                      "of": "__kv",
+                                      "of": "fields",
                                       "key": "success"
                                     }
                                   },
@@ -328,7 +326,7 @@
                                   "parts": [
                                     {
                                       "get": {
-                                        "of": "__kv",
+                                        "of": "fields",
                                         "key": "key"
                                       }
                                     }
@@ -351,7 +349,7 @@
                                   },
                                   {
                                     "get": {
-                                      "of": "__kv",
+                                      "of": "fields",
                                       "key": "success"
                                     }
                                   },
@@ -371,7 +369,7 @@
                                   "parts": [
                                     {
                                       "get": {
-                                        "of": "__kv",
+                                        "of": "fields",
                                         "key": "key"
                                       }
                                     }
@@ -394,7 +392,7 @@
                                   },
                                   {
                                     "get": {
-                                      "of": "__kv",
+                                      "of": "fields",
                                       "key": "success"
                                     }
                                   },
@@ -416,7 +414,7 @@
                               },
                               {
                                 "get": {
-                                  "of": "__kv",
+                                  "of": "fields",
                                   "key": "success"
                                 }
                               },
@@ -521,7 +519,7 @@
                         },
                         {
                           "get": {
-                            "of": "__kv",
+                            "of": "fields",
                             "key": "res"
                           }
                         },
@@ -565,7 +563,7 @@
                         },
                         {
                           "get": {
-                            "of": "__kv",
+                            "of": "fields",
                             "key": "res"
                           }
                         },
@@ -645,7 +643,7 @@
                         },
                         {
                           "get": {
-                            "of": "__kv",
+                            "of": "fields",
                             "key": "res"
                           }
                         },
@@ -713,7 +711,7 @@
       },
       "captures": [
         {
-          "name": "__kv",
+          "name": "fields",
           "select": {
             "key-value": {
               "key_ref": {
@@ -811,7 +809,7 @@
       },
       "captures": [
         {
-          "name": "__kv",
+          "name": "fields",
           "select": {
             "key-value": {
               "key_ref": {
@@ -893,16 +891,6 @@
       "id": "989221c7-cedb-4791-9596-19ebb21e0344",
       "name": "extra_line",
       "mode": "extra_lines",
-      "declarations": [
-        {
-          "name": "extra_line_1",
-          "type": "scalar"
-        },
-        {
-          "name": "extra_line_2",
-          "type": "scalar"
-        }
-      ],
       "match": {
         "regex": {
           "pattern": "^type=(\\S+)\\s+msg=audit\\(([^)]+)\\):\\s*(.*)",
@@ -917,40 +905,6 @@
         "min_match": 0,
         "max_match": -1
       },
-      "captures": [
-        {
-          "name": "extra_line_1",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 1,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "extra_line_2",
-          "select": {
-            "select": {
-              "parts": [
-                {
-                  "Store": {
-                    "var_id": null,
-                    "group": 2,
-                    "match_index": null
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ],
       "body": [
         {
           "apply-templates": {

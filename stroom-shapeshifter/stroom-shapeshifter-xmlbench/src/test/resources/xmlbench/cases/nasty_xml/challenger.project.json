@@ -282,14 +282,6 @@
    "mode": "__rec_fields",
    "declarations": [
     {
-     "name": "e1",
-     "type": "scalar"
-    },
-    {
-     "name": "e2",
-     "type": "scalar"
-    },
-    {
      "name": "sqlText",
      "type": "scalar"
     }
@@ -317,7 +309,7 @@
       "pattern": "&",
       "replacement": "&amp;",
       "is_regex": false,
-      "name": "e1"
+      "name": "sqlText"
      }
     },
     {
@@ -327,7 +319,7 @@
         "parts": [
          {
           "capture": {
-           "var_id": "e1",
+           "var_id": "sqlText",
            "group": 0
           }
          }
@@ -337,7 +329,7 @@
       "pattern": "<",
       "replacement": "&lt;",
       "is_regex": false,
-      "name": "e2"
+      "name": "sqlText"
      }
     },
     {
@@ -347,7 +339,7 @@
         "parts": [
          {
           "capture": {
-           "var_id": "e2",
+           "var_id": "sqlText",
            "group": 0
           }
          }

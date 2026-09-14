@@ -28,10 +28,6 @@
      "type": "list"
     },
     {
-     "name": "n",
-     "type": "scalar"
-    },
-    {
      "name": "orders",
      "type": "list"
     },
@@ -40,7 +36,7 @@
      "type": "list"
     },
     {
-     "name": "empty",
+     "name": "no_orders",
      "type": "list"
     }
    ],
@@ -76,7 +72,7 @@
     {
      "for-each": {
       "select": "orders",
-      "as": "_e",
+      "as": "o",
       "body": [
        {
         "if": {
@@ -129,7 +125,7 @@
              "parts": [
               {
                "capture": {
-                "var_id": "empty",
+                "var_id": "no_orders",
                 "group": 0
                }
               }
@@ -184,41 +180,6 @@
       "as": "w",
       "body": [
        {
-        "put": {
-         "name": "n",
-         "select": {
-          "parts": [
-           {
-            "size": {
-             "of": {
-              "parts": [
-               {
-                "get": {
-                 "of": "by_cat",
-                 "key": {
-                  "parts": [
-                   {
-                    "capture": {
-                     "var_id": "c",
-                     "group": 0,
-                     "match_index": {
-                      "var_ref": "w"
-                     }
-                    }
-                   }
-                  ]
-                 }
-                }
-               }
-              ]
-             }
-            }
-           }
-          ]
-         }
-        }
-       },
-       {
         "choose": {
          "when": [
           {
@@ -228,9 +189,29 @@
               "ref": {
                "parts": [
                 {
-                 "capture": {
-                  "var_id": "n",
-                  "group": 0
+                 "size": {
+                  "of": {
+                   "parts": [
+                    {
+                     "get": {
+                      "of": "by_cat",
+                      "key": {
+                       "parts": [
+                        {
+                         "capture": {
+                          "var_id": "c",
+                          "group": 0,
+                          "match_index": {
+                           "var_ref": "w"
+                          }
+                         }
+                        }
+                       ]
+                      }
+                     }
+                    }
+                   ]
+                  }
                  }
                 }
                ]

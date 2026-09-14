@@ -43,7 +43,7 @@
     {
      "for-each": {
       "select": "values",
-      "as": "v",
+      "as": "value",
       "body": [
        {
         "text": "<e p=\""
@@ -93,7 +93,7 @@
          "parts": [
           {
            "capture": {
-            "var_id": "v",
+            "var_id": "value",
             "group": 0
            }
           }
