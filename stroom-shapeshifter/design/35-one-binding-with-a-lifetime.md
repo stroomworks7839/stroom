@@ -131,6 +131,35 @@ is named here rather than left for someone to find."* A declared lifetime is exa
 distinction, and a declaration on a root template under a chunked root is something the compiler
 can see and refuse or warn about.
 
+### One declaration per name, per namespace
+
+**A name may be declared once.** Because resolution follows the dispatch chain, two declarations of
+one name resolve differently depending on which template matched — invisible in the configuration
+text and exactly the kind of thing that hides for months. Refusing the second costs nothing: across
+every fixture it happens once, `__kv` in `ausearch`, in a feature §5 deletes.
+
+**Written as *per namespace*, because template libraries are coming.** A once-per-configuration
+rule would not survive importing a library that happens to declare `heading`. But the flat
+namespace is what breaks there, not the once-rule — and it breaks whether or not re-declaration is
+allowed:
+
+*With re-declaration permitted, a library is worse off, not better.* A library template that
+declares `x` and assigns to it would, under dynamic resolution, silently write to the **importer's**
+`x` whenever one is live on the dispatch chain. A collision that produces wrong output beats a
+collision that produces a message, and not in a good way.
+
+*And it is bigger than variables.* `Template.mode` is a plain `String`, so a library's modes would
+collide the same way, and nothing namespaces those either. Whatever the library work does, it has
+to qualify names and modes together.
+
+**XSLT's answer is the one to take**, consistently with §5's naming: variables, modes and functions
+are all QNames there. Qualified, `lib:heading` and `heading` are different names that cannot clobber
+one another, declare-once holds within each namespace, and a library's internals stay its own.
+
+*None of that is built now* — there is no import or library concept in the configuration, and one
+implicit namespace, so the rule today reads "once per configuration". It is stated per namespace so
+that libraries do not have to reopen it.
+
 **Declaring and shadowing are the same mechanism, and it is already built.** Entering a template
 that declares names pushes a scope over exactly those names; leaving it pops. `VarRegistry` already
 has this — `push(VarName[] shadowed)`, whose javadoc reads *"Enter a new scope shadowing a set of
@@ -815,6 +844,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Counters** | Become functions resolved to `CompiledRef.Context` at compile time, not reserved `__` variable names. Special forms, never registry functions. | §6 |
 | **Holes** | A failed capture appends absence, so positions stay aligned by the configuration saying so rather than by a hole appearing as a side effect. | §8 |
 | **`last`** | Does not skip absence — it returns the last element. Can only move a golden when the *final* match's capture failed; §10 is the gate and E19 the precedent for recording a divergence. | §8 |
+| **One declaration per name** | Once per namespace — today, once per configuration, since there is one implicit namespace. Makes dynamic resolution unambiguous. Stated per namespace so template libraries survive it; libraries will need names *and* modes qualified, as XSLT's QNames do. | §4 |
 | **Resolution** | Dynamic, in the precise sense that the scope chain is the *dispatch* chain: templates are a flat list wired by modes, so the enclosing execution is whoever dispatched you. One slot per name, as `Names` already is; the frame stack decides whose value is in it. Lifetime stays static — a variable lives for its declaring template's execution regardless of who dispatched it. | §4 |
 | **Declaration timing** | A declaration is an action on entry to the declaring template's execution; the variable lives entry to exit. A descendant that does not re-declare shares it and may mutate it, which is how accumulation works — so a template cannot accumulate into a variable it declares itself. Recursion shadows because a recursive execution re-declares, which is the existing frame restore rather than anything new. | §4 |
 | **Where declared** | Where a declaration is written *is* its scope; there is no scope attribute and no second scope kind. The source template is the outermost execution — `Run.document()` runs once per stream with the chunk loop inside it — so declaring there lasts the run. Declaring on a **root-mode** template under a `classify` or `any` root gives *chunk* lifetime, which the compiler can see and should refuse or warn. | §4 |
@@ -827,17 +857,17 @@ default, so that a configuration asking for "the last one that matched" says so.
 
 ### Still open
 
-1. **Is a name allowed more than one declaration?** §4 — because templates are wired by modes
-   rather than nested, resolution follows the dispatch chain, so a name declared on two templates
-   resolves differently depending on which matched. Allowing it means accepting that; **refusing a
-   second declaration of a name anywhere in a configuration** makes resolution unambiguous at no
-   cost, since the corpus does it once, in a feature §5 removes. Recursion still shadows either
-   way, because that is one declaration with several live activations.
+1. ~~Is a name allowed more than one declaration?~~ **Ruled 2026-09-14: once per namespace.**
+   Today a configuration has one implicit namespace, so that is once per configuration, and it
+   makes resolution unambiguous at no cost — the corpus declares a name twice exactly once, in a
+   feature §5 removes. Recursion still shadows, being one declaration with several live
+   activations. **§4 records what libraries will need**, and the rule is written as *per namespace*
+   so that it survives them.
 2. **Which of `VarRegistry`'s existing pushes survive?** §8 — grouping, for-each, variables, calls
    and recursive applies all push today; template lifetime no longer needs a frame, so this design
    may shrink the scope stack rather than extend it.
 
-*One model question and one implementation question.*
+*One implementation question. The model is settled.*
 
 ## 10. How it would be gated
 
