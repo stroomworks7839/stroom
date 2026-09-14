@@ -53,7 +53,7 @@
       "declarations": [
         {
           "name": "record_body",
-          "type": "list"
+          "type": "scalar"
         }
       ],
       "match": {
@@ -92,11 +92,7 @@
                     {
                       "capture": {
                         "var_id": "record_body",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "group": 0
                       }
                     }
                   ]
@@ -119,11 +115,7 @@
                     {
                       "capture": {
                         "var_id": "record_body",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "group": 0
                       }
                     }
                   ]
@@ -176,7 +168,7 @@
       "declarations": [
         {
           "name": "data_type_body",
-          "type": "list"
+          "type": "scalar"
         },
         {
           "name": "nodeText",
@@ -337,11 +329,7 @@
                     {
                       "capture": {
                         "var_id": "data_type_body",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "group": 0
                       }
                     }
                   ]
@@ -373,11 +361,7 @@
                     {
                       "capture": {
                         "var_id": "data_type_body",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "group": 0
                       }
                     }
                   ]
@@ -405,11 +389,7 @@
                       {
                         "capture": {
                           "var_id": "data_type_body",
-                          "group": 0,
-                          "match_index": {
-                            "index": 0,
-                            "is_offset": true
-                          }
+                          "group": 0
                         }
                       }
                     ]

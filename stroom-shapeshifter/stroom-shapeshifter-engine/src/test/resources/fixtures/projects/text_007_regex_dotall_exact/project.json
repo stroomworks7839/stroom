@@ -53,7 +53,7 @@
    "declarations": [
     {
      "name": "record_body",
-     "type": "list"
+     "type": "scalar"
     }
    ],
    "match": {
@@ -96,11 +96,7 @@
           {
            "capture": {
             "var_id": "record_body",
-            "group": 0,
-            "match_index": {
-             "index": 0,
-             "is_offset": true
-            }
+            "group": 0
            }
           }
          ]
@@ -123,11 +119,7 @@
           {
            "capture": {
             "var_id": "record_body",
-            "group": 0,
-            "match_index": {
-             "index": 0,
-             "is_offset": true
-            }
+            "group": 0
            }
           }
          ]
@@ -154,51 +146,51 @@
    "declarations": [
     {
      "name": "levelText",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "loggerText",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "messageText",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "levelLength",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "loggerLength",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "messageLength",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "levelWidth",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "loggerWidth",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "messageWidth",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "level",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "logger",
-     "type": "list"
+     "type": "scalar"
     },
     {
      "name": "message",
-     "type": "list"
+     "type": "scalar"
     }
    ],
    "match": {
@@ -238,11 +230,7 @@
             {
              "capture": {
               "var_id": "level",
-              "group": 0,
-              "match_index": {
-               "index": 0,
-               "is_offset": true
-              }
+              "group": 0
              }
             }
            ]
@@ -258,11 +246,7 @@
               {
                "capture": {
                 "var_id": "level",
-                "group": 0,
-                "match_index": {
-                 "index": 0,
-                 "is_offset": true
-                }
+                "group": 0
                }
               }
              ]
@@ -297,11 +281,7 @@
               {
                "capture": {
                 "var_id": "level",
-                "group": 0,
-                "match_index": {
-                 "index": 0,
-                 "is_offset": true
-                }
+                "group": 0
                }
               }
              ]
@@ -318,11 +298,7 @@
               {
                "capture": {
                 "var_id": "levelLength",
-                "group": 0,
-                "match_index": {
-                 "index": 0,
-                 "is_offset": true
-                }
+                "group": 0
                }
               }
              ]
@@ -349,11 +325,7 @@
                  {
                   "capture": {
                    "var_id": "levelWidth",
-                   "group": 0,
-                   "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                   }
+                   "group": 0
                   }
                  }
                 ]
@@ -371,11 +343,7 @@
                  {
                   "capture": {
                    "var_id": "levelText",
-                   "group": 0,
-                   "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                   }
+                   "group": 0
                   }
                  },
                  {
@@ -397,11 +365,7 @@
                {
                 "capture": {
                  "var_id": "levelText",
-                 "group": 0,
-                 "match_index": {
-                  "index": 0,
-                  "is_offset": true
-                 }
+                 "group": 0
                 }
                },
                {
@@ -450,11 +414,7 @@
             {
              "capture": {
               "var_id": "logger",
-              "group": 0,
-              "match_index": {
-               "index": 0,
-               "is_offset": true
-              }
+              "group": 0
              }
             }
            ]
@@ -470,11 +430,7 @@
               {
                "capture": {
                 "var_id": "logger",
-                "group": 0,
-                "match_index": {
-                 "index": 0,
-                 "is_offset": true
-                }
+                "group": 0
                }
               }
              ]
@@ -509,11 +465,7 @@
               {
                "capture": {
                 "var_id": "logger",
-                "group": 0,
-                "match_index": {
-                 "index": 0,
-                 "is_offset": true
-                }
+                "group": 0
                }
               }
              ]
@@ -530,11 +482,7 @@
               {
                "capture": {
                 "var_id": "loggerLength",
-                "group": 0,
-                "match_index": {
-                 "index": 0,
-                 "is_offset": true
-                }
+                "group": 0
                }
               }
              ]
@@ -561,11 +509,7 @@
                  {
                   "capture": {
                    "var_id": "loggerWidth",
-                   "group": 0,
-                   "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                   }
+                   "group": 0
                   }
                  }
                 ]
@@ -583,11 +527,7 @@
                  {
                   "capture": {
                    "var_id": "loggerText",
-                   "group": 0,
-                   "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                   }
+                   "group": 0
                   }
                  },
                  {
@@ -609,11 +549,7 @@
                {
                 "capture": {
                  "var_id": "loggerText",
-                 "group": 0,
-                 "match_index": {
-                  "index": 0,
-                  "is_offset": true
-                 }
+                 "group": 0
                 }
                },
                {
@@ -662,11 +598,7 @@
             {
              "capture": {
               "var_id": "message",
-              "group": 0,
-              "match_index": {
-               "index": 0,
-               "is_offset": true
-              }
+              "group": 0
              }
             }
            ]
@@ -682,11 +614,7 @@
               {
                "capture": {
                 "var_id": "message",
-                "group": 0,
-                "match_index": {
-                 "index": 0,
-                 "is_offset": true
-                }
+                "group": 0
                }
               }
              ]
@@ -721,11 +649,7 @@
               {
                "capture": {
                 "var_id": "message",
-                "group": 0,
-                "match_index": {
-                 "index": 0,
-                 "is_offset": true
-                }
+                "group": 0
                }
               }
              ]
@@ -742,11 +666,7 @@
               {
                "capture": {
                 "var_id": "messageLength",
-                "group": 0,
-                "match_index": {
-                 "index": 0,
-                 "is_offset": true
-                }
+                "group": 0
                }
               }
              ]
@@ -773,11 +693,7 @@
                  {
                   "capture": {
                    "var_id": "messageWidth",
-                   "group": 0,
-                   "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                   }
+                   "group": 0
                   }
                  }
                 ]
@@ -795,11 +711,7 @@
                  {
                   "capture": {
                    "var_id": "messageText",
-                   "group": 0,
-                   "match_index": {
-                    "index": 0,
-                    "is_offset": true
-                   }
+                   "group": 0
                   }
                  },
                  {
@@ -821,11 +733,7 @@
                {
                 "capture": {
                  "var_id": "messageText",
-                 "group": 0,
-                 "match_index": {
-                  "index": 0,
-                  "is_offset": true
-                 }
+                 "group": 0
                 }
                },
                {

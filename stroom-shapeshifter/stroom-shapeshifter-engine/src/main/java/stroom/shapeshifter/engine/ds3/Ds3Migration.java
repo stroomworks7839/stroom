@@ -95,6 +95,12 @@ public final class Ds3Migration {
     private final Map<String, SortedSet<Integer>> referencedGroups = new LinkedHashMap<>();
     private final Set<String> matchVars = new HashSet<>();
 
+    /**
+     * The vars a body computes from other variables — emitted as a {@code variable} instruction
+     * holding one value, declared as scalars and read without a match index (design 35 §5).
+     */
+    private final Set<String> computedVars = new HashSet<>();
+
     private Ds3Migration() {
     }
 
@@ -153,14 +159,21 @@ public final class Ds3Migration {
         return new Project("", 3, source, all, List.of());
     }
 
-    /** Every name the emitted templates bind — captures and the named bindings in their bodies — once each. */
-    private static List<Declaration> declarations(final List<Template> templates) {
+    /**
+     * Every name the emitted templates bind — captures and the named bindings in their bodies —
+     * once each: a capture's name is a list, indexed by the match that bound it; a computed
+     * var's is a scalar.
+     */
+    private List<Declaration> declarations(final List<Template> templates) {
         final java.util.Set<String> names = new java.util.LinkedHashSet<>();
         for (final Template template : templates) {
             template.captures().forEach(capture -> names.add(capture.name()));
             collectBound(template.body(), names);
         }
-        return names.stream().map(name -> new Declaration(name, Declaration.Type.LIST)).toList();
+        return names.stream()
+                .map(name -> new Declaration(name,
+                        computedVars.contains(name) ? Declaration.Type.SCALAR : Declaration.Type.LIST))
+                .toList();
     }
 
     /** The bound names in a body, descending into every instruction that carries one. */
@@ -340,6 +353,13 @@ public final class Ds3Migration {
         }
     }
 
+    /** Whether a reference can be answered from the match alone: literal text and local groups. */
+    private static boolean localOnly(final RefExpression reference) {
+        return reference.parts().stream().allMatch(part ->
+                part instanceof RefPart.Text
+                || (part instanceof RefPart.Capture capture && capture.varId() == null));
+    }
+
     /**
      * A {@code <var>}: a capture when it names a group, an output instruction when it computes.
      *
@@ -356,10 +376,7 @@ public final class Ds3Migration {
             return;
         }
         final RefExpression reference = LegacyRefs.parse(var.value());
-        final boolean localOnly = reference.parts().stream().allMatch(part ->
-                part instanceof RefPart.Text
-                || (part instanceof RefPart.Capture capture && capture.varId() == null));
-        if (localOnly) {
+        if (localOnly(reference)) {
             captures.add(new CaptureBinding(var.id(), new CaptureSource.Select(reference), null));
         } else {
             body.add(new OutputNode.Variable(var.id(),
@@ -486,6 +503,10 @@ public final class Ds3Migration {
             final String name = matchVars.contains(capture.varId())
                     ? varGroupName(capture.varId(), capture.group())
                     : capture.varId();
+            if (computedVars.contains(capture.varId())) {
+                // One value, bound in order before it is read: no position to select.
+                return new RefPart.Capture(name, 0, null);
+            }
             return new RefPart.Capture(
                     name,
                     0,
@@ -537,6 +558,9 @@ public final class Ds3Migration {
                     matchVars.add(var.id());
                 } else {
                     scanForVarReads(var.value());
+                    if (!localOnly(LegacyRefs.parse(var.value()))) {
+                        computedVars.add(var.id());
+                    }
                 }
             }
             case final Ds3Config.Group group -> scanForVarReads(group.value());

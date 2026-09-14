@@ -49,6 +49,7 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -511,17 +512,16 @@ final class Body {
     }
 
     /**
-     * Bind a name to one value, absence included: assign a scalar; put at this match's position
-     * in a list. What a scalar bind means for a list is design 35 phase 4's question; until then
-     * it is the match-indexed write a capture makes.
+     * Bind a name to one value, absence included. The compiler refuses a one-value binder on a
+     * list-declared name (design 35 §5), so the one way here with a list is a {@code variable}
+     * whose body wrote text rather than capturing — which has no position to go to, and stops.
      */
     private void bind(final VarName name, final int matchCount, final TypedValue value) {
-        if (vars.typeOf(name) == Declaration.Type.LIST) {
-            // Match numbers are 1-based positions; the list is indexed from 0 (design 35 §5).
-            vars.setAt(name, matchCount - 1, value);
-        } else {
-            vars.set(name, value);
+        if (vars.typeOf(name) != Declaration.Type.SCALAR) {
+            fatal("'" + name + "' is declared as a " + vars.typeOf(name).name().toLowerCase(Locale.ROOT)
+                  + ", and a variable body that writes text binds one value: append to it, or declare it a scalar");
         }
+        vars.set(name, value);
     }
 
     /**

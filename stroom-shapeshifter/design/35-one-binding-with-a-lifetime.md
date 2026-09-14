@@ -947,6 +947,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Declaration** | A variable must be declared, with a scope and a type. Using an undeclared name is a compile error, as an unwritable name already is — so scope and type are never inferred from position. Every native fixture gains declarations, which §0 permits and which is real work. | §4 |
 | **Typing** | The type is part of the declaration, not inferred from first assignment. Inference survives as a check. | §5 |
 | **Types** | All four: scalar, list, map, set. | §5 |
+| **Assignment to a list** | Plain assignment is a compile error: a binder that produces one value — a transform, a call, a `variable` whose body writes text — may not name a list; a list is filled by `append`, by a capture, or by a `variable` whose body captures into it. *Built after the final audit, 2026-09-14: phase 4 had deferred it and the corpus was carrying eleven per-record scalars declared as lists to survive.* | §5 |
 | **Collections** | Are `TypedValue`s, and therefore nest. The earlier flat restriction was wrong and its reasoning is kept in §5. | §5 |
 | **Equality** | **Canonical per type, everywhere** — set membership, map keys, conditions, `ValueMap` lookup. Numbers compare numerically; text compares by decoded string, so encoding is irrelevant; different types are never equal, so `1` and `"1"` differ. *Phase 0 found the structural `equals` and the typed `eq` already behave this way*; what changes is the string-form family — `DistinctValues`, `ValueMap`, and the legacy `equals` alias, which needs its own ruling. | §5 |
 | **Nesting and keys** | Collections nest as *values* — `map` of `map`, `map` of `list`, `list` of `list`. They are refused as set members and map keys, at compile time. Type checking is one level deep: a declaration says `map`, not `map of map`, so a nested read is a run-time fact. That is the price of no generics, and it is paid where the shapes this engine builds are one level deep anyway. | §5 |
@@ -961,7 +962,7 @@ default, so that a configuration asking for "the last one that matched" says so.
 | **Block scope** | A declaration's scope is the execution it is written in, and a `for-each`, `call-template` or `variable` body is an execution. All six of `Body`'s pushes become the one declaration mechanism; `recursiveShadow()` goes, since declaration-on-entry shadows exactly what the entered template declares where that flattened every candidate's capture names. | §4 |
 | **`Param`** | Folds into the unified declaration *(reversing the 2026-09-13 ruling)*: under block scope a parameter is a declaration scoped to the callee's body. No binder remains outside. | §4 |
 | **Size guard** | One run-wide live-element counter: every `append` or `put` increments it, every collection caches its own total so a clear or scope-exit decrements in O(1). Nesting is irrelevant because the counter measures exactly what the promise is about — total live elements — whatever shape they are in. | §5, §8 |
-| **Operation names** | After XPath 3.1's `array:` and `map:` libraries, which this language already follows: `append`, `insert`, `put`, `remove`, `get`, `size`, `contains`, `keys`, plus `add` for a set, which XPath has no equivalent of. Positions are 1-based, as XPath's are and as the engine's match counts already are. `for-each` over a map binds two names, after `map:for-each`. | §5 |
+| **Operation names** | After XPath 3.1's `array:` and `map:` libraries, which this language already follows: `append`, `insert`, `put`, `remove`, `get`, `size`, `contains`, `keys`, and `put` for a set — *amended by phase 4: `add` is design 17's numeric addition* — which XPath has no equivalent of. Positions are 1-based, as XPath's are and as the engine's match counts already are. `for-each` over a map binds two names, after `map:for-each`. | §5 |
 | **The collapse** | Design 16's `Sequence`, `Append`, `DistinctValues`, the five folds, `Key`, `KeyGet` and `ValueMap` fold into declarations, collection types, operations and functions — ten of `Binding`'s twelve, plus the separate key and sequence namespaces. `Transform` and `Variable` remain as *value sources*, not binders. | §5 |
 | **`equals`, `not-equals`, `ref-equals`** | **Retired** *(ruled 2026-09-14)* — the whole string-form family design 17 §8 names together. `ref-equals` compared two references with both-absent-is-equal, the DS3-era rule the strict `eq` rejects; it had no users, no writer arm and no migration emitting it. A string comparison is now written as `eq` with `as: string` on the operands — said, not implied by a spelling — and `equals($x, "")` keeps compiling to `not(exists($x))`. Phase 0 checked the blast radius: `Ds3Migration` never emits `equals`, so the legacy goldens are untouched; twelve native fixtures and four unit tests use it and are rewritten in phase 1. One equality rule, no exceptions. | §5 |
 | **DS3 migration** | Declares **everything on the source**, which is run lifetime. `root.clear()` runs once per parse and never between records, so that is provably faithful and is the only option that cannot move a golden. Migrated configurations will not demonstrate the new scoping, which is a cost worth paying for correctness by construction. | §4 |
@@ -1007,11 +1008,15 @@ it was reading DS3's source. So:
   increment has a matching decrement. Aliasing — the same collection value reachable from two
   places — would double-count on append and under-decrement on clear, so either aliasing is
   refused or the counter is wrong in a way nothing would notice until a long stream ran out of
-  memory.
+  memory. *Answered by phase 4's ruling: a store copies a collection, so every collection has one
+  owner and nothing aliases; the counter counts nested elements, and each mechanism is held
+  by a sabotage.*
 - **If the model does not come out smaller.** §4 sets that as the test: fourteen binding
   constructs — twelve in `Binding` and two outside it — should become one declaration with several
   value sources. A
-  unification that adds a concept and keeps the old ones has failed on its own terms.
+  unification that adds a concept and keeps the old ones has failed on its own terms. *Answered: `Binding` permits `Transform` and `Variable`, `OutputNode` has 53 records where it
+  had 60, and `win_sec` is 16 templates and 43 declarations where it was 61 and 95 (phases 4 and
+  5).*
 - **If one scope rule is not enough.** The CSV headings live on the source and the record fields
   on the record template, both of which the one rule covers. A case wanting something *per
   dispatch* rather than per execution would mean the model is under-powered and the special cases
@@ -1504,6 +1509,20 @@ it. And a record whose first `Security ID` lies inside a section a section templ
 `fields` carrying the previous record's. Every event here opens with `Subject:` except the 4688,
 whose first `Security ID` is under `Creator Subject:`, which no section template takes, so the two
 agree on all eleven.
+
+*A final audit of the code against the rulings, 2026-09-14.* Seventeen of the twenty-one held
+as written. §5's "plain assignment to a list is a compile error" did not: phase 4 had deferred it,
+and a transform, a call or a `variable` binding a list-declared name was accepted and put its
+value at the current match's position — DS3's match-indexed write surviving under a new name.
+Eleven fixtures were carrying it: `record_body`, `query_body` and the `text_007_exact` families
+are per-record scalars that the phase-2 analysis had typed as lists because they were read with
+`[+0]`. They are scalars now, read bare; the compiler refuses a one-value binder on a list; a
+`variable` — whose body may legitimately capture into its name, the promotion — is judged when it
+runs, and text into a list stops the run. The migration declares a computed `<var>` as a scalar
+and reads it without an index. §4's "a template cannot accumulate into a variable it declares
+itself" was true by construction and unpinned; it is pinned. The rulings table names `put` for a
+set, and §11's two answered risks say they are answered. What stays open is the one thing only
+the run can answer.
 
 *The last reservation went with this phase.* `group()` was the one engine function still held as
 a registry slot — interned first and always under the spelling `"group()"`, with `Names.group()`,

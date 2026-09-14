@@ -287,6 +287,7 @@ final class ReferenceCheck {
                 value.select().forEach(this::value);
                 if (value.name() != null) {
                     bind(value.name());
+                    oneValue(value.name());
                 }
             }
             // Tokenize with a name fills a list with the pieces (design/17 §16.4).
@@ -304,13 +305,18 @@ final class ReferenceCheck {
                     explicitSubstringStarts++;
                 }
                 transform(value.select(), value.name());
+                oneValue(value.name());
             }
             case OutputNode.ParseDate value -> {
                 transform(value.select(), value.name());
+                oneValue(value.name());
                 read(value.reference());
             }
             // Every other transform: its selects read, its name bound when it has one.
-            case OutputNode.Transform value -> transform(value.select(), value.name());
+            case OutputNode.Transform value -> {
+                transform(value.select(), value.name());
+                oneValue(value.name());
+            }
             // The mutations (design 35 §5): the target is a collection, read as one; the value
             // may be a collection too, which is how nesting is built.
             case OutputNode.Append value -> {
@@ -426,6 +432,18 @@ final class ReferenceCheck {
         };
     }
 
+
+    /**
+     * A binder that produces one value may not name a list (design 35 §5: plain assignment to a
+     * list is a compile error). A list is filled by {@code append}, by a capture, or by a
+     * {@code variable} whose body captures into it; one value has no position to go to.
+     */
+    private void oneValue(final String name) {
+        if (name != null) {
+            typedUses.add(new TypedUse(templateName, name, "binds one value to",
+                    Set.of(Declaration.Type.SCALAR)));
+        }
+    }
 
     /** The shape almost every instruction has: some selects read, an optional name bound. */
     private void transform(final List<RefExpression> select, final String name) {

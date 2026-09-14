@@ -53,11 +53,11 @@
       "declarations": [
         {
           "name": "query_body",
-          "type": "list"
+          "type": "scalar"
         },
         {
           "name": "results_body",
-          "type": "list"
+          "type": "scalar"
         }
       ],
       "match": {
@@ -109,11 +109,7 @@
                     {
                       "capture": {
                         "var_id": "query_body",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "group": 0
                       }
                     }
                   ]
@@ -136,11 +132,7 @@
                     {
                       "capture": {
                         "var_id": "query_body",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "group": 0
                       }
                     }
                   ]
@@ -168,11 +160,7 @@
                       {
                         "capture": {
                           "var_id": "query_body",
-                          "group": 0,
-                          "match_index": {
-                            "index": 0,
-                            "is_offset": true
-                          }
+                          "group": 0
                         }
                       }
                     ]
@@ -223,11 +211,7 @@
                     {
                       "capture": {
                         "var_id": "results_body",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "group": 0
                       }
                     }
                   ]
@@ -250,11 +234,7 @@
                     {
                       "capture": {
                         "var_id": "results_body",
-                        "group": 0,
-                        "match_index": {
-                          "index": 0,
-                          "is_offset": true
-                        }
+                        "group": 0
                       }
                     }
                   ]
@@ -282,11 +262,7 @@
                       {
                         "capture": {
                           "var_id": "results_body",
-                          "group": 0,
-                          "match_index": {
-                            "index": 0,
-                            "is_offset": true
-                          }
+                          "group": 0
                         }
                       }
                     ]

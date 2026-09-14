@@ -268,6 +268,55 @@ class CollectionSurfaceTest {
         assertThat(run(config(M, body))).isEqualTo("0false[]");
     }
 
+    /** Design 35 §5: plain assignment to a list is a compile error — one value has no position to go to. */
+    @Test
+    void oneValueBinderOnAListIsRefused() {
+        for (final String[] c : List.of(
+                new String[]{"{\"upper-case\": {\"select\": [{\"parts\": [{\"text\": \"a\"}]}], \"name\": \"l\"}}",
+                        "binds one value to 'l'"},
+                new String[]{"{\"number\": {\"select\": [{\"parts\": [{\"text\": \"1\"}]}], \"name\": \"l\"}}",
+                        "binds one value to 'l'"})) {
+            assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config(L, c[0]))))
+                    .as(c[0])
+                    .isInstanceOf(ConfigException.class)
+                    .hasMessageContaining(c[1])
+                    .hasMessageContaining("declared as a list");
+        }
+        // A variable's body can capture into its name — the promotion — so it is judged when it
+        // runs: text written into a list-declared name stops the run.
+        final String text = "{\"variable\": {\"name\": \"l\", \"body\": [{\"text\": \"a\"}]}}";
+        assertThat(messagesFrom(config(L, text)))
+                .anyMatch(m -> m.severity() == Severity.FATAL && m.text().contains("'l' is declared as a list"));
+    }
+
+    /**
+     * Design 35 §4: a template cannot accumulate into a variable it declares itself. Each
+     * execution declares its own, and exit restores it to what it was outside — unset.
+     */
+    @Test
+    void templateCannotAccumulateIntoAListItDeclaresItself() {
+        final String json = """
+                {"name": "t", "version": 5,
+                 "source": {"buffer_size": 2000, "ignore_errors": true},
+                 "templates": [
+                  {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                   "match": "source",
+                   "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "doc"}},
+                            {"text": "|"}, {"value-of": {"parts": [{"size": {"of": "own"}}]}}]},
+                  {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "doc",
+                   "declarations": [{"name": "own", "type": "list"}],
+                   "match": {"regex": {"pattern": "([^\\n]*)\\n"}},
+                   "body": [{"append": {"name": "own", "select": {"parts": [{"capture": {"group": 1}}]}}},
+                            {"value-of": {"parts": [{"size": {"of": "own"}}]}}]}]}
+                """;
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Shapeshifter.run(Shapeshifter.compile(ProjectReader.read(json)),
+                new ByteArrayInputStream("a\nb\nc\n".getBytes(StandardCharsets.UTF_8)), new XmlByteSink(out));
+        // Every line sees a list of one — its own — and after the last line has exited, the
+        // source sees the declared list as it is outside any execution: empty.
+        assertThat(out.toString(StandardCharsets.UTF_8)).isEqualTo("111|0");
+    }
+
     /** A key or position is a scalar: a collection there is refused where it is written. */
     @Test
     void collectionAsAKeyIsRefused() {
