@@ -193,9 +193,6 @@ public sealed interface TypedValue {
 
         private final byte[] value;
 
-        /** Computed once: a map key is hashed on every put and get, and the bytes never change. */
-        private int hash;
-
         private Utf8Bytes(final byte[] value) {
             this.value = value;
         }
@@ -223,10 +220,10 @@ public sealed interface TypedValue {
 
         @Override
         public int hashCode() {
-            if (hash == 0) {
-                hash = Arrays.hashCode(value);
-            }
-            return hash;
+            // Not cached: a field would grow every captured value from 16 to 24 bytes, and a
+            // capture is the engine's commonest allocation. A key is hashed once per put now,
+            // and a literal key's few bytes hash faster than a field read would save.
+            return Arrays.hashCode(value);
         }
 
         @Override
