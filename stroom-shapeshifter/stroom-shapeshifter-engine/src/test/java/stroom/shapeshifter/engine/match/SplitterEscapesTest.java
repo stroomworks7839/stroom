@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.match;
 
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.ByteSource;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import org.junit.jupiter.api.Test;
 
@@ -67,5 +68,21 @@ class SplitterEscapesTest {
         }
         field.append(",rest");
         assertThat(unescaped(field.toString())).isEqualTo(expected.toString());
+    }
+
+    /** One value per field over the window: the field and its delimiter share the one copy (design 37 §5, 3d). */
+    @Test
+    void fieldAndItsDelimiterShareOneCopyOverTheWindow() {
+        final byte[] data = "alpha,beta".getBytes(StandardCharsets.UTF_8);
+        final MatchResult result = Splitter.split(data, 0, data.length,
+                ",".getBytes(StandardCharsets.UTF_8), null, null, null, Encoding.UTF_8,
+                new ByteSource.Copying(data));
+        final TypedValue.Bytes whole = (TypedValue.Bytes) result.group(0);
+        final TypedValue.Bytes field = (TypedValue.Bytes) result.group(1);
+        assertThat(whole.asString()).isEqualTo("alpha,");
+        assertThat(field.asString()).isEqualTo("alpha");
+        assertThat(whole.utf8Array()).as("the root's one copy").isNotSameAs(data);
+        assertThat(field.utf8Array()).as("the field is a range of it").isSameAs(whole.utf8Array());
+        assertThat(result.group(2)).isSameAs(result.group(1));
     }
 }

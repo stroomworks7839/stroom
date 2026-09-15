@@ -420,6 +420,55 @@ with point 47's own `regex_lines` legs ranging 807 to 887 ops/s: the box, not th
 canaries `apache_httpd` and `progressive` were flat within a point on every round but one, so
 the seam costs nothing where nothing slices. The throughput reading is point 48, evening.
 
+**3d, built — 2026-09-15.** One rule for every arm: **a match makes one value, its span, and
+every group is a range of that value.** Over the window the span is the one copy the root
+makes; over a value it is a slice; the groups are slices either way, through `Bytes.range(from,
+to)` — positions relative to the value, in its bytes as read, its encoding — which is the 3b
+`slice(from, to)` back under a name that says what it is beside the source's absolute one.
+The regex arm takes the span's bounds over every group that took part, not from group 0,
+because a group inside a look-around lies outside the match (pinned by `SpanGroupsTest` at the
+root and one level down; no fixture does it). The delimiter arm's fast path makes one value
+for the field and its delimiter and the field is a range of it — one copy over the window
+where there were two — and its container path likewise; a field with escapes stripped is
+still a new array. `All` is one group and unchanged. The root regex on `log_sessions` made
+eight copies of a sixty-byte line per match and makes one.
+
+*What the bytes read*, one fork, against 3c: `regex_lines` −8.6%, `apache_httpd` −4.0%,
+`ausearch` −3.4%, `csv_header` −2.5%, `log_sessions` −1.6%, `win_sec` −0.1%, `progressive`
+0.0%. Cumulative from point 46: `regex_lines` 3.92 → 3.14 MB (−20%), `ausearch` 8.97 → 7.61
+(−15%), `win_sec` 3.87 → 3.38 (−13%). `log_sessions`' small number is its size: 21 MB per
+operation, most of it date parsing and `String`s, so eight copies to one per line is a
+sixtieth of it.
+
+*The run-lifetime compaction was not built, and the ruling should be re-read against the
+numbers.* Under 3d a stored root group pins its line rather than its own bytes. On
+`log_sessions`, the row 3a named, seven groups of each line are stored for the run: seven
+32-byte slices sharing one 80-byte line is 304 bytes where seven 48-byte copies were 336 —
+*less* retention, not more, and a compacting store would have to make the seven copies 3d
+just removed. Retention grows only where *few* groups of a *long* record are stored for the
+run — one ten-byte group of a kilobyte line pins the kilobyte — and no fixture does that.
+The bound is one record per stored value, which the live-element counter already bounds in
+count. So: no compaction, the trade written down here, and a heuristic (compact when a
+slice is a small fraction of its array) is the answer if a real feed ever shows the case.
+**This departs from the 2026-09-15 ruling that compaction is 3d's prerequisite, on the
+evidence above, and is flagged for the owner.**
+
+*Left on the table, priced.* A slice is 32 bytes and is now the largest allocation on the
+sliced rows; a UTF-8-only variant without the encoding and the memo would be 24. And the
+`Slicing` record per nested dispatch (16 bytes).
+
+*What the audit found, 2026-09-15.* `javap`: `regexMatch` had grown from 166 to 319 bytes —
+six under the hot-inline limit, on a method that inlines hot into the match loop on every
+regex row — because the span's bounds were a loop over the groups with a checked call per
+bound. The bounds belong to the matcher, which holds every group's slots in one array:
+`ByteMatcher.spanStart()`/`spanEnd()` answer them in one pass with no per-call check, and
+`regexMatch` is 261. Pinned in the regex module for a look-ahead, a look-behind and a group
+that did not take part. The splitter's container path was checked for bounds — the content
+end never passes the match end — and its fast path is pinned to share one array between the
+field and its delimiter. The encoded case was traced: a range of a span is over the bytes as
+read with the span's encoding, so a Latin-1 root's groups decode exactly as their copies did.
+Every method the diff touched: `match` 232 → 236, `splitOnByte` 127 → 134, `build` 196 → 197.
+
 **Progressive is the same rule.** `Steps.take` copies (4.7% of `progressive`) and group 0 is a
 copy of the span (5.3%); over a root window they stay copies, over a nested value they are
 slices. Phase 9 takes that as given.
@@ -703,11 +752,11 @@ shape of every switch over it and shape has bitten twice.
   a range into `Level.dispatch`. The payoff. Gate: B/op on `regex_lines` and `ausearch` falls by
   most of the nested share (61%, 63%); interleave on every regex row with `progressive`,
   `apache_httpd` and `csv_header` as canaries.
-- **3d, the root copies once per match and its groups are slices of the span**, with the
-  run-lifetime store compacting a slice into its own array (3a shows `log_sessions` would
-  otherwise pin a record per stored group). `log_sessions` is the row; whether one span copy
-  beats per-group copies depends on how much of the span the groups cover. May lose; its own
-  point either way. The splitter's record copies are the same question.
+- **3d, a match makes one value and its groups are ranges of it.** Built 2026-09-15 (§5).
+  The run-lifetime compaction was not built: on the row 3a named, seven stored groups sharing
+  one line retain less than seven copies did, and compaction would remake the copies; the
+  trade and the case that would change it are in §5, and the departure from the ruling is
+  flagged. Its own point.
 
 ### Phase 4 — what insertion order costs
 

@@ -145,12 +145,11 @@ public final class Splitter {
             if (data[i] == delimiter) {
                 // Groups 1 and 2 are the same bytes here, so they are the same value: one
                 // object per field fewer on the hottest delimiter path.
-                final TypedValue content = source.slice(from, i, encoding);
-                return new MatchResult(new TypedValue[]{
-                        source.slice(from, i + 1, encoding),
-                        content,
-                        content},
-                        i + 1 - from, 0);
+                // One value for the field and its delimiter, and the field is a range of it
+                // (design 37 §5, phase 3d): one copy over the window where there were two.
+                final TypedValue.Bytes whole = (TypedValue.Bytes) source.slice(from, i + 1, encoding);
+                final TypedValue content = whole.range(0, i - from);
+                return new MatchResult(new TypedValue[]{whole, content, content}, i + 1 - from, 0);
             }
         }
         final TypedValue content = source.slice(from, to, encoding);
@@ -192,16 +191,17 @@ public final class Splitter {
             }
         }
 
+        // One value for the match, and the field is a range of it (design 37 §5, phase 3d).
         // Group 2 is group 1 with the escapes stripped, and the same value when there are none;
         // a stripped field is a new array whatever the source, so it is a whole value.
-        final TypedValue content = source.slice(contentStart, Math.max(contentStart, contentEnd), encoding);
+        final TypedValue.Bytes whole = (TypedValue.Bytes) source.slice(from, matchEnd, encoding);
+        final TypedValue content = whole.range(contentStart - from, Math.max(contentStart, contentEnd) - from);
         final TypedValue unescaped = escapeCount == 0
                 ? content
                 : TypedValue.of(stripEscapes(data, contentStart, contentEnd, escape.length,
                         escapes, escapeCount), encoding);
 
-        return new MatchResult(new TypedValue[]{
-                source.slice(from, matchEnd, encoding), content, unescaped}, matchEnd - from, 0);
+        return new MatchResult(new TypedValue[]{whole, content, unescaped}, matchEnd - from, 0);
     }
 
     private static byte[] stripEscapes(final byte[] data,

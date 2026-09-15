@@ -194,6 +194,13 @@ public sealed interface TypedValue {
             return new ByteSource.Slicing(utf8Array());
         }
 
+        /**
+         * A part of these bytes as a value: positions relative to this value, in the bytes as
+         * read, the same encoding (design 37 §5, phase 3d). This is how a match's groups are
+         * made — the match makes one value, its span, and every group is a range of that.
+         */
+        Bytes range(int from, int to);
+
         /** The array the UTF-8 form lives in; read it with {@link #utf8Offset()} and {@link #utf8Length()}. */
         default byte[] utf8Array() {
             return asUtf8();
@@ -291,6 +298,11 @@ public sealed interface TypedValue {
             return Encoding.UTF_8;
         }
 
+        @Override
+        public Bytes range(final int from, final int to) {
+            return new ByteSlice(value, from, to, Encoding.UTF_8);
+        }
+
         /** The array itself: one hop on the accessor every read and every write goes through. */
         @Override
         public byte[] asUtf8() {
@@ -355,6 +367,11 @@ public sealed interface TypedValue {
         @Override
         public Encoding encoding() {
             return encoding;
+        }
+
+        @Override
+        public Bytes range(final int from, final int to) {
+            return new ByteSlice(value, from, to, encoding);
         }
 
         @Override
@@ -455,6 +472,12 @@ public sealed interface TypedValue {
         @Override
         public Encoding encoding() {
             return encoding;
+        }
+
+        /** A range of this range: the same array, positions rebased — a slice never nests. */
+        @Override
+        public Bytes range(final int rangeFrom, final int rangeTo) {
+            return new ByteSlice(array, from + rangeFrom, from + rangeTo, encoding);
         }
 
         @Override

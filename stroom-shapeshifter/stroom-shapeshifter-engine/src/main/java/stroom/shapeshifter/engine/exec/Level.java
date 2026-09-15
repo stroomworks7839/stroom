@@ -702,23 +702,31 @@ final class Level {
         if (!matcher.match(data, from, to, question)) {
             return null;
         }
+        // The match makes one value, its span, and every group is a range of that (design 37
+        // §5, phase 3d): over the window the span is the one copy the root makes, over a value
+        // it is a slice, and the groups are slices either way. The span is group 0 unless a
+        // group in a look-around lies outside it; the matcher knows, from every group's slots.
         final int groupCount = regex.pattern().groupCount() + 1;
+        final int spanFrom = matcher.spanStart();
+        final int spanTo = matcher.spanEnd();
+        final TypedValue.Bytes span = (TypedValue.Bytes) source.slice(spanFrom, spanTo, encoding);
         final TypedValue[] groups = new TypedValue[groupCount];
-        for (int i = 0; i < groupCount; i++) {
+        final int start = matcher.start();
+        final int stop = matcher.end();
+        groups[0] = spanFrom == start && spanTo == stop ? span : span.range(start - spanFrom, stop - spanFrom);
+        for (int i = 1; i < groupCount; i++) {
             if (matcher.matchedGroup(i)) {
-                // The group as the source makes it: a copy over the window, a slice over a
-                // value. The matcher reports offsets; it copies nothing (design 37 §5).
-                groups[i] = source.slice(matcher.start(i), matcher.end(i), encoding);
+                groups[i] = span.range(matcher.start(i) - spanFrom, matcher.end(i) - spanFrom);
             }
         }
 
         // The cursor normally lands at the end of the match. A template can ask for the end of a
         // group instead, which is how a pattern looks further ahead than it consumes.
-        int end = matcher.end();
+        int end = stop;
         if (regex.advance() > 0 && regex.advance() < groupCount && matcher.matchedGroup(regex.advance())) {
             end = matcher.end(regex.advance());
         }
-        return new MatchResult(groups, end - from, matcher.start() - from);
+        return new MatchResult(groups, end - from, start - from);
     }
 
     private void bindCaptures(final CompiledTemplate compiledTemplate,

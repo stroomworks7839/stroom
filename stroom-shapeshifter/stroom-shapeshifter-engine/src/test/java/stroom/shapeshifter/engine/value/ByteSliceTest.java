@@ -99,6 +99,25 @@ class ByteSliceTest {
         assertThat(((TypedValue.Bytes) copied).utf8Array()).isNotSameAs(RECORD);
     }
 
+    /** A match makes one value and its groups are ranges of it: relative positions, same encoding, one array. */
+    @Test
+    void rangeIsRelativeAndNeverNests() {
+        final TypedValue.Bytes whole = (TypedValue.Bytes) TypedValue.of("key=value");
+        final TypedValue.Bytes group = whole.range(4, 9);
+        assertThat(group).isEqualTo(slice());
+        assertThat(group.utf8Array()).as("over the value's own array").isSameAs(whole.utf8Array());
+
+        final TypedValue.Bytes inner = slice().range(1, 3);
+        assertThat(inner.asString()).isEqualTo("al");
+        assertThat(inner.utf8Array()).as("a range of a slice is a slice of the array").isSameAs(RECORD);
+        assertThat(inner.utf8Offset()).isEqualTo(5);
+
+        final byte[] latin = "café au lait".getBytes(StandardCharsets.ISO_8859_1);
+        final TypedValue.Bytes encoded = (TypedValue.Bytes) TypedValue.of(latin, Encoding.LATIN_1);
+        assertThat(encoded.range(0, 4).asString()).as("positions in the bytes as read").isEqualTo("café");
+        assertThat(encoded.range(0, 4).encoding()).isEqualTo(Encoding.LATIN_1);
+    }
+
     /** A slice in another encoding decodes its range, and its UTF-8 form is made once. */
     @Test
     void encodedSliceDecodesItsRange() {
