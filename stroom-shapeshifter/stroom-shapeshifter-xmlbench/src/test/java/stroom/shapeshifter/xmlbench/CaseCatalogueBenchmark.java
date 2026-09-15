@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.xmlbench;
 
+import stroom.shapeshifter.engine.Message;
+import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.graph.CompiledProject;
@@ -39,6 +41,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.xml.transform.Templates;
 import javax.xml.transform.Transformer;
@@ -104,7 +107,16 @@ public class CaseCatalogueBenchmark {
     @Benchmark
     public int shapeshifterTransform() {
         final ByteArrayOutputStream out = new ByteArrayOutputStream(input.length * 2);
-        Shapeshifter.run(challenger, new ByteArrayInputStream(input), new XmlByteSink(out));
+        final List<Message> messages = Shapeshifter.run(challenger, new ByteArrayInputStream(input),
+                new XmlByteSink(out));
+        // A run that ended in a fatal did less than the job, and a benchmark that measured it
+        // would call an aborted run a fast one: on 2026-09-15 four cases at 100,000 units
+        // tripped the run-wide sequence bound and read 5x to 22x. The harness refuses.
+        for (final Message message : messages) {
+            if (message.severity() == Severity.FATAL) {
+                throw new IllegalStateException(benchCase + " at " + units + " units: " + message.text());
+            }
+        }
         return out.size();
     }
 

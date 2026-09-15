@@ -310,3 +310,52 @@ is still in the challenger, still measured, and now costs almost nothing because
 collapses it — an author no longer has to know. As of the `2223-45823464dc` full set the
 catalogue stood at sixteen cases with this its only loss; it now stands at sixteen wins,
 1.13× to 8.71×.
+
+## The second full reading (2026-09-15, run `2235-f54112dc94`, the new box)
+
+*Nothing had been measured against Saxon since 2026-08-28, on the CPU replaced 2026-09-02, and
+before designs 25 to 37. This is the first reading on this machine, at design 37's point 50.
+Only the within-run ratio compares across the box change; the milliseconds do not.*
+
+| case, 100k units | Saxon ms | shapeshifter ms | ratio now | ratio 2026-08-27 |
+|---|--:|--:|--:|--:|
+| dates | 2,781 | 288 | **9.66×** | 8.71× |
+| comparison | 179 | 32 | **5.65×** | 4.62× |
+| computed_names | 95 | 20 | **4.77×** | 4.00× |
+| analyze_string | 98 | 27 | **3.61×** | 2.98× |
+| reference | 467 | 134 | **3.49×** | 2.25× |
+| modes | 432 | 148 | **2.92×** | 1.79× |
+| value_types | 74 | 30 | **2.48×** | 2.13× |
+| string_functions | 229 | 98 | **2.34×** | 2.18× |
+| sort | 101 | 44 | **2.29×** | 1.62× |
+| adjacent_groups | 32 | 14 | **2.24×** | 2.05× |
+| aggregate | 37 | 22 | **1.70×** | 1.47× |
+| sequence_basics | 35 | 22 | **1.62×** | 1.36× |
+| arithmetic | 159 | 101 | **1.57×** | 1.53× |
+| keys_grouping | 33 | 21 | **1.55×** | 1.13× |
+| nasty_xml | 406 | 267 | **1.52×** | 1.21× (after the prefix skip) |
+| keys_lookup | 33 | 25 | **1.33×** | 1.33× |
+
+| events, 1M records | ms | MiB/s-equivalent |
+|---|--:|--:|
+| SAX parse alone (the floor) | 1,135 | — |
+| Saxon identity | 4,527 | — |
+| **Saxon + EVENTS stylesheet** | **5,793** | — |
+| **shapeshifter** | **1,331** | — |
+
+Sixteen cases, sixteen wins, every ratio at or above its August value; the events head-to-head
+**4.35×** where it was 3.35×, the challenger 17% above the SAX floor where it was 40% above.
+The largest movements are the reference-heavy and map rows — `modes` 1.79 → 2.92×, `reference`
+2.25 → 3.49×, `keys_grouping` 1.13 → 1.55×, `sort` 1.62 → 2.29× — which is where designs 30,
+35 and 37 did their work; `keys_lookup` alone is unmoved at 1.33×.
+
+**What the run caught in the harness.** Four cases at 100,000 units — `sort`, `aggregate`,
+`keys_grouping`, `keys_lookup` — read 5× to 22×, faster at 100k than at 10k. They were
+aborting: design 35 made `max_sequence_entries` a run-wide, nested-element count, the default
+is 100,000, and each of those cases holds one entry per unit; the run ended with a fatal after
+a few dozen bytes of output and the benchmark, which never read the messages, timed the
+abort. Two fixes, both in this reading: `CaseCatalogueBenchmark.shapeshifterTransform` throws
+on a fatal, so an aborted run can never again be measured; and the four challengers declare
+`max_sequence_entries` of 1,000,000, which is the size of the job they do. The four rows above
+are from the re-run (`2305-f54112dc94-xml-rerun4`) with parity re-checked; the other twelve
+and the events rows are from the full run.

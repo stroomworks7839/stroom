@@ -3,6 +3,7 @@
  "version": 5,
  "source": {
   "buffer_size": 4000000,
+  "max_sequence_entries": 1000000,
   "ignore_errors": false,
   "encoding": "utf-8"
  },
