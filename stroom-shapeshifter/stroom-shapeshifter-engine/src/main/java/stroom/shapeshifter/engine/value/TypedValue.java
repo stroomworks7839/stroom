@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.value;
 
+import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.text.Encoding;
 
 import java.nio.charset.StandardCharsets;
@@ -87,16 +88,46 @@ public sealed interface TypedValue {
     Boolean asBoolean();
 
     /**
-     * Whether an object is exactly one of the byte variants — the two classes that share text
+     * Whether an object is exactly one of the byte variants — the three classes that share text
      * equality. An exact class compare rather than {@code instanceof Bytes}: every variant here
      * is final, so on a final class the two are the same klass-word compare, but {@code Bytes}
      * and {@link Collection} are <i>interfaces</i>, and an interface test is a secondary-supers
-     * lookup. The equalities below test classes, not interfaces, for that reason; where two
-     * classes qualify, two compares are written out.
+     * lookup. The equalities below test classes, not interfaces, for that reason; where several
+     * classes qualify, the compares are written out, commonest first.
      */
     private static boolean isBytes(final Object other) {
         return other != null
-               && (other.getClass() == Utf8Bytes.class || other.getClass() == EncodedBytes.class);
+               && (other.getClass() == Utf8Bytes.class
+                   || other.getClass() == EncodedBytes.class
+                   || other.getClass() == ByteSlice.class);
+    }
+
+    /**
+     * Whether two byte values hold the same text, compared over their UTF-8 ranges without
+     * materialising either — the one equality every byte variant answers with (design 37 §5).
+     */
+    private static boolean sameText(final Bytes a, final Bytes b) {
+        final int aFrom = a.utf8Offset();
+        final int bFrom = b.utf8Offset();
+        return Arrays.equals(a.utf8Array(), aFrom, aFrom + a.utf8Length(),
+                b.utf8Array(), bFrom, bFrom + b.utf8Length());
+    }
+
+    /** Two byte values ordered by their UTF-8 ranges, unsigned, without materialising either. */
+    static int compareText(final Bytes a, final Bytes b) {
+        final int aFrom = a.utf8Offset();
+        final int bFrom = b.utf8Offset();
+        return Arrays.compareUnsigned(a.utf8Array(), aFrom, aFrom + a.utf8Length(),
+                b.utf8Array(), bFrom, bFrom + b.utf8Length());
+    }
+
+    /** {@link Arrays#hashCode(byte[])} over a range: what every byte variant's hash must equal. */
+    private static int hashText(final byte[] array, final int from, final int length) {
+        int hash = 1;
+        for (int i = from, end = from + length; i < end; i++) {
+            hash = 31 * hash + array[i];
+        }
+        return hash;
     }
 
     /**
@@ -118,6 +149,17 @@ public sealed interface TypedValue {
         return target.isUtf8Compatible() ? asUtf8() : target.encode(asString());
     }
 
+    /**
+     * Write the value to a sink in the sink's encoding. Each variant answers for itself (E43):
+     * here, by asking for its bytes in that encoding; {@link Bytes} overrides to write its
+     * UTF-8 <i>range</i> to a UTF-8 sink, so a slice goes out without a copy (design 37 §5).
+     * The method is small on purpose — it is the body of {@code Output.write}, and that must
+     * stay under the JIT's inline size at every one of its call sites.
+     */
+    default void writeTo(final OutputSink sink, final Encoding target) {
+        sink.write(bytes(target));
+    }
+
     // -----------------------------------------------------------------------------------
     // Bytes: what a capture holds
     // -----------------------------------------------------------------------------------
@@ -127,13 +169,53 @@ public sealed interface TypedValue {
      * transcoded when a value is captured, stored, bound or passed; a consumer that needs text
      * asks for {@link #asUtf8()}. Two values are equal when their text is.
      *
-     * <p>Two variants, because the common one needs less (E43): a UTF-8-compatible feed's bytes
-     * are already their own UTF-8 form, so {@link Utf8Bytes} holds the array alone.
+     * <p>Three variants. The common one needs less (E43): a UTF-8-compatible feed's bytes are
+     * already their own UTF-8 form, so {@link Utf8Bytes} holds the array alone. {@link ByteSlice}
+     * holds a range of an array it does not own (design 37 §5) — a group of a match below the
+     * root, over the array the root copied — and materialises a whole array only when asked.
+     *
+     * <p><b>The UTF-8 form is a range</b>: {@link #utf8Array()}, {@link #utf8Offset()},
+     * {@link #utf8Length()}. A whole value's range is its array from zero; a slice's is the
+     * slice. The consumers that matter — the output write, comparison, equality, hashing — read
+     * the range and never ask for the array, so a slice written out or looked up costs no copy.
      */
-    sealed interface Bytes extends TypedValue permits Utf8Bytes, EncodedBytes {
+    sealed interface Bytes extends TypedValue permits Utf8Bytes, EncodedBytes, ByteSlice {
 
-        /** The bytes as read, in {@link #encoding()}. */
+        /** The bytes as read, in {@link #encoding()}; a slice answers a copy of its range. */
         byte[] value();
+
+        /**
+         * A range of these bytes as a value, sharing the array (design 37 §5). Positions are
+         * in the bytes as read, which is what a matcher over them reports. This is the answer
+         * an immutable byte source gives a match made over it; the input window, whose bytes
+         * move, answers the same question with a copy.
+         */
+        Bytes slice(int from, int to);
+
+        /** The array the UTF-8 form lives in; read it with {@link #utf8Offset()} and {@link #utf8Length()}. */
+        default byte[] utf8Array() {
+            return asUtf8();
+        }
+
+        /** Where the UTF-8 form starts in {@link #utf8Array()}. */
+        default int utf8Offset() {
+            return 0;
+        }
+
+        /** How long the UTF-8 form is. */
+        default int utf8Length() {
+            return asUtf8().length;
+        }
+
+        /** The UTF-8 range to a UTF-8 sink, uncopied; anything else transcodes as the interface does. */
+        @Override
+        default void writeTo(final OutputSink sink, final Encoding target) {
+            if (target.isUtf8Compatible()) {
+                sink.write(utf8Array(), utf8Offset(), utf8Length());
+            } else {
+                sink.write(bytes(target));
+            }
+        }
 
         /**
          * The transcoding class these bytes are in, not the label the author wrote: the
@@ -207,6 +289,11 @@ public sealed interface TypedValue {
             return Encoding.UTF_8;
         }
 
+        @Override
+        public Bytes slice(final int from, final int to) {
+            return new ByteSlice(value, from, to, Encoding.UTF_8);
+        }
+
         /** The array itself: one hop on the accessor every read and every write goes through. */
         @Override
         public byte[] asUtf8() {
@@ -215,7 +302,18 @@ public sealed interface TypedValue {
 
         @Override
         public boolean equals(final Object other) {
-            return isBytes(other) && Arrays.equals(value, ((Bytes) other).asUtf8());
+            // The commonest case — a key against a key — is one klass compare and one array
+            // compare, and the method stays under the JIT's inline size (28 bytes; 54 with the
+            // other two variants written in here, which stopped it inlining at cold sites).
+            if (other instanceof final Utf8Bytes same) {
+                return Arrays.equals(value, same.value);
+            }
+            return equalsOtherText(other);
+        }
+
+        /** The other two byte variants, reached through their UTF-8 range. */
+        private boolean equalsOtherText(final Object other) {
+            return isBytes(other) && sameText(this, (Bytes) other);
         }
 
         @Override
@@ -263,6 +361,11 @@ public sealed interface TypedValue {
         }
 
         @Override
+        public Bytes slice(final int from, final int to) {
+            return new ByteSlice(value, from, to, encoding);
+        }
+
+        @Override
         public byte[] asUtf8() {
             if (utf8 == null) {
                 utf8 = encoding.decode(value).getBytes(StandardCharsets.UTF_8);
@@ -291,12 +394,136 @@ public sealed interface TypedValue {
                     return true;
                 }
             }
-            return Arrays.equals(asUtf8(), ((Bytes) other).asUtf8());
+            return sameText(this, (Bytes) other);
         }
 
         @Override
         public int hashCode() {
             return Arrays.hashCode(asUtf8());
+        }
+
+        @Override
+        public String toString() {
+            return asString();
+        }
+    }
+
+    /**
+     * A range of an array the value does not own (design 37 §5): a group of a match made below
+     * the root, over the array the root copied out of the input window. Nothing is copied to
+     * make one, and nothing is copied to write one out, compare it, look it up or hash it —
+     * those read the range. A whole array is made only when a consumer asks for one
+     * ({@link #value()}, {@link #asUtf8()}), and then once, memoised, since the run is
+     * single-threaded.
+     *
+     * <p>The array is stable for as long as the value is reachable: the root copies what the
+     * window presents, and every match below it runs over that copy or a range of it. A slice
+     * therefore keeps its whole parent array alive, which is bounded by one root match; a store
+     * that outlives the root match compacts it (phase 3d).
+     *
+     * <p>Thirty-two bytes with compressed references against {@code Utf8Bytes}' sixteen, and
+     * no {@code byte[]} beside it — the trade the whole phase is about.
+     */
+    final class ByteSlice implements Bytes {
+
+        private final byte[] array;
+        private final int from;
+        private final int to;
+        private final Encoding encoding;
+
+        /** The whole-array form, made on the first ask and kept. */
+        private byte[] whole;
+
+        private ByteSlice(final byte[] array, final int from, final int to, final Encoding encoding) {
+            this.array = array;
+            this.from = from;
+            this.to = to;
+            this.encoding = encoding;
+        }
+
+        /** The array this is a range of, and the range: what a match over the slice reads. */
+        public byte[] array() {
+            return array;
+        }
+
+        public int from() {
+            return from;
+        }
+
+        public int to() {
+            return to;
+        }
+
+        @Override
+        public byte[] value() {
+            // For a UTF-8-compatible encoding this is also asUtf8(); share the memo.
+            return encoding.isUtf8Compatible() ? asUtf8() : Arrays.copyOfRange(array, from, to);
+        }
+
+        @Override
+        public Encoding encoding() {
+            return encoding;
+        }
+
+        /** A range of this range: the same array, positions rebased — a slice never nests. */
+        @Override
+        public Bytes slice(final int sliceFrom, final int sliceTo) {
+            return new ByteSlice(array, from + sliceFrom, from + sliceTo, encoding);
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return to == from;
+        }
+
+        @Override
+        public byte[] asUtf8() {
+            if (whole == null) {
+                whole = encoding.isUtf8Compatible()
+                        ? Arrays.copyOfRange(array, from, to)
+                        : encoding.decode(array, from, to - from).getBytes(StandardCharsets.UTF_8);
+            }
+            return whole;
+        }
+
+        @Override
+        public byte[] utf8Array() {
+            return encoding.isUtf8Compatible() ? array : asUtf8();
+        }
+
+        @Override
+        public int utf8Offset() {
+            return encoding.isUtf8Compatible() ? from : 0;
+        }
+
+        @Override
+        public int utf8Length() {
+            return encoding.isUtf8Compatible() ? to - from : asUtf8().length;
+        }
+
+        @Override
+        public String asString() {
+            return encoding.isUtf8Compatible()
+                    ? new String(array, from, to - from, StandardCharsets.UTF_8)
+                    : encoding.decode(array, from, to - from);
+        }
+
+        @Override
+        public byte[] bytes(final Encoding target) {
+            if (target.isUtf8Compatible()) {
+                return asUtf8();
+            }
+            return target == encoding ? Arrays.copyOfRange(array, from, to) : target.encode(asString());
+        }
+
+        @Override
+        public boolean equals(final Object other) {
+            return isBytes(other) && sameText(this, (Bytes) other);
+        }
+
+        @Override
+        public int hashCode() {
+            return hashText(utf8Array(), utf8Offset(), utf8Length());
         }
 
         @Override
@@ -992,6 +1219,15 @@ public sealed interface TypedValue {
         return encoding.isUtf8Compatible()
                 ? new Utf8Bytes(value)
                 : new EncodedBytes(value, encoding);
+    }
+
+    /**
+     * A range of an array, as a value, without copying (design 37 §5). The caller vouches that
+     * the array is stable for as long as the value is reachable — it is a root match's copy or
+     * a range of one, never the input window itself.
+     */
+    static TypedValue slice(final byte[] array, final int from, final int to, final Encoding encoding) {
+        return new ByteSlice(array, from, to, encoding);
     }
 
     /** Wrap bytes that are UTF-8 already: a literal, a composite, a function's result. */

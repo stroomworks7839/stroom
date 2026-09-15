@@ -20,7 +20,6 @@ import stroom.shapeshifter.engine.config.Cast;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.Arrays;
 
 /**
  * The comparison spine (design/17 §8): one answer to "which is bigger" shared by the
@@ -110,7 +109,8 @@ public final class Comparisons {
             return null;
         }
         if (left instanceof TypedValue.Bytes a && right instanceof TypedValue.Bytes b) {
-            return Arrays.compareUnsigned(a.asUtf8(), b.asUtf8());
+            // Over the UTF-8 ranges, so a slice compares without being copied out.
+            return TypedValue.compareText(a, b);
         }
         if (isNumeric(left) && isNumeric(right)) {
             if (left instanceof TypedValue.Integer a && right instanceof TypedValue.Integer b) {

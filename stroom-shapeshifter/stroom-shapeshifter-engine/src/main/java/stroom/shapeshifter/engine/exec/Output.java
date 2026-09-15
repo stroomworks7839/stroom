@@ -38,13 +38,16 @@ record Output(OutputSink sink, Encoding encoding) {
     }
 
     /**
-     * Write a value in the sink's encoding — the one place transcoding is decided.
+     * Write a value in the sink's encoding — the one place transcoding is decided, and the
+     * value decides it for itself ({@link TypedValue#writeTo}): bytes go to a UTF-8 sink as
+     * their UTF-8 range, uncopied (design 37 §5); everything else asks for its bytes in the
+     * sink's encoding, as before.
      *
-     * <p>Needs no fast path for the common case. The receiver here is monomorphic in a run, so
-     * the conversion devirtualises and inlines to a field read; a hand-written type test would
-     * buy one guard in place of another (E43).
+     * <p>Kept to one call on purpose. A hand-written type test here read 67 bytes and stopped
+     * inlining at nine of its eleven sites (2026-09-15, phase 3b's control); this is 11 and
+     * inlines everywhere, as the 20-byte form it replaced did.
      */
     void write(final TypedValue value) {
-        sink.write(value.bytes(encoding));
+        value.writeTo(sink, encoding);
     }
 }

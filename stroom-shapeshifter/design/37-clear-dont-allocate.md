@@ -278,12 +278,20 @@ question at the root is only whether one span copy per match beats one copy per 
 depends on how much of the span the groups cover (`log_sessions`, whose copies are all at the
 root, is where that is read).
 
-**What a slice needs.** A `Bytes` value over `(array, from, to)`, with `equals`, `hashCode`,
+**What a slice needs.** `ByteSlice` (named 2026-09-15): a third `Bytes` implementation beside
+`Utf8Bytes` and `EncodedBytes`, over `(array, from, to, encoding)`, with `equals`, `hashCode`,
 `isEmpty`, `asString`, the encoding conversions and the output write all working on the range.
-Fifteen call sites take a whole `byte[]` today (`asUtf8()`), eleven of them inside the value
-class; the output writer and `Comparisons` are the ones that must take a range, or the slice
-materialises on use and the copy is back. A nested dispatch's content (`Body:1150`) becomes a
-range too, so a slice is matched over without being materialised.
+Its own class, not a range added to the two that exist, so the whole-array path stays exactly
+as it is and the sealed hierarchy grows by one arm. It carries its encoding because a group
+matched from input has the match's, and one class serves both encodings as `EncodedBytes`
+serves any whole array. **Equality and hash are by text across all three**: the value class
+already holds `Utf8Bytes` and `EncodedBytes` equal when their text is, and a slice joins that
+rule — a slice used as a map key must hash as the whole-array value of the same text does, or a
+`get` with a freshly matched slice misses a key that was put as a copy; that pin is written
+before the class is. Fifteen call sites take a whole `byte[]` today (`asUtf8()`), eleven of
+them inside the value class; the output writer and `Comparisons` are the ones that must take a
+range, or the slice materialises on use and the copy is back. A nested dispatch's content
+(`Body:1150`) becomes a range too, so a slice is matched over without being materialised.
 
 **The two costs, and where each is bounded.**
 
@@ -297,6 +305,79 @@ range too, so a slice is matched over without being materialised.
    design is finished: one instrumented run of the fixtures classifying every group value's
    use as written to output, stored per execution, stored for the run, or handed to a
    transform. The first two never copy; the third copies once; the fourth is the row's cost.
+
+**3a, the count — 2026-09-15.** A throwaway probe at the four places a group value leaves
+its match, one operation of each benchmark row, reverted afterwards. Counts are group values
+per operation:
+
+| row | output | body content | capture → scalar | capture → list | capture → map | apply select | transform | condition |
+|---|---|---|---|---|---|---|---|---|
+| regex_lines | 24,576 | 16,384 | — | — | — | 8,192 | — | — |
+| ausearch | — | 31,466 | 1,120 | — | 14,140 | 1,995 | — | — |
+| apache_httpd | — | 4,224 | 19,104 | — | — | — | — | — |
+| csv_header | 24,312 | 35,460 | — | 4 | — | 6,078 | — | — |
+| log_sessions | — | 4,396 | — | 30,772 | — | — | — | — |
+| win_sec | — | 12,057 | 18,959 | — | — | — | — | — |
+| win_sec_strict | — | 17,416 | 8,658 | — | — | — | — | — |
+| progressive | 314,586 | 314,586 | — | — | — | — | — | — |
+| progressive_text | 242,560 | 48,512 | — | — | — | — | — | — |
+| element_storm | 73,200 | 7,320 | — | — | — | — | — | — |
+| win_sec_xml | — | 8,691 | 4,322 | — | — | — | — | — |
+
+*What it says.* A group value goes to exactly four places on the corpus, and two of them never
+need a whole array: **written to output** (a range write) and **handed to a body as its
+content** (`Level.content`, group 0 or the delimiter's field, which today is materialised to a
+`byte[]` for every match and becomes a range into `Level.dispatch`). The other two are stores
+— **a capture into a scalar, a list or a map** — and the *apply select*, which is a nested
+dispatch's content resolved from a group and is a range for the same reason as body content.
+**No row hands a raw group to a transform or a condition.** Transforms and conditions read the
+*stored* scalar afterwards, so a stored slice materialises when a transform asks for its text
+(the `…Text` escapes on `apache_httpd` and `win_sec`, the date parses on `log_sessions`) and
+not when it is written out. That bounds materialisation at the number of transform reads of
+captured values, which is a subset of the capture column, and it is zero on the four rows that
+only write.
+
+*What it says about 3d.* `log_sessions` captures 30,772 group values per operation into lists
+declared on the **source** template — run-lifetime slots — and those groups come from root
+matches. Under 3c they are still copies, because the root copies. Under 3d, where the root
+copies its span once and the groups are slices of it, every one of those stored slices would
+pin its record's span for the run: the retention grows from the group's bytes to the record's.
+So the run-lifetime compaction is *not* dropped; it is 3d's prerequisite, built with it and
+not before.
+
+**3b, built — 2026-09-15.** `ByteSlice` over `(array, from, to, encoding)`, the third arm of
+`Bytes`; `Bytes` gains the UTF-8 range accessors `utf8Array`/`utf8Offset`/`utf8Length` (a whole
+value's are its array from zero) and `slice(from, to)` — the owner's seam: the thing a match
+runs over answers `slice`, an immutable byte value with a range of itself, and (in 3c) the
+window with a copy. Equality across the three variants is one rule, `sameText`, over the two
+ranges; `Utf8Bytes.equals` keeps its one-class-compare fast path for a key against a key; the
+hash of a slice is `Arrays.hashCode` over its range. `Comparisons.compare` reads the ranges.
+Nothing makes a slice yet; seven pins in `ByteSliceTest`, the text-equality-and-hash one
+first, including a slice looking up a map key that was put as a copy.
+
+*What the control caught.* The first cut put the range write into `Output.write` as a type
+test — `if (utf8 && value instanceof Bytes) sink.write(range) else sink.write(bytes)` — and
+`PrintInlining` read it at 67 bytes against 20 before, no longer inlined at nine of its eleven
+sites. The fix is the value class's own shape (E43): `TypedValue.writeTo(sink, encoding)`,
+which `Bytes` overrides to write its range to a UTF-8 sink, and `Output.write` is one call at
+15 bytes, inlined at all eleven sites as before; `Bytes.writeTo` inlines at the two hot ones.
+Every other hot method on `regex_lines` and `progressive` reads the same size and the same
+verdicts before and after. The point (evening) must read flat.
+
+*What the audit found, 2026-09-15.* `PrintInlining` on two rows cannot see a method those rows
+do not call, so the audit read bytecode sizes with `javap` for every method the diff touched:
+`Utf8Bytes.equals` had grown from 32 to 54 bytes with the other two variants written into it,
+over the 35-byte limit for a call site that is not hot — its hot site, the map lookup, would
+still have inlined, but the control's rule is that the type costs nothing in shape. It is 30
+bytes now: one `instanceof` on the final class for a key against a key, and the other two
+variants behind a private call. `Comparisons.compare` had grown from 234 to 272 and is 224,
+the range compare living beside `sameText` as `compareText`. `EncodedBytes.equals` shrank, 67
+to 59. `Output.write` is 15. Also noted and left: `value` now imports `OutputSink` from the
+engine's root package, which already depends on `value` — a cycle at the package level, taken
+because a value writing itself to a sink is the class's own shape (E43) and the alternative
+was a type test on the hot write path; `slice(from, to)` checks no bounds, because its caller
+is a matcher reporting positions in the array it was given, and the code standard keeps
+defensive checks off hot paths.
 
 **Progressive is the same rule.** `Steps.take` copies (4.7% of `progressive`) and group 0 is a
 copy of the span (5.3%); over a root window they stay copies, over a nested value they are
@@ -564,11 +645,28 @@ nothing; outputs unchanged.
 
 ### Phase 3 — the root copies, everything below slices
 
-§5. First the use-classification count over the fixtures; then the ranged `Bytes` value and
-its consumers; then `Level.regexMatch` and the nested dispatch content as ranges; then the
-run-lifetime store compacting. Gate: B/op on `regex_lines` and `ausearch` falls by most of the
-nested share; every regex row's interleave, `progressive`, `apache_httpd` and `csv_header` as
-canaries; every golden byte-for-byte.
+§5, in four sub-phases, each its own commit and — for the three that change code — its own
+point with its expectation written first, because a new arm in a sealed hierarchy changes the
+shape of every switch over it and shape has bitten twice.
+
+- **3a, the count.** Done 2026-09-15; the table is in §5. Every group value goes to output,
+  body content, a capture store, or an apply select; none to a transform or a condition.
+- **3b, `ByteSlice` exists and nothing makes one.** The class; the text-equality and hash pin
+  across all three `Bytes` kinds, written first; the output writer and `Comparisons` taking a
+  range; `asUtf8` materialising for everyone else. Behaviour unchanged, every golden
+  byte-for-byte. Gate: `PrintInlining` on `regex_lines` and `progressive` before and after
+  shows the hot methods the same size, and the point reads flat. The control that separates
+  the type's cost from the slicing's gain.
+- **3c, nested matches produce slices.** `Level.regexMatch` slices when entered from a body's
+  dispatch and copies when entered from the window; `Level.content` and the apply select pass
+  a range into `Level.dispatch`. The payoff. Gate: B/op on `regex_lines` and `ausearch` falls by
+  most of the nested share (61%, 63%); interleave on every regex row with `progressive`,
+  `apache_httpd` and `csv_header` as canaries.
+- **3d, the root copies once per match and its groups are slices of the span**, with the
+  run-lifetime store compacting a slice into its own array (3a shows `log_sessions` would
+  otherwise pin a record per stored group). `log_sessions` is the row; whether one span copy
+  beats per-group copies depends on how much of the span the groups cover. May lose; its own
+  point either way. The splitter's record copies are the same question.
 
 ### Phase 4 — what insertion order costs
 
