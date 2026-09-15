@@ -24,6 +24,7 @@ keeping, and so is one that did not.
 | 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
 | 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
 | 9 | `8d0fd1cd65` | 2026-09-09 | Design 30: conditions compiled, the pattern map off the graph | A `matches` test holds its `BytePattern` instead of hashing the pattern's text per evaluation, and `Conditions.evaluate` stops taking the map — so it is no longer threaded into every guard evaluation on every template on every record. **624 evaluations per operation on `apache_httpd` and none anywhere else**, invisible in a sampled profile, so the run rows should not move. Compilation now walks the condition trees, so the compile rows are where a change would show. |
+| 48 | `6722af9951` | 2026-09-15 | Design 37 phase 3c: nested matches produce slices; the root copies | **`regex_lines`, `ausearch` and `win_sec` are the rows: their bytes per operation fell 12% to 13% on a one-fork profile, and the groups a nested match makes are one 32-byte object each instead of a wrapper and a small array.** The expectation is a gain on those three and nothing elsewhere: `log_sessions` and `progressive` match only at the root and allocate byte-for-byte what point 47 does; `apache_httpd` and `csv_header` slice (their fields are nested delimiter matches) and should move a hair up. The daytime interleave against point 47 was not a reading (load 1.2 to 1.7; `regex_lines` −12.7%, −2.2%, +7.3%), but its canaries were flat within a point, so a loss on `progressive` here would be a shape effect and is interleaved before it is believed. Design 37 §5 records why the gain is smaller than the nested share promised — short groups — and what is left for 3d: the root splitter copies every line twice. |
 | 47 | `380898731f` | 2026-09-15 | Design 37 phase 3b: `ByteSlice` exists, and nothing makes one | **A control, and it must read flat on every row.** The third byte variant is in the sealed hierarchy, `Bytes` has range accessors, equality and comparison read ranges, and a value writes itself to a sink — but no match produces a slice yet, so no row can gain. What could move is shape: `PrintInlining` on `regex_lines` and `progressive` reads every hot method the same size and verdict as point 46, and `javap` reads `Output.write` at 15 bytes (20 before), `Utf8Bytes.equals` at 30 (32), `Comparisons.compare` at 224 (234). `ausearch` is the row to watch — its map `get` is the hot `equals` — and `apache_httpd` for the comparisons. A move outside the interval on any row is a shape effect the two-row inlining census missed, and is found by interleaving this against point 46 before 3c is read against it. |
 | 46 | `7ddea06fbe` | 2026-09-15 | Design 37 phase 2: a collection a scope discards is parked and refilled, not remade | **`ausearch` and `win_sec` are the rows, and the expectation is small and written down before the run: bytes per operation fell 2.2% and 2.1% on a one-fork profile, and nothing else moved.** Every template that declares a map or list now allocates it once per run rather than once per execution; the `LinkedHashMap` entry per `put` is still allocated and dropped per record, which is why the saving is half the map's 4.3% share of bytes and why phase 5 exists. `log_sessions` and `progressive` allocate byte-for-byte what point 45 does and must read flat — `progressive` declares nothing. `apache_httpd` is the one row that refills a map from an initial table on every entry, and should read flat or a hair up. The daytime interleave on 2026-09-15 was not a reading (load near 1.0; signs 1/3 to 2/3), so this point is the first honest throughput reading of the phase. A loss anywhere is a finding, not noise: the change adds one `instanceof` on a miss in `list`/`map`/`setOf` and nothing on the scalar path. |
 | 45 | `54a5dcdf94` | 2026-09-15 | The resolver keeps its `lookup` and `set` fast paths; `write` and `resolveValue` go back to one switch | **`ausearch` up, `regex_lines` a hair down, and the rest flat against point 44 — that is what the daytime interleave read and this is its confirmation on a quiet box.** The streamlining of 2026-09-15 was three pieces; bisected, the `write`/`resolveValue` rewrite alone cost `regex_lines` 20% and was the *smaller* form — three hot arms and a default out of line, under the inlining budget — while the seven-arm switch at 336 bytes, not inlined, is the one that measures well. This point keeps the other two. Interleaved against point 44, three rounds: `ausearch` +9.1%, +14.8%, +12.9%; `regex_lines` −2.8%, −2.5%, −3.0%; `csv_header` and `progressive` flat. The `csv_header` +19% the streamlining once showed belonged to the piece that is gone. **Design 37's floor**: every phase of that design is read against this point. |
@@ -65,20 +66,20 @@ counting, and its result is the section below rather than a commit worth measuri
 
 ## What is owed — design 37, for an evening run
 
-Points 44 to 47 in one run, the benchmark's own fidelity (`full`): design 35's close as the
-floor of the boot, the resolver restore, phase 2, and phase 3b's control. Point 44 was
-measured last night and is measured again because a reading only compares within a boot. The
-design-only commits between them (`a2677c7c5a`, `160443c430`, `af5acc5fd0`) are records,
-identical in code to their predecessors, and are not points. Nothing is scheduled; the run is
-launched by hand when the box is quiet:
+Points 44 to 48 in one run, the benchmark's own fidelity (`full`): design 35's close as the
+floor of the boot, the resolver restore, phase 2, phase 3b's control, and phase 3c. Point 44
+was measured last night and is measured again because a reading only compares within a boot.
+The design-only commits between them (`a2677c7c5a`, `160443c430`, `af5acc5fd0`, `9fb703dff4`)
+are records, identical in code to their predecessors, and are not points. Nothing is
+scheduled; the run is launched by hand when the box is quiet:
 
 ```
-engine-bench-points.sh full 9c77725d4e 54a5dcdf94 7ddea06fbe 380898731f
+engine-bench-points.sh full 9c77725d4e 54a5dcdf94 7ddea06fbe 380898731f 6722af9951
 ```
 
 What each point should show is in its row. Any row that moves outside the envelope is
 confirmed by interleaving the two commits either side of it before it is written into a
-record; the reading goes into design 37 §4 (phase 2), §5 (phase 3b) and §13.
+record; the reading goes into design 37 §4 (phase 2), §5 (phases 3b and 3c) and §13.
 
 ## What was owed — design 35, settled 2026-09-14 evening
 
