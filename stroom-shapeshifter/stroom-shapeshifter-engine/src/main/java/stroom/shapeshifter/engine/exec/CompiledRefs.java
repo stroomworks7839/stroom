@@ -62,21 +62,47 @@ final class CompiledRefs {
                          final int matchCount,
                          final VarRegistry vars,
                          final Output out) {
-        // The three shapes a body writes most — a literal, a group, a variable — are here, and
-        // the rest go out of line: this is inlined into the body interpreter's switch, which it
-        // stops being above the JIT's hot-method size (design 33 §10, and the reading of
-        // 2026-09-14's points, where crossing it cost the capture-heavy rows 5 to 8%).
-        final TypedValue value = switch (ref) {
-            case final CompiledRef.Bytes bytes -> bytes.value();
-            case final CompiledRef.LocalGroup group -> match.group(group.group());
-            case final CompiledRef.RemoteVar remote -> lookup(remote, matchCount, vars);
-            default -> resolveRare(ref, match, matchCount, vars);
-        };
-        if (absent(value)) {
-            return false;
+        // The three shapes a body writes most — a literal, a group, a variable — are here, each
+        // with its own emptiness test and its own write, and the rest go out of line. Two things
+        // decide this shape (design 33 §10, and the readings of 2026-09-14 and 15): the method
+        // must stay under the JIT's hot-method size to inline into the body interpreter, and
+        // each arm must keep its own call sites, because a literal is UTF-8, a group is the
+        // match's encoding and a variable is either — one shared isEmpty() site sees all three
+        // and stops inlining, which cost regex_lines 20% when it was tried.
+        switch (ref) {
+            case final CompiledRef.Bytes bytes -> {
+                final TypedValue value = bytes.value();
+                if (value.isEmpty()) {
+                    return false;
+                }
+                out.write(value);
+                return true;
+            }
+            case final CompiledRef.LocalGroup group -> {
+                final TypedValue value = match.group(group.group());
+                if (value == null || value.isEmpty()) {
+                    return false;
+                }
+                out.write(value);
+                return true;
+            }
+            case final CompiledRef.RemoteVar remote -> {
+                final TypedValue value = lookup(remote, matchCount, vars);
+                if (absent(value)) {
+                    return false;
+                }
+                out.write(value);
+                return true;
+            }
+            default -> {
+                final TypedValue value = resolveRare(ref, match, matchCount, vars);
+                if (absent(value)) {
+                    return false;
+                }
+                out.write(value);
+                return true;
+            }
         }
-        out.write(value);
-        return true;
     }
 
     /**
@@ -90,13 +116,25 @@ final class CompiledRefs {
                                    final MatchResult match,
                                    final int matchCount,
                                    final VarRegistry vars) {
-        final TypedValue value = switch (ref) {
-            case final CompiledRef.Bytes bytes -> bytes.value();
-            case final CompiledRef.LocalGroup group -> match.group(group.group());
-            case final CompiledRef.RemoteVar remote -> lookup(remote, matchCount, vars);
-            default -> resolveRare(ref, match, matchCount, vars);
-        };
-        return absent(value) ? null : value;
+        // The same shape as write, for the same reasons.
+        switch (ref) {
+            case final CompiledRef.Bytes bytes -> {
+                final TypedValue value = bytes.value();
+                return value.isEmpty() ? null : value;
+            }
+            case final CompiledRef.LocalGroup group -> {
+                final TypedValue value = match.group(group.group());
+                return value == null || value.isEmpty() ? null : value;
+            }
+            case final CompiledRef.RemoteVar remote -> {
+                final TypedValue value = lookup(remote, matchCount, vars);
+                return absent(value) ? null : value;
+            }
+            default -> {
+                final TypedValue value = resolveRare(ref, match, matchCount, vars);
+                return absent(value) ? null : value;
+            }
+        }
     }
 
     /** The shapes a body reaches for rarely: a composite, a function, an accessor, nothing. */
