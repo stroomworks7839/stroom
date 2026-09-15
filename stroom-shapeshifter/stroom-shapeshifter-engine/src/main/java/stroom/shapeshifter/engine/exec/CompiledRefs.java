@@ -62,21 +62,29 @@ final class CompiledRefs {
                          final int matchCount,
                          final VarRegistry vars,
                          final Output out) {
-        // The three shapes a body writes most — a literal, a group, a variable — are here, each
-        // with its own emptiness test and its own write, and the rest go out of line. Two things
-        // decide this shape (design 33 §10, and the readings of 2026-09-14 and 15): the method
-        // must stay under the JIT's hot-method size to inline into the body interpreter, and
-        // each arm must keep its own call sites, because a literal is UTF-8, a group is the
-        // match's encoding and a variable is either — one shared isEmpty() site sees all three
-        // and stops inlining, which cost regex_lines 20% when it was tried.
+        // Every arm in one switch, at 336 bytes — above the JIT's hot-method size, so this does
+        // not inline into the body interpreter. The obvious fix, three hot arms here and the rest
+        // behind a default, measured regex_lines −20% and was bisected to this method alone
+        // (2026-09-15, design 37 §1); the smaller form inlines and something else then stops.
+        // The cause is not known. Design 37 phase 4 redoes this on a kind, with the inline census
+        // read first; until then the shape that measures well stays.
         switch (ref) {
+            case final CompiledRef.Empty ignored -> {
+                return false;
+            }
             case final CompiledRef.Bytes bytes -> {
-                final TypedValue value = bytes.value();
-                if (value.isEmpty()) {
+                if (bytes.value().isEmpty()) {
                     return false;
                 }
-                out.write(value);
+                out.write(bytes.value());
                 return true;
+            }
+            case final CompiledRef.Composite composite -> {
+                boolean wrote = false;
+                for (final CompiledRef part : composite.parts()) {
+                    wrote |= write(part, match, matchCount, vars, out);
+                }
+                return wrote;
             }
             case final CompiledRef.LocalGroup group -> {
                 final TypedValue value = match.group(group.group());
@@ -94,8 +102,16 @@ final class CompiledRefs {
                 out.write(value);
                 return true;
             }
-            default -> {
-                final TypedValue value = resolveRare(ref, match, matchCount, vars);
+            case final CompiledRef.Context context -> {
+                final TypedValue value = lookup(context, matchCount, vars);
+                if (value == null || value.isEmpty()) {
+                    return false;
+                }
+                out.write(value);
+                return true;
+            }
+            case final CompiledRef.Accessor accessor -> {
+                final TypedValue value = accessor(accessor, match, matchCount, vars);
                 if (absent(value)) {
                     return false;
                 }
@@ -116,11 +132,25 @@ final class CompiledRefs {
                                    final MatchResult match,
                                    final int matchCount,
                                    final VarRegistry vars) {
-        // The same shape as write, for the same reasons.
+        // The same shape as write, kept for the same reason.
         switch (ref) {
+            case final CompiledRef.Empty ignored -> {
+                return null;
+            }
             case final CompiledRef.Bytes bytes -> {
-                final TypedValue value = bytes.value();
-                return value.isEmpty() ? null : value;
+                return bytes.value().isEmpty() ? null : bytes.value();
+            }
+            case final CompiledRef.Composite composite -> {
+                final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                boolean any = false;
+                for (final CompiledRef part : composite.parts()) {
+                    final TypedValue resolved = resolveValue(part, match, matchCount, vars);
+                    if (resolved != null) {
+                        buffer.writeBytes(resolved.asUtf8());
+                        any = true;
+                    }
+                }
+                return any ? TypedValue.utf8(buffer.toByteArray()) : null;
             }
             case final CompiledRef.LocalGroup group -> {
                 final TypedValue value = match.group(group.group());
@@ -130,44 +160,15 @@ final class CompiledRefs {
                 final TypedValue value = lookup(remote, matchCount, vars);
                 return absent(value) ? null : value;
             }
-            default -> {
-                final TypedValue value = resolveRare(ref, match, matchCount, vars);
+            case final CompiledRef.Context context -> {
+                final TypedValue value = lookup(context, matchCount, vars);
+                return value == null || value.isEmpty() ? null : value;
+            }
+            case final CompiledRef.Accessor accessor -> {
+                final TypedValue value = accessor(accessor, match, matchCount, vars);
                 return absent(value) ? null : value;
             }
         }
-    }
-
-    /** The shapes a body reaches for rarely: a composite, a function, an accessor, nothing. */
-    private static TypedValue resolveRare(final CompiledRef ref,
-                                          final MatchResult match,
-                                          final int matchCount,
-                                          final VarRegistry vars) {
-        return switch (ref) {
-            case final CompiledRef.Empty ignored -> null;
-            case final CompiledRef.Composite composite -> composite(composite, match, matchCount, vars);
-            case final CompiledRef.Context context -> lookup(context, matchCount, vars);
-            case final CompiledRef.Accessor accessor -> accessor(accessor, match, matchCount, vars);
-            case final CompiledRef.Bytes bytes -> bytes.value();
-            case final CompiledRef.LocalGroup group -> match.group(group.group());
-            case final CompiledRef.RemoteVar remote -> lookup(remote, matchCount, vars);
-        };
-    }
-
-    /** Several parts, concatenated as UTF-8; absent when every part is. */
-    private static TypedValue composite(final CompiledRef.Composite composite,
-                                        final MatchResult match,
-                                        final int matchCount,
-                                        final VarRegistry vars) {
-        final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        boolean any = false;
-        for (final CompiledRef part : composite.parts()) {
-            final TypedValue resolved = resolveValue(part, match, matchCount, vars);
-            if (resolved != null) {
-                buffer.writeBytes(resolved.asUtf8());
-                any = true;
-            }
-        }
-        return any ? TypedValue.utf8(buffer.toByteArray()) : null;
     }
 
     /** The value of a reference as UTF-8 bytes, or null if it resolves to nothing. */
