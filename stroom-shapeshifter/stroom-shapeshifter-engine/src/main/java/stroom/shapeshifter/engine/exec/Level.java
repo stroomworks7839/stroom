@@ -709,9 +709,23 @@ final class Level {
     private void bindCaptures(final CompiledTemplate compiledTemplate,
                               final MatchResult match,
                               final int matchCount) {
+        // This method is kept whole, and so above the JIT's hot-method size, on purpose: inlined
+        // into the level's match loop it crowds the regex match itself out of that compilation
+        // ("already compiled into a big method"), which read regex_lines 20% down when the
+        // key-value pair was moved out of line to let it inline (2026-09-15).
         for (final CompiledCapture capture : compiledTemplate.captures()) {
             if (capture.source() instanceof final CompiledCapture.Source.KeyValue keyValue) {
-                bindPair(capture, keyValue, match, matchCount);
+                // The pair goes into the map the capture names (design 35 §5): the key read out
+                // of the data is a key, not a variable, and a later pair with the same key
+                // replaces the earlier — a map has keys, not positions. The key is the bytes
+                // the match holds, as a value; nothing decodes it to text on the way.
+                final TypedValue key = CompiledRefs.resolveValue(keyValue.key(), match, matchCount, vars);
+                if (key != null) {
+                    final TypedValue value = CompiledRefs.resolveValue(keyValue.value(), match, matchCount, vars);
+                    if (value != null) {
+                        vars.put(capture.name(), key, cast(value, capture.as()));
+                    }
+                }
                 continue;
             }
             // A capture is a slice of the input, stored as the match tagged it: nothing is
@@ -743,25 +757,6 @@ final class Level {
         }
     }
 
-    /**
-     * A key-value pair goes into the map the capture names (design 35 §5): the key read out of
-     * the data is a key, not a variable, and a later pair with the same key replaces the
-     * earlier — a map has keys, not positions. The key is the bytes the match holds, as a
-     * value; nothing decodes it to text on the way.
-     */
-    private void bindPair(final CompiledCapture capture,
-                          final CompiledCapture.Source.KeyValue keyValue,
-                          final MatchResult match,
-                          final int matchCount) {
-        final TypedValue key = CompiledRefs.resolveValue(keyValue.key(), match, matchCount, vars);
-        if (key == null) {
-            return;
-        }
-        final TypedValue value = CompiledRefs.resolveValue(keyValue.value(), match, matchCount, vars);
-        if (value != null) {
-            vars.put(capture.name(), key, cast(value, capture.as()));
-        }
-    }
 
     /**
      * The capture's declared kind, applied once at bind (design 25 §9.1, D50): the casting
