@@ -60,7 +60,7 @@ keeping, and so is one that did not.
 is identical to phase 3's. Design 30 phase 3 is not a point for the same reason — it is a
 counting, and its result is the section below rather than a commit worth measuring across.*
 
-## What is owed — design 35, for an evening run
+## What was owed — design 35, settled 2026-09-14 evening
 
 *Points 36 to 43 are the set: the floor, the five phases, the closing move of `group()` into
 the frames, and the configurations tidied under the model. `win_sec_strict` keeps the 63-template configuration throughout and is the
@@ -80,6 +80,15 @@ sequence of points measured one after another lets the box's drift masquerade as
 any row that moves outside the envelope is confirmed by interleaving the two commits either
 side of it (`engine-interleave.sh`) before it is written into a record. Phase 3's record in
 design 35 §12 is marked *not yet measured* and takes the result.
+
+*Read 2026-09-15.* The nine JSONs are `2026-09-14-2251-597274d25e-full.json` through
+`2026-09-15-0101-9c77725d4e-full.json`; the table and its reading are in design 35 §12 under
+*What the evening run read*. In one line: phases 1 and 2 are inside the interval; phase 3 puts
+`progressive` −8.4%, `regex_lines` −7.4%, `progressive_text` −4.4% and `ausearch` −9.7% outside
+it and nothing after recovers them; the −51% to −85% on `apache_httpd` and `csv_header` between
+phase 3 and the tidy is the one-value-binder-into-a-list shape, refused at the close, where the
+two rows read +8.1% and −4.6%; `win_sec` +65.6% is the configuration rewrite, against a control
+of +1.2%. The scan-row debt is what design 37 opens on.
 
 ## What was owed — all of it settled 2026-09-09 evening
 

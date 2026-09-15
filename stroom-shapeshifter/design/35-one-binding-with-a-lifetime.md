@@ -1549,6 +1549,41 @@ The point set — phases 1 to 5 against the floor at phase 0's commit — is rea
 evening run; phase 5's row follows its commit, since the benchmark's `win_sec` workload loads the
 rewritten configuration.
 
+### What the evening run read — 2026-09-14/15
+
+Points 36 to 44 (`design/benchmarks/points.md`), one boot, the benchmark's own fidelity, read
+against the floor `597274d25e`. Run rows, Δ% against the floor, starred when outside the floor's
+99.9% interval:
+
+| row | floor ops/s | ph1 | ph2 | ph3 | ph4 | ph5 | group | tidy | close |
+|---|---|---|---|---|---|---|---|---|---|
+| apache_httpd | 325.6 | +0.1 | +0.6 | −51.2* | −77.5* | −77.8* | −77.6* | −0.4 | +8.1* |
+| ausearch | 373.5 | +1.6 | −3.5* | −9.7* | −13.0* | −14.6* | −11.1* | −7.8* | −12.9* |
+| csv_header | 341.0 | −0.3 | −0.3 | −59.0* | −85.3* | −85.3* | −85.3* | −85.3* | −4.6* |
+| element_storm | 161.2 | −1.9* | +0.8 | +3.0* | +3.7* | +4.2* | +3.0* | +4.0* | +3.6* |
+| log_sessions | 159.4 | −0.4 | −0.2 | −1.9* | −7.4* | −7.5* | −6.1* | −1.8* | −1.2* |
+| progressive | 475.9 | −0.1 | −0.3 | −8.4* | −8.6* | −8.1* | −8.1* | −8.9* | −8.0* |
+| progressive_text | 1488.6 | −0.5 | +0.6 | −4.4* | −4.5* | −4.6* | −3.9* | −4.5* | −4.1* |
+| regex_lines | 958.9 | +1.4 | +0.2 | −7.4* | −6.2* | −4.1* | −6.2* | −6.9* | −5.2* |
+| win_sec | 42.0 | +1.4 | −1.3 | −8.4* | +1.4 | +64.3* | +73.8* | +75.1* | +65.6* |
+| win_sec_strict | 52.6 | +0.1 | +0.3 | +1.5* | +1.2* | +1.2* | +1.5* | +1.1* | +1.2* |
+| win_sec_xml | 115.1 | +1.8* | +0.2 | +0.9* | +0.9* | +0.7* | +1.0* | +0.7* | +1.2* |
+
+*Three things, in order of size.* The −51% to −85% on `apache_httpd` and `csv_header` from
+phase 3 to the tidy are not the model: they are one-value binders (`variable`, `value`) whose
+target was a per-execution *list*, so every bind padded the list with absence up to the match
+count — O(n²) in matches per execution. The final audit made those scalars and the close row
+refuses the shape at compile time (§8, `oneValue()`); the two rows come back to +8.1% and −4.6%.
+`win_sec` at +65% is the rewrite to 16 templates under the model, not the engine — the control
+`win_sec_strict` on the 63-template configuration reads +1.2%. And the model itself costs the
+scan-heavy rows: `progressive` −8.0%, `regex_lines` −5.2%, `progressive_text` −4.1%,
+`ausearch` −12.9%, all landing at phase 3 — the phase that put the restore-on-exit registry,
+the typed slots and the accessor dispatch on the hot path — and not recovered by anything since.
+That is the debt design 37 opens on.
+
+Phases 1 and 2 are inside the interval everywhere but `element_storm` and `win_sec_xml` at
+about the interval's edge, which is what a model-only change should read.
+
 ### Out of scope, deliberately
 
 Namespaces and libraries (§4 records what they will need); `removeValue` and any remove-by-value
