@@ -193,6 +193,9 @@ public sealed interface TypedValue {
 
         private final byte[] value;
 
+        /** Computed once: a map key is hashed on every put and get, and the bytes never change. */
+        private int hash;
+
         private Utf8Bytes(final byte[] value) {
             this.value = value;
         }
@@ -220,7 +223,10 @@ public sealed interface TypedValue {
 
         @Override
         public int hashCode() {
-            return Arrays.hashCode(value);
+            if (hash == 0) {
+                hash = Arrays.hashCode(value);
+            }
+            return hash;
         }
 
         @Override
@@ -801,9 +807,9 @@ public sealed interface TypedValue {
             return entries.size();
         }
 
-        /** Bind a key, replacing what it held. The key must be a scalar. */
-        public void put(final TypedValue key, final TypedValue value) {
-            entries.put(Collection.scalar(key, "map key"), value);
+        /** Bind a key, replacing what it held and answering it — null for a new key. The key must be a scalar. */
+        public TypedValue put(final TypedValue key, final TypedValue value) {
+            return entries.put(Collection.scalar(key, "map key"), value);
         }
 
         /** The value at a key, or null when unbound. */

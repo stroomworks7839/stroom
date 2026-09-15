@@ -198,6 +198,16 @@ public final class VarRegistry {
      */
     public void set(final VarName name, final TypedValue value) {
         final int slot = name.slot();
+        // A scalar over a scalar is the write a capture makes on every match, and it is one
+        // array store; a collection on either side is counted and copied out of line.
+        if (value instanceof TypedValue.Collection || slots[slot] instanceof TypedValue.Collection) {
+            setCollection(slot, value);
+            return;
+        }
+        slots[slot] = value;
+    }
+
+    private void setCollection(final int slot, final TypedValue value) {
         release(slots[slot]);
         final TypedValue stored = TypedValue.Collection.stored(value);
         slots[slot] = stored;
@@ -311,11 +321,12 @@ public final class VarRegistry {
 
     /** Put an entry in a name's map, counting a new key and what its value brings. */
     public void put(final VarName name, final TypedValue key, final TypedValue value) {
-        final TypedValue.Map map = map(name);
         final TypedValue stored = TypedValue.Collection.stored(value);
-        live += (map.contains(key) ? 0 : 1) + TypedValue.Collection.elementsOf(stored)
-                - TypedValue.Collection.elementsOf(map.get(key));
-        map.put(key, stored);
+        final TypedValue before = map(name).put(key, stored);
+        // One hash: put answers what it replaced, which says whether the key is new and what
+        // its old value brought to the count.
+        live += (before == null ? 1 : -TypedValue.Collection.elementsOf(before))
+                + TypedValue.Collection.elementsOf(stored);
     }
 
     /** Empty a name's collection, if it holds one, releasing its elements from the count. */

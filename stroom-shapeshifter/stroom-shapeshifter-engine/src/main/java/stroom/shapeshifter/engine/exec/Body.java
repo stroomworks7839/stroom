@@ -676,14 +676,14 @@ final class Body {
                     // back, since get and contains answer absent for it (design 35 §5).
                     fatal("put into '" + describe(op.target()) + "' under an absent key: a map key must be present");
                 }
-                final TypedValue stored = TypedValue.Collection.stored(value);
-                vars.grew((map.contains(key) ? 0 : 1) + TypedValue.Collection.elementsOf(stored)
-                          - TypedValue.Collection.elementsOf(map.get(key)));
                 if (key instanceof final TypedValue.Collection collectionKey) {
                     fatal("put into '" + describe(op.target()) + "' under a " + collectionKey.kind()
                           + " as the key: a map key must be a scalar");
                 }
-                map.put(key, stored);
+                final TypedValue stored = TypedValue.Collection.stored(value);
+                final TypedValue before = map.put(key, stored);
+                vars.grew((before == null ? 1 : -TypedValue.Collection.elementsOf(before))
+                          + TypedValue.Collection.elementsOf(stored));
                 guardLive(op.target());
             }
             case final TypedValue.Set set -> {

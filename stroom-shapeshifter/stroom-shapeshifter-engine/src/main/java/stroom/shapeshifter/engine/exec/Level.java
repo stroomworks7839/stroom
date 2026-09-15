@@ -711,17 +711,7 @@ final class Level {
                               final int matchCount) {
         for (final CompiledCapture capture : compiledTemplate.captures()) {
             if (capture.source() instanceof final CompiledCapture.Source.KeyValue keyValue) {
-                // The pair goes into the map the capture names (design 35 §5): the key read out
-                // of the data is a key, not a variable, and a later pair with the same key
-                // replaces the earlier — a map has keys, not positions.
-                final String key = CompiledRefs.resolveText(keyValue.key(), match, matchCount, vars);
-                if (key != null) {
-                    final byte[] bytes = CompiledRefs.resolve(keyValue.value(), match, matchCount,
-                            vars);
-                    if (bytes != null) {
-                        vars.put(capture.name(), TypedValue.of(key), cast(TypedValue.utf8(bytes), capture.as()));
-                    }
-                }
+                bindPair(capture, keyValue, match, matchCount);
                 continue;
             }
             // A capture is a slice of the input, stored as the match tagged it: nothing is
@@ -750,6 +740,26 @@ final class Level {
             } else {
                 vars.set(capture.name(), value);
             }
+        }
+    }
+
+    /**
+     * A key-value pair goes into the map the capture names (design 35 §5): the key read out of
+     * the data is a key, not a variable, and a later pair with the same key replaces the
+     * earlier — a map has keys, not positions. The key is the bytes the match holds, as a
+     * value; nothing decodes it to text on the way.
+     */
+    private void bindPair(final CompiledCapture capture,
+                          final CompiledCapture.Source.KeyValue keyValue,
+                          final MatchResult match,
+                          final int matchCount) {
+        final TypedValue key = CompiledRefs.resolveValue(keyValue.key(), match, matchCount, vars);
+        if (key == null) {
+            return;
+        }
+        final TypedValue value = CompiledRefs.resolveValue(keyValue.value(), match, matchCount, vars);
+        if (value != null) {
+            vars.put(capture.name(), key, cast(value, capture.as()));
         }
     }
 

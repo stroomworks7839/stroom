@@ -62,57 +62,21 @@ final class CompiledRefs {
                          final int matchCount,
                          final VarRegistry vars,
                          final Output out) {
-        switch (ref) {
-            case final CompiledRef.Empty ignored -> {
-                return false;
-            }
-            case final CompiledRef.Bytes bytes -> {
-                if (bytes.value().isEmpty()) {
-                    return false;
-                }
-                out.write(bytes.value());
-                return true;
-            }
-            case final CompiledRef.Composite composite -> {
-                boolean wrote = false;
-                for (final CompiledRef part : composite.parts()) {
-                    wrote |= write(part, match, matchCount, vars, out);
-                }
-                return wrote;
-            }
-            case final CompiledRef.LocalGroup group -> {
-                final TypedValue value = match.group(group.group());
-                if (value == null || value.isEmpty()) {
-                    return false;
-                }
-                out.write(value);
-                return true;
-            }
-            case final CompiledRef.RemoteVar remote -> {
-                final TypedValue value = lookup(remote, matchCount, vars);
-                if (absent(value)) {
-                    return false;
-                }
-                out.write(value);
-                return true;
-            }
-            case final CompiledRef.Context context -> {
-                final TypedValue value = lookup(context, matchCount, vars);
-                if (value == null || value.isEmpty()) {
-                    return false;
-                }
-                out.write(value);
-                return true;
-            }
-            case final CompiledRef.Accessor accessor -> {
-                final TypedValue value = accessor(accessor, match, matchCount, vars);
-                if (absent(value)) {
-                    return false;
-                }
-                out.write(value);
-                return true;
-            }
+        // The three shapes a body writes most — a literal, a group, a variable — are here, and
+        // the rest go out of line: this is inlined into the body interpreter's switch, which it
+        // stops being above the JIT's hot-method size (design 33 §10, and the reading of
+        // 2026-09-14's points, where crossing it cost the capture-heavy rows 5 to 8%).
+        final TypedValue value = switch (ref) {
+            case final CompiledRef.Bytes bytes -> bytes.value();
+            case final CompiledRef.LocalGroup group -> match.group(group.group());
+            case final CompiledRef.RemoteVar remote -> lookup(remote, matchCount, vars);
+            default -> resolveRare(ref, match, matchCount, vars);
+        };
+        if (absent(value)) {
+            return false;
         }
+        out.write(value);
+        return true;
     }
 
     /**
@@ -126,42 +90,46 @@ final class CompiledRefs {
                                    final MatchResult match,
                                    final int matchCount,
                                    final VarRegistry vars) {
-        switch (ref) {
-            case final CompiledRef.Empty ignored -> {
-                return null;
-            }
-            case final CompiledRef.Bytes bytes -> {
-                return bytes.value().isEmpty() ? null : bytes.value();
-            }
-            case final CompiledRef.Composite composite -> {
-                final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                boolean any = false;
-                for (final CompiledRef part : composite.parts()) {
-                    final TypedValue resolved = resolveValue(part, match, matchCount, vars);
-                    if (resolved != null) {
-                        buffer.writeBytes(resolved.asUtf8());
-                        any = true;
-                    }
-                }
-                return any ? TypedValue.utf8(buffer.toByteArray()) : null;
-            }
-            case final CompiledRef.LocalGroup group -> {
-                final TypedValue value = match.group(group.group());
-                return value == null || value.isEmpty() ? null : value;
-            }
-            case final CompiledRef.RemoteVar remote -> {
-                final TypedValue value = lookup(remote, matchCount, vars);
-                return absent(value) ? null : value;
-            }
-            case final CompiledRef.Context context -> {
-                final TypedValue value = lookup(context, matchCount, vars);
-                return value == null || value.isEmpty() ? null : value;
-            }
-            case final CompiledRef.Accessor accessor -> {
-                final TypedValue value = accessor(accessor, match, matchCount, vars);
-                return absent(value) ? null : value;
+        final TypedValue value = switch (ref) {
+            case final CompiledRef.Bytes bytes -> bytes.value();
+            case final CompiledRef.LocalGroup group -> match.group(group.group());
+            case final CompiledRef.RemoteVar remote -> lookup(remote, matchCount, vars);
+            default -> resolveRare(ref, match, matchCount, vars);
+        };
+        return absent(value) ? null : value;
+    }
+
+    /** The shapes a body reaches for rarely: a composite, a function, an accessor, nothing. */
+    private static TypedValue resolveRare(final CompiledRef ref,
+                                          final MatchResult match,
+                                          final int matchCount,
+                                          final VarRegistry vars) {
+        return switch (ref) {
+            case final CompiledRef.Empty ignored -> null;
+            case final CompiledRef.Composite composite -> composite(composite, match, matchCount, vars);
+            case final CompiledRef.Context context -> lookup(context, matchCount, vars);
+            case final CompiledRef.Accessor accessor -> accessor(accessor, match, matchCount, vars);
+            case final CompiledRef.Bytes bytes -> bytes.value();
+            case final CompiledRef.LocalGroup group -> match.group(group.group());
+            case final CompiledRef.RemoteVar remote -> lookup(remote, matchCount, vars);
+        };
+    }
+
+    /** Several parts, concatenated as UTF-8; absent when every part is. */
+    private static TypedValue composite(final CompiledRef.Composite composite,
+                                        final MatchResult match,
+                                        final int matchCount,
+                                        final VarRegistry vars) {
+        final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        boolean any = false;
+        for (final CompiledRef part : composite.parts()) {
+            final TypedValue resolved = resolveValue(part, match, matchCount, vars);
+            if (resolved != null) {
+                buffer.writeBytes(resolved.asUtf8());
+                any = true;
             }
         }
+        return any ? TypedValue.utf8(buffer.toByteArray()) : null;
     }
 
     /** The value of a reference as UTF-8 bytes, or null if it resolves to nothing. */
@@ -258,10 +226,23 @@ final class CompiledRefs {
     private static TypedValue lookup(final CompiledRef.RemoteVar remote,
                                      final int matchCount,
                                      final VarRegistry vars) {
+        // A scalar read with no index rule is the read the engine makes most, and this is kept
+        // small enough to inline everywhere it is made (design 33 §11 E, and the 2026-09-14
+        // reading: at 89 bytes it stopped, and the capture-heavy rows paid).
         final TypedValue value = vars.get(remote.varId());
-        // Nothing to index is nothing to resolve the rule for, and absent is the common case —
-        // except for a declared collection nothing has filled, which read whole is the empty
-        // one of its type: what an append adds to and what size counts as zero.
+        return value != null && remote.matchIndex() == null && !(value instanceof TypedValue.Collection)
+                ? value
+                : lookupIndexed(remote, value, matchCount, vars);
+    }
+
+    /** The rest of a variable read: an index rule, a collection, or an unset slot. */
+    private static TypedValue lookupIndexed(final CompiledRef.RemoteVar remote,
+                                            final TypedValue value,
+                                            final int matchCount,
+                                            final VarRegistry vars) {
+        // Nothing to index is nothing to resolve the rule for — except for a declared
+        // collection nothing has filled, which read whole is the empty one of its type: what an
+        // append adds to and what size counts as zero.
         if (value == null) {
             return remote.matchIndex() == null ? emptyDeclared(remote, vars) : null;
         }
