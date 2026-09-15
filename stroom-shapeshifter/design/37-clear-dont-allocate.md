@@ -5,7 +5,7 @@ is; the readings say the settled model costs the scan-heavy rows four to thirtee
 against the floor and nothing since phase 3 has bought it back. This design is the performance
 work that follows, in phases, each gated by a measurement of the thing it claims to change.*
 
-*Engine only. It touches no golden. Phase 6 writes challenger configurations for the fixtures
+*Engine only. It touches no golden. Phase 8 writes challenger configurations for the fixtures
 that use a map; the fixtures' inputs and outputs do not move.*
 
 ## 1. Where the run left the engine
@@ -37,7 +37,7 @@ way: `PrintInlining` at the close showed `CompiledRefs.write` at 336 bytes again
 `FreqInlineSize` of 325 (*hot method too big*; 303 bytes at the floor), `lookup` at 89 (33 at
 the floor). A per-arm rewrite (`0e852742e4`) gave `csv_header` +19% and `ausearch` +15% and cost
 `progressive` −12% and `regex_lines` −20%; three hypotheses for the second half failed
-(`7e9a44e130`, `85e959280e`, `e2de038753`), and the bisect by piece — §12 has the reading — puts
+(`7e9a44e130`, `85e959280e`, `e2de038753`), and the bisect by piece — §13 has the reading — puts
 it on the `write`/`resolveValue` rewrite alone. **And the direction is the wrong way round**:
 the close's `write` is the *big* one, all seven arms in one switch at 336 bytes, not inlined;
 the rewrite was the *small* one, three hot arms and a default out of line, under the budget —
@@ -45,14 +45,14 @@ and the small one is the one that cost 20%. So "get under the inlining threshold
 rule, it is one variable in a tree: a method that inlines takes its bytes into its caller, and
 what the caller then fails to inline is the cost. **Inlining shape is a first-order effect on
 these rows, it is not visible in the source, and it has to be read for the whole call tree,
-not one method.** Phases 4 and 5 are built on that. The `lookup` and `set` pieces of the
+not one method.** Phases 6 and 7 are built on that. The `lookup` and `set` pieces of the
 rewrite measured harmless on `regex_lines` and were the ones that paid on `csv_header` (+19%)
 and `ausearch` (+15%); they are kept, with the close's `write` and `resolveValue` restored
 (2026-09-15, in the working tree), and read on the four rows before anything else moves.
 
 **`ausearch` is the map row and it is the worst.** Every field on that row is a `get` on a map
 declared on the envelope: the map is made on entry, filled, read, and dropped on exit for every
-record, and each `get` hashes a `TypedValue` key into a `LinkedHashMap`. Phases 2, 3 and 6 are
+record, and each `get` hashes a `TypedValue` key into a `LinkedHashMap`. Phases 2, 4, 5 and 8 are
 that row's.
 
 **The reference rows are fine.** `apache_httpd` +8.1% says the slot model (points 31, 32, 35)
@@ -77,8 +77,8 @@ benchmark*):
 - **Every phase is audited against this document before its commit**, as design 35's were.
 
 The owner's list, as sent, maps onto the phases as: item 2 is phase 1; item 1 is phase 2;
-item 3 is phases 3a and 3b; item 5 is phase 4; item 6 is phase 5; item 4 is phase 6; the
-progressive investigation added afterwards is phase 7. The order was ruled 2026-09-15: the
+item 3 is phases 4 and 5; item 5 is phase 6; item 6 is phase 7; item 4 is phase 8; the
+progressive investigation added afterwards is phase 9. The order was ruled 2026-09-15: the
 census first because it is free and every later phase picks from it; the allocation phases
 before the dispatch phases; the fixture experiments after the engine has stopped moving under
 them; the progressive investigation last because it is the one whose shape is least known.
@@ -87,7 +87,7 @@ them; the progressive investigation last because it is the one whose shape is le
 
 Every `java.util` collection constructed or held in the two run-time packages, as of
 `e2de038753`. The `TypedValue` collections live in `value`, are the engine's own, and are
-listed at the end because phases 2 and 3 are about them. *Verdict* is a first position for
+listed at the end because phases 2, 4 and 5 are about them. *Verdict* is a first position for
 discussion, not a ruling.
 
 | # | where | type | lifetime | what it is for | verdict |
@@ -112,7 +112,7 @@ discussion, not a ruling.
 | 18 | `FunctionRuntime.state`, `.notRunInPreview` | `HashMap`, `HashSet` | per run | user-function state and preview guard | keep |
 | 19 | `VarRegistry` | arrays only (`slots`, `marks`, undo log, `owner`, `types`) | per run, grown | the registry | keep — already allocation-free after warm-up except the collections it makes (#20–22) |
 | 20 | `TypedValue.List` (`value`) | own `TypedValue[]`, ×2 growth from 4 | per declared list per scope entry | list variables | **stays as a concept; phase 2 reuses the object** |
-| 21 | `TypedValue.Map` (`value`) | `java.util.LinkedHashMap<TypedValue,TypedValue>` | per declared map per scope entry | map variables | **stays as a concept; phase 2 reuses, phase 3 replaces the backing** |
+| 21 | `TypedValue.Map` (`value`) | `java.util.LinkedHashMap<TypedValue,TypedValue>` | per declared map per scope entry | map variables | **stays as a concept; phase 2 reuses, phase 7 replaces the backing** |
 | 22 | `TypedValue.Set` (`value`) | `java.util.LinkedHashSet<TypedValue>` | per declared set per scope entry | set variables | as #21 |
 | 23 | `Frames.Group.members` | `TypedValue.List` | per group during a `ForEachGroup` body | the group's member positions, for `group()` | keep the frame; the list comes from #12 and follows it |
 
@@ -121,6 +121,66 @@ discussion, not a ruling.
 collection at run time. Design 33's sweep did its work; what remains is the one it named as a
 redesign and which has since been tried and reverted (#17), and what design 35 added (#12,
 #13, #16, #20–22).
+
+### What phase 1 read — 2026-09-15
+
+`-prof gc` on head (`54a5dcdf94`) and on the floor, one fork, five rows; then JFR allocation
+samples on head, by class and by the first engine frame that allocated. Files under
+`/home/dev1/engine-bench/gcprof/`.
+
+| row | floor B/op | head B/op | Δ bytes | Δ ops/s, same runs |
+|---|---|---|---|---|
+| progressive | 13.69 MB | 13.69 MB | 0.0% | −8.0% |
+| ausearch | 9.44 MB | 9.17 MB | −2.8% | −8.2% |
+| win_sec | 3.77 MB | 3.95 MB | +4.9% | +55.3% |
+| log_sessions | 22.45 MB | 21.75 MB | −3.1% | +0.6% |
+| regex_lines | 3.92 MB | 3.92 MB | 0.0% | −11.6% |
+
+**The scan rows' regression is not allocation.** `progressive` and `regex_lines` allocate
+byte-for-byte what the floor allocated and read 8% and 12% slower. Whatever design 35 cost
+them is in the code, not the heap, which is phases 6 and 7's brief and is why they, not phase
+2, are the scan rows' phases.
+
+**What the bytes are**, by share of allocated bytes on head:
+
+| row | largest | second | third | the collections (#20–22) |
+|---|---|---|---|---|
+| ausearch | `byte[]` copied by `ByteMatcher.groupBytes` 55% | `byte[]` in `resolveValue` (composite) 10% | `Utf8Bytes` wrappers 12% | `LinkedHashMap.Entry` + table + map **4.3%** |
+| win_sec | `Utf8Bytes` wrappers 49% (40% from `TypedValue.utf8`) | `groupBytes` copies 23% | `MatchResult` + groups array 10% | **4.6%**; `Body.inputs` (#8) 2.6% |
+| progressive | input buffer `InputWindow.read` 38% | `Steps.Result` 13% | `Utf8Bytes` 11%, `Integer` from `unsigned` 8%, groups array 7.5%, list + backing 10%, group 0 copy 5%, `MatchResult` 3% | none |
+| log_sessions | `groupBytes` copies 37% | `java.time` parsing (`Parsed`, `LocalTime`, `LocalDate`, `HashMap`) ~20% | `Body.Item` (#13) 5.5%, `String` from `asString` 6.5%, `Pattern` compiled per `Transforms.split` 2.7% | small |
+| regex_lines | `groupBytes` copies 61% | `Splitter` copies 12% | `Utf8Bytes` 6%, groups array 10%, `MatchResult` 6% | none |
+
+**What that does to the verdicts.**
+
+- *Phase 2 is worth about four per cent of the bytes on the rows it is for.* The map per record
+  on `ausearch` is 4.3% of allocation, on `win_sec` 4.6%. It is still ruled and still cheap,
+  and the expectation is now written down: a few per cent of allocation, not the row's deficit.
+- *The largest allocator on every regex row is a copy of bytes that are already private.*
+  `ByteMatcher`'s own javadoc: "groups are returned as offsets into the caller's array — no
+  copying; call `groupBytes` only when a copy is genuinely needed." `Level.regexMatch` (`:696`)
+  calls it for every group of every match and wraps each copy in a `Utf8Bytes`. The JFR stacks
+  say which entry point each copy sits under — `Level.stream` is the root over the window,
+  `Level.dispatch` is what a body's nested match uses over a resolved array:
+
+  | row | copies under a nested dispatch | copies at the root |
+  |---|---|---|
+  | regex_lines | 61% | 22% (the line splitter) |
+  | ausearch | 63% | small |
+  | log_sessions | 0% | 37% |
+  | win_sec | 16% | 7% |
+
+  A nested match runs over a `byte[]` a body resolved (`Body:1150`), which is a group's copy or a
+  composite's fresh array — private, stable, and copied *again* by every group the nested match
+  produces. That is phase 3, and it is the largest lever in this table by a factor of ten.
+
+- *Two small things fall out for free.* `Transforms.split` compiles a `Pattern` per call
+  (`Pattern.quote` then `String.split`), 2.7% of `log_sessions`; and `Body.items` (#13) is
+  5.5% there — both move to *do*.
+- *Progressive's inventory is confirmed and priced* for phase 9: of the 62% that is not the
+  input buffer, `Result` is the single largest at 13%, then the wrapper and boxing of every
+  step's output (`Utf8Bytes` 11%, `Integer` 8%), then the two arrays and the list per match.
+  Design 34 went after the list, which is 10%.
 
 ## 4. Phase 2 — a collection is cleared on exit, not remade on entry
 
@@ -152,14 +212,64 @@ them is a later question and the census will say whether any corpus row makes on
 
 **What `clear` costs.** `LinkedHashMap.clear` walks the table and nulls it — O(capacity), and
 a table that once grew large stays large. That is the right trade on these rows (the same
-template sees the same shape of record every time), and phase 3's own map makes `clear`
+template sees the same shape of record every time), and phase 7's own map makes `clear`
 O(size). `TypedValue.List` clears by `size = 0` and nulling the used prefix.
 
 **Measure.** `-prof gc` on `ausearch` and `win_sec` before and after — the claim is B/op
 falls by the collections' share and nothing else moves; then interleave the two rows with the
 canaries. `progressive` should not move at all: it declares nothing.
 
-## 5. Phase 3 — what backs a map, and whether order is worth its node
+## 5. Phase 3 — the root copies, everything below slices
+
+*Proposed 2026-09-15 from phase 1's reading; the shape is the owner's, on the observation that
+the only volatile bytes are the ones the window presents to a root match.*
+
+**The rule.** Bytes reach a match by exactly two routes. From the input window, through
+`Level.stream`: those bytes are volatile, because the window moves, and a match over them
+copies what it keeps. From a value a body resolved, through a nested `Level.dispatch`: those
+bytes are already a private array that nothing overwrites, and a match over them keeps
+*slices* — array, from, to — not copies. The engine knows which route it is on structurally,
+by the entry point, so nothing is flagged at run time. The root copies once; every level below
+it slices what the root copied.
+
+**What that changes and what it does not.** Today every level copies every group. The nested
+levels' copies — 61% of allocated bytes on `regex_lines`, 63% on `ausearch` — stop. The root's
+copies are the stable array the nested levels already run over, so the cost of "keeping the
+top-level bytes so that slices can refer to them" is not new: it is being paid now, and the
+question at the root is only whether one span copy per match beats one copy per group, which
+depends on how much of the span the groups cover (`log_sessions`, whose copies are all at the
+root, is where that is read).
+
+**What a slice needs.** A `Bytes` value over `(array, from, to)`, with `equals`, `hashCode`,
+`isEmpty`, `asString`, the encoding conversions and the output write all working on the range.
+Fifteen call sites take a whole `byte[]` today (`asUtf8()`), eleven of them inside the value
+class; the output writer and `Comparisons` are the ones that must take a range, or the slice
+materialises on use and the copy is back. A nested dispatch's content (`Body:1150`) becomes a
+range too, so a slice is matched over without being materialised.
+
+**The two costs, and where each is bounded.**
+
+1. *Retention.* A slice stored into a run-lifetime variable pins its parent array, which is at
+   most one root match's span — one record. Where that matters, the store into a run-lifetime
+   slot compacts the slice into its own array; that is the copy-on-store seam design 35 §11
+   already has for collections, applied to a scalar on the source template only. Per-execution
+   slots never need it: their lifetime is inside the match's.
+2. *Materialisation on demand.* A transform that needs a whole array, or a function argument,
+   copies the slice when it asks. How often that happens per row is a count, taken before the
+   design is finished: one instrumented run of the fixtures classifying every group value's
+   use as written to output, stored per execution, stored for the run, or handed to a
+   transform. The first two never copy; the third copies once; the fourth is the row's cost.
+
+**Progressive is the same rule.** `Steps.take` copies (4.7% of `progressive`) and group 0 is a
+copy of the span (5.3%); over a root window they stay copies, over a nested value they are
+slices. Phase 9 takes that as given.
+
+**Measure.** The use-classification count first, then `-prof gc` on `regex_lines` and
+`ausearch` — the claim is that most of the 61% and 63% goes — then the interleave on every
+regex row with `progressive` as the canary, and `apache_httpd` and `csv_header` because they
+are reference-heavy and every reference now reads through a range.
+
+## 6. Phases 4 and 5 — what backs a map, and whether order is worth its node
 
 **The question as put:** `LinkedHashMap` keeps insertion order, which keeps fixture output
 deterministic when a configuration walks a map without a sort, and costs something for it. Is
@@ -190,19 +300,19 @@ the registry: with `hashes[]` in the map, the hash is computed once per *put* an
 *get* key — and the `get` key is usually a `Bytes` freshly matched from the input, so caching
 on the object would not help it anyway. The map's `hashes[]` is the cache that matters.
 
-**Two steps, ruled 2026-09-15.** *3a* puts a number on the order: a probe branch swaps
+**Two steps, ruled 2026-09-15.** *Phase 4* puts a number on the order: a probe branch swaps
 `LinkedHashMap` for `HashMap` (and the set likewise), the fixtures that walk a map without a
 sort fail — which is the point, and they are listed — and `ausearch`, `win_sec`,
 `log_sessions` and `apache_httpd` are interleaved against the head. If the order costs
-nothing measurable, the case for 3b rests on the node alone, and the reading says how much
-that is worth. *3b* is the engine's own ordered map and set as a phase of its own, with the
+nothing measurable, the case for phase 5 rests on the node alone, and the reading says how much
+that is worth. *Phase 5* is the engine's own ordered map and set as a phase of its own, with the
 code reviewed and the structure tested as a whole before it goes near the registry: a
 micro-benchmark of `put`/`get`/`clear` against `LinkedHashMap` at the corpus's sizes (the
 `ausearch` map holds a few dozen keys; `win_sec` a handful), the collection tests run against
 both backings, then `-prof gc` and the interleave on the four rows. The fixtures' outputs pin
 insertion order and pass unchanged, or the map is wrong.
 
-## 6. Phase 4 — a kind on every value and instruction
+## 7. Phase 6 — a kind on every value and instruction
 
 **The claim as put:** an `int` type identifier on objects would remove `instanceof` from
 switches, tests and `equals`, and might beat the class comparison some `equals` methods use.
@@ -240,10 +350,10 @@ question are the ones §3's grep found on the hot path: `CompiledRefs` (`:72`, `
    by the canonical constructor.
 3. *A kind on the compiled instruction only*, not on values. `CompiledRef` and `CompiledOp` are
    the switches that run per match; `TypedValue` switches run per *collection* operation. Start
-   here, measure, and extend to values only if the accessor switches show up in phase 5's
+   here, measure, and extend to values only if the accessor switches show up in phase 7's
    census.
 
-Recommendation: 3, then 2 if the census says so. And the kind is where phase 5's category
+Recommendation: 3, then 2 if the census says so. And the kind is where phase 7's category
 split hangs: `kind >> 4` is the category, `kind & 15` the member.
 
 **Measure.** `javap -c` on `CompiledRefs` before and after shows `typeSwitch` gone and
@@ -251,7 +361,7 @@ split hangs: `kind >> 4` is the category, `kind & 15` the member.
 shows `write` and `resolveValue` under 325 bytes, and the `progressive`/`regex_lines`
 interleave shows the sign — this is the phase that is *for* those two rows.
 
-## 7. Phase 5 — an inline census, and switches split by category
+## 8. Phase 7 — an inline census, and switches split by category
 
 **The census first.** One run per corpus row with `-XX:+PrintInlining -XX:+UnlockDiagnosticVMOptions`,
 filtered to `stroom.shapeshifter`, tabulated by method and by reason: *hot method too big*,
@@ -270,14 +380,14 @@ The hot category on `progressive` is *output*; on `ausearch` it is *output* and 
 walk and mutation arms are cold on both and today sit in the same method as the hot ones,
 counting against its budget. The same applies to `CompiledRefs.write`: a `Bytes`/`LocalGroup`
 /`RemoteVar` fast path in one method under the budget, and everything else behind one call.
-That is what `0e852742e4` tried by hand and got half right; with the kind from phase 4 the
+That is what `0e852742e4` tried by hand and got half right; with the kind from phase 6 the
 fast path is a `tableswitch` and the bytes it costs are known before the benchmark runs.
 
 **Measure.** The census table before and after, then the interleave on every row. The gate
 is the table: a method that was *too big* is under budget, and no method that inlined has
 stopped.
 
-## 8. Phase 6 — the shape of a configuration that uses a map
+## 9. Phase 8 — the shape of a configuration that uses a map
 
 **Why last.** A fixture's configuration is what the benchmark measures; changing it while the
 engine is moving confounds both readings. And it is not engine work — it is finding out what
@@ -306,10 +416,10 @@ the same input and output.
    the match and a scan on each use.
 
 **Measure.** Each challenger on its row against the current configuration, interleaved, on
-the engine as it stands after phase 5. The result is a table of *shape → cost* per row and a
+the engine as it stands after phase 7. The result is a table of *shape → cost* per row and a
 paragraph in design 35 §5 saying which shape a map is for.
 
-## 9. Phase 7 — the progressive match, reconsidered from what it is for
+## 10. Phase 9 — the progressive match, reconsidered from what it is for
 
 **Ruled 2026-09-15: think wider first.** The row furthest from the floor is `progressive`; the
 one obvious thing about it — the lists — was tried by design 34 and lost 4% for a reason still
@@ -361,21 +471,22 @@ in question 3, and a proposal. Then, if the proposal is built, one commit per ch
 interleaved six rounds on `progressive` and `progressive_text` as design 34 was, so the reading
 is comparable to the one that reverted it.
 
-## 10. Rulings sought
+## 11. Rulings sought
 
 | question | position taken here | ruled |
 |---|---|---|
-| Order of phases | census, reuse, map backing, kind, inline split, fixture shapes, progressive | **ruled 2026-09-15: reuse first**, then the map, before the kind |
+| Order of phases | census, reuse, slices, order's cost, own map, kind, inline split, fixture shapes, progressive | **ruled 2026-09-15: reuse first**, then the map, before the kind; **re-ruled 2026-09-15: the sections are in implementation order, slices directly after reuse** |
 | Phase 2 pools nested collection values (a list under a map key) | no — inner copies stay the collector's | — |
-| Phase 3 keeps insertion order | yes — the fixtures pin it; the saving is the node, not the order | **ruled 2026-09-15: measure `HashMap` first on a probe branch, so the order's cost is a number; the engine's own ordered map is then a phase of its own (3b) so the code can be inspected and tested as a whole** |
-| Phase 4 carries the kind on instructions first, values second | yes | **ruled 2026-09-15: yes** |
-| Phase 6 replaces a fixture's configuration or adds a challenger | challenger, beside it | **ruled 2026-09-15: challengers stay beside the current configuration**, measured every run, as the XML bench does |
-| Phase 7 may make group 0 lazy (a view materialised on read) | yes — nothing observable changes; the copy moves to the reader | **superseded 2026-09-15: phase 7 first asks what a progressive match is for and whether the approach is right, before any per-match cost is chased** (§9) |
+| Phase 5 keeps insertion order | yes — the fixtures pin it; the saving is the node, not the order | **ruled 2026-09-15: measure `HashMap` first on a probe branch, so the order's cost is a number; the engine's own ordered map is then a phase of its own (phase 5) so the code can be inspected and tested as a whole** |
+| Phase 6 carries the kind on instructions first, values second | yes | **ruled 2026-09-15: yes** |
+| Phase 8 replaces a fixture's configuration or adds a challenger | challenger, beside it | **ruled 2026-09-15: challengers stay beside the current configuration**, measured every run, as the XML bench does |
+| Phase 9 may make group 0 lazy (a view materialised on read) | yes — nothing observable changes; the copy moves to the reader | **superseded 2026-09-15: phase 9 first asks what a progressive match is for and whether the approach is right, before any per-match cost is chased** (§10) |
+| Phase 3: the root copies, everything below slices | proposed 2026-09-15 from phase 1's reading, shaped by the owner (§6); the largest allocation on every regex row, and the owner expects a large gain | **shape ruled 2026-09-15; placed directly after phase 2** — ahead of the map phases, because it is the larger lever and touches neither the registry nor the map |
 | The `lookup` and `set` pieces of the streamlining are kept now | yes — restore the close's `write`/`resolveValue` onto head, read the four rows | **ruled 2026-09-15: yes** |
 | Cadence | daytime targeted one-minute interleaves per phase on its rows plus the two canaries when the box is quiet; full-suite points collected into one evening run per two or three phases | **ruled 2026-09-15** |
 | Target for the scan rows | the floor `597274d25e` is the reference, not a gate: design 35 corrected behaviour rather than chasing speed, so its cost cannot be insisted away; every improvement counts | **ruled 2026-09-15** |
 
-## 11. What would make this a mistake
+## 12. What would make this a mistake
 
 - **Reuse that is observed.** If any holder keeps a collection past its scope, phase 2 turns
   a dropped object into shared mutable state. The census of holders in §4 is the argument;
@@ -394,7 +505,7 @@ is comparable to the one that reverted it.
 - **Reading the wrong row.** Every phase names its row and the two canaries. A gain on
   `ausearch` with a loss on `progressive` is the 2026-09-15 result again, and it is a loss.
 
-## 12. The plan, in phases
+## 13. The plan, in phases
 
 Each phase: build, audit against this section, commit when asked, benchmark point when asked.
 
@@ -404,39 +515,51 @@ Each phase: build, audit against this section, commit when asked, benchmark poin
 (`-prof gc` on `progressive`, `ausearch`, `win_sec`, `log_sessions`, `regex_lines`) so that
 the *candidate* verdicts become *do* or *leave* on evidence. No code.
 
+**Done 2026-09-15**; the reading is in §3 under *What phase 1 read*. Two results change the
+plan: the scan rows' regression is not allocation, and the largest allocation everywhere is
+the group copy the matcher says not to make (phase 3).
+
 ### Phase 2 — clear, don't allocate
 
 §4. Gate: B/op on `ausearch` and `win_sec` falls; `progressive` unchanged, since it declares
 nothing; outputs unchanged.
 
-### Phase 3a — what insertion order costs
+### Phase 3 — the root copies, everything below slices
 
-§5. A probe branch, not a commit on the line: `HashMap` and `HashSet` behind the map and set,
+§5. First the use-classification count over the fixtures; then the ranged `Bytes` value and
+its consumers; then `Level.regexMatch` and the nested dispatch content as ranges; then the
+run-lifetime store compacting. Gate: B/op on `regex_lines` and `ausearch` falls by most of the
+nested share; every regex row's interleave, `progressive`, `apache_httpd` and `csv_header` as
+canaries; every golden byte-for-byte.
+
+### Phase 4 — what insertion order costs
+
+§6. A probe branch, not a commit on the line: `HashMap` and `HashSet` behind the map and set,
 interleaved on the four map rows. Output: the number, the list of fixtures that depend on
-order, and a go/no-go for 3b written into §5.
+order, and a go/no-go for phase 5 written into §6.
 
-### Phase 3b — the engine's own ordered map and set
+### Phase 5 — the engine's own ordered map and set
 
-§5. Its own phase: the structure, its tests against both backings, the micro-benchmark, review
+§6. Its own phase: the structure, its tests against both backings, the micro-benchmark, review
 of the code as a whole; only then the swap. Gate: `ausearch` B/op and ops/s; every map fixture
 passes byte-for-byte.
 
-### Phase 4 — the kind
+### Phase 6 — the kind
 
-§6, instructions first; values only if phase 5's census names a value switch over budget. Gate: `javap` shows `tableswitch`; `PrintInlining` shows `write`
+§7, instructions first; values only if phase 7's census names a value switch over budget. Gate: `javap` shows `tableswitch`; `PrintInlining` shows `write`
 and `resolveValue` under budget; `progressive` and `regex_lines` recover toward the floor.
 
-### Phase 5 — inline census and the category split
+### Phase 7 — inline census and the category split
 
-§7. Gate: the census table, before and after.
+§8. Gate: the census table, before and after.
 
-### Phase 6 — fixture shapes
+### Phase 8 — fixture shapes
 
-§8. Gate: the shape → cost table, and a sentence in design 35 §5.
+§9. Gate: the shape → cost table, and a sentence in design 35 §5.
 
-### Phase 7 — the progressive match, reconsidered
+### Phase 9 — the progressive match, reconsidered
 
-§9. A thinking phase first: what a progressive match is for, what it produces, whether the
+§10. A thinking phase first: what a progressive match is for, what it produces, whether the
 interpreter is the right execution, costed per alternative. Output is a proposal, possibly a
 design of its own. Anything then built is one commit per change, six interleaved rounds on
 `progressive` and `progressive_text`; a negative reading is reverted as design 34 was and the
@@ -465,8 +588,8 @@ that cost `regex_lines` 20%, so those two rows want opposite things from that me
 4 has to find the shape that serves both. `progressive` is flat. And `regex_lines` reads
 −2.5% to −3.0% on all three rounds from `lookup` and `set` alone — small, consistent, and not
 what the single-workload bisect legs showed (+3.6%, −0.1%, −14.1%), which were noisier. Kept
-as ruled, with that 3% written down as phase 4's to recover along with the rest; whether it is
-`lookup` or `set` is one more one-minute interleave and is asked for before phase 4 starts.
+as ruled, with that 3% written down as phase 6's to recover along with the rest; whether it is
+`lookup` or `set` is one more one-minute interleave and is asked for before phase 6 starts.
 
 ### Where the bisect stood when this was written
 
@@ -476,5 +599,5 @@ rewrite removed and the other two pieces kept (`808c9e9ffd`) the row reads +3.6%
 −14.1% — noise around zero; with the `lookup` rewrite removed instead (`44f8374844`) it reads
 −23.2%, −22.8%, −12.2%; with the `set` rewrite removed (`90204f3ace`) it reads −28.2%,
 −20.4%, −25.9%. The regression is the `write`/`resolveValue` rewrite alone, and the `lookup` and `set`
-pieces are keepable. Phase 4 is where `write` is redone, on a kind, with the byte count
+pieces are keepable. Phase 6 is where `write` is redone, on a kind, with the byte count
 read before the benchmark.
