@@ -542,6 +542,36 @@ micro-benchmark of `put`/`get`/`clear` against `LinkedHashMap` at the corpus's s
 both backings, then `-prof gc` and the interleave on the four rows. The fixtures' outputs pin
 insertion order and pass unchanged, or the map is wrong.
 
+### What phase 4 read — 2026-09-15
+
+A probe commit (`137530cb13`, dangling) with `HashMap` and `HashSet` behind the map and set,
+against point 50, three rounds, quiet box:
+
+| row | r1 | r2 | r3 |
+|---|---|---|---|
+| ausearch | +0.6% | +2.2% | −0.1% |
+| win_sec | −0.4% | −0.3% | +0.2% |
+| log_sessions | −0.4% | −2.8% | −0.4% |
+| apache_httpd | +0.0% | −1.9% | −2.1% |
+
+**Insertion order costs nothing measurable.** Every row inside the noise, no sign agreeing
+across rounds — which is what §6's arithmetic said it would be: `get` is identical on the
+two maps, and the order's whole cost is two pointer writes per `put` and sixteen bytes per
+entry. And the fixtures do not depend on it: with the order gone, every golden and every
+parity case passed, and the only failures were the four unit tests that pin the rule. So
+the rule is one the tests carry, not one the corpus observes; it stays, because a walk over
+a map without a sort must be deterministic for a fixture to be a fixture, but nothing in the
+corpus exercises that determinism today.
+
+**Phase 5 is a no-go for now.** Its case was to rest on the node alone once the order read
+zero, and phase 1 priced the node: about 4% of allocated bytes on `ausearch`, the last piece
+phase 2 could not reuse. Against that stands what this design has learned three times about
+touching a hot path: every new shape has to be read for the whole call tree, and the losses
+have been of the same order as the gains on offer here. An engine-owned map is still the
+right answer if a real feed makes maps hot — `keys_lookup`, the one XSLT case that did not
+move on 2026-09-15, is the row that would say so — and §6 keeps its design for that day. The
+order of work skips to phase 6.
+
 ## 7. Phase 6 — a kind on every value and instruction
 
 **The claim as put:** an `int` type identifier on objects would remove `instanceof` from
@@ -649,6 +679,38 @@ the same input and output.
 the engine as it stands after phase 7. The result is a table of *shape → cost* per row and a
 paragraph in design 35 §5 saying which shape a map is for.
 
+### What phase 8 read first — 2026-09-15, `ausearch`
+
+*Pulled forward on phase 4's result: with the order free and the node small, the open
+question was what a map is worth against not having one, and that is answered from this
+side.* `ausearch` reads four known keys out of every record — `auid`, `key`, `success`, `res`,
+sixteen reads — and its map takes thirty to sixty puts per record to hold them. Two challengers
+beside the fixture, both writing the golden output byte-for-byte with no messages
+(`ConfigurationShapesTest`), both benchmark workloads now (`ausearch_switch`,
+`ausearch_dispatch`). Three rounds, each one JMH series over the three shapes with the order
+rotated, five forks per shape:
+
+| shape | r1 | r2 | r3 | against the map |
+|---|---|---|---|---|
+| the map, as the fixture is | 415.6 | 421.0 | 418.2 | — |
+| one regex, a `switch` on the key into four scalars | 444.9 | 448.6 | 451.3 | **+7%** |
+| a template per key, dispatched in order; other tokens fall through | 547.8 | 535.3 | 546.4 | **+30%** |
+
+*What it says.* The map does the most work: one generic regex over every token, then a hash
+and a node for every key, of which the body reads four. The switch keeps the regex and stores
+four. The dispatch shape does neither — each token tries up to four anchored regexes that
+reject on their first byte, and only the wanted tokens are captured at all. **Capture what
+you read.** The result runs against the expectation written above §9 (that per-key templates
+would cost dispatch); the regex engine's anchored-literal rejection is cheap enough that four
+of them beat one generic match plus a put. It also answers phase 5 from the other side: on
+the row that was to justify an engine-owned map, the fastest map is no map.
+
+*Shapes 2 and 3* — the paired lists and the whole-pair capture — do not fit this row, which
+looks keys up rather than walking them; they are measured on a walking row next
+(`log_sessions`, or the XSLT grouping cases). *For migration*: a DS3 configuration that reads
+a fixed set of keys should be emitted as per-key templates, not a key-value capture into a
+map; the map is for keys the configuration does not know.
+
 ## 10. Phase 9 — the progressive match, reconsidered from what it is for
 
 **Ruled 2026-09-15: think wider first.** The row furthest from the floor is `progressive`; the
@@ -707,7 +769,7 @@ is comparable to the one that reverted it.
 |---|---|---|
 | Order of phases | census, reuse, slices, order's cost, own map, kind, inline split, fixture shapes, progressive | **ruled 2026-09-15: reuse first**, then the map, before the kind; **re-ruled 2026-09-15: the sections are in implementation order, slices directly after reuse** |
 | Phase 2 pools nested collection values (a list under a map key) | no — inner copies stay the collector's | — |
-| Phase 5 keeps insertion order | yes — the fixtures pin it; the saving is the node, not the order | **ruled 2026-09-15: measure `HashMap` first on a probe branch, so the order's cost is a number; the engine's own ordered map is then a phase of its own (phase 5) so the code can be inspected and tested as a whole** |
+| Phase 5 keeps insertion order | yes — the rule stays, though phase 4 found no fixture observes it; the saving would be the node, not the order | **ruled 2026-09-15: measure `HashMap` first on a probe branch, so the order's cost is a number; the engine's own ordered map is then a phase of its own (phase 5) so the code can be inspected and tested as a whole** |
 | Phase 6 carries the kind on instructions first, values second | yes | **ruled 2026-09-15: yes** |
 | Phase 8 replaces a fixture's configuration or adds a challenger | challenger, beside it | **ruled 2026-09-15: challengers stay beside the current configuration**, measured every run, as the XML bench does |
 | Phase 9 may make group 0 lazy (a view materialised on read) | yes — nothing observable changes; the copy moves to the reader | **superseded 2026-09-15: phase 9 first asks what a progressive match is for and whether the approach is right, before any per-match cost is chased** (§10) |
@@ -787,11 +849,16 @@ shape of every switch over it and shape has bitten twice.
 interleaved on the four map rows. Output: the number, the list of fixtures that depend on
 order, and a go/no-go for phase 5 written into §6.
 
+**Done 2026-09-15.** The number is zero, no fixture depends on the order, and phase 5 is a
+no-go for now (§6).
+
 ### Phase 5 — the engine's own ordered map and set
 
 §6. Its own phase: the structure, its tests against both backings, the micro-benchmark, review
 of the code as a whole; only then the swap. Gate: `ausearch` B/op and ops/s; every map fixture
-passes byte-for-byte.
+passes byte-for-byte. **Deferred 2026-09-15 on phase 4's reading**: the order costs nothing,
+the node is about 4% of bytes on one row, and the shape risk of a hot-path change has been
+of that order every time. Revisited if a feed makes maps hot.
 
 ### Phase 6 — the kind
 
@@ -804,7 +871,9 @@ and `resolveValue` under budget; `progressive` and `regex_lines` recover toward 
 
 ### Phase 8 — fixture shapes
 
-§9. Gate: the shape → cost table, and a sentence in design 35 §5.
+§9. **Pulled forward and begun 2026-09-15**: `ausearch`'s two challengers read +7% (switch)
+and +30% (a template per key) against its map, parity-gated and now benchmark workloads. The
+walking shapes are next, on a walking row. Gate: the shape → cost table, and a sentence in design 35 §5.
 
 ### Phase 9 — the progressive match, reconsidered
 

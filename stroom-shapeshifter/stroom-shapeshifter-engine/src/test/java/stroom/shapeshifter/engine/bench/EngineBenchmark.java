@@ -82,7 +82,7 @@ public class EngineBenchmark {
 
     @Param({"regex_lines", "csv_header", "ausearch", "apache_httpd",
             "win_sec", "win_sec_strict", "win_sec_xml", "progressive", "progressive_text",
-            "log_sessions", "element_storm"})
+            "log_sessions", "element_storm", "ausearch_switch", "ausearch_dispatch"})
     public String workload;
 
     private Project project;
@@ -97,6 +97,12 @@ public class EngineBenchmark {
                     FixtureLedger.bytes("legacy/004_simple_regex.in"));
             case "csv_header" -> csv();
             case "ausearch" -> streamed("projects/ausearch/project.json",
+                    FixtureLedger.bytes("projects/ausearch/input.txt"));
+            // The same records, the same output bytes, in two shapes without the map (design
+            // 37 phase 8): a switch on the key into four scalars, and a template per key.
+            case "ausearch_switch" -> streamed("projects/ausearch/challenger-switch.project.json",
+                    FixtureLedger.bytes("projects/ausearch/input.txt"));
+            case "ausearch_dispatch" -> streamed("projects/ausearch/challenger-dispatch.project.json",
                     FixtureLedger.bytes("projects/ausearch/input.txt"));
             case "apache_httpd" -> streamed("projects/apache_httpd/project.json",
                     FixtureLedger.bytes("projects/apache_httpd/input.txt"));
