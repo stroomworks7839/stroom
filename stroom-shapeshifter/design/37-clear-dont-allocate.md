@@ -453,9 +453,30 @@ slice is a small fraction of its array) is the answer if a real feed ever shows 
 **This departs from the 2026-09-15 ruling that compaction is 3d's prerequisite, on the
 evidence above, and is flagged for the owner.**
 
-*Left on the table, priced.* A slice is 32 bytes and is now the largest allocation on the
-sliced rows; a UTF-8-only variant without the encoding and the memo would be 24. And the
-`Slicing` record per nested dispatch (16 bytes).
+*What the evening read, 2026-09-15, and what it changed.* Point 49 against point 48 in the
+sequence: `regex_lines` +8.9, `csv_header` +0.8, `log_sessions` −4.0, `win_sec` −5.2. The two
+losses interleaved, three rounds each, six of six negative: `log_sessions` −3.2%, −3.0%,
+−3.5%; `win_sec` −10.8%, −6.2%, −5.9% — and `win_sec`'s bytes had not moved at all. The
+compiler said why. Under 3c `Level.match` inlined hot into the dispatch loop and `regexMatch`
+into it; under 3d both read *already compiled into a big method*: the span logic took
+`regexMatch` from 177 to 261 bytes, the compiled tree crossed the code-size limit, and
+`win_sec`, which tries up to sixteen templates per event, paid two calls per attempt. On
+`log_sessions` the root groups became slices for the first time and the row's work is parsing
+and hashing them: `ByteSlice.asString` is 65 bytes at twelve hot sites where `Utf8Bytes`' was
+a field read, and the slice's hash is a scalar loop where the whole array's is an intrinsic.
+
+**So 3d is split, and the half that won is kept.** The delimiter arm keeps one value per
+field with the field a range of it, which is what gave `regex_lines` its 9%. The regex arm is
+back to 3c's per-group `source.slice` — `regexMatch` at 177 bytes, root regex groups whole
+values again — and the matcher's span bounds are gone with it. `Bytes.range` stays, for the
+splitter. The look-ahead pin holds by construction under per-group slices. The two follow-ups
+that would let a root regex's groups be slices again — a 24-byte UTF-8 slice, and an intrinsic
+hash over a range — wait for phases 6 and 7 to make the match arm's shape cheap enough to
+carry them.
+
+*The split, interleaved against 3c the same evening, three rounds:* `regex_lines` +8.2%,
++8.0%, +9.2%; `csv_header` +1.5%, +0.0%, +0.4%; `log_sessions` +1.7%, +0.6%, −0.2%; `win_sec`
++4.6%, +12.4%, −1.0%. The gain is kept whole and the two losses are gone.
 
 *What the audit found, 2026-09-15.* `javap`: `regexMatch` had grown from 166 to 319 bytes —
 six under the hot-inline limit, on a method that inlines hot into the match loop on every
@@ -752,11 +773,13 @@ shape of every switch over it and shape has bitten twice.
   a range into `Level.dispatch`. The payoff. Gate: B/op on `regex_lines` and `ausearch` falls by
   most of the nested share (61%, 63%); interleave on every regex row with `progressive`,
   `apache_httpd` and `csv_header` as canaries.
-- **3d, a match makes one value and its groups are ranges of it.** Built 2026-09-15 (§5).
-  The run-lifetime compaction was not built: on the row 3a named, seven stored groups sharing
-  one line retain less than seven copies did, and compaction would remake the copies; the
-  trade and the case that would change it are in §5, and the departure from the ruling is
-  flagged. Its own point.
+- **3d, a match makes one value and its groups are ranges of it.** Built 2026-09-15 (§5),
+  read that evening, and **split**: the rule stays on the delimiter arm, where it won
+  (`regex_lines` +9%), and comes off the regex arm, where its shape cost `win_sec` 6% to 10%
+  and `log_sessions` 3% (§5). The run-lifetime compaction was not built: on the row 3a named,
+  seven stored groups sharing one line retain less than seven copies did, and compaction
+  would remake the copies; the trade and the case that would change it are in §5, and the
+  departure from the ruling is flagged.
 
 ### Phase 4 — what insertion order costs
 

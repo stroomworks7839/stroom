@@ -465,36 +465,6 @@ public final class ByteMatcher {
         return end(0);
     }
 
-    /**
-     * The first byte any group that took part starts at: the match's own start, unless a group
-     * inside a look-behind captured before it. With {@link #spanEnd()}, the bounds of every
-     * byte a group refers to — what a caller keeping one value for the whole match needs.
-     */
-    public int spanStart() {
-        checkMatched();
-        int first = slots[0];
-        for (int g = 1; g <= groupCount; g++) {
-            final int at = slots[2 * g];
-            if (at >= 0 && at < first) {
-                first = at;
-            }
-        }
-        return first;
-    }
-
-    /** One past the last byte any group that took part ends at — past the match's end when a look-ahead captured. */
-    public int spanEnd() {
-        checkMatched();
-        int last = slots[1];
-        for (int g = 1; g <= groupCount; g++) {
-            final int at = slots[2 * g + 1];
-            if (at > last) {
-                last = at;
-            }
-        }
-        return last;
-    }
-
     /** The buffer offset where a group starts, or -1 if the group did not take part. */
     public int start(final int group) {
         checkMatched();

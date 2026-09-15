@@ -76,31 +76,6 @@ class FancyTest {
         assertThat(matcher.find(bytes("no repetition here"))).isFalse();
     }
 
-    /**
-     * The span of every group that took part: past the match's end when a look-ahead captured,
-     * before its start when a look-behind did.
-     */
-    @Test
-    void spanCoversGroupsOutsideTheMatch() {
-        final ByteMatcher ahead = BytePattern.compile("([a-z]+)(?=(,[a-z]+))").matcher();
-        assertThat(ahead.find(bytes("alpha,beta"))).isTrue();
-        assertThat(ahead.end()).isEqualTo(5);
-        assertThat(ahead.spanStart()).isEqualTo(0);
-        assertThat(ahead.spanEnd()).as("group 2 ends past the match").isEqualTo(10);
-
-        final ByteMatcher behind = BytePattern.compile("(?<=(al))pha").matcher();
-        assertThat(behind.find(bytes("alpha"))).isTrue();
-        assertThat(behind.start()).isEqualTo(2);
-        assertThat(behind.spanStart()).as("group 1 starts before the match").isEqualTo(0);
-        assertThat(behind.spanEnd()).isEqualTo(5);
-
-        final ByteMatcher plain = BytePattern.compile("(a)(b)?c").matcher();
-        assertThat(plain.find(bytes("ac"))).isTrue();
-        assertThat(plain.matchedGroup(2)).isFalse();
-        assertThat(plain.spanStart()).as("a group that did not take part is ignored").isEqualTo(0);
-        assertThat(plain.spanEnd()).isEqualTo(2);
-    }
-
     @Test
     void matchesANamedBackreference() {
         final ByteMatcher matcher =
