@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.match;
 
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.ByteSource;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.util.Arrays;
@@ -63,7 +64,8 @@ public final class Splitter {
                                     final byte[] escape,
                                     final byte[] containerStart,
                                     final byte[] containerEnd,
-                                    final Encoding encoding) {
+                                    final Encoding encoding,
+                                    final ByteSource source) {
         if (from >= to || delimiter.length == 0) {
             return null;
         }
@@ -71,7 +73,7 @@ public final class Splitter {
         // The overwhelmingly common case — a one-byte separator, nothing quoted, nothing
         // escaped — is a single scan for a byte, and worth not paying the general machinery for.
         if (delimiter.length == 1 && escape == null && containerStart == null) {
-            return splitOnByte(data, from, to, delimiter[0], encoding);
+            return splitOnByte(data, from, to, delimiter[0], encoding, source);
         }
 
         boolean inContainer = false;
@@ -123,35 +125,35 @@ public final class Splitter {
             if (!inContainer && matchesAt(data, scan, to, delimiter)) {
                 return build(data, from, scan, delimiter.length, hasStartContainer,
                         containerStart, containerEnd, escape, escapes, escapeCount, false,
-                        lastContainerEnd, encoding);
+                        lastContainerEnd, encoding, source);
             }
             scan++;
         }
 
         return build(data, from, to, 0, hasStartContainer,
                 containerStart, containerEnd, escape, escapes, escapeCount, true, lastContainerEnd,
-                encoding);
+                encoding, source);
     }
 
     private static MatchResult splitOnByte(final byte[] data,
                                            final int from,
                                            final int to,
                                            final byte delimiter,
-                                           final Encoding encoding) {
+                                           final Encoding encoding,
+                                           final ByteSource source) {
         for (int i = from; i < to; i++) {
             if (data[i] == delimiter) {
                 // Groups 1 and 2 are the same bytes here, so they are the same value: one
                 // object per field fewer on the hottest delimiter path.
-                final TypedValue content =
-                        TypedValue.of(Arrays.copyOfRange(data, from, i), encoding);
+                final TypedValue content = source.slice(from, i, encoding);
                 return new MatchResult(new TypedValue[]{
-                        TypedValue.of(Arrays.copyOfRange(data, from, i + 1), encoding),
+                        source.slice(from, i + 1, encoding),
                         content,
                         content},
                         i + 1 - from, 0);
             }
         }
-        final TypedValue content = TypedValue.of(Arrays.copyOfRange(data, from, to), encoding);
+        final TypedValue content = source.slice(from, to, encoding);
         return new MatchResult(new TypedValue[]{content, content, content}, to - from, 0);
     }
 
@@ -167,9 +169,9 @@ public final class Splitter {
                                      final int escapeCount,
                                      final boolean isLast,
                                      final int lastContainerEnd,
-                                     final Encoding encoding) {
+                                     final Encoding encoding,
+                                     final ByteSource source) {
         final int matchEnd = isLast ? delimiterPos : delimiterPos + delimiterLength;
-        final byte[] group0 = Arrays.copyOfRange(data, from, matchEnd);
 
         final int contentStart = hasStartContainer ? from + containerStart.length : from;
         int contentEnd = delimiterPos;
@@ -190,16 +192,16 @@ public final class Splitter {
             }
         }
 
-        final byte[] group1 = Arrays.copyOfRange(data, contentStart, Math.max(contentStart, contentEnd));
-        // Group 2 is group 1 with the escapes stripped, and the same value when there are none.
-        final TypedValue content = TypedValue.of(group1, encoding);
+        // Group 2 is group 1 with the escapes stripped, and the same value when there are none;
+        // a stripped field is a new array whatever the source, so it is a whole value.
+        final TypedValue content = source.slice(contentStart, Math.max(contentStart, contentEnd), encoding);
         final TypedValue unescaped = escapeCount == 0
                 ? content
                 : TypedValue.of(stripEscapes(data, contentStart, contentEnd, escape.length,
                         escapes, escapeCount), encoding);
 
         return new MatchResult(new TypedValue[]{
-                TypedValue.of(group0, encoding), content, unescaped}, matchEnd - from, 0);
+                source.slice(from, matchEnd, encoding), content, unescaped}, matchEnd - from, 0);
     }
 
     private static byte[] stripEscapes(final byte[] data,

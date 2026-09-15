@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.exec;
 
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.ByteSource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,6 +46,9 @@ final class InputWindow {
 
     private final PushbackInputStream source;
     private final byte[] window;
+
+    /** How a match over the window makes a group: by copying, because the window moves (design 37 §5). */
+    private final ByteSource groups;
     private int start;
     private int filled;
     private boolean eof;
@@ -56,6 +60,7 @@ final class InputWindow {
         // coincide, and a refusal must not fire on the first when only the second is true.
         this.source = new PushbackInputStream(input, 1);
         this.window = new byte[capacity];
+        this.groups = new ByteSource.Copying(window);
         this.filled = fillAndBlankTail(source, window, 0);
         this.eof = filled < capacity;
         this.mark = byteOrderMark(window, filled);
@@ -92,6 +97,11 @@ final class InputWindow {
      */
     byte[] bytes() {
         return window;
+    }
+
+    /** The window as what a match runs over: a group of it is a copy, since the window moves. */
+    ByteSource source() {
+        return groups;
     }
 
     /** Where the live region begins. */

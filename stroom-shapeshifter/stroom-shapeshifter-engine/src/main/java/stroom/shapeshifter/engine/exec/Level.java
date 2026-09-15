@@ -30,6 +30,7 @@ import stroom.shapeshifter.engine.graph.VarName;
 import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.match.Splitter;
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.ByteSource;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.TypedValue;
 import stroom.shapeshifter.regex.Anchoring;
@@ -106,10 +107,11 @@ final class Level {
                   final boolean ignoreErrors,
                   final int depth,
                   final Dispatch dispatch,
-                  final Encoding encoding) {
+                  final Encoding encoding,
+                  final ByteSource source) {
         this.encoding = encoding;
         if (dispatch == Dispatch.CLASSIFY) {
-            classify(templates, data, from, to, out, inputBase, ignoreErrors, depth);
+            classify(templates, data, from, to, out, inputBase, ignoreErrors, depth, source);
             return;
         }
         if (dispatch == Dispatch.ANY) {
@@ -138,7 +140,7 @@ final class Level {
                     continue;
                 }
                 final long timing = instrument.startTiming();
-                final MatchResult attempt = match(candidate, data, cursor, to, atCursor);
+                final MatchResult attempt = match(candidate, data, cursor, to, atCursor, source);
                 instrument.stopTiming(candidate.template().id(), timing, attempt != null);
                 if (attempt == null) {
                     continue;
@@ -250,7 +252,7 @@ final class Level {
         final TypedValue swallowed = content(candidate, match);
         if (swallowed != null && !swallowed.isEmpty()) {
             enter(candidate);
-            body.body(candidate.body(), match, 1, swallowed.asBytes(), out,
+            body.body(candidate.body(), match, 1, swallowed, out,
                     locateBase, ignoreErrors, depth);
             exit(candidate);
         }
@@ -318,7 +320,8 @@ final class Level {
                     continue;
                 }
                 final long timing = instrument.startTiming();
-                final MatchResult attempt = match(candidate, window.bytes(), start, filled, atCursor);
+                final MatchResult attempt = match(candidate, window.bytes(), start, filled, atCursor,
+                        window.source());
                 instrument.stopTiming(candidate.template().id(), timing, attempt != null);
                 if (attempt == null) {
                     continue;
@@ -417,6 +420,10 @@ final class Level {
                          final boolean ignoreErrors,
                          final int depth) {
         final byte[] work = Arrays.copyOfRange(data, from, to);
+        // The working buffer is compacted in place as templates eat from it, so a group over
+        // it would be overwritten under a slice: this level's groups are copies whatever the
+        // caller's source was (design 37 §5).
+        final ByteSource source = new ByteSource.Copying(work);
         int length = work.length;
         long base = inputBase;
 
@@ -436,7 +443,7 @@ final class Level {
                     continue;
                 }
                 final long timing = instrument.startTiming();
-                final MatchResult match = match(candidate, work, 0, length, false);
+                final MatchResult match = match(candidate, work, 0, length, false, source);
                 instrument.stopTiming(candidate.template().id(), timing, match != null);
                 if (match == null) {
                     continue;
@@ -486,7 +493,8 @@ final class Level {
                          final Output out,
                          final long inputBase,
                          final boolean ignoreErrors,
-                         final int depth) {
+                         final int depth,
+                         final ByteSource source) {
         // Guards once on the way in, as every mode (design 27 ruling 11): a guard read after an
         // earlier sibling's match would see that sibling's counters and captures.
         final boolean[] allowed = guards(templates);
@@ -497,7 +505,7 @@ final class Level {
             final CompiledTemplate candidate = templates[i];
             final Template template = candidate.template();
             final long timing = instrument.startTiming();
-            final MatchResult match = match(candidate, data, from, to, false);
+            final MatchResult match = match(candidate, data, from, to, false, source);
             instrument.stopTiming(template.id(), timing, match != null);
             if (match == null) {
                 continue;
@@ -624,7 +632,7 @@ final class Level {
         enter(candidate);
         bindCaptures(candidate, match, matchCount);
         final long before = out.sink().position();
-        body.body(candidate.body(), match, matchCount, content.asBytes(), out,
+        body.body(candidate.body(), match, matchCount, content, out,
                 locateBase, ignoreErrors, depth);
         exit(candidate);
         instrument.onOutput(template.id(), matchCount, before, out.sink().position() - before,
@@ -649,11 +657,16 @@ final class Level {
                + (to - from > 200 ? "...TRUNCATED..." : "");
     }
 
+    /**
+     * @param source how a group of the data becomes a value: a copy over the window, a slice
+     *               over a value (design 37 §5). The progressive match still copies (phase 9).
+     */
     private MatchResult match(final CompiledTemplate compiledTemplate,
                               final byte[] data,
                               final int from,
                               final int to,
-                              final boolean atCursor) {
+                              final boolean atCursor,
+                              final ByteSource source) {
         if (from >= to) {
             return null;
         }
@@ -661,14 +674,13 @@ final class Level {
             case final CompiledMatch.Delimiter delimiter -> Splitter.split(data, from, to,
                     delimiter.delimiter(), delimiter.escape(),
                     delimiter.containerStart(), delimiter.containerEnd(),
-                    effective(compiledTemplate));
+                    effective(compiledTemplate), source);
             case final CompiledMatch.Regex regex ->
-                    regexMatch(regex, data, from, to, atCursor, effective(compiledTemplate));
+                    regexMatch(regex, data, from, to, atCursor, effective(compiledTemplate), source);
             case final CompiledMatch.Progressive progressive -> Steps.match(
                     progressive.steps(), data, from, to);
             case final CompiledMatch.All ignored -> new MatchResult(
-                    new TypedValue[]{TypedValue.of(Arrays.copyOfRange(data, from, to),
-                            effective(compiledTemplate))}, to - from, 0);
+                    new TypedValue[]{source.slice(from, to, effective(compiledTemplate))}, to - from, 0);
             case final CompiledMatch.Source ignored -> null;
             case final CompiledMatch.Named ignored -> null;
         };
@@ -679,7 +691,8 @@ final class Level {
                                           final int from,
                                           final int to,
                                           final boolean atCursor,
-                                          final Encoding encoding) {
+                                          final Encoding encoding,
+                                          final ByteSource source) {
         // The node owns its matcher (D35) and asks the question the library's published
         // anchor fact licenses: for an input-anchored pattern the anchored and unanchored
         // questions provably agree, so the node asks the one with the bare prologue. The
@@ -693,7 +706,9 @@ final class Level {
         final TypedValue[] groups = new TypedValue[groupCount];
         for (int i = 0; i < groupCount; i++) {
             if (matcher.matchedGroup(i)) {
-                groups[i] = TypedValue.of(matcher.groupBytes(i), encoding);
+                // The group as the source makes it: a copy over the window, a slice over a
+                // value. The matcher reports offsets; it copies nothing (design 37 §5).
+                groups[i] = source.slice(matcher.start(i), matcher.end(i), encoding);
             }
         }
 

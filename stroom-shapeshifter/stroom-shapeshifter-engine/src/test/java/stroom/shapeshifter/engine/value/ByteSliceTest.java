@@ -77,17 +77,26 @@ class ByteSliceTest {
         assertThat(sliced).isNotEqualTo(new TypedValue.Integer(5));
     }
 
-    /** Positions in a slice of a slice are in the parent array: a slice never nests. */
+    /** A value is what a nested match runs over: its source slices, at positions in its UTF-8 form. */
     @Test
-    void sliceOfASliceIsASliceOfTheArray() {
-        final TypedValue.Bytes inner = slice().slice(1, 3);
+    void valueAsSourceSlicesItself() {
+        final TypedValue whole = TypedValue.of("key=value");
+        final TypedValue viaSource = ((TypedValue.Bytes) whole).source().slice(4, 9, Encoding.UTF_8);
+        assertThat(viaSource).isInstanceOf(TypedValue.ByteSlice.class);
+        assertThat(viaSource).isEqualTo(slice());
+        assertThat(((TypedValue.Bytes) viaSource).utf8Array()).isSameAs(((TypedValue.Bytes) whole).utf8Array());
+
+        // A slice's source is the parent array, so a match over a slice slices the array too:
+        // positions are absolute in it, and a slice never nests.
+        final TypedValue.Bytes inner = (TypedValue.Bytes) slice().source().slice(5, 7, Encoding.UTF_8);
         assertThat(inner.asString()).isEqualTo("al");
         assertThat(inner.utf8Array()).isSameAs(RECORD);
-        assertThat(inner.utf8Offset()).isEqualTo(5);
 
-        final TypedValue.Bytes fromWhole = ((TypedValue.Bytes) TypedValue.of("key=value")).slice(4, 9);
-        assertThat(fromWhole.asString()).isEqualTo("value");
-        assertThat(fromWhole).isEqualTo(slice());
+        // The window answers the same question with a copy.
+        final TypedValue copied = new ByteSource.Copying(RECORD).slice(4, 9, Encoding.UTF_8);
+        assertThat(copied).isInstanceOf(TypedValue.Utf8Bytes.class);
+        assertThat(copied).isEqualTo(slice());
+        assertThat(((TypedValue.Bytes) copied).utf8Array()).isNotSameAs(RECORD);
     }
 
     /** A slice in another encoding decodes its range, and its UTF-8 form is made once. */

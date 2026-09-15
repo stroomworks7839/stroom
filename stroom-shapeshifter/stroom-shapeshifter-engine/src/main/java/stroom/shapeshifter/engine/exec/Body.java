@@ -174,7 +174,7 @@ final class Body {
     void body(final CompiledOp[] ops,
               final MatchResult match,
               final int matchCount,
-              final byte[] content,
+              final TypedValue content,
               final Output out,
               final long inputBase,
               final boolean ignoreErrors,
@@ -792,7 +792,7 @@ final class Body {
     private void forEachGroup(final CompiledOp.ForEachGroup op,
                               final MatchResult match,
                               final int matchCount,
-                              final byte[] content,
+                              final TypedValue content,
                               final Output out,
                               final long inputBase,
                               final boolean ignoreErrors,
@@ -969,7 +969,7 @@ final class Body {
     private void forEach(final CompiledOp.ForEach op,
                          final MatchResult match,
                          final int matchCount,
-                         final byte[] content,
+                         final TypedValue content,
                          final Output out,
                          final long inputBase,
                          final boolean ignoreErrors,
@@ -1034,7 +1034,7 @@ final class Body {
     private void variable(final CompiledOp.Variable value,
                           final MatchResult match,
                           final int matchCount,
-                          final byte[] content,
+                          final TypedValue content,
                           final long inputBase,
                           final boolean ignoreErrors,
                           final int depth) {
@@ -1096,7 +1096,7 @@ final class Body {
     private void callTemplate(final CompiledOp.CallTemplate value,
                               final MatchResult match,
                               final int matchCount,
-                              final byte[] content,
+                              final TypedValue content,
                               final Output out,
                               final long inputBase,
                               final boolean ignoreErrors,
@@ -1145,7 +1145,7 @@ final class Body {
     private void apply(final CompiledOp.Apply op,
                        final MatchResult match,
                        final int matchCount,
-                       final byte[] parentContent,
+                       final TypedValue parentContent,
                        final Output out,
                        final long parentBase,
                        final boolean inheritedIgnoreErrors,
@@ -1161,18 +1161,24 @@ final class Body {
         // child templates, which is what turns a CSV header's last column name into "what\n".
         // So the content the parent already selected is passed straight through — and whether
         // that is what the select means was decided at compile time.
-        final byte[] content = op.wholeParentContent()
+        final TypedValue selected = op.wholeParentContent()
                 ? parentContent
-                : CompiledRefs.resolve(op.select(), match, matchCount, vars);
-        if (content == null || content.length == 0) {
+                : CompiledRefs.resolveValue(op.select(), match, matchCount, vars);
+        if (selected == null || selected.isEmpty()) {
             return;
         }
+        // The child level runs over the content's UTF-8 form — a value's bytes never move, so
+        // its groups are slices of that form rather than copies (design 37 §5). A group is
+        // already its own UTF-8 form; anything else (a number, a composite) is made whole once.
+        final TypedValue.Bytes content = selected instanceof final TypedValue.Bytes bytes
+                ? bytes
+                : (TypedValue.Bytes) TypedValue.utf8(selected.asUtf8());
 
         // Content taken straight from the parent, or from one of its groups, is still part of
         // the input and can be pointed at. Content built from a variable cannot be.
         final long childBase = op.locatable() ? parentBase : Instrument.UNLOCATABLE;
         if (childBase == Instrument.UNLOCATABLE) {
-            instrument.onMatchContent(null, content);
+            instrument.onMatchContent(null, content.asUtf8());
         }
 
         // A compile-time fact read as a field: the op holds the templates its mode answers to,
@@ -1186,7 +1192,9 @@ final class Body {
 
         // DS3 inherits ignoreErrors down the tree: a level inside an ignoring container is
         // gated even when its own directive says nothing.
-        level.dispatch(candidates, content, 0, content.length, out, childBase,
-                inheritedIgnoreErrors || directive.ignoreErrors(), depth + 1, op.dispatch(), encoding);
+        final int from = content.utf8Offset();
+        level.dispatch(candidates, content.utf8Array(), from, from + content.utf8Length(), out, childBase,
+                inheritedIgnoreErrors || directive.ignoreErrors(), depth + 1, op.dispatch(), encoding,
+                content.source());
     }
 }

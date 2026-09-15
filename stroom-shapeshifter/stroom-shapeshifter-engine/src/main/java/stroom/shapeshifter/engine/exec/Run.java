@@ -31,6 +31,8 @@ import stroom.shapeshifter.engine.match.MatchResult;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
 import stroom.shapeshifter.engine.text.Transcode;
+import stroom.shapeshifter.engine.value.ByteSource;
+import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -52,6 +54,9 @@ public final class Run {
     private final CompiledProject compiled;
     /** The run's sink paired with what it accepts, once (design 25 §3). */
     private final Output out;
+    /** What a prologue or a tail works on: nothing. */
+    private static final TypedValue NO_CONTENT = TypedValue.utf8(new byte[0]);
+
     private final List<Message> messages = new ArrayList<>();
     /** The functions bound to this run, and what they may reach (design 26). */
     private final FunctionRuntime functions;
@@ -169,7 +174,7 @@ public final class Run {
         // migration takes, and the sink's deferred start tag is what makes opening-then-looping
         // serialise as if the body had run in one piece).
         for (int i = 0; i < plan.prologues().length; i++) {
-            body.body(plan.prologues()[i], nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
+            body.body(plan.prologues()[i], nothing, 0, NO_CONTENT, out, 0L, rootIgnoreErrors,
                     0);
             if (i < plan.opened().length) {
                 final CompiledOp.Element element = plan.opened()[i];
@@ -183,7 +188,7 @@ public final class Run {
 
         // And what comes after it, closing the opened elements on the way back up.
         for (int i = plan.tails().length - 1; i >= 0; i--) {
-            body.body(plan.tails()[i], nothing, 0, new byte[0], out, 0L, rootIgnoreErrors,
+            body.body(plan.tails()[i], nothing, 0, NO_CONTENT, out, 0L, rootIgnoreErrors,
                     0);
             if (i > 0) {
                 final CompiledOp.Element element = plan.opened()[i - 1];
@@ -230,8 +235,10 @@ public final class Run {
                 if (from >= chunk.length) {
                     continue;
                 }
+                // A chunk is read once and never reused, but it is the root: the root copies
+                // (design 37 §5), and whether it need not is phase 3d's question.
                 level.dispatch(roots, chunk, from, chunk.length, out, read,
-                        rootIgnoreErrors, 0, rootDispatch, encoding);
+                        rootIgnoreErrors, 0, rootDispatch, encoding, new ByteSource.Copying(chunk));
                 read += chunk.length - from;
             }
         } else {

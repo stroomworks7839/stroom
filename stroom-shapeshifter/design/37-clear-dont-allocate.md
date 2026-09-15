@@ -379,6 +379,47 @@ was a type test on the hot write path; `slice(from, to)` checks no bounds, becau
 is a matcher reporting positions in the array it was given, and the code standard keeps
 defensive checks off hot paths.
 
+**3c, built — 2026-09-15.** The seam is `ByteSource`, in `value`: *what a match runs over,
+answering for a range of itself as a value*. Two implementations and no more, because the
+call that makes a group is on the hottest path and two receiver classes is what the JIT still
+inlines: `Copying` over bytes that move — the input window (which holds one for the run), a
+chunk of a whole-buffer run, and the `any`-mode working buffer, which is compacted in place
+under its matches and so must copy whatever the caller's source was — and `Slicing` over
+bytes that never move, which is a value's UTF-8 form. `Bytes.source()` answers a `Slicing`
+over `utf8Array()`, since the nested level runs over the UTF-8 form as it always has; the
+3b `slice(from, to)` on `Bytes` is gone, because a source's positions are absolute in the
+array the matcher reported them in and a second convention beside it was a trap. `Level`
+threads the source from `dispatch` and `stream` through `match` to the three arms that make
+groups — the regex (`matcher.start(i)`/`end(i)` instead of `groupBytes`), the delimiter (five
+copies in `Splitter` become `source.slice`; a field with escapes stripped is a new array and
+stays whole) and `All`. The progressive match still copies (phase 9). A body's content is the
+value, not its bytes — six `Body` signatures and the eater's — so `apply` hands a nested
+dispatch the content's UTF-8 range and its source with no array made; a non-byte content (a
+number, a composite) is made whole once. Every golden passes byte-for-byte.
+
+*What the bytes taught.* B/op, one fork: `regex_lines` 3.92 → 3.43 MB (−12.5%), `ausearch`
+8.97 → 7.88 (−12.2%), `win_sec` 3.87 → 3.38 (−12.7%), `log_sessions` and `progressive` 0.0%
+as they must (root matches only). Not the 61% the nested share promised, and the reason is
+worth keeping: **the groups on these rows are short**. A copied group was a 16-byte wrapper
+plus a small array — about 48 bytes for a ten-byte field — and a slice is one 32-byte object.
+So the nested share was *count* times a small size, and slicing saves a third of those bytes
+and half the objects, not the array. JFR on 3c shows what is left: the `ByteSlice` objects
+themselves (57% of samples), and the root splitter's copies — which copy every line **twice**,
+as group 0 with its delimiter and group 1 without. That is 3d's question, and it is bigger
+than this phase was. Two follow-ups fall out for 3d to weigh: a slice at 24 bytes rather than
+32 (drop the memo, and for UTF-8 the encoding — a fourth variant, or a null encoding meaning
+UTF-8), and the `Slicing` record per nested dispatch (16 bytes; 4% of `regex_lines`' bytes),
+which the `Bytes` classes could answer directly at the cost of a third receiver type at the
+group-making site.
+
+*What single-fork throughput does not tell.* The same runs read `progressive` +18.5% with
+identical bytes: the phase 2 profile was taken on a slow box. Ops/s across time is not a
+reading; the interleave is — and the daytime interleave against point 47 (load 1.2 to 1.7,
+three rounds) read `regex_lines` −12.7%, −2.2%, +7.3% and `ausearch` −3.0%, +5.1%, +12.7%,
+with point 47's own `regex_lines` legs ranging 807 to 887 ops/s: the box, not the code. The
+canaries `apache_httpd` and `progressive` were flat within a point on every round but one, so
+the seam costs nothing where nothing slices. The throughput reading is point 48, evening.
+
 **Progressive is the same rule.** `Steps.take` copies (4.7% of `progressive`) and group 0 is a
 copy of the span (5.3%); over a root window they stay copies, over a nested value they are
 slices. Phase 9 takes that as given.

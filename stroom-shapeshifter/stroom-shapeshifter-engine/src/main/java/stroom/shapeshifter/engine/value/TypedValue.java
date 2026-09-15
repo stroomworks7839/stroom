@@ -185,12 +185,14 @@ public sealed interface TypedValue {
         byte[] value();
 
         /**
-         * A range of these bytes as a value, sharing the array (design 37 §5). Positions are
-         * in the bytes as read, which is what a matcher over them reports. This is the answer
-         * an immutable byte source gives a match made over it; the input window, whose bytes
-         * move, answers the same question with a copy.
+         * These bytes as what a nested match runs over (design 37 §5): their UTF-8 form, which
+         * never moves, answering a group with a slice of itself — where the input window, whose
+         * bytes do move, answers with a copy. Positions a match reports are in
+         * {@link #utf8Array()}, so that is the array the source is over.
          */
-        Bytes slice(int from, int to);
+        default ByteSource source() {
+            return new ByteSource.Slicing(utf8Array());
+        }
 
         /** The array the UTF-8 form lives in; read it with {@link #utf8Offset()} and {@link #utf8Length()}. */
         default byte[] utf8Array() {
@@ -289,11 +291,6 @@ public sealed interface TypedValue {
             return Encoding.UTF_8;
         }
 
-        @Override
-        public Bytes slice(final int from, final int to) {
-            return new ByteSlice(value, from, to, Encoding.UTF_8);
-        }
-
         /** The array itself: one hop on the accessor every read and every write goes through. */
         @Override
         public byte[] asUtf8() {
@@ -358,11 +355,6 @@ public sealed interface TypedValue {
         @Override
         public Encoding encoding() {
             return encoding;
-        }
-
-        @Override
-        public Bytes slice(final int from, final int to) {
-            return new ByteSlice(value, from, to, encoding);
         }
 
         @Override
@@ -463,12 +455,6 @@ public sealed interface TypedValue {
         @Override
         public Encoding encoding() {
             return encoding;
-        }
-
-        /** A range of this range: the same array, positions rebased — a slice never nests. */
-        @Override
-        public Bytes slice(final int sliceFrom, final int sliceTo) {
-            return new ByteSlice(array, from + sliceFrom, from + sliceTo, encoding);
         }
 
         @Override

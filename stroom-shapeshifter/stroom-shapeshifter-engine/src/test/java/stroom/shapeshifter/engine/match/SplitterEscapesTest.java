@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.match;
 
 import stroom.shapeshifter.engine.text.Encoding;
+import stroom.shapeshifter.engine.value.ByteSource;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +40,7 @@ class SplitterEscapesTest {
         final byte[] data = field.getBytes(StandardCharsets.UTF_8);
         final MatchResult result = Splitter.split(data, 0, data.length,
                 ",".getBytes(StandardCharsets.UTF_8), "\\".getBytes(StandardCharsets.UTF_8),
-                null, null, Encoding.UTF_8);
+                null, null, Encoding.UTF_8, new ByteSource.Slicing(data));
         // Group 2 is the content with the escapes stripped.
         return result.group(2).asString();
     }
