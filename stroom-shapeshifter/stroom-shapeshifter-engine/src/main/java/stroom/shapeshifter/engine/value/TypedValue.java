@@ -738,12 +738,21 @@ public sealed interface TypedValue {
         @Override
         public List copy() {
             final List made = new List();
-            made.grow(size);
-            for (int i = 0; i < size; i++) {
-                made.values[i] = Collection.stored(values[i]);
-            }
-            made.size = size;
+            made.copyFrom(this);
             return made;
+        }
+
+        /**
+         * Become a deep copy of another list, in place: what a parked list is refilled with
+         * (design 37 phase 2), so the store that used to allocate a copy reuses this one.
+         */
+        public void copyFrom(final List source) {
+            clear();
+            grow(source.size);
+            for (int i = 0; i < source.size; i++) {
+                values[i] = Collection.stored(source.values[i]);
+            }
+            size = source.size;
         }
 
         @Override
@@ -857,8 +866,14 @@ public sealed interface TypedValue {
         @Override
         public Map copy() {
             final Map made = new Map();
-            entries.forEach((key, value) -> made.entries.put(key, Collection.stored(value)));
+            made.copyFrom(this);
             return made;
+        }
+
+        /** Become a deep copy of another map, in place — see {@link List#copyFrom}. */
+        public void copyFrom(final Map source) {
+            entries.clear();
+            source.entries.forEach((key, value) -> entries.put(key, Collection.stored(value)));
         }
 
         @Override
@@ -933,8 +948,14 @@ public sealed interface TypedValue {
         @Override
         public Set copy() {
             final Set made = new Set();
-            made.members.addAll(members);
+            made.copyFrom(this);
             return made;
+        }
+
+        /** Become a copy of another set, in place — see {@link List#copyFrom}. */
+        public void copyFrom(final Set source) {
+            members.clear();
+            members.addAll(source.members);
         }
 
         @Override

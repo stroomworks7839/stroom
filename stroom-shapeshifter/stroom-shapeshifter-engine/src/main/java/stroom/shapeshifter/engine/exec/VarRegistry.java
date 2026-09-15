@@ -57,6 +57,15 @@ import java.util.Arrays;
  * its own variables for free, because an inner execution's declaration logs and restores just the
  * same (design 35 §4).
  *
+ * <p><b>A collection a scope discards is parked, not dropped</b> (design 37 phase 2). The slot
+ * a declaration owns is the same slot on every entry, and the collection it held on the last
+ * exit — cleared — is what the next entry's first mutation, or its initial table, refills. So a
+ * template declaring a map allocates that map once per run rather than once per execution.
+ * Nothing observes the reuse: a collection has one owner (design 35 §11), every read hands out
+ * an element or a fresh list, the one value that leaves a scope is {@link #detach}ed before the
+ * exit, and the parked object is reachable from nothing but here. What a cleared collection
+ * held — nested copies included — goes to the collector, as before.
+ *
  * <p>{@code owner} is what keeps the log bounded: it holds the depth that installed each slot's
  * current binding, so declaring a name this scope already holds is the no-op it always was
  * rather than another entry.
@@ -90,6 +99,9 @@ public final class VarRegistry {
     /** What each name was declared to hold, by slot; {@code SCALAR} for a name declared in place. */
     private final Declaration.Type[] types;
 
+    /** Per slot, the collection its last scope discarded, cleared and waiting to be refilled. */
+    private final TypedValue.Collection[] spare;
+
     private int[] marks = new int[16];
     private int depth;
 
@@ -118,6 +130,7 @@ public final class VarRegistry {
         Arrays.fill(owner, UNBOUND);
         this.slots = new TypedValue[names.size()];
         this.types = new Declaration.Type[names.size()];
+        this.spare = new TypedValue.Collection[names.size()];
         for (final VarName name : names.all().values()) {
             types[name.slot()] = names.typeOf(name);
         }
@@ -177,7 +190,7 @@ public final class VarRegistry {
         final int mark = marks[--depth];
         for (int i = undoCount - 1; i >= mark; i--) {
             final int slot = undoSlot[i];
-            release(slots[slot]);
+            discard(slot);
             slots[slot] = undoSaved[i];
             undoSaved[i] = null;
             owner[slot] = undoOwner[i];
@@ -208,8 +221,16 @@ public final class VarRegistry {
     }
 
     private void setCollection(final int slot, final TypedValue value) {
-        release(slots[slot]);
-        final TypedValue stored = TypedValue.Collection.stored(value);
+        if (value == slots[slot]) {
+            // A name set to what it already holds: nothing to copy and nothing to count.
+            return;
+        }
+        // The copy is made before the old value is discarded, because the value may be
+        // reachable through it — a list held under one of the map's keys, stored over the map.
+        final TypedValue stored = value instanceof final TypedValue.Collection collection
+                ? filled(slot, collection)
+                : value;
+        discard(slot);
         slots[slot] = stored;
         live += TypedValue.Collection.elementsOf(stored);
     }
@@ -220,9 +241,73 @@ public final class VarRegistry {
      */
     public void adopt(final VarName name, final TypedValue.Collection owned) {
         final int slot = name.slot();
-        release(slots[slot]);
+        discard(slot);
         slots[slot] = owned;
         live += owned.elements();
+    }
+
+    /**
+     * A deep copy of a collection into the slot's parked one when there is one of the same
+     * kind, and into a new one otherwise. The parked object is reachable from nothing else, so
+     * it cannot be the source.
+     */
+    private TypedValue.Collection filled(final int slot, final TypedValue.Collection source) {
+        final TypedValue.Collection parked = take(slot);
+        switch (source) {
+            case final TypedValue.List list -> {
+                final TypedValue.List made = parked instanceof final TypedValue.List l ? l : new TypedValue.List();
+                made.copyFrom(list);
+                return made;
+            }
+            case final TypedValue.Map map -> {
+                final TypedValue.Map made = parked instanceof final TypedValue.Map m ? m : new TypedValue.Map();
+                made.copyFrom(map);
+                return made;
+            }
+            case final TypedValue.Set set -> {
+                final TypedValue.Set made = parked instanceof final TypedValue.Set s ? s : new TypedValue.Set();
+                made.copyFrom(set);
+                return made;
+            }
+        }
+    }
+
+    /** The slot's parked collection, if any, no longer parked. */
+    private TypedValue.Collection take(final int slot) {
+        final TypedValue.Collection parked = spare[slot];
+        spare[slot] = null;
+        return parked;
+    }
+
+    /**
+     * Let go of what a slot holds: its elements leave the count, and a collection is cleared
+     * and parked for the slot's next use. The caller overwrites the slot.
+     */
+    private void discard(final int slot) {
+        final TypedValue value = slots[slot];
+        if (value instanceof final TypedValue.Collection collection) {
+            live -= collection.elements();
+            collection.clear();
+            if (spare[slot] == null) {
+                spare[slot] = collection;
+            }
+        }
+    }
+
+    /**
+     * Take the collection a name holds out of its slot, leaving the slot unset and the elements
+     * uncounted, so that it can be carried across a scope exit and {@link #adopt}ed outside —
+     * the one move a value makes out of a scope (a variable's promoted captures, design 33 §11).
+     * Null when the slot holds no collection.
+     */
+    public TypedValue.Collection detach(final VarName name) {
+        final int slot = name.slot();
+        if (slots[slot] instanceof final TypedValue.Collection collection) {
+            live -= collection.elements();
+            slots[slot] = null;
+            return collection;
+        }
+        return null;
     }
 
     /** Count elements a mutation added to, or took from, a collection reached by reference. */
@@ -253,8 +338,8 @@ public final class VarRegistry {
             undoSaved[at] = slots[slot];
             undoCount = at + 1;
         } else {
-            // The global scope logs nothing to restore, so what it displaces is simply gone.
-            release(slots[slot]);
+            // The global scope logs nothing to restore, so what it displaces is parked or gone.
+            discard(slot);
         }
         slots[slot] = null;
         owner[slot] = depth;
@@ -275,7 +360,9 @@ public final class VarRegistry {
         if (slots[slot] instanceof final TypedValue.List list) {
             return list;
         }
-        final TypedValue.List made = new TypedValue.List();
+        final TypedValue.List made = take(slot) instanceof final TypedValue.List parked
+                ? parked
+                : new TypedValue.List();
         adopt(name, made);
         return made;
     }
@@ -286,7 +373,9 @@ public final class VarRegistry {
         if (slots[slot] instanceof final TypedValue.Map map) {
             return map;
         }
-        final TypedValue.Map made = new TypedValue.Map();
+        final TypedValue.Map made = take(slot) instanceof final TypedValue.Map parked
+                ? parked
+                : new TypedValue.Map();
         adopt(name, made);
         return made;
     }
@@ -297,7 +386,9 @@ public final class VarRegistry {
         if (slots[slot] instanceof final TypedValue.Set set) {
             return set;
         }
-        final TypedValue.Set made = new TypedValue.Set();
+        final TypedValue.Set made = take(slot) instanceof final TypedValue.Set parked
+                ? parked
+                : new TypedValue.Set();
         adopt(name, made);
         return made;
     }
@@ -340,9 +431,5 @@ public final class VarRegistry {
     /** How many elements every collection in a slot holds between them. */
     public long live() {
         return live;
-    }
-
-    private void release(final TypedValue value) {
-        live -= TypedValue.Collection.elementsOf(value);
     }
 }

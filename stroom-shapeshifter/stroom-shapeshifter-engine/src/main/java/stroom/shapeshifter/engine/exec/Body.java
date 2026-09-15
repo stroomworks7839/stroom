@@ -1055,11 +1055,18 @@ final class Body {
         if (captured instanceof final TypedValue.List list && entriesOf(list) == 0) {
             captured = null;
         }
+        // Promoted whole, per-match structure kept, so a later reference can still ask for the
+        // third one. It is moved out before the scope closes — the exit would otherwise park
+        // and clear it (design 37 phase 2) — and adopted outside without a copy, since the
+        // scope that held it has gone and nothing else refers to it.
+        final TypedValue.Collection promoted = captured instanceof TypedValue.Collection
+                ? vars.detach(value.name())
+                : null;
         vars.pop();
 
-        if (captured != null) {
-            // Promoted whole, per-match structure kept, so a later reference can still ask for
-            // the third one. The scope that held it has gone, so nothing else refers to it.
+        if (promoted != null) {
+            vars.adopt(value.name(), promoted);
+        } else if (captured != null) {
             vars.set(value.name(), captured);
         } else if (buffer.size() > 0) {
             bind(value.name(), matchCount, TypedValue.utf8(buffer.toByteArray()));

@@ -112,7 +112,7 @@ discussion, not a ruling.
 | 18 | `FunctionRuntime.state`, `.notRunInPreview` | `HashMap`, `HashSet` | per run | user-function state and preview guard | keep |
 | 19 | `VarRegistry` | arrays only (`slots`, `marks`, undo log, `owner`, `types`) | per run, grown | the registry | keep — already allocation-free after warm-up except the collections it makes (#20–22) |
 | 20 | `TypedValue.List` (`value`) | own `TypedValue[]`, ×2 growth from 4 | per declared list per scope entry | list variables | **stays as a concept; phase 2 reuses the object** |
-| 21 | `TypedValue.Map` (`value`) | `java.util.LinkedHashMap<TypedValue,TypedValue>` | per declared map per scope entry | map variables | **stays as a concept; phase 2 reuses, phase 7 replaces the backing** |
+| 21 | `TypedValue.Map` (`value`) | `java.util.LinkedHashMap<TypedValue,TypedValue>` | per declared map per scope entry | map variables | **stays as a concept; phase 2 reuses, phase 5 replaces the backing** |
 | 22 | `TypedValue.Set` (`value`) | `java.util.LinkedHashSet<TypedValue>` | per declared set per scope entry | set variables | as #21 |
 | 23 | `Frames.Group.members` | `TypedValue.List` | per group during a `ForEachGroup` body | the group's member positions, for `group()` | keep the frame; the list comes from #12 and follows it |
 
@@ -212,12 +212,50 @@ them is a later question and the census will say whether any corpus row makes on
 
 **What `clear` costs.** `LinkedHashMap.clear` walks the table and nulls it — O(capacity), and
 a table that once grew large stays large. That is the right trade on these rows (the same
-template sees the same shape of record every time), and phase 7's own map makes `clear`
+template sees the same shape of record every time), and phase 5's own map makes `clear`
 O(size). `TypedValue.List` clears by `size = 0` and nulling the used prefix.
 
 **Measure.** `-prof gc` on `ausearch` and `win_sec` before and after — the claim is B/op
 falls by the collections' share and nothing else moves; then interleave the two rows with the
 canaries. `progressive` should not move at all: it declares nothing.
+
+### What was built — 2026-09-15
+
+*Built as ruled, with two departures the audit records.* `VarRegistry` gains `spare[]`, one
+parked collection per slot; `discard(slot)` — every place a slot's collection is let go: the
+exit, a bind over it, an adopt over it, a global redeclaration — subtracts its elements,
+clears it and parks it; `list`/`map`/`setOf` take the spare before making; and a store of a
+collection fills the spare in place through a new `copyFrom` on each collection class
+(`copy()` is now `new` plus `copyFrom`, one truth), so a map declared with entries refills the
+parked map from its table on every entry. The copy is made before the old value is discarded,
+because the value may be reachable through it — a list held under one of the map's keys,
+stored over the map — and a name set to what it already holds is a no-op. Both are pinned.
+
+*Departure one: the rule parks every discarded collection, not only one whose saved outer value
+is null.* A collection let go is let go whatever is restored; the narrower condition bought
+nothing and would have left a bind-over-a-collection allocating.
+
+*Departure two, and the one the audit was for: the holder the design missed.* §4 above said the
+only holder surviving a scope was the group frame. `Body.variable` is another: a variable whose
+body captures into its own name reads the inner scope's list, pops, and stores it outside — and
+the exit now parks and clears that list, which `VariablePromotionTest` caught on the first run
+(`first= second= latest=`). The fix is better than the old code: `VarRegistry.detach(name)`
+takes the collection out of its slot uncounted, the scope exits, and `adopt` installs it
+outside — a move, where before it was a copy. Nothing else crosses an exit: every other read
+hands out an element, `keys()`/`values()` answer fresh lists, and the frames' group list is
+built by the walk, not taken from a slot.
+
+*What it read.* B/op, one fork: `ausearch` −2.2%, `win_sec` −2.1%, `log_sessions` and
+`progressive` 0.0%. Less than the 4.3% the census gave the map, because what is reused is the
+map object and its table; the `LinkedHashMap.Entry` per `put` is still made and dropped on
+every record, and that is phase 5's.
+
+*The daytime interleave was not a reading.* Three rounds against `160443c430` on `ausearch`,
+`win_sec`, `progressive`, `regex_lines` with the box's load near 1.0 and three other sessions
+active: signs 1/3, 2/3, 2/3, 2/3, per-leg scores wandering further than the phase could move
+them (`progressive` 368 to 430 ops/s across legs with identical bytes, and one leg where every
+row rose together). A two per cent effect needs a quiet box; the throughput reading goes to
+the evening run as a point.
 
 ## 5. Phase 3 — the root copies, everything below slices
 
