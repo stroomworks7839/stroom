@@ -112,26 +112,37 @@ design 35 is that trade taken deliberately.
 
 ## 7. What it measures
 
-Against Saxon on the same job, same machine, same run (design 13, 2026-08-21, ~100k units):
+Against Saxon on the same job, same machine, same run (design 13, 2026-09-15, 100k units,
+design 37's point 50):
 
 | case | Saxon ms/op | shapeshifter | ratio |
 |---|---|---|---|
-| `computed_names` | 140.6 | 33.0 | **4.27×** |
-| `analyze_string` | 134.6 | 44.9 | **3.00×** |
-| `reference` | 717.9 | 312.4 | **2.30×** |
-| `string_functions` | 211.4 | 93.3 | **2.27×** |
-| `adjacent_groups` | 48.9 | 22.4 | **2.18×** |
-| `modes` | 650.4 | 359.4 | **1.81×** |
-| `nasty_xml` | 621.7 | 1005.4 | **0.62×** |
+| `dates` | 2,781 | 288 | **9.66×** |
+| `comparison` | 179 | 32 | **5.65×** |
+| `computed_names` | 95 | 20 | **4.77×** |
+| `analyze_string` | 98 | 27 | **3.61×** |
+| `reference` | 467 | 134 | **3.49×** |
+| `modes` | 432 | 148 | **2.92×** |
+| `value_types` | 74 | 30 | **2.48×** |
+| `string_functions` | 229 | 98 | **2.34×** |
+| `sort` | 101 | 44 | **2.29×** |
+| `adjacent_groups` | 32 | 14 | **2.24×** |
+| `aggregate` | 37 | 22 | **1.70×** |
+| `sequence_basics` | 35 | 22 | **1.62×** |
+| `arithmetic` | 159 | 101 | **1.57×** |
+| `keys_grouping` | 33 | 21 | **1.55×** |
+| `nasty_xml` | 406 | 267 | **1.52×** |
+| `keys_lookup` | 33 | 25 | **1.33×** |
 
-Blended, 3.10×. **And one measured loss**, `nasty_xml` at 0.62× — Saxon ahead by 1.6× on the
-CDATA/escape-chain case. It is listed because a justification that only reports wins is not
-evidence. (These predate the 2026-09-02 machine change, so the absolute figures are not comparable
-with later runs; the ratios are, both sides having run together.)
-
-Since then the run rows have gained again — the 2026-09-11 set reads **+42.8% on `apache_httpd`**
-and **+23.2% on `csv_header`** against a floor thirteen points earlier — on a different corpus,
-so it does not move the Saxon ratios, but it is the same direction.
+Sixteen cases, sixteen wins; the events head-to-head at a million records **4.35×**, with the
+challenger 17% above the SAX parse floor. **There was a measured loss, and it is listed because
+a justification that only reports wins is not evidence**: `nasty_xml`, the CDATA/escape-chain
+case, read 0.62× on 2026-08-21 — Saxon ahead by 1.6×. The loss was in the regex engine, not the
+model: a lazy `.*?` re-scanning from every position. The literal-prefix skip (`39ff2f88a4`,
+2026-08-28) took it to 1.21× with the case untouched, and it reads 1.52× now. The smallest
+ratios, `keys_lookup` and `keys_grouping`, are where both engines spend most of their time
+parsing and writing rather than looking up; a heavier amplification is the measurement that
+would test the lookup itself.
 
 ## 8. What it gives up, honestly
 
