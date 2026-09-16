@@ -1407,3 +1407,33 @@ and a named workload per phase whose failure to move is itself a finding. E10 st
 branch-pruning concern; the op interpreter stays out because it dispatches on the compiled form
 and has no earlier moment to decide. E43 landed before phase 1 and its residue is phase 1's to
 explain.
+
+---
+
+## D52 — One semantic regime for a match: the step layer's PEG commitment is retired
+
+*Ruled by the owner, 2026-09-16, as design 38's ground.* D34 chose PEG commitment for the
+progressive step layer: a choice takes the first alternative that matches and never revisits
+it, a repeat is possessive. That was the semantics an interpreter over atoms gives cheaply,
+and design 9 already recorded that the atoms are neutral and the semantics belongs to the
+driver. Design 38 replaces the driver: a step program becomes a composition tree lowered onto
+the regex engine, so within a match the semantics is design 9's first regime — full
+backtracking, leftmost-first — as it is for every regex. Commitment is not lost; it moves to
+where it always belonged. *Between* alternatives, templates at a level are ordered choice with
+each match committed once emitted (regimes two and three), which is what an author reaches
+for when one parse must exclude another; *within* a match, an author who needs it has atomic
+groups and possessive quantifiers, which the fancy tier supports.
+
+**What changes, read pin by pin.** None of the twenty `StepCombinatorsTest` outcomes changes:
+every pinned program is one whose leftmost-first result and PEG result coincide, and the
+five pins about the interpreter's output index space become pins about label scope, where a
+label inside a failed alternative does not participate, exactly as a regex group does not.
+The one behaviour that widens is unpinned: a repeat that under PEG consumed all it could and
+then failed the rest of the sequence now gives back what the rest needs. That is a superset
+for well-formed programs and the pins say so.
+
+**Consequences:** design 38's lowering carries no atomic groups to preserve the old outcomes;
+`StepCombinatorsTest` is re-expressed as compositions under the new semantics; framing —
+take and seek by a length already read — lives in the template's match sequence, run by the
+level with no backtracking across parts, because a length decides where a record ends and
+is not matching.

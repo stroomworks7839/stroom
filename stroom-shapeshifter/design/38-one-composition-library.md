@@ -113,6 +113,55 @@ boolean. Binary values are the same idea over bytes: the bytes a label matched, 
 signed 32-bit little-endian integer, or a varint. They live where `as` lives — on the capture,
 in the engine — and the regex library never knows a byte run means a number.
 
+### What phase 1 read — 2026-09-16
+
+*The pins.* All twenty `StepCombinatorsTest` programs were read under leftmost-first
+backtracking: none changes its outcome. Fifteen are choice, optional, sequence, repeat and
+lookaround programs whose PEG and backtracking results coincide on their inputs; the five about
+the interpreter's output index space (`nestedSequenceIsOneOutput…`, `stepInsideANestedSequence…`,
+`stepInsideTwoCombinators…`, `failedAlternativeOutputsDoNotSurvive…`, `theBufferGrows…`) become
+pins about label scope — a label is reachable from anywhere after it and a label inside a failed
+alternative does not participate, as a regex group does not. The one widening is unpinned and
+named in D52: a possessive repeat becomes a greedy one that gives back what the rest of the
+sequence needs.
+
+*The five synthetic fixtures, in the new form.* `progressive_text_steps` is one pattern:
+`regex`, `tag`, `take_while` (the predicate names map to class expressions — Alphabetic to
+`\p{L}`, Numeric to `\p{Nd}`, NonWhitespace to `\S`, a custom set to its expression),
+`take_until` with a multi-byte terminator, which the engine maps to a regex leaf of a lazy
+any-run and a lookahead (`(?:.*?)(?= pid=)`) so the library gains nothing for it, and
+`take_through`. `progressive_mixed_endian` is one raw-mode pattern with no framing at all:
+`take 2 as uint16le`, `take 2 as uint16be`, `take 4` unlabelled for the seek, an empty
+labelled node read `as position`, `take 4 as uint32be`. `progressive_varint_zigzag` is one
+varint pattern with the `zigzag` cast. `progressive_len_records` is a two-part match sequence:
+a varint pattern labelled `len as varint`, then `take` by `len`. `progressive_embedded_codec`
+is the same sequence with the body decoding the taken span from base64 through a `decode`
+transform over the engine's codecs, which exist and have no body op yet.
+
+*The two real files, byte by byte.* `avro_users`: `Obj\x01`; a map count (zigzag varint, 2);
+for each entry a zigzag-length string key and value — `avro.schema` and the schema JSON,
+`avro.codec` and `null`; a zero map terminator; a sixteen-byte sync marker; then one block: a
+record count (zigzag varint, 3), a byte size (zigzag varint, 46), the records, the sync marker
+again. A record for this schema: a zigzag-length string, a zigzag varint, eight bytes of
+little-endian double, one byte of boolean. As templates: a `header` root template whose
+match sequence is the magic, the map (a pattern for the count, then the entries dispatched
+to an entry template of `take` by a zigzag length twice), the terminator and the sync; a
+`block` template of count, size, `take` by size, sync, whose body applies the taken span to a
+`user` template in strict dispatch; a `user` template of one match sequence — length, take,
+varint, eight bytes, one byte — with four labelled captures and the casts `zigzag`,
+`float64le`, `boolean`. `protobuf_events`: a `message` root template of a varint length and a
+`take`, whose body applies the span to `field` templates in strict dispatch, one per tag —
+`\x08` then a varint, `\x12` then a varint length and a `take`, `\x18` then a byte — each
+capturing into a scalar declared on the message, so an absent field reads as absent and the
+body's `choose` writes the default. Both parses need only: `tag`, `take` by literal, `take`
+by label, the varint pattern, the casts `varint`, `zigzag`, `uint16/32 le/be`, `float64le`,
+`boolean`, and strict dispatch of a span to templates.
+
+*What the reading changes in the design.* Nothing in the library's budget. Two mapping notes
+for phase 3: the multi-byte `take_until` is a regex leaf, not a library node; and the
+predicate names are class expressions. And the `decode` body op is a new op, small, over
+codecs that exist.
+
 ## 3a. The round trip: a regex explodes into the tree, and the tree renders as a regex
 
 The UI edits the tree, and an author must be able to bring a regex in and see a regex out.
