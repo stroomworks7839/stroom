@@ -62,29 +62,19 @@ final class CompiledRefs {
                          final int matchCount,
                          final VarRegistry vars,
                          final Output out) {
-        // Every arm in one switch, at 336 bytes — above the JIT's hot-method size, so this does
-        // not inline into the body interpreter. The obvious fix, three hot arms here and the rest
-        // behind a default, measured regex_lines −20% and was bisected to this method alone
-        // (2026-09-15, design 37 §1); the smaller form inlines and something else then stops.
-        // The cause is not known. Design 37 phase 4 redoes this on a kind, with the inline census
-        // read first; until then the shape that measures well stays.
+        // The four arms that are hot on some row — bytes, a group, a variable, and a composite
+        // of them — in a dispatcher under the JIT's hot-method size, so this inlines into the
+        // body interpreter; the three that are hot nowhere are behind one call. The arms were
+        // chosen from a per-row census of what a write dispatches on (design 37 §8): an earlier
+        // cut put the composite behind the default and lost regex_lines 20%, because a fifth to
+        // a quarter of that row's writes are composites and each went through two dispatches.
         switch (ref) {
-            case final CompiledRef.Empty ignored -> {
-                return false;
-            }
             case final CompiledRef.Bytes bytes -> {
                 if (bytes.value().isEmpty()) {
                     return false;
                 }
                 out.write(bytes.value());
                 return true;
-            }
-            case final CompiledRef.Composite composite -> {
-                boolean wrote = false;
-                for (final CompiledRef part : composite.parts()) {
-                    wrote |= write(part, match, matchCount, vars, out);
-                }
-                return wrote;
             }
             case final CompiledRef.LocalGroup group -> {
                 final TypedValue value = match.group(group.group());
@@ -102,32 +92,41 @@ final class CompiledRefs {
                 out.write(value);
                 return true;
             }
-            case final CompiledRef.Context context -> {
-                final TypedValue value = lookup(context, matchCount, vars);
-                if (value == null || value.isEmpty()) {
-                    return false;
+            case final CompiledRef.Composite composite -> {
+                boolean wrote = false;
+                for (final CompiledRef part : composite.parts()) {
+                    wrote |= write(part, match, matchCount, vars, out);
                 }
-                out.write(value);
-                return true;
+                return wrote;
             }
-            case final CompiledRef.Accessor accessor -> {
-                final TypedValue value = accessor(accessor, match, matchCount, vars);
-                if (absent(value)) {
-                    return false;
-                }
-                out.write(value);
-                return true;
+            default -> {
+                return writeRare(ref, match, matchCount, vars, out);
             }
         }
     }
 
-    /**
-     * The value of a reference with its type preserved, or null if it resolves to nothing.
-     *
-     * <p>Only a single capture can carry a type (design/17 §3.1): literal text and a
-     * multipart composite are strings by construction. A captured value carries its own
-     * encoding (design 25), so nothing here converts.
-     */
+    /** The arms no row is hot on: nothing, a counter, an accessor. */
+    private static boolean writeRare(final CompiledRef ref,
+                                     final MatchResult match,
+                                     final int matchCount,
+                                     final VarRegistry vars,
+                                     final Output out) {
+        final TypedValue value = switch (ref) {
+            case final CompiledRef.Empty ignored -> null;
+            case final CompiledRef.Context context -> lookup(context, matchCount, vars);
+            case final CompiledRef.Accessor accessor -> accessor(accessor, match, matchCount, vars);
+            case final CompiledRef.Bytes ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledRef.LocalGroup ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledRef.RemoteVar ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledRef.Composite ignored -> throw new IllegalStateException("hot arm");
+        };
+        if (absent(value)) {
+            return false;
+        }
+        out.write(value);
+        return true;
+    }
+
     static TypedValue resolveValue(final CompiledRef ref,
                                    final MatchResult match,
                                    final int matchCount,

@@ -721,6 +721,94 @@ bytes with everything else behind one call. A dispatcher shaped for one row's pr
 wrong for another's; where the profiles disagree, the arms hot on *any* row go in, and the
 size is what bounds how many that can be.
 
+**The census — 2026-09-16.** `PrintInlining` on all twelve rows at `92f53652aa` (logs under
+`/home/dev1/engine-bench/census/`), and a throwaway probe counting the arm each dispatch of the
+five big switches took, per row (reverted; counts under `/home/dev1/engine-bench/arms/`).
+
+*Run-time methods over the 325-byte hot-inline limit that rows try to inline and cannot:*
+
+| method | bytes | rows failing to inline it hot | dispatches per op, largest row |
+|---|---|---|---|
+| `Body.body` | 1755 | all twelve | 344k (`regex_lines`) |
+| `Steps.step` | 1654 | the two progressive rows | 546k (`progressive_text`) |
+| `Conditions.evaluate` | 664 | eight | 94k (`apache_httpd`) |
+| `Body.put` | 645 | `win_sec`, `log_sessions` | |
+| `Level.dispatch` | 450 | eight | |
+| `Comparisons.cast` | 412 | seven | |
+| `CompiledRefs.resolveValue` | 356 | nine | 319k (`ausearch`) |
+| `Level.bindCaptures` | 353 | all twelve (kept whole on purpose) | |
+| `Steps.match` | 350 | the two progressive rows | |
+| `Splitter.split` | 344 | four | |
+| `CompiledRefs.write` | 337 | all twelve | 839k (`progressive`) |
+
+*The value interface is clean.* Three megamorphic sites in the whole census, none hot: `asUtf8`
+in `CompiledRefs.resolve`, `isEmpty` in `CompiledRefs.absent` (whole values, slices and maps on
+`ausearch`), `asString` in `Transforms.split`. Every hot site on the value classes is
+monomorphic or bimorphic and inlines. Phase 6's remedy is needed nowhere.
+
+*The arm profiles, share of dispatches per row* (blank is zero):
+
+`write` — 337 bytes, 800k dispatches per op on `regex_lines`, 839k on `progressive`:
+
+| arm | regex_lines | csv_header | ausearch | apache_httpd | win_sec | progressive | progressive_text | log_sessions | element_storm |
+|---|---|---|---|---|---|---|---|---|---|
+| Bytes | 57 | 52 | 56 | 52 | 50 | 50 | 50 | | |
+| LocalGroup | 21 | 15 | | | | 25 | 42 | | 100 |
+| Composite | 21 | 15 | 16 | 18 | 7 | 25 | 8 | | |
+| RemoteVar | | 19 | 12 | 30 | 26 | | | 100 | |
+| Accessor | | | 16 | | 18 | | | | |
+
+**`Composite` is a fifth to a quarter of the writes on every scan row.** The streamlining put
+it behind the default, which is why `regex_lines` and `progressive` lost 20% while
+`csv_header` and `ausearch` gained. The four arms hot on any row are `Bytes`, `LocalGroup`,
+`RemoteVar`, `Composite`; `Accessor` is hot only on the two map rows at a sixth, and `Context`
+and `Empty` are nowhere.
+
+`resolveValue` — 356 bytes, 319k per op on `ausearch`, 200k on `apache_httpd`:
+
+| arm | regex_lines | csv_header | ausearch | apache_httpd | win_sec | win_sec_strict | log_sessions |
+|---|---|---|---|---|---|---|---|
+| LocalGroup | 100 | 50 | 75 | 29 | 5 | 43 | |
+| RemoteVar | | 50 | 4 | 69 | 62 | 57 | 79 |
+| Composite | | | 18 | | | | |
+| Accessor | | | 1 | 2 | 14 | | 11 |
+| Bytes | | | 2 | | 19 | | 5 |
+
+`Body.body` — 1755 bytes, the interpreter loop: `ValueOf` is 100% of `progressive`'s ops, 83%
+of `regex_lines`', 70% of `csv_header`'s; `Apply` 87% of `ausearch`'s; `Transform` 42% of
+`apache_httpd`'s and 47% of `win_sec_strict`'s; `Put` 44% of `win_sec`'s; `Text`, `Element`,
+`Attribute` the whole of `element_storm`. Eleven other arms share the rest.
+
+`Conditions.evaluate` — 664 bytes: `Compare` 35% to 88% wherever conditions run, then `Exists`,
+`Not`, `And`, `Or`; `Contains` and `Matches` only on `apache_httpd`, at 16% and 2%.
+
+`Steps.step` — 1654 bytes, twenty-four arms, six used on the corpus: `ReadVarint` and
+`TakeBytes` are the whole of `progressive`; `Tag`, `TakeWhile`, `TakeUntil`, `Regex` the whole
+of `progressive_text`.
+
+*What the split is, then, per switch:* a dispatcher under 325 bytes holding the arms hot on
+any row, everything else behind one call. For `write`: `Bytes`, `LocalGroup`, `RemoteVar`,
+`Composite`. For `resolveValue`: the same four. For `Conditions`: `Compare`, `Exists`, `Not`,
+`And`, `Or`. For `Steps.step`: the six. `Body.body` is the loop itself and is not inlined
+anywhere; what it gains is its callees — `write` above all — inlining *into* it, which the
+size of `write` has prevented on every row. Each split is its own commit, interleaved on the
+rows its profile names, with the two canaries.
+
+**7a, `write` split on the census — 2026-09-16.** A 238-byte dispatcher with `Bytes`,
+`LocalGroup`, `RemoteVar` and `Composite`, and `writeRare` behind one call for `Empty`,
+`Context` and `Accessor`. `PrintInlining` shows `write` inlining hot into the body interpreter
+on `regex_lines` and `progressive`, where at 337 bytes it never had; the recursive site inside
+the composite arm stays a call, as it must. Interleaved against point 51 at load 1.2, three
+rounds: `regex_lines` +14.2, −1.8, +14.3; `progressive` +4.9, −5.2, +6.0; `csv_header` −1.2,
+−12.4, −5.6; `ausearch` −1.5, −11.4, −3.9; `apache_httpd` −6.2, +1.7, −1.6. Round 2 is the
+box running fast on the baseline leg on every row; the per-row signs are consistent — the
+scan rows up, the reference rows down. The compiler's account of the two that lost is
+indirect: nothing `write` calls stopped inlining, but on `ausearch` `Level.regexMatch` no
+longer inlines into `Level.match` at four sites (*already compiled into a big method*), the
+shape that cost `win_sec` under 3d — the interpreter's compiled code grew with `write` inside
+it and the match path paid through a limit unrelated to `write`. The magnitude is an evening
+reading; the split is one commit to revert if the reference rows really pay.
+
 **Then the split.** The rule the earlier work reached — a switch with many arms must be big,
 so it cannot inline, so leave it — is true of a switch with many arms *in one method*. It is
 not true of two switches. `Body.run`'s op switch has arms for output leaves, mutations, walks,
