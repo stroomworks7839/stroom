@@ -624,6 +624,26 @@ mechanism worth hunting: interface calls on `TypedValue` (`isEmpty`, `asUtf8`, `
 beside `Utf8Bytes` at sites that also see `Integer` or `EncodedBytes`, and a site that was
 bimorphic and inlined becomes megamorphic and pays eight nanoseconds a call.
 
+**The `equals` ruling, put on evidence — 2026-09-16.** The value class tests `getClass() ==
+X.class` in its equalities rather than `instanceof`, on a ruling made without a measurement.
+`TypeTestBenchmark` (run by name; `benchmarks/2026-09-16-0925-d5ffb9aa45-type-test.json`),
+nanoseconds per test over a stream of receivers:
+
+| receiver mix | `getClass() == P.class` | `instanceof P` (final class) | `instanceof Val` (interface) | interface then class |
+|---|---|---|---|---|
+| all the class | 0.204 | 0.204 | 0.149 | 0.204 |
+| the class and one other | 0.197 | 0.202 | 0.211 | 0.387 |
+| the class, three others, a stranger, nulls | 0.285 | 0.296 | 0.447 | 0.570 |
+
+*On a final class the two forms are the same instruction* — identical in every row — and
+`instanceof` handles null besides, so the ruling was neutral there and either form may be used;
+the binding form (`instanceof final P p`) reads better and drops the cast. *Against an interface
+the test is a search*: half as slow again under a mixed stream, and doubled when an `equals`
+asks the interface and then the class, which is exactly what `isBytes` avoids by naming the
+three final classes. The ruling is restated as: an `equals` on a hot path tests the final
+classes it accepts, never the interface; between `instanceof` and the class compare on a final
+class, choose for reading.
+
 **So phase 6 closes without a kind** (ruled 2026-09-16): a third of a nanosecond at the worst
 mix, and slower at the mixes the engine has, is not worth a second truth in every record and a
 test to keep it honest. The pattern switches stay. What the benchmark does leave is a thing to
