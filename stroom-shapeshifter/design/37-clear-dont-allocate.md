@@ -821,8 +821,25 @@ inlines hot on all three where it had none, `compare` beneath it. Interleaved to
 +1.9, +0.8; `win_sec` −0.7, −0.4, −15.6 (the last a fast baseline leg: 84 against 71 and 77);
 `regex_lines` −2.3, −0.8, +0.4; `progressive` −2.5, +1.6, −0.6. No reference row pays as
 `csv_header` and `ausearch` did under 7a — but the daytime read did not show that either, and
-the evening reads 52, 56 and 57 side by side. `Body.body`'s category split (7d) waits on that
-reading.
+the evening reads 52, 56 and 57 side by side.
+
+**7d, the interpreter loop — 2026-09-16, the same evening.** Not a category switch over six
+methods as first sketched but the same shape as the other three, since the census's per-row
+arm counts (`/home/dev1/engine-bench/arms/`) name the hot set directly: ten instructions hot
+on some row — `Text`, `ValueOf`, `Apply`, `If`, `Choose`, `Variable`, `Element`, `Attribute`,
+`Transform`, `Put` — dispatch in the loop, a choose, an element and an attribute as calls, and
+the fourteen hot nowhere behind `bodyRare` (`e04e634df4`). The loop goes from 1,755 bytes to 393;
+it is never inlined anywhere, so the 325-byte callee limit is not its constraint, and the
+check is whether its callees inline into it. **The check was ambiguous, and is recorded as
+such**: `write`, `apply`, `transform` and `evaluate` already inlined hot into `body` after 7a,
+so this split does not newly unlock them — the mechanism this section gave it was mostly 7a's.
+What it changes is the compiled footprint, 1,452 bytes of cold arms out of the loop's
+compilation; on `ausearch` C2's "too many nodes" hits go from six to none. Interleaved
+against 57 at load 0.1, three rounds: `apache_httpd` +1.9, +2.1, +2.9 — the widest
+instruction mix, the row where a smaller compilation should show, three of three;
+`regex_lines` +5.4, +4.4, −1.2; `csv_header` +0.1, +0.3, +4.4; `ausearch` +1.7, −0.9, +1.3;
+`progressive` flat. Nothing loses. Point 58, in the same evening as the other three, and
+design 37 closes on that reading.
 
 **Then the split.** The rule the earlier work reached — a switch with many arms must be big,
 so it cannot inline, so leave it — is true of a switch with many arms *in one method*. It is

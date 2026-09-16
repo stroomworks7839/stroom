@@ -24,6 +24,7 @@ keeping, and so is one that did not.
 | 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
 | 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
 | 9 | `8d0fd1cd65` | 2026-09-09 | Design 30: conditions compiled, the pattern map off the graph | A `matches` test holds its `BytePattern` instead of hashing the pattern's text per evaluation, and `Conditions.evaluate` stops taking the map — so it is no longer threaded into every guard evaluation on every template on every record. **624 evaluations per operation on `apache_httpd` and none anywhere else**, invisible in a sampled profile, so the run rows should not move. Compilation now walks the condition trees, so the compile rows are where a change would show. |
+| 58 | `e04e634df4` | 2026-09-16 | Design 37 phase 7d: the interpreter loop keeps its ten hot instructions, fourteen cold ones behind one call | **`apache_httpd` is the claim, at a couple of per cent: the row with the widest instruction mix, where the cold arms leaving the loop's compilation should show, and it read +1.9, +2.1, +2.9 against 57.** The check was ambiguous — the hot callees already inlined into `body` after 7a, so the mechanism §8 gave this split was mostly 7a's; what is left is the compiled footprint, and on `ausearch` C2 stopped hitting its node limit. `regex_lines` read +5.4, +4.4, −1.2 and is the one to watch either way; everything else flat. Read against 57: the last of the four census splits, so 52 through 58 together are what the split shape was worth. |
 | 57 | `beae636f47` | 2026-09-16 | Design 37 phase 7c: `Conditions.evaluate` split on the census — five hot arms in a 248-byte dispatcher | **`apache_httpd` is the claim, small: 94k evaluations per op, the most of any row, and `evaluate` now inlines into the guard's caller where at 664 bytes it never did.** Daytime interleave with 7b: `apache_httpd` +0.9 three of three, which is inside what one evening can resolve. Expect flat to a point up on `apache_httpd` and `win_sec_strict`, and nothing elsewhere; the rows without conditions cannot move. Read against 56: the difference between the two is this split alone. |
 | 56 | `78d336e395` | 2026-09-16 | Design 37 phase 7b: `resolveValue` split on the census — four hot arms in a 177-byte dispatcher | **`ausearch` is the claim: 319k resolves per op, and `resolveValue` now inlines hot into its callers where at 356 bytes it inlined nowhere.** Daytime interleave (with 7c): `ausearch` +1.5, +2.9, +6.6; `apache_httpd` +0.8 to +1.9; `win_sec` −0.4, −0.7 and one round the baseline ran fast; canaries inside noise. So: `ausearch` up by a few per cent, `apache_httpd` up by one, `win_sec` flat, and — the 7a lesson — watch `csv_header` and `progressive` for the shape effect on a reference row, which the daytime read did not show. Read against 55. |
 | 55 | `adc630ae1f` | 2026-09-16 | Design 38 phase 1a: the explode, and two normalisation changes in the regex library | **A control: every row reads as 54.** The explode is compile-time and UI-facing; nothing on a run path changes. The two library edits are on the compile path only — a repeat of exactly once reads as its body, which no corpus regex contains, and a composed literal encodes through the byte form, which only a non-ASCII tag under RAW could notice and no fixture has. So the plans the rows run are byte-identical to 54's; a move here is drift or the box, and a control that does not read flat is a finding about the run, not the change. |
@@ -73,14 +74,14 @@ keeping, and so is one that did not.
 is identical to phase 3's. Design 30 phase 3 is not a point for the same reason — it is a
 counting, and its result is the section below rather than a commit worth measuring across.*
 
-## What is owed — points 51 to 57, for an evening run
+## What is owed — points 51 to 58, for an evening run
 
-Points 50 to 57 in one run, the benchmark's own fidelity (`full`): the 3d split as this
+Points 50 to 58 in one run, the benchmark's own fidelity (`full`): the 3d split as this
 boot's floor, the `equals` reshaping as a control, the `write` split, design 38's
 retirement of the step interpreter, the Avro row's first point, the explode as a second
-control, and the `resolveValue` and `evaluate` splits — the three census splits read in one
-evening, so 52's verdict on the shape and 56's and 57's on the same shape can be read side by
-side. The commits between 50 and 51 are design records, the
+control, and the `resolveValue`, `evaluate` and `body` splits — all four census splits read
+in one evening, so 52's verdict on the shape and 56's, 57's and 58's on the same shape can be
+read side by side, and design 37 closes on the reading. The commits between 50 and 51 are design records, the
 fixtures' alternative shapes (parity-gated, not in the default run), and the three isolated
 JIT benchmarks (run by name), none of which change the engine's code; those between 52 and 53
 are design 38's phases 1 to 3, which add the `pattern` and `parts` forms beside the
@@ -89,10 +90,10 @@ a row and changes no engine code, so it is the point the `avro_users` row first 
 Nothing is scheduled; the run is launched by hand when the box is quiet:
 
 ```
-engine-bench-points.sh full 228b7920e9 92f53652aa c710946def 2f56daf088 ae22d46bea adc630ae1f 78d336e395 beae636f47
+engine-bench-points.sh full 228b7920e9 92f53652aa c710946def 2f56daf088 ae22d46bea adc630ae1f 78d336e395 beae636f47 e04e634df4
 ```
 
-The readings go into points 51's to 57's rows, design 37 §8 and design 38 §8 (phase 5). The default run now has twelve rows: `ausearch_dispatch` stands beside `ausearch` from
+The readings go into points 51's to 58's rows, design 37 §8 and design 38 §8 (phase 5). The default run now has twelve rows: `ausearch_dispatch` stands beside `ausearch` from
 this run on. Point 53's two `progressive` rows are read against 52 only; every fixture the
 rows run is byte-identical on output across the retirement (gate one), so the comparison is
 of the same job.
