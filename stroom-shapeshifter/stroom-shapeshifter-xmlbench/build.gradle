@@ -48,7 +48,10 @@ tasks.register('jmh', JavaExec) {
     description = 'Run the XML head-to-head benchmarks, recording results to design/benchmarks'
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'org.openjdk.jmh.Main'
-    args = ['stroom.shapeshifter.xmlbench..*Benchmark.*']
+    // The catalogue and the baseline. A case's alternative shapes (CaseShapesBenchmark,
+    // design 37 phase 8) are fixtures, parity-gated on every test run, and measured only when
+    // asked for by name: the shapes are a question about configuration, not the engine.
+    args = ['stroom.shapeshifter.xmlbench.(CaseCatalogue|XmlBaseline)Benchmark.*']
 
     doFirst {
         final def results = file("${project.projectDir}/../design/benchmarks")

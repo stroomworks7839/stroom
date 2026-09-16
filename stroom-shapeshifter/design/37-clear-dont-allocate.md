@@ -711,6 +711,47 @@ looks keys up rather than walking them; they are measured on a walking row next
 a fixed set of keys should be emitted as per-key templates, not a key-value capture into a
 map; the map is for keys the configuration does not know.
 
+### What phase 8 read second — 2026-09-16, `keys_lookup`
+
+*The row where the map cannot be replaced by scalars: the keys are category names that arrive
+in the data, and the job is XSLT's `key()` — every `want` looks up the orders filed under its
+category, a miss included.* Three shapes beside the case's challenger, each byte-identical
+against live Saxon at amplified scale (`CaseShapesTest`), measured by `CaseShapesBenchmark`
+single-shot at 100,000 units, two forks, three rounds with the order rotated:
+
+| shape | mean ms | against the case |
+|---|---|---|
+| the map, filled with order *positions* and read back through `id[h]` — the case as it is | 23.3 | — |
+| the map, filled directly with the ids | 17.9 | **1.30× faster** |
+| two lists on a shared index, a scan per want (shape 2) | 25.1 | 0.93× |
+| the pair's bytes captured whole, split on use (shape 3) | 71.8 | 0.32× |
+
+*What it says.* When the keys are unknown the map is the right shape and it should be filled
+directly: the case's own challenger files positions and reads ids back through them, a design
+16 idiom from before a value could be stored under a key, and storing the ids is 30% faster —
+against Saxon's 32.5 ms this row would read about 1.8× rather than 1.33×. **Two lists lose even
+here**: amplification repeats the orders and not the wants, so the row has three wants against
+100,000 orders, the best case a scan will ever get, and three scans still cost more than
+100,000 puts — an `eq` in the interpreter is about the price of a put, so the paired-list shape
+has no row where it wins a lookup; it is for walking. **Splitting on use is three times
+slower**: two substring transforms and a variable per pair per want. The whole-pair capture is
+for pairs that are written out unsplit.
+
+*The shapes are kept as fixtures, not benchmarks* (ruled 2026-09-16): every shape stays
+beside its case, parity-gated on every test run — `ConfigurationShapesTest` for the engine
+fixtures, `CaseShapesTest` against live Saxon for the catalogue — and measured only when
+named (`-p workload=ausearch_dispatch`; `CaseShapesBenchmark -p shape=…`), so the default
+runs measure the engine and the shapes stay a question one can re-ask.
+
+*The rule, after two rows.* Capture only what you read. Scalars when the keys are known
+(`ausearch`: +30% by a template per key); a map filled directly when they are not
+(`keys_lookup`: +30% over filing positions); never a scan or a split in place of a lookup.
+*Ruled 2026-09-16:* the catalogue's `keys_lookup` challenger is the direct-map shape from
+this point (design 13 records the step in the row's history; the positions shape stays beside
+it), and in the engine benchmark `ausearch_dispatch` stands as a twelfth row beside `ausearch`
+— as `win_sec_strict` beside `win_sec` — so the map row keeps its fifty points of history and
+its coverage of the key-value path, and the pair is a live comparison of the two idioms.
+
 ## 10. Phase 9 — the progressive match, reconsidered from what it is for
 
 **Ruled 2026-09-15: think wider first.** The row furthest from the floor is `progressive`; the
@@ -873,7 +914,9 @@ and `resolveValue` under budget; `progressive` and `regex_lines` recover toward 
 
 §9. **Pulled forward and begun 2026-09-15**: `ausearch`'s two challengers read +7% (switch)
 and +30% (a template per key) against its map, parity-gated and now benchmark workloads. The
-walking shapes are next, on a walking row. Gate: the shape → cost table, and a sentence in design 35 §5.
+walking shapes measured 2026-09-16 on `keys_lookup`: the direct map +30% over the case's
+positions idiom, two lists 0.93×, split-on-use 0.32×. Remaining: `win_sec`, `apache_httpd`,
+`log_sessions`. Gate: the shape → cost table, and a sentence in design 35 §5.
 
 ### Phase 9 — the progressive match, reconsidered
 

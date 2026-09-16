@@ -1,5 +1,5 @@
 {
- "name": "keys_lookup_challenger",
+ "name": "keys_lookup_lists",
  "version": 5,
  "source": {
   "buffer_size": 4000000,
@@ -13,16 +13,20 @@
    "name": "source",
    "declarations": [
     {
-     "name": "by_cat",
-     "type": "map"
+     "name": "cat",
+     "type": "list"
+    },
+    {
+     "name": "id",
+     "type": "list"
     },
     {
      "name": "c",
      "type": "list"
     },
     {
-     "name": "none",
-     "type": "list"
+     "name": "hits",
+     "type": "scalar"
     }
    ],
    "match": "source",
@@ -50,6 +54,78 @@
       "as": "w",
       "body": [
        {
+        "variable": {
+         "name": "hits",
+         "body": [
+          {
+           "for-each": {
+            "select": "cat",
+            "as": "k",
+            "body": [
+             {
+              "if": {
+               "test": {
+                "eq": {
+                 "left": {
+                  "ref": {
+                   "parts": [
+                    {
+                     "capture": {
+                      "var_id": "k",
+                      "group": 0
+                     }
+                    }
+                   ]
+                  },
+                  "as": "string"
+                 },
+                 "right": {
+                  "ref": {
+                   "parts": [
+                    {
+                     "capture": {
+                      "var_id": "w",
+                      "group": 0
+                     }
+                    }
+                   ]
+                  },
+                  "as": "string"
+                 }
+                }
+               },
+               "then": [
+                {
+                 "text": "<o>"
+                },
+                {
+                 "value-of": {
+                  "parts": [
+                   {
+                    "capture": {
+                     "var_id": "id",
+                     "group": 0,
+                     "match_index": {
+                      "function": "index"
+                     }
+                    }
+                   }
+                  ]
+                 }
+                },
+                {
+                 "text": "</o>"
+                }
+               ]
+              }
+             }
+            ]
+           }
+          }
+         ]
+        }
+       },
+       {
         "choose": {
          "when": [
           {
@@ -58,18 +134,9 @@
              "select": {
               "parts": [
                {
-                "get": {
-                 "of": "by_cat",
-                 "key": {
-                  "parts": [
-                   {
-                    "capture": {
-                     "var_id": "w",
-                     "group": 0
-                    }
-                   }
-                  ]
-                 }
+                "capture": {
+                 "var_id": "hits",
+                 "group": 0
                 }
                }
               ]
@@ -96,45 +163,13 @@
              "text": "\">"
             },
             {
-             "for-each": {
-              "select": {
-               "parts": [
-                {
-                 "get": {
-                  "of": "by_cat",
-                  "key": {
-                   "parts": [
-                    {
-                     "capture": {
-                      "var_id": "w",
-                      "group": 0
-                     }
-                    }
-                   ]
-                  }
-                 }
+             "value-of": {
+              "parts": [
+               {
+                "capture": {
+                 "var_id": "hits",
+                 "group": 0
                 }
-               ]
-              },
-              "as": "h",
-              "body": [
-               {
-                "text": "<o>"
-               },
-               {
-                "value-of": {
-                 "parts": [
-                  {
-                   "capture": {
-                    "var_id": "h",
-                    "group": 0
-                   }
-                  }
-                 ]
-                }
-               },
-               {
-                "text": "</o>"
                }
               ]
              }
@@ -208,94 +243,21 @@
      "pattern": "  <order id=\"([^\"]*)\" cat=\"([^\"]*)\"/>\\n"
     }
    },
-   "captures": [],
-   "body": [
+   "captures": [
     {
-     "if": {
-      "test": {
-       "not": {
-        "exists": {
-         "select": {
-          "parts": [
-           {
-            "get": {
-             "of": "by_cat",
-             "key": {
-              "parts": [
-               {
-                "capture": {
-                 "group": 2
-                }
-               }
-              ]
-             }
-            }
-           }
-          ]
-         }
-        }
-       }
-      },
-      "then": [
-       {
-        "put": {
-         "name": "by_cat",
-         "key": {
-          "parts": [
-           {
-            "capture": {
-             "group": 2
-            }
-           }
-          ]
-         },
-         "select": {
-          "parts": [
-           {
-            "capture": {
-             "var_id": "none",
-             "group": 0
-            }
-           }
-          ]
-         }
-        }
-       }
-      ]
+     "name": "id",
+     "select": {
+      "group": 1
      }
     },
     {
-     "append": {
-      "target": {
-       "parts": [
-        {
-         "get": {
-          "of": "by_cat",
-          "key": {
-           "parts": [
-            {
-             "capture": {
-              "group": 2
-             }
-            }
-           ]
-          }
-         }
-        }
-       ]
-      },
-      "select": {
-       "parts": [
-        {
-         "capture": {
-          "group": 1
-         }
-        }
-       ]
-      }
+     "name": "cat",
+     "select": {
+      "group": 2
      }
     }
-   ]
+   ],
+   "body": []
   },
   {
    "id": "00000000-0000-0000-0000-000000000005",

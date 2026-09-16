@@ -359,3 +359,14 @@ on a fatal, so an aborted run can never again be measured; and the four challeng
 `max_sequence_entries` of 1,000,000, which is the size of the job they do. The four rows above
 are from the re-run (`2305-f54112dc94-xml-rerun4`) with parity re-checked; the other twelve
 and the events rows are from the full run.
+
+## `keys_lookup`'s challenger promoted (2026-09-16)
+
+Design 37 phase 8 measured the case in four configuration shapes (design 37 §9). The
+challenger the catalogue had carried filed order *positions* into the map and read the ids
+back through them — a design 16 idiom from before a value could be stored under a key — and
+filling the map directly with the ids is 1.30× faster on the same job, byte-identical against
+Saxon at amplified scale. The direct-map shape is the case's challenger from this point; the
+positions shape stays beside it as `challenger-positions.project.json`, parity-gated, for the
+record. **The row's history has a step here**: readings before 2026-09-16 are of the positions
+idiom (1.33× on 2026-09-15), and readings after are of the direct map, expected about 1.8×.

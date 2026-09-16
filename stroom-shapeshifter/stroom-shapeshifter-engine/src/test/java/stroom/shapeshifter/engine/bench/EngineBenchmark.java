@@ -80,9 +80,17 @@ public class EngineBenchmark {
     /** One op processes this much input, so ops/s reads as quarter-MiB/s of real records. */
     private static final int TARGET_SIZE = 256 * 1024;
 
-    @Param({"regex_lines", "csv_header", "ausearch", "apache_httpd",
+    /**
+     * The rows a run measures. A fixture's alternative shapes (design 37 phase 8) are fixtures,
+     * parity-gated on every test run, and measured only when named ({@code -p
+     * workload=ausearch_switch}) — except {@code ausearch_dispatch}, which stands beside
+     * {@code ausearch} as {@code win_sec_strict} stands beside {@code win_sec}: the same records
+     * and the same bytes in the two idioms, a map against a template per key, so the pair is a
+     * live comparison and the map row keeps its history.
+     */
+    @Param({"regex_lines", "csv_header", "ausearch", "ausearch_dispatch", "apache_httpd",
             "win_sec", "win_sec_strict", "win_sec_xml", "progressive", "progressive_text",
-            "log_sessions", "element_storm", "ausearch_switch", "ausearch_dispatch"})
+            "log_sessions", "element_storm"})
     public String workload;
 
     private Project project;
@@ -99,7 +107,8 @@ public class EngineBenchmark {
             case "ausearch" -> streamed("projects/ausearch/project.json",
                     FixtureLedger.bytes("projects/ausearch/input.txt"));
             // The same records, the same output bytes, in two shapes without the map (design
-            // 37 phase 8): a switch on the key into four scalars, and a template per key.
+            // 37 phase 8): a switch on the key into four scalars (on request), and a template
+            // per key (a standing row).
             case "ausearch_switch" -> streamed("projects/ausearch/challenger-switch.project.json",
                     FixtureLedger.bytes("projects/ausearch/input.txt"));
             case "ausearch_dispatch" -> streamed("projects/ausearch/challenger-dispatch.project.json",
