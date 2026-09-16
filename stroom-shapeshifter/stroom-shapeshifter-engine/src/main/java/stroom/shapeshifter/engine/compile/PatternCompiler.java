@@ -29,9 +29,12 @@ import stroom.shapeshifter.regex.comb.Matcher;
 import stroom.shapeshifter.regex.comb.MatcherLibrary;
 import stroom.shapeshifter.regex.comb.Matchers;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A pattern tree to one plan (design 38 §5): the configuration's {@link PatternNode} maps node
@@ -91,8 +94,7 @@ final class PatternCompiler {
             case final PatternNode.Take take -> new Matcher.Characters("[\\s\\S]", take.count(), take.count());
             case final PatternNode.Regex regex -> new Matcher.Regex(regex.pattern(), PatternKey.flags(regex.flags()));
             case final PatternNode.Ref ref -> Matchers.ref(ref.name());
-            case final PatternNode.Sequence sequence -> new Matcher.Sequence(
-                    sequence.items().stream().map(this::lower).toList());
+            case final PatternNode.Sequence sequence -> lowerSequence(sequence.items());
             case final PatternNode.Choice choice -> new Matcher.Choice(
                     choice.alternatives().stream().map(this::lower).toList());
             case final PatternNode.Optional optional -> Matchers.optional(lower(optional.body()));
@@ -101,14 +103,54 @@ final class PatternCompiler {
                     repeat.greedy());
             case final PatternNode.Peek peek -> Matchers.peek(lower(peek.body()));
             case final PatternNode.Not not -> Matchers.not(lower(not.body()));
-            case final PatternNode.Labelled labelled -> {
-                if (castsByLabel.containsKey(labelled.label())) {
-                    throw new ConfigException("Label '" + labelled.label() + "' is used twice in one pattern");
-                }
-                castsByLabel.put(labelled.label(), labelled.as());
-                yield lower(labelled.body()).label(labelled.label());
-            }
+            case final PatternNode.Labelled labelled -> label(labelled, lower(labelled.body()));
         };
+    }
+
+    /**
+     * A sequence, with one fusion: an exclusive {@code take_until} of a multi-character
+     * terminator followed by the {@code tag} of that terminator is a lazy run and then the
+     * literal — the same leftmost-first meaning as the run-to-a-lookahead and the tag, but
+     * without the lookahead, which is what sends a pattern to the backtracking tier. The
+     * `progressive_text` row read that at 762 tree instructions on tier 4 where the fused form
+     * is an NFA (design 38 §8, the parts-path census); a config that names its terminator and
+     * then consumes it — the common shape — pays the lookahead for nothing.
+     */
+    private Matcher lowerSequence(final List<PatternNode> items) {
+        final List<Matcher> lowered = new ArrayList<>(items.size());
+        for (int i = 0; i < items.size(); i++) {
+            final PatternNode item = items.get(i);
+            final PatternNode.TakeUntil until = exclusiveMultiCharUntil(item);
+            if (until != null && i + 1 < items.size()
+                && items.get(i + 1) instanceof final PatternNode.Tag tag
+                && tag.text().equals(until.terminator())) {
+                final Matcher run = new Matcher.Regex("(?s:.*?)", Set.of());
+                lowered.add(item instanceof final PatternNode.Labelled labelled
+                        ? label(labelled, run)
+                        : run);
+                continue;
+            }
+            lowered.add(lower(item));
+        }
+        return new Matcher.Sequence(lowered);
+    }
+
+    /** The node as an exclusive take-until of more than one character, through a label; null otherwise. */
+    private static PatternNode.TakeUntil exclusiveMultiCharUntil(final PatternNode node) {
+        final PatternNode body = node instanceof final PatternNode.Labelled labelled ? labelled.body() : node;
+        if (body instanceof final PatternNode.TakeUntil until && !until.inclusive()
+            && until.terminator().codePointCount(0, until.terminator().length()) > 1) {
+            return until;
+        }
+        return null;
+    }
+
+    private Matcher label(final PatternNode.Labelled labelled, final Matcher body) {
+        if (castsByLabel.containsKey(labelled.label())) {
+            throw new ConfigException("Label '" + labelled.label() + "' is used twice in one pattern");
+        }
+        castsByLabel.put(labelled.label(), labelled.as());
+        return body.label(labelled.label());
     }
 
     /**
@@ -125,6 +167,6 @@ final class PatternCompiler {
         final String quoted = java.util.regex.Pattern.quote(terminator);
         return new Matcher.Regex(until.inclusive()
                 ? "(?s:.*?)" + quoted
-                : "(?s:.*?)(?=" + quoted + ")", java.util.Set.of());
+                : "(?s:.*?)(?=" + quoted + ")", Set.of());
     }
 }

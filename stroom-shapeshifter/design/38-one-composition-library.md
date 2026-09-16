@@ -494,6 +494,71 @@ question §4 raised — a real binary format parsed as templates is more than a 
 without pretending it beats a decoder that has the schema. Tonight's full run gives the row
 its first ledger point.
 
+### Phase 5, the evening reading — 2026-09-16, and the census that followed it
+
+**Point 53 against 52** (the retirement against the last interpreter point, `full`
+fidelity): `progressive` **−49.4%**, `progressive_text` **−8.7%**, `regex_lines` −4.1%,
+`log_sessions` −1.6%, `ausearch` +4.6%, `element_storm` +2.3%, the rest flat. Point 54 (the
+Avro row) read as its row said, every existing row within ±1.7% of 53 with mixed signs, and
+`avro_users` has its first number: **249.5 ± 3.8 ops/s** over 263,371 bytes. Nothing after
+53 recovered the two rows: at point 58 they stand at −42.5% and −3.8% against the floor.
+
+§7's expectation was wrong on both rows, and the census the same night says why — two
+different reasons.
+
+**`progressive`: the fixed cost of a regex call, on a one-byte field.** Every regex template
+pays one `ByteMatcher.match` → `PlanRunner.run` (758 bytes, never inlined) per match, with the
+slot reset, the anchoring question and a `MatchResult` and its groups around it. Every row had
+always paid it, invisibly, because every row's match was a line — tens to hundreds of bytes of
+scanning per call. The match sequence pays it to match a **one-byte varint**, then again for
+the record, on a fixture whose records are five bytes; at that size the fixed cost is most of
+the work, and the interpreter read the same byte in a few instructions. Same price, a ratio
+nothing had exposed. §7 priced the interpreter's side from the census and never priced the
+library's on a tiny match — a ten-minute check in `DispatchWorkBenchmark`'s style that was not
+done; the "what would make it a mistake" list did not include it. `-prof gc` says the rest:
+20.8 MB/op against the interpreter's 13.7 at 52, but the interpreter allocated *faster* in
+absolute terms (6.2 against 4.8 GB/s), so allocation is not the limiter; the machinery per
+part is. The `avro_users` row tells the same story at 250 ops/s — 65 MB/s per record where the
+native crate decodes at 175 — and is the honest row for the job now; `progressive`'s history
+ended at 52 as §7 said it would, and its retirement in favour of `avro_users` is the ruling
+owed.
+
+**`progressive_text`: the tree was on tier 4.** The fixture's tree compiled to the
+node-tree backtracker, 762 instructions — the opposite end of the library from the scan plan
+§7 promised — because its multi-byte `take_until(" pid=")` lowers to `(?s:.*?)(?=\Q pid=\E)`
+and the lookahead sends the whole pattern to the fancy tier. The interpreter ran four cheap
+steps against that. The lowering is the engine's (`PatternCompiler.lowerUntil`), and the fix
+is a fusion: an exclusive `take_until(t)` immediately followed by `tag(t)` — what this fixture
+does, and what any configuration that names its terminator and then consumes it does — is a
+lazy run and then the literal, no lookahead, the same leftmost-first meaning. Tier 4 → tier 2
+(778 NFA instructions; the Unicode `\S`, `\p{L}` and `\p{Nd}` classes are what make it
+large). Interleaved against 58, three rounds: **`progressive_text` +27.4, +25.9, +25.4** —
+the row ends about 15% ahead of the interpreter, which is roughly what §7 expected all along;
+`csv_header` flat. Pinned in `PatternExplodeTest`: the fused form's tier is below the
+unfused form's and both bind the same groups.
+
+**What tier 0 would need — a library-budget question, recorded and not built.** A scan plan
+has `SCAN_UNTIL_BYTE` and no scan-until-*literal*, so a run up to a multi-byte terminator can
+never be a scan op; the fused form's floor is the NFA. One plan op would put the whole of
+`progressive_text` on tier 0 — and every `.*?literal` regex with it. D53 closed the library's
+budget at three; this is the fourth, and it is a ruling.
+
+**The parts path's own census, and a weak read.** `partsMatch` 347 bytes (hot method too
+big, never inlined into `Level.match`), `BinaryCasts.apply` 739 (the same, once per cast),
+`Level.length` 169 (boxing a `Long` per read, an `Integer` per literal). Cut the same way as
+design 37's splits: the seek arm behind a call (347 → 309), the five casts the real formats
+read — zigzag, varint, a byte, a flag, a double — in a 263-byte dispatcher with the fixed
+widths behind one call, and `length` reading a cast group's integer directly. `PrintInlining`
+after: both inline hot on both rows where before they inlined nowhere; B/op unchanged, the
+boxing having been elided already. Interleaved cleanly against 58, three rounds:
+`progressive` −2.8, +1.9, +1.8; `avro_users` −0.9, +8.4, +2.7; **`regex_lines` −4.3, −4.3,
++1.3** — and down in five of seven rounds across two interleaves, on a row that calls none of
+the three methods. The mechanism is not known: a cold call site does not inline, so the 3d
+shape explanation does not apply; it may be the box or a code-layout effect. A two per cent
+gain on the binary rows against a possible four on the flagship row is not a keep on that
+evidence; the cuts are held off the line until an evening reading separates them from the
+box.
+
 ## 8. Phases
 
 1. **Read.** The five synthetic fixtures and the twenty `StepsTest` cases against backtracking
@@ -512,8 +577,10 @@ its first ledger point.
 4. **The interpreter deleted** with the `progressive` form; the census's two largest methods
    gone. Done 2026-09-16.
 5. **Measured**: gate two, the `progressive` row re-founded on the Avro container, and the
-   design's record. In progress: the Avro row and the prototype's number 2026-09-16 (above);
-   the evening reading of points 53 and 54 owed.
+   design's record. The Avro row and the prototype's number 2026-09-16; the evening reading
+   the same night, the census after it and the `take_until` fusion (above). Owed: the
+   `progressive` retirement ruling, the scan-until-literal ruling, the parts cuts' evening
+   reading, and the closing record.
 
 **Sequencing against design 37** (ruled 2026-09-16): point 52's evening reading first, since it
 says whether dispatcher splits pay on this engine; then phases 1 and 2 here, which touch

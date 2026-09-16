@@ -161,6 +161,38 @@ class PatternExplodeTest {
                 .replaceAll("(MATCH_CHAR|SCAN_WHILE_CHAR) +\\S+ \\(", "$1 (");
     }
 
+    /**
+     * An exclusive take-until of a multi-character terminator followed by its tag lowers as a
+     * lazy run and the literal, with no lookahead — the lookahead is what sends a pattern to
+     * the backtracking tier (design 38 §8). The meaning is the same either way; the tier is not.
+     */
+    private static final PatternNode PID = new PatternNode.Labelled(
+            new PatternNode.TakeWhile("[0-9]", 1, PatternNode.Repeat.UNBOUNDED), "pid", null);
+
+    @Test
+    void takeUntilFollowedByItsTagLowersWithoutTheLookahead() {
+        final PatternNode fused = new PatternNode.Sequence(List.of(
+                new PatternNode.Labelled(new PatternNode.TakeUntil(" pid=", false), "msg", null),
+                new PatternNode.Tag(" pid="),
+                PID));
+        final PatternNode unfused = new PatternNode.Sequence(List.of(
+                new PatternNode.Labelled(new PatternNode.TakeUntil(" pid=", false), "msg", null),
+                new PatternNode.Tag(" pid"),
+                new PatternNode.Tag("="),
+                PID));
+        final BytePattern fast = PatternCompiler.compile(fused, Encoding.UTF_8, "t").pattern();
+        final BytePattern slow = PatternCompiler.compile(unfused, Encoding.UTF_8, "t").pattern();
+        assertThat(fast.tier()).as("no lookahead, no backtracker").isLessThan(slow.tier());
+        assertThat(fast.pattern()).doesNotContain("(?=");
+        final byte[] input = "hello world pid=42".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        for (final BytePattern pattern : List.of(fast, slow)) {
+            final var matcher = pattern.matcher();
+            assertThat(matcher.match(input, 0, input.length, stroom.shapeshifter.regex.Anchoring.ANCHORED)).isTrue();
+            assertThat(matcher.group("msg").toString()).isEqualTo("hello world");
+            assertThat(matcher.group("pid").toString()).isEqualTo("42");
+        }
+    }
+
     /** The tree an explode makes is the tree the configuration stores: it survives the wire format. */
     @Test
     void anExplodedTreeSurvivesTheWireFormat() {
