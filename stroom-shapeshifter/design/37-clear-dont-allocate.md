@@ -598,6 +598,42 @@ question are the ones §3's grep found on the hot path: `CompiledRefs` (`:72`, `
 `Conditions` (`:52`), `Frames.value` (`:168`), and the collection switches in
 `CompiledRefs.accessor` and `Body.items`.
 
+**The theory, tested on its own first — 2026-09-16.** Before any engine code moved, the
+dispatch was written four ways over a synthetic sealed hierarchy of seven records and
+measured on a stream of receivers mixed as an interpreter sees them
+(`DispatchShapeBenchmark`, run by name; `benchmarks/2026-09-16-0850-ed374c2605-dispatch-shape.json`).
+Nanoseconds per dispatch, three forks:
+
+| receiver mix | pattern `switch` | `instanceof` chain | kind read via interface | kind read from a base-class field | virtual call |
+|---|---|---|---|---|---|
+| one class | 0.28 | 0.29 | 0.36 | 0.37 | 0.28 |
+| three, even | 0.39 | 0.41 | **9.14** | 0.50 | **8.25** |
+| seven, even | 0.98 | 0.67 | **11.59** | 0.69 | **10.40** |
+| seven, 90% one | 0.38 | 0.42 | 4.39 | 0.40 | 4.12 |
+
+*Two findings, and they change the phase.* **The bootstrap is not the cost.** The pattern switch
+is within a third of a nanosecond of the `int` switch at every mix, and at the low mixes the
+engine's switches actually see — one or two receiver classes dominating — it is the faster of
+the two. A kind on instructions to replace `typeSwitch` would buy nothing measurable, which is
+consistent with the resolver's history: `write`'s cost was never its dispatch. **A virtual call
+across three or more receiver classes costs ten times a switch** — eight to eleven nanoseconds
+against under one — and a kind read through an interface accessor *is* that call, so a record
+component is the wrong carrier; only a field on a base class reads without one. That is the
+mechanism worth hunting: interface calls on `TypedValue` (`isEmpty`, `asUtf8`, `writeTo`,
+`utf8Array`, `equals`) at sites that see three or more classes. Phase 3 put `ByteSlice`
+beside `Utf8Bytes` at sites that also see `Integer` or `EncodedBytes`, and a site that was
+bimorphic and inlined becomes megamorphic and pays eight nanoseconds a call.
+
+**So phase 6 closes without a kind** (ruled 2026-09-16): a third of a nanosecond at the worst
+mix, and slower at the mixes the engine has, is not worth a second truth in every record and a
+test to keep it honest. The pattern switches stay. What the benchmark does leave is a thing to
+look for in phase 7's census: a call on the value interface that has gone megamorphic, at eight
+nanoseconds a call. If one exists, the fix is chosen for that site — split the site so each
+receiver class gets its own call, as the resolver's arms already do; test the commonest class
+first and let the rest fall to a slow path; or keep the hierarchy at that site to two classes,
+which is the care 3b and 3c took — and a field-carried kind is the last option, not the
+first.
+
 **How the kind is carried.** Three ways, and the choice is the phase's first decision:
 
 1. *A method* `int kind()` returning a constant per class. Cheapest to write; at a call site
@@ -885,7 +921,7 @@ is comparable to the one that reverted it.
 | Order of phases | census, reuse, slices, order's cost, own map, kind, inline split, fixture shapes, progressive | **ruled 2026-09-15: reuse first**, then the map, before the kind; **re-ruled 2026-09-15: the sections are in implementation order, slices directly after reuse** |
 | Phase 2 pools nested collection values (a list under a map key) | no — inner copies stay the collector's | — |
 | Phase 5 keeps insertion order | yes — the rule stays, though phase 4 found no fixture observes it; the saving would be the node, not the order | **ruled 2026-09-15: measure `HashMap` first on a probe branch, so the order's cost is a number; the engine's own ordered map is then a phase of its own (phase 5) so the code can be inspected and tested as a whole** |
-| Phase 6 carries the kind on instructions first, values second | yes | **ruled 2026-09-15: yes** |
+| Phase 6 carries the kind on instructions first, values second | yes | **ruled 2026-09-15: yes; superseded 2026-09-16: no kind at all** — the isolated benchmark (§7) read the bootstrap at a third of a nanosecond, not worth the code |
 | Phase 8 replaces a fixture's configuration or adds a challenger | challenger, beside it | **ruled 2026-09-15: challengers stay beside the current configuration**, measured every run, as the XML bench does |
 | Phase 9 may make group 0 lazy (a view materialised on read) | yes — nothing observable changes; the copy moves to the reader | **superseded 2026-09-15: phase 9 first asks what a progressive match is for and whether the approach is right, before any per-match cost is chased** (§10) |
 | Phase 3: the root copies, everything below slices | proposed 2026-09-15 from phase 1's reading, shaped by the owner (§6); the largest allocation on every regex row, and the owner expects a large gain | **shape ruled 2026-09-15; placed directly after phase 2** — ahead of the map phases, because it is the larger lever and touches neither the registry nor the map |
@@ -977,7 +1013,10 @@ of that order every time. Revisited if a feed makes maps hot.
 
 ### Phase 6 — the kind
 
-§7, instructions first; values only if phase 7's census names a value switch over budget. Gate: `javap` shows `tableswitch`; `PrintInlining` shows `write`
+§7. **Closed 2026-09-16 without a kind**, on the isolated benchmark: the `typeSwitch` bootstrap
+costs nothing measurable and a type id is not worth the code. What it found instead — a
+megamorphic interface call costs ten times a switch — is a thing phase 7's census looks for,
+with a kind the last of the remedies if a site is found. Gate: `javap` shows `tableswitch`; `PrintInlining` shows `write`
 and `resolveValue` under budget; `progressive` and `regex_lines` recover toward the floor.
 
 ### Phase 7 — inline census and the category split

@@ -46,7 +46,9 @@ tasks.register('jmh', JavaExec) {
     description = 'Run the Shapeshifter engine benchmarks, recording results to design/benchmarks'
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'org.openjdk.jmh.Main'
-    args = ['stroom.shapeshifter.engine.bench..*Benchmark.*']
+    // The engine's rows. DispatchShapeBenchmark (design 37 phase 6) is a question about the
+    // JIT, not the engine, and is run by name when it is asked again.
+    args = ['stroom.shapeshifter.engine.bench.EngineBenchmark.*']
 
     doFirst {
         final def results = file("${project.projectDir}/../design/benchmarks")
