@@ -1,100 +1,335 @@
 {
-  "name": "protobuf_events",
-  "version": 3,
-  "source": {
-    "buffer_size": 1000000,
-    "ignore_errors": true,
-    "encoding": "utf-8"
-  },
-  "templates": [
+ "name": "protobuf_events",
+ "version": 3,
+ "source": {
+  "buffer_size": 1000000,
+  "ignore_errors": false,
+  "encoding": "raw"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "source",
+   "match": "source",
+   "body": [
     {
-      "id": "b1a7c2d0-0003-4a10-9f03-cccccccccccc",
-      "name": "protobuf_message",
-      "declarations": [
+     "apply-templates": {
+      "select": {
+       "parts": [
         {
-          "name": "eid",
-          "type": "scalar"
-        },
-        {
-          "name": "ekind",
-          "type": "scalar"
-        },
-        {
-          "name": "eok",
-          "type": "scalar"
+         "capture": {
+          "group": 0
+         }
         }
-      ],
-      "match": {
-        "protobuf": {
-          "descriptor_path": "__FIXTURE_DIR__/schema.desc",
-          "message_type": "test.Event"
-        }
+       ]
       },
-      "match_limits": {
-        "min_match": 0,
-        "max_match": -1
-      },
-      "captures": [
-        {
-          "name": "eid",
-          "select": {
-            "field": "id"
-          }
-        },
-        {
-          "name": "ekind",
-          "select": {
-            "field": "kind"
-          }
-        },
-        {
-          "name": "eok",
-          "select": {
-            "field": "ok"
-          }
-        }
-      ],
-      "body": [
-        {
-          "value-of": {
-            "parts": [
-              {
-                "text": "<event id=\""
-              },
-              {
-                "capture": {
-                  "var_id": "eid",
-                  "group": 0,
-                  "match_index": null
-                }
-              },
-              {
-                "text": "\" kind=\""
-              },
-              {
-                "capture": {
-                  "var_id": "ekind",
-                  "group": 0,
-                  "match_index": null
-                }
-              },
-              {
-                "text": "\" ok=\""
-              },
-              {
-                "capture": {
-                  "var_id": "eok",
-                  "group": 0,
-                  "match_index": null
-                }
-              },
-              {
-                "text": "\"/>\n"
-              }
-            ]
-          }
-        }
-      ]
+      "mode": "messages",
+      "dispatch": "strict",
+      "max_depth": 64
+     }
     }
-  ]
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000002",
+   "name": "message",
+   "match": {
+    "parts": [
+     {
+      "pattern": {
+       "sequence": [
+        {
+         "take_while": "[\\x80-\\xff]",
+         "min": 0
+        },
+        {
+         "take_while": "[\\x00-\\x7f]",
+         "max": 1
+        }
+       ],
+       "label": "len",
+       "as": "varint"
+      }
+     },
+     {
+      "take": {
+       "length": {
+        "label": "len"
+       },
+       "label": "msg"
+      }
+     }
+    ]
+   },
+   "body": [
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "label": "msg"
+         }
+        }
+       ]
+      },
+      "mode": "fields",
+      "dispatch": "strict",
+      "max_depth": 64
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<event id=\""
+       },
+       {
+        "capture": {
+         "var_id": "id",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": "\" kind=\""
+       },
+       {
+        "capture": {
+         "var_id": "kind",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": "\" ok=\""
+       }
+      ]
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "exists": {
+          "select": {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "ok",
+              "group": 0,
+              "match_index": null
+             }
+            }
+           ]
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "capture": {
+              "var_id": "ok",
+              "group": 0,
+              "match_index": null
+             }
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "text": "false"
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "\"/>\n"
+       }
+      ]
+     }
+    }
+   ],
+   "encoding": "raw",
+   "mode": "messages",
+   "declarations": [
+    {
+     "name": "id",
+     "type": "scalar"
+    },
+    {
+     "name": "kind",
+     "type": "scalar"
+    },
+    {
+     "name": "ok",
+     "type": "scalar"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000003",
+   "name": "f_id",
+   "match": {
+    "parts": [
+     {
+      "pattern": {
+       "tag": "\b"
+      }
+     },
+     {
+      "pattern": {
+       "sequence": [
+        {
+         "take_while": "[\\x80-\\xff]",
+         "min": 0
+        },
+        {
+         "take_while": "[\\x00-\\x7f]",
+         "max": 1
+        }
+       ],
+       "label": "v",
+       "as": "varint"
+      }
+     }
+    ]
+   },
+   "body": [
+    {
+     "variable": {
+      "name": "id",
+      "body": [
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "label": "v"
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "encoding": "raw",
+   "mode": "fields"
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000004",
+   "name": "f_kind",
+   "match": {
+    "parts": [
+     {
+      "pattern": {
+       "tag": "\u0012"
+      }
+     },
+     {
+      "pattern": {
+       "sequence": [
+        {
+         "take_while": "[\\x80-\\xff]",
+         "min": 0
+        },
+        {
+         "take_while": "[\\x00-\\x7f]",
+         "max": 1
+        }
+       ],
+       "label": "klen",
+       "as": "varint"
+      }
+     },
+     {
+      "take": {
+       "length": {
+        "label": "klen"
+       },
+       "label": "v"
+      }
+     }
+    ]
+   },
+   "body": [
+    {
+     "variable": {
+      "name": "kind",
+      "body": [
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "label": "v"
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "encoding": "raw",
+   "mode": "fields"
+  },
+  {
+   "id": "00000000-0000-0000-0000-000000000005",
+   "name": "f_ok",
+   "match": {
+    "parts": [
+     {
+      "pattern": {
+       "sequence": [
+        {
+         "tag": "\u0018"
+        },
+        {
+         "take": 1,
+         "label": "v",
+         "as": "bool8"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "body": [
+    {
+     "variable": {
+      "name": "ok",
+      "body": [
+       {
+        "value-of": {
+         "parts": [
+          {
+           "capture": {
+            "label": "v"
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "encoding": "raw",
+   "mode": "fields"
+  }
+ ]
 }

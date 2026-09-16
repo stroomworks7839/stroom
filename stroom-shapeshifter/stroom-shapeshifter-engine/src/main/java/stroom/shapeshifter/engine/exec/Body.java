@@ -1167,9 +1167,11 @@ final class Body {
         if (selected == null || selected.isEmpty()) {
             return;
         }
-        // The child level runs over the content's UTF-8 form — a value's bytes never move, so
-        // its groups are slices of that form rather than copies (design 37 §5). A group is
-        // already its own UTF-8 form; anything else (a number, a composite) is made whole once.
+        // The child level runs over the content's bytes as read — a value's bytes never move,
+        // so its groups are slices of them rather than copies (design 37 §5), and a binary
+        // template's patterns are compiled for the bytes as they are, not a UTF-8 transcoding
+        // of them (design 38). Anything that is not bytes (a number, a composite) is made whole
+        // once, as UTF-8.
         final TypedValue.Bytes content = selected instanceof final TypedValue.Bytes bytes
                 ? bytes
                 : (TypedValue.Bytes) TypedValue.utf8(selected.asUtf8());
@@ -1192,8 +1194,8 @@ final class Body {
 
         // DS3 inherits ignoreErrors down the tree: a level inside an ignoring container is
         // gated even when its own directive says nothing.
-        final int from = content.utf8Offset();
-        level.dispatch(candidates, content.utf8Array(), from, from + content.utf8Length(), out, childBase,
+        final int from = content.readOffset();
+        level.dispatch(candidates, content.readArray(), from, from + content.readLength(), out, childBase,
                 inheritedIgnoreErrors || directive.ignoreErrors(), depth + 1, op.dispatch(), encoding,
                 content.source());
     }

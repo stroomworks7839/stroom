@@ -49,7 +49,7 @@ public sealed interface ByteSource permits ByteSource.Copying, ByteSource.Slicin
         }
     }
 
-    /** Bytes that never move — a value's UTF-8 form, which is what a nested match runs over. */
+    /** Bytes that never move — a value's bytes as read, which is what a nested match runs over. */
     record Slicing(byte[] data) implements ByteSource {
 
         @Override

@@ -519,6 +519,7 @@ final class BodyCompiler {
         return expression.parts().size() == 1
                && expression.parts().getFirst() instanceof final RefPart.Capture capture
                && capture.varId() == null
+               && capture.label() == null
                && capture.group() == 0
                && capture.matchIndex() == null;
     }

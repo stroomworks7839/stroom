@@ -56,7 +56,7 @@ native/019_single_line_split                  PASS      design 21 phase 3: struc
 # --- projects: end-to-end project.json fixtures ---
 projects/apache_httpd                         PASS      config fixed under E7: real newlines, output escaping
 projects/ausearch                             PASS
-projects/avro_users                           SKIPPED   Avro decoding deferred (D33)
+projects/avro_users                           PASS      an Avro object container, parsed with no library (design 38)
 projects/identity_transform                   PASS
 projects/json_to_xml                          PASS
 projects/parquet_cities                       SKIPPED   Parquet decoding deferred (D33)
@@ -65,7 +65,7 @@ projects/progressive_len_records              PASS
 projects/progressive_mixed_endian             PASS
 projects/progressive_text_steps               PASS      the text step vocabulary, which no other fixture reaches (design 29 phase 2)
 projects/progressive_varint_zigzag            PASS
-projects/protobuf_events                      SKIPPED   Protobuf decoding deferred (D33)
+projects/protobuf_events                      PASS      protobuf wire-format messages, parsed with no library (design 38)
 projects/win_app                              PASS
 projects/win_app_xml                          PASS
 projects/win_sec                              PASS      config fixed under E6 and E16

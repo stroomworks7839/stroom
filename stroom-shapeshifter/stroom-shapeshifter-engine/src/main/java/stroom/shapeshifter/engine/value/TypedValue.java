@@ -183,13 +183,31 @@ public sealed interface TypedValue {
         byte[] value();
 
         /**
-         * These bytes as what a nested match runs over (design 37 §5): their UTF-8 form, which
-         * never moves, answering a group with a slice of itself — where the input window, whose
+         * The bytes as read, as a range: array, offset, length. A whole value's is its array
+         * from zero; a slice's is the slice. This — not the UTF-8 form — is what a nested match
+         * runs over (design 38): a binary template's patterns are compiled for the bytes as
+         * they are, and a byte above 0x7F transcoded to UTF-8 would be two.
+         */
+        default byte[] readArray() {
+            return value();
+        }
+
+        default int readOffset() {
+            return 0;
+        }
+
+        default int readLength() {
+            return value().length;
+        }
+
+        /**
+         * These bytes as what a nested match runs over (design 37 §5): the bytes as read, which
+         * never move, answering a group with a slice of itself — where the input window, whose
          * bytes do move, answers with a copy. Positions a match reports are in
-         * {@link #utf8Array()}, so that is the array the source is over.
+         * {@link #readArray()}, so that is the array the source is over.
          */
         default ByteSource source() {
-            return new ByteSource.Slicing(utf8Array());
+            return new ByteSource.Slicing(readArray());
         }
 
         /**
@@ -453,6 +471,21 @@ public sealed interface TypedValue {
         /** The array this is a range of, and the range: what a match over the slice reads. */
         public byte[] array() {
             return array;
+        }
+
+        @Override
+        public byte[] readArray() {
+            return array;
+        }
+
+        @Override
+        public int readOffset() {
+            return from;
+        }
+
+        @Override
+        public int readLength() {
+            return to - from;
         }
 
         public int from() {
