@@ -132,6 +132,16 @@ public final class Matchers {
         return new Matcher.Repeat(body, 0, 1, true);
     }
 
+    /** Require the body to match here without consuming it: lookahead, {@code (?=…)}. */
+    public static Matcher peek(final Matcher body) {
+        return new Matcher.Peek(body);
+    }
+
+    /** Require the body <i>not</i> to match here, consuming nothing: negative lookahead, {@code (?!…)}. */
+    public static Matcher not(final Matcher body) {
+        return new Matcher.Not(body);
+    }
+
     /** Between {@code min} and {@code max} repetitions, matched greedily. */
     public static Matcher repeat(final Matcher body, final int min, final int max) {
         return new Matcher.Repeat(body, min, max, true);

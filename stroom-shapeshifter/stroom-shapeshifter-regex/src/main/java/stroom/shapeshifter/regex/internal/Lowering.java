@@ -103,6 +103,10 @@ public final class Lowering {
             }
 
             case Matcher.Ref ref -> lowerRef(ref);
+
+            case Matcher.Peek peek -> new Hir.Look(lowerNode(peek.body()), false, false);
+
+            case Matcher.Not not -> new Hir.Look(lowerNode(not.body()), false, true);
         };
     }
 

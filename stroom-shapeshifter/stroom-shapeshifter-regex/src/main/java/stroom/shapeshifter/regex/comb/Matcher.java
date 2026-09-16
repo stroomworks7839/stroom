@@ -102,6 +102,19 @@ public sealed interface Matcher {
     }
 
     /**
+     * Lookahead: the body must match here, and nothing is consumed — {@code (?=…)} (design 38).
+     * The regex engine's own zero-width assertion, reached from a composition.
+     */
+    record Peek(Matcher body) implements Matcher {
+
+    }
+
+    /** Negative lookahead: the body must <i>not</i> match here, and nothing is consumed — {@code (?!…)}. */
+    record Not(Matcher body) implements Matcher {
+
+    }
+
+    /**
      * Names this element, making its matched span readable by that name.
      * <p>
      * Labels are the composition layer's capture groups, and compile to exactly that.

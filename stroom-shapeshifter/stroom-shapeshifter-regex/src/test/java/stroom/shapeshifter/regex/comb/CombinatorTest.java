@@ -66,6 +66,27 @@ class CombinatorTest {
         assertThat(planOf(composed)).isEqualTo(planOf(written));
     }
 
+    /** The two lookaround combinators (design 38) are the regex's own assertions, reached from a composition. */
+    @Test
+    void peekAndNotCompileToTheSamePlanAsTheEquivalentLookahead() {
+        final BytePattern peeked = new MatcherLibrary().compile(
+                Matchers.sequence(Matchers.peek(Matchers.tag("ab")), Matchers.tag("abc")));
+        assertThat(planOf(peeked)).isEqualTo(planOf(BytePattern.compile("(?=ab)abc")));
+        assertThat(peeked.tier()).isEqualTo(BytePattern.compile("(?=ab)abc").tier());
+
+        final BytePattern denied = new MatcherLibrary().compile(
+                Matchers.sequence(Matchers.not(Matchers.tag("zz")), Matchers.tag("abc")));
+        assertThat(planOf(denied)).isEqualTo(planOf(BytePattern.compile("(?!zz)abc")));
+
+        final ByteMatcher matcher = peeked.matcher();
+        assertThat(matcher.find(bytes("abc"))).isTrue();
+        assertThat(matcher.groupString(0)).as("nothing consumed by the peek").isEqualTo("abc");
+        final ByteMatcher deniedMatcher = denied.matcher();
+        assertThat(deniedMatcher.find(bytes("zzabc"))).isTrue();
+        assertThat(deniedMatcher.start()).as("the not refuses the start where its body matches").isEqualTo(2);
+        assertThat(denied.matcher().find(bytes("abc"))).isTrue();
+    }
+
     /** Everything after lowering is shared, so a composition reaches tier 0 on the same terms. */
     @Test
     void compositionsUseTheSameTierSelection() {

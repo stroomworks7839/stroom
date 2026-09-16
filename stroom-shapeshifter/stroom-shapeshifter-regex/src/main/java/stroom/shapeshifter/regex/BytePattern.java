@@ -281,6 +281,8 @@ public final class BytePattern {
                     .map(BytePattern::describe)
                     .collect(Collectors.joining(", ", "choice(", ")"));
             case final Matcher.Repeat repeat -> "repeat(" + describe(repeat.body()) + ")";
+            case final Matcher.Peek peek -> "peek(" + describe(peek.body()) + ")";
+            case final Matcher.Not not -> "not(" + describe(not.body()) + ")";
         };
     }
 
