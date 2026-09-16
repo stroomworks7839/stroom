@@ -66,10 +66,11 @@ public final class Run {
     /** The dispatcher of one level against one region, which the body's apply-templates hands a region to. */
     private final Level level;
     /**
-     * The encoding in force: what the configuration declared, or UTF-8 once a UTF-8 byte-order
-     * mark has confirmed it. A mark naming anything else refuses the run ({@link #applyMark}).
+     * The encoding in force: the one the graph was compiled for, settled before anything runs
+     * (design 32). A byte-order mark naming a transcode-family encoding refuses the run, and one
+     * naming anything else the graph was not compiled for is warned about ({@link #applyMark}).
      */
-    private Encoding encoding;
+    private final Encoding encoding;
 
     private Run(final CompiledProject compiled,
                 final OutputSink sink,

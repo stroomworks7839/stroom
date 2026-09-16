@@ -47,7 +47,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -93,7 +92,7 @@ final class Body {
     private boolean chunkedRoot;
 
     /** The run's encoding in force, told by the run, which a nested dispatch is handed. */
-    private Encoding encoding;
+    private final Encoding encoding;
 
     /** {@code strict_values}, read once: a source flag, not a per-transform question. */
     private final boolean strictValues;

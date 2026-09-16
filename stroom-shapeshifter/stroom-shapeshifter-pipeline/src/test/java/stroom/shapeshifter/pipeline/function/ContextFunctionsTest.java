@@ -71,8 +71,8 @@ class ContextFunctionsTest {
         final List<String> all = new ArrayList<>();
         final Map<String, Object> state = new HashMap<>();
         final Map<Class<?>, Object> services = new HashMap<>();
-        long offset = 10;
-        long length = 5;
+        final long offset = 10;
+        final long length = 5;
         long record = 3;
 
         @Override

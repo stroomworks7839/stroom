@@ -18,9 +18,6 @@ package stroom.shapeshifter.engine.config;
 
 import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
-import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.Dispatch;
-import stroom.shapeshifter.engine.config.EngineVars;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.OutputNode.Param;
 import stroom.shapeshifter.engine.config.OutputNode.SwitchCase;

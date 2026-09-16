@@ -39,7 +39,6 @@ import stroom.shapeshifter.regex.ByteMatcher;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Dispatching one level — the templates of a mode — against one region of content, or the

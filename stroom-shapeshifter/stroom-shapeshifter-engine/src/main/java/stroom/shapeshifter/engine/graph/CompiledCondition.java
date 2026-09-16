@@ -19,8 +19,6 @@ package stroom.shapeshifter.engine.graph;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.regex.BytePattern;
 
-import java.util.List;
-
 /**
  * A condition, compiled.
  *

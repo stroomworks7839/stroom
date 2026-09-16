@@ -20,9 +20,6 @@ import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.TypedValue;
 
-import java.util.List;
-import java.util.Set;
-
 /**
  * A template, its compiled match, and its compiled body, together, with what the match loop
  * would otherwise ask the authored {@link Template} for decided here (design 29 §3.1, D51), so

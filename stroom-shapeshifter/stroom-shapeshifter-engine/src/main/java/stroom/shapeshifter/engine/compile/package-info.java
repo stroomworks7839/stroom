@@ -40,5 +40,3 @@
  * facade depend on it, and nothing below it does (design 27 §2.5).
  */
 package stroom.shapeshifter.engine.compile;
-
-import stroom.shapeshifter.engine.graph.CompiledProject;

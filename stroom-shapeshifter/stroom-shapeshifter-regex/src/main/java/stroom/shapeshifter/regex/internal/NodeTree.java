@@ -21,7 +21,6 @@ import stroom.shapeshifter.regex.MatchLimitException;
 import stroom.shapeshifter.regex.PatternCompileException;
 import stroom.shapeshifter.regex.PatternCompileException.Reason;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
@@ -783,12 +782,13 @@ public final class NodeTree {
          * the terminator, never over it — and is why {@code [^\n]*\n} qualifies and
          * {@code .*\n} does not.
          */
-        static Unit unitOf(Hir body) {
+        static Unit unitOf(final Hir body) {
             // (?:...) parses as a non-capturing Group; a capturing one is a different shape.
-            while (body instanceof Hir.Group group && group.index() < 0) {
-                body = group.body();
+            Hir inner = body;
+            while (inner instanceof Hir.Group group && group.index() < 0) {
+                inner = group.body();
             }
-            if (!(body instanceof Hir.Concat concat) || concat.items().size() != 2) {
+            if (!(inner instanceof Hir.Concat concat) || concat.items().size() != 2) {
                 return null;
             }
             if (!(concat.items().get(0) instanceof Hir.Repeat run) || !run.isUnbounded()
