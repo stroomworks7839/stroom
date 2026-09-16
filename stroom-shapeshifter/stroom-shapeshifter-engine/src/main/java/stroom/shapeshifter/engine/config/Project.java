@@ -35,18 +35,15 @@ import java.util.List;
  *                  strict from version 4
  * @param source    settings for the input as a whole
  * @param templates the templates, in the order they are tried
- * @param patterns  named combinator patterns, reusable across templates by id
  */
 public record Project(String name,
                       int version,
                       SourceConfig source,
-                      List<Template> templates,
-                      List<CombinatorPattern> patterns) {
+                      List<Template> templates) {
 
     public Project {
         source = source == null ? SourceConfig.defaults() : source;
         templates = templates == null ? List.of() : List.copyOf(templates);
-        patterns = patterns == null ? List.of() : List.copyOf(patterns);
     }
 
     /**

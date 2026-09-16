@@ -81,7 +81,7 @@ public interface Instrument {
      * @param name       the variable's name
      * @param value      its value as bound: captured bytes as read, in the encoding class they
      *                   were read under (design 25; the UTF-8-compatible three report
-     *                   {@code utf-8}, E43), a typed value a step produced, or the kind the
+     *                   {@code utf-8}, E43), a typed value a cast produced, or the kind the
      *                   binding declared (§9); a binding that bound nothing is not reported
      * @param matchIndex which match it belongs to
      */

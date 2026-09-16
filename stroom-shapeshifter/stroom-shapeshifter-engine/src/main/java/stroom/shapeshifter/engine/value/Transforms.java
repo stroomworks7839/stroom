@@ -88,12 +88,21 @@ public final class Transforms {
         return input == null ? null : TypedValue.of(input.replace(pattern, replacement));
     }
 
-    /** The bytes a value encodes, decoded by a codec — the old {@code Decode} step as a transform (design 38). */
+    /**
+     * The bytes a value encodes, decoded by a codec — the old {@code Decode} step as a transform
+     * (design 38). The input is the bytes as read, not their UTF-8 form: a compressed block in a
+     * raw slice has bytes above 0x7F that transcoding would double (design 38 phase 3).
+     */
     public static TypedValue decode(final List<TypedValue> inputs, final Codec codec) {
-        if (inputs.isEmpty() || inputs.getFirst() == null) {
+        if (inputs.isEmpty() || !(inputs.getFirst() instanceof final TypedValue.Bytes bytes)) {
             return null;
         }
-        return TypedValue.utf8(Codecs.decode(inputs.getFirst().asUtf8(), codec));
+        final byte[] array = bytes.readArray();
+        final int from = bytes.readOffset();
+        final int to = from + bytes.readLength();
+        final byte[] input = from == 0 && to == array.length ? array : Arrays.copyOfRange(array, from, to);
+        final byte[] decoded = Codecs.decode(input, codec);
+        return decoded == null ? null : TypedValue.utf8(decoded);
     }
 
     /** Lower-case, in the root locale so that the result does not depend on where it ran. */

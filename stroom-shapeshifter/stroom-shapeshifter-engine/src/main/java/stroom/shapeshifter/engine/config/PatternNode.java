@@ -61,7 +61,7 @@ public sealed interface PatternNode {
         }
     }
 
-    /** A part defined once, in the project's library or the standard one. */
+    /** A part the regex library's standard library defines, by name. */
     record Ref(String name) implements PatternNode {
 
     }

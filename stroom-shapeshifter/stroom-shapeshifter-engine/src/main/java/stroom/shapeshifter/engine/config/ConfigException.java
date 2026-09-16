@@ -33,13 +33,4 @@ public class ConfigException extends RuntimeException {
     public ConfigException(final String message, final Throwable cause) {
         super(message, cause);
     }
-
-    /**
-     * Refuse clearly rather than fail obscurely: a template asks for what this build does not
-     * carry, and is told so by name at compile time rather than run to produce nothing.
-     */
-    public static ConfigException notYet(final String templateName, final String what) {
-        return new ConfigException(
-                "Template '" + templateName + "' needs " + what + ", which this build does not support");
-    }
 }

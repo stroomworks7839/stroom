@@ -217,10 +217,6 @@ final class ReferenceCheck {
                 }
                 case CaptureBinding.CaptureSource.Label ignored -> {
                 }
-                case CaptureBinding.CaptureSource.Step ignored -> {
-                }
-                case CaptureBinding.CaptureSource.Field ignored -> {
-                }
             }
         }
         for (final Template.ParamDecl declared : template.param()) {

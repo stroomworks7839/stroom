@@ -115,12 +115,10 @@ class EncodedInputTest {
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "legacy_line", "mode": "row",
                      "encoding": "windows-1252",
-                     "match": {"progressive": [
-                       {"Tag": "L:"},
-                       {"TakeUntil": {"pattern": "\\n", "inclusive": false}},
-                       {"Tag": "\\n"}]},
+                     "match": {"pattern": {"sequence": [
+                       {"tag": "L:"}, {"take_until": "\\n", "label": "line"}, {"tag": "\\n"}]}},
                      "body": [{"value-of": {"parts": [
-                       {"text": "["}, {"capture": {"group": 2}}, {"text": "]"}]}}]},
+                       {"text": "["}, {"capture": {"label": "line"}}, {"text": "]"}]}}]},
                     {"id": "00000000-0000-0000-0000-000000000003", "name": "utf8_line", "mode": "row",
                      "match": {"regex": {"pattern": "U:([^\\n]*)\\n"}},
                      "body": [{"value-of": {"parts": [
@@ -138,11 +136,12 @@ class EncodedInputTest {
     }
 
     @Test
-    void progressiveStepsReadUnderTheEncodingTheGraphWasCompiledFor() {
+    void patternsReadUnderTheEncodingTheGraphWasCompiledFor() {
         // This pinned the engine re-choosing a compiled form mid-run when a mark re-declared the
-        // source — steps were compiled twice, and only steps, so a mark moved a progressive
-        // template and left every regex and delimiter template on the old reading. Design 32
-        // removed the machinery and the asymmetry with it: a graph is compiled for one reading.
+        // source — the step interpreter's steps were compiled twice, and only steps, so a mark
+        // moved a progressive template and left every regex and delimiter template on the old
+        // reading. Design 32 removed the machinery and the asymmetry with it: a graph is
+        // compiled for one reading.
         //
         // So a mark is the *caller's* to act on, before compiling, which the pipeline now does —
         // see CompiledProjectsTest. Here, over the raw engine API, the caller is the test, and
@@ -156,23 +155,21 @@ class EncodedInputTest {
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "line", "mode": "row",
-                     "match": {"progressive": [
-                       {"Tag": "L:"},
-                       {"TakeUntil": {"pattern": "\\n", "inclusive": false}},
-                       {"Tag": "\\n"}]},
+                     "match": {"pattern": {"sequence": [
+                       {"tag": "L:"}, {"take_until": "\\n", "label": "line"}, {"tag": "\\n"}]}},
                      "body": [{"value-of": {"parts": [
-                       {"text": "["}, {"capture": {"group": 2}}, {"text": "]"}]}}]}
+                       {"text": "["}, {"capture": {"label": "line"}}, {"text": "]"}]}}]}
                   ]
                 }
                 """;
         // 0xC3 0xA9 is é in UTF-8 and Ã© in windows-1252, so the two readings disagree about
-        // what the step captured.
+        // what the pattern captured.
         final byte[] line = {'L', ':', (byte) 0xC3, (byte) 0xA9, '\n'};
         assertThat(runConfig(config, line)).isEqualTo("[Ã©]");
 
-        // The same bytes, compiled for the reading the mark names: the steps read them as UTF-8,
-        // and so would a regex or a delimiter in the same configuration, which is the half that
-        // never worked before.
+        // The same bytes, compiled for the reading the mark names: the pattern reads them as
+        // UTF-8, and so would a regex or a delimiter in the same configuration, which is the
+        // half that never worked before.
         final byte[] marked = new byte[line.length + 3];
         marked[0] = (byte) 0xEF;
         marked[1] = (byte) 0xBB;
@@ -209,8 +206,8 @@ class EncodedInputTest {
     void markedInputReadsAsItsMarkOnceTheGraphIsCompiledForIt() {
         // "The input is better evidence than the declaration" — still the rule, and the pipeline
         // still applies it (CompiledProjectsTest). What moved is where: a mark is acted on before
-        // compiling, so the whole graph follows it, rather than mid-run where only progressive
-        // steps could.
+        // compiling, so the whole graph follows it, rather than mid-run where only the old
+        // step interpreter's templates could.
         final byte[] utf8 = "café".getBytes(StandardCharsets.UTF_8);
         final byte[] input = new byte[utf8.length + 3];
         input[0] = (byte) 0xEF;
@@ -349,7 +346,7 @@ class EncodedInputTest {
     }
 
     @Test
-    void regexStepCompilesUnderATemplateEncodingOverride() {
+    void regexNodeCompilesUnderATemplateEncodingOverride() {
         final String config = """
                 {
                   "name": "override", "version": 4,
@@ -357,9 +354,7 @@ class EncodedInputTest {
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
                      "encoding": "iso-8859-1",
-                     "match": {"progressive": [
-                       {"Tag": "L:"},
-                       {"Regex": {"pattern": "([a-zé]+)", "flags": {}}}]}}]
+                     "match": {"pattern": {"sequence": [{"tag": "L:"}, {"regex": "([a-zé]+)"}]}}}]
                 }
                 """;
         assertThat(Shapeshifter.compile(ProjectReader.read(config))).isNotNull();
@@ -374,9 +369,7 @@ class EncodedInputTest {
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
                      "encoding": "utf-16le",
-                     "match": {"progressive": [
-                       {"Tag": "L:"},
-                       {"Regex": {"pattern": "([a-z]+)", "flags": {}}}]}}]
+                     "match": {"pattern": {"sequence": [{"tag": "L:"}, {"regex": "([a-z]+)"}]}}}]
                 }
                 """;
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))
@@ -441,31 +434,26 @@ class EncodedInputTest {
     }
 
     /**
-     * Found by the phase-0 audit, and the refusal was the smaller half: the walkers saw
-     * {@code PatternRef} where the steps see the inlined sequence, so a regex inside a
-     * referenced library pattern was never interned — every use crashed at match time with
-     * "Pattern was not compiled", regardless of encoding. Both walkers now resolve first;
-     * this pins the crash's fix and the one below pins the refusal's.
+     * Found by the phase-0 audit, and the refusal was the smaller half: the step interpreter's
+     * walkers saw a library reference where the steps saw the inlined sequence, so a regex
+     * inside a referenced pattern was never interned — every use crashed at match time. The
+     * library is the regex library's own now (design 38), inlined as it lowers; this pins that
+     * a reference runs under the template's encoding and the one below pins the refusal.
      */
     @Test
-    void regexInsideAReferencedLibraryPatternRuns() {
+    void referencedLibraryPatternRuns() {
         final String config = """
                 {
                   "name": "library", "version": 4,
                   "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
-                  "patterns": [
-                    {"id": "00000000-0000-0000-0000-0000000000aa", "name": "word",
-                     "steps": [{"Regex": {"pattern": "[a-z]+", "flags": {}}}]}],
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
-                     "match": {"progressive": [
-                       {"PatternRef": "00000000-0000-0000-0000-0000000000aa"},
-                       {"Tag": "\\n"}]},
+                     "match": {"pattern": {"sequence": [{"ref": "word", "label": "w"}, {"tag": "\\n"}]}},
                      "body": [{"value-of": {"parts": [
-                       {"text": "["}, {"capture": {"group": 1}}, {"text": "]"}]}}]}
+                       {"text": "["}, {"capture": {"label": "w"}}, {"text": "]"}]}}]}
                   ]
                 }
                 """;
@@ -478,18 +466,14 @@ class EncodedInputTest {
     }
 
     @Test
-    void refusesARegexReachedThroughALibraryPattern() {
+    void refusesALibraryPatternUnderATranscodeFamilyOverride() {
         final String config = """
                 {
                   "name": "refused", "version": 4,
                   "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
-                  "patterns": [
-                    {"id": "00000000-0000-0000-0000-0000000000aa", "name": "word",
-                     "steps": [{"Regex": {"pattern": "[a-z]+", "flags": {}}}]}],
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "line",
-                     "encoding": "utf-16le", "match":
-                     {"progressive": [{"PatternRef": "00000000-0000-0000-0000-0000000000aa"}]}}]
+                     "encoding": "utf-16le", "match": {"pattern": {"ref": "word"}}}]
                 }
                 """;
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(config)))

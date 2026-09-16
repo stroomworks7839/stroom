@@ -36,8 +36,7 @@ public record PatternKey(String text, Set<Flag> flags, Encoding encoding) {
 
     /**
      * The flag set is one of four shared immutable values, so a key costs the record and
-     * nothing else: keys are built on every progressive regex step at match time as well as at
-     * compile time.
+     * nothing else.
      */
     public PatternKey {
         flags = Set.copyOf(flags);
@@ -58,7 +57,7 @@ public record PatternKey(String text, Set<Flag> flags, Encoding encoding) {
         return new PatternKey(text, NONE, Encoding.UTF_8);
     }
 
-    /** A key for a pattern the model flags — a template's match, or a progressive regex step. */
+    /** A key for a pattern the model flags — a template's match. */
     public static PatternKey of(final String text, final RegexFlags flags, final Encoding encoding) {
         return new PatternKey(text, flags(flags), encoding);
     }

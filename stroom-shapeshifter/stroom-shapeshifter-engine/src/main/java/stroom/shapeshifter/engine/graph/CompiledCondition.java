@@ -32,10 +32,11 @@ import java.util.List;
  * without a compiled tree to hold it.
  *
  * <p>That makes every compiled node hold its own pattern without exception —
- * {@link CompiledMatch.Regex} since design 10, {@code CompiledStep.Regex} since design 29 phase
- * 2, the body's regex replace since phase 3, and now conditions. It also takes the map out of
- * the run: {@code Conditions.evaluate} no longer takes one, so nothing threads it through a
- * guard evaluation on every template on every record.
+ * {@link CompiledMatch.Regex} since design 10, the step interpreter's regex step since design
+ * 29 phase 2 (retired by design 38), the body's regex replace since phase 3, and now
+ * conditions. It also takes the map out of the run: {@code Conditions.evaluate} no longer
+ * takes one, so nothing threads it through a guard evaluation on every template on every
+ * record.
  *
  * <p><b>The references are compiled too, since design 30 phase 6.</b> They were not, and the
  * reason was that design 29 phase 4 measured the path at 0.4% of {@code win_sec_strict} and 0.7%

@@ -38,8 +38,6 @@ final class CaptureCompiler {
                         new CompiledCapture.Source.Group(group.group());
                 case final CaptureBinding.CaptureSource.Label label ->
                         new CompiledCapture.Source.Group(names.group(label.label()));
-                case final CaptureBinding.CaptureSource.Step step ->
-                        new CompiledCapture.Source.Group(step.index() + 1);
                 case final CaptureBinding.CaptureSource.Select select ->
                         new CompiledCapture.Source.Select(
                                 RefCompiler.compile(select.select(), names));
@@ -47,10 +45,6 @@ final class CaptureCompiler {
                         new CompiledCapture.Source.KeyValue(
                                 RefCompiler.compile(keyValue.keyRef(), names),
                                 RefCompiler.compile(keyValue.valueRef(), names));
-                // Refused before compilation reaches here (design 27 ruling 10).
-                case final CaptureBinding.CaptureSource.Field ignored ->
-                        throw new IllegalStateException(
-                                "Field capture sources are refused at compile time");
             };
             // A capture is a value source (design 35 §4): it assigns a declared scalar, appends
             // to a declared list — absence when it fails — or puts into a declared map. Which is

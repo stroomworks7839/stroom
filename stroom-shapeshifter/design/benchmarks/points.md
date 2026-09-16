@@ -24,6 +24,7 @@ keeping, and so is one that did not.
 | 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
 | 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
 | 9 | `8d0fd1cd65` | 2026-09-09 | Design 30: conditions compiled, the pattern map off the graph | A `matches` test holds its `BytePattern` instead of hashing the pattern's text per evaluation, and `Conditions.evaluate` stops taking the map — so it is no longer threaded into every guard evaluation on every template on every record. **624 evaluations per operation on `apache_httpd` and none anywhere else**, invisible in a sampled profile, so the run rows should not move. Compilation now walks the condition trees, so the compile rows are where a change would show. |
+| 53 | _pending commit_ | 2026-09-16 | Design 38 phases 3 and 4: the step interpreter retired; `progressive` is the match sequence and `progressive_text` the pattern tree, both compiled to the regex library | **The two rows change what they measure and every other row must read flat.** `progressive_text` was the interpreter over a tag, two take-whiles, a take-until and a regex step, each step a result, a boxed integer and a span copy per match; it is one `BytePattern` now, and should fall to the cost of a regex row of the same shape — a large gain, size unknown. `progressive` was two binary steps in the interpreter; it is a varint cast, a `take` and a group slice, with the `parts` loop the only new code on the path, so it should gain by the interpreter's per-match overhead and no more. Neither row has a history that survives this point: read them against point 52 for the size of the retirement, and from here on against each other. The ten other rows touch no deleted code — `Level.match` lost one arm, which can only shrink the dispatch — so a move there is drift or the box, not this. |
 | 52 | `c710946def` | 2026-09-16 | Design 37 phase 7a: `write` split on the census — four hot arms in a 238-byte dispatcher, the rest behind one call | **The scan rows are the claim and the reference rows are the risk.** `write` is 800k dispatches per op on `regex_lines` and 839k on `progressive`, and at 337 bytes it inlined into the body interpreter nowhere; at 238 it does. The daytime interleave read `regex_lines` +14% and `progressive` +5% in two rounds of three — and `csv_header` and `ausearch` down in all three, with the compiler's account being that the interpreter grew and `Level.regexMatch` stopped inlining into `Level.match` on `ausearch`. So: expect the two scan rows up by more than a few per cent, `csv_header`, `ausearch` and `apache_httpd` flat to a few per cent down, and everything else flat. If the reference rows lose more than the scan rows gain, the split is reverted as one commit, and the next shape to try is the same dispatcher with the interpreter's own arms split by category so its size stops moving the match path. |
 | 51 | `92f53652aa` | 2026-09-16 | Every `equals` takes one shape: identity, `instanceof` with a binding, then the fields | **A control that must read flat, with `ausearch` and `win_sec` the rows to watch: their map lookups are the hot `Utf8Bytes.equals`, which grew from 30 to 37 bytes with the identity check and no longer inlines at cold sites.** Its hot site is the map's key compare, under the hot-method limit, so the expectation is no movement; a loss on either row is the shape effect the isolated benchmark (design 37 §7) could not see, and the remedy is to drop the identity check from that one method. Everything else here is the same instruction as before — `instanceof` on a final class against a class compare, measured identical. Read against point 50; `ausearch_dispatch` runs for the first time as a standing row and has no history yet. |
 | 50 | `228b7920e9` | 2026-09-15 | Design 37 phase 3d split: the span rule stays on the delimiter arm and comes off the regex arm | **Read the same evening it was made, interleaved against point 48 on a quiet box, three rounds: `regex_lines` +8.2%, +8.0%, +9.2%; `csv_header` +1.5%, +0.0%, +0.4%; `log_sessions` +1.7%, +0.6%, −0.2%; `win_sec` +4.6%, +12.4%, −1.0%.** Point 49's two losses — `log_sessions` −3% and `win_sec` −6% to −10%, six of six — were the regex arm's span logic: `regexMatch` at 261 bytes pushed `Level.match` out of the dispatch loop's compilation, and a root regex's many groups became slices at sites tuned for whole values. This point keeps the delimiter arm's one value per field, which is the whole of `regex_lines`' gain, and puts the regex arm back at 177 bytes. In a full run it should read as point 48 on every row but `regex_lines` (+9%) and `csv_header` (+1%). |
@@ -68,20 +69,27 @@ keeping, and so is one that did not.
 is identical to phase 3's. Design 30 phase 3 is not a point for the same reason — it is a
 counting, and its result is the section below rather than a commit worth measuring across.*
 
-## What is owed — points 51 and 52, for an evening run
+## What is owed — points 51, 52 and 53, for an evening run
 
-Points 50, 51 and 52 in one run, the benchmark's own fidelity (`full`): the 3d split as this
-boot's floor, the `equals` reshaping as a control, and the `write` split. The commits between
-50 and 51 are design records, the fixtures' alternative shapes (parity-gated, not in the
-default run), and the three isolated JIT benchmarks (run by name), none of which change the
-engine's code. Nothing is scheduled; the run is launched by hand when the box is quiet:
+Points 50 to 53 in one run, the benchmark's own fidelity (`full`): the 3d split as this
+boot's floor, the `equals` reshaping as a control, the `write` split, and design 38's
+retirement of the step interpreter. The commits between 50 and 51 are design records, the
+fixtures' alternative shapes (parity-gated, not in the default run), and the three isolated
+JIT benchmarks (run by name), none of which change the engine's code; those between 52 and 53
+are design 38's phases 1 to 3, which add the `pattern` and `parts` forms beside the
+interpreter without touching the rows' paths, so 53 carries the whole of design 38. Nothing
+is scheduled; the run is launched by hand when the box is quiet, with point 53's sha filled
+in once it is committed:
 
 ```
-engine-bench-points.sh full 228b7920e9 92f53652aa c710946def
+engine-bench-points.sh full 228b7920e9 92f53652aa c710946def <53>
 ```
 
-The readings go into points 51's and 52's rows and design 37 §8. The default run now has
-twelve rows: `ausearch_dispatch` stands beside `ausearch` from this run on.
+The readings go into points 51's, 52's and 53's rows, design 37 §8 and design 38 §8 (phase
+5). The default run now has twelve rows: `ausearch_dispatch` stands beside `ausearch` from
+this run on. Point 53's two `progressive` rows are read against 52 only; every fixture the
+rows run is byte-identical on output across the retirement (gate one), so the comparison is
+of the same job.
 
 ## What was owed — design 37, settled 2026-09-15 evening
 

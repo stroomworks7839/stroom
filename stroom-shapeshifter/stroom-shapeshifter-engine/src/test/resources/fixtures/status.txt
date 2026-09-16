@@ -59,11 +59,11 @@ projects/ausearch                             PASS
 projects/avro_users                           PASS      an Avro object container, parsed with no library (design 38)
 projects/identity_transform                   PASS
 projects/json_to_xml                          PASS
-projects/parquet_cities                       SKIPPED   Parquet decoding deferred (D33)
+projects/parquet_cities                       SKIPPED   Parquet decoding deferred (D33); its configuration names a match kind design 38 retired, so it is not read
 projects/progressive_embedded_codec           PASS
 projects/progressive_len_records              PASS
 projects/progressive_mixed_endian             PASS
-projects/progressive_text_steps               PASS      the text step vocabulary, which no other fixture reaches (design 29 phase 2)
+projects/progressive_text_steps               PASS      the pattern tree over text, which no other fixture reaches (design 38)
 projects/progressive_varint_zigzag            PASS
 projects/protobuf_events                      PASS      protobuf wire-format messages, parsed with no library (design 38)
 projects/win_app                              PASS

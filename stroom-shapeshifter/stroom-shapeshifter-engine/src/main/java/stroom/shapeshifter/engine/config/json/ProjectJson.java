@@ -47,13 +47,12 @@ public final class ProjectJson {
         if (node == null || node.isNull()) {
             throw new ConfigException("Expected an object for 'project'");
         }
-        JsonFields.checkFields(node, "project", "name", "version", "source", "templates", "patterns");
+        JsonFields.checkFields(node, "project", "name", "version", "source", "templates");
         return new Project(
                 JsonFields.text(node, "name", "project"),
                 JsonFields.integer(node, "version", "project"),
                 node.has("source") ? readSource(node.get("source")) : SourceConfig.defaults(),
-                JsonFields.list(node.get("templates"), "templates", ProjectJson::readTemplate),
-                JsonFields.list(node.get("patterns"), "patterns", MatchJson::readPattern));
+                JsonFields.list(node.get("templates"), "templates", ProjectJson::readTemplate));
     }
 
     /** Write a whole configuration. */
@@ -63,9 +62,6 @@ public final class ProjectJson {
         node.put("version", project.version());
         node.set("source", writeSource(project.source()));
         node.set("templates", JsonFields.array(project.templates(), ProjectJson::writeTemplate));
-        if (!project.patterns().isEmpty()) {
-            node.set("patterns", JsonFields.array(project.patterns(), MatchJson::writePattern));
-        }
         return node;
     }
 

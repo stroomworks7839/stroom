@@ -25,7 +25,6 @@ import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.config.OutputNode.Param;
 import stroom.shapeshifter.engine.config.OutputNode.SwitchCase;
 import stroom.shapeshifter.engine.config.OutputNode.WhenBranch;
-import stroom.shapeshifter.engine.config.Predicate.CharSet;
 import stroom.shapeshifter.engine.config.Project.SourceConfig;
 import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.engine.config.RefExpression.RefPart;
@@ -50,8 +49,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Every variant of every sum type survives a round trip — including the ones the corpus has
  * never used.
  *
- * <p>The corpus exercises about a third of {@link MatchStep} and none of {@link Predicate}, so
- * "all 36 configurations round-trip" says much less than it appears to. This test builds one of
+ * <p>The corpus exercises a fraction of {@link PatternNode} and few of the casts, so "all the
+ * configurations round-trip" says much less than it appears to. This test builds one of
  * everything instead, and then <b>checks that it did</b>: it walks the constructed tree, collects
  * the classes it found, and compares them against each sealed interface's permitted subclasses.
  *
@@ -101,9 +100,9 @@ class EveryVariantTest {
         final Set<Class<?>> found = new HashSet<>();
         collect(oneOfEverything(), found);
 
-        for (final Class<?> sum : List.of(MatchExpression.class, MatchStep.class, StepRef.class,
-                Predicate.class, CaptureSource.class, Condition.class, OutputNode.class,
-                RefPart.class, PatternNode.class, MatchExpression.MatchPart.class, MatchExpression.Length.class)) {
+        for (final Class<?> sum : List.of(MatchExpression.class, CaptureSource.class, Condition.class,
+                OutputNode.class, RefPart.class, PatternNode.class, MatchExpression.MatchPart.class,
+                MatchExpression.Length.class)) {
             final List<Class<?>> missing = variants(sum).stream()
                     .filter(variant -> !found.contains(variant))
                     .toList();
@@ -151,9 +150,6 @@ class EveryVariantTest {
                 new MatchExpression.Delimiter(",", "\\", "\"", "\""),
                 new MatchExpression.Source(),
                 new MatchExpression.Named(),
-                new MatchExpression.Avro("{\"type\":\"record\"}"),
-                new MatchExpression.Parquet(List.of("city", "population")),
-                new MatchExpression.Protobuf("/tmp/schema.desc", "example.Event"),
                 // The pattern tree, every node once (design 38)
                 new MatchExpression.Pattern(new PatternNode.Sequence(List.of(
                         new PatternNode.Labelled(new PatternNode.Tag("x"), "t", null),
@@ -185,56 +181,15 @@ class EveryVariantTest {
                 "every variant",
                 3,
                 new SourceConfig(1024, true, "windows-1252", Dispatch.LEXER, true, 4096),
-                templates,
-                List.of(new CombinatorPattern(ID, "reusable", List.of(new MatchStep.Tag("x")))));
+                templates);
     }
 
-    /** A template carrying every match expression, every step and every capture source. */
+    /** A template carrying every part of a template, and every capture source. */
     private static Template everyMatch() {
-        final List<MatchStep> steps = List.of(
-                new MatchStep.Tag("literal"),
-                new MatchStep.MatchByte(new byte[]{0x00, (byte) 0xFF, 0x7F}),
-                new MatchStep.TakeWhile(new Predicate.Alphabetic()),
-                new MatchStep.TakeWhile(new Predicate.Alphanumeric()),
-                new MatchStep.TakeWhile(new Predicate.Numeric()),
-                new MatchStep.TakeWhile(new Predicate.Whitespace()),
-                new MatchStep.TakeWhile(new Predicate.NonWhitespace()),
-                new MatchStep.TakeWhile(new Predicate.Any()),
-                new MatchStep.TakeWhile(new Predicate.Custom(new CharSet(
-                        "[^a-z_]",
-                        List.of('_'),
-                        List.of(new CharSet.Range('a', 'z')),
-                        true))),
-                new MatchStep.TakeUntil("::", true),
-                new MatchStep.TakeBytes(new StepRef.StepOutput(1)),
-                new MatchStep.TakeN(4),
-                new MatchStep.AnyChar(),
-                new MatchStep.ReadNumeric(NumericType.SHORT, false, Endianness.BIG),
-                new MatchStep.ReadNumeric(NumericType.INT, true, Endianness.LITTLE),
-                new MatchStep.ReadNumeric(NumericType.LONG, true, Endianness.BIG),
-                new MatchStep.ReadNumeric(NumericType.FLOAT, true, Endianness.BIG),
-                new MatchStep.ReadNumeric(NumericType.DOUBLE, true, Endianness.BIG),
-                new MatchStep.ReadVarint(),
-                new MatchStep.ReadVarintZigZag(),
-                new MatchStep.Seek(new StepRef.Literal(2)),
-                new MatchStep.SeekAbs(new StepRef.Literal(0)),
-                new MatchStep.SeekBack(new StepRef.Literal(1)),
-                new MatchStep.Tell(),
-                new MatchStep.Decode(new StepRef.StepOutput(0), Codec.BASE64),
-                new MatchStep.Decode(new StepRef.StepOutput(0), Codec.BASE64_URL),
-                new MatchStep.Decode(new StepRef.StepOutput(0), Codec.URL_ENCODING),
-                new MatchStep.Encode(new StepRef.StepOutput(0), Codec.HEX),
-                new MatchStep.Regex("\\d+", new RegexFlags(false, true)),
-                new MatchStep.Choice(List.of(
-                        List.of(new MatchStep.Tag("a")),
-                        List.of(new MatchStep.Tag("b")))),
-                new MatchStep.Optional(List.of(new MatchStep.Tag("maybe"))),
-                new MatchStep.Repeat(List.of(new MatchStep.AnyChar()), 1, 8),
-                new MatchStep.Repeat(List.of(new MatchStep.AnyChar()), 0, null),
-                new MatchStep.Sequence(List.of(new MatchStep.Tag("grouped"))),
-                new MatchStep.PatternRef(ID),
-                new MatchStep.Peek(List.of(new MatchStep.Tag("ahead"))),
-                new MatchStep.Not(List.of(new MatchStep.Tag("absent"))));
+        final PatternNode.Sequence nodes = new PatternNode.Sequence(List.of(
+                new PatternNode.Tag("literal"),
+                new PatternNode.Labelled(new PatternNode.TakeWhile("[a-z]", 0, PatternNode.Repeat.UNBOUNDED), "t",
+                        null)));
 
         return new Template(
                 ID,
@@ -248,13 +203,11 @@ class EveryVariantTest {
                         new Declaration("seq", Declaration.Type.LIST),
                         new Declaration("lookup", Declaration.Type.MAP,
                                 List.of(new Declaration.Entry("1", "one"), new Declaration.Entry("2", "two")))),
-                new MatchExpression.Progressive(steps),
+                new MatchExpression.Pattern(nodes),
                 new MatchLimits(1, 9, Set.of(1, 2, 5)),
                 List.of(
                         new CaptureBinding("byGroup", new CaptureSource.Group(2), Cast.INTEGER),
                         new CaptureBinding("byLabel", new CaptureSource.Label("t"), null),
-                        new CaptureBinding("byStep", new CaptureSource.Step(3), null),
-                        new CaptureBinding("byField", new CaptureSource.Field("name"), null),
                         new CaptureBinding("bySelect", new CaptureSource.Select(ref()), null),
                         new CaptureBinding("ignored", new CaptureSource.KeyValue(ref(), ref()), null)),
                 List.of(new OutputNode.Text("matched")),

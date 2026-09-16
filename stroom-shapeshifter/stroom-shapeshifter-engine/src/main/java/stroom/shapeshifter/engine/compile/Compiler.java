@@ -89,9 +89,9 @@ public final class Compiler {
      * Compile a configuration <b>for a reading</b> (design 32).
      *
      * <p>A compiled model is compiled for one encoding: its patterns are interned under keys that
-     * carry it, its delimiters are pre-encoded, its steps are compiled for a decoding. So the
-     * encoding is settled before anything here runs, and this refuses {@link Encoding#AUTO}
-     * rather than accepting an instruction where a reading belongs.
+     * carry it, its delimiters are pre-encoded. So the encoding is settled before anything here
+     * runs, and this refuses {@link Encoding#AUTO} rather than accepting an instruction where a
+     * reading belongs.
      *
      * <p>That refusal is the invariant, not a formality: {@code AUTO} reaching a compiler is how
      * a graph ends up unable to say what it was built for, which is the defect design 32 exists
@@ -111,7 +111,7 @@ public final class Compiler {
         final Functions functions = new Functions(registry);
         // A transcode-family source (design 19 phase 6) is decoded whole to UTF-8 before the
         // window machinery sees it, so everything below compiles as a UTF-8 feed: delimiters,
-        // steps, regexes, capture decoding. Spans are offsets into the transcoded bytes —
+        // patterns, capture decoding. Spans are offsets into the transcoded bytes —
         // design 19 §4.0's accepted trade for the encodings that never preserved offsets anyway.
         final Encoding transcodeFrom = RegexEncodings.needsTranscode(source)
                 ? source
@@ -131,7 +131,7 @@ public final class Compiler {
                 names.declare(declaration);
             }
         }
-        final MatchCompiler matches = new MatchCompiler(project);
+        final MatchCompiler matches = new MatchCompiler();
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
 
@@ -174,13 +174,6 @@ public final class Compiler {
             throw new ConfigException("Template '" + template.name()
                                       + "' is marked consume but declares captures: an eater's"
                                       + " matches do not count, so there is no index to bind them at");
-        }
-        // A field capture source is read by the model and bound by nothing; until it is
-        // defined it is refused by name rather than binding an absence (design 27, ruling 10).
-        for (final CaptureBinding capture : template.captures()) {
-            if (capture.select() instanceof CaptureBinding.CaptureSource.Field) {
-                throw ConfigException.notYet(template.name(), "a field capture source");
-            }
         }
     }
 

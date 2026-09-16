@@ -57,13 +57,14 @@ import java.util.concurrent.TimeUnit;
  * as throughput. The pairs are chosen to isolate questions: {@code win_sec} and
  * {@code win_sec_xml} parse the same events unanchored and anchored, which is a direct A/B on
  * dispatch cost under {@code (A|B|C)*}; {@code apache_httpd} carries the heaviest bodies,
- * including 209 escaping transforms; {@code progressive} is the step interpreter alone.
- * {@code progressive_text} is the same interpreter over the other half of its vocabulary —
- * a tag, a take-while, a take-until and a regex step — which {@code progressive}'s two
- * binary steps never reach, so without it the text steps are unmeasurable by construction
- * (design 29 phase 2). {@code log_sessions} is the reference-heavy row: its matching is a
- * delimiter split and its work is iteration, grouping, keys and sequences, so what it measures
- * is variable resolution and the engine's own iteration variables (design 30).
+ * including 209 escaping transforms; {@code progressive} is the match sequence alone — a
+ * varint length cast and a take, over a binary feed held whole (design 38 §3b; the row keeps
+ * the name the step interpreter's row had, so the ledger reads across the retirement).
+ * {@code progressive_text} is the pattern tree over text — tags, take-whiles, a take-until
+ * and a regex node, compiled to the regex library as one pattern. {@code log_sessions} is the
+ * reference-heavy row: its matching is a delimiter split and its work is iteration, grouping,
+ * keys and sequences, so what it measures is variable resolution and the engine's own
+ * iteration variables (design 30).
  *
  * <p>{@code compile} is measured too, because a configuration that compiles per stream would be
  * paying it per stream — and because the compilation stage is where the optimisation work is
@@ -139,7 +140,7 @@ public class EngineBenchmark {
                 // Binary inputs are addressed whole; the harness and the fixtures do the same.
                 wholeBuffer = true;
             }
-            // Text steps over a text feed, so this one streams as the other text rows do.
+            // A pattern tree over a text feed, so this one streams as the other text rows do.
             case "progressive_text" -> streamed("projects/progressive_text_steps/project.json",
                     FixtureLedger.bytes("projects/progressive_text_steps/input.txt"));
             // References, and the frames behind them: five iterations, a grouping, four keys and

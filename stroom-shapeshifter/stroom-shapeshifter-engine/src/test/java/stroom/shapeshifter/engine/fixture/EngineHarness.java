@@ -69,7 +69,7 @@ public final class EngineHarness {
 
     /**
      * Run a {@code project.json} configuration over the whole input as a single buffer. The
-     * progressive fixtures need this: absolute and backward seeks are only meaningful when the
+     * binary fixtures need this: absolute seeks and positions are only meaningful when the
      * whole input is addressable.
      */
     public static Outcome runProjectWholeBuffer(final String projectJson, final byte[] input) {

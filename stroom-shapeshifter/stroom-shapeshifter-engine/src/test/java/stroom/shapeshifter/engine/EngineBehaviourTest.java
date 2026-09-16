@@ -54,12 +54,12 @@ class EngineBehaviourTest {
     }
 
     /**
-     * Design 27 ruling 9: a progressive regex step's flags are part of the pattern it compiles
-     * to, so a case-insensitive step matches upper case — they were read, written back and
-     * silently ignored because the interned key was text and encoding alone.
+     * Design 27 ruling 9: a regex node's flags are part of the pattern it compiles
+     * to, so a case-insensitive regex node matches upper case — they were read, written back
+     * and silently ignored because the interned key was text and encoding alone.
      */
     @Test
-    void progressiveRegexStepHonoursItsFlags() {
+    void regexNodeHonoursItsFlags() {
         final Run result = run("""
                 {
                   "name": "flags", "version": 5,
@@ -70,11 +70,11 @@ class EngineBehaviourTest {
                                                    "mode": "row"}}]},
                     {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
                      "declarations": [{"name": "word", "type": "scalar"}],
-                     "match": {"progressive": [
-                       {"Tag": "L:"},
-                       {"Regex": {"pattern": "[a-z]+", "flags": {"case_insensitive": true}}},
-                       {"Tag": "\\n"}]},
-                     "captures": [{"name": "word", "select": {"step": 1}}],
+                     "match": {"pattern": {"sequence": [
+                       {"tag": "L:"},
+                       {"regex": "[a-z]+", "flags": {"case_insensitive": true}, "label": "word"},
+                       {"tag": "\\n"}]}},
+                     "captures": [{"name": "word", "select": {"label": "word"}}],
                      "body": [{"value-of": {"parts": [{"capture": {"var_id": "word", "group": 0}}]}},
                               {"text": ";"}]}
                   ]
@@ -822,75 +822,34 @@ class EngineBehaviourTest {
     // -----------------------------------------------------------------------------------
 
     @Test
-    void refusesAPatternThatRefersToItself() {
-        // Without this the compiler inlines forever and the stack runs out, which is a much
-        // worse way to learn that a configuration is circular.
-        final String cyclic = """
-                {
-                  "name": "cycle", "version": 3,
-                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
-                  "patterns": [
-                    {"id": "00000000-0000-0000-0000-0000000000aa", "name": "loop",
-                     "steps": [{"PatternRef": "00000000-0000-0000-0000-0000000000aa"}]}],
-                  "templates": [
-                    {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match":
-                     {"progressive": [{"PatternRef": "00000000-0000-0000-0000-0000000000aa"}]}}]
-                }
-                """;
-        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read(cyclic)))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("refers to itself");
-    }
-
-    @Test
     void refusesAPatternReferenceToNothing() {
+        // A ref names the regex library's standard entries; one it does not have is refused by
+        // name at compile time, not discovered as a non-match.
         assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read("""
                 {
                   "name": "missing", "version": 3,
                   "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match":
-                     {"progressive": [{"PatternRef": "00000000-0000-0000-0000-0000000000bb"}]}}]
+                     {"pattern": {"ref": "noSuchThing"}}}]
                 }
                 """)))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("No pattern with id");
+                .hasMessageContaining("no matcher named 'noSuchThing'");
     }
 
     @Test
-    void allowsAPatternUsedTwiceInDifferentPlaces() {
-        // Reuse is the point of named patterns; only a pattern reached from inside itself is a
-        // cycle, so unwinding the in-progress set matters.
+    void allowsALibraryPatternUsedTwiceInDifferentPlaces() {
         final String reused = """
                 {
                   "name": "reuse", "version": 3,
                   "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
-                  "patterns": [
-                    {"id": "00000000-0000-0000-0000-0000000000aa", "name": "digit",
-                     "steps": [{"TakeWhile": "Numeric"}]}],
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match":
-                     {"progressive": [
-                       {"PatternRef": "00000000-0000-0000-0000-0000000000aa"},
-                       {"Tag": "-"},
-                       {"PatternRef": "00000000-0000-0000-0000-0000000000aa"}]}}]
+                     {"pattern": {"sequence": [{"ref": "digits"}, {"tag": "-"}, {"ref": "digits"}]}}}]
                 }
                 """;
         assertThat(Shapeshifter.compile(ProjectReader.read(reused))).isNotNull();
-    }
-
-    @Test
-    void refusesAConfigurationNeedingSomethingThisBuildLacks() {
-        assertThatThrownBy(() -> Shapeshifter.compile(ProjectReader.read("""
-                {
-                  "name": "avro", "version": 3,
-                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
-                  "templates": [
-                    {"id": "00000000-0000-0000-0000-000000000001", "name": "t", "match": {"avro": {}}}]
-                }
-                """)))
-                .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("Avro decoding");
     }
 
     @Test

@@ -42,7 +42,7 @@ import java.util.UUID;
  * @param param        parameters this template expects from its callers
  * @param match        how this template matches content
  * @param matchLimits  how many times it may match, and which matches produce output
- * @param captures     bindings from match groups or steps to named scope variables
+ * @param captures     bindings from match groups to named scope variables
  * @param body         the output instructions, executed once per match
  * @param encoding     an encoding override for this template, or null to inherit
  * @param ignoreErrors suppress the report a match draws when it starts past the cursor and

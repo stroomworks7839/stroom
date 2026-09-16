@@ -30,8 +30,8 @@ import java.util.Arrays;
  * <p>Bytes are the default and the common case: a capture is a slice of the input, in the
  * encoding it was read under, never transcoded until a consumer asks for text (design 25, D43).
  * Most captures never need that — they are written straight back out. The numeric variants
- * exist so that binary match steps, which have already done the work of decoding an integer,
- * do not have to render it to a string and parse it again at the other end. Formatting is
+ * exist so that a binary cast, which has already done the work of decoding an integer, does
+ * not have to render it to a string and parse it again at the other end. Formatting is
  * deferred to the output boundary in every case.
  *
  * <p><b>Each variant answers for itself</b> (E43): the conversions are declared here and
@@ -294,7 +294,7 @@ public sealed interface TypedValue {
      * either way. What is lost is which of the three the author wrote, and nothing reads it.
      *
      * <p>Having no mutable field, an instance is safe to share across runs, which the values
-     * held by compiled literals and {@code Steps.NOTHING} are.
+     * held by compiled literals are.
      */
     final class Utf8Bytes implements Bytes {
 
@@ -578,7 +578,7 @@ public sealed interface TypedValue {
     }
 
     // -----------------------------------------------------------------------------------
-    // The kinds a step or a cast produces
+    // The kinds a cast produces
     // -----------------------------------------------------------------------------------
 
     /** A whole number, as XSLT 2.0's {@code xs:integer}; held in a {@code long} (D49). */

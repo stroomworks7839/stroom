@@ -73,7 +73,7 @@ class DeclarationCheckTest {
                         "doc", List.of(), OutputNode.ApplyDirective.DEFAULT_MAX_DEPTH, false,
                         null))),
                 null, false);
-        return new Project("t", 5, Project.SourceConfig.defaults(), List.of(source, line), List.of());
+        return new Project("t", 5, Project.SourceConfig.defaults(), List.of(source, line));
     }
 
     @Test
@@ -143,7 +143,7 @@ class DeclarationCheckTest {
                 null, false);
         final Project base = project(List.of(), List.of(), List.of());
         final Project withParam = new Project("t", 5, Project.SourceConfig.defaults(),
-                List.of(base.templates().getFirst(), line), List.of());
+                List.of(base.templates().getFirst(), line));
         assertThatCode(() -> Shapeshifter.compile(withParam)).doesNotThrowAnyException();
     }
 
@@ -179,7 +179,7 @@ class DeclarationCheckTest {
                 null, false);
         final Project base = project(List.of(), List.of(), List.of());
         final Project whole = new Project("t", 5, Project.SourceConfig.defaults(),
-                List.of(base.templates().getFirst(), line), List.of());
+                List.of(base.templates().getFirst(), line));
         assertThatThrownBy(() -> Shapeshifter.compile(whole))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining("reads 'pairs', which is declared as a map")
@@ -193,7 +193,7 @@ class DeclarationCheckTest {
                                         RefExpression.RefPart.Accessor.Kind.GET,
                                         new RefExpression(List.of(new RefExpression.RefPart.Capture("pairs", 0, null))),
                                         RefExpression.text("k"), null, null))))),
-                        null, false)), List.of());
+                        null, false)));
         assertThatCode(() -> Shapeshifter.compile(byKey)).doesNotThrowAnyException();
     }
 

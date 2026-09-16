@@ -48,6 +48,13 @@ class ProjectReaderTest {
     List<DynamicTest> everyConfigurationRoundTrips() {
         final List<DynamicTest> tests = new ArrayList<>();
         for (final Fixture fixture : FixtureLedger.all()) {
+            // A skipped fixture is never run, and its configuration may name a match the model
+            // no longer has: parquet_cities keeps its input and golden output for the day
+            // Parquet decoding exists, but its match kind was retired with the step
+            // interpreter (design 38 phase 4).
+            if (fixture.status() == FixtureLedger.Status.SKIPPED) {
+                continue;
+            }
             final String path = switch (fixture.family()) {
                 case NATIVE -> "native/" + fixture.name() + "/project.json";
                 case PROJECTS -> "projects/" + fixture.name() + "/project.json";
@@ -57,7 +64,7 @@ class ProjectReaderTest {
                 tests.add(DynamicTest.dynamicTest(fixture.id(), () -> roundTrip(path)));
             }
         }
-        assertThat(tests).as("the corpus must contain configurations to check").hasSize(51);
+        assertThat(tests).as("the corpus must contain configurations to check").hasSize(50);
         return tests;
     }
 
@@ -171,10 +178,10 @@ class ProjectReaderTest {
         assertThatThrownBy(() -> ProjectReader.read("""
                 {"name": "x", "version": 3, "templates": [
                   {"id": "00000000-0000-0000-0000-000000000001", "name": "t",
-                   "match": {"progressive": [{"MatchByte": 65}]}}]}
+                   "match": {"parts": {"take": 1}}}]}
                 """))
                 .isInstanceOf(ConfigException.class)
-                .hasMessageContaining("Expected an array for 'MatchByte'");
+                .hasMessageContaining("Expected an array for 'parts'");
 
         assertThatThrownBy(() -> ProjectReader.read("""
                 {"name": "x", "version": 3, "source": {"buffer_size": "big"}, "templates": []}

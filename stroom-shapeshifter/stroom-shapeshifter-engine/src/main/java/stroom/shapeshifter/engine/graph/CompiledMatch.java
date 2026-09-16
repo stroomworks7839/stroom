@@ -188,25 +188,6 @@ public sealed interface CompiledMatch {
     }
 
     /**
-     * A progressive match: its steps compiled, for the reading the configuration compiled under.
-     *
-     * <p>Baking the encoding into the steps means asking which encoding, and until design 32 the
-     * answer could still move once — a byte-order mark at the head of the input re-declared the
-     * source, so two readings were compiled and a run picked between them per match. That was
-     * only ever half a fix: <b>only progressive matching carried the second reading</b>, while a
-     * regex or delimiter template kept the one it compiled with, so a mark moved some of a
-     * configuration and not the rest.
-     *
-     * <p>The encoding is settled before anything compiles now, so there is one reading and no
-     * choosing.
-     *
-     * @param steps the compiled steps, under the reading the graph was compiled for
-     */
-    record Progressive(CompiledSteps steps) implements CompiledMatch {
-
-    }
-
-    /**
      * Consume everything given.
      */
     record All() implements CompiledMatch {

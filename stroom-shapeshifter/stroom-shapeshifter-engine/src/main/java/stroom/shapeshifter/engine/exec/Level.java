@@ -660,7 +660,7 @@ final class Level {
 
     /**
      * @param source how a group of the data becomes a value: a copy over the window, a slice
-     *               over a value (design 37 §5). The progressive match still copies (phase 9).
+     *               over a value (design 37 §5)
      */
     private MatchResult match(final CompiledTemplate compiledTemplate,
                               final byte[] data,
@@ -682,8 +682,6 @@ final class Level {
                     patternMatch(pattern, data, from, to, atCursor, effective(compiledTemplate), source);
             case final CompiledMatch.Parts parts ->
                     partsMatch(parts, data, from, to, effective(compiledTemplate), source);
-            case final CompiledMatch.Progressive progressive -> Steps.match(
-                    progressive.steps(), data, from, to);
             case final CompiledMatch.All ignored -> new MatchResult(
                     new TypedValue[]{source.slice(from, to, effective(compiledTemplate))}, to - from, 0);
             case final CompiledMatch.Source ignored -> null;

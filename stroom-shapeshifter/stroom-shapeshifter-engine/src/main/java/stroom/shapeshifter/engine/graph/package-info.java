@@ -51,11 +51,11 @@
  * {@code exec} imported none of them — the layering existed and only the package was missing.
  * Drawing it costs a boundary that can now be enforced instead of remembered.
  *
- * <p><b>Everything compiled is here</b>, since the same day: {@code CompiledStep} and
- * {@code CompiledSteps} had been in {@code match} beside the interpreter that runs them, kept
- * there by what looked like a package cycle. It was not one — {@code match} was holding four
- * things at once, and separating them left this package holding the whole compiled vocabulary
- * with nothing to except.
+ * <p><b>Everything compiled is here</b>, since the same day: the step interpreter's compiled
+ * vocabulary (retired by design 38) had been in {@code match} beside the interpreter that ran
+ * it, kept there by what looked like a package cycle. It was not one — {@code match} was
+ * holding four things at once, and separating them left this package holding the whole
+ * compiled vocabulary with nothing to except.
  *
  * <p>The building came out the same day. Each node had carried a static factory reading the
  * authored model, which is compiler work sitting on the thing it makes; those are

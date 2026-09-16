@@ -16,17 +16,12 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.CombinatorPattern;
 import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.MatchExpression;
-import stroom.shapeshifter.engine.config.MatchStep;
 import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.graph.CompiledMatch;
-import stroom.shapeshifter.engine.graph.CompiledSteps;
-import stroom.shapeshifter.engine.match.Decoding;
 import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;
@@ -35,12 +30,9 @@ import stroom.shapeshifter.regex.PatternCompileException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 /**
  * The match side of compilation: the patterns a configuration uses, interned once, and each
@@ -48,20 +40,14 @@ import java.util.UUID;
  *
  * <p>Owns the interned patterns as state, because the order matters and is easy to get wrong
  * from outside: a body's compiled form resolves its regex replaces against the interned map,
- * so a template's guard and body patterns are interned before its body is compiled, and a
- * progressive template's steps — resolved once, library references inlined (D8) — before its
- * match is. The key is text, flags and encoding (design 19; design 27 ruling 9): guards and
- * bodies match resolved values, internal form, UTF-8 whatever the feed's encoding, and only
- * the match vocabulary sees feed bytes and compiles for the template's encoding.
+ * so a template's guard and body patterns are interned before its body is compiled. The key
+ * is text, flags and encoding (design 19; design 27 ruling 9): guards and bodies match
+ * resolved values, internal form, UTF-8 whatever the feed's encoding, and only the match
+ * vocabulary sees feed bytes and compiles for the template's encoding.
  */
 final class MatchCompiler {
 
-    private final Project project;
     private final Map<PatternKey, BytePattern> patterns = new HashMap<>();
-
-    MatchCompiler(final Project project) {
-        this.project = project;
-    }
 
     /**
      * Every pattern interned so far, keyed by text, flags and encoding.
@@ -85,17 +71,7 @@ final class MatchCompiler {
             collect(template.guard(), template);
         }
         collect(template.body(), template);
-        final CompiledMatch.Progressive progressiveSteps;
-        if (template.match() instanceof final MatchExpression.Progressive progressive) {
-            // Resolved, not raw: the steps match the inlined sequence, so a regex
-            // reached through a library reference is interned like one written in place.
-            final List<MatchStep> resolved = resolve(progressive.steps(), new HashSet<>());
-            progressiveSteps = new CompiledMatch.Progressive(
-                    compiledSteps(resolved, template, matchEncoding));
-        } else {
-            progressiveSteps = null;
-        }
-        return compileMatch(template, matchEncoding, progressiveSteps, names);
+        return compileMatch(template, matchEncoding, names);
     }
 
     /**
@@ -159,70 +135,8 @@ final class MatchCompiler {
         });
     }
 
-    /**
-     * The same steps compiled for one encoding: its literals, its tables, its patterns.
-     */
-    private CompiledSteps compiledSteps(final List<MatchStep> resolved,
-                                        final Template template,
-                                        final Encoding encoding) {
-        final Decoding decoding = Decoding.of(encoding);
-        // Interning stays here, so a pattern a step names and one a body names share one
-        // compiled pattern and one failure message.
-        return new CompiledSteps(
-                StepCompiler.compile(resolved, template.name(), decoding, key -> {
-                    intern(key, template);
-                    return patterns.get(key);
-                }),
-                decoding);
-    }
-
-    /**
-     * Inline the named patterns a sequence refers to.
-     *
-     * <p>Composition is an authoring convenience; by the time anything runs there are no
-     * references left, only the steps they stood for (D8).
-     *
-     * <p>{@code inProgress} is what stops a pattern that refers to itself, directly or round a
-     * longer loop, from inlining forever. It is unwound on the way out rather than accumulated,
-     * so a pattern used twice in different branches is fine — only a pattern reached from inside
-     * itself is a cycle.
-     */
-    private List<MatchStep> resolve(final List<MatchStep> steps, final Set<UUID> inProgress) {
-        final List<MatchStep> resolved = new ArrayList<>(steps.size());
-        for (final MatchStep step : steps) {
-            final MatchStep inlined = switch (step) {
-                case final MatchStep.PatternRef reference -> {
-                    if (!inProgress.add(reference.pattern())) {
-                        throw new ConfigException(
-                                "Pattern " + reference.pattern() + " refers to itself");
-                    }
-                    final CombinatorPattern named = project.patterns().stream()
-                            .filter(candidate -> candidate.id().equals(reference.pattern()))
-                            .findFirst()
-                            .orElseThrow(() -> new ConfigException(
-                                    "No pattern with id " + reference.pattern()));
-                    final List<MatchStep> inner = resolve(named.steps(), inProgress);
-                    inProgress.remove(reference.pattern());
-                    yield new MatchStep.Sequence(inner);
-                }
-                case final MatchStep.Choice choice -> new MatchStep.Choice(
-                        choice.alternatives().stream().map(a -> resolve(a, inProgress)).toList());
-                case final MatchStep.Optional optional -> new MatchStep.Optional(resolve(optional.steps(), inProgress));
-                case final MatchStep.Repeat repeat -> new MatchStep.Repeat(
-                        resolve(repeat.steps(), inProgress), repeat.min(), repeat.max());
-                case final MatchStep.Sequence sequence -> new MatchStep.Sequence(resolve(sequence.steps(), inProgress));
-                case final MatchStep.Peek peek -> new MatchStep.Peek(resolve(peek.steps(), inProgress));
-                case final MatchStep.Not not -> new MatchStep.Not(resolve(not.steps(), inProgress));
-                default -> step;
-            };
-            resolved.add(inlined);
-        }
-        return resolved;
-    }
-
     private CompiledMatch compileMatch(final Template template,
                                        final Encoding matchEncoding,
-                                       final CompiledMatch.Progressive progressiveSteps,
                                        final Interner names) {
         return switch (template.match()) {
             case final MatchExpression.Pattern pattern -> {
@@ -257,12 +171,6 @@ final class MatchCompiler {
             case final MatchExpression.All ignored -> new CompiledMatch.All();
             case final MatchExpression.Source ignored -> new CompiledMatch.Source();
             case final MatchExpression.Named ignored -> new CompiledMatch.Named();
-            case final MatchExpression.Progressive ignored -> progressiveSteps;
-            case final MatchExpression.Avro ignored -> throw ConfigException.notYet(template.name(), "Avro decoding");
-            case final MatchExpression.Parquet ignored ->
-                    throw ConfigException.notYet(template.name(), "Parquet decoding");
-            case final MatchExpression.Protobuf ignored ->
-                    throw ConfigException.notYet(template.name(), "Protobuf decoding");
         };
     }
 
@@ -335,9 +243,9 @@ final class MatchCompiler {
     }
 
     /**
-     * A delimiter's byte form, through the same {@link Encoding#encode} the step vocabulary
-     * uses at run time: one encode path, one truth, so a RAW template's delimiter and its step
-     * tag cannot disagree about the bytes of one text (design 19 phase 0).
+     * A delimiter's byte form, through the same {@link Encoding#encode} the rest of the engine
+     * uses: one encode path, one truth, so a RAW template's delimiter and its patterns cannot
+     * disagree about the bytes of one text (design 19 phase 0).
      */
     private static byte[] encode(final String text, final Encoding encoding) {
         return text == null

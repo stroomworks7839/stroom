@@ -106,8 +106,8 @@ public final class GoldenRunner {
         final String dir = "projects/" + fixture.name() + "/";
         final String project = FixtureLedger.text(dir + "project.json");
 
-        // Binary inputs are addressed as a whole: the progressive fixtures use absolute and
-        // backward seeks, which only mean anything over a buffer the engine can address.
+        // Binary inputs are addressed as a whole: the binary fixtures use absolute seeks and
+        // positions, which only mean anything over a buffer the engine can address.
         final Outcome outcome;
         if (FixtureLedger.exists(dir + "input.bin")) {
             outcome = EngineHarness.runProjectWholeBuffer(project, FixtureLedger.bytes(dir + "input.bin"));

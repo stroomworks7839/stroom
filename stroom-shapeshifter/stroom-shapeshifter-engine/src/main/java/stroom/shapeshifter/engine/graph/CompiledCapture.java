@@ -36,7 +36,7 @@ public record CompiledCapture(VarName name, Source source, Cast as, Declaration.
     /** What a capture reads. */
     public sealed interface Source {
 
-        /** A group of the match; a step's output is its index plus one. */
+        /** A group of the match, by number; a label was resolved to its number at compile time. */
         record Group(int group) implements Source {
 
         }

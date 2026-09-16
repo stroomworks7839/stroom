@@ -22,26 +22,23 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 import java.util.zip.InflaterInputStream;
 
 /**
  * Turning bytes into other bytes.
  *
- * <p>A codec is not a match — it consumes no input. It takes what an earlier step produced and
- * transforms it, which is how a base64 field or a compressed block gets parsed by the steps that
- * follow.
+ * <p>A codec is not a match — it consumes no input. It takes a value and transforms it, which
+ * is how a base64 field or a compressed block gets parsed by the templates a body dispatches
+ * the decoded bytes to (design 38's {@code decode} transform).
  *
  * <p>Everything here is in the JDK. The three that are not — snappy, zstd and lz4 — are refused
  * at compile time (D33) rather than silently producing nothing.
  *
- * <p>A codec that cannot do its job returns null, which fails the step and therefore the match.
- * That is deliberate: input that is not valid base64 is input this configuration does not
- * describe, and the right answer is "no match", not an exception.
+ * <p>A codec that cannot do its job returns null, which is absence. That is deliberate: input
+ * that is not valid base64 is input this configuration does not describe, and the right
+ * answer is "nothing", not an exception.
  */
 public final class Codecs {
 
@@ -73,27 +70,6 @@ public final class Codecs {
         }
     }
 
-    /** Encode, or null if this build cannot. */
-    public static byte[] encode(final byte[] input, final Codec codec) {
-        try {
-            return switch (codec) {
-                case BASE64 -> Base64.getEncoder().encode(input);
-                case BASE64_URL -> Base64.getUrlEncoder().encode(input);
-                case HEX -> toHex(input);
-                case URL_ENCODING -> toPercent(input);
-                case DEFLATE -> deflate(input);
-                case GZIP -> gzip(input);
-                case SNAPPY, ZSTD, LZ4 -> null;
-            };
-        } catch (final IOException e) {
-            return null;
-        }
-    }
-
-    // -----------------------------------------------------------------------------------
-    // Hex
-    // -----------------------------------------------------------------------------------
-
     private static byte[] fromHex(final byte[] input) {
         if (input.length % 2 != 0) {
             return null;
@@ -123,26 +99,6 @@ public final class Codecs {
         return -1;
     }
 
-    private static byte[] toHex(final byte[] input) {
-        final byte[] digits = "0123456789abcdef".getBytes(StandardCharsets.US_ASCII);
-        final byte[] result = new byte[input.length * 2];
-        for (int i = 0; i < input.length; i++) {
-            result[i * 2] = digits[(input[i] >> 4) & 0x0F];
-            result[i * 2 + 1] = digits[input[i] & 0x0F];
-        }
-        return result;
-    }
-
-    // -----------------------------------------------------------------------------------
-    // Percent-encoding
-    // -----------------------------------------------------------------------------------
-
-    /**
-     * Undo percent-encoding.
-     *
-     * <p>Byte-level rather than string-level, and {@code +} stays a plus: this is URI escaping,
-     * not HTML form encoding, and the two disagree about exactly that character.
-     */
     private static byte[] fromPercent(final byte[] input) {
         final ByteArrayOutputStream result = new ByteArrayOutputStream(input.length);
         int i = 0;
@@ -158,45 +114,6 @@ public final class Codecs {
             }
             result.write(input[i]);
             i++;
-        }
-        return result.toByteArray();
-    }
-
-    private static byte[] toPercent(final byte[] input) {
-        final ByteArrayOutputStream result = new ByteArrayOutputStream(input.length);
-        for (final byte b : input) {
-            final int value = b & 0xFF;
-            final boolean unreserved = (value >= 'A' && value <= 'Z')
-                                       || (value >= 'a' && value <= 'z')
-                                       || (value >= '0' && value <= '9')
-                                       || value == '-' || value == '.' || value == '_' || value == '~';
-            if (unreserved) {
-                result.write(value);
-            } else {
-                result.write('%');
-                result.write("0123456789ABCDEF".charAt(value >> 4));
-                result.write("0123456789ABCDEF".charAt(value & 0x0F));
-            }
-        }
-        return result.toByteArray();
-    }
-
-    // -----------------------------------------------------------------------------------
-    // Compression
-    // -----------------------------------------------------------------------------------
-
-    private static byte[] deflate(final byte[] input) throws IOException {
-        final ByteArrayOutputStream result = new ByteArrayOutputStream();
-        try (DeflaterOutputStream out = new DeflaterOutputStream(result)) {
-            out.write(input);
-        }
-        return result.toByteArray();
-    }
-
-    private static byte[] gzip(final byte[] input) throws IOException {
-        final ByteArrayOutputStream result = new ByteArrayOutputStream();
-        try (GZIPOutputStream out = new GZIPOutputStream(result)) {
-            out.write(input);
         }
         return result.toByteArray();
     }

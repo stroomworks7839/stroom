@@ -24,8 +24,9 @@ import stroom.shapeshifter.engine.value.TypedValue;
  * <p>{@code groups[0]} is always the whole match; what the rest mean depends on the kind of
  * match. A regex fills them with its capture groups. A delimiter split fills three: the segment
  * including its delimiter, the raw content before it, and the content with any container and
- * escape characters removed. A progressive match puts step {@code i}'s output in
- * {@code groups[i + 1]}.
+ * escape characters removed. A pattern tree fills them with its labelled nodes, numbered as
+ * parentheses; a match sequence with each part's groups after the parts before it, and a
+ * take as a group of its own.
  *
  * <p>A null entry is a group that did not participate, which is different from one that matched
  * emptily.

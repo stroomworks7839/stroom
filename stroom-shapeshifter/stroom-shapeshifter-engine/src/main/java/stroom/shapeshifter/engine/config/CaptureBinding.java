@@ -44,21 +44,6 @@ public record CaptureBinding(String name, CaptureSource select, Cast as) {
 
         }
 
-        /** The output of a progressive match step, by its 0-based position. */
-        record Step(int index) implements CaptureSource {
-
-        }
-
-        /**
-         * A named field of a decoded record, for the native formats.
-         *
-         * <p>Resolved against the decoded schema's field order when the binding runs, rather
-         * than at compile time, because the schema may be embedded in the data.
-         */
-        record Field(String name) implements CaptureSource {
-
-        }
-
         /** A value computed from an expression rather than taken from the match. */
         record Select(RefExpression select) implements CaptureSource {
 

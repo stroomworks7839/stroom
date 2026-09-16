@@ -103,9 +103,9 @@ public final class Run {
     }
 
     /**
-     * Run a compiled configuration over an input held whole. The progressive matches need it —
-     * an absolute seek is meaningless over a window — and a whole buffer has no edge for a
-     * match to run into.
+     * Run a compiled configuration over an input held whole. A match sequence's absolute seek
+     * needs it — meaningless over a window — and a whole buffer has no edge for a match to run
+     * into.
      *
      * @param mode     normal, or a preview, which does not call impure functions (design 26 §4)
      * @param services what the functions bound to this run may reach

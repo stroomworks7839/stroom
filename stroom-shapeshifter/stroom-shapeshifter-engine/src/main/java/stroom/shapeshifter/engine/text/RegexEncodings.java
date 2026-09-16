@@ -26,7 +26,7 @@ import java.util.Map;
  * lower, or to null where it has none yet — which is what the compile-time refusal reads.
  * The library's shapes are its own, dependency-free type; this class is the one place the
  * two vocabularies meet, and the mapping is built from the same {@link Charset} the rest of
- * the engine decodes with, so the regex's view of a byte and a step's can never disagree.
+ * the engine decodes with, so the regex's view of a byte and the engine's can never disagree.
  */
 public final class RegexEncodings {
 

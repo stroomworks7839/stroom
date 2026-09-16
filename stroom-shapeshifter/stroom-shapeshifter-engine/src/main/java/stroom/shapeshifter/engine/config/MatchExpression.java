@@ -122,21 +122,6 @@ public sealed interface MatchExpression {
     }
 
     /**
-     * A sequence of steps, each consuming where the last one stopped.
-     *
-     * <p>This is the structured and binary case: later steps can refer to what earlier ones
-     * produced, so a length field can decide how many bytes the next step takes.
-     *
-     * @param steps the steps, in order
-     */
-    record Progressive(List<MatchStep> steps) implements MatchExpression {
-
-        public Progressive {
-            steps = steps == null ? List.of() : List.copyOf(steps);
-        }
-    }
-
-    /**
      * The document itself, matched exactly once.
      *
      * <p>Its body is split at {@code apply-templates}: what comes before is written once at the
@@ -154,37 +139,6 @@ public sealed interface MatchExpression {
 
     /** Invocable only by name. Never a candidate for {@code apply-templates}. */
     record Named() implements MatchExpression {
-
-    }
-
-    /**
-     * An Avro object container file, each record's fields becoming match groups.
-     *
-     * @param schema the writer schema as JSON, or null to use the one embedded in the file
-     */
-    record Avro(String schema) implements MatchExpression {
-
-    }
-
-    /**
-     * A Parquet file, each row becoming a match and each column a group.
-     *
-     * @param columns the columns to decode, or empty for all of them
-     */
-    record Parquet(List<String> columns) implements MatchExpression {
-
-        public Parquet {
-            columns = columns == null ? List.of() : List.copyOf(columns);
-        }
-    }
-
-    /**
-     * A protobuf message, decoded dynamically against a descriptor set.
-     *
-     * @param descriptorPath the {@code FileDescriptorSet} produced by {@code protoc}
-     * @param messageType    the fully-qualified message name to decode as
-     */
-    record Protobuf(String descriptorPath, String messageType) implements MatchExpression {
 
     }
 }

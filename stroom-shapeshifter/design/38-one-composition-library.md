@@ -273,8 +273,9 @@ independent writer rather than by one we wrote ourselves.
 
 ## 5. Compilation
 
-A match sequence compiles part by part: each `pattern` → the library's `Matcher` tree (a direct mapping, node for node, references
-resolved against the project's library and the standard one) → `Lowering.lower` → the plan →
+A match sequence compiles part by part: each `pattern` → the library's `Matcher` tree (a
+direct mapping, node for node, references resolved against the standard library) →
+`Lowering.lower` → the plan →
 a `BytePattern`. Labels become groups and the compiler records the label-to-group table for
 the body's references, as it records names for `(?<name>…)` today. The match arm in
 `Level.match` runs the parts in order: a pattern is the regex arm, a `take` and a `seek` are
@@ -335,6 +336,66 @@ rounds, as design 34 was read.
 - *Growing the regex library.* Two combinators and the encoding on the composition path is the
   budget; anything beyond is a sign the coverage table was wrong and is a ruling, not a commit.
 
+### What phase 3 found — 2026-09-16
+
+Three things the design did not say, each now pinned.
+
+1. **A nested dispatch runs over the bytes as read, not their UTF-8 form.** A raw template's
+   body handing a labelled slice to `apply-templates` handed the slice's UTF-8 transcoding —
+   `0xD6` became `C3 96` — and the child's raw-mode patterns matched the wrong bytes. `Bytes`
+   gained `readArray`/`readOffset`/`readLength` (a whole value's is its array from zero; a
+   slice's is the slice) and `source()` over the read array, and `Body.apply` dispatches over
+   those. The Avro fixture's `sync` marker and every block after the first depend on it.
+2. **A labelled capture is never the whole-parent-content shortcut.** `BodyCompiler` treats a
+   bare `{"capture": {"group": 0}}` as "the parent's content, no copy"; a `{"capture":
+   {"label": …}}` compiles to a group number too, and the shortcut had to exclude it or a
+   label whose group happened to be 0 read the whole match.
+3. **The casts read raw bytes.** `BinaryCasts` first read a slice's `utf8Array()`, which for a
+   raw slice transcodes; it reads `readArray`/`readOffset`/`readLength` now, and a byte above
+   0x7F is one byte.
+
+The two real files: `avro_users` parses the container as a state machine of templates — file
+header, a metadata map of `entry` templates until `map_end`, then blocks, each dispatching its
+records — and `protobuf_events` as a message whose length-prefixed body dispatches fields, each
+a template assigning a declared scalar. Both pass byte-for-byte against the outputs the Rust
+prototype's native crates produced, with no library.
+
+### What phase 4 deleted — 2026-09-16
+
+Twelve main files and 3,200 lines: `MatchStep` and its twenty-four records, `StepRef`,
+`Predicate` and `Predicates`, `NumericType`, `Endianness`, `CombinatorPattern` and
+`Project.patterns`, `StepCompiler`, `CompiledStep`, `CompiledSteps`, `Decoding`, `Steps` (the
+interpreter), `CompiledMatch.Progressive`, the `progressive` JSON arm and the step reader and
+writer, and with them the `avro`, `parquet` and `protobuf` match kinds that were only ever
+refused by name, the `step` and `field` capture sources that served them, and
+`ConfigException.notYet`, which nothing else raised.
+
+The pins moved before the deletion: `StepsTest`'s nineteen cases and `StepCombinatorsTest`'s
+twenty are `PatternTreeTest`'s twenty-one, on `{"pattern": …}` and `{"parts": …}` — atoms,
+casts in both byte orders, varint and zigzag, position, a take by label, seeks forward and
+absolute, a short take failing the match, choice, optional and repeat, peek and not, a label
+inside a failed alternative not participating, labels numbered as parentheses, and D52's one
+widening (a repeat gives back) pinned to its new outcome. The `EngineBehaviourTest` and
+`EncodedInputTest` pins that drove the interpreter drive the tree: a reference to nothing is
+refused by the library's own message, a library entry used twice compiles, a regex node's
+flags are honoured, a template encoding override reaches a regex node and a library reference,
+and a transcode-family override is refused through either.
+
+**Not built: the project's own `patterns` library** (§2, §4). The old one held step
+sequences and went with the interpreter; a library of named tree nodes was never needed by a
+fixture or either real file, so `ref` resolves against the standard library alone. It is a
+`MatcherLibrary` layered on the standard one and a map in `Project` when the UI's "defined
+once" wants it — an addition, not a change to anything here. The phase-4 audit also found the
+`decode` transform reading its input's UTF-8 form, the same hole phase 3 closed for dispatch
+and the casts; it reads the bytes as read now, and a failed decode is absence rather than a
+value holding null. `Codecs`' encode side, which only the `Encode` step ever called, went too.
+
+`parquet_cities` keeps its input and golden output for the day Parquet decoding exists, but
+its configuration names a retired match kind, so the round-trip test no longer reads `SKIPPED`
+fixtures — a skipped fixture was already defined as never run. The benchmark rows keep their
+names: `progressive` is the match sequence (a varint cast and a take), `progressive_text` the
+pattern tree over text, so the ledger reads across the retirement.
+
 ## 8. Phases
 
 1. **Read.** The five synthetic fixtures and the twenty `StepsTest` cases against backtracking
@@ -349,9 +410,9 @@ rounds, as design 34 was read.
 3. **The `pattern` surface, the match sequence and the binary casts**: compilation to a
    `Matcher` per part, the label table, `take` and `seek` in the level; `progressive` still
    accepted beside it. `avro_users` and `protobuf_events` ported and passing; the synthetic
-   fixtures rewritten or retired.
+   fixtures rewritten or retired. Done 2026-09-16 (`179197cf7b`, `ffff67e6b7`).
 4. **The interpreter deleted** with the `progressive` form; the census's two largest methods
-   gone.
+   gone. Done 2026-09-16.
 5. **Measured**: gate two, the `progressive` row re-founded on the Avro container, and the
    design's record.
 

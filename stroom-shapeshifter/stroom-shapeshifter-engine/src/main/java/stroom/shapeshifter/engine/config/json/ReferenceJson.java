@@ -60,8 +60,6 @@ final class ReferenceJson {
         return switch (tagged.name()) {
             case "group" -> new CaptureSource.Group(JsonFields.integer(body, "group"));
             case "label" -> new CaptureSource.Label(JsonFields.text(body, "label"));
-            case "step" -> new CaptureSource.Step(JsonFields.integer(body, "step"));
-            case "field" -> new CaptureSource.Field(JsonFields.text(body, "field"));
             case "select" -> new CaptureSource.Select(readRef(body));
             case "key-value" -> {
                 JsonFields.checkFields(body, "key-value", "key_ref", "value_ref");
@@ -77,8 +75,6 @@ final class ReferenceJson {
         return switch (source) {
             case CaptureSource.Group group -> JsonFields.wrap("group", JsonFields.NODES.numberNode(group.group()));
             case CaptureSource.Label label -> JsonFields.wrap("label", JsonFields.NODES.stringNode(label.label()));
-            case CaptureSource.Step step -> JsonFields.wrap("step", JsonFields.NODES.numberNode(step.index()));
-            case CaptureSource.Field field -> JsonFields.wrap("field", JsonFields.NODES.stringNode(field.name()));
             case CaptureSource.Select select -> JsonFields.wrap("select", writeRef(select.select()));
             case CaptureSource.KeyValue keyValue -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();

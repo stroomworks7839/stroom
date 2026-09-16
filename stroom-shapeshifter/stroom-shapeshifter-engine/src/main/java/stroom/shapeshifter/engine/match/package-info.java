@@ -20,21 +20,18 @@
  *
  * <p>{@code MatchResult} is what any match produced — the groups, how far the cursor moves,
  * where the match began. {@code Splitter} splits on a delimiter with quoting and escaping, the
- * CSV problem generalised. {@code Codecs} recode the bytes a step produced for the steps after
- * it, and {@code Decoding} is how bytes become characters under a template's reading.
- * {@code PatternKey} is what an interned pattern is looked up by, built here and by the
- * compiler. {@code Predicates} is what a character class means, said once because two packages
- * need the answer: the compiler builds a byte table from it and the run classifies codepoints
- * with it, and a table that disagreed with the predicate would be a silent wrong match.
+ * CSV problem generalised. {@code Codecs} recode bytes for the body's {@code decode}
+ * transform. {@code PatternKey} is what an interned pattern is looked up by, built here and by
+ * the compiler.
  *
  * <p><b>It depends on nothing above {@code value}</b>, which is what makes it a layer of
- * primitives rather than a stage of the pipeline. Everything above reaches in: the graph for its
- * readings, the compiler for keys and codecs, the run for results and predicates.
+ * primitives rather than a stage of the pipeline. Everything above reaches in: the compiler for
+ * keys and codecs, the run for results.
  *
  * <p>Until 2026-09-10 it held three more things — the compiled step vocabulary, the pass that
  * built it and the interpreter that ran it. Four layers in one package, which is why the step
- * vocabulary looked stuck here behind a package cycle; it was not, and they are {@code graph},
- * {@code compile} and {@code exec} now. Progressive matching, and why a regex cannot express it,
- * is explained on {@code exec.Steps} where it went.
+ * vocabulary looked stuck here behind a package cycle; it was not, and they moved to
+ * {@code graph}, {@code compile} and {@code exec}, where design 38 retired them: the pattern
+ * tree and the match sequence compile to the regex library instead.
  */
 package stroom.shapeshifter.engine.match;
