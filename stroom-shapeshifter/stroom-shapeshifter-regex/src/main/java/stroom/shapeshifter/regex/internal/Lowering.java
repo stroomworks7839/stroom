@@ -21,7 +21,7 @@ import stroom.shapeshifter.regex.PatternCompileException;
 import stroom.shapeshifter.regex.PatternCompileException.Reason;
 import stroom.shapeshifter.regex.comb.Matcher;
 
-import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -186,14 +186,27 @@ public final class Lowering {
      * gives one-byte literals, and {@link Normalise} compares classes and byte sequences by
      * different rules when folding and factoring, so matching the parser's shape is what keeps a
      * composed {@code tag("a")} and the regex {@code a} compiling to the identical plan.
+     *
+     * <p>The bytes are the byte form's, not UTF-8's: under RAW a non-ASCII character is its
+     * one byte, as the parser makes it for the same character written in a regex (design 38).
      */
     private Hir literal(final String text) {
         if (text.isEmpty()) {
             return new Hir.Empty();
         }
-        final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        final ByteArrayOutputStream encoded = new ByteArrayOutputStream(text.length());
+        text.codePoints().forEach(codePoint -> {
+            final byte[] bytes = form.encode(codePoint);
+            if (bytes == null) {
+                throw new PatternCompileException(Reason.UNSUPPORTED, text, 0,
+                        "'" + new String(Character.toChars(codePoint)) + "' has no encoding under " + form
+                        + ", so it can never match");
+            }
+            encoded.writeBytes(bytes);
+        });
+        final byte[] bytes = encoded.toByteArray();
         return bytes.length == 1
-                ? Hir.CharClass.of(CodePointSet.single(bytes[0] & 0xFF), text, form)
+                ? Hir.CharClass.of(CodePointSet.single(text.codePointAt(0)), text, form)
                 : new Hir.Bytes(bytes, text);
     }
 

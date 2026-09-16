@@ -17,6 +17,7 @@
 package stroom.shapeshifter.regex.comb;
 
 import stroom.shapeshifter.regex.Flag;
+import stroom.shapeshifter.regex.internal.Explode;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -170,6 +171,15 @@ public final class Matchers {
     // -----------------------------------------------------------------------------------
     // A small library of the patterns that keep being rewritten by hand
     // -----------------------------------------------------------------------------------
+
+    /**
+     * A regex as the composition it is (design 38 §3a): what the vocabulary names, named; what
+     * it cannot, kept as a {@code regex} leaf; the whole compiling to the identical plan the
+     * regex does. Always succeeds.
+     */
+    public static Matcher explode(final String pattern, final Set<Flag> flags) {
+        return Explode.explode(pattern, flags);
+    }
 
     /** Registers the built-in patterns into a library under conventional names. */
     public static MatcherLibrary standardLibrary() {

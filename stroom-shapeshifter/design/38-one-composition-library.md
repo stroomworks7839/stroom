@@ -189,6 +189,56 @@ through named groups; the regex shown is a rendering, and an edit to it re-explo
 which labels survive as named groups and `ref`s do not unless the tree is kept. The gate is a
 test over every regex in the fixture corpus: the plan of its explode equals its own plan.
 
+### What phase 1a built — 2026-09-16
+
+**The explode lives in the regex library**, not beside the UI's model — budget item 3, ruled
+D53: `Matchers.explode(regex, flags)` returns the `Matcher`
+composition a regex is, and the engine's `PatternExplode` maps that onto `PatternNode` node for
+node — the same mapping `PatternCompiler` runs the other way. It is there because the
+intermediate form is `internal`, "none of it API", and the only alternative was the engine
+reaching into that package. The engine's side is thirty lines; the library's is one method
+and one class reading its own parser.
+
+**What it maps**: literal → tag (adjacent single characters folded, as the normaliser folds
+them); class → character run, a class exactly once being a tag when it is a character; concat →
+sequence; alt → choice; quantifier → repeat, `{0,1}` greedy being `optional`, and a class under
+a greedy quantifier being the run itself; capturing group → label, an unnamed one named
+`_N` by its number; lookahead → `peek`/`not`; non-capturing group → its body, since the tree
+has structure without it. **What stays a leaf**: an anchor, a line anchor as `(?m:^)`, a word
+boundary with its `u` spelled, `\G`, a backreference with its flags spelled on it, a raw byte
+escape. **What cannot be a leaf** — an atomic group, a lookbehind — because a leaf needs source
+text and the intermediate form has none: a regex holding either explodes as one leaf, whole,
+until the printer exists. So the explode always succeeds, and is exactly as structured as the
+vocabulary allows.
+
+**The flags are absorbed**, not carried: the parser has already made a case-insensitive
+`a` into `[Aa]` and a dot under `s` into every character, so the tree that comes out has no
+flags and means what the regex meant. The cost is text: `(?i)[a-z]+` comes back as the run
+`[A-Za-z\x{130}-\x{131}\x{17F}\x{212A}]` — the set it was, Kelvin sign and all — and the
+oracle is what makes that an acceptable trade.
+
+**The oracle holds, twice.** `ExplodeTest` (regex module): twenty-five regexes chosen to cover
+every construct, under flags and in raw form, each explode compiling to the identical plan.
+`PatternExplodeTest` (engine): **every regex in the fixture corpus** — 298 of them, template
+matches under their template's encoding, `pattern` leaves, `matches` conditions and regex
+replaces — exploded, compiled back through `PatternCompiler`, and equal in plan, group count
+and every named group's number. The comparison is of instructions and sets; a character class's
+label in the listing (the text it was written as) is set aside, since rewriting that text is
+the one thing the explode does on purpose.
+
+**The audit found two holes in the leaves**, both pinned: a rendered set beginning with `:`
+read as a POSIX class opener, so `:` and `&` are escaped in a rendering; and the backreference
+leaf spelled `u` unconditionally, which RAW refuses — `u` only decides how a fold compares, so
+it is spelled only with `i`, and a raw regex with a backreference now explodes and compiles.
+
+**Two changes in the library it took**, both semantic no-ops. `Normalise` now reads a repeat of
+exactly once as its body — `a{1}` is `a`, and a composed run of one character is that
+character's class — which is what lets a bare class explode as a run of one and compile to the
+same instruction; the module's own explain pins did not move. And `Lowering`'s literal now
+encodes through the pattern's byte form rather than UTF-8, so a `tag("é")` under RAW is the one
+byte the parser makes of `é` in a regex — a hole in §6 item 2, found by writing the raw-form
+oracle.
+
 ## 3b. Framing: a template's match is a sequence of parts
 
 A binary parse is a sequence: fixed-width fields, one of which says how long the next thing
@@ -302,7 +352,11 @@ slices of the span, as every regex match does since design 37 phase 3.
    with an `Encoding`, and the lowering carrying a `ByteForm` it uses where it used the UTF-8
    one; the old overloads delegate as UTF-8. Additive, and pinned: a varint composition in raw
    form matches the bytes an anchored UTF-8 compile of the same tree refuses under D38.
-3. Nothing else. No instruction, no tier change, no parser in the backtracker; the byte-strict
+3. **`Matchers.explode`** (phase 1a, 2026-09-16; ruled D53): the
+   parser's intermediate form as a composition, for the UI's import. One public method and one
+   internal class, reading nothing the module did not already have; the alternative was the
+   engine reading `internal`.
+4. Nothing else. No instruction, no tier change, no parser in the backtracker; the byte-strict
    ruling (D38) stands. A pattern that works today takes the same tier and runs the same
    instructions, and the module's own test corpus proves it on the first build.
 
@@ -448,7 +502,7 @@ its first ledger point.
    any code. No code.
 1a. **The explode and its oracle.** The mapping from the intermediate form to the tree, and
    the test that every fixture regex's explode has the plan of the regex itself. The printer
-   follows when the UI needs it.
+   follows when the UI needs it. Done 2026-09-16 (§3a's record); the printer still follows.
 2. **The library's two combinators**, in the regex module with their tests and the
    identical-plan pins extended. The engine does not change.
 3. **The `pattern` surface, the match sequence and the binary casts**: compilation to a

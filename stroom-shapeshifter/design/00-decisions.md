@@ -1437,3 +1437,27 @@ for well-formed programs and the pins say so.
 take and seek by a length already read — lives in the template's match sequence, run by the
 level with no backtracking across parts, because a length decides where a record ends and
 is not matching.
+
+---
+
+## D53 — The regex library's third addition: a regex explodes into the composition it is
+
+*Ruled by the owner, 2026-09-16, closing design 38 §6's budget.* `Matchers.explode(regex,
+flags)` is accepted as the regex library's third and last addition under design 38 — after
+the two lookaround combinators and the encoding on the composition compile path (§6). It
+returns the `Matcher` composition a regex is, and the engine maps that onto the pattern tree
+node for node.
+
+**Why:** the explode reads the parser's intermediate form, and that form is `internal` —
+"none of it API". The choice was one public method on the composition library reading its
+own parser, or the engine reading the internal package against its contract, or a broader
+read-only seam onto the parsed form. The first is the smallest, and a regex as a composition
+is a composition library's own round trip. §7's warning — that growth beyond the budget means
+the coverage table was wrong — does not apply: the vocabulary did not change, the direction
+of the mapping did.
+
+**Consequences:** the library's budget is closed at three. The printer (§3a) stays outside
+the module, beside the UI's model, when the UI needs it; until then an atomic group or a
+lookbehind explodes as one leaf, whole. Two semantic no-ops went in alongside — a repeat of
+exactly once reads as its body, and a composed literal encodes through the pattern's byte
+form — the second a fix to the encoding path, not growth.

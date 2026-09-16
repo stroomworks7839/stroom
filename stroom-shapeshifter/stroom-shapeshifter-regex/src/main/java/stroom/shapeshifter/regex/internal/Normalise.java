@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.regex.internal;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -69,8 +68,11 @@ public final class Normalise {
             }
             case Hir.Group group -> new Hir.Group(
                     normalise(group.body(), form), group.index(), group.name());
-            case Hir.Repeat repeat -> new Hir.Repeat(
-                    normalise(repeat.body(), form), repeat.min(), repeat.max(), repeat.greedy());
+            // Exactly once is the body itself: a{1} is a, and a composed run of one character is
+            // the character's class — so a composition and its regex meet at one plan (design 38).
+            case Hir.Repeat repeat -> repeat.min() == 1 && repeat.max() == 1
+                    ? normalise(repeat.body(), form)
+                    : new Hir.Repeat(normalise(repeat.body(), form), repeat.min(), repeat.max(), repeat.greedy());
             case Hir.Look look -> new Hir.Look(
                     normalise(look.body(), form), look.behind(), look.negated());
             case Hir.Atomic atomic -> new Hir.Atomic(normalise(atomic.body(), form));
