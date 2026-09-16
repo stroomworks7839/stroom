@@ -103,7 +103,7 @@ class EveryVariantTest {
 
         for (final Class<?> sum : List.of(MatchExpression.class, MatchStep.class, StepRef.class,
                 Predicate.class, CaptureSource.class, Condition.class, OutputNode.class,
-                RefPart.class)) {
+                RefPart.class, PatternNode.class, MatchExpression.MatchPart.class, MatchExpression.Length.class)) {
             final List<Class<?>> missing = variants(sum).stream()
                     .filter(variant -> !found.contains(variant))
                     .toList();
@@ -153,7 +153,31 @@ class EveryVariantTest {
                 new MatchExpression.Named(),
                 new MatchExpression.Avro("{\"type\":\"record\"}"),
                 new MatchExpression.Parquet(List.of("city", "population")),
-                new MatchExpression.Protobuf("/tmp/schema.desc", "example.Event"))) {
+                new MatchExpression.Protobuf("/tmp/schema.desc", "example.Event"),
+                // The pattern tree, every node once (design 38)
+                new MatchExpression.Pattern(new PatternNode.Sequence(List.of(
+                        new PatternNode.Labelled(new PatternNode.Tag("x"), "t", null),
+                        new PatternNode.TakeWhile("[a-z]", 1, PatternNode.Repeat.UNBOUNDED),
+                        new PatternNode.TakeUntil(",", false),
+                        new PatternNode.TakeUntil(" end", true),
+                        new PatternNode.Labelled(new PatternNode.Take(4), "n", BinaryCast.UINT32BE),
+                        new PatternNode.Take(1),
+                        new PatternNode.Regex("(\\d+)", new RegexFlags(true, false)),
+                        new PatternNode.Ref("IP_ADDRESS"),
+                        new PatternNode.Choice(List.of(new PatternNode.Tag("a"), new PatternNode.Tag("b"))),
+                        new PatternNode.Optional(new PatternNode.Tag("?")),
+                        new PatternNode.Repeat(new PatternNode.Tag("r"), 1, 3, false),
+                        new PatternNode.Peek(new PatternNode.Tag("p")),
+                        new PatternNode.Not(new PatternNode.Tag("q")),
+                        new PatternNode.Labelled(new PatternNode.Sequence(List.of()), "here", BinaryCast.POSITION)))),
+                // The match sequence, every part and every length once
+                new MatchExpression.Parts(List.of(
+                        new MatchExpression.MatchPart.Pattern(
+                                new PatternNode.Labelled(new PatternNode.Take(2), "len", BinaryCast.UINT16LE)),
+                        new MatchExpression.MatchPart.Take(new MatchExpression.Length.Label("len"), "body"),
+                        new MatchExpression.MatchPart.Take(new MatchExpression.Length.Literal(4), null),
+                        new MatchExpression.MatchPart.Seek(new MatchExpression.Length.Var("skip"), false),
+                        new MatchExpression.MatchPart.Seek(new MatchExpression.Length.Literal(8), true))))) {
             templates.add(new Template(ID, "carrier", null, false, null, List.of(), List.of(), match,
                     MatchLimits.unlimited(), List.of(), List.of(), null, false));
         }
@@ -228,6 +252,7 @@ class EveryVariantTest {
                 new MatchLimits(1, 9, Set.of(1, 2, 5)),
                 List.of(
                         new CaptureBinding("byGroup", new CaptureSource.Group(2), Cast.INTEGER),
+                        new CaptureBinding("byLabel", new CaptureSource.Label("t"), null),
                         new CaptureBinding("byStep", new CaptureSource.Step(3), null),
                         new CaptureBinding("byField", new CaptureSource.Field("name"), null),
                         new CaptureBinding("bySelect", new CaptureSource.Select(ref()), null),
@@ -270,6 +295,7 @@ class EveryVariantTest {
                 new OutputNode.Replace(select, "\\s+", " ", true, null),
                 new OutputNode.Replace(select, "+", " ", false, "literalReplace"),
                 new OutputNode.LowerCase(select, null),
+                new OutputNode.Decode(select, Codec.BASE64, "decoded"),
                 new OutputNode.UpperCase(select, null),
                 new OutputNode.NormalizeSpace(select, null),
                 new OutputNode.Trim(select, null),
@@ -381,6 +407,7 @@ class EveryVariantTest {
         return new RefExpression(List.of(
                 new RefPart.Text("["),
                 new RefPart.Capture(null, 0, null),
+                RefPart.Capture.label("t"),
                 new RefPart.Capture("var", 1, new MatchIndex(1, true, false, null, null)),
                 new RefPart.Capture("var", 2, new MatchIndex(0, false, true, null, EngineVars.MATCH_COUNT)),
                 new RefPart.Counter(EngineVars.INDEX, new MatchIndex(0, false, true, null, null)),

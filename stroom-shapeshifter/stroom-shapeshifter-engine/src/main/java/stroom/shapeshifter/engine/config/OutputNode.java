@@ -73,7 +73,7 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
             permits Translate, StringJoin, Call, Replace, LowerCase, UpperCase, NormalizeSpace,
                     Trim, Substring, Tokenize, Number, Add, Subtract, Multiply, Divide, Mod, Round,
                     Floor, Ceiling, Abs, StringLength, SubstringBefore, SubstringAfter, StartsWith,
-                    EndsWith, Contains, FormatNumber, ParseDate, FormatDate {
+                    EndsWith, Contains, FormatNumber, ParseDate, FormatDate, Decode {
 
         List<RefExpression> select();
     }
@@ -313,6 +313,18 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
                    String name) implements Transform, Regexed {
 
         public Replace {
+            select = select == null ? List.of() : List.copyOf(select);
+        }
+    }
+
+    /**
+     * The bytes a value encodes — base64, hex, a compression — decoded (design 38 §3). The
+     * old {@code Decode} step, as a transform: a match captures the encoded bytes and the body
+     * decodes them, usually to apply templates to the result.
+     */
+    record Decode(List<RefExpression> select, Codec codec, String name) implements Transform {
+
+        public Decode {
             select = select == null ? List.of() : List.copyOf(select);
         }
     }

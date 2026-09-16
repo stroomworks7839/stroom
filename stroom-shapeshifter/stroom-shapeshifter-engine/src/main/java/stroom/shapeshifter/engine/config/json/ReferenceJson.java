@@ -59,6 +59,7 @@ final class ReferenceJson {
         final JsonNode body = tagged.body();
         return switch (tagged.name()) {
             case "group" -> new CaptureSource.Group(JsonFields.integer(body, "group"));
+            case "label" -> new CaptureSource.Label(JsonFields.text(body, "label"));
             case "step" -> new CaptureSource.Step(JsonFields.integer(body, "step"));
             case "field" -> new CaptureSource.Field(JsonFields.text(body, "field"));
             case "select" -> new CaptureSource.Select(readRef(body));
@@ -75,6 +76,7 @@ final class ReferenceJson {
     private static JsonNode writeCaptureSource(final CaptureSource source) {
         return switch (source) {
             case CaptureSource.Group group -> JsonFields.wrap("group", JsonFields.NODES.numberNode(group.group()));
+            case CaptureSource.Label label -> JsonFields.wrap("label", JsonFields.NODES.stringNode(label.label()));
             case CaptureSource.Step step -> JsonFields.wrap("step", JsonFields.NODES.numberNode(step.index()));
             case CaptureSource.Field field -> JsonFields.wrap("field", JsonFields.NODES.stringNode(field.name()));
             case CaptureSource.Select select -> JsonFields.wrap("select", writeRef(select.select()));
@@ -164,12 +166,18 @@ final class ReferenceJson {
             // "Store" is the corpus's older spelling of "capture": read for ever, never written,
             // because a thousand of the fixtures' parts still use it and they are the measure.
             case "capture", "Store" -> {
-                JsonFields.checkFields(body, "capture", "var_id", "group", "match_index");
+                JsonFields.checkFields(body, "capture", "var_id", "group", "match_index", "label");
                 final JsonNode matchIndex = JsonFields.optional(body, "match_index");
+                final String label = JsonFields.optionalText(body, "label");
+                if (label != null && (body.has("var_id") || body.has("group") || matchIndex != null)) {
+                    throw new ConfigException("A capture reference by label names nothing else: no var_id, group "
+                                              + "or match_index beside label '" + label + "'");
+                }
                 yield new RefPart.Capture(
                         JsonFields.optionalText(body, "var_id"),
                         JsonFields.integer(body, "group", "capture", 0),
-                        matchIndex == null ? null : readMatchIndex(matchIndex));
+                        matchIndex == null ? null : readMatchIndex(matchIndex),
+                        label);
             }
             case "text" -> new RefPart.Text(JsonFields.text(body, "text"));
             case "get", "size", "contains", "last", "head", "keys", "values", "sum", "avg", "min", "max" -> {
@@ -201,6 +209,10 @@ final class ReferenceJson {
         return switch (part) {
             case RefPart.Capture capture -> {
                 final ObjectNode body = JsonFields.NODES.objectNode();
+                if (capture.label() != null) {
+                    body.put("label", capture.label());
+                    yield JsonFields.wrap("capture", body);
+                }
                 JsonFields.putIfPresent(body, "var_id", capture.varId());
                 body.put("group", capture.group());
                 if (capture.matchIndex() != null) {

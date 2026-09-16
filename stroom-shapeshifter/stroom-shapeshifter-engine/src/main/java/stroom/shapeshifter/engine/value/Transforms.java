@@ -17,6 +17,9 @@
 package stroom.shapeshifter.engine.value;
 
 
+import stroom.shapeshifter.engine.config.Codec;
+import stroom.shapeshifter.engine.match.Codecs;
+
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
@@ -83,6 +86,14 @@ public final class Transforms {
                                             final String replacement) {
         final String input = first(inputs);
         return input == null ? null : TypedValue.of(input.replace(pattern, replacement));
+    }
+
+    /** The bytes a value encodes, decoded by a codec — the old {@code Decode} step as a transform (design 38). */
+    public static TypedValue decode(final List<TypedValue> inputs, final Codec codec) {
+        if (inputs.isEmpty() || inputs.getFirst() == null) {
+            return null;
+        }
+        return TypedValue.utf8(Codecs.decode(inputs.getFirst().asUtf8(), codec));
     }
 
     /** Lower-case, in the root locale so that the result does not depend on where it ran. */

@@ -140,7 +140,7 @@ public final class Compiler {
             refuseCaptures(template);
             final Encoding declared = declaredEncoding(template, transcodeFrom);
             final Encoding matchEncoding = declared == null ? encoding : declared;
-            final CompiledMatch match = matches.compile(template, matchEncoding);
+            final CompiledMatch match = matches.compile(template, matchEncoding, names);
             templates.add(template(template, match,
                     bodies.compile(template.body()),
                     declared,

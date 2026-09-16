@@ -19,6 +19,7 @@ package stroom.shapeshifter.engine.exec;
 import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.engine.config.BinaryCast;
 import stroom.shapeshifter.engine.config.Cast;
 import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.Dispatch;
@@ -677,6 +678,10 @@ final class Level {
                     effective(compiledTemplate), source);
             case final CompiledMatch.Regex regex ->
                     regexMatch(regex, data, from, to, atCursor, effective(compiledTemplate), source);
+            case final CompiledMatch.Pattern pattern ->
+                    patternMatch(pattern, data, from, to, atCursor, effective(compiledTemplate), source);
+            case final CompiledMatch.Parts parts ->
+                    partsMatch(parts, data, from, to, effective(compiledTemplate), source);
             case final CompiledMatch.Progressive progressive -> Steps.match(
                     progressive.steps(), data, from, to);
             case final CompiledMatch.All ignored -> new MatchResult(
@@ -723,6 +728,96 @@ final class Level {
             end = matcher.end(regex.advance());
         }
         return new MatchResult(groups, end - from, matcher.start() - from);
+    }
+
+    /**
+     * A pattern tree's match is the regex's (design 38 §5); what it adds is the casts on its
+     * labelled groups, applied once to the groups the match bound. A cast that does not read —
+     * the wrong width, a varint that never ends — leaves the group absent.
+     */
+    private static MatchResult patternMatch(final CompiledMatch.Pattern pattern,
+                                            final byte[] data,
+                                            final int from,
+                                            final int to,
+                                            final boolean atCursor,
+                                            final Encoding encoding,
+                                            final ByteSource source) {
+        final MatchResult match = regexMatch(pattern.regex(), data, from, to, atCursor, encoding, source);
+        if (match == null || !pattern.anyCast()) {
+            return match;
+        }
+        final ByteMatcher matcher = pattern.regex().matcher();
+        final TypedValue[] groups = match.groups();
+        final int start = matcher.start();
+        for (int i = 1; i < groups.length; i++) {
+            final BinaryCast cast = pattern.cast(i);
+            if (cast != null && matcher.matchedGroup(i)) {
+                groups[i] = BinaryCasts.apply(cast, groups[i], matcher.start(i) - start);
+            }
+        }
+        return match;
+    }
+
+    /**
+     * A match sequence (design 38 §3b), run part by part from the cursor: a pattern matches
+     * anchored where the last part ended and contributes its groups; a take consumes a length
+     * of bytes as one group; a seek moves the cursor. A length is a number, a group already
+     * bound read as an integer, or a variable. Fewer bytes than a take or a seek asks for fails
+     * the match, which is what a truncated record should do. Nothing backtracks across parts.
+     */
+    private MatchResult partsMatch(final CompiledMatch.Parts parts,
+                                   final byte[] data,
+                                   final int from,
+                                   final int to,
+                                   final Encoding encoding,
+                                   final ByteSource source) {
+        final TypedValue[] groups = new TypedValue[parts.groupCount() + 1];
+        int cursor = from;
+        for (final CompiledMatch.CompiledPart part : parts.parts()) {
+            switch (part) {
+                case final CompiledMatch.CompiledPart.Pattern pattern -> {
+                    final MatchResult one = patternMatch(pattern.pattern(), data, cursor, to, true, encoding, source);
+                    if (one == null) {
+                        return null;
+                    }
+                    final TypedValue[] own = one.groups();
+                    System.arraycopy(own, 1, groups, pattern.groupOffset() + 1, own.length - 1);
+                    cursor += one.advance();
+                }
+                case final CompiledMatch.CompiledPart.Take take -> {
+                    final int length = length(take.length(), groups);
+                    if (length < 0 || cursor + length > to) {
+                        return null;
+                    }
+                    groups[take.group()] = source.slice(cursor, cursor + length, encoding);
+                    cursor += length;
+                }
+                case final CompiledMatch.CompiledPart.Seek seek -> {
+                    final int length = length(seek.length(), groups);
+                    final int target = seek.absolute() ? from + length : cursor + length;
+                    if (length < 0 || target < cursor || target > to) {
+                        return null;
+                    }
+                    cursor = target;
+                }
+            }
+        }
+        groups[0] = source.slice(from, cursor, encoding);
+        return new MatchResult(groups, cursor - from, 0);
+    }
+
+    /** A length at run time, or -1 when what it names is absent or not a number. */
+    private int length(final CompiledMatch.CompiledLength length, final TypedValue[] groups) {
+        final TypedValue value = switch (length) {
+            case final CompiledMatch.CompiledLength.Literal literal -> new TypedValue.Integer(literal.count());
+            case final CompiledMatch.CompiledLength.Group group -> groups[group.group()];
+            case final CompiledMatch.CompiledLength.Var var -> vars.get(var.name());
+        };
+        if (value == null) {
+            return -1;
+        }
+        final Long count = value.asInteger();
+        return count == null || count < 0 || count > Integer.MAX_VALUE ? -1 : count.intValue();
     }
 
     private void bindCaptures(final CompiledTemplate compiledTemplate,

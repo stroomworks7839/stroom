@@ -36,6 +36,8 @@ final class CaptureCompiler {
             final CompiledCapture.Source source = switch (capture.select()) {
                 case final CaptureBinding.CaptureSource.Group group ->
                         new CompiledCapture.Source.Group(group.group());
+                case final CaptureBinding.CaptureSource.Label label ->
+                        new CompiledCapture.Source.Group(names.group(label.label()));
                 case final CaptureBinding.CaptureSource.Step step ->
                         new CompiledCapture.Source.Group(step.index() + 1);
                 case final CaptureBinding.CaptureSource.Select select ->

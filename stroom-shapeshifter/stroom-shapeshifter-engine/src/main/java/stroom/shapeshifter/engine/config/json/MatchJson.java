@@ -61,7 +61,7 @@ final class MatchJson {
         return node;
     }
 
-    private static RegexFlags readFlags(final JsonNode node) {
+    static RegexFlags readFlags(final JsonNode node) {
         if (node == null || node.isNull()) {
             return RegexFlags.none();
         }
@@ -70,7 +70,7 @@ final class MatchJson {
                 node.path("case_insensitive").asBoolean(false), node.path("dot_all").asBoolean(false));
     }
 
-    private static ObjectNode writeFlags(final RegexFlags flags) {
+    static ObjectNode writeFlags(final RegexFlags flags) {
         final ObjectNode node = JsonFields.NODES.objectNode();
         node.put("case_insensitive", flags.caseInsensitive());
         node.put("dot_all", flags.dotAll());
@@ -95,6 +95,8 @@ final class MatchJson {
                         JsonFields.optionalText(body, "container_start"),
                         JsonFields.optionalText(body, "container_end"));
             }
+            case "pattern" -> new MatchExpression.Pattern(PatternJson.readNode(body));
+            case "parts" -> new MatchExpression.Parts(JsonFields.list(body, "parts", PatternJson::readPart));
             case "progressive" -> new MatchExpression.Progressive(
                     JsonFields.list(body, "progressive", MatchJson::readStep));
             case "source" -> {
@@ -144,6 +146,9 @@ final class MatchJson {
                 JsonFields.putIfPresent(body, "container_end", delimiter.containerEnd());
                 yield JsonFields.wrap("delimiter", body);
             }
+            case MatchExpression.Pattern pattern -> JsonFields.wrap("pattern", PatternJson.writeNode(pattern.node()));
+            case MatchExpression.Parts parts ->
+                    JsonFields.wrap("parts", JsonFields.array(parts.parts(), PatternJson::writePart));
             case MatchExpression.Progressive progressive ->
                     JsonFields.wrap("progressive", JsonFields.array(progressive.steps(), MatchJson::writeStep));
             case MatchExpression.Source ignored -> JsonFields.NODES.stringNode("source");

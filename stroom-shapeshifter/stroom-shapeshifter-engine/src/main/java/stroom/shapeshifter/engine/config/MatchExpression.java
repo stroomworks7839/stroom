@@ -49,6 +49,63 @@ public sealed interface MatchExpression {
         }
     }
 
+    /** A composition tree (design 38 §2), lowered onto the regex engine at compile time. */
+    record Pattern(PatternNode node) implements MatchExpression {
+
+    }
+
+    /**
+     * A match as a sequence of parts (design 38 §3b): patterns, and the two framing verbs a
+     * binary format needs — take this many bytes, seek to here — with the amounts coming from
+     * labels already matched or from variables. Run in order by the level; nothing backtracks
+     * across parts. A one-part sequence is a {@link Pattern}.
+     */
+    record Parts(List<MatchPart> parts) implements MatchExpression {
+
+        public Parts {
+            parts = List.copyOf(parts);
+            if (parts.isEmpty()) {
+                throw new ConfigException("A match sequence needs at least one part");
+            }
+        }
+    }
+
+    /** One part of a match sequence. */
+    sealed interface MatchPart {
+
+        record Pattern(PatternNode node) implements MatchPart {
+
+        }
+
+        /** Consume {@code length} bytes as one group, reachable by {@code label} when it has one. */
+        record Take(Length length, String label) implements MatchPart {
+
+        }
+
+        /** Move the cursor by {@code length} bytes — or, when {@code absolute}, to {@code length} from the start. */
+        record Seek(Length length, boolean absolute) implements MatchPart {
+
+        }
+    }
+
+    /** Where a take's or a seek's amount comes from. */
+    sealed interface Length {
+
+        record Literal(int count) implements Length {
+
+        }
+
+        /** A label matched by an earlier part, read as an integer. */
+        record Label(String label) implements Length {
+
+        }
+
+        /** A variable, read as an integer. */
+        record Var(String name) implements Length {
+
+        }
+    }
+
     /**
      * A separator, with optional escaping and quoting — the CSV case, generalised.
      *

@@ -36,6 +36,7 @@ import stroom.shapeshifter.regex.PatternCompileException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -77,7 +78,9 @@ final class MatchCompiler {
      *                      settles the encoding before anything compiles
      */
     CompiledMatch compile(final Template template,
-                          final Encoding matchEncoding) {
+                          final Encoding matchEncoding,
+                          final Interner names) {
+        names.labels(null);
         if (template.guard() != null) {
             collect(template.guard(), template);
         }
@@ -92,7 +95,7 @@ final class MatchCompiler {
         } else {
             progressiveSteps = null;
         }
-        return compileMatch(template, matchEncoding, progressiveSteps);
+        return compileMatch(template, matchEncoding, progressiveSteps, names);
     }
 
     /**
@@ -219,8 +222,16 @@ final class MatchCompiler {
 
     private CompiledMatch compileMatch(final Template template,
                                        final Encoding matchEncoding,
-                                       final CompiledMatch.Progressive progressiveSteps) {
+                                       final CompiledMatch.Progressive progressiveSteps,
+                                       final Interner names) {
         return switch (template.match()) {
+            case final MatchExpression.Pattern pattern -> {
+                final PatternCompiler.Compiled compiled = PatternCompiler.compile(pattern.node(), matchEncoding,
+                        template.name());
+                names.labels(compiled.labels());
+                yield new CompiledMatch.Pattern(compiled.pattern(), compiled.casts());
+            }
+            case final MatchExpression.Parts parts -> compileParts(template, parts, matchEncoding, names);
             case final MatchExpression.Regex regex -> {
                 final BytePattern pattern;
                 try {
@@ -252,6 +263,74 @@ final class MatchCompiler {
                     throw ConfigException.notYet(template.name(), "Parquet decoding");
             case final MatchExpression.Protobuf ignored ->
                     throw ConfigException.notYet(template.name(), "Protobuf decoding");
+        };
+    }
+
+    /**
+     * A match sequence (design 38 §3b): each pattern part compiled as a pattern, its labels
+     * renumbered after the parts before it; a take is one group of its own; a length names a
+     * label matched by an earlier part, a variable, or a number.
+     */
+    private CompiledMatch compileParts(final Template template,
+                                       final MatchExpression.Parts parts,
+                                       final Encoding matchEncoding,
+                                       final Interner names) {
+        final Map<String, Integer> labels = new LinkedHashMap<>();
+        final List<CompiledMatch.CompiledPart> compiled = new ArrayList<>(parts.parts().size());
+        int groups = 0;
+        for (final MatchExpression.MatchPart part : parts.parts()) {
+            switch (part) {
+                case final MatchExpression.MatchPart.Pattern pattern -> {
+                    final PatternCompiler.Compiled one = PatternCompiler.compile(pattern.node(), matchEncoding,
+                            template.name());
+                    final int offset = groups;
+                    for (final Map.Entry<String, Integer> label : one.labels().entrySet()) {
+                        if (labels.put(label.getKey(), offset + label.getValue()) != null) {
+                            throw new ConfigException("Template '" + template.name() + "' uses label '"
+                                                      + label.getKey() + "' in two parts of its match");
+                        }
+                    }
+                    groups += one.pattern().groupCount();
+                    compiled.add(new CompiledMatch.CompiledPart.Pattern(
+                            new CompiledMatch.Pattern(one.pattern(), one.casts()), offset));
+                }
+                case final MatchExpression.MatchPart.Take take -> {
+                    final CompiledMatch.CompiledLength length = length(take.length(), labels, names, template);
+                    groups++;
+                    if (take.label() != null && labels.put(take.label(), groups) != null) {
+                        throw new ConfigException("Template '" + template.name() + "' uses label '"
+                                                  + take.label() + "' in two parts of its match");
+                    }
+                    compiled.add(new CompiledMatch.CompiledPart.Take(length, groups));
+                }
+                case final MatchExpression.MatchPart.Seek seek -> compiled.add(new CompiledMatch.CompiledPart.Seek(
+                        length(seek.length(), labels, names, template), seek.absolute()));
+            }
+        }
+        names.labels(labels);
+        return new CompiledMatch.Parts(compiled.toArray(new CompiledMatch.CompiledPart[0]), groups);
+    }
+
+    private static CompiledMatch.CompiledLength length(final MatchExpression.Length length,
+                                                       final Map<String, Integer> labels,
+                                                       final Interner names,
+                                                       final Template template) {
+        return switch (length) {
+            case final MatchExpression.Length.Literal literal -> {
+                if (literal.count() < 0) {
+                    throw new ConfigException("Template '" + template.name() + "' has a negative length");
+                }
+                yield new CompiledMatch.CompiledLength.Literal(literal.count());
+            }
+            case final MatchExpression.Length.Label label -> {
+                final Integer group = labels.get(label.label());
+                if (group == null) {
+                    throw new ConfigException("Template '" + template.name() + "' takes a length from label '"
+                                              + label.label() + "', which no earlier part of its match binds");
+                }
+                yield new CompiledMatch.CompiledLength.Group(group);
+            }
+            case final MatchExpression.Length.Var var -> new CompiledMatch.CompiledLength.Var(names.intern(var.name()));
         };
     }
 

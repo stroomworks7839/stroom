@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.graph;
 
+import stroom.shapeshifter.engine.config.BinaryCast;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
@@ -29,6 +30,87 @@ import stroom.shapeshifter.regex.LeadingAnchor;
  * not be deciding anything a compiler could have decided once.
  */
 public sealed interface CompiledMatch {
+
+    /**
+     * A pattern tree lowered to one plan (design 38): the regex, and per group the binary cast
+     * a labelled node carried — null where a group is plain bytes. The match is the regex arm's;
+     * the casts are applied to the groups it binds.
+     */
+    final class Pattern implements CompiledMatch {
+
+        private final Regex regex;
+        private final BinaryCast[] casts;
+        private final boolean anyCast;
+
+        public Pattern(final BytePattern pattern, final BinaryCast[] casts) {
+            this.regex = new Regex(pattern, 0);
+            this.casts = casts;
+            boolean any = false;
+            for (final BinaryCast cast : casts) {
+                any |= cast != null;
+            }
+            this.anyCast = any;
+        }
+
+        public Regex regex() {
+            return regex;
+        }
+
+        /** The cast of a group, or null. */
+        public BinaryCast cast(final int group) {
+            return casts[group];
+        }
+
+        /** Whether any group carries a cast — the common case is none, and then nothing is walked. */
+        public boolean anyCast() {
+            return anyCast;
+        }
+    }
+
+    /**
+     * A match sequence (design 38 §3b): patterns and the two framing verbs, run in order by the
+     * level with no backtracking across parts. Groups number across the parts in order — a
+     * pattern's after its own group 0 dropped, a take's as one — after the whole sequence's
+     * group 0.
+     */
+    record Parts(CompiledPart[] parts, int groupCount) implements CompiledMatch {
+
+    }
+
+    /** One part of a match sequence. */
+    sealed interface CompiledPart {
+
+        /** A pattern part; its groups 1.. land at {@code groupOffset + 1}.. in the sequence's groups. */
+        record Pattern(CompiledMatch.Pattern pattern, int groupOffset) implements CompiledPart {
+
+        }
+
+        /** Consume a length of bytes as the sequence's group {@code group}. */
+        record Take(CompiledLength length, int group) implements CompiledPart {
+
+        }
+
+        record Seek(CompiledLength length, boolean absolute) implements CompiledPart {
+
+        }
+    }
+
+    /** Where a take's or a seek's amount comes from at run time. */
+    sealed interface CompiledLength {
+
+        record Literal(int count) implements CompiledLength {
+
+        }
+
+        /** A sequence group matched by an earlier part, read as an integer. */
+        record Group(int group) implements CompiledLength {
+
+        }
+
+        record Var(VarName name) implements CompiledLength {
+
+        }
+    }
 
     /**
      * A compiled pattern, holding its own matcher.

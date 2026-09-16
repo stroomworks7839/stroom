@@ -215,6 +215,8 @@ final class ReferenceCheck {
                 }
                 case CaptureBinding.CaptureSource.Group ignored -> {
                 }
+                case CaptureBinding.CaptureSource.Label ignored -> {
+                }
                 case CaptureBinding.CaptureSource.Step ignored -> {
                 }
                 case CaptureBinding.CaptureSource.Field ignored -> {
@@ -568,9 +570,11 @@ final class ReferenceCheck {
         for (final RefExpression.RefPart part : ref.parts()) {
             if (part instanceof RefExpression.RefPart.Capture capture
                 && (capture.varId() == null || ownCaptures.contains(capture.varId()))) {
-                final String read = capture.varId() == null
-                        ? "capture group " + capture.group()
-                        : "capture '" + capture.varId() + "'";
+                final String read = capture.varId() != null
+                        ? "capture '" + capture.varId() + "'"
+                        : capture.label() != null
+                                ? "label '" + capture.label() + "'"
+                                : "capture group " + capture.group();
                 if (inDocumentTemplate && !inApplySelect) {
                     throw new ConfigException("Template '" + templateName + "' reads " + read
                             + " in its body, but the document template has no match: its body"

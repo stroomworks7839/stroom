@@ -61,7 +61,9 @@ final class RefCompiler {
             case final RefPart.Text text -> new CompiledRef.Bytes(TypedValue.of(text.value()));
             case final RefPart.Capture capture -> {
                 if (capture.varId() == null) {
-                    yield new CompiledRef.LocalGroup(capture.group());
+                    yield new CompiledRef.LocalGroup(capture.label() != null
+                            ? names.group(capture.label())
+                            : capture.group());
                 }
                 // A name holds one value, so there is no group to select within it. The group a
                 // reference names is spent when the configuration is compiled — the DS3 migration

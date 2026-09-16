@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.config.Cast;
+import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.config.Dispatch;
@@ -33,6 +34,7 @@ import stroom.shapeshifter.engine.graph.CompiledRef;
 import stroom.shapeshifter.engine.graph.CompiledTemplate;
 import stroom.shapeshifter.engine.graph.Replacer;
 import stroom.shapeshifter.engine.graph.VarName;
+import stroom.shapeshifter.engine.match.Codecs;
 import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.Dates;
@@ -197,6 +199,14 @@ final class BodyCompiler {
                 case final OutputNode.LowerCase value ->
                         transform(single("lower-case", value.select()), value.name(),
                                 Transforms::lowerCase);
+                case final OutputNode.Decode value -> {
+                    final Codec codec = value.codec();
+                    if (!Codecs.isSupported(codec)) {
+                        throw new ConfigException("decode: codec " + codec + " is not supported");
+                    }
+                    yield transform(single("decode", value.select()), value.name(),
+                            inputs -> Transforms.decode(inputs, codec));
+                }
                 case final OutputNode.UpperCase value ->
                         transform(single("upper-case", value.select()), value.name(),
                                 Transforms::upperCase);

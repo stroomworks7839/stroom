@@ -39,6 +39,11 @@ public record CaptureBinding(String name, CaptureSource select, Cast as) {
 
         }
 
+        /** A labelled group of the current match, by name (design 38 §4). */
+        record Label(String label) implements CaptureSource {
+
+        }
+
         /** The output of a progressive match step, by its 0-based position. */
         record Step(int index) implements CaptureSource {
 

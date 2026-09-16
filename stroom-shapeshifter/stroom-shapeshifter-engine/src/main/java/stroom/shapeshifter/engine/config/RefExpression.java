@@ -75,8 +75,17 @@ public record RefExpression(List<RefPart> parts) {
          * @param matchIndex which of a multi-valued variable's entries to read, or null for the
          *                   most recent
          */
-        record Capture(String varId, int group, MatchIndex matchIndex) implements RefPart {
+        record Capture(String varId, int group, MatchIndex matchIndex, String label) implements RefPart {
 
+            /** A group by number, or a variable. */
+            public Capture(final String varId, final int group, final MatchIndex matchIndex) {
+                this(varId, group, matchIndex, null);
+            }
+
+            /** A labelled group of the current match, by name (design 38 §4). */
+            public static Capture label(final String label) {
+                return new Capture(null, 0, null, label);
+            }
         }
 
         /** Literal text. */

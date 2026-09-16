@@ -17,6 +17,7 @@
 package stroom.shapeshifter.engine.config.json;
 
 import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.OutputNode;
 import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
@@ -137,6 +138,12 @@ final class OutputJson {
             }
             case "lower-case" -> new OutputNode.LowerCase(
                     selectList(body, "lower-case"), JsonFields.optionalText(body, "name"));
+            case "decode" -> {
+                JsonFields.checkFields(body, "decode", "select", "codec", "name");
+                yield new OutputNode.Decode(JsonFields.list(body.get("select"), "select", ReferenceJson::readRef),
+                        JsonFields.lowercase(Codec.class, JsonFields.text(body, "codec", "decode"), "codec"),
+                        JsonFields.optionalText(body, "name"));
+            }
             case "upper-case" -> new OutputNode.UpperCase(
                     selectList(body, "upper-case"), JsonFields.optionalText(body, "name"));
             case "normalize-space" -> new OutputNode.NormalizeSpace(
@@ -394,6 +401,11 @@ final class OutputJson {
                 body.put("is_regex", value.isRegex());
                 JsonFields.putIfPresent(body, "name", value.name());
                 yield JsonFields.wrap("replace", body);
+            }
+            case OutputNode.Decode value -> {
+                final ObjectNode body = selectAndName(value.select(), value.name());
+                body.put("codec", JsonFields.label(value.codec()));
+                yield JsonFields.wrap("decode", body);
             }
             case OutputNode.LowerCase value -> JsonFields.wrap("lower-case", selectAndName(value.select(),
                     value.name()));

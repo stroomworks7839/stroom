@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.Declaration;
 import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
@@ -46,6 +47,23 @@ final class Interner {
 
     /** What each declared name holds, recorded before any body compiles (design 35 §5). */
     private final Map<String, Declaration.Type> types = new HashMap<>();
+
+    /** The template being compiled's labels, by group (design 38 §4); empty outside a match with labels. */
+    private Map<String, Integer> labels = Map.of();
+
+    void labels(final Map<String, Integer> labels) {
+        this.labels = labels == null ? Map.of() : labels;
+    }
+
+    /** The group a label names in the current template, or a refusal. */
+    int group(final String label) {
+        final Integer group = labels.get(label);
+        if (group == null) {
+            throw new ConfigException("No label '" + label + "' in this template's match; it has "
+                                      + (labels.isEmpty() ? "no labels" : labels.keySet()));
+        }
+        return group;
+    }
 
     /** Record a declaration: its name gets a slot, and its type travels with the table. */
     VarName declare(final Declaration declaration) {
