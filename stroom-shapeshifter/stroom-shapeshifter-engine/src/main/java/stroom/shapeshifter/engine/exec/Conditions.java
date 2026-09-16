@@ -49,25 +49,76 @@ public final class Conditions {
                                    final MatchResult match,
                                    final int matchCount,
                                    final VarRegistry vars) {
-        return switch (condition) {
+        // The five arms hot on some row — a compare is a third to nine tenths of every row's
+        // conditions, then exists, not, and, or — in a dispatcher under the JIT's hot-method
+        // size, so a guard inlines where it is evaluated; the compare's own work is behind a
+        // call for the same reason, and the four arms hot nowhere are behind one call
+        // (design 37 §8, 7c).
+        switch (condition) {
             case final CompiledCondition.Compare value -> {
-                final TypedValue left = operand(value.left(), match, matchCount, vars);
-                final TypedValue right = operand(value.right(), match, matchCount, vars);
-                final Integer order = Comparisons.compare(left, right);
-                if (order == null) {
-                    // Absent, or a cross-kind pair: the comparison cannot be made, and a
-                    // comparison that cannot be made is false — ne included (design/17 §8).
-                    yield false;
-                }
-                yield switch (value.op()) {
-                        case EQ -> order == 0;
-                        case NE -> order != 0;
-                        case LT -> order < 0;
-                        case LE -> order <= 0;
-                        case GT -> order > 0;
-                        case GE -> order >= 0;
-                    };
+                return compare(value, match, matchCount, vars);
             }
+            case final CompiledCondition.Exists value -> {
+                // A value is there or it is not; "empty is absent" already made an empty
+                // scalar null, and an empty collection is a value (design 35 §5).
+                return CompiledRefs.resolveValue(value.select(), match, matchCount, vars) != null;
+            }
+            case final CompiledCondition.Not value -> {
+                return !evaluate(value.condition(), match, matchCount, vars);
+            }
+            // A loop rather than a stream, and it is not only the array: the stream allocated a
+            // pipeline and a capturing lambda on every evaluation of every and/or, which is
+            // half of E46. Both still short-circuit, as allMatch and anyMatch did.
+            case final CompiledCondition.And value -> {
+                for (final CompiledCondition child : value.conditions()) {
+                    if (!evaluate(child, match, matchCount, vars)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            case final CompiledCondition.Or value -> {
+                for (final CompiledCondition child : value.conditions()) {
+                    if (evaluate(child, match, matchCount, vars)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            default -> {
+                return evaluateRare(condition, match, matchCount, vars);
+            }
+        }
+    }
+
+    private static boolean compare(final CompiledCondition.Compare value,
+                                   final MatchResult match,
+                                   final int matchCount,
+                                   final VarRegistry vars) {
+        final TypedValue left = operand(value.left(), match, matchCount, vars);
+        final TypedValue right = operand(value.right(), match, matchCount, vars);
+        final Integer order = Comparisons.compare(left, right);
+        if (order == null) {
+            // Absent, or a cross-kind pair: the comparison cannot be made, and a
+            // comparison that cannot be made is false — ne included (design/17 §8).
+            return false;
+        }
+        return switch (value.op()) {
+            case EQ -> order == 0;
+            case NE -> order != 0;
+            case LT -> order < 0;
+            case LE -> order <= 0;
+            case GT -> order > 0;
+            case GE -> order >= 0;
+        };
+    }
+
+    /** The arms no row is hot on: a pattern, two text tests, the iteration's two positions. */
+    private static boolean evaluateRare(final CompiledCondition condition,
+                                        final MatchResult match,
+                                        final int matchCount,
+                                        final VarRegistry vars) {
+        return switch (condition) {
             // The pattern is the node's own: compiled when the condition was, not found by
             // hashing its text on every evaluation (design 30).
             //
@@ -94,27 +145,6 @@ public final class Conditions {
                     text(value.select(), match, matchCount, vars).contains(value.substring());
             case final CompiledCondition.StartsWith value ->
                     text(value.select(), match, matchCount, vars).startsWith(value.prefix());
-            // A loop rather than a stream, and it is not only the array: the stream allocated a
-            // pipeline and a capturing lambda on every evaluation of every and/or, which is
-            // half of E46. Both still short-circuit, as allMatch and anyMatch did.
-            case final CompiledCondition.And value -> {
-                for (final CompiledCondition child : value.conditions()) {
-                    if (!evaluate(child, match, matchCount, vars)) {
-                        yield false;
-                    }
-                }
-                yield true;
-            }
-            case final CompiledCondition.Or value -> {
-                for (final CompiledCondition child : value.conditions()) {
-                    if (evaluate(child, match, matchCount, vars)) {
-                        yield true;
-                    }
-                }
-                yield false;
-            }
-            case final CompiledCondition.Not value ->
-                    !evaluate(value.condition(), match, matchCount, vars);
             // Set by the iteration (design/16 §4.3). Outside a
             // for-each nothing sets position(), so both read false — E21's hazard, which the
             // compiler now warns about rather than leaving to be discovered.
@@ -127,11 +157,11 @@ public final class Conditions {
                 final Long last = engineNumber(vars, EngineVars.LAST);
                 yield position != null && position.equals(last);
             }
-            case final CompiledCondition.Exists value -> {
-                // A value is there or it is not; "empty is absent" already made an empty
-                // scalar null, and an empty collection is a value (design 35 §5).
-                yield CompiledRefs.resolveValue(value.select(), match, matchCount, vars) != null;
-            }
+            case final CompiledCondition.Compare ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledCondition.Exists ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledCondition.Not ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledCondition.And ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledCondition.Or ignored -> throw new IllegalStateException("hot arm");
         };
     }
 
