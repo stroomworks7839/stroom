@@ -55,8 +55,23 @@ final class BinaryCasts {
         } else {
             return null;
         }
+        // The casts the real formats read — a varint in both signs, a byte, a flag, a double —
+        // in a dispatcher under the JIT's hot-method size, so a cast inlines where a match
+        // binds it; the fixed widths are behind one call (design 38 §8, the census of the
+        // parts path).
         return switch (cast) {
+            case ZIGZAG -> varint(a, from, n, true);
+            case VARINT -> varint(a, from, n, false);
             case UINT8 -> n == 1 ? new TypedValue.Integer(a[from] & 0xFF) : null;
+            case BOOL8 -> n == 1 ? new TypedValue.Bool(a[from] != 0) : null;
+            case FLOAT64LE -> n == 8 ? new TypedValue.Double(Double.longBitsToDouble(le(a, from, 8))) : null;
+            default -> applyRare(cast, a, from, n);
+        };
+    }
+
+    /** The fixed-width casts no corpus format is hot on. */
+    private static TypedValue applyRare(final BinaryCast cast, final byte[] a, final int from, final int n) {
+        return switch (cast) {
             case INT8 -> n == 1 ? new TypedValue.Integer(a[from]) : null;
             case UINT16LE -> n == 2 ? new TypedValue.Integer(le(a, from, 2)) : null;
             case UINT16BE -> n == 2 ? new TypedValue.Integer(be(a, from, 2)) : null;
@@ -70,12 +85,8 @@ final class BinaryCasts {
             case INT64BE -> n == 8 ? new TypedValue.Integer(be(a, from, 8)) : null;
             case FLOAT32LE -> n == 4 ? new TypedValue.Double(Float.intBitsToFloat((int) le(a, from, 4))) : null;
             case FLOAT32BE -> n == 4 ? new TypedValue.Double(Float.intBitsToFloat((int) be(a, from, 4))) : null;
-            case FLOAT64LE -> n == 8 ? new TypedValue.Double(Double.longBitsToDouble(le(a, from, 8))) : null;
             case FLOAT64BE -> n == 8 ? new TypedValue.Double(Double.longBitsToDouble(be(a, from, 8))) : null;
-            case VARINT -> varint(a, from, n, false);
-            case ZIGZAG -> varint(a, from, n, true);
-            case BOOL8 -> n == 1 ? new TypedValue.Bool(a[from] != 0) : null;
-            case POSITION -> throw new IllegalStateException("handled above");
+            case ZIGZAG, VARINT, UINT8, BOOL8, FLOAT64LE, POSITION -> throw new IllegalStateException("hot arm");
         };
     }
 

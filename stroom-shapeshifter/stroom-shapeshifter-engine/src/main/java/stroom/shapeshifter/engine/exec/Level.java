@@ -790,12 +790,12 @@ final class Level {
                     cursor += length;
                 }
                 case final CompiledMatch.CompiledPart.Seek seek -> {
-                    final int length = length(seek.length(), groups);
-                    final int target = seek.absolute() ? from + length : cursor + length;
-                    if (length < 0 || target < cursor || target > to) {
+                    // Behind a call: the loop is a dispatcher, kept under the JIT's hot-method
+                    // size so it inlines into the match (design 38 §8's census of this path).
+                    cursor = seek(seek, groups, cursor, from, to);
+                    if (cursor < 0) {
                         return null;
                     }
-                    cursor = target;
                 }
             }
         }
@@ -803,18 +803,42 @@ final class Level {
         return new MatchResult(groups, cursor - from, 0);
     }
 
-    /** A length at run time, or -1 when what it names is absent or not a number. */
+    /** The cursor after a seek, or -1 when it cannot be made. */
+    private int seek(final CompiledMatch.CompiledPart.Seek seek,
+                     final TypedValue[] groups,
+                     final int cursor,
+                     final int from,
+                     final int to) {
+        final int length = length(seek.length(), groups);
+        final int target = seek.absolute() ? from + length : cursor + length;
+        return length < 0 || target < cursor || target > to ? -1 : target;
+    }
+
+    /**
+     * A length at run time, or -1 when what it names is absent or not a number. A literal is
+     * its number and a cast group is already an integer, so neither boxes; only a variable
+     * takes the general reading.
+     */
     private int length(final CompiledMatch.CompiledLength length, final TypedValue[] groups) {
-        final TypedValue value = switch (length) {
-            case final CompiledMatch.CompiledLength.Literal literal -> new TypedValue.Integer(literal.count());
-            case final CompiledMatch.CompiledLength.Group group -> groups[group.group()];
-            case final CompiledMatch.CompiledLength.Var var -> vars.get(var.name());
-        };
-        if (value == null) {
-            return -1;
+        final long count;
+        switch (length) {
+            case final CompiledMatch.CompiledLength.Literal literal -> count = literal.count();
+            case final CompiledMatch.CompiledLength.Group group -> {
+                if (!(groups[group.group()] instanceof final TypedValue.Integer integer)) {
+                    return -1;
+                }
+                count = integer.value();
+            }
+            case final CompiledMatch.CompiledLength.Var var -> {
+                final TypedValue value = vars.get(var.name());
+                final Long read = value == null ? null : value.asInteger();
+                if (read == null) {
+                    return -1;
+                }
+                count = read;
+            }
         }
-        final Long count = value.asInteger();
-        return count == null || count < 0 || count > Integer.MAX_VALUE ? -1 : count.intValue();
+        return count < 0 || count > Integer.MAX_VALUE ? -1 : (int) count;
     }
 
     private void bindCaptures(final CompiledTemplate compiledTemplate,
