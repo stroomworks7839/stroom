@@ -167,8 +167,11 @@ final class Body {
 
     /**
      * Run a body against a match: the interpreter's entry, which the level and the run both
-     * call. One arm per instruction, so the method is as long as the instruction set (design 27
-     * §2.2).
+     * call. The ten instructions hot on some row — the census's per-row arm counts (design 37
+     * §8, 7d) — dispatch here, in a loop small enough for what it calls to inline into it; the
+     * fourteen hot nowhere are behind one call, so they stop counting against its budget. A
+     * choose, an element and an attribute are hot only on one row each and their arms are
+     * calls, which keeps the dispatcher under the hot-method size.
      */
     void body(final CompiledOp[] ops,
               final MatchResult match,
@@ -192,177 +195,222 @@ final class Body {
                                 inputBase, ignoreErrors, depth);
                     }
                 }
-                case final CompiledOp.Choose value -> {
-                    boolean taken = false;
-                    for (final CompiledOp.When branch : value.when()) {
-                        if (test(branch.test(), match, matchCount)) {
-                            body(branch.body(), match, matchCount, content, out,
-                                    inputBase, ignoreErrors, depth);
-                            taken = true;
-                            break;
-                        }
-                    }
-                    if (!taken) {
-                        body(value.otherwise(), match, matchCount, content, out,
-                                inputBase, ignoreErrors, depth);
-                    }
-                }
-                case final CompiledOp.Switch value -> {
-                    final String selected = textOf(value.select(), match, matchCount);
-                    final CompiledOp[] taken = value.cases().get(selected);
-                    body(taken == null ? value.defaultBody() : taken, match, matchCount, content,
-                            out, inputBase, ignoreErrors, depth);
-                }
+                case final CompiledOp.Choose value ->
+                        choose(value, match, matchCount, content, out, inputBase, ignoreErrors, depth);
                 case final CompiledOp.Variable value ->
                         variable(value, match, matchCount, content, inputBase, ignoreErrors, depth);
-                case final CompiledOp.Element value -> {
-                    structure(() -> out.sink().startElement(value.name(), value.namespace(),
-                            value.omitIfEmpty()),
-                            "element", value.name());
-                    body(value.body(), match, matchCount, content, out,
-                            inputBase, ignoreErrors, depth);
-                    structure(out.sink()::endElement, "element", value.name());
-                }
-                case final CompiledOp.Attribute value -> {
-                    structure(() -> out.sink().startAttribute(value.name(), value.omitIfEmpty()),
-                            "attribute", value.name());
-                    body(value.body(), match, matchCount, content, out,
-                            inputBase, ignoreErrors, depth);
-                    structure(out.sink()::endAttribute, "attribute", value.name());
-                }
-                case final CompiledOp.Namespace value ->
-                        structure(() -> out.sink().namespace(value.prefix(), value.uri()),
-                                "namespace", value.prefix());
-                case final CompiledOp.CallTemplate value ->
-                        callTemplate(value, match, matchCount, content, out, inputBase,
-                                ignoreErrors, depth);
+                case final CompiledOp.Element value ->
+                        element(value, match, matchCount, content, out, inputBase, ignoreErrors, depth);
+                case final CompiledOp.Attribute value ->
+                        attribute(value, match, matchCount, content, out, inputBase, ignoreErrors, depth);
                 case final CompiledOp.Transform value ->
                         transform(value, match, matchCount, out);
-                case final CompiledOp.Replace value -> {
-                    final List<TypedValue> inputs = inputs(value.select(), match, matchCount);
-                    emit(inputs.isEmpty()
-                                    ? null
-                                    : TypedValue.of(value.replacer()
-                                            .replace(inputs.getFirst().asString())),
-                            value.name(), matchCount, out);
-                }
-                case final CompiledOp.CallFunction value ->
-                        callFunction(value, match, matchCount, out, inputBase);
-                case final CompiledOp.Append value -> {
-                    final TypedValue appended = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars);
-                    if (appended != null) {
-                        final TypedValue.List list = listTarget(value.target(), match, matchCount, "append");
-                        if (list != null) {
-                            guardAccumulation(value.target());
-                            final TypedValue stored = TypedValue.Collection.stored(appended);
-                            list.append(stored);
-                            vars.grew(1 + TypedValue.Collection.elementsOf(stored));
-                            guardLive(value.target());
-                        }
-                    }
-                }
-                case final CompiledOp.Insert value -> {
-                    final TypedValue inserted = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars);
-                    final TypedValue.List list = listTarget(value.target(), match, matchCount, "insert");
-                    if (list != null && inserted != null) {
-                        final int position = position(value.position(), match, matchCount, "insert");
-                        if (position < 1 || position > list.size() + 1) {
-                            fatal("insert at position " + position + " of a list of " + list.size()
-                                  + ": positions run from 1 to the size plus one");
-                        }
-                        final TypedValue stored = TypedValue.Collection.stored(inserted);
-                        list.insert(position - 1, stored);
+                case final CompiledOp.Put value -> put(value, match, matchCount);
+                default -> bodyRare(op, match, matchCount, content, out, inputBase, ignoreErrors, depth);
+            }
+        }
+    }
+
+    private void choose(final CompiledOp.Choose value,
+                        final MatchResult match,
+                        final int matchCount,
+                        final TypedValue content,
+                        final Output out,
+                        final long inputBase,
+                        final boolean ignoreErrors,
+                        final int depth) {
+        for (final CompiledOp.When branch : value.when()) {
+            if (test(branch.test(), match, matchCount)) {
+                body(branch.body(), match, matchCount, content, out, inputBase, ignoreErrors, depth);
+                return;
+            }
+        }
+        body(value.otherwise(), match, matchCount, content, out, inputBase, ignoreErrors, depth);
+    }
+
+    private void element(final CompiledOp.Element value,
+                         final MatchResult match,
+                         final int matchCount,
+                         final TypedValue content,
+                         final Output out,
+                         final long inputBase,
+                         final boolean ignoreErrors,
+                         final int depth) {
+        structure(() -> out.sink().startElement(value.name(), value.namespace(), value.omitIfEmpty()),
+                "element", value.name());
+        body(value.body(), match, matchCount, content, out, inputBase, ignoreErrors, depth);
+        structure(out.sink()::endElement, "element", value.name());
+    }
+
+    private void attribute(final CompiledOp.Attribute value,
+                           final MatchResult match,
+                           final int matchCount,
+                           final TypedValue content,
+                           final Output out,
+                           final long inputBase,
+                           final boolean ignoreErrors,
+                           final int depth) {
+        structure(() -> out.sink().startAttribute(value.name(), value.omitIfEmpty()),
+                "attribute", value.name());
+        body(value.body(), match, matchCount, content, out, inputBase, ignoreErrors, depth);
+        structure(out.sink()::endAttribute, "attribute", value.name());
+    }
+
+    /** The instructions no row is hot on. */
+    private void bodyRare(final CompiledOp op,
+                          final MatchResult match,
+                          final int matchCount,
+                          final TypedValue content,
+                          final Output out,
+                          final long inputBase,
+                          final boolean ignoreErrors,
+                          final int depth) {
+        switch (op) {
+            case final CompiledOp.Switch value -> {
+                final String selected = textOf(value.select(), match, matchCount);
+                final CompiledOp[] taken = value.cases().get(selected);
+                body(taken == null ? value.defaultBody() : taken, match, matchCount, content,
+                        out, inputBase, ignoreErrors, depth);
+            }
+            case final CompiledOp.Namespace value ->
+                    structure(() -> out.sink().namespace(value.prefix(), value.uri()),
+                            "namespace", value.prefix());
+            case final CompiledOp.CallTemplate value ->
+                    callTemplate(value, match, matchCount, content, out, inputBase,
+                            ignoreErrors, depth);
+            case final CompiledOp.Replace value -> {
+                final List<TypedValue> inputs = inputs(value.select(), match, matchCount);
+                emit(inputs.isEmpty()
+                                ? null
+                                : TypedValue.of(value.replacer()
+                                        .replace(inputs.getFirst().asString())),
+                        value.name(), matchCount, out);
+            }
+            case final CompiledOp.CallFunction value ->
+                    callFunction(value, match, matchCount, out, inputBase);
+            case final CompiledOp.Append value -> {
+                final TypedValue appended = CompiledRefs.resolveValue(
+                        value.select(), match, matchCount, vars);
+                if (appended != null) {
+                    final TypedValue.List list = listTarget(value.target(), match, matchCount, "append");
+                    if (list != null) {
+                        guardAccumulation(value.target());
+                        final TypedValue stored = TypedValue.Collection.stored(appended);
+                        list.append(stored);
                         vars.grew(1 + TypedValue.Collection.elementsOf(stored));
                         guardLive(value.target());
                     }
                 }
-                case final CompiledOp.Put value -> put(value, match, matchCount);
-                case final CompiledOp.Remove value -> {
-                    final TypedValue target = CompiledRefs.resolveValue(value.target(), match, matchCount, vars);
-                    final TypedValue key = CompiledRefs.resolveValue(value.key(), match, matchCount, vars);
-                    switch (target) {
-                        case final TypedValue.List list -> {
-                            final int position = position(value.key(), match, matchCount, "remove");
-                            if (position >= 1 && position <= list.size()) {
-                                vars.grew(-1 - TypedValue.Collection.elementsOf(list.get(position - 1)));
-                                list.remove(position - 1);
-                            }
-                        }
-                        case final TypedValue.Map map -> {
-                            if (map.contains(key)) {
-                                vars.grew(-1 - TypedValue.Collection.elementsOf(map.get(key)));
-                                map.remove(key);
-                            }
-                        }
-                        case final TypedValue.Set set -> {
-                            if (set.contains(key)) {
-                                set.remove(key);
-                                vars.grew(-1);
-                            }
-                        }
-                        case null -> {
-                        }
-                        default -> fatal("remove from something that is not a collection: " + describe(value.target()));
+            }
+            case final CompiledOp.Insert value -> {
+                final TypedValue inserted = CompiledRefs.resolveValue(
+                        value.select(), match, matchCount, vars);
+                final TypedValue.List list = listTarget(value.target(), match, matchCount, "insert");
+                if (list != null && inserted != null) {
+                    final int position = position(value.position(), match, matchCount, "insert");
+                    if (position < 1 || position > list.size() + 1) {
+                        fatal("insert at position " + position + " of a list of " + list.size()
+                              + ": positions run from 1 to the size plus one");
                     }
-                }
-                case final CompiledOp.Clear value -> {
-                    if (CompiledRefs.resolveValue(value.target(), match, matchCount, vars)
-                        instanceof final TypedValue.Collection collection) {
-                        vars.grew(-collection.elements());
-                        collection.clear();
-                    }
-                }
-                case final CompiledOp.Tokenize value -> {
-                    final TypedValue input = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars);
-                    if (value.name() == null) {
-                        if (input != null) {
-                            // Written straight out, it keeps the joined rendering it always had.
-                            out.write(Transforms.tokenize(List.of(input), value.delimiter()));
-                        }
-                    } else {
-                        // Nothing to split is the empty sequence, which a walk runs over zero
-                        // times. Leaving the name alone would walk the last record's pieces.
-                        bindDense(value.name(), input == null
-                                ? List.of()
-                                : Transforms.split(input, value.delimiter()));
-                    }
-                }
-                case final CompiledOp.ForEachGroup value ->
-                        forEachGroup(value, match, matchCount, content, out,
-                                inputBase, ignoreErrors, depth);
-                case final CompiledOp.ForEach value ->
-                        forEach(value, match, matchCount, content, out,
-                                inputBase, ignoreErrors, depth);
-                case final CompiledOp.ParseDate value -> {
-                    final TypedValue input = CompiledRefs.resolveValue(
-                            value.select(), match, matchCount, vars);
-                    TypedValue result = null;
-                    if (input != null) {
-                        // The reference is a date read like any other (design/17 §9.2): a
-                        // captured field today, D10's context seam tomorrow. Absent when the
-                        // pattern needs it means an absent result, never a guessed year.
-                        final TypedValue reference = value.reference() == null
-                                ? null
-                                : Comparisons.cast(CompiledRefs.resolveValue(
-                                        value.reference(), match, matchCount, vars), Cast.DATE);
-                        result = Dates.parse(value.parser(), input.asString(),
-                                (TypedValue.Instant) reference);
-                    }
-                    emit(result, value.name(), matchCount, out);
-                }
-                case final CompiledOp.EmitError value -> {
-                    final String text = CompiledRefs.resolveText(
-                            value.message(), match, matchCount, vars);
-                    messages.add(new Message(value.severity(), text == null ? "" : text));
-                    if (value.severity() == Severity.FATAL) {
-                        // The message is recorded; the run ends here (D36).
-                        throw new AbortRun();
-                    }
+                    final TypedValue stored = TypedValue.Collection.stored(inserted);
+                    list.insert(position - 1, stored);
+                    vars.grew(1 + TypedValue.Collection.elementsOf(stored));
+                    guardLive(value.target());
                 }
             }
+            case final CompiledOp.Remove value -> {
+                final TypedValue target = CompiledRefs.resolveValue(value.target(), match, matchCount, vars);
+                final TypedValue key = CompiledRefs.resolveValue(value.key(), match, matchCount, vars);
+                switch (target) {
+                    case final TypedValue.List list -> {
+                        final int position = position(value.key(), match, matchCount, "remove");
+                        if (position >= 1 && position <= list.size()) {
+                            vars.grew(-1 - TypedValue.Collection.elementsOf(list.get(position - 1)));
+                            list.remove(position - 1);
+                        }
+                    }
+                    case final TypedValue.Map map -> {
+                        if (map.contains(key)) {
+                            vars.grew(-1 - TypedValue.Collection.elementsOf(map.get(key)));
+                            map.remove(key);
+                        }
+                    }
+                    case final TypedValue.Set set -> {
+                        if (set.contains(key)) {
+                            set.remove(key);
+                            vars.grew(-1);
+                        }
+                    }
+                    case null -> {
+                    }
+                    default -> fatal("remove from something that is not a collection: " + describe(value.target()));
+                }
+            }
+            case final CompiledOp.Clear value -> {
+                if (CompiledRefs.resolveValue(value.target(), match, matchCount, vars)
+                    instanceof final TypedValue.Collection collection) {
+                    vars.grew(-collection.elements());
+                    collection.clear();
+                }
+            }
+            case final CompiledOp.Tokenize value -> {
+                final TypedValue input = CompiledRefs.resolveValue(
+                        value.select(), match, matchCount, vars);
+                if (value.name() == null) {
+                    if (input != null) {
+                        // Written straight out, it keeps the joined rendering it always had.
+                        out.write(Transforms.tokenize(List.of(input), value.delimiter()));
+                    }
+                } else {
+                    // Nothing to split is the empty sequence, which a walk runs over zero
+                    // times. Leaving the name alone would walk the last record's pieces.
+                    bindDense(value.name(), input == null
+                            ? List.of()
+                            : Transforms.split(input, value.delimiter()));
+                }
+            }
+            case final CompiledOp.ForEachGroup value ->
+                    forEachGroup(value, match, matchCount, content, out,
+                            inputBase, ignoreErrors, depth);
+            case final CompiledOp.ForEach value ->
+                    forEach(value, match, matchCount, content, out,
+                            inputBase, ignoreErrors, depth);
+            case final CompiledOp.ParseDate value -> {
+                final TypedValue input = CompiledRefs.resolveValue(
+                        value.select(), match, matchCount, vars);
+                TypedValue result = null;
+                if (input != null) {
+                    // The reference is a date read like any other (design/17 §9.2): a
+                    // captured field today, D10's context seam tomorrow. Absent when the
+                    // pattern needs it means an absent result, never a guessed year.
+                    final TypedValue reference = value.reference() == null
+                            ? null
+                            : Comparisons.cast(CompiledRefs.resolveValue(
+                                    value.reference(), match, matchCount, vars), Cast.DATE);
+                    result = Dates.parse(value.parser(), input.asString(),
+                            (TypedValue.Instant) reference);
+                }
+                emit(result, value.name(), matchCount, out);
+            }
+            case final CompiledOp.EmitError value -> {
+                final String text = CompiledRefs.resolveText(
+                        value.message(), match, matchCount, vars);
+                messages.add(new Message(value.severity(), text == null ? "" : text));
+                if (value.severity() == Severity.FATAL) {
+                    // The message is recorded; the run ends here (D36).
+                    throw new AbortRun();
+                }
+            }
+            case final CompiledOp.Text ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledOp.ValueOf ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledOp.Apply ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledOp.If ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledOp.Choose ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledOp.Variable ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledOp.Element ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledOp.Attribute ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledOp.Transform ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledOp.Put ignored -> throw new IllegalStateException("hot arm");
         }
     }
 
