@@ -58,7 +58,10 @@ public sealed interface MatchStep {
 
         @Override
         public boolean equals(final Object other) {
-            return other instanceof MatchByte matchByte
+            if (this == other) {
+                return true;
+            }
+            return other instanceof final MatchByte matchByte
                    && Arrays.equals(value, matchByte.value);
         }
 

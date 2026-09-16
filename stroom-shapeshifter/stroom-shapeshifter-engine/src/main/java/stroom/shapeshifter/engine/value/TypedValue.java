@@ -88,18 +88,16 @@ public sealed interface TypedValue {
     Boolean asBoolean();
 
     /**
-     * Whether an object is exactly one of the byte variants — the three classes that share text
-     * equality. An exact class compare rather than {@code instanceof Bytes}: every variant here
-     * is final, so on a final class the two are the same klass-word compare, but {@code Bytes}
-     * and {@link Collection} are <i>interfaces</i>, and an interface test is a secondary-supers
-     * lookup. The equalities below test classes, not interfaces, for that reason; where several
-     * classes qualify, the compares are written out, commonest first.
+     * Whether an object is one of the byte variants — the three classes that share text
+     * equality. Three tests on final classes rather than one {@code instanceof Bytes}: on a
+     * final class the test is one klass-word compare, the same instruction as a class compare
+     * (measured, design 37 §7), but {@code Bytes} and {@link Collection} are <i>interfaces</i>,
+     * and an interface test is a secondary-supers search — half as slow again under a mixed
+     * stream, doubled when followed by a class test. The equalities below test the final classes
+     * they accept, never the interface, commonest first.
      */
     private static boolean isBytes(final Object other) {
-        return other != null
-               && (other.getClass() == Utf8Bytes.class
-                   || other.getClass() == EncodedBytes.class
-                   || other.getClass() == ByteSlice.class);
+        return other instanceof Utf8Bytes || other instanceof EncodedBytes || other instanceof ByteSlice;
     }
 
     /**
@@ -312,8 +310,12 @@ public sealed interface TypedValue {
         @Override
         public boolean equals(final Object other) {
             // The commonest case — a key against a key — is one klass compare and one array
-            // compare, and the method stays under the JIT's inline size (28 bytes; 54 with the
-            // other two variants written in here, which stopped it inlining at cold sites).
+            // compare. Thirty-seven bytes, which inlines at its one hot site (a map's key
+            // compare, under the hot-method limit) and not at cold ones; 54 with the other two
+            // variants written in here, which is why they are behind a call.
+            if (this == other) {
+                return true;
+            }
             if (other instanceof final Utf8Bytes same) {
                 return Arrays.equals(value, same.value);
             }
@@ -393,17 +395,15 @@ public sealed interface TypedValue {
 
         @Override
         public boolean equals(final Object other) {
-            if (!isBytes(other)) {
-                return false;
+            if (this == other) {
+                return true;
             }
             // The same bytes in the same encoding decode the same way; no need to find out.
-            if (other.getClass() == EncodedBytes.class) {
-                final EncodedBytes encoded = (EncodedBytes) other;
-                if (encoding == encoded.encoding && Arrays.equals(value, encoded.value)) {
-                    return true;
-                }
+            if (other instanceof final EncodedBytes encoded
+                && encoding == encoded.encoding && Arrays.equals(value, encoded.value)) {
+                return true;
             }
-            return sameText(this, (Bytes) other);
+            return isBytes(other) && sameText(this, (Bytes) other);
         }
 
         @Override
@@ -527,6 +527,9 @@ public sealed interface TypedValue {
 
         @Override
         public boolean equals(final Object other) {
+            if (this == other) {
+                return true;
+            }
             return isBytes(other) && sameText(this, (Bytes) other);
         }
 
@@ -555,14 +558,14 @@ public sealed interface TypedValue {
          */
         @Override
         public boolean equals(final Object other) {
-            if (other == null) {
-                return false;
+            if (this == other) {
+                return true;
             }
-            if (other.getClass() == Integer.class) {
-                return value == ((Integer) other).value;
+            if (other instanceof final Integer whole) {
+                return value == whole.value;
             }
-            if (other.getClass() == Double.class) {
-                final Long exact = ((Double) other).asInteger();
+            if (other instanceof final Double real) {
+                final Long exact = real.asInteger();
                 return exact != null && exact == value;
             }
             return false;
@@ -613,15 +616,15 @@ public sealed interface TypedValue {
          */
         @Override
         public boolean equals(final Object other) {
-            if (other == null) {
-                return false;
+            if (this == other) {
+                return true;
             }
-            if (other.getClass() == Double.class) {
-                return java.lang.Double.compare(value, ((Double) other).value) == 0;
+            if (other instanceof final Double real) {
+                return java.lang.Double.compare(value, real.value) == 0;
             }
-            if (other.getClass() == Integer.class) {
+            if (other instanceof final Integer whole) {
                 final Long exact = asInteger();
-                return exact != null && exact == ((Integer) other).value();
+                return exact != null && exact == whole.value();
             }
             return false;
         }
@@ -719,11 +722,11 @@ public sealed interface TypedValue {
          */
         @Override
         public boolean equals(final Object other) {
-            if (other == null || other.getClass() != Instant.class) {
-                return false;
+            if (this == other) {
+                return true;
             }
-            final Instant instant = (Instant) other;
-            return epochSecond == instant.epochSecond && nano == instant.nano;
+            return other instanceof final Instant instant
+                   && epochSecond == instant.epochSecond && nano == instant.nano;
         }
 
         @Override
@@ -1005,10 +1008,12 @@ public sealed interface TypedValue {
         /** Entry by entry, canonically. */
         @Override
         public boolean equals(final Object other) {
-            if (other == null || other.getClass() != List.class || ((List) other).size != size) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof final List list) || list.size != size) {
                 return false;
             }
-            final List list = (List) other;
             for (int i = 0; i < size; i++) {
                 if (!java.util.Objects.equals(values[i], list.values[i])) {
                     return false;
@@ -1119,7 +1124,10 @@ public sealed interface TypedValue {
 
         @Override
         public boolean equals(final Object other) {
-            return other != null && other.getClass() == Map.class && entries.equals(((Map) other).entries);
+            if (this == other) {
+                return true;
+            }
+            return other instanceof final Map map && entries.equals(map.entries);
         }
 
         @Override
@@ -1201,7 +1209,10 @@ public sealed interface TypedValue {
 
         @Override
         public boolean equals(final Object other) {
-            return other != null && other.getClass() == Set.class && members.equals(((Set) other).members);
+            if (this == other) {
+                return true;
+            }
+            return other instanceof final Set set && members.equals(set.members);
         }
 
         @Override

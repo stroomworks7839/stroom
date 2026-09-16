@@ -115,7 +115,10 @@ public sealed interface Encoding {
 
         @Override
         public boolean equals(final Object other) {
-            return other instanceof Table table
+            if (this == other) {
+                return true;
+            }
+            return other instanceof final Table table
                    && name.equals(table.name)
                    && java.util.Arrays.equals(byteToCodePoint, table.byteToCodePoint);
         }
