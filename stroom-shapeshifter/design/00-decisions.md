@@ -1461,3 +1461,43 @@ the module, beside the UI's model, when the UI needs it; until then an atomic gr
 lookbehind explodes as one leaf, whole. Two semantic no-ops went in alongside — a repeat of
 exactly once reads as its body, and a composed literal encodes through the pattern's byte
 form — the second a fix to the encoding path, not growth.
+
+---
+
+## D54 — `progressive` is retired as a benchmark row; `avro_users` is the binary row
+
+*Ruled by the owner, 2026-09-16, on the evening reading of points 53 and 54.* The
+`progressive` row measured the step interpreter over a synthetic length-prefixed fixture.
+Design 38 retired the interpreter and rewrote the fixture onto the match sequence, so the
+row's job changed under it at point 53 and its −49% there is a comparison of two jobs, as
+§7 of that design said it would be. Its history ends at 52. `avro_users` — a real container,
+written by the Avro library, parsed with no library, parity-gated on every test run — is the
+binary row from 54, and the same machinery's honest number. `progressive_text` stays: it is
+the pattern tree over text, a row in its own right, and point 59 reads it about 15% above
+the interpreter.
+
+**Consequences:** `progressive` leaves `EngineBenchmark`'s default rows and stays runnable by
+name; its fixture stays, parity-gated. The evening script's readers carry the row's history
+in the JSONs already written.
+
+---
+
+## D55 — The regex library's fourth addition: a scan-until-literal plan op
+
+*Ruled by the owner, 2026-09-16, reopening the budget D53 closed.* The scan plan has
+`SCAN_UNTIL_BYTE` and no scan-until-*literal*, so a lazy run up to a multi-byte terminator —
+`(?s:.*?)literal`, which is what an exclusive `take_until` followed by its `tag` lowers to,
+and what any `.*?literal` regex is — can never be tier 0; its floor is the NFA (778
+instructions on `progressive_text`, its Unicode classes included). One plan op — scan forward
+to the first occurrence of the literal, fail if none — puts that shape on the scan tier, and
+every regex of that shape with it.
+
+**Why a ruling and not a commit:** D53 said three additions and no more, and §7 of design 38
+said growth past the budget is a sign the coverage table was wrong. It was not wrong about
+the vocabulary; it was silent about the tier, which the coverage table never had a column
+for. The op is the library's own instruction set, not a change to what a composition can
+say.
+
+**Consequences:** built as its own small phase in the regex module — the op, the plan
+compiler's recognition of the shape, the runner, the analyses that read a plan — with the
+identical-plan and tier pins, and read on `progressive_text` as a point of its own.

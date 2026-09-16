@@ -1,6 +1,6 @@
 # Design 37 — Clear, don't allocate; dispatch on a kind, not a class
 
-*Proposed 2026-09-15, the morning after design 35's evening run. Design 35 settled what a name
+**Status: closed 2026-09-16 evening — §14.** *Proposed 2026-09-15, the morning after design 35's evening run. Design 35 settled what a name
 is; the readings say the settled model costs the scan-heavy rows four to thirteen per cent
 against the floor and nothing since phase 3 has bought it back. This design is the performance
 work that follows, in phases, each gated by a measurement of the thing it claims to change.*
@@ -1253,3 +1253,44 @@ rewrite removed and the other two pieces kept (`808c9e9ffd`) the row reads +3.6%
 −20.4%, −25.9%. The regression is the `write`/`resolveValue` rewrite alone, and the `lookup` and `set`
 pieces are keepable. Phase 6 is where `write` is redone, on a kind, with the byte count
 read before the benchmark.
+
+## 14. Closed — 2026-09-16 evening
+
+Nine points read in one run (`benchmarks/points.md`, 50 to 58). Against the floor — the 3d
+split at point 50, on this box — the engine stands at:
+
+| row | net | where it came from |
+|---|---|---|
+| `regex_lines` | **+9.8%** | 52 +6.5, 58 +5.1 |
+| `apache_httpd` | **+7.9%** | 58 +4.9, a point each from 51, 53, 57 |
+| `win_sec` | **+7.2%** | 51 +6.6 — the `equals` control that was not one — lost at 56, back at 58 |
+| `ausearch` | **+4.7%** | 56 +6.1 against 52's −2.2 |
+| `csv_header`, `element_storm` | +1.4, +1.8 | flat |
+| `log_sessions`, `win_sec_strict`, `win_sec_xml` | −0.3, −0.6, +0.3 | flat |
+
+And against design 35's close, the floor before this design — the readings that opened it
+said the settled model cost the scan rows four to thirteen per cent — the whole of that is
+back and more: `ausearch` about +17% at point 50 alone, `csv_header` +7, `win_sec` +6,
+`regex_lines` +5 there, and the above on top.
+
+**What the phases were worth.** Phase 2 (parked collections) and phase 3 (slices below the
+root, the span rule on the delimiter arm) are the floor. Phase 4 read zero and phase 5 is
+deferred on it. Phase 6 closed without a kind on the isolated benchmark, whose finding —
+a dispatcher must be under the hot-inline size and hold the arms hot on some row — is what
+phase 7 then did four times: `write` (52), `resolveValue` (56), `Conditions.evaluate` (57,
+a tie), `Body.body` (58, the best of them). Every one keeps; none reverts. Phase 8's shapes
+are fixtures and rows, with `ausearch_dispatch` standing beside `ausearch`. Phase 9 became
+design 38.
+
+**What it did not settle**, left where it belongs: the engine's own ordered map (phase 5)
+stays deferred until a feed makes maps hot; `Level.bindCaptures` stays whole on purpose;
+the two controls that did not read flat (51's `win_sec` +6.6, 55's `progressive` +5.1) are
+recorded and not explained. The two design-38 rows read down at 53 and are design 38's
+finding, not this design's.
+
+**The method, kept.** A census before a cut; the cheap check before the interleave; the
+interleave before the point; the point read against its own written expectation, with the
+revert named in advance. It found the `write` split's wrong arms, priced the megamorphic
+call, and read 7d's "ambiguous" check as too modest rather than as a reason not to measure.
+Design 38's phase-5 record adds the one it missed: an expectation that swaps a mechanism
+must price the new one on its own smallest unit, not only the old one on its largest.

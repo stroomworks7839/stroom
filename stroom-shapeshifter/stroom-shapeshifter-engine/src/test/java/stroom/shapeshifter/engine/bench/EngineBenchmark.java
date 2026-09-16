@@ -58,9 +58,9 @@ import java.util.concurrent.TimeUnit;
  * as throughput. The pairs are chosen to isolate questions: {@code win_sec} and
  * {@code win_sec_xml} parse the same events unanchored and anchored, which is a direct A/B on
  * dispatch cost under {@code (A|B|C)*}; {@code apache_httpd} carries the heaviest bodies,
- * including 209 escaping transforms; {@code progressive} is the match sequence alone — a
- * varint length cast and a take, over a binary feed held whole (design 38 §3b; the row keeps
- * the name the step interpreter's row had, so the ledger reads across the retirement).
+ * including 209 escaping transforms; {@code progressive}, the step interpreter's row over a
+ * synthetic length-prefixed fixture, is retired (D54): its job changed under it when design
+ * 38 retired the interpreter, its history ends at point 52, and it runs by name only.
  * {@code progressive_text} is the pattern tree over text — tags, take-whiles, a take-until
  * and a regex node, compiled to the regex library as one pattern. {@code avro_users} is the
  * real binary row (design 38 §7): an Avro object container the Avro library wrote, parsed with
@@ -95,8 +95,8 @@ public class EngineBenchmark {
      * live comparison and the map row keeps its history.
      */
     @Param({"regex_lines", "csv_header", "ausearch", "ausearch_dispatch", "apache_httpd",
-            "win_sec", "win_sec_strict", "win_sec_xml", "progressive", "progressive_text",
-            "avro_users", "log_sessions", "element_storm"})
+            "win_sec", "win_sec_strict", "win_sec_xml", "progressive_text", "avro_users",
+            "log_sessions", "element_storm"})
     public String workload;
 
     private Project project;
@@ -139,6 +139,8 @@ public class EngineBenchmark {
                     FixtureLedger.bytes("projects/win_sec/input.txt"));
             case "win_sec_xml" -> streamed("projects/win_sec_xml/project.json",
                     FixtureLedger.bytes("projects/win_sec_xml/input.xml"));
+            // Retired from the default rows (D54), runnable by name: the match sequence over
+            // the synthetic length-prefixed fixture the interpreter's row ran.
             case "progressive" -> {
                 streamed("projects/progressive_len_records/project.json",
                         FixtureLedger.bytes("projects/progressive_len_records/input.bin"));
