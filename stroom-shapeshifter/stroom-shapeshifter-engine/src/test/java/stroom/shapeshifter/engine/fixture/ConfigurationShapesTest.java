@@ -35,11 +35,22 @@ class ConfigurationShapesTest {
     @ParameterizedTest
     @ValueSource(strings = {"project.json", "challenger-switch.project.json", "challenger-dispatch.project.json"})
     void ausearchShapesWriteTheSameBytes(final String configuration) {
+        sameBytes("ausearch", configuration);
+    }
+
+    /** log_sessions files every status into a map to read one: filter at capture, or scan at use. */
+    @ParameterizedTest
+    @ValueSource(strings = {"project.json", "challenger-filtered.project.json", "challenger-scan.project.json"})
+    void logSessionsShapesWriteTheSameBytes(final String configuration) {
+        sameBytes("log_sessions", configuration);
+    }
+
+    private static void sameBytes(final String fixture, final String configuration) {
         final EngineHarness.Outcome outcome = EngineHarness.runProject(
-                FixtureLedger.text("projects/ausearch/" + configuration),
-                FixtureLedger.bytes("projects/ausearch/input.txt"));
-        assertThat(outcome.messages()).as("messages from " + configuration).isEmpty();
+                FixtureLedger.text("projects/" + fixture + "/" + configuration),
+                FixtureLedger.bytes("projects/" + fixture + "/input.txt"));
+        assertThat(outcome.messages()).as("messages from " + fixture + "/" + configuration).isEmpty();
         assertThat(new String(outcome.output(), StandardCharsets.UTF_8)).isEqualTo(
-                new String(FixtureLedger.bytes("projects/ausearch/example_output.xml"), StandardCharsets.UTF_8));
+                new String(FixtureLedger.bytes("projects/" + fixture + "/example_output.xml"), StandardCharsets.UTF_8));
     }
 }

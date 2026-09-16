@@ -137,6 +137,12 @@ public class EngineBenchmark {
             // variable lookup is the work rather than a rounding error (design 30 §5).
             case "log_sessions" -> streamed("projects/log_sessions/project.json",
                     FixtureLedger.bytes("projects/log_sessions/input.txt"));
+            // The same records and bytes without the status map (design 37 phase 8), on
+            // request: the failures filtered at capture, or found by one scan at use.
+            case "log_sessions_filtered" -> streamed("projects/log_sessions/challenger-filtered.project.json",
+                    FixtureLedger.bytes("projects/log_sessions/input.txt"));
+            case "log_sessions_scan" -> streamed("projects/log_sessions/challenger-scan.project.json",
+                    FixtureLedger.bytes("projects/log_sessions/input.txt"));
             // The sinks under load: one one-pass regex per record, then twenty-one element,
             // attribute and namespace calls. win_sec_xml writes structure too, but spends 40% of
             // itself in the regex engine, so what the sinks cost is below its noise (design 29

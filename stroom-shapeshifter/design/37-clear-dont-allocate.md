@@ -737,6 +737,23 @@ has no row where it wins a lookup; it is for walking. **Splitting on use is thre
 slower**: two substring transforms and a variable per pair per want. The whole-pair capture is
 for pairs that are written out unsplit.
 
+### What phase 8 read third — 2026-09-16, `log_sessions`
+
+*The row files every request's status into a map and reads one key, `401`.* Two shapes beside
+the fixture, both writing the golden output (`ConfigurationShapesTest`), three rotated rounds,
+five forks per shape:
+
+| shape | mean ops/s | against the fixture |
+|---|---|---|
+| the map of positions, every status filed — the fixture | 159.0 | — |
+| filter at capture: the `request` template appends the failing rows' user and path to two lists | 162.5 | **+2%** |
+| no map: one scan of the `status` list at the end, reading user and path at the same index | 163.2 | **+2.6%** |
+
+Small, and consistent in sign across all three rounds with error bars near 1%. The map is a
+small part of this row — most of it is date parsing and the per-host grouping — so filing
+every status to read one costs about 2% of the whole. And on a *walk*, the plain scan is as good
+as filtering at capture: this is where the paired-list shape belongs, not in a lookup.
+
 *The shapes are kept as fixtures, not benchmarks* (ruled 2026-09-16): every shape stays
 beside its case, parity-gated on every test run — `ConfigurationShapesTest` for the engine
 fixtures, `CaseShapesTest` against live Saxon for the catalogue — and measured only when
@@ -915,8 +932,7 @@ and `resolveValue` under budget; `progressive` and `regex_lines` recover toward 
 §9. **Pulled forward and begun 2026-09-15**: `ausearch`'s two challengers read +7% (switch)
 and +30% (a template per key) against its map, parity-gated and now benchmark workloads. The
 walking shapes measured 2026-09-16 on `keys_lookup`: the direct map +30% over the case's
-positions idiom, two lists 0.93×, split-on-use 0.32×. Remaining: `win_sec`, `apache_httpd`,
-`log_sessions`. Gate: the shape → cost table, and a sentence in design 35 §5.
+positions idiom, two lists 0.93×, split-on-use 0.32×. `log_sessions` 2026-09-16: +2% without its map. Remaining: `win_sec`, `apache_httpd`. Gate: the shape → cost table, and a sentence in design 35 §5.
 
 ### Phase 9 — the progressive match, reconsidered
 
