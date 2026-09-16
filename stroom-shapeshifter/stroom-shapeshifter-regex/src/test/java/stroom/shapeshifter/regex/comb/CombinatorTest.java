@@ -16,14 +16,18 @@
 
 package stroom.shapeshifter.regex.comb;
 
+import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
+import stroom.shapeshifter.regex.Encoding;
 import stroom.shapeshifter.regex.Engine;
+import stroom.shapeshifter.regex.Flag;
 import stroom.shapeshifter.regex.PatternCompileException;
 
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -85,6 +89,25 @@ class CombinatorTest {
         assertThat(deniedMatcher.find(bytes("zzabc"))).isTrue();
         assertThat(deniedMatcher.start()).as("the not refuses the start where its body matches").isEqualTo(2);
         assertThat(denied.matcher().find(bytes("abc"))).isTrue();
+    }
+
+    /** A composition compiles in a byte form too (design 38): raw for binary, where a UTF-8 one refuses. */
+    @Test
+    void compositionCompilesInRawForm() {
+        // A varint: continuation bytes, then exactly one terminator below 0x80.
+        final Matcher varint = Matchers.sequence(
+                Matchers.takeWhileOrNone("[\\x80-\\xff]").label("continuation"),
+                new Matcher.Characters("[\\x00-\\x7f]", 1, 1));
+        final byte[] input = {(byte) 0xd6, 0x02, 0x41};
+        final Set<Flag> none = java.util.EnumSet.noneOf(Flag.class);
+        final BytePattern raw = new MatcherLibrary().compile(varint, none, Encoding.RAW);
+        final ByteMatcher matcher = raw.matcher();
+        assertThat(matcher.find(input)).isTrue();
+        assertThat(matcher.end()).as("one continuation byte and one terminator").isEqualTo(2);
+        assertThat(raw.tier()).as("a byte-class run is tier 0 in raw form too").isEqualTo(0);
+        assertThat(new MatcherLibrary().compile(varint, none, Encoding.UTF_8).matcher()
+                .match(input, 0, input.length, Anchoring.ANCHORED))
+                .as("the same composition in UTF-8 refuses the undecodable lead byte (D38)").isFalse();
     }
 
     /** Everything after lowering is shared, so a composition reaches tier 0 on the same terms. */

@@ -294,10 +294,16 @@ slices of the span, as every regex match does since design 37 phase 3.
    negated)` — the HIR node exists; the combinators are two records, two factory methods and
    two lowering arms, about twenty lines, all new. The identical-plan pin (`CombinatorTest`)
    extends to them since both have a regex spelling.
-2. Nothing else. No instruction, no tier change, no parser in the backtracker; the byte-strict
-   ruling (D38) stands; encodings are untouched. A pattern that works today takes the same
-   tier and runs the same instructions, and the module's own test corpus proves it on the
-   first build.
+2. **The composition compile path takes an encoding** (found in phase 3, 2026-09-16). A
+   composition compiled only in UTF-8: `BytePattern.compile(matcher, …)` fixed the encoding
+   and the lowering fixed the UTF-8 byte form for every class and one-byte literal, so a
+   binary tree could not run in raw mode. One overload on `BytePattern` and `MatcherLibrary`
+   with an `Encoding`, and the lowering carrying a `ByteForm` it uses where it used the UTF-8
+   one; the old overloads delegate as UTF-8. Additive, and pinned: a varint composition in raw
+   form matches the bytes an anchored UTF-8 compile of the same tree refuses under D38.
+3. Nothing else. No instruction, no tier change, no parser in the backtracker; the byte-strict
+   ruling (D38) stands. A pattern that works today takes the same tier and runs the same
+   instructions, and the module's own test corpus proves it on the first build.
 
 ## 7. What it measures, and what would make it a mistake
 
@@ -326,8 +332,8 @@ rounds, as design 34 was read.
 - *The UI's model diverging from the engine's.* The tree the UI edits must be the tree the
   configuration stores and the tree the compiler lowers, with no translation between: one
   vocabulary in three places.
-- *Growing the regex library.* Two additions is the budget; a third is a sign the coverage
-  table was wrong and is a ruling, not a commit.
+- *Growing the regex library.* Two combinators and the encoding on the composition path is the
+  budget; anything beyond is a sign the coverage table was wrong and is a ruling, not a commit.
 
 ## 8. Phases
 

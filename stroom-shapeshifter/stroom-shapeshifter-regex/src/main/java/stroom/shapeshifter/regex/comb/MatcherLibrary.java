@@ -17,6 +17,7 @@
 package stroom.shapeshifter.regex.comb;
 
 import stroom.shapeshifter.regex.BytePattern;
+import stroom.shapeshifter.regex.Encoding;
 import stroom.shapeshifter.regex.Flag;
 
 import java.util.Collections;
@@ -64,6 +65,11 @@ public final class MatcherLibrary {
 
     public BytePattern compile(final Matcher matcher, final Set<Flag> flags) {
         return BytePattern.compile(matcher, definitions, flags);
+    }
+
+    /** Compiles a composition for an input encoding — RAW for a binary composition (design 38). */
+    public BytePattern compile(final Matcher matcher, final Set<Flag> flags, final Encoding encoding) {
+        return BytePattern.compile(matcher, definitions, flags, encoding);
     }
 
     /** Compiles a named matcher from this library. */

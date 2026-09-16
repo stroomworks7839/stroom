@@ -51,11 +51,15 @@ public final class Lowering {
 
     private final Map<String, Matcher> library;
     private final Set<Flag> flags;
+
+    /** The byte form every class and one-byte literal lowers in: UTF-8, or RAW for a binary composition (design 38). */
+    private final ByteForm form;
     private final Deque<String> resolving = new ArrayDeque<>();
     private final List<String> groupNames = new ArrayList<>();
     private int groupCount;
 
-    private Lowering(final Map<String, Matcher> library, final Set<Flag> flags) {
+    private Lowering(final Map<String, Matcher> library, final Set<Flag> flags, final ByteForm form) {
+        this.form = form;
         this.library = library;
         this.flags = flags;
     }
@@ -63,7 +67,15 @@ public final class Lowering {
     public static Result lower(final Matcher matcher,
                                final Map<String, Matcher> library,
                                final Set<Flag> flags) {
-        final Lowering lowering = new Lowering(library, flags);
+        return lower(matcher, library, flags, ByteForm.UTF8);
+    }
+
+    /** The same, in a byte form: RAW for a composition over binary bytes (design 38). */
+    public static Result lower(final Matcher matcher,
+                               final Map<String, Matcher> library,
+                               final Set<Flag> flags,
+                               final ByteForm form) {
+        final Lowering lowering = new Lowering(library, flags, form);
         lowering.groupNames.add(null); // group 0 is the whole match
         final Hir root = lowering.lowerNode(matcher);
         return new Result(root, lowering.groupCount, lowering.groupNames, lowering.warnings);
@@ -76,7 +88,7 @@ public final class Lowering {
             case Matcher.Characters characters -> new Hir.Repeat(
                     Hir.CharClass.of(
                             Parser.parseClassExpression(characters.classExpression()),
-                            characters.classExpression(), ByteForm.UTF8),
+                            characters.classExpression(), form),
                     characters.min(),
                     characters.max(),
                     true);
@@ -115,13 +127,13 @@ public final class Lowering {
         final CodePointSet excluded = CodePointSet.single(until.codePoint()).negate();
         final String label = "[^" + describe(until.codePoint()) + "]";
         final Hir run = new Hir.Repeat(
-                Hir.CharClass.of(excluded, label, ByteForm.UTF8), 0, Hir.Repeat.UNBOUNDED, true);
+                Hir.CharClass.of(excluded, label, form), 0, Hir.Repeat.UNBOUNDED, true);
         if (!until.inclusive()) {
             return run;
         }
         return new Hir.Concat(List.of(run,
                 Hir.CharClass.of(CodePointSet.single(until.codePoint()),
-                        describe(until.codePoint()), ByteForm.UTF8)));
+                        describe(until.codePoint()), form)));
     }
 
     /**
@@ -137,7 +149,7 @@ public final class Lowering {
         final Set<Flag> effective = regex.flags().isEmpty()
                 ? flags
                 : regex.flags();
-        final Parser.Result parsed = Parser.parse(regex.pattern(), effective, groupNames);
+        final Parser.Result parsed = Parser.parse(regex.pattern(), effective, groupNames, form);
         warnings.addAll(parsed.warnings());
         groupCount = parsed.groupCount();
         // The parser's list is this one plus the groups the regex created, indexed by number.
@@ -175,13 +187,13 @@ public final class Lowering {
      * different rules when folding and factoring, so matching the parser's shape is what keeps a
      * composed {@code tag("a")} and the regex {@code a} compiling to the identical plan.
      */
-    private static Hir literal(final String text) {
+    private Hir literal(final String text) {
         if (text.isEmpty()) {
             return new Hir.Empty();
         }
         final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
         return bytes.length == 1
-                ? Hir.CharClass.of(CodePointSet.single(bytes[0] & 0xFF), text, ByteForm.UTF8)
+                ? Hir.CharClass.of(CodePointSet.single(bytes[0] & 0xFF), text, form)
                 : new Hir.Bytes(bytes, text);
     }
 

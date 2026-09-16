@@ -199,9 +199,18 @@ public final class BytePattern {
     public static BytePattern compile(final Matcher matcher,
                                       final Map<String, Matcher> library,
                                       final Set<Flag> flags) {
-        final Lowering.Result lowered = Lowering.lower(matcher, library, flags);
+        return compile(matcher, library, flags, Encoding.UTF_8);
+    }
+
+    /** A composed matcher for an input encoding — RAW for a binary composition (design 38). */
+    public static BytePattern compile(final Matcher matcher,
+                                      final Map<String, Matcher> library,
+                                      final Set<Flag> flags,
+                                      final Encoding encoding) {
+        Objects.requireNonNull(encoding, "encoding");
+        final Lowering.Result lowered = Lowering.lower(matcher, library, flags, ByteForm.of(encoding));
         return compile(lowered.root(), lowered.groupCount(), lowered.groupNames(),
-                lowered.warnings(), describe(matcher), flags, Encoding.UTF_8);
+                lowered.warnings(), describe(matcher), flags, encoding);
     }
 
     private static BytePattern compile(final Hir parsed,
