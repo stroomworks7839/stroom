@@ -121,6 +121,12 @@ public class EngineBenchmark {
                     FixtureLedger.bytes("projects/apache_httpd/input.txt"));
             case "win_sec" -> streamed("projects/win_sec/project.json",
                     FixtureLedger.bytes("projects/win_sec/input.txt"));
+            // The labelled fields as a template per label in the strict dispatch, no map (design
+            // 37 phase 8), on request.
+            case "win_sec_perkey" -> streamed("projects/win_sec/challenger-perkey.project.json",
+                    FixtureLedger.bytes("projects/win_sec/input.txt"));
+            case "win_sec_switch" -> streamed("projects/win_sec/challenger-switch.project.json",
+                    FixtureLedger.bytes("projects/win_sec/input.txt"));
             // The same events, the same output bytes, the strict idiom (D36): the direct A/B
             // on what dissolving the search is worth.
             case "win_sec_strict" -> streamed("projects/win_sec_strict/project.json",

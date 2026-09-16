@@ -1,0 +1,7416 @@
+{
+ "name": "win_sec_switch",
+ "version": 3,
+ "source": {
+  "buffer_size": 20000,
+  "ignore_errors": true,
+  "encoding": "auto"
+ },
+ "templates": [
+  {
+   "id": "a04e3df2-6673-48c7-bf9f-e19ca592bcd8",
+   "name": "source",
+   "declarations": [
+    {
+     "name": "header",
+     "type": "map"
+    },
+    {
+     "name": "fAccessMask",
+     "type": "scalar"
+    },
+    {
+     "name": "fAccountDomain",
+     "type": "scalar"
+    },
+    {
+     "name": "fAccountExpires",
+     "type": "scalar"
+    },
+    {
+     "name": "fAccountName",
+     "type": "scalar"
+    },
+    {
+     "name": "fAdditionalInformation",
+     "type": "scalar"
+    },
+    {
+     "name": "fAuthenticationPackage",
+     "type": "scalar"
+    },
+    {
+     "name": "fCreatorProcessId",
+     "type": "scalar"
+    },
+    {
+     "name": "fCreatorProcessName",
+     "type": "scalar"
+    },
+    {
+     "name": "fDisplayName",
+     "type": "scalar"
+    },
+    {
+     "name": "fElevatedToken",
+     "type": "scalar"
+    },
+    {
+     "name": "fFailureReason",
+     "type": "scalar"
+    },
+    {
+     "name": "fHandleId",
+     "type": "scalar"
+    },
+    {
+     "name": "fLogonId",
+     "type": "scalar"
+    },
+    {
+     "name": "fLogonProcess",
+     "type": "scalar"
+    },
+    {
+     "name": "fLogonType",
+     "type": "scalar"
+    },
+    {
+     "name": "fMandatoryLabel",
+     "type": "scalar"
+    },
+    {
+     "name": "fNetworkAddress",
+     "type": "scalar"
+    },
+    {
+     "name": "fNewProcessId",
+     "type": "scalar"
+    },
+    {
+     "name": "fNewProcessName",
+     "type": "scalar"
+    },
+    {
+     "name": "fNewUacValue",
+     "type": "scalar"
+    },
+    {
+     "name": "fObjectName",
+     "type": "scalar"
+    },
+    {
+     "name": "fObjectServer",
+     "type": "scalar"
+    },
+    {
+     "name": "fObjectType",
+     "type": "scalar"
+    },
+    {
+     "name": "fPasswordLastSet",
+     "type": "scalar"
+    },
+    {
+     "name": "fPort",
+     "type": "scalar"
+    },
+    {
+     "name": "fPrimaryGroupId",
+     "type": "scalar"
+    },
+    {
+     "name": "fProcessCommandLine",
+     "type": "scalar"
+    },
+    {
+     "name": "fProcessId",
+     "type": "scalar"
+    },
+    {
+     "name": "fProcessName",
+     "type": "scalar"
+    },
+    {
+     "name": "fSamAccountName",
+     "type": "scalar"
+    },
+    {
+     "name": "fSecurityId",
+     "type": "scalar"
+    },
+    {
+     "name": "fSourceNetworkAddress",
+     "type": "scalar"
+    },
+    {
+     "name": "fSourcePort",
+     "type": "scalar"
+    },
+    {
+     "name": "fStatus",
+     "type": "scalar"
+    },
+    {
+     "name": "fSubStatus",
+     "type": "scalar"
+    },
+    {
+     "name": "fTargetServerName",
+     "type": "scalar"
+    },
+    {
+     "name": "fTokenElevationType",
+     "type": "scalar"
+    },
+    {
+     "name": "fUserPrincipalName",
+     "type": "scalar"
+    },
+    {
+     "name": "fWorkstationName",
+     "type": "scalar"
+    }
+   ],
+   "match": "source",
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "body": [
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Events xmlns=\"event-logging:3\"\n        xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n        xsi:schemaLocation=\"event-logging:3 file://event-logging-v4.1.0.xsd\"\n        Version=\"4.1.0\">\n"
+       }
+      ]
+     }
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 0,
+          "match_index": null
+         }
+        }
+       ]
+      },
+      "mode": "root",
+      "max_depth": 64
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "\n</Events>\n"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "0054cd4c-6b4f-4a3b-bea1-6b488081a901",
+   "name": "event_record",
+   "declarations": [
+    {
+     "name": "accesses",
+     "type": "scalar"
+    },
+    {
+     "name": "accessesText",
+     "type": "scalar"
+    },
+    {
+     "name": "computerNameText",
+     "type": "scalar"
+    },
+    {
+     "name": "credentialsAccount",
+     "type": "scalar"
+    },
+    {
+     "name": "credentialsDomain",
+     "type": "scalar"
+    },
+    {
+     "name": "credentialsLogonGuid",
+     "type": "scalar"
+    },
+    {
+     "name": "day",
+     "type": "scalar"
+    },
+    {
+     "name": "dayText",
+     "type": "scalar"
+    },
+    {
+     "name": "eventCodeText",
+     "type": "scalar"
+    },
+    {
+     "name": "failedAccount",
+     "type": "scalar"
+    },
+    {
+     "name": "failedDomain",
+     "type": "scalar"
+    },
+    {
+     "name": "failedSid",
+     "type": "scalar"
+    },
+    {
+     "name": "groupDomain",
+     "type": "scalar"
+    },
+    {
+     "name": "groupName",
+     "type": "scalar"
+    },
+    {
+     "name": "groupSid",
+     "type": "scalar"
+    },
+    {
+     "name": "hour12",
+     "type": "scalar"
+    },
+    {
+     "name": "hour24",
+     "type": "scalar"
+    },
+    {
+     "name": "hourText",
+     "type": "scalar"
+    },
+    {
+     "name": "memberAccount",
+     "type": "scalar"
+    },
+    {
+     "name": "memberCn",
+     "type": "scalar"
+    },
+    {
+     "name": "memberSid",
+     "type": "scalar"
+    },
+    {
+     "name": "meridiem",
+     "type": "scalar"
+    },
+    {
+     "name": "minute",
+     "type": "scalar"
+    },
+    {
+     "name": "minuteText",
+     "type": "scalar"
+    },
+    {
+     "name": "month",
+     "type": "scalar"
+    },
+    {
+     "name": "monthText",
+     "type": "scalar"
+    },
+    {
+     "name": "newAccountDomain",
+     "type": "scalar"
+    },
+    {
+     "name": "newAccountName",
+     "type": "scalar"
+    },
+    {
+     "name": "newAccountSid",
+     "type": "scalar"
+    },
+    {
+     "name": "newLogonAccount",
+     "type": "scalar"
+    },
+    {
+     "name": "newLogonDomain",
+     "type": "scalar"
+    },
+    {
+     "name": "newLogonId",
+     "type": "scalar"
+    },
+    {
+     "name": "newLogonSid",
+     "type": "scalar"
+    },
+    {
+     "name": "objectFileName",
+     "type": "scalar"
+    },
+    {
+     "name": "privileges",
+     "type": "scalar"
+    },
+    {
+     "name": "privilegesText",
+     "type": "scalar"
+    },
+    {
+     "name": "record",
+     "type": "scalar"
+    },
+    {
+     "name": "second",
+     "type": "scalar"
+    },
+    {
+     "name": "secondText",
+     "type": "scalar"
+    },
+    {
+     "name": "sourceNameText",
+     "type": "scalar"
+    },
+    {
+     "name": "sourceNetworkAddressText",
+     "type": "scalar"
+    },
+    {
+     "name": "year",
+     "type": "scalar"
+    },
+    {
+     "name": "yearText",
+     "type": "scalar"
+    },
+    {
+     "name": "sAccessMask",
+     "type": "scalar"
+    },
+    {
+     "name": "sAccountDomain",
+     "type": "scalar"
+    },
+    {
+     "name": "sAccountExpires",
+     "type": "scalar"
+    },
+    {
+     "name": "sAccountName",
+     "type": "scalar"
+    },
+    {
+     "name": "sAdditionalInformation",
+     "type": "scalar"
+    },
+    {
+     "name": "sAuthenticationPackage",
+     "type": "scalar"
+    },
+    {
+     "name": "sCreatorProcessId",
+     "type": "scalar"
+    },
+    {
+     "name": "sCreatorProcessName",
+     "type": "scalar"
+    },
+    {
+     "name": "sDisplayName",
+     "type": "scalar"
+    },
+    {
+     "name": "sElevatedToken",
+     "type": "scalar"
+    },
+    {
+     "name": "sFailureReason",
+     "type": "scalar"
+    },
+    {
+     "name": "sHandleId",
+     "type": "scalar"
+    },
+    {
+     "name": "sLogonId",
+     "type": "scalar"
+    },
+    {
+     "name": "sLogonProcess",
+     "type": "scalar"
+    },
+    {
+     "name": "sLogonType",
+     "type": "scalar"
+    },
+    {
+     "name": "sMandatoryLabel",
+     "type": "scalar"
+    },
+    {
+     "name": "sNetworkAddress",
+     "type": "scalar"
+    },
+    {
+     "name": "sNewProcessId",
+     "type": "scalar"
+    },
+    {
+     "name": "sNewProcessName",
+     "type": "scalar"
+    },
+    {
+     "name": "sNewUacValue",
+     "type": "scalar"
+    },
+    {
+     "name": "sObjectName",
+     "type": "scalar"
+    },
+    {
+     "name": "sObjectServer",
+     "type": "scalar"
+    },
+    {
+     "name": "sObjectType",
+     "type": "scalar"
+    },
+    {
+     "name": "sPasswordLastSet",
+     "type": "scalar"
+    },
+    {
+     "name": "sPort",
+     "type": "scalar"
+    },
+    {
+     "name": "sPrimaryGroupId",
+     "type": "scalar"
+    },
+    {
+     "name": "sProcessCommandLine",
+     "type": "scalar"
+    },
+    {
+     "name": "sProcessId",
+     "type": "scalar"
+    },
+    {
+     "name": "sProcessName",
+     "type": "scalar"
+    },
+    {
+     "name": "sSamAccountName",
+     "type": "scalar"
+    },
+    {
+     "name": "sSecurityId",
+     "type": "scalar"
+    },
+    {
+     "name": "sSourceNetworkAddress",
+     "type": "scalar"
+    },
+    {
+     "name": "sSourcePort",
+     "type": "scalar"
+    },
+    {
+     "name": "sStatus",
+     "type": "scalar"
+    },
+    {
+     "name": "sSubStatus",
+     "type": "scalar"
+    },
+    {
+     "name": "sTargetServerName",
+     "type": "scalar"
+    },
+    {
+     "name": "sTokenElevationType",
+     "type": "scalar"
+    },
+    {
+     "name": "sUserPrincipalName",
+     "type": "scalar"
+    },
+    {
+     "name": "sWorkstationName",
+     "type": "scalar"
+    }
+   ],
+   "match": {
+    "regex": {
+     "pattern": "(\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M\\n(?:(?!\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M).)*?)(?=\\n\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2} [AP]M|\\z)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": true
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "captures": [
+    {
+     "name": "record",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": [
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": "record",
+          "group": 0,
+          "match_index": null
+         }
+        }
+       ]
+      },
+      "mode": "event_fields",
+      "max_depth": 64,
+      "dispatch": "strict"
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "AM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "12",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "00"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "Store": {
+               "var_id": "meridiem",
+               "group": 0,
+               "match_index": null
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "AM",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "12",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "12"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "01",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "13"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "02",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "14"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "03",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "15"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "04",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "16"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "05",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "17"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "06",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "18"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "07",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "19"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "08",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "20"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "09",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "21"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "10",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "22"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "and": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "meridiem",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "PM",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "Store": {
+                 "var_id": "hour12",
+                 "group": 0,
+                 "match_index": null
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "11",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "variable": {
+           "name": "hour24",
+           "body": [
+            {
+             "value-of": {
+              "parts": [
+               {
+                "text": "23"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "variable": {
+         "name": "hour24",
+         "body": [
+          {
+           "value-of": {
+            "parts": [
+             {
+              "Store": {
+               "var_id": "hour12",
+               "group": 0,
+               "match_index": null
+              }
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "variable": {
+      "name": "privilegesText",
+      "body": [
+       {
+        "value-of": {
+         "parts": [
+          {
+           "Store": {
+            "var_id": "privileges",
+            "group": 0,
+            "match_index": null
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "replace": {
+      "select": [
+       {
+        "parts": [
+         {
+          "Store": {
+           "var_id": "privilegesText",
+           "group": 0,
+           "match_index": null
+          }
+         }
+        ]
+       }
+      ],
+      "pattern": "\n",
+      "replacement": " ",
+      "name": "privilegesText"
+     }
+    },
+    {
+     "replace": {
+      "select": [
+       {
+        "parts": [
+         {
+          "Store": {
+           "var_id": "privilegesText",
+           "group": 0,
+           "match_index": null
+          }
+         }
+        ]
+       }
+      ],
+      "pattern": "\t",
+      "replacement": "",
+      "name": "privilegesText"
+     }
+    },
+    {
+     "variable": {
+      "name": "accessesText",
+      "body": [
+       {
+        "value-of": {
+         "parts": [
+          {
+           "Store": {
+            "var_id": "accesses",
+            "group": 0,
+            "match_index": null
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "replace": {
+      "select": [
+       {
+        "parts": [
+         {
+          "Store": {
+           "var_id": "accessesText",
+           "group": 0,
+           "match_index": null
+          }
+         }
+        ]
+       }
+      ],
+      "pattern": "\n",
+      "replacement": " ",
+      "name": "accessesText"
+     }
+    },
+    {
+     "replace": {
+      "select": [
+       {
+        "parts": [
+         {
+          "Store": {
+           "var_id": "accessesText",
+           "group": 0,
+           "match_index": null
+          }
+         }
+        ]
+       }
+      ],
+      "pattern": "\t",
+      "replacement": "",
+      "name": "accessesText"
+     }
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": "fObjectName",
+          "group": 0,
+          "match_index": null
+         }
+        }
+       ]
+      },
+      "mode": "filename_parse",
+      "max_depth": 64
+     }
+    },
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": "memberAccount",
+          "group": 0,
+          "match_index": null
+         }
+        }
+       ]
+      },
+      "mode": "cn_parse",
+      "max_depth": 64
+     }
+    },
+    {
+     "translate": {
+      "select": [
+       {
+        "parts": [
+         {
+          "Store": {
+           "var_id": "year",
+           "group": 0,
+           "match_index": null
+          }
+         }
+        ]
+       }
+      ],
+      "from": [
+       "&",
+       "\"",
+       "<",
+       ">",
+       "\n",
+       "\r"
+      ],
+      "to": [
+       "&amp;",
+       "&#34;",
+       "&lt;",
+       "&gt;",
+       "&#xA;",
+       "&#xD;"
+      ],
+      "name": "yearText"
+     }
+    },
+    {
+     "translate": {
+      "select": [
+       {
+        "parts": [
+         {
+          "Store": {
+           "var_id": "month",
+           "group": 0,
+           "match_index": null
+          }
+         }
+        ]
+       }
+      ],
+      "from": [
+       "&",
+       "\"",
+       "<",
+       ">",
+       "\n",
+       "\r"
+      ],
+      "to": [
+       "&amp;",
+       "&#34;",
+       "&lt;",
+       "&gt;",
+       "&#xA;",
+       "&#xD;"
+      ],
+      "name": "monthText"
+     }
+    },
+    {
+     "translate": {
+      "select": [
+       {
+        "parts": [
+         {
+          "Store": {
+           "var_id": "day",
+           "group": 0,
+           "match_index": null
+          }
+         }
+        ]
+       }
+      ],
+      "from": [
+       "&",
+       "\"",
+       "<",
+       ">",
+       "\n",
+       "\r"
+      ],
+      "to": [
+       "&amp;",
+       "&#34;",
+       "&lt;",
+       "&gt;",
+       "&#xA;",
+       "&#xD;"
+      ],
+      "name": "dayText"
+     }
+    },
+    {
+     "translate": {
+      "select": [
+       {
+        "parts": [
+         {
+          "Store": {
+           "var_id": "hour24",
+           "group": 0,
+           "match_index": null
+          }
+         }
+        ]
+       }
+      ],
+      "from": [
+       "&",
+       "\"",
+       "<",
+       ">",
+       "\n",
+       "\r"
+      ],
+      "to": [
+       "&amp;",
+       "&#34;",
+       "&lt;",
+       "&gt;",
+       "&#xA;",
+       "&#xD;"
+      ],
+      "name": "hourText"
+     }
+    },
+    {
+     "translate": {
+      "select": [
+       {
+        "parts": [
+         {
+          "Store": {
+           "var_id": "minute",
+           "group": 0,
+           "match_index": null
+          }
+         }
+        ]
+       }
+      ],
+      "from": [
+       "&",
+       "\"",
+       "<",
+       ">",
+       "\n",
+       "\r"
+      ],
+      "to": [
+       "&amp;",
+       "&#34;",
+       "&lt;",
+       "&gt;",
+       "&#xA;",
+       "&#xD;"
+      ],
+      "name": "minuteText"
+     }
+    },
+    {
+     "translate": {
+      "select": [
+       {
+        "parts": [
+         {
+          "Store": {
+           "var_id": "second",
+           "group": 0,
+           "match_index": null
+          }
+         }
+        ]
+       }
+      ],
+      "from": [
+       "&",
+       "\"",
+       "<",
+       ">",
+       "\n",
+       "\r"
+      ],
+      "to": [
+       "&amp;",
+       "&#34;",
+       "&lt;",
+       "&gt;",
+       "&#xA;",
+       "&#xD;"
+      ],
+      "name": "secondText"
+     }
+    },
+    {
+     "translate": {
+      "select": [
+       {
+        "parts": [
+         {
+          "get": {
+           "of": "header",
+           "key": "SourceName"
+          }
+         }
+        ]
+       }
+      ],
+      "from": [
+       "&",
+       "\"",
+       "<",
+       ">",
+       "\n",
+       "\r"
+      ],
+      "to": [
+       "&amp;",
+       "&#34;",
+       "&lt;",
+       "&gt;",
+       "&#xA;",
+       "&#xD;"
+      ],
+      "name": "sourceNameText"
+     }
+    },
+    {
+     "translate": {
+      "select": [
+       {
+        "parts": [
+         {
+          "get": {
+           "of": "header",
+           "key": "ComputerName"
+          }
+         }
+        ]
+       }
+      ],
+      "from": [
+       "&",
+       "\"",
+       "<",
+       ">",
+       "\n",
+       "\r"
+      ],
+      "to": [
+       "&amp;",
+       "&#34;",
+       "&lt;",
+       "&gt;",
+       "&#xA;",
+       "&#xD;"
+      ],
+      "name": "computerNameText"
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "\n  <Event>\n    <EventTime>\n      <TimeCreated>"
+       },
+       {
+        "Store": {
+         "var_id": "yearText",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": "-"
+       },
+       {
+        "Store": {
+         "var_id": "monthText",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": "-"
+       },
+       {
+        "Store": {
+         "var_id": "dayText",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": "T"
+       },
+       {
+        "Store": {
+         "var_id": "hourText",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": ":"
+       },
+       {
+        "Store": {
+         "var_id": "minuteText",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": ":"
+       },
+       {
+        "Store": {
+         "var_id": "secondText",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": ".000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>"
+       },
+       {
+        "Store": {
+         "var_id": "sourceNameText",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": "</Name>\n        <Environment>Windows</Environment>\n      </System>\n      <Generator>Windows Security Event Log</Generator>\n      <Device>\n        <HostName>"
+       },
+       {
+        "Store": {
+         "var_id": "computerNameText",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": "</HostName>"
+       }
+      ]
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4624",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "translate": {
+           "select": [
+            {
+             "parts": [
+              {
+               "Store": {
+                "var_id": "fSourceNetworkAddress",
+                "group": 0,
+                "match_index": null
+               }
+              }
+             ]
+            }
+           ],
+           "from": [
+            "&",
+            "\"",
+            "<",
+            ">",
+            "\n",
+            "\r"
+           ],
+           "to": [
+            "&amp;",
+            "&#34;",
+            "&lt;",
+            "&gt;",
+            "&#xA;",
+            "&#xD;"
+           ],
+           "name": "sourceNetworkAddressText"
+          }
+         },
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n        <IPAddress>"
+            },
+            {
+             "Store": {
+              "var_id": "sourceNetworkAddressText",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</IPAddress>"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "\n      </Device>"
+       }
+      ]
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4624",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <User>\n        <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "newLogonSid",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n        <UserDetails>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "newLogonAccount",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <Domain>"
+            },
+            {
+             "Store": {
+              "var_id": "newLogonDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Domain>\n        </UserDetails>\n      </User>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "or": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "get": {
+                 "of": "header",
+                 "key": "EventCode"
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "4672",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "get": {
+                 "of": "header",
+                 "key": "EventCode"
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "4688",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "get": {
+                 "of": "header",
+                 "key": "EventCode"
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "4648",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "get": {
+                 "of": "header",
+                 "key": "EventCode"
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "4663",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "get": {
+                 "of": "header",
+                 "key": "EventCode"
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "4656",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <User>\n        <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fSecurityId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n        <UserDetails>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fAccountName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <Domain>"
+            },
+            {
+             "Store": {
+              "var_id": "fAccountDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Domain>\n        </UserDetails>\n      </User>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4625",
+           "as": "string"
+          }
+         }
+        },
+        "body": []
+       },
+       {
+        "test": {
+         "or": [
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "get": {
+                 "of": "header",
+                 "key": "EventCode"
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "4720",
+             "as": "string"
+            }
+           }
+          },
+          {
+           "eq": {
+            "left": {
+             "ref": {
+              "parts": [
+               {
+                "get": {
+                 "of": "header",
+                 "key": "EventCode"
+                }
+               }
+              ]
+             },
+             "as": "string"
+            },
+            "right": {
+             "value": "4732",
+             "as": "string"
+            }
+           }
+          }
+         ]
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <User>\n        <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fSecurityId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n        <UserDetails>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fAccountName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <Domain>"
+            },
+            {
+             "Store": {
+              "var_id": "fAccountDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Domain>\n        </UserDetails>\n      </User>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4634",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <User>\n        <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fSecurityId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n        <UserDetails>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fAccountName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <Domain>"
+            },
+            {
+             "Store": {
+              "var_id": "fAccountDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Domain>\n        </UserDetails>\n      </User>"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "translate": {
+      "select": [
+       {
+        "parts": [
+         {
+          "get": {
+           "of": "header",
+           "key": "EventCode"
+          }
+         }
+        ]
+       }
+      ],
+      "from": [
+       "&",
+       "\"",
+       "<",
+       ">",
+       "\n",
+       "\r"
+      ],
+      "to": [
+       "&amp;",
+       "&#34;",
+       "&lt;",
+       "&gt;",
+       "&#xA;",
+       "&#xD;"
+      ],
+      "name": "eventCodeText"
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "\n    </EventSource>\n    <EventDetail>\n      <TypeId>"
+       },
+       {
+        "Store": {
+         "var_id": "eventCodeText",
+         "group": 0,
+         "match_index": null
+        }
+       },
+       {
+        "text": "</TypeId>"
+       }
+      ]
+     }
+    },
+    {
+     "choose": {
+      "when": [
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4624",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <Description>An account was successfully logged on</Description>\n      <Authenticate>\n        <Action>Logon</Action>"
+            }
+           ]
+          }
+         },
+         {
+          "choose": {
+           "when": [
+            {
+             "test": {
+              "eq": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "Store": {
+                    "var_id": "fLogonType",
+                    "group": 0,
+                    "match_index": null
+                   }
+                  }
+                 ]
+                },
+                "as": "string"
+               },
+               "right": {
+                "value": "2",
+                "as": "string"
+               }
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n        <LogonType>Interactive</LogonType>"
+                 }
+                ]
+               }
+              }
+             ]
+            },
+            {
+             "test": {
+              "eq": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "Store": {
+                    "var_id": "fLogonType",
+                    "group": 0,
+                    "match_index": null
+                   }
+                  }
+                 ]
+                },
+                "as": "string"
+               },
+               "right": {
+                "value": "3",
+                "as": "string"
+               }
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n        <LogonType>Network</LogonType>"
+                 }
+                ]
+               }
+              }
+             ]
+            },
+            {
+             "test": {
+              "eq": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "Store": {
+                    "var_id": "fLogonType",
+                    "group": 0,
+                    "match_index": null
+                   }
+                  }
+                 ]
+                },
+                "as": "string"
+               },
+               "right": {
+                "value": "5",
+                "as": "string"
+               }
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n        <LogonType>Service</LogonType>"
+                 }
+                ]
+               }
+              }
+             ]
+            },
+            {
+             "test": {
+              "eq": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "Store": {
+                    "var_id": "fLogonType",
+                    "group": 0,
+                    "match_index": null
+                   }
+                  }
+                 ]
+                },
+                "as": "string"
+               },
+               "right": {
+                "value": "10",
+                "as": "string"
+               }
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n        <LogonType>RemoteInteractive</LogonType>"
+                 }
+                ]
+               }
+              }
+             ]
+            }
+           ]
+          }
+         },
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n        <User>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "newLogonSid",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <UserDetails>\n            <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "newLogonAccount",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n            <Domain>"
+            },
+            {
+             "Store": {
+              "var_id": "newLogonDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"LogonType\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonType",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"LogonId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "newLogonId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"LogonProcess\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonProcess",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"AuthenticationPackage\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fAuthenticationPackage",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"ElevatedToken\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fElevatedToken",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"WorkstationName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fWorkstationName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"SourceNetworkAddress\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fSourceNetworkAddress",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"ProcessName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fProcessName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"ProcessId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fProcessId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"RecordNumber\" Value=\""
+            },
+            {
+             "get": {
+              "of": "header",
+              "key": "RecordNumber"
+             }
+            },
+            {
+             "text": "\"/>\n      </Authenticate>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4672",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <Description>Special privileges assigned to new logon</Description>\n      <Authorise>\n        <Object>\n          <Type>UserSession</Type>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fLogonId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <Name>"
+            },
+            {
+             "Store": {
+              "var_id": "fAccountName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Name>\n        </Object>\n        <Action>Request</Action>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"LogonId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"Privileges\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "privilegesText",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"RecordNumber\" Value=\""
+            },
+            {
+             "get": {
+              "of": "header",
+              "key": "RecordNumber"
+             }
+            },
+            {
+             "text": "\"/>\n      </Authorise>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4688",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <Description>A new process has been created</Description>\n      <Create>\n        <Object>\n          <Type>Process</Type>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fNewProcessId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <Name>cmd.exe</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"NewProcessId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fNewProcessId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"NewProcessName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fNewProcessName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"CommandLine\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fProcessCommandLine",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"CreatorProcessId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fCreatorProcessId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"CreatorProcessName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fCreatorProcessName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"TokenElevationType\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fTokenElevationType",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"MandatoryLabel\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fMandatoryLabel",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"LogonId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"RecordNumber\" Value=\""
+            },
+            {
+             "get": {
+              "of": "header",
+              "key": "RecordNumber"
+             }
+            },
+            {
+             "text": "\"/>\n      </Create>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4625",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <Description>An account failed to log on</Description>\n      <Authenticate>\n        <Action>Logon</Action>"
+            }
+           ]
+          }
+         },
+         {
+          "choose": {
+           "when": [
+            {
+             "test": {
+              "eq": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "Store": {
+                    "var_id": "fLogonType",
+                    "group": 0,
+                    "match_index": null
+                   }
+                  }
+                 ]
+                },
+                "as": "string"
+               },
+               "right": {
+                "value": "2",
+                "as": "string"
+               }
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n        <LogonType>Interactive</LogonType>"
+                 }
+                ]
+               }
+              }
+             ]
+            },
+            {
+             "test": {
+              "eq": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "Store": {
+                    "var_id": "fLogonType",
+                    "group": 0,
+                    "match_index": null
+                   }
+                  }
+                 ]
+                },
+                "as": "string"
+               },
+               "right": {
+                "value": "3",
+                "as": "string"
+               }
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n        <LogonType>Network</LogonType>"
+                 }
+                ]
+               }
+              }
+             ]
+            },
+            {
+             "test": {
+              "eq": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "Store": {
+                    "var_id": "fLogonType",
+                    "group": 0,
+                    "match_index": null
+                   }
+                  }
+                 ]
+                },
+                "as": "string"
+               },
+               "right": {
+                "value": "5",
+                "as": "string"
+               }
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n        <LogonType>Service</LogonType>"
+                 }
+                ]
+               }
+              }
+             ]
+            },
+            {
+             "test": {
+              "eq": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "Store": {
+                    "var_id": "fLogonType",
+                    "group": 0,
+                    "match_index": null
+                   }
+                  }
+                 ]
+                },
+                "as": "string"
+               },
+               "right": {
+                "value": "10",
+                "as": "string"
+               }
+              }
+             },
+             "body": [
+              {
+               "value-of": {
+                "parts": [
+                 {
+                  "text": "\n        <LogonType>RemoteInteractive</LogonType>"
+                 }
+                ]
+               }
+              }
+             ]
+            }
+           ]
+          }
+         },
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n        <User>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "failedAccount",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <UserDetails>\n            <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "failedAccount",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n            <Domain>"
+            },
+            {
+             "Store": {
+              "var_id": "failedDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>false</Success>\n          <Description>Unknown user name or bad password ("
+            },
+            {
+             "Store": {
+              "var_id": "fSubStatus",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": ")</Description>\n        </Outcome>\n        <Data Name=\"LogonType\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonType",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"FailureReason\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fFailureReason",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"Status\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fStatus",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"SubStatus\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fSubStatus",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"WorkstationName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fWorkstationName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"SourceNetworkAddress\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fSourceNetworkAddress",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"SourcePort\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fSourcePort",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"LogonProcess\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonProcess",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"AuthenticationPackage\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fAuthenticationPackage",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"RecordNumber\" Value=\""
+            },
+            {
+             "get": {
+              "of": "header",
+              "key": "RecordNumber"
+             }
+            },
+            {
+             "text": "\"/>\n      </Authenticate>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4720",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <Description>A user account was created</Description>\n      <Create>\n        <Object>\n          <Type>UserAccount</Type>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "newAccountSid",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <Name>"
+            },
+            {
+             "Store": {
+              "var_id": "newAccountName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Name>\n          <Description>"
+            },
+            {
+             "Store": {
+              "var_id": "fDisplayName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Description>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"SAMAccountName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fSamAccountName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"DisplayName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fDisplayName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"UserPrincipalName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fUserPrincipalName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"AccountDomain\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "newAccountDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"PrimaryGroupId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fPrimaryGroupId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"NewUACValue\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fNewUacValue",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"PasswordLastSet\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fPasswordLastSet",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"AccountExpires\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fAccountExpires",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"SubjectLogonId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"RecordNumber\" Value=\""
+            },
+            {
+             "get": {
+              "of": "header",
+              "key": "RecordNumber"
+             }
+            },
+            {
+             "text": "\"/>\n      </Create>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4732",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <Description>A member was added to a security-enabled local group</Description>\n      <Authorise>\n        <Object>\n          <Type>UserAccount</Type>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "memberSid",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <Name>"
+            },
+            {
+             "Store": {
+              "var_id": "memberCn",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Name>\n        </Object>\n        <Action>Modify</Action>\n        <AddGroups>\n          <Group>\n            <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "groupSid",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n            <Name>"
+            },
+            {
+             "Store": {
+              "var_id": "groupName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Name>\n          </Group>\n        </AddGroups>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"MemberDN\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "memberAccount",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"GroupDomain\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "groupDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"SubjectLogonId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"RecordNumber\" Value=\""
+            },
+            {
+             "get": {
+              "of": "header",
+              "key": "RecordNumber"
+             }
+            },
+            {
+             "text": "\"/>\n      </Authorise>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4663",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <Description>An attempt was made to access an object</Description>\n      <View>\n        <Object>\n          <Type>"
+            },
+            {
+             "Store": {
+              "var_id": "fObjectType",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Type>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fObjectName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <Name>"
+            },
+            {
+             "Store": {
+              "var_id": "objectFileName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"ObjectServer\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fObjectServer",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"ObjectType\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fObjectType",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"ObjectName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fObjectName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"HandleId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fHandleId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"Accesses\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "accessesText",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"AccessMask\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fAccessMask",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"LogonId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"RecordNumber\" Value=\""
+            },
+            {
+             "get": {
+              "of": "header",
+              "key": "RecordNumber"
+             }
+            },
+            {
+             "text": "\"/>\n      </View>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4656",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <Description>A handle to an object was requested - access denied</Description>\n      <View>\n        <Object>\n          <Type>"
+            },
+            {
+             "Store": {
+              "var_id": "fObjectType",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Type>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fObjectName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <Name>"
+            },
+            {
+             "Store": {
+              "var_id": "objectFileName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Name>\n        </Object>\n        <Outcome>\n          <Success>false</Success>\n          <Permitted>false</Permitted>\n          <Description>Access denied to HR salary data</Description>\n        </Outcome>\n        <Data Name=\"ObjectServer\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fObjectServer",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"ObjectType\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fObjectType",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"ObjectName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fObjectName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"Accesses\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "accessesText",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"AccessMask\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fAccessMask",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"LogonId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"RecordNumber\" Value=\""
+            },
+            {
+             "get": {
+              "of": "header",
+              "key": "RecordNumber"
+             }
+            },
+            {
+             "text": "\"/>\n      </View>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4648",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <Description>A logon was attempted using explicit credentials</Description>\n      <Authenticate>\n        <Action>Logon</Action>\n        <User>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "credentialsAccount",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <UserDetails>\n            <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "credentialsAccount",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n            <Domain>"
+            },
+            {
+             "Store": {
+              "var_id": "credentialsDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"SubjectAccountName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fAccountName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"SubjectLogonId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"TargetAccountName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "credentialsAccount",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"TargetAccountDomain\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "credentialsDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"TargetServerName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fTargetServerName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"TargetInfo\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fAdditionalInformation",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"ProcessName\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fProcessName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"ProcessId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fProcessId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"NetworkAddress\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fNetworkAddress",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"NetworkPort\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fPort",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"LogonGUID\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "credentialsLogonGuid",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"RecordNumber\" Value=\""
+            },
+            {
+             "get": {
+              "of": "header",
+              "key": "RecordNumber"
+             }
+            },
+            {
+             "text": "\"/>\n      </Authenticate>"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "test": {
+         "eq": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "get": {
+               "of": "header",
+               "key": "EventCode"
+              }
+             }
+            ]
+           },
+           "as": "string"
+          },
+          "right": {
+           "value": "4634",
+           "as": "string"
+          }
+         }
+        },
+        "body": [
+         {
+          "value-of": {
+           "parts": [
+            {
+             "text": "\n      <Description>An account was logged off</Description>\n      <Authenticate>\n        <Action>Logoff</Action>\n        <User>\n          <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fSecurityId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n          <UserDetails>\n            <Id>"
+            },
+            {
+             "Store": {
+              "var_id": "fAccountName",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Id>\n            <Domain>"
+            },
+            {
+             "Store": {
+              "var_id": "fAccountDomain",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"LogonId\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonId",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"LogonType\" Value=\""
+            },
+            {
+             "Store": {
+              "var_id": "fLogonType",
+              "group": 0,
+              "match_index": null
+             }
+            },
+            {
+             "text": "\"/>\n        <Data Name=\"RecordNumber\" Value=\""
+            },
+            {
+             "get": {
+              "of": "header",
+              "key": "RecordNumber"
+             }
+            },
+            {
+             "text": "\"/>\n      </Authenticate>"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ],
+      "otherwise": [
+       {
+        "value-of": {
+         "parts": [
+          {
+           "text": "\n      <Description>Event "
+          },
+          {
+           "get": {
+            "of": "header",
+            "key": "EventCode"
+           }
+          },
+          {
+           "text": "</Description>"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "\n    </EventDetail>\n  </Event>\n"
+       }
+      ]
+     }
+    }
+   ],
+   "mode": "root"
+  },
+  {
+   "id": "0c9ba048-5d99-4e02-bd3b-b8a7994eadad",
+   "name": "event_time",
+   "mode": "event_fields",
+   "match": {
+    "regex": {
+     "pattern": "^(\\d{2})/(\\d{2})/(\\d{4}) (\\d{2}):(\\d{2}):(\\d{2}) ([AP]M)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "month",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "day",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 2,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "year",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 3,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "hour12",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 4,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "minute",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 5,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "second",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 6,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "meridiem",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 7,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "70fbd5cc-343e-441b-970a-5e2f8cbfad0b",
+   "name": "AccountForWhichLogonFailed",
+   "mode": "event_fields",
+   "match": {
+    "regex": {
+     "pattern": "(?ms)Account For Which Logon Failed:\\n\\tSecurity ID:\\t+(\\S+)\\n\\tAccount Name:\\t+(\\S+)\\n\\tAccount Domain:\\t+(\\S+)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": true
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "failedSid",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "failedAccount",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 2,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "failedDomain",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 3,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "cd994e5a-f8da-41ac-be1b-304784cb0bfc",
+   "name": "NewLogon",
+   "mode": "event_fields",
+   "match": {
+    "regex": {
+     "pattern": "(?ms)New Logon:\\n\\tSecurity ID:\\t+(\\S+)\\n\\tAccount Name:\\t+(\\S+)\\n\\tAccount Domain:\\t+(\\S+)\\n\\tLogon ID:\\t+(\\S+)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": true
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "newLogonSid",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "newLogonAccount",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 2,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "newLogonDomain",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 3,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "newLogonId",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 4,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "248d690a-9616-4720-b42f-e901d9b034e9",
+   "name": "AccountWhoseCredentialsWereUsed",
+   "mode": "event_fields",
+   "match": {
+    "regex": {
+     "pattern": "(?m)Account Whose Credentials Were Used:\\n\\tAccount Name:\\t+(\\S+)\\n\\tAccount Domain:\\t+(\\S+)\\n\\tLogon GUID:\\t+(.+)$",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "credentialsAccount",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "credentialsDomain",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 2,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "credentialsLogonGuid",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 3,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "22e0dcdd-657f-4491-bd41-77c0e2dd9947",
+   "name": "NewAccount",
+   "mode": "event_fields",
+   "match": {
+    "regex": {
+     "pattern": "(?ms)New Account:\\n\\tSecurity ID:\\t+(\\S+)\\n\\tAccount Name:\\t+(\\S+)\\n\\tAccount Domain:\\t+(\\S+)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": true
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "newAccountSid",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "newAccountName",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 2,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "newAccountDomain",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 3,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "4669a607-a3d2-420f-a4c0-25b5fc03ab1e",
+   "name": "Member",
+   "mode": "event_fields",
+   "match": {
+    "regex": {
+     "pattern": "(?m)Member:\\n\\tSecurity ID:\\t+(\\S+)\\n\\tAccount Name:\\t+(.+)$",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "memberSid",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "memberAccount",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 2,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "174b6b4a-945d-480e-8e8c-67931b50b6af",
+   "name": "Group",
+   "mode": "event_fields",
+   "match": {
+    "regex": {
+     "pattern": "(?m)Group:\\n\\tSecurity ID:\\t+(\\S+)\\n\\tGroup Name:\\t+(.+)\\n\\tGroup Domain:\\t+(.+)$",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "groupSid",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "groupName",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 2,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "groupDomain",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 3,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "12e73b36-88c3-4746-8e80-5d4369965242",
+   "name": "Privileges",
+   "mode": "event_fields",
+   "match": {
+    "regex": {
+     "pattern": "(?m)Privileges:\\t+(.+(?:\\n\\t+\\S+)*)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "privileges",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "26090f29-f157-44fe-8bac-de1a0798d6a9",
+   "name": "Accesses",
+   "mode": "event_fields",
+   "match": {
+    "regex": {
+     "pattern": "(?m)\\tAccesses:\\t+(.+(?:\\n\\t+\\t+.+)*)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "accesses",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "e4c87a35-4c5b-5ec0-994f-fe5cff0d84e6",
+   "name": "header_field",
+   "mode": "event_fields",
+   "declarations": [
+    {
+     "name": "header_key",
+     "type": "scalar"
+    },
+    {
+     "name": "header_value",
+     "type": "scalar"
+    }
+   ],
+   "match": {
+    "regex": {
+     "pattern": "(?m)^([A-Za-z]+)=([^\\n]*)\\n?",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "captures": [
+    {
+     "name": "header_key",
+     "select": {
+      "group": 1
+     }
+    },
+    {
+     "name": "header_value",
+     "select": {
+      "group": 2
+     }
+    }
+   ],
+   "body": [
+    {
+     "put": {
+      "name": "header",
+      "key": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "header_key",
+          "group": 0
+         }
+        }
+       ]
+      },
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "header_value",
+          "group": 0
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "0aa44967-068f-584c-95ff-669554d3b663",
+   "name": "labelled_field",
+   "mode": "event_fields",
+   "declarations": [
+    {
+     "name": "label",
+     "type": "scalar"
+    },
+    {
+     "name": "value",
+     "type": "scalar"
+    }
+   ],
+   "match": {
+    "regex": {
+     "pattern": "(?m)^\\t([^:\\n]+):\\t+([^\\n]+)\\n?",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "captures": [
+    {
+     "name": "label",
+     "select": {
+      "group": 1
+     }
+    },
+    {
+     "name": "value",
+     "select": {
+      "group": 2
+     }
+    }
+   ],
+   "body": [
+    {
+     "switch": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "var_id": "label",
+          "group": 0
+         }
+        }
+       ]
+      },
+      "cases": [
+       {
+        "value": "Access Mask",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sAccessMask",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sAccessMask",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fAccessMask",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Account Domain",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sAccountDomain",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sAccountDomain",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fAccountDomain",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Account Expires",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sAccountExpires",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sAccountExpires",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fAccountExpires",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Account Name",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sAccountName",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sAccountName",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fAccountName",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Additional Information",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sAdditionalInformation",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sAdditionalInformation",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fAdditionalInformation",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Authentication Package",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sAuthenticationPackage",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sAuthenticationPackage",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fAuthenticationPackage",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Creator Process ID",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sCreatorProcessId",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sCreatorProcessId",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fCreatorProcessId",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Creator Process Name",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sCreatorProcessName",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sCreatorProcessName",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fCreatorProcessName",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Display Name",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sDisplayName",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sDisplayName",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fDisplayName",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Elevated Token",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sElevatedToken",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sElevatedToken",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fElevatedToken",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Failure Reason",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sFailureReason",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sFailureReason",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fFailureReason",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Handle ID",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sHandleId",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sHandleId",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fHandleId",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Logon ID",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sLogonId",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sLogonId",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fLogonId",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Logon Process",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sLogonProcess",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sLogonProcess",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fLogonProcess",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Logon Type",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sLogonType",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sLogonType",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fLogonType",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Mandatory Label",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sMandatoryLabel",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sMandatoryLabel",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fMandatoryLabel",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Network Address",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sNetworkAddress",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sNetworkAddress",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fNetworkAddress",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "New Process ID",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sNewProcessId",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sNewProcessId",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fNewProcessId",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "New Process Name",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sNewProcessName",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sNewProcessName",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fNewProcessName",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "New UAC Value",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sNewUacValue",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sNewUacValue",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fNewUacValue",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Object Name",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sObjectName",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sObjectName",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fObjectName",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Object Server",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sObjectServer",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sObjectServer",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fObjectServer",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Object Type",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sObjectType",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sObjectType",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fObjectType",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Password Last Set",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sPasswordLastSet",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sPasswordLastSet",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fPasswordLastSet",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Port",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sPort",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sPort",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fPort",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Primary Group ID",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sPrimaryGroupId",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sPrimaryGroupId",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fPrimaryGroupId",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Process Command Line",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sProcessCommandLine",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sProcessCommandLine",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fProcessCommandLine",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Process ID",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sProcessId",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sProcessId",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fProcessId",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Process Name",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sProcessName",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sProcessName",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fProcessName",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "SAM Account Name",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sSamAccountName",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sSamAccountName",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fSamAccountName",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Security ID",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sSecurityId",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sSecurityId",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fSecurityId",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Source Network Address",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sSourceNetworkAddress",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sSourceNetworkAddress",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fSourceNetworkAddress",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Source Port",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sSourcePort",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sSourcePort",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fSourcePort",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Status",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sStatus",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sStatus",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fStatus",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Sub Status",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sSubStatus",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sSubStatus",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fSubStatus",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Target Server Name",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sTargetServerName",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sTargetServerName",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fTargetServerName",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Token Elevation Type",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sTokenElevationType",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sTokenElevationType",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fTokenElevationType",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "User Principal Name",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sUserPrincipalName",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sUserPrincipalName",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fUserPrincipalName",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "value": "Workstation Name",
+        "body": [
+         {
+          "if": {
+           "test": {
+            "not": {
+             "exists": {
+              "select": {
+               "parts": [
+                {
+                 "Store": {
+                  "var_id": "sWorkstationName",
+                  "group": 0,
+                  "match_index": null
+                 }
+                }
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "variable": {
+              "name": "sWorkstationName",
+              "body": [
+               {
+                "text": "1"
+               }
+              ]
+             }
+            },
+            {
+             "variable": {
+              "name": "fWorkstationName",
+              "body": [
+               {
+                "value-of": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "value",
+                    "group": 0
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "8e4f91b6-bdd5-5412-83c7-5e317f3b0f03",
+   "name": "event_fields_skip_line",
+   "mode": "event_fields",
+   "consume": true,
+   "match": {
+    "regex": {
+     "pattern": "[^\\n]*\\n?",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {},
+   "body": []
+  },
+  {
+   "id": "cbca104a-7c48-42bf-bd0b-1b64f3262123",
+   "name": "filename_extract",
+   "mode": "filename_parse",
+   "match": {
+    "regex": {
+     "pattern": "([^\\\\]+)$",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "objectFileName",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  },
+  {
+   "id": "92e89069-6ded-4ba9-903b-18250752ebb4",
+   "name": "cn_extract",
+   "mode": "cn_parse",
+   "match": {
+    "regex": {
+     "pattern": "^CN=([^,]+)",
+     "flags": {
+      "case_insensitive": false,
+      "dot_all": false
+     },
+     "advance": 0
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": 1
+   },
+   "captures": [
+    {
+     "name": "memberCn",
+     "select": {
+      "select": {
+       "parts": [
+        {
+         "Store": {
+          "var_id": null,
+          "group": 1,
+          "match_index": null
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "body": []
+  }
+ ]
+}

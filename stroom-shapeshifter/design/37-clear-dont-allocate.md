@@ -765,6 +765,52 @@ refilled into the parked map per line and one hash, or the month rendered to a `
 looked up in the switch's case table (census #4). The map stays as the clearer declaration,
 and phase 2's refill from a table is confirmed cheap enough not to show.
 
+### What phase 8 read fifth — 2026-09-16, `win_sec`
+
+*Thirty-nine known labels read out of a map filled by one labelled-line template in a strict
+dispatch, first-wins within an event through a second map.* Two shapes beside the fixture, both
+writing the golden output, three rounds each:
+
+| shape | mean ops/s | against the fixture |
+|---|---|---|
+| one template into the map, first-wins via `seen` — the fixture | 71.0 | — |
+| a template per label, thirty-nine of them, in the strict dispatch | 63.1 | **−9% to −12%** |
+| one template, one regex, a thirty-nine-case `switch` on the label into scalars | 71.7 | flat (+5.6, −5.7, −1.2) |
+
+*What it says, and it corrects `ausearch`'s.* The per-key shape's cost is the number of
+templates a line tries before one matches. `ausearch` had four known keys, so an unwanted
+token fell through four first-byte rejections and the shape won by 30%; `win_sec` has
+thirty-nine, so every labelled line runs up to fifty anchored regexes where the fixture runs
+one and a hash, and the shape loses 10%. The switch's cost does not grow with the key count —
+a `String` rendered and looked up in the case table (census #4) — and at thirty-nine keys it
+is exactly the map's. So: **per-key templates for a handful of known keys; a map, or a switch,
+beyond that; never a scan or a split in place of a lookup.**
+
+*A property of the fixture, found on the way.* The `fields` map lives on the source template
+for the run, and event 4 of the input has its `Logon Type` line without the leading tab, which
+no labelled-line template matches — so event 4's output carries event 1's logon type, and the
+golden pins it. Faithful to the original, not what an author would intend; the per-label shape
+had to declare its scalars on the source, with per-event first-wins guards, to reproduce it.
+
+### Phase 8, closed — 2026-09-16
+
+Five rows, ten shapes, every one byte-identical with its fixture or with Saxon and kept as a
+parity-gated fixture. The shape → cost table:
+
+| row | keys | the map's job | best shape | against the map |
+|---|---|---|---|---|
+| `ausearch` | 4 known | store 30–60 per record, read 4 | a template per key | **+30%** |
+| `keys_lookup` | unknown, from the data | XSLT `key()` | the map, filled directly | **+30%** over filing positions |
+| `log_sessions` | 1 known (`401`) | file every status, read one | filter at capture, or scan | +2% |
+| `apache_httpd` | 12, a constant table | month name → number | the map, or a switch | flat |
+| `win_sec` | 39 known | store every label, read 39 | the map, or a switch | flat; per-key −10% |
+
+**What a map is for** (the sentence design 35 §5 takes): *keys the configuration does not know,
+or more known keys than a dispatch can try cheaply — about a dozen. For a handful of known keys,
+capture each with its own template and nothing else; for one, filter at capture; for a constant
+table, a map and a switch cost the same.* For migration: a DS3 key-value capture with a small
+fixed set of reads is emitted as per-key templates; a large one stays a map.
+
 *The shapes are kept as fixtures, not benchmarks* (ruled 2026-09-16): every shape stays
 beside its case, parity-gated on every test run — `ConfigurationShapesTest` for the engine
 fixtures, `CaseShapesTest` against live Saxon for the catalogue — and measured only when
@@ -943,7 +989,7 @@ and `resolveValue` under budget; `progressive` and `regex_lines` recover toward 
 §9. **Pulled forward and begun 2026-09-15**: `ausearch`'s two challengers read +7% (switch)
 and +30% (a template per key) against its map, parity-gated and now benchmark workloads. The
 walking shapes measured 2026-09-16 on `keys_lookup`: the direct map +30% over the case's
-positions idiom, two lists 0.93×, split-on-use 0.32×. `log_sessions` 2026-09-16: +2% without its map. `apache_httpd` 2026-09-16: a constant table as a switch reads flat. Remaining: `win_sec`. Gate: the shape → cost table, and a sentence in design 35 §5.
+positions idiom, two lists 0.93×, split-on-use 0.32×. `log_sessions` 2026-09-16: +2% without its map. `apache_httpd` 2026-09-16: a constant table as a switch reads flat; `win_sec` 2026-09-16: thirty-nine per-key templates −10%, a switch flat. **Closed 2026-09-16**; the shape → cost table and the sentence are in §9. Gate: the shape → cost table, and a sentence in design 35 §5.
 
 ### Phase 9 — the progressive match, reconsidered
 

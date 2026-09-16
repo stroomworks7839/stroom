@@ -755,6 +755,13 @@ walked and any that disagree with its declared type is refused.
 compile-time checking. It was declined on the four reasons above, not on the one that motivated it
 — the fear of generics — which does not apply here and does not apply under declaration either.
 
+*What a map is for* (design 37 phase 8, measured 2026-09-16 on five rows): keys the
+configuration does not know, or more known keys than a dispatch can try cheaply — about a
+dozen. For a handful of known keys, capture each with its own template and nothing else
+(`ausearch`, +30%); for one, filter at capture; for a constant table, a map and a switch cost
+the same. A map holding keys that arrive in the data is filled directly with its values, not
+with positions (`keys_lookup`, +30%).
+
 ## 6. Counters are functions, not variables
 
 The execution's counters — how many times this template has matched, where a walk is, how big a

@@ -52,11 +52,20 @@ class ConfigurationShapesTest {
         sameBytes("apache_httpd", configuration);
     }
 
+    /** win_sec reads thirty-nine labels out of a map filled by one template: a template per label, or a switch. */
+    @ParameterizedTest
+    @ValueSource(strings = {"project.json", "challenger-perkey.project.json", "challenger-switch.project.json"})
+    void winSecShapesWriteTheSameBytes(final String configuration) {
+        sameBytes("win_sec", configuration);
+    }
+
     private static void sameBytes(final String fixture, final String configuration) {
         final EngineHarness.Outcome outcome = EngineHarness.runProject(
                 FixtureLedger.text("projects/" + fixture + "/" + configuration),
                 FixtureLedger.bytes("projects/" + fixture + "/input.txt"));
-        assertThat(outcome.messages()).as("messages from " + fixture + "/" + configuration).isEmpty();
+        // Warnings pass, as they do for the fixture itself; an error or a fatal is a shape that did not do the job.
+        assertThat(outcome.messages()).as("messages from " + fixture + "/" + configuration)
+                .noneMatch(m -> m.severity().equals("Error") || m.severity().equals("Fatal"));
         assertThat(new String(outcome.output(), StandardCharsets.UTF_8)).isEqualTo(
                 new String(FixtureLedger.bytes("projects/" + fixture + "/example_output.xml"), StandardCharsets.UTF_8));
     }
