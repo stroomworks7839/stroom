@@ -667,6 +667,40 @@ every hot call site that failed to inline and why, per row. `write` at 336 and `
 are two lines of it; the streamlining attempt shows why the whole table is needed before the
 next line of `CompiledRefs` is touched.
 
+**The split's mechanism, tested on its own — 2026-09-16.** `DispatchWorkBenchmark` (run by name;
+`benchmarks/2026-09-16-0910-80c9f23704-dispatch-work.json`): fifteen kinds each doing real
+arithmetic on an accumulator, the dispatch behind a helper the hot loop calls so the inlining
+budget applies to it as it does to `Level.match` and `CompiledRefs.write`, four shapes, five
+receiver mixes. Nanoseconds per operation:
+
+| mix | method per type | switch, 15 arms inline (463 bytes) | switch to 15 small methods (370 bytes) | switch, 7 arms inline + default (229 bytes) |
+|---|---|---|---|---|
+| two | 0.39 | 1.00 | 1.01 | 0.40 |
+| three | 8.41 | 1.14 | 1.13 | 0.44 |
+| seven | 10.58 | 1.88 | 1.85 | 1.04 |
+| fifteen | 11.41 | 2.35 | 2.26 | 6.14 |
+| fifteen, 90% one | 3.88 | 1.21 | 1.15 | 0.60 |
+
+*Four conclusions.* **A method per type is right only at two receiver classes**; at three or
+more it is a dispatch that cannot inline, ten times a switch — the ruling against it stands on
+evidence. **A switch under the hot-inline limit is two to two and a half times faster than the
+same switch over it**: the difference is the call, about a nanosecond a dispatch, and at a few
+hundred thousand dispatches per operation that is the size of design 35's `progressive`
+regression — `write` at 336 bytes against 303 at the floor, priced. **Moving the arms' bodies
+into small methods does not rescue it** (370 bytes reads as 463): the dispatcher itself must be
+under the limit; what its arms call is irrelevant. **And the inlined arms must be the hot ones**:
+the 229-byte switch reads 6.14 when half its receivers fall to its default, which is what the
+streamlining commit did to `write` — its hot arms were bytes, group and variable, and it put
+`Composite` behind the default, but a `regex_lines` output *is* a composite, so that row's
+hottest arm went through two dispatches and lost 20%. The shape was right; the choice of arms
+was wrong, because it was made without a per-row receiver profile.
+
+*So the census must supply, per hot switch and per row, which arms are hot* — `PrintInlining`'s
+type-profile lines give exactly that — and the split puts those arms in a dispatcher under 325
+bytes with everything else behind one call. A dispatcher shaped for one row's profile can be
+wrong for another's; where the profiles disagree, the arms hot on *any* row go in, and the
+size is what bounds how many that can be.
+
 **Then the split.** The rule the earlier work reached — a switch with many arms must be big,
 so it cannot inline, so leave it — is true of a switch with many arms *in one method*. It is
 not true of two switches. `Body.run`'s op switch has arms for output leaves, mutations, walks,
