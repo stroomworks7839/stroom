@@ -1501,3 +1501,15 @@ say.
 **Consequences:** built as its own small phase in the regex module — the op, the plan
 compiler's recognition of the shape, the runner, the analyses that read a plan — with the
 identical-plan and tier pins, and read on `progressive_text` as a point of its own.
+
+**Narrowed the same night, before a line was written, and not built.** The op *commits* to
+the first occurrence of the literal; regex semantics do not. In `msg=(?<msg>(?s:.*?))
+pid=(?<pid>[0-9]+)` over `msg=hello pid=x pid=42` the library binds `msg` to `hello pid=x`,
+because the tail fails at the first ` pid=` and the engine backtracks to the second — which
+is D52's chosen semantics, backtracking within a match with PEG commitment retired. A
+committing op would bind `hello` and fail. So the op is sound only where the tail after the
+literal cannot fail, which the row that motivated it does not satisfy, and the scan plan's
+one-pass analysis is right to keep the shape off tier 0. The interpreter's old speed on this
+shape *was* PEG commitment; D52 gave it up knowingly, and this is what it cost. The
+library's budget stays at three (D53); the recommendation that opened this ruling was wrong
+and is recorded as such.

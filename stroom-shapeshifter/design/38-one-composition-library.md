@@ -537,11 +537,15 @@ the row ends about 15% ahead of the interpreter, which is roughly what §7 expec
 `csv_header` flat. Pinned in `PatternExplodeTest`: the fused form's tier is below the
 unfused form's and both bind the same groups.
 
-**What tier 0 would need — a library-budget question, recorded and not built.** A scan plan
-has `SCAN_UNTIL_BYTE` and no scan-until-*literal*, so a run up to a multi-byte terminator can
-never be a scan op; the fused form's floor is the NFA. One plan op would put the whole of
-`progressive_text` on tier 0 — and every `.*?literal` regex with it. D53 closed the library's
-budget at three; this is the fourth, and it is a ruling.
+**What tier 0 would need — and why it cannot have it.** A scan plan has `SCAN_UNTIL_BYTE`
+and no scan-until-*literal*, so a run up to a multi-byte terminator can never be a scan op;
+the fused form's floor is the NFA. The first reading of this was that one plan op would put
+the shape on tier 0, and it was ruled as the library's fourth addition (D55) — then narrowed
+the same night before a line was written: such an op commits to the first occurrence, and
+regex semantics backtrack past it when the tail fails (`msg=hello pid=x pid=42` binds
+`hello pid=x`). That backtracking is D52's choice, made knowingly; the interpreter's speed
+on this shape was PEG commitment, and tier 2 is what regex semantics cost here. Not built;
+the budget stays at three.
 
 **The parts path's own census, and a weak read.** `partsMatch` 347 bytes (hot method too
 big, never inlined into `Level.match`), `BinaryCasts.apply` 739 (the same, once per cast),
