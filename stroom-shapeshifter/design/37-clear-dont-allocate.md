@@ -809,6 +809,21 @@ shape that cost `win_sec` under 3d — the interpreter's compiled code grew with
 it and the match path paid through a limit unrelated to `write`. The magnitude is an evening
 reading; the split is one commit to revert if the reference rows really pay.
 
+**7b and 7c, `resolveValue` and `Conditions.evaluate` split on the census — 2026-09-16.**
+`resolveValue`: a 177-byte dispatcher with `LocalGroup`, `RemoteVar`, `Composite` (its buffer
+loop behind a call) and `Bytes`, and `resolveRare` for `Empty`, `Context` and `Accessor`
+(`78d336e395`). `evaluate`: a 248-byte dispatcher with `Compare` (its work behind a call), `Exists`,
+`Not`, `And`, `Or`, and `evaluateRare` for `Matches`, `Contains`, `StartsWith`, `IsFirst`,
+`IsLast` (`beae636f47`). `PrintInlining` at the two: `resolveValue` inlines hot on `ausearch`,
+`apache_httpd` and `win_sec` at 13, 22 and 21 sites where the census had 2, 0 and 0; `evaluate`
+inlines hot on all three where it had none, `compare` beneath it. Interleaved together against
+`6dd5a784a3` at load 0.1, three rounds: `ausearch` +2.9, +1.5, +6.6; `apache_httpd` +0.9,
++1.9, +0.8; `win_sec` −0.7, −0.4, −15.6 (the last a fast baseline leg: 84 against 71 and 77);
+`regex_lines` −2.3, −0.8, +0.4; `progressive` −2.5, +1.6, −0.6. No reference row pays as
+`csv_header` and `ausearch` did under 7a — but the daytime read did not show that either, and
+the evening reads 52, 56 and 57 side by side. `Body.body`'s category split (7d) waits on that
+reading.
+
 **Then the split.** The rule the earlier work reached — a switch with many arms must be big,
 so it cannot inline, so leave it — is true of a switch with many arms *in one method*. It is
 not true of two switches. `Body.run`'s op switch has arms for output leaves, mutations, walks,
