@@ -73,6 +73,11 @@ public final class AvroContainers {
      * A container of {@code users} records in blocks of {@code perBlock}, from a fixed seed.
      */
     public static Amplified amplify(final int users, final int perBlock, final long seed) {
+        final byte[] bytes = write(users, perBlock, seed);
+        return new Amplified(bytes, readBack(bytes));
+    }
+
+    private static byte[] write(final int users, final int perBlock, final long seed) {
         final Random random = new Random(seed);
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (DataFileWriter<GenericRecord> writer = new DataFileWriter<>(new GenericDatumWriter<>(USER))) {
@@ -91,8 +96,20 @@ public final class AvroContainers {
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }
-        final byte[] bytes = out.toByteArray();
-        return new Amplified(bytes, readBack(bytes));
+        return out.toByteArray();
+    }
+
+    /**
+     * A container just past {@code targetBytes}, as the benchmark's repeated inputs are just
+     * past theirs: one op is the same volume on every row. Sized in two passes because a
+     * record's bytes grow with its ordinal — the names carry it — so a small sample under-reads
+     * the rate; the second pass corrects with the rate at full size and lands within a block.
+     */
+    public static Amplified sized(final int targetBytes, final int perBlock, final long seed) {
+        final int sample = 1000;
+        final int users = targetBytes / (write(sample, perBlock, seed).length / sample);
+        final int corrected = (int) ((long) users * targetBytes / write(users, perBlock, seed).length) + perBlock;
+        return amplify(corrected, perBlock, seed);
     }
 
     /** What the fixture's body writes, from the records as the library reads them. */

@@ -399,31 +399,46 @@ pattern tree over text, so the ledger reads across the retirement.
 ### Phase 5, the first reading — 2026-09-16, the prototype's number
 
 **The Avro row exists.** `avro_users` in `EngineBenchmark`: the container written by the Avro
-Java library (`AvroContainers`, test scope; 16,384 users in blocks of 100, 341,156 bytes,
-from a fixed seed), parsed whole-buffer by the fixture's configuration. `AvroAmplifiedTest`
+Java library (`AvroContainers`, test scope; 12,762 users in blocks of 100, 263,371 bytes —
+sized in two passes to sit just past the 256 KiB target as the repeated rows do, so an op is
+the same volume on every row — from a fixed seed), parsed whole-buffer by the fixture's
+configuration. `AvroAmplifiedTest`
 holds the engine to the library's own reading of a 2,500-user container of the same shape,
 byte for byte, on every test run — the parity gate §7 asked for. The row was *added* beside
 `progressive` rather than replacing it, because point 53 reads the retirement on
 `progressive`'s old job; whether `progressive` then retires is a ruling for after tonight's
 run.
 
-**The prototype's native-crate time, obtained.** The Rust prototype at `/mnt/shared/ds-rs`
-builds offline with its `binary-formats` feature; a timing example over its public `parse`
-(`engine/examples/avro_time.rs`, left untracked there) runs the same fixture configuration
-over the same 341,156-byte file, checks its output against the library's expected bytes
-(1,010,238 bytes, identical), and times 500 parses after warm-up:
+**The prototype's native-crate time, obtained — and decomposed.** The Rust prototype at
+`/mnt/shared/ds-rs` builds offline with its `binary-formats` feature. Two timing examples
+(`engine/examples/avro_time.rs` and `avro_crate_time.rs`, left untracked there) run over the
+same 263,371-byte file: the first is the prototype's whole path through its public `parse` —
+the `apache-avro` crate decoding into its generic `Value` tree, then the prototype's template
+engine writing the XML — checked against the library's expected bytes (784,496, identical);
+the second is the crate alone, every field touched and nothing written. On the engine's side,
+the same configuration with the record template's body emptied is the parse without the
+output: matching, casts, four captures per record and the dispatch, nothing written. Five
+hundred parses each after warm-up:
 
-| parser | the same file, the same output | mean | ops/s |
-|---|---|---|---|
-| ds-rs, `apache-avro` crate through the prototype's template engine | 341,156 → 1,010,238 bytes | 17.1 ms | 58.4 |
-| Shapeshifter, no library — the match sequence, casts and nested dispatch | the same | 5.6 ms | 179.7 ± 2.1 |
+| the same file | mean |
+|---|---|
+| `apache-avro` crate, decode only | 1.5 ms |
+| Shapeshifter, parse only — the match sequence, casts, captures, dispatch | 2.0 ms |
+| Shapeshifter, parse and 784 KB of XML written (the `avro_users` row; JMH 237.6 ± 4.4 ops/s) | 4.2 ms |
+| ds-rs prototype, crate and its template engine and the same XML | 13.3 ms |
 
-A daytime reading on the shared box (JMH, one fork, five iterations; the Rust number is
-stable to 2% across two runs), so the ratio is the finding and the digits are not: the
-library-free parse on the JVM runs at about three times the prototype's native crate. That is
-the number the prototype's design asked for and never recorded, and it settles the question
-§4 raised — whether a real binary format parsed as templates could be more than a
-demonstration. Tonight's full run gives the row its first ledger point.
+A daytime reading on the shared box, so the ratios are the finding and the digits are not.
+Read carefully, because the first reading of this was wrong: the engine is *not* faster than
+the native crate. The crate's schema-driven decode is about a third quicker than the
+library-free parse — 1.5 against 2.0 ms — which is the honest cost of parsing a binary format
+as templates over a regex engine rather than with a decoder that knows the schema. What the
+engine is three times faster than is the *prototype*, and the prototype's twelve remaining
+milliseconds are its own template engine, not the crate. So the number the prototype's design
+asked for is: a library-free parse within a third of the native decoder, on the JVM, with the
+template layer's cost on top of it a matter of what the body writes. That settles the
+question §4 raised — a real binary format parsed as templates is more than a demonstration —
+without pretending it beats a decoder that has the schema. Tonight's full run gives the row
+its first ledger point.
 
 ## 8. Phases
 

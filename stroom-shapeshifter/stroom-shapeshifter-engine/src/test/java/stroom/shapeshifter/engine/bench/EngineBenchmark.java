@@ -150,18 +150,13 @@ public class EngineBenchmark {
                     FixtureLedger.bytes("projects/progressive_text_steps/input.txt"));
             // The container is written by the Avro library rather than repeated: a repeated
             // file would be a header and a sync marker per copy, which is not a container.
-            // Blocks of a hundred records, as many as reach the target size; the parity test
-            // (AvroAmplifiedTest) holds the engine to the library's reading of the same file.
+            // Blocks of a hundred records, sized from a sample to land just past the target as
+            // the repeated rows do, so an op is the same volume here as everywhere else; the
+            // parity test (AvroAmplifiedTest) holds the engine to the library's reading.
             case "avro_users" -> {
                 project = ProjectReader.read(FixtureLedger.text("projects/avro_users/project.json"));
                 compiled = Shapeshifter.compile(project);
-                int users = 4096;
-                byte[] container = AvroContainers.amplify(users, 100, 38L).bytes();
-                while (container.length < TARGET_SIZE) {
-                    users *= 2;
-                    container = AvroContainers.amplify(users, 100, 38L).bytes();
-                }
-                input = container;
+                input = AvroContainers.sized(TARGET_SIZE, 100, 38L).bytes();
                 wholeBuffer = true;
             }
             // References, and the frames behind them: five iterations, a grouping, four keys and
