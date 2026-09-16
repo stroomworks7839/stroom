@@ -789,7 +789,7 @@ of `progressive_text`.
 *What the split is, then, per switch:* a dispatcher under 325 bytes holding the arms hot on
 any row, everything else behind one call. For `write`: `Bytes`, `LocalGroup`, `RemoteVar`,
 `Composite`. For `resolveValue`: the same four. For `Conditions`: `Compare`, `Exists`, `Not`,
-`And`, `Or`. For `Steps.step`: the six. `Body.body` is the loop itself and is not inlined
+`And`, `Or`. For `Steps.step`: struck 2026-09-16 — design 38 deletes the method. `Body.body` is the loop itself and is not inlined
 anywhere; what it gains is its callees — `write` above all — inlining *into* it, which the
 size of `write` has prevented on every row. Each split is its own commit, interleaved on the
 rows its profile names, with the two canaries.
@@ -1174,7 +1174,12 @@ positions idiom, two lists 0.93×, split-on-use 0.32×. `log_sessions` 2026-09-1
 
 ### Phase 9 — the progressive match, reconsidered
 
-§10. A thinking phase first: what a progressive match is for, what it produces, whether the
+§10. **Thought through 2026-09-16, and it became a design of its own: design 38, one
+composition library.** The step layer was a second driver built around a regex library the
+prototype did not own; the engine's own library already has the composition model, and the
+interpreter is what the census priced. The step vocabulary lowers onto the library with two
+combinators, one instruction and a family of binary casts; PEG commitment retires with the
+interpreter. A thinking phase first: what a progressive match is for, what it produces, whether the
 interpreter is the right execution, costed per alternative. Output is a proposal, possibly a
 design of its own. Anything then built is one commit per change, six interleaved rounds on
 `progressive` and `progressive_text`; a negative reading is reverted as design 34 was and the
