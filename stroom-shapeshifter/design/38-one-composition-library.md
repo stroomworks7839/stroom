@@ -396,6 +396,35 @@ fixtures — a skipped fixture was already defined as never run. The benchmark r
 names: `progressive` is the match sequence (a varint cast and a take), `progressive_text` the
 pattern tree over text, so the ledger reads across the retirement.
 
+### Phase 5, the first reading — 2026-09-16, the prototype's number
+
+**The Avro row exists.** `avro_users` in `EngineBenchmark`: the container written by the Avro
+Java library (`AvroContainers`, test scope; 16,384 users in blocks of 100, 341,156 bytes,
+from a fixed seed), parsed whole-buffer by the fixture's configuration. `AvroAmplifiedTest`
+holds the engine to the library's own reading of a 2,500-user container of the same shape,
+byte for byte, on every test run — the parity gate §7 asked for. The row was *added* beside
+`progressive` rather than replacing it, because point 53 reads the retirement on
+`progressive`'s old job; whether `progressive` then retires is a ruling for after tonight's
+run.
+
+**The prototype's native-crate time, obtained.** The Rust prototype at `/mnt/shared/ds-rs`
+builds offline with its `binary-formats` feature; a timing example over its public `parse`
+(`engine/examples/avro_time.rs`, left untracked there) runs the same fixture configuration
+over the same 341,156-byte file, checks its output against the library's expected bytes
+(1,010,238 bytes, identical), and times 500 parses after warm-up:
+
+| parser | the same file, the same output | mean | ops/s |
+|---|---|---|---|
+| ds-rs, `apache-avro` crate through the prototype's template engine | 341,156 → 1,010,238 bytes | 17.1 ms | 58.4 |
+| Shapeshifter, no library — the match sequence, casts and nested dispatch | the same | 5.6 ms | 179.7 ± 2.1 |
+
+A daytime reading on the shared box (JMH, one fork, five iterations; the Rust number is
+stable to 2% across two runs), so the ratio is the finding and the digits are not: the
+library-free parse on the JVM runs at about three times the prototype's native crate. That is
+the number the prototype's design asked for and never recorded, and it settles the question
+§4 raised — whether a real binary format parsed as templates could be more than a
+demonstration. Tonight's full run gives the row its first ledger point.
+
 ## 8. Phases
 
 1. **Read.** The five synthetic fixtures and the twenty `StepsTest` cases against backtracking
@@ -414,7 +443,8 @@ pattern tree over text, so the ledger reads across the retirement.
 4. **The interpreter deleted** with the `progressive` form; the census's two largest methods
    gone. Done 2026-09-16.
 5. **Measured**: gate two, the `progressive` row re-founded on the Avro container, and the
-   design's record.
+   design's record. In progress: the Avro row and the prototype's number 2026-09-16 (above);
+   the evening reading of points 53 and 54 owed.
 
 **Sequencing against design 37** (ruled 2026-09-16): point 52's evening reading first, since it
 says whether dispatcher splits pay on this engine; then phases 1 and 2 here, which touch

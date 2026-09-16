@@ -21,6 +21,7 @@ import stroom.shapeshifter.engine.OutputSink;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.fixture.AvroContainers;
 import stroom.shapeshifter.engine.fixture.FixtureLedger;
 import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.output.XmlByteSink;
@@ -61,7 +62,11 @@ import java.util.concurrent.TimeUnit;
  * varint length cast and a take, over a binary feed held whole (design 38 §3b; the row keeps
  * the name the step interpreter's row had, so the ledger reads across the retirement).
  * {@code progressive_text} is the pattern tree over text — tags, take-whiles, a take-until
- * and a regex node, compiled to the regex library as one pattern. {@code log_sessions} is the
+ * and a regex node, compiled to the regex library as one pattern. {@code avro_users} is the
+ * real binary row (design 38 §7): an Avro object container the Avro library wrote, parsed with
+ * no library as a state machine of templates — header, metadata entries, blocks, each block's
+ * length-prefixed records dispatched to the record template — so it is the match sequence,
+ * the casts and nested dispatch over raw bytes together. {@code log_sessions} is the
  * reference-heavy row: its matching is a delimiter split and its work is iteration, grouping,
  * keys and sequences, so what it measures is variable resolution and the engine's own
  * iteration variables (design 30).
@@ -91,7 +96,7 @@ public class EngineBenchmark {
      */
     @Param({"regex_lines", "csv_header", "ausearch", "ausearch_dispatch", "apache_httpd",
             "win_sec", "win_sec_strict", "win_sec_xml", "progressive", "progressive_text",
-            "log_sessions", "element_storm"})
+            "avro_users", "log_sessions", "element_storm"})
     public String workload;
 
     private Project project;
@@ -143,6 +148,22 @@ public class EngineBenchmark {
             // A pattern tree over a text feed, so this one streams as the other text rows do.
             case "progressive_text" -> streamed("projects/progressive_text_steps/project.json",
                     FixtureLedger.bytes("projects/progressive_text_steps/input.txt"));
+            // The container is written by the Avro library rather than repeated: a repeated
+            // file would be a header and a sync marker per copy, which is not a container.
+            // Blocks of a hundred records, as many as reach the target size; the parity test
+            // (AvroAmplifiedTest) holds the engine to the library's reading of the same file.
+            case "avro_users" -> {
+                project = ProjectReader.read(FixtureLedger.text("projects/avro_users/project.json"));
+                compiled = Shapeshifter.compile(project);
+                int users = 4096;
+                byte[] container = AvroContainers.amplify(users, 100, 38L).bytes();
+                while (container.length < TARGET_SIZE) {
+                    users *= 2;
+                    container = AvroContainers.amplify(users, 100, 38L).bytes();
+                }
+                input = container;
+                wholeBuffer = true;
+            }
             // References, and the frames behind them: five iterations, a grouping, four keys and
             // four sequences over delimited lines whose matching is trivial. The row where a
             // variable lookup is the work rather than a rounding error (design 30 §5).

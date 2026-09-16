@@ -33,6 +33,12 @@ dependencies {
     testImplementation libs.jmh.core
     testAnnotationProcessor libs.jmh.generator.annprocess
 
+    // The Avro Java library writes the amplified container the avro_users benchmark row runs
+    // over and reads it back for the expected output, so the engine's library-free parse is
+    // checked by an independent writer (design 38 §4). Test scope only: the engine itself
+    // never sees it, as it never sees Saxon in the XSLT catalogue.
+    testImplementation libs.avro
+
     testImplementation libs.bundles.common.test.implementation
     testRuntimeOnly libs.bundles.common.test.runtime
 }
