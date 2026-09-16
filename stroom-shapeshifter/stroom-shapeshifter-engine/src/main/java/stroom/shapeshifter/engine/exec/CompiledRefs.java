@@ -131,26 +131,12 @@ final class CompiledRefs {
                                    final MatchResult match,
                                    final int matchCount,
                                    final VarRegistry vars) {
-        // The same shape as write, kept for the same reason.
+        // The same shape as write, for the same reason (design 37 §8, 7b): the four arms hot on
+        // some row inline here — a group is every read on regex_lines, a variable most of
+        // apache_httpd's and win_sec's, a composite a fifth of ausearch's, bytes a fifth of
+        // win_sec's — and the composite's buffer loop is behind a call so the dispatcher stays
+        // under the hot-method size; the three arms hot nowhere are behind one call too.
         switch (ref) {
-            case final CompiledRef.Empty ignored -> {
-                return null;
-            }
-            case final CompiledRef.Bytes bytes -> {
-                return bytes.value().isEmpty() ? null : bytes.value();
-            }
-            case final CompiledRef.Composite composite -> {
-                final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                boolean any = false;
-                for (final CompiledRef part : composite.parts()) {
-                    final TypedValue resolved = resolveValue(part, match, matchCount, vars);
-                    if (resolved != null) {
-                        buffer.writeBytes(resolved.asUtf8());
-                        any = true;
-                    }
-                }
-                return any ? TypedValue.utf8(buffer.toByteArray()) : null;
-            }
             case final CompiledRef.LocalGroup group -> {
                 final TypedValue value = match.group(group.group());
                 return value == null || value.isEmpty() ? null : value;
@@ -159,15 +145,49 @@ final class CompiledRefs {
                 final TypedValue value = lookup(remote, matchCount, vars);
                 return absent(value) ? null : value;
             }
-            case final CompiledRef.Context context -> {
-                final TypedValue value = lookup(context, matchCount, vars);
-                return value == null || value.isEmpty() ? null : value;
+            case final CompiledRef.Composite composite -> {
+                return resolveComposite(composite, match, matchCount, vars);
             }
-            case final CompiledRef.Accessor accessor -> {
-                final TypedValue value = accessor(accessor, match, matchCount, vars);
-                return absent(value) ? null : value;
+            case final CompiledRef.Bytes bytes -> {
+                return bytes.value().isEmpty() ? null : bytes.value();
+            }
+            default -> {
+                return resolveRare(ref, match, matchCount, vars);
             }
         }
+    }
+
+    private static TypedValue resolveComposite(final CompiledRef.Composite composite,
+                                               final MatchResult match,
+                                               final int matchCount,
+                                               final VarRegistry vars) {
+        final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        boolean any = false;
+        for (final CompiledRef part : composite.parts()) {
+            final TypedValue resolved = resolveValue(part, match, matchCount, vars);
+            if (resolved != null) {
+                buffer.writeBytes(resolved.asUtf8());
+                any = true;
+            }
+        }
+        return any ? TypedValue.utf8(buffer.toByteArray()) : null;
+    }
+
+    /** The arms no row is hot on: nothing, a counter, an accessor. */
+    private static TypedValue resolveRare(final CompiledRef ref,
+                                          final MatchResult match,
+                                          final int matchCount,
+                                          final VarRegistry vars) {
+        final TypedValue value = switch (ref) {
+            case final CompiledRef.Empty ignored -> null;
+            case final CompiledRef.Context context -> lookup(context, matchCount, vars);
+            case final CompiledRef.Accessor accessor -> accessor(accessor, match, matchCount, vars);
+            case final CompiledRef.Bytes ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledRef.LocalGroup ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledRef.RemoteVar ignored -> throw new IllegalStateException("hot arm");
+            case final CompiledRef.Composite ignored -> throw new IllegalStateException("hot arm");
+        };
+        return absent(value) ? null : value;
     }
 
     /** The value of a reference as UTF-8 bytes, or null if it resolves to nothing. */
