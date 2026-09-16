@@ -115,6 +115,10 @@ public class EngineBenchmark {
                     FixtureLedger.bytes("projects/ausearch/input.txt"));
             case "apache_httpd" -> streamed("projects/apache_httpd/project.json",
                     FixtureLedger.bytes("projects/apache_httpd/input.txt"));
+            // The month table as a switch rather than a map refilled per line (design 37
+            // phase 8), on request.
+            case "apache_httpd_switch" -> streamed("projects/apache_httpd/challenger-switch.project.json",
+                    FixtureLedger.bytes("projects/apache_httpd/input.txt"));
             case "win_sec" -> streamed("projects/win_sec/project.json",
                     FixtureLedger.bytes("projects/win_sec/input.txt"));
             // The same events, the same output bytes, the strict idiom (D36): the direct A/B

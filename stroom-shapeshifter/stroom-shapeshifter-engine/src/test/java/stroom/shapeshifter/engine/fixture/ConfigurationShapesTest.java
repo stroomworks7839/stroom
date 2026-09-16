@@ -45,6 +45,13 @@ class ConfigurationShapesTest {
         sameBytes("log_sessions", configuration);
     }
 
+    /** apache_httpd looks a month name up in a twelve-entry table refilled on every line: a switch instead. */
+    @ParameterizedTest
+    @ValueSource(strings = {"project.json", "challenger-switch.project.json"})
+    void apacheHttpdShapesWriteTheSameBytes(final String configuration) {
+        sameBytes("apache_httpd", configuration);
+    }
+
     private static void sameBytes(final String fixture, final String configuration) {
         final EngineHarness.Outcome outcome = EngineHarness.runProject(
                 FixtureLedger.text("projects/" + fixture + "/" + configuration),

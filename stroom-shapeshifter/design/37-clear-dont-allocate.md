@@ -754,6 +754,17 @@ small part of this row — most of it is date parsing and the per-host grouping 
 every status to read one costs about 2% of the whole. And on a *walk*, the plain scan is as good
 as filtering at capture: this is where the paired-list shape belongs, not in a lookup.
 
+### What phase 8 read fourth — 2026-09-16, `apache_httpd`
+
+*The row's one map is a constant table: twelve month names to numbers, declared with entries and
+refilled from the table on every line, read once per line.* One shape beside the fixture — a
+twelve-case `switch` on the month name, no map — writing the golden output, three rounds:
+351.4 / 345.2 / 350.5 ops/s against 351.0 / 347.6 / 349.6, **flat** within half a per cent
+with the sign disagreeing. A constant lookup costs the same either way: twelve entries
+refilled into the parked map per line and one hash, or the month rendered to a `String` and
+looked up in the switch's case table (census #4). The map stays as the clearer declaration,
+and phase 2's refill from a table is confirmed cheap enough not to show.
+
 *The shapes are kept as fixtures, not benchmarks* (ruled 2026-09-16): every shape stays
 beside its case, parity-gated on every test run — `ConfigurationShapesTest` for the engine
 fixtures, `CaseShapesTest` against live Saxon for the catalogue — and measured only when
@@ -932,7 +943,7 @@ and `resolveValue` under budget; `progressive` and `regex_lines` recover toward 
 §9. **Pulled forward and begun 2026-09-15**: `ausearch`'s two challengers read +7% (switch)
 and +30% (a template per key) against its map, parity-gated and now benchmark workloads. The
 walking shapes measured 2026-09-16 on `keys_lookup`: the direct map +30% over the case's
-positions idiom, two lists 0.93×, split-on-use 0.32×. `log_sessions` 2026-09-16: +2% without its map. Remaining: `win_sec`, `apache_httpd`. Gate: the shape → cost table, and a sentence in design 35 §5.
+positions idiom, two lists 0.93×, split-on-use 0.32×. `log_sessions` 2026-09-16: +2% without its map. `apache_httpd` 2026-09-16: a constant table as a switch reads flat. Remaining: `win_sec`. Gate: the shape → cost table, and a sentence in design 35 §5.
 
 ### Phase 9 — the progressive match, reconsidered
 
