@@ -1531,3 +1531,32 @@ and no fourth. The regex library is not touched.
 **Consequences:** design 39, phase 1 built the same day; the fixtures using varint patterns
 rewritten to `read` and byte-identical; the value a `read` binds pinned identical to the
 cast a labelled pattern node gives; `avro_users` the reading.
+
+---
+
+## D57 — Native records: a reader yields records, each record is a match, its fields are its groups
+
+*Ruled by the owner, 2026-09-17, eleven questions in design 42 §8, nine as recommended and
+two changed.* A native template selects nodes in a tree format — JSON, XML, Avro, protobuf,
+Parquet — and each selected node is one match; its scalar children are its groups by name
+(`field`), its complex children are map and list values or the next level, reached by the
+ordinary `apply-templates`. Fitted arms in the model, one compiled kind in the graph; a
+format-free `record` kind beneath the reader; selection by position only, never a
+predicate, with every decision about a value in a guard or a body; records as structured
+slices over their bytes, decoded on access, memoised, read-only; the projection as the
+compiler-derived eager option; the readers in a `stroom-shapeshifter-formats` module, one
+hidden sub-package per format.
+
+**The two changes:** whole-buffer establishes the contract but streaming is a *committed*
+phase, because large inputs cannot be held whole — the window holds a record's bytes for the
+record's life, design 23's contract applied to a record; and XML's native path gets *new*
+fixtures beside the regex-over-XML ones rather than replacing them, so both mechanisms stay
+tested and the corpus grows.
+
+**Embedded formats** — JSON in XML, XML in JSON, JSON in a log line — are the same rule at
+any depth: a format arm wherever bytes are opened, a field's bytes being bytes, with the
+mode deciding what a dispatched value must be.
+
+**Consequences:** design 42 phases 0–5 as written, JSON first and Parquet second; the
+design 35 collections become interfaces; the `field` capture source returns; the `select`
+grammar is fixed by design 42 and grows only by a ruling.
