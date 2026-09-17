@@ -94,6 +94,9 @@ final class Body {
     /** The run's encoding in force, told by the run, which a nested dispatch is handed. */
     private final Encoding encoding;
 
+    /** The one list every transform's inputs are resolved into; see {@link #inputs}. */
+    private final ArrayList<TypedValue> scratchInputs = new ArrayList<>(4);
+
     /** {@code strict_values}, read once: a source flag, not a per-transform question. */
     private final boolean strictValues;
 
@@ -513,11 +516,18 @@ final class Body {
         emit(function.apply(inputs), name, matchCount, out);
     }
 
-    /** The selects an instruction reads, resolved; an absent one contributes nothing. */
+    /**
+     * The selects an instruction reads, resolved; an absent one contributes nothing. One list,
+     * cleared per call (design 41): a transform reads its inputs and returns a value, never the
+     * list, and nothing here re-enters a transform while one runs — so the list a transform
+     * sees is the body's one scratch list, not one allocated per instruction. The XML parse
+     * row ran two million transforms per operation, each with its own list.
+     */
     private List<TypedValue> inputs(final CompiledRef[] select,
                                     final MatchResult match,
                                     final int matchCount) {
-        final List<TypedValue> inputs = new ArrayList<>(select.length);
+        final List<TypedValue> inputs = scratchInputs;
+        inputs.clear();
         for (final CompiledRef ref : select) {
             final TypedValue resolved = CompiledRefs.resolveValue(ref, match, matchCount, vars);
             if (resolved != null) {

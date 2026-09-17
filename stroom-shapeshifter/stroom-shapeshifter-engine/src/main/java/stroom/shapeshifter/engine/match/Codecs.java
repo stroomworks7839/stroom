@@ -48,7 +48,7 @@ public final class Codecs {
     /** True if this build can apply a codec at all. */
     public static boolean isSupported(final Codec codec) {
         return switch (codec) {
-            case BASE64, BASE64_URL, HEX, URL_ENCODING, DEFLATE, GZIP -> true;
+            case BASE64, BASE64_URL, HEX, URL_ENCODING, DEFLATE, GZIP, XML_ENTITIES, JSON_STRING -> true;
             case SNAPPY, ZSTD, LZ4 -> false;
         };
     }
@@ -63,6 +63,8 @@ public final class Codecs {
                 case URL_ENCODING -> fromPercent(input);
                 case DEFLATE -> readAll(new InflaterInputStream(new ByteArrayInputStream(input)));
                 case GZIP -> readAll(new GZIPInputStream(new ByteArrayInputStream(input)));
+                case XML_ENTITIES -> xmlEntities(input);
+                case JSON_STRING -> jsonString(input);
                 case SNAPPY, ZSTD, LZ4 -> null;
             };
         } catch (final IllegalArgumentException | IOException e) {
@@ -116,6 +118,170 @@ public final class Codecs {
             i++;
         }
         return result.toByteArray();
+    }
+
+    /**
+     * XML references decoded in UTF-8 bytes (design 41): {@code &lt; &gt; &amp; &quot; &apos;},
+     * {@code &#N;} and {@code &#xN;}. Anything else after an ampersand is left as written,
+     * which is what a value that was never XML-escaped needs. The input is returned as itself
+     * when it holds no ampersand, so a value with nothing to decode costs a scan and nothing
+     * else.
+     */
+    private static byte[] xmlEntities(final byte[] input) {
+        int amp = indexOf(input, (byte) '&', 0);
+        if (amp < 0) {
+            return input;
+        }
+        final ByteArrayOutputStream out = new ByteArrayOutputStream(input.length);
+        int from = 0;
+        while (amp >= 0) {
+            final int semi = indexOf(input, (byte) ';', amp + 1);
+            final int decoded = semi < 0 ? -1 : reference(input, amp + 1, semi);
+            if (decoded < 0) {
+                out.write(input, from, amp + 1 - from);
+                from = amp + 1;
+            } else {
+                out.write(input, from, amp - from);
+                writeUtf8(out, decoded);
+                from = semi + 1;
+            }
+            amp = indexOf(input, (byte) '&', from);
+        }
+        out.write(input, from, input.length - from);
+        return out.toByteArray();
+    }
+
+    /** The code point a reference between {@code &} and {@code ;} names, or -1 when it names none. */
+    private static int reference(final byte[] a, final int from, final int to) {
+        final int n = to - from;
+        if (n >= 2 && a[from] == '#') {
+            final boolean hex = a[from + 1] == 'x' || a[from + 1] == 'X';
+            int value = 0;
+            int digits = 0;
+            for (int i = from + (hex ? 2 : 1); i < to; i++) {
+                final int d = Character.digit(a[i], hex ? 16 : 10);
+                if (d < 0 || value > 0x10FFFF) {
+                    return -1;
+                }
+                value = value * (hex ? 16 : 10) + d;
+                digits++;
+            }
+            return digits == 0 || value > 0x10FFFF ? -1 : value;
+        }
+        if (n == 2 && a[from] == 'l' && a[from + 1] == 't') {
+            return '<';
+        }
+        if (n == 2 && a[from] == 'g' && a[from + 1] == 't') {
+            return '>';
+        }
+        if (n == 3 && a[from] == 'a' && a[from + 1] == 'm' && a[from + 2] == 'p') {
+            return '&';
+        }
+        if (n == 4 && a[from] == 'q' && a[from + 1] == 'u' && a[from + 2] == 'o' && a[from + 3] == 't') {
+            return '"';
+        }
+        if (n == 4 && a[from] == 'a' && a[from + 1] == 'p' && a[from + 2] == 'o' && a[from + 3] == 's') {
+            return '\'';
+        }
+        return -1;
+    }
+
+    /**
+     * A JSON string's escapes decoded in UTF-8 bytes (design 41): the eight short escapes and
+     * the four-hex-digit unicode escape, a high surrogate followed by an escaped low one
+     * joined into one code point. A backslash that begins no valid escape is left as written. The input is returned
+     * as itself when it holds no backslash.
+     */
+    private static byte[] jsonString(final byte[] input) {
+        int slash = indexOf(input, (byte) '\\', 0);
+        if (slash < 0) {
+            return input;
+        }
+        final ByteArrayOutputStream out = new ByteArrayOutputStream(input.length);
+        int from = 0;
+        while (slash >= 0 && slash + 1 < input.length) {
+            out.write(input, from, slash - from);
+            final byte c = input[slash + 1];
+            int consumed = 2;
+            switch (c) {
+                case '"' -> out.write('"');
+                case '\\' -> out.write('\\');
+                case '/' -> out.write('/');
+                case 'b' -> out.write('\b');
+                case 'f' -> out.write('\f');
+                case 'n' -> out.write('\n');
+                case 'r' -> out.write('\r');
+                case 't' -> out.write('\t');
+                case 'u' -> {
+                    int point = hex4(input, slash + 2);
+                    if (point < 0) {
+                        out.write(input, slash, 1);
+                        consumed = 1;
+                    } else {
+                        consumed = 6;
+                        if (Character.isHighSurrogate((char) point) && slash + 11 < input.length
+                            && input[slash + 6] == '\\' && input[slash + 7] == 'u') {
+                            final int low = hex4(input, slash + 8);
+                            if (low >= 0 && Character.isLowSurrogate((char) low)) {
+                                point = Character.toCodePoint((char) point, (char) low);
+                                consumed = 12;
+                            }
+                        }
+                        writeUtf8(out, point);
+                    }
+                }
+                default -> {
+                    out.write(input, slash, 1);
+                    consumed = 1;
+                }
+            }
+            from = slash + consumed;
+            slash = indexOf(input, (byte) '\\', from);
+        }
+        out.write(input, from, input.length - from);
+        return out.toByteArray();
+    }
+
+    private static int hex4(final byte[] a, final int from) {
+        if (from + 4 > a.length) {
+            return -1;
+        }
+        int value = 0;
+        for (int i = from; i < from + 4; i++) {
+            final int d = Character.digit(a[i], 16);
+            if (d < 0) {
+                return -1;
+            }
+            value = value * 16 + d;
+        }
+        return value;
+    }
+
+    private static void writeUtf8(final ByteArrayOutputStream out, final int codePoint) {
+        if (codePoint < 0x80) {
+            out.write(codePoint);
+        } else if (codePoint < 0x800) {
+            out.write(0xC0 | (codePoint >> 6));
+            out.write(0x80 | (codePoint & 0x3F));
+        } else if (codePoint < 0x10000) {
+            out.write(0xE0 | (codePoint >> 12));
+            out.write(0x80 | ((codePoint >> 6) & 0x3F));
+            out.write(0x80 | (codePoint & 0x3F));
+        } else {
+            out.write(0xF0 | (codePoint >> 18));
+            out.write(0x80 | ((codePoint >> 12) & 0x3F));
+            out.write(0x80 | ((codePoint >> 6) & 0x3F));
+            out.write(0x80 | (codePoint & 0x3F));
+        }
+    }
+
+    private static int indexOf(final byte[] a, final byte b, final int from) {
+        for (int i = from; i < a.length; i++) {
+            if (a[i] == b) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static byte[] readAll(final InputStream input) throws IOException {

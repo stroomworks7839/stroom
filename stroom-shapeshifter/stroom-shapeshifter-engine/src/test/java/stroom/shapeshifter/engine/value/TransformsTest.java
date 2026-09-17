@@ -17,8 +17,11 @@
 package stroom.shapeshifter.engine.value;
 
 
+import stroom.shapeshifter.engine.config.Codec;
+
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -226,4 +229,45 @@ class TransformsTest {
                 .isEqualTo("∞");
     }
 
+
+    // -----------------------------------------------------------------------------------
+    // The text codecs (design 41): what an XML or JSON value needs decoded, in one op
+    // -----------------------------------------------------------------------------------
+
+    private static String decode(final String input, final Codec codec) {
+        final TypedValue decoded = Transforms.decode(List.of(TypedValue.of(input)), codec);
+        return decoded == null ? null : decoded.asString();
+    }
+
+    @Test
+    void xmlEntitiesDecodeThePredefinedFiveAndNumericReferences() {
+        assertThat(decode("a &lt; b &gt; c &amp; d &quot;e&quot; &apos;f&apos;", Codec.XML_ENTITIES))
+                .isEqualTo("a < b > c & d \"e\" 'f'");
+        assertThat(decode("caf&#233; &#xE9; &#x1F600; &#65;", Codec.XML_ENTITIES)).isEqualTo("café é 😀 A");
+        assertThat(decode("&amp;amp;", Codec.XML_ENTITIES)).as("decoded once, not twice").isEqualTo("&amp;");
+    }
+
+    @Test
+    void xmlEntitiesLeaveWhatIsNotAReferenceAsWritten() {
+        assertThat(decode("a & b &foo; &#; &#xZZ; &lt", Codec.XML_ENTITIES)).isEqualTo("a & b &foo; &#; &#xZZ; &lt");
+        final TypedValue plain = TypedValue.of("nothing to decode");
+        assertThat(Transforms.decode(List.of(plain), Codec.XML_ENTITIES)).as("returned as itself").isSameAs(plain);
+    }
+
+    @Test
+    void jsonStringDecodesTheEscapesAndJoinsSurrogatePairs() {
+        assertThat(decode("a\\\"b\\\\c\\/d\\ne\\tf\\u00e9g\\ud83d\\ude00h", Codec.JSON_STRING))
+                .isEqualTo("a\"b\\c/d\ne\tfég😀h");
+        assertThat(decode("\\\\n", Codec.JSON_STRING)).as("an escaped backslash before an n is not a newline")
+                .isEqualTo("\\n");
+        assertThat(decode("x\\q \\u12 \\", Codec.JSON_STRING)).as("what is not an escape stays")
+                .isEqualTo("x\\q \\u12 \\");
+    }
+
+    @Test
+    void textCodecsReadTheUtf8FormOfAValueReadUnderAnotherEncoding() {
+        final TypedValue latin1 = TypedValue.of("café &amp; thé".getBytes(StandardCharsets.ISO_8859_1),
+                stroom.shapeshifter.engine.text.Encoding.fromLabel("iso-8859-1"));
+        assertThat(Transforms.decode(List.of(latin1), Codec.XML_ENTITIES).asString()).isEqualTo("café & thé");
+    }
 }

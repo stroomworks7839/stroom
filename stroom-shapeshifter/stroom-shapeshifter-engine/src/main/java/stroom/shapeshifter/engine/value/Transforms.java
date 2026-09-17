@@ -20,6 +20,8 @@ package stroom.shapeshifter.engine.value;
 import stroom.shapeshifter.engine.config.Codec;
 import stroom.shapeshifter.engine.match.Codecs;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
@@ -80,12 +82,67 @@ public final class Transforms {
                 : TypedValue.of(String.join(separator == null ? "" : separator, present));
     }
 
-    /** Replace a literal. */
+    /**
+     * Replace a literal, on the value's UTF-8 bytes (design 41): the search is byte-wise, which
+     * for well-formed UTF-8 is the same search as character-wise since the encoding is
+     * self-synchronising, and a value the pattern does not occur in is returned as itself —
+     * no string decoded, nothing re-encoded, nothing allocated. The XML parse row spent forty
+     * per cent of its time in three of these per attribute value, almost all on values with
+     * nothing to replace. A value that is not bytes takes the string path it always took.
+     */
     public static TypedValue replaceLiteral(final List<TypedValue> inputs,
                                             final String pattern,
                                             final String replacement) {
-        final String input = first(inputs);
-        return input == null ? null : TypedValue.of(input.replace(pattern, replacement));
+        if (inputs.isEmpty()) {
+            return null;
+        }
+        final TypedValue value = inputs.getFirst();
+        if (!(value instanceof TypedValue.Bytes) || pattern.isEmpty()) {
+            final String input = value.asString();
+            return TypedValue.of(input.replace(pattern, replacement));
+        }
+        // A slice under a UTF-8-compatible reading is searched where it lies; anything else
+        // takes its UTF-8 form, which for a whole value is the array itself.
+        final TypedValue.Bytes text = (TypedValue.Bytes) value;
+        final boolean inPlace = text.encoding().isUtf8Compatible();
+        final byte[] bytes = inPlace ? text.readArray() : text.asUtf8();
+        final int start = inPlace ? text.readOffset() : 0;
+        final int end = inPlace ? start + text.readLength() : bytes.length;
+        final byte[] target = pattern.getBytes(StandardCharsets.UTF_8);
+        int at = indexOf(bytes, target, start, end);
+        if (at < 0) {
+            return value;
+        }
+        final byte[] with = replacement.getBytes(StandardCharsets.UTF_8);
+        final ByteArrayOutputStream out = new ByteArrayOutputStream(
+                end - start + Math.max(0, with.length - target.length) * 4);
+        int from = start;
+        while (at >= 0) {
+            out.write(bytes, from, at - from);
+            out.write(with, 0, with.length);
+            from = at + target.length;
+            at = indexOf(bytes, target, from, end);
+        }
+        out.write(bytes, from, end - from);
+        return TypedValue.utf8(out.toByteArray());
+    }
+
+    private static int indexOf(final byte[] haystack, final byte[] needle, final int from, final int end) {
+        final byte first = needle[0];
+        final int last = end - needle.length;
+        for (int i = from; i <= last; i++) {
+            if (haystack[i] != first) {
+                continue;
+            }
+            int j = 1;
+            while (j < needle.length && haystack[i + j] == needle[j]) {
+                j++;
+            }
+            if (j == needle.length) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -96,6 +153,13 @@ public final class Transforms {
     public static TypedValue decode(final List<TypedValue> inputs, final Codec codec) {
         if (inputs.isEmpty() || !(inputs.getFirst() instanceof final TypedValue.Bytes bytes)) {
             return null;
+        }
+        if (codec.text()) {
+            // A text codec reads characters, so it reads the UTF-8 form — a whole UTF-8 value's
+            // own array — and a value it leaves untouched is returned as itself (design 41).
+            final byte[] input = bytes.asUtf8();
+            final byte[] decoded = Codecs.decode(input, codec);
+            return decoded == input ? bytes : decoded == null ? null : TypedValue.utf8(decoded);
         }
         final byte[] array = bytes.readArray();
         final int from = bytes.readOffset();

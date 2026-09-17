@@ -109,16 +109,6 @@
    "id": "00000000-0000-0000-0000-000000000003",
    "name": "data",
    "mode": "data",
-   "declarations": [
-    {
-     "name": "lt",
-     "type": "scalar"
-    },
-    {
-     "name": "gt",
-     "type": "scalar"
-    }
-   ],
    "match": {
     "regex": {
      "pattern": "<data name=\"([^\"]*)\" value=\"([^\"]*)\"/>",
@@ -160,7 +150,7 @@
          "omit-if-empty": false,
          "body": [
           {
-           "replace": {
+           "decode": {
             "select": [
              {
               "parts": [
@@ -172,46 +162,7 @@
               ]
              }
             ],
-            "pattern": "&lt;",
-            "replacement": "<",
-            "name": "lt"
-           }
-          },
-          {
-           "replace": {
-            "select": [
-             {
-              "parts": [
-               {
-                "capture": {
-                 "var_id": "lt",
-                 "group": 0
-                }
-               }
-              ]
-             }
-            ],
-            "pattern": "&gt;",
-            "replacement": ">",
-            "name": "gt"
-           }
-          },
-          {
-           "replace": {
-            "select": [
-             {
-              "parts": [
-               {
-                "capture": {
-                 "var_id": "gt",
-                 "group": 0
-                }
-               }
-              ]
-             }
-            ],
-            "pattern": "&amp;",
-            "replacement": "&"
+            "codec": "xml_entities"
            }
           }
          ]

@@ -21,7 +21,6 @@ import stroom.shapeshifter.engine.OutputSink;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.helpers.AttributesImpl;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -48,7 +47,20 @@ public final class SaxEventSink implements OutputSink {
     /** The element being written, or null at document level: an element knows its own parent. */
     private Element innermost;
     private final SaxEvents events = new SaxEvents();
-    private Attribute attribute;
+    /**
+     * The open attribute, as three fields rather than an object: its name (null when none is
+     * open), its omission rule, and its bytes in one buffer the sink keeps — an attribute per
+     * element per record was an object, a stream and a growing array each, a tenth of the
+     * XML parse row's time in {@code ensureCapacity} alone (design 41).
+     */
+    private String attributeQName;
+    private boolean attributeOmitIfEmpty;
+    private byte[] attributeBytes = new byte[64];
+    private int attributeLength;
+    /** The one attribute list handed to every {@code startElement}: SAX lets a handler read it during the call only. */
+    private final AttributesImpl attributes = new AttributesImpl();
+    /** Elements finished with, for reuse: an element per event was an eighth of the row's allocation. */
+    private Element spare;
     private final Utf8.Carry carry = new Utf8.Carry();
     private boolean documentStarted;
     private boolean documentEnded;
@@ -72,7 +84,9 @@ public final class SaxEventSink implements OutputSink {
         }
         // As in the byte sink: the parent starts when this child first emits, not now, so an
         // omitted child leaves it untouched — and the document starts with its root's first event.
-        final Element element = new Element(qName, parent, omitIfEmpty);
+        final Element element = spare == null ? new Element() : spare;
+        spare = element.parent;
+        element.open(qName, parent, omitIfEmpty);
         innermost = element;
         if (namespace != null) {
             final String prefix = QNames.prefixOf(qName);
@@ -105,22 +119,23 @@ public final class SaxEventSink implements OutputSink {
             throw new StructureException(
                     "attribute '" + qName + "' arrived after the content of <" + element.qName + "> had begun");
         }
-        attribute = new Attribute(qName, omitIfEmpty);
+        attributeQName = qName;
+        attributeOmitIfEmpty = omitIfEmpty;
+        attributeLength = 0;
     }
 
     @Override
     public void endAttribute() {
-        if (attribute == null) {
+        if (attributeQName == null) {
             throw new StructureException("endAttribute with no attribute open");
         }
-        final String value = attribute.value.toString(StandardCharsets.UTF_8);
-        if (!(attribute.omitIfEmpty && value.isEmpty())) {
+        if (!(attributeOmitIfEmpty && attributeLength == 0)) {
+            final String value = new String(attributeBytes, 0, attributeLength, StandardCharsets.UTF_8);
             final Element holder = innermost;
-            holder.attributes = append(holder.attributes, holder.attributeCount,
-                    attribute.qName, value);
+            holder.attributes = append(holder.attributes, holder.attributeCount, attributeQName, value);
             holder.attributeCount += 2;
         }
-        attribute = null;
+        attributeQName = null;
     }
 
     @Override
@@ -131,6 +146,7 @@ public final class SaxEventSink implements OutputSink {
         if (!element.started && element.omitIfEmpty
             && element.declarationCount == 0 && element.attributeCount == 0) {
             innermost = element.parent;
+            recycle(element);
             return;
         }
         ensureStarted(element);
@@ -140,10 +156,18 @@ public final class SaxEventSink implements OutputSink {
             events.make(() -> handler.endPrefixMapping(prefix));
         }
         innermost = element.parent;
+        recycle(element);
         if (innermost == null) {
             events.make(handler::endDocument);
             documentEnded = true;
         }
+    }
+
+    /** An element that has ended goes on the spare list, its parent link reused as the list's. */
+    private void recycle(final Element element) {
+        element.close();
+        element.parent = spare;
+        spare = element;
     }
 
     // -----------------------------------------------------------------------------------
@@ -152,8 +176,13 @@ public final class SaxEventSink implements OutputSink {
 
     @Override
     public void write(final byte[] data, final int offset, final int length) {
-        if (attribute != null) {
-            attribute.value.write(data, offset, length);
+        if (attributeQName != null) {
+            if (attributeLength + length > attributeBytes.length) {
+                attributeBytes = Arrays.copyOf(attributeBytes,
+                        Math.max(attributeBytes.length * 2, attributeLength + length));
+            }
+            System.arraycopy(data, offset, attributeBytes, attributeLength, length);
+            attributeLength += length;
             return;
         }
         content(carry.take(data, offset, length));
@@ -228,7 +257,7 @@ public final class SaxEventSink implements OutputSink {
         element.uri = resolve(element, QNames.prefixOf(element.qName, elementColon),
                 "element", element.qName);
         element.localName = QNames.localOf(element.qName, elementColon);
-        final AttributesImpl attributes = new AttributesImpl();
+        attributes.clear();
         for (int i = 0; i < element.attributeCount; i += 2) {
             final String qName = element.attributes[i];
             final int colon = qName.indexOf(':');
@@ -316,9 +345,9 @@ public final class SaxEventSink implements OutputSink {
     // As in XmlByteSink: the call and its subject travel separately, so the description of a
     // refusal that almost never fires is not concatenated on every structural write.
     private void checkNoAttributeOpen(final String call, final String subject) {
-        if (attribute != null) {
+        if (attributeQName != null) {
             throw new StructureException(
-                    call + " " + subject + " while attribute '" + attribute.qName + "' is open");
+                    call + " " + subject + " while attribute '" + attributeQName + "' is open");
         }
     }
 
@@ -329,9 +358,9 @@ public final class SaxEventSink implements OutputSink {
 
     private static final class Element {
 
-        private final String qName;
-        private final Element parent;
-        private final boolean omitIfEmpty;
+        private String qName;
+        private Element parent;
+        private boolean omitIfEmpty;
         /**
          * Declarations and attributes as flat {@code prefix, uri, …} and {@code qName, value, …}
          * pairs, null until there is one, and no scope map — a prefix is looked up by walking the
@@ -345,22 +374,27 @@ public final class SaxEventSink implements OutputSink {
         private String uri;
         private String localName;
 
-        private Element(final String qName, final Element parent, final boolean omitIfEmpty) {
-            this.qName = qName;
-            this.parent = parent;
-            this.omitIfEmpty = omitIfEmpty;
+        /** Take a spare (or a new) element into use: the arrays stay, the counts start at zero. */
+        void open(final String name, final Element outer, final boolean omit) {
+            qName = name;
+            parent = outer;
+            omitIfEmpty = omit;
+            declarationCount = 0;
+            attributeCount = 0;
+            started = false;
+            uri = null;
+            localName = null;
         }
-    }
 
-    private static final class Attribute {
-
-        private final String qName;
-        private final boolean omitIfEmpty;
-        private final ByteArrayOutputStream value = new ByteArrayOutputStream();
-
-        private Attribute(final String qName, final boolean omitIfEmpty) {
-            this.qName = qName;
-            this.omitIfEmpty = omitIfEmpty;
+        /** Drop what an ended element held, so a spare retains nothing but its arrays. */
+        void close() {
+            qName = null;
+            if (attributes != null) {
+                Arrays.fill(attributes, 0, attributeCount, null);
+            }
+            if (declarations != null) {
+                Arrays.fill(declarations, 0, declarationCount, null);
+            }
         }
     }
 }

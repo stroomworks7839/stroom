@@ -21,10 +21,9 @@ import java.nio.charset.StandardCharsets;
 /**
  * The records corpus as JSON lines — one object per line, the same fields, values and count
  * as {@link RecordsGenerator}'s XML, so the two parse head-to-heads (design 40) read the
- * same data in the two shapes. Numbers are numbers, the message carries the two escapes a
- * configuration can decode with a replace chain — {@code \"} and {@code \n} — and no
- * {@code \\}, which a chain of replaces cannot decode correctly; the corpus says so rather
- * than pretending.
+ * same data in the two shapes. Numbers are numbers, and the message carries an escaped quote,
+ * an escaped backslash followed by an n — which a chain of replaces decodes wrongly and the
+ * {@code json_string} codec (design 41) decodes right — and an escaped newline.
  */
 final class JsonRecordsGenerator {
 
@@ -44,7 +43,7 @@ final class JsonRecordsGenerator {
                     .append(",\"lineNo\":").append(i)
                     .append(",\"user\":\"user").append(userNo)
                     .append("\",\"message\":\"Message ").append(i).append(" from run \\\"batch\\\" ")
-                    .append(seed & 0xFFF).append("\\ndone\"");
+                    .append(seed & 0xFFF).append("\\\\n\\ndone\"");
             if (i % 3 == 0) {
                 out.append(",\"host\":\"host-").append(fileNo).append('"');
             }

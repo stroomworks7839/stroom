@@ -42,5 +42,22 @@ public enum Codec {
     /** Zstandard. */
     ZSTD,
     /** LZ4. */
-    LZ4
+    LZ4,
+    /**
+     * XML's character and entity references, decoded to the characters they name: the five
+     * predefined entities and numeric references in both bases (design 41). A reference that
+     * is not one of those is left as written. Text, not bytes: applied to the value's UTF-8
+     * form, whatever it was read under.
+     */
+    XML_ENTITIES,
+    /**
+     * A JSON string's escapes, decoded: the short escapes and the four-hex-digit unicode
+     * escape, with surrogate pairs joined (design 41). Text, not bytes, as {@link #XML_ENTITIES} is.
+     */
+    JSON_STRING;
+
+    /** True of the two codecs that read and write text rather than transform bytes. */
+    public boolean text() {
+        return this == XML_ENTITIES || this == JSON_STRING;
+    }
 }

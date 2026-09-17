@@ -84,7 +84,7 @@ class JsonParseParityTest {
         final List<String> jackson = jacksonRecords(bytes, null);
         assertThat(jackson).hasSize(1000);
         assertThat(jackson.getFirst()).startsWith("date=2026-08-21;time=00:00:01;fileNo=2;lineNo=1;user=user1694;")
-                .contains("message=Message 1 from run \"batch\" 1400\ndone;");
+                .contains("message=Message 1 from run \"batch\" 1400\\n\ndone;");
         assertThat(jacksonRecords(null, text)).as("Jackson from a string").isEqualTo(jackson);
         final CompiledProject parser = compileParser();
         assertThat(shapeshifterRecords(parser, bytes)).as("Shapeshifter from bytes").isEqualTo(jackson);
