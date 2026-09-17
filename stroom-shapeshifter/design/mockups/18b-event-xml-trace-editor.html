@@ -74,7 +74,6 @@
     --cap-8:  #9fa8da;  /* indigo 200      */  --cap-9:  #ff8a65;  /* deep orange 300 */
     --cap-10: #4db6ac;  /* teal 300        */  --cap-11: #dce775;  /* lime 300        */
     /* body-card category hues (output green, data pink, invoke orange) */
-    --k-text: #66bb6a; --k-value: #f06292; --k-apply: #ffb74d;
     font-size: 14px;
   }
   * { box-sizing: border-box; }
@@ -394,7 +393,7 @@
   .cards { padding: 2px 12px 0 56px; }
   .card { display: flex; align-items: baseline; gap: 8px; margin: 4px 0;
     padding: 4px 8px; background: #2c303a; border: 1px solid var(--border-color);
-    border-radius: 5px; border-left-width: 3px; font-size: 12.5px;
+    border-radius: 5px; font-size: 12.5px;
     transition: border-color .15s ease-out; }
   .card .grip { color: var(--muted); cursor: grab; font-size: 13px; line-height: 1;
     opacity: .45; letter-spacing: -2px; user-select: none; }
@@ -406,9 +405,10 @@
   .card .num { color: var(--muted); font-size: 11px; min-width: 12px; }
   .card .kind { font-weight: 600; white-space: nowrap; }
   .card .lit { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .card.k-text  { border-left-color: var(--k-text); }  .card.k-text  .kind { color: var(--k-text); }
-  .card.k-value { border-left-color: var(--k-value); } .card.k-value .kind { color: var(--k-value); }
-  .card.k-apply { border-left-color: var(--k-apply); flex-direction: column; align-items: stretch; gap: 2px; }
+  /* instruction kinds are not coloured, and a card's left border is its border (2026-09-17):
+     the kind's colour and the 3px coloured edge said the same thing twice, in a palette
+     that competed with the template swatches, which are the colours that carry meaning */
+  .card.k-apply { flex-direction: column; align-items: stretch; gap: 2px; }
   /* one rule for every card head — an apply site's, a conditional's, and the one a
      plain card grows when it opens for editing. It was on the two container kinds only,
      so an opened text or value-of card lost both its swatch (a .chip is a sized box, and
@@ -417,7 +417,6 @@
   .aphead { display: flex; gap: 8px; align-items: baseline; }
   /* an apply site's swatches: one per template it dispatched into, read as a cluster */
   .chips { display: inline-flex; gap: 2px; align-items: center; }
-  .card.k-apply .kind { color: var(--k-apply); }
   .disp-row { display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 22px; font-size: 12.5px;
     background-color: transparent; transition: background-color .15s ease-out; }
   .disp-row .name { flex: 1; }
@@ -432,7 +431,6 @@
   .card.cont { flex-direction: column; align-items: stretch; gap: 2px; }
   .card.cont:not(.editing) { cursor: default; }
   .card.cont .aphead { cursor: pointer; }
-  .card.cont .kind { color: #90a4ae; }
   .branch { margin: 2px 0 0 10px; border-left: 1px dashed var(--border-color); }
   .br-head { display: flex; gap: 8px; align-items: baseline; padding: 2px 0 0 10px; }
   .br-key { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
@@ -476,7 +474,7 @@
     padding: 4px 6px; border-radius: 4px; flex: 1; min-width: 60px; resize: vertical;
     white-space: pre; line-height: 1.5; }
   .card select.edit-in.pick { flex: none; max-width: 150px; }
-  .ed-live { color: var(--k-value); overflow: hidden; text-overflow: ellipsis;
+  .ed-live { color: var(--muted); overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; padding-top: 4px; }
   .ed-note { color: var(--muted); font-size: 11.5px; font-style: italic;
     padding: 3px 0 1px 66px; }
@@ -488,8 +486,6 @@
   .card select.edit-in { flex: none; }
   .card input.edit-in:focus { outline: none; border-color: var(--blue-800);
     box-shadow: 0 0 8px rgba(33, 150, 243, .5); }
-  .card.k-other { border-left-color: #78909c; }
-  .card.k-other .kind { color: #90a4ae; }
   .addline { padding: 2px 0 6px; }
   .addbtn2 { border: none; background: none; color: var(--muted); font-size: 12px;
     padding: 0 3px; cursor: pointer; }
@@ -518,6 +514,14 @@
   .step-row .num-s { color: var(--muted); font-size: 11px; min-width: 14px; }
   .step-row .arg { flex: 1; }
   .step-row .cap { width: 110px; }
+  .tree-row { display: flex; gap: 6px; align-items: center; padding: 2px 0; flex-wrap: wrap; }
+  .tree-row .num-s { color: var(--muted); font-size: 11px; min-width: 14px; }
+  .tree-row .arg { flex: 1; min-width: 120px; }
+  .tree-row .cap { width: 100px; }
+  .tree-row select.cast { width: 96px; }
+  .tree-row .n { width: 44px; }
+  .tree-kids { margin-left: 18px; border-left: 1px dashed var(--border-color); padding-left: 6px; }
+  .wb-treeregex { font-size: 12px; color: var(--muted); word-break: break-all; padding: 2px 0; }
   .wb-groups .g .cap-name { width: 140px; }
   .wb-verdict { font-size: 12.5px; padding-top: 6px; }
   .lim-label { color: var(--muted); font-size: 11px; text-transform: uppercase;
@@ -683,7 +687,7 @@
       <div class="tabs">
         <span class="tab" id="wbTabRegex">regex</span>
         <span class="tab" title="Not in this mockup — the delimiter editor lives here; it shows its matches against the same sample">delimiter</span>
-        <span class="tab" id="wbTabProg" title="Compose byte consumers into a combinator sequence">progressive steps</span>
+        <span class="tab" id="wbTabTree" title="The pattern as a tree of atoms and combinators (design 38): what the regex tab explodes into, and what renders back as a regex">pattern tree</span>
       </div>
       <div id="wbRegex">
         <div class="wb-sec">
@@ -691,25 +695,29 @@
           <textarea id="wbPat" rows="2" spellcheck="false"></textarea>
           <div id="wbPatMap" title="The pattern, group spans coloured — click a group to isolate its matches in the sample"></div>
           <div id="wbErr"></div>
+          <button class="addbtn2" id="wbExplode" title="Explode this regex into the pattern tree (design 38 §3a): meaning preserved, text not — the tree is what the configuration stores">explode into the tree ›</button>
           <label><input type="checkbox"> dot-all</label>
           <label style="margin-left:10px"><input type="checkbox"> case-insensitive</label>
         </div>
         <div class="wb-sec">
-          <h4>Groups <span style="text-transform:none; letter-spacing:0">(names editable — these are the capture declarations)</span></h4>
+          <h4>Labels <span style="text-transform:none; letter-spacing:0">(the pattern's groups by name — a capture binds a label to one of the template's declarations)</span></h4>
           <div id="wbGroups" class="wb-groups"></div>
         </div>
         <div class="wb-sec">
           <div class="wb-lint">explain(): straight-line scan &nbsp;·&nbsp; ambiguities(): none &nbsp;·&nbsp; (illustrative — real lint comes from the engine)</div>
         </div>
       </div>
-      <div id="wbProg" hidden>
+      <div id="wbTree" hidden>
         <div class="wb-sec">
-          <h4>Steps <span style="text-transform:none; letter-spacing:0">(byte consumers in sequence — each may capture)</span></h4>
-          <div id="wbSteps"></div>
-          <button class="addbtn2" id="wbAddStep">+ step</button>
+          <h4>Tree <span style="text-transform:none; letter-spacing:0">(atoms and combinators; a label on any node is a group by name; a cast reads a labelled run as a number)</span></h4>
+          <div id="wbNodes"></div>
         </div>
         <div class="wb-sec">
-          <div class="wb-lint">Steps compose literal tags, take-until/while, numeric reads, embedded <b>regex</b> patterns, and library references (patterns or stored combinators); repeat/choice/peek contain other steps. Captures declared here become the template's captures, exactly as regex groups do.</div>
+          <h4>As a regex <span style="text-transform:none; letter-spacing:0">(rendered from the tree — a view, never the store)</span></h4>
+          <div id="wbTreeRegex" class="mono wb-treeregex"></div>
+        </div>
+        <div class="wb-sec">
+          <div class="wb-lint">Atoms: <b>tag</b>, <b>take_while</b> a class, <b>take_until</b> a terminator, <b>take</b> a count, an embedded <b>regex</b>, a <b>ref</b> to the standard library. Combinators: sequence, choice, optional, repeat, peek, not. The tree and the regex compile to the identical plan (design 38 §3a); the simulation here renders the tree as a JavaScript regex, and the engine is the real oracle.</div>
         </div>
       </div>
       <!-- guard and limits are mechanism-independent (mode → guard → match → limits),
@@ -942,18 +950,178 @@ const BODY = {
   ],
 };
 
-/* progressive/combinator step builder: byte consumers in sequence (the engine's MatchStep vocabulary) */
-const STEP_KINDS = ["tag", "take-until", "take-while", "take-bytes", "read-numeric",
-  "regex", "named", "repeat", "choice", "peek"];
-/* reusable library entries (CombinatorPattern) — domain-relevant to this example.
-   `impl` is a mockup-only regex equivalent so the sample evaluator can run them. */
-const PATTERN_LIB = [
-  { name: "http-status-4xx", kind: "pattern", impl: "^4\\d{2}$", caps: [] },
-  { name: "api-v1-path",     kind: "pattern", impl: "^/api/v1/", caps: [] },
+/* the pattern tree (design 38): atoms and combinators, the one vocabulary the engine
+   compiles to its regex library and the UI edits. A node may carry a label (a group by
+   name) and, on a labelled node, a cast (a binary reading of the run). */
+const NODE_KINDS = ["tag", "take_while", "take_until", "take", "regex", "ref",
+  "sequence", "choice", "optional", "repeat", "peek", "not"];
+const CONTAINERS = new Set(["sequence", "choice", "optional", "repeat", "peek", "not"]);
+const CASTS = ["", "uint8", "int8", "uint16le", "uint16be", "int16le", "int16be", "uint32le", "uint32be",
+  "int32le", "int32be", "int64le", "int64be", "float32le", "float32be", "float64le", "float64be",
+  "varint", "zigzag", "bool8", "position"];
+/* the regex module's standard library — what a `ref` names. There is no project-level
+   pattern library (design 38 phase 4 recorded it as not built until the UI asks). */
+const STD_LIB = [
+  { name: "digits",       impl: "[0-9]+" },
+  { name: "word",         impl: "[A-Za-z]+" },
+  { name: "identifier",   impl: "[A-Za-z_][A-Za-z0-9_]*" },
+  { name: "whitespace",   impl: "[ \\t]+" },
+  { name: "quotedString", impl: "\"[^\"]*\"" },
+  { name: "octet",        impl: "[0-9]{1,3}" },
+  { name: "ipv4",         impl: "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}" },
+  { name: "isoDate",      impl: "[0-9]{4}-[0-9]{2}-[0-9]{2}" },
 ];
-function libEntry(name) { return PATTERN_LIB.find(p => p.name === name); }
-const PROG = {};
-function progSteps(tid) { return PROG[tid] || (PROG[tid] = []); }
+function libEntry(name) { return STD_LIB.find(p => p.name === name); }
+const TREES = {};
+function treeOf(tid) { return TREES[tid] || (TREES[tid] = { k: "sequence", items: [] }); }
+function newNode(k) {
+  switch (k) {
+    case "tag": return { k, text: "" };
+    case "take_while": return { k, cls: "[^ ]", min: 1, max: "" };
+    case "take_until": return { k, term: " ", inclusive: false };
+    case "take": return { k, n: 1 };
+    case "regex": return { k, pattern: "" };
+    case "ref": return { k, name: "digits" };
+    case "sequence": case "choice": return { k, items: [] };
+    case "repeat": return { k, body: newNode("tag"), min: 0, max: "" };
+    default: return { k, body: newNode("tag") };
+  }
+}
+function escRe(v) { return v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+/* the printer (design 38 §3a): the tree rendered as a regex — a view, never the store.
+   JavaScript flavour, labels as named groups, so the workbench's evaluator can run it. */
+function treeToRegex(n) {
+  const wrap = (inner) => n.label ? `(?<${n.label}>${inner})` : inner;
+  const q = (min, max, greedy = true) => {
+    const mx = max === "" || max == null ? "" : String(max);
+    const body = (min === 0 && mx === "") ? "*" : (min === 1 && mx === "") ? "+" : (min === 0 && mx === "1") ? "?"
+      : `{${min},${mx}}`;
+    return body + (greedy === false ? "?" : "");
+  };
+  let r;
+  switch (n.k) {
+    case "tag": r = escRe(n.text || ""); break;
+    case "take_while": r = `(?:${n.cls || "."})` + q(n.min ?? 1, n.max ?? ""); break;
+    case "take_until": r = `(?:(?!${escRe(n.term || "")})[\\s\\S])*` + (n.inclusive ? escRe(n.term || "") : ""); break;
+    case "take": r = `[\\s\\S]{${n.n || 1}}`; break;
+    case "regex": r = `(?:${n.pattern || ""})`; break;
+    case "ref": { const e = libEntry(n.name); r = `(?:${e ? e.impl : ""})`; break; }
+    case "sequence": r = (n.items || []).map(treeToRegex).join(""); break;
+    case "choice": r = "(?:" + (n.items || []).map(treeToRegex).join("|") + ")"; break;
+    case "optional": r = `(?:${treeToRegex(n.body)})?`; break;
+    case "repeat": r = `(?:${treeToRegex(n.body)})` + q(n.min ?? 0, n.max ?? "", n.greedy !== false); break;
+    case "peek": r = `(?=${treeToRegex(n.body)})`; break;
+    case "not": r = `(?!${treeToRegex(n.body)})`; break;
+    default: r = "";
+  }
+  return wrap(r);
+}
+/* the explode (design 38 §3a, Matchers.explode in the engine): a regex as the tree it is.
+   A mockup parser for the common subset — literals, classes and shorthands with
+   quantifiers, groups (named → label, unnamed → label by number, non-capturing → its
+   body), alternation, lookahead; anchors and anything else stay regex leaves. */
+function explodeRegex(pat) {
+  let i = 0, groupNo = 0;
+  const peek = () => pat[i], eof = () => i >= pat.length;
+  function alternation() {
+    const alts = [sequence()];
+    while (!eof() && peek() === "|") { i++; alts.push(sequence()); }
+    return alts.length === 1 ? alts[0] : { k: "choice", items: alts };
+  }
+  function sequence() {
+    const items = [];
+    while (!eof() && peek() !== "|" && peek() !== ")") {
+      const a = quantified();
+      if (!a) break;
+      const last = items[items.length - 1];
+      if (a.k === "tag" && last && last.k === "tag" && !last.label) last.text += a.text; else items.push(a);
+    }
+    return items.length === 1 ? items[0] : { k: "sequence", items };
+  }
+  function quantified() {
+    const a = atom();
+    if (!a || eof()) return a;
+    let min = null, max = null;
+    const c = peek();
+    if (c === "*") { min = 0; max = ""; i++; }
+    else if (c === "+") { min = 1; max = ""; i++; }
+    else if (c === "?") { min = 0; max = "1"; i++; }
+    else if (c === "{") {
+      const m = /^\{(\d+)(,(\d*))?\}/.exec(pat.slice(i));
+      if (m) { min = +m[1]; max = m[2] == null ? String(m[1]) : (m[3] || ""); i += m[0].length; }
+    }
+    if (min === null) return a;
+    let greedy = true;
+    if (!eof() && peek() === "?") { greedy = false; i++; }
+    if (a.k === "cls" && greedy) return { k: "take_while", cls: a.cls, min, max };
+    const body = a.k === "cls" ? { k: "take_while", cls: a.cls, min: 1, max: "1" } : a;
+    if (min === 0 && max === "1" && greedy) return { k: "optional", body };
+    return { k: "repeat", body, min, max, greedy };
+  }
+  function atom() {
+    const c = peek();
+    if (c === "(") {
+      i++;
+      let label = null, capturing = true, look = null;
+      if (pat.startsWith("?:", i)) { capturing = false; i += 2; }
+      else if (pat.startsWith("?=", i)) { look = "peek"; i += 2; }
+      else if (pat.startsWith("?!", i)) { look = "not"; i += 2; }
+      else if (pat.startsWith("?<", i) && pat[i + 2] !== "=" && pat[i + 2] !== "!") {
+        const m = /^\?<([A-Za-z_][A-Za-z0-9_]*)>/.exec(pat.slice(i)); label = m[1]; i += m[0].length;
+      } else if (pat[i] === "?") { return leafUntilClose(); }   // lookbehind, atomic, inline flags: a leaf
+      const inner = alternation();
+      if (peek() === ")") i++;
+      if (look) return { k: look, body: inner };
+      if (!capturing) return inner;
+      groupNo++;
+      const wrapped = inner.k === "sequence" || inner.k === "choice" || inner.label ? inner
+        : (CONTAINERS.has(inner.k) ? { k: "sequence", items: [inner] } : inner);
+      if (wrapped.label) return { k: "sequence", items: [wrapped], label: label || ("_" + groupNo) };
+      wrapped.label = label || ("_" + groupNo);
+      return wrapped;
+    }
+    if (c === "[") {
+      let j = i + 1; if (pat[j] === "^") j++; if (pat[j] === "]") j++;
+      while (j < pat.length && pat[j] !== "]") { if (pat[j] === "\\") j++; j++; }
+      const cls = pat.slice(i, j + 1); i = j + 1;
+      return { k: "cls", cls };
+    }
+    if (c === "\\") {
+      const n = pat[i + 1]; i += 2;
+      if ("dDwWsS".includes(n)) return { k: "cls", cls: "\\" + n };
+      if (n === "b" || n === "B") return { k: "regex", pattern: "\\" + n };
+      const lit = ({ n: "\n", t: "\t", r: "\r" })[n] ?? n;
+      return { k: "tag", text: lit };
+    }
+    if (c === ".") { i++; return { k: "cls", cls: "." }; }
+    if (c === "^" || c === "$") { i++; return { k: "regex", pattern: c }; }
+    if (c === ")" || c === "|") return null;
+    i++;
+    return { k: "tag", text: c };
+  }
+  function leafUntilClose() {
+    const start = i - 1; let depth = 1;
+    while (!eof() && depth) { if (peek() === "\\") i++; else if (peek() === "(") depth++; else if (peek() === ")") depth--; i++; }
+    return { k: "regex", pattern: pat.slice(start, i) };
+  }
+  const tree = alternation();
+  const fix = (n) => {   // a bare class outside a quantifier is a run of exactly one
+    if (!n) return n;
+    if (n.k === "cls") return { k: "take_while", cls: n.cls, min: 1, max: "1" };
+    if (n.items) n.items = n.items.map(fix);
+    if (n.body) n.body = fix(n.body);
+    return n;
+  };
+  const t = fix(tree);
+  return t.k === "sequence" ? t : { k: "sequence", items: [t] };
+}
+function treeLabels(n, out = []) {
+  if (!n) return out;
+  if (n.label) out.push(n.label);
+  (n.items || []).forEach(x => treeLabels(x, out));
+  if (n.body) treeLabels(n.body, out);
+  return out;
+}
 
 /* guard and limits: mechanism-independent parts of the match stage (mode → guard → match → limits) */
 const GUARD_VARS = ["$method", "$url", "$status", "$user", "depth"];
@@ -1037,7 +1205,7 @@ function deleteTemplate(tid) {
     const i = CANDIDATES[t.mode].indexOf(tid);
     if (i >= 0) CANDIDATES[t.mode].splice(i, 1);
   }
-  delete TPL[tid]; delete BODY[tid]; delete GUARD[tid]; delete LIMITS[tid]; delete PROG[tid];
+  delete TPL[tid]; delete BODY[tid]; delete GUARD[tid]; delete LIMITS[tid]; delete TREES[tid];
   if (selTpl === tid) selTpl = cursor.tpl;
   selMode = null;
   touchConfig();
@@ -2024,19 +2192,17 @@ function renderTpls() {
      A bare pattern has nothing else to show — no frame, no body, no dispatch — so
      selecting one opens the workbench directly (2026-08-26): this list's click IS the
      navigation that always precedes the workbench, for template and library alike. */
-  list.appendChild(el("div", "mode-head", "patterns"));
-  for (const p of PATTERN_LIB) {
+  list.appendChild(el("div", "mode-head", "standard library"));
+  for (const p of STD_LIB) {
     const openHere = wbLive && wbKind === "library" && wbTpl === p.name;
     const row = el("div", "tpl-row zero" + (openHere ? " sel" : ""));
     const line = el("div", "line");
     const chip = el("span", "chip");
     chip.style.background = "transparent"; chip.style.border = "1px solid var(--muted)";
-    line.append(chip, el("span", "name mono", p.name),
-      el("span", "count", p.kind === "combinator" ? "comb" : "pat"));
+    line.append(chip, el("span", "name mono", p.name), el("span", "count", "ref"));
     row.appendChild(line);
-    row.title = `Library ${p.kind} (CombinatorPattern) — click to open in the pattern workbench. ` +
-      "Referenced by Named match expressions and by named steps in the step builder; " +
-      "a DocRef-based library in Stroom (D11)";
+    row.title = "The regex module's standard library (read-only): what a `ref` node in a pattern tree names. " +
+      "A project-level pattern library is not built (design 38 phase 4) — this is the whole of `ref`.";
     row.addEventListener("click", () => openWorkbench(p.name, "library"));
     list.appendChild(row);
   }
@@ -2066,7 +2232,10 @@ function renderCrumb() {
     const s = el("span", "seg");
     s.dataset.crumb = seg.id;
     const name = el("span", "name", TPL[seg.tpl].name);
-    name.style.color = TPL[seg.tpl].color;
+    /* the crumb's names are text, not swatches (2026-09-17): a name painted in its
+       template's colour reads as a signal once you have navigated, with nothing beside it
+       to compare against; the chips on the template list and the apply sites are where the
+       colour identifies a template among its siblings */
     name.title = "Make this frame the cursor";
     name.tabIndex = 0;
     if (seg === cursor) name.setAttribute("aria-current", "true");
@@ -2145,7 +2314,7 @@ function renderStrip() {
     h.appendChild(chip);
   }
   const name = el("span", "fname", t.name);
-  name.style.color = t.color;
+  /* the header's name is text too; its chip carries the colour and opens the editor */
   if (selTpl !== "source") {
     name.title = "Edit name and colour…";
     name.style.cursor = "pointer";
@@ -2171,9 +2340,9 @@ function renderStrip() {
     mline.appendChild(el("span", "none", "(the document — matches the whole content)"));
   } else {
     const chip = el("span", "match-chip");
-    const prog = t.mtype === "progressive";
-    const summary = prog ? progSteps(selTpl).map(s => s.kind).join(" · ") : t.pattern;
-    chip.append(el("span", "mtype", prog ? "steps" : "regex"), el("span", "mpat", summary),
+    const tree = t.mtype === "tree";
+    const summary = tree ? treeToRegex(treeOf(selTpl)) : t.pattern;
+    chip.append(el("span", "mtype", tree ? "tree" : "regex"), el("span", "mpat", summary),
       el("span", "wb", "✎ workbench"));
     chip.title = "Open the pattern workbench — editing, validation, group sync, live test";
     chip.addEventListener("click", () => openWorkbench(selTpl));
@@ -3324,9 +3493,9 @@ let wbTpl = null;
 let wbTab = "regex";
 let wbNames = [];       // group-name edits in the workbench — the capture declarations
 let wbSelGroup = null;  // clicked group in the pattern map: isolate its spans in the sample
-let wbSelStep = null;   // clicked step in the details: isolate its consumed spans
+let wbSelStep = null;   // (kept for the details band's row selection)
 let wbMatchData = [];   // regex matches of the last render (for the details table)
-let wbStepCounts = [];  // per-step consumption counts of the last step run
+let wbStepCounts = [];  // unused since the tree replaced the steps; kept for the details band
 
 let wbKind = "template";   // "template" | "library" — what the workbench is currently editing
 let wbLive = false;        // guards commitWorkbench() so it is a no-op before the first open
@@ -3341,16 +3510,7 @@ function wbPatternText() { const s = wbSubject(); return wbKind === "library" ? 
    step sequence to fall back to, and a stored combinator is edited as steps, not text */
 function wbTabAllowed(tab) {
   if (wbKind !== "library") return true;
-  const e = libEntry(wbTpl);
-  return tab === "regex" ? e.kind === "pattern" : e.kind === "combinator";
-}
-
-/* a combinator's `impl` is a compiled shadow of its own steps, kept in sync on Apply so
-   `named(this-entry)` resolution elsewhere never drifts from what the steps actually do */
-function compileStepsToRegex(steps) {
-  if (!steps.length) return null;
-  const parts = steps.map(s => stepRegex(s));
-  return parts.every(Boolean) ? parts.map(p => `(?:${p})`).join("") : null;
+  return tab === "regex";   // a standard-library entry is shown as the regex it is, read-only
 }
 
 function openWorkbench(id, kind) {
@@ -3359,11 +3519,12 @@ function openWorkbench(id, kind) {
   wbTpl = id;
   if (wbKind === "library") selMode = null;   // the library row's own highlight follows wbTpl/wbKind
   const subj = wbSubject();
-  wbTab = wbKind === "library" ? (subj.kind === "combinator" ? "prog" : "regex")
-    : (subj.mtype === "progressive" ? "prog" : "regex");
+  wbTab = wbKind === "library" ? "regex" : (subj.mtype === "tree" ? "tree" : "regex");
   wbNames = [...(subj.caps || [])];
+  $("wbPat").readOnly = wbKind === "library";
+  $("wbExplode").hidden = wbKind === "library";
   wbSelGroup = null; wbSelStep = null;
-  $("wbName").textContent = subj.name + (wbKind === "library" ? ` (${subj.kind})` : "");
+  $("wbName").textContent = subj.name + (wbKind === "library" ? " (standard library, read-only)" : "");
   $("wbPat").value = wbPatternText();
   /* the shared sample: seeded from the current frame's content, freely editable to
      experiment — a library entry has no frame of its own, so it borrows the cursor's */
@@ -3389,16 +3550,16 @@ function closeWorkbench() {
 function renderWbTab() {
   $("wbTabRegex").className = "tab" + (wbTab === "regex" ? " active" : "")
     + (wbTabAllowed("regex") ? "" : " disabled");
-  $("wbTabProg").className = "tab" + (wbTab === "prog" ? " active" : "")
-    + (wbTabAllowed("prog") ? "" : " disabled");
-  $("wbTabRegex").title = wbTabAllowed("regex") ? "" : "This library entry is a combinator — edit its steps";
-  $("wbTabProg").title = wbTabAllowed("prog")
-    ? "Compose byte consumers into a combinator sequence"
-    : "This library entry is a plain pattern — edit it as regex";
+  $("wbTabTree").className = "tab" + (wbTab === "tree" ? " active" : "")
+    + (wbTabAllowed("tree") ? "" : " disabled");
+  $("wbTabRegex").title = "";
+  $("wbTabTree").title = wbTabAllowed("tree")
+    ? "The pattern as a tree of atoms and combinators (design 38)"
+    : "A standard-library entry is shown as the regex it is";
   $("wbRegex").hidden = wbTab !== "regex";
-  $("wbProg").hidden = wbTab !== "prog";
+  $("wbTree").hidden = wbTab !== "tree";
   wbSelGroup = null; wbSelStep = null;
-  if (wbTab === "regex") updateWb(); else renderSteps();
+  if (wbTab === "regex") updateWb(); else renderTree();
   /* guard and limits are dispatch controls on a template's match stage — a bare
      library pattern has no dispatch, so they have nothing to edit here */
   $("wbGuardSec").hidden = wbKind !== "template";
@@ -3496,64 +3657,84 @@ function renderLimits() {
 }
 
 /* the step builder: compose byte consumers — regex patterns and library patterns are step kinds */
-function renderSteps() {
-  const box = $("wbSteps");
+function renderTree() {
+  const box = $("wbNodes");
   box.textContent = "";
-  const steps = progSteps(wbTpl);
-  if (!steps.length) box.appendChild(el("div", "none", "(no steps yet — add byte consumers below)"));
-  steps.forEach((s, i) => {
-    const row = el("div", "step-row");
-    const kind = document.createElement("select"); kind.className = "edit-in";
-    for (const k of STEP_KINDS) {
-      const o = document.createElement("option");
-      o.value = k; o.textContent = k; o.selected = k === s.kind;
-      kind.appendChild(o);
-    }
-    kind.addEventListener("change", () => { s.kind = kind.value; renderSteps(); commitWorkbench(); });
-    let arg;
-    if (s.kind === "named") {
-      /* library reuse is a chooser, not free text — patterns and stored combinators alike */
-      arg = document.createElement("select");
-      arg.className = "edit-in arg";
-      arg.title = "Reuse a stored pattern or combinator from the library";
-      if (!s.arg) {
-        const o = document.createElement("option");
-        o.value = ""; o.textContent = "(choose from library…)"; o.selected = true;
-        arg.appendChild(o);
-      }
-      const og1 = document.createElement("optgroup"); og1.label = "patterns";
-      const og2 = document.createElement("optgroup"); og2.label = "combinators";
-      for (const p of PATTERN_LIB) {
-        const o = document.createElement("option");
-        o.value = p.name; o.textContent = p.name; o.selected = p.name === s.arg;
-        (p.kind === "combinator" ? og2 : og1).appendChild(o);
-      }
-      arg.append(og1, og2);
-      arg.addEventListener("change", () => { s.arg = arg.value; renderMatches(); commitWorkbench(); });
-    } else {
-      arg = mkEditInput(s.arg, s.kind === "regex" ? "embedded regex pattern" : "argument");
-      arg.classList.add("arg");
-      if (s.kind === "repeat" || s.kind === "choice" || s.kind === "peek") {
-        arg.title = "Containers hold sub-steps — inline text here; structured sub-lists in the real editor";
-      }
-      arg.addEventListener("input", () => { s.arg = arg.value; renderMatches(); });
-      arg.addEventListener("blur", commitWorkbench);
-    }
-    const cap = mkEditInput(s.cap, "capture as…");
-    cap.classList.add("cap");
-    cap.title = "Name this step's captured bytes — becomes a capture declaration like a regex group";
-    cap.addEventListener("input", () => { s.cap = cap.value; renderMatches(); });
-    cap.addEventListener("blur", commitWorkbench);
-    const up = el("button", "act", "↑"); up.disabled = i === 0;
-    up.addEventListener("click", () => { [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]]; renderSteps(); commitWorkbench(); });
-    const down = el("button", "act", "↓"); down.disabled = i === steps.length - 1;
-    down.addEventListener("click", () => { [steps[i + 1], steps[i]] = [steps[i], steps[i + 1]]; renderSteps(); commitWorkbench(); });
-    const del = el("button", "act del", "✕");
-    del.addEventListener("click", () => { steps.splice(i, 1); renderSteps(); commitWorkbench(); });
-    row.append(el("span", "num-s", String(i + 1)), kind, arg, cap, up, down, del);
-    box.appendChild(row);
-  });
+  const root = treeOf(wbTpl);
+  renderNodeList(box, root.items, root);
+  $("wbTreeRegex").textContent = treeToRegex(root) || "(empty)";
   renderMatches();
+}
+
+function renderNodeList(box, items, owner) {
+  if (!items.length) box.appendChild(el("div", "none", "(empty — add a node below, or explode a regex from the regex tab)"));
+  items.forEach((n, i) => renderNode(box, n, i, items));
+  const add = el("button", "addbtn2", "+ node");
+  add.addEventListener("click", () => { items.push(newNode("tag")); renderTree(); commitWorkbench(); });
+  box.appendChild(add);
+}
+
+function renderNode(box, n, i, items) {
+  const row = el("div", "tree-row");
+  const kind = mkSelect(NODE_KINDS, n.k, v => {
+    const fresh = newNode(v); fresh.label = n.label; fresh.as = n.as;
+    items[i] = fresh; renderTree(); commitWorkbench();
+  });
+  row.append(el("span", "num-s", String(i + 1)), kind);
+  const text = (field, placeholder, title) => {
+    const inp = mkEditInput(n[field] ?? "", placeholder); inp.classList.add("arg"); if (title) inp.title = title;
+    inp.addEventListener("input", () => { n[field] = inp.value; $("wbTreeRegex").textContent = treeToRegex(treeOf(wbTpl)); renderMatches(); });
+    inp.addEventListener("blur", commitWorkbench);
+    return inp;
+  };
+  const num = (field, placeholder) => {
+    const inp = mkEditInput(n[field] ?? "", placeholder); inp.classList.add("n");
+    inp.addEventListener("input", () => { n[field] = inp.value === "" ? "" : +inp.value; $("wbTreeRegex").textContent = treeToRegex(treeOf(wbTpl)); renderMatches(); });
+    inp.addEventListener("blur", commitWorkbench);
+    return inp;
+  };
+  switch (n.k) {
+    case "tag": row.appendChild(text("text", "literal text")); break;
+    case "take_while": row.append(text("cls", "class, e.g. [^ ] or \\d"), el("span", "det-desc", "min"), num("min", "1"),
+      el("span", "det-desc", "max"), num("max", "∞")); break;
+    case "take_until": {
+      row.appendChild(text("term", "terminator"));
+      const inc = document.createElement("label"); inc.className = "det-desc";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.inclusive;
+      cb.addEventListener("change", () => { n.inclusive = cb.checked; renderTree(); commitWorkbench(); });
+      inc.append(cb, " inclusive"); row.appendChild(inc); break;
+    }
+    case "take": row.append(el("span", "det-desc", "count"), num("n", "1")); break;
+    case "regex": row.appendChild(text("pattern", "embedded regex (a leaf: what the vocabulary cannot name)")); break;
+    case "ref": row.appendChild(mkSelect(STD_LIB.map(e => e.name), n.name, v => { n.name = v; renderTree(); commitWorkbench(); })); break;
+    case "repeat": row.append(el("span", "det-desc", "min"), num("min", "0"), el("span", "det-desc", "max"), num("max", "∞")); break;
+    default: break;
+  }
+  const cap = mkEditInput(n.label ?? "", "label…"); cap.classList.add("cap");
+  cap.title = "A label makes this node a group by name; a capture binds it to one of the template's declarations";
+  cap.addEventListener("input", () => { n.label = cap.value || undefined; $("wbTreeRegex").textContent = treeToRegex(treeOf(wbTpl)); renderMatches(); });
+  cap.addEventListener("blur", commitWorkbench);
+  row.appendChild(cap);
+  if (n.label && !CONTAINERS.has(n.k) || n.k === "sequence" && n.label) {
+    const cast = mkSelect(CASTS, n.as ?? "", v => { n.as = v || undefined; commitWorkbench(); });
+    cast.classList.add("cast"); cast.title = "as: read the labelled run as a number, a flag or a position (design 38 §3)";
+    row.appendChild(cast);
+  }
+  const up = el("button", "act", "↑"); up.disabled = i === 0;
+  up.addEventListener("click", () => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; renderTree(); commitWorkbench(); });
+  const down = el("button", "act", "↓"); down.disabled = i === items.length - 1;
+  down.addEventListener("click", () => { [items[i + 1], items[i]] = [items[i], items[i + 1]]; renderTree(); commitWorkbench(); });
+  const del = el("button", "act del", "✕");
+  del.addEventListener("click", () => { items.splice(i, 1); renderTree(); commitWorkbench(); });
+  row.append(up, down, del);
+  box.appendChild(row);
+  if (n.k === "sequence" || n.k === "choice") {
+    const kids = el("div", "tree-kids"); renderNodeList(kids, n.items, n); box.appendChild(kids);
+  } else if (n.body) {
+    const kids = el("div", "tree-kids");
+    renderNode(kids, n.body, 0, { get 0() { return n.body; }, set 0(v) { n.body = v; }, length: 1, splice() { n.body = newNode("tag"); } });
+    box.appendChild(kids);
+  }
 }
 
 function updateWb() {
@@ -3659,14 +3840,13 @@ function renderMatches() {
   const box = $("wbMatches");
   box.textContent = "";
   const text = $("wbSample").value;
-  if (wbTab === "regex") renderRegexMatches(box, text);
-  else renderStepMatches(box, text);
+  renderRegexMatches(box, text, wbTab === "tree" ? treeToRegex(treeOf(wbTpl)) : $("wbPat").value);
 }
 
-function renderRegexMatches(box, text) {
+function renderRegexMatches(box, text, pattern) {
   wbMatchData = [];
   let re = null;
-  try { re = new RegExp($("wbPat").value, "gd"); }   // 'd': group indices for inner/outer spans
+  try { re = new RegExp(pattern, "gd"); }   // 'd': group indices for inner/outer spans
   catch (e) { box.textContent = "(fix the pattern to see matches)"; renderDetails(); return; }
   let pos = 0, m;
   while ((m = re.exec(text)) !== null && wbMatchData.length < 100) {
@@ -3722,88 +3902,21 @@ function renderMatchSpan(text, m) {
   return outer;
 }
 
-/* minimal step evaluator — mockup stand-in; the engine is the real oracle */
-function stepRegex(s) {
-  switch (s.kind) {
-    case "tag": { const lit = unq(s.arg); return lit ? escRe(lit) : null; }
-    case "take-while": return s.arg ? `(?:${s.arg})+` : null;               // arg: char class
-    case "take-until": { const lit = unq(s.arg); return lit ? `(?:(?!${escRe(lit)}).)+` : null; }
-    case "regex": return s.arg || null;
-    case "named": { const e = libEntry(s.arg); return e ? e.impl : null; }
-    case "choice": {
-      const alts = (s.arg || "").split("|").map(a => a.trim()).map(a => {
-        const m = /^([a-z-]+)\((.*)\)$/.exec(a);
-        return m ? stepRegex({ kind: m[1], arg: m[2] }) : null;
-      });
-      return alts.length && alts.every(Boolean) ? alts.map(a => `(?:${a})`).join("|") : null;
-    }
-    default: return null;   // take-bytes / read-numeric / repeat / peek: not simulated
-  }
-}
-function unq(v) { const m = /^"(.*)"$/.exec((v || "").trim()); return m ? m[1] : (v || "").trim() || null; }
-function escRe(v) { return v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
-
-function renderStepMatches(box, text) {
-  const steps = progSteps(wbTpl);
-  const compiled = steps.map(s => {
-    const src = stepRegex(s);
-    let re = null;
-    if (src) { try { re = new RegExp("^(?:" + src + ")"); } catch (e) { re = null; } }
-    return { s, re };
-  });
-  const unsim = compiled.filter(c => !c.re).map(c => c.s.kind);
-  const spans = [];   // {start, end, stepIdx}
-  wbStepCounts = steps.map(() => 0);
-  let pos = 0, runs = 0;
-  while (pos < text.length && runs < 200 && compiled.length && unsim.length === 0) {
-    let p = pos; const local = []; let ok = true;
-    for (let i = 0; i < compiled.length; i++) {
-      const m = compiled[i].re.exec(text.slice(p));
-      if (!m || m[0] === "") { ok = false; break; }
-      local.push({ start: p, end: p + m[0].length, stepIdx: i });
-      p += m[0].length;
-    }
-    if (ok && p > pos) { spans.push(...local); local.forEach(l => wbStepCounts[l.stepIdx]++); pos = p; runs++; }
-    else pos++;
-  }
-  const capSteps = steps.filter(x => x.cap);
-  let cur = 0;
-  for (const sp of spans) {
-    if (sp.start > cur) box.append(document.createTextNode(text.slice(cur, sp.start)));
-    const stepDef = compiled[sp.stepIdx].s;
-    const span = el("span", "wb-g");
-    span.textContent = text.slice(sp.start, sp.end);
-    const capIdx = stepDef.cap ? capSteps.indexOf(stepDef) : -1;
-    const hue = capIdx >= 0 ? capHue(capIdx) : "var(--muted)";
-    span.style.setProperty("--hue", hue);
-    span.classList.toggle("sel", wbSelStep === sp.stepIdx);
-    span.title = `step ${sp.stepIdx + 1} ${stepDef.kind}` + (stepDef.cap ? ` → $${stepDef.cap}` : "") +
-      " — hover to preview, click in the details below to pin";
-    box.appendChild(span);
-    cur = sp.end;
-  }
-  box.append(document.createTextNode(text.slice(cur)));
-  box.appendChild(el("div", "wb-info",
-    !steps.length ? "(no steps yet)" :
-    unsim.length ? `(${unsim.join(", ")} not simulated in this mockup — the engine is the real oracle)` :
-    runs === 0 ? "✗ the step sequence matched nowhere" :
-    `${runs} sequence match${runs > 1 ? "es" : ""} — click a step in the details to isolate its spans`));
-  renderDetails();
-}
-
 /* ---- the details band: match table + explanation, below sample and matcher ---- */
 
-const STEP_DESC = {
-  "tag": "consume an exact literal",
-  "take-until": "consume up to (not including) the delimiter",
-  "take-while": "consume while characters match the class",
-  "take-bytes": "consume a fixed byte count",
-  "read-numeric": "consume and parse a number",
-  "regex": "consume what the embedded regex matches",
-  "named": "consume via a library pattern or stored combinator",
-  "repeat": "repeat the contained steps",
-  "choice": "first matching alternative wins (ordered choice)",
-  "peek": "look ahead without consuming",
+const NODE_DESC = {
+  "tag": "an exact literal",
+  "take_while": "a run of characters in a class, min to max of them",
+  "take_until": "everything up to a terminator (through it, if inclusive)",
+  "take": "exactly this many characters",
+  "regex": "an embedded regex: what the vocabulary cannot name stays a leaf",
+  "ref": "a standard-library pattern, inlined at compile time",
+  "sequence": "its children in order",
+  "choice": "the first child that matches, backtracking within the match (D52)",
+  "optional": "its child, or nothing",
+  "repeat": "its child min to max times",
+  "peek": "its child must follow; nothing consumed",
+  "not": "its child must not follow; nothing consumed",
 };
 
 function renderDetails() {
@@ -3840,25 +3953,30 @@ function renderDetails() {
       ex.appendChild(row);
     }
   } else {
-    const steps = progSteps(wbTpl);
-    if (!steps.length) tbl.appendChild(el("div", "none", "(no steps)"));
-    steps.forEach((s, i) => {
-      const row = el("div", "det-row det-click" + (wbSelStep === i ? " sel" : ""));
+    if (!wbMatchData.length) tbl.appendChild(el("div", "none", "(no matches)"));
+    const labels = treeLabels(treeOf(wbTpl));
+    wbMatchData.slice(0, 50).forEach((m, i) => {
+      const row = el("div", "det-row");
       row.append(el("span", "det-n", `#${i + 1}`),
-        el("span", "det-range mono", `${wbStepCounts[i] || 0}×`),
-        el("span", "mono", s.kind + (s.arg ? `(${s.arg})` : "")),
-        el("span", "det-desc", STEP_DESC[s.kind] || ""),
-        el("span", "mono", s.cap ? `→ $${s.cap}` : ""));
-      row.title = "Click to isolate this step's consumed spans in the sample";
-      row.addEventListener("click", () => {
-        wbSelStep = wbSelStep === i ? null : i;
-        renderMatches();
+        el("span", "det-range mono", `${m.index}–${m.index + m[0].length}`));
+      labels.forEach((name, gi) => {
+        const v = el("span", "mono", `${name}=${JSON.stringify(m.groups ? m.groups[name] ?? null : null)}`);
+        v.style.color = capHue(gi);
+        row.appendChild(v);
       });
       tbl.appendChild(row);
     });
+    const walk = (n, depth) => {
+      const row = el("div", "det-row");
+      row.append(el("span", "mono", "  ".repeat(depth) + n.k + (n.label ? ` as ${n.label}` : "") + (n.as ? ` : ${n.as}` : "")),
+        el("span", "det-desc", NODE_DESC[n.k] || ""));
+      ex.appendChild(row);
+      (n.items || []).forEach(x => walk(x, depth + 1));
+      if (n.body) walk(n.body, depth + 1);
+    };
+    walk(treeOf(wbTpl), 0);
     ex.appendChild(el("div", "det-row det-desc",
-      "Each step is a byte consumer; the sequence anchors where the previous step ended. " +
-      "Step semantics come from the engine's Progressive matcher — the simulation here is illustrative."));
+      "The tree compiles to the same plan as the regex it renders as (design 38 §3a); the simulation here runs that regex in JavaScript, and the engine is the real oracle."));
   }
 }
 
@@ -3913,7 +4031,8 @@ function commitWorkbench() {
   if (!wbLive) return;
   const subj = wbSubject();
   if (wbTab === "regex") {
-    if (wbKind === "template") subj.mtype = "regex";
+    if (wbKind === "library") return;   // the standard library is not edited here
+    subj.mtype = "regex";
     const pattern = $("wbPat").value;
     if (wbKind === "library") subj.impl = pattern; else subj.pattern = pattern;
     /* commit the group rows as the capture declarations */
@@ -3929,24 +4048,16 @@ function commitWorkbench() {
     names.forEach(n => { if (!(n in CAP_TYPE)) CAP_TYPE[n] = "string"; });
     subj.caps = names;
   } else {
-    if (wbKind === "template") subj.mtype = "progressive";
-    /* capturing steps become the capture declarations, exactly as regex groups do */
-    const capNames = progSteps(wbTpl).filter(s => s.cap).map(s => s.cap);
-    if (capNames.length) {
-      capNames.forEach(n => { if (!(n in CAP_TYPE)) CAP_TYPE[n] = "string"; });
-      if (wbKind === "template") {
-        for (const m of byTpl[wbTpl] || []) {
-          for (let i = 0; i < Math.min(capNames.length, m.captures.length); i++) m.captures[i].name = capNames[i];
-        }
-      }
-      subj.caps = capNames;
+    /* the tree is the store; its rendering is the pattern the rest of the mockup runs,
+       and its labels are the groups the captures bind (design 38 §3a) */
+    subj.mtype = "tree";
+    subj.pattern = treeToRegex(treeOf(wbTpl));
+    const labels = treeLabels(treeOf(wbTpl));
+    labels.forEach(n => { if (!(n in CAP_TYPE)) CAP_TYPE[n] = "string"; });
+    for (const m of byTpl[wbTpl] || []) {
+      for (let i = 0; i < Math.min(labels.length, m.captures.length); i++) m.captures[i].name = labels[i];
     }
-    if (wbKind === "library") {
-      /* keep the library's compiled impl in step with its own steps, so named(this)
-         elsewhere reflects what was just edited rather than a stale hand-written regex */
-      const compiled = compileStepsToRegex(progSteps(wbTpl));
-      if (compiled) subj.impl = compiled;
-    }
+    subj.caps = labels;
   }
   /* a library pattern's edit can change the behaviour of every template that
      references it via a named step — the whole run is stale, not just one template */
@@ -3960,13 +4071,19 @@ $("wbSample").addEventListener("input", renderMatches);
 $("wbTabRegex").addEventListener("click", () => {
   if (wbTabAllowed("regex")) { commitWorkbench(); wbTab = "regex"; renderWbTab(); }
 });
-$("wbTabProg").addEventListener("click", () => {
-  if (wbTabAllowed("prog")) { commitWorkbench(); wbTab = "prog"; renderWbTab(); }
+$("wbTabTree").addEventListener("click", () => {
+  if (wbTabAllowed("tree")) { commitWorkbench(); wbTab = "tree"; renderWbTab(); }
 });
-$("wbAddStep").addEventListener("click", () => {
-  progSteps(wbTpl).push({ kind: "tag", arg: "", cap: "" });
-  renderSteps();
+$("wbExplode").addEventListener("click", () => {
+  /* explode the regex tab's pattern into the tree and switch to it: the tree is what the
+     configuration stores from here; the regex is a rendering of it */
+  let tree;
+  try { new RegExp($("wbPat").value); tree = explodeRegex($("wbPat").value); }
+  catch (e) { $("wbErr").textContent = "fix the pattern before exploding it: " + (e.message || e); return; }
+  TREES[wbTpl] = tree;
+  wbTab = "tree";
   commitWorkbench();
+  renderWbTab();
 });
 $("wbAddClause").addEventListener("click", () => {
   guardOf(wbTpl).push({ v: "$key", op: "exists", val: "" });

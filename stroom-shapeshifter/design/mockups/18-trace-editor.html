@@ -74,7 +74,6 @@
     --cap-8:  #9fa8da;  /* indigo 200      */  --cap-9:  #ff8a65;  /* deep orange 300 */
     --cap-10: #4db6ac;  /* teal 300        */  --cap-11: #dce775;  /* lime 300        */
     /* body-card category hues (output green, data pink, invoke orange) */
-    --k-text: #66bb6a; --k-value: #f06292; --k-apply: #ffb74d;
     font-size: 14px;
   }
   * { box-sizing: border-box; }
@@ -394,7 +393,7 @@
   .cards { padding: 2px 12px 0 56px; }
   .card { display: flex; align-items: baseline; gap: 8px; margin: 4px 0;
     padding: 4px 8px; background: #2c303a; border: 1px solid var(--border-color);
-    border-radius: 5px; border-left-width: 3px; font-size: 12.5px;
+    border-radius: 5px; font-size: 12.5px;
     transition: border-color .15s ease-out; }
   .card .grip { color: var(--muted); cursor: grab; font-size: 13px; line-height: 1;
     opacity: .45; letter-spacing: -2px; user-select: none; }
@@ -406,9 +405,10 @@
   .card .num { color: var(--muted); font-size: 11px; min-width: 12px; }
   .card .kind { font-weight: 600; white-space: nowrap; }
   .card .lit { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .card.k-text  { border-left-color: var(--k-text); }  .card.k-text  .kind { color: var(--k-text); }
-  .card.k-value { border-left-color: var(--k-value); } .card.k-value .kind { color: var(--k-value); }
-  .card.k-apply { border-left-color: var(--k-apply); flex-direction: column; align-items: stretch; gap: 2px; }
+  /* instruction kinds are not coloured, and a card's left border is its border (2026-09-17):
+     the kind's colour and the 3px coloured edge said the same thing twice, in a palette
+     that competed with the template swatches, which are the colours that carry meaning */
+  .card.k-apply { flex-direction: column; align-items: stretch; gap: 2px; }
   /* one rule for every card head — an apply site's, a conditional's, and the one a
      plain card grows when it opens for editing. It was on the two container kinds only,
      so an opened text or value-of card lost both its swatch (a .chip is a sized box, and
@@ -417,7 +417,6 @@
   .aphead { display: flex; gap: 8px; align-items: baseline; }
   /* an apply site's swatches: one per template it dispatched into, read as a cluster */
   .chips { display: inline-flex; gap: 2px; align-items: center; }
-  .card.k-apply .kind { color: var(--k-apply); }
   .disp-row { display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 22px; font-size: 12.5px;
     background-color: transparent; transition: background-color .15s ease-out; }
   .disp-row .name { flex: 1; }
@@ -432,7 +431,6 @@
   .card.cont { flex-direction: column; align-items: stretch; gap: 2px; }
   .card.cont:not(.editing) { cursor: default; }
   .card.cont .aphead { cursor: pointer; }
-  .card.cont .kind { color: #90a4ae; }
   .branch { margin: 2px 0 0 10px; border-left: 1px dashed var(--border-color); }
   .br-head { display: flex; gap: 8px; align-items: baseline; padding: 2px 0 0 10px; }
   .br-key { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
@@ -476,7 +474,7 @@
     padding: 4px 6px; border-radius: 4px; flex: 1; min-width: 60px; resize: vertical;
     white-space: pre; line-height: 1.5; }
   .card select.edit-in.pick { flex: none; max-width: 150px; }
-  .ed-live { color: var(--k-value); overflow: hidden; text-overflow: ellipsis;
+  .ed-live { color: var(--muted); overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; padding-top: 4px; }
   .ed-note { color: var(--muted); font-size: 11.5px; font-style: italic;
     padding: 3px 0 1px 66px; }
@@ -488,8 +486,6 @@
   .card select.edit-in { flex: none; }
   .card input.edit-in:focus { outline: none; border-color: var(--blue-800);
     box-shadow: 0 0 8px rgba(33, 150, 243, .5); }
-  .card.k-other { border-left-color: #78909c; }
-  .card.k-other .kind { color: #90a4ae; }
   .addline { padding: 2px 0 6px; }
   .addbtn2 { border: none; background: none; color: var(--muted); font-size: 12px;
     padding: 0 3px; cursor: pointer; }
@@ -1570,7 +1566,10 @@ function renderCrumb() {
     const s = el("span", "seg");
     s.dataset.crumb = seg.id;
     const name = el("span", "name", TPL[seg.tpl].name);
-    name.style.color = TPL[seg.tpl].color;
+    /* the crumb's names are text, not swatches (2026-09-17): a name painted in its
+       template's colour reads as a signal once you have navigated, with nothing beside it
+       to compare against; the chips on the template list and the apply sites are where the
+       colour identifies a template among its siblings */
     name.title = "Make this frame the cursor";
     name.tabIndex = 0;
     if (seg === cursor) name.setAttribute("aria-current", "true");
@@ -1649,7 +1648,7 @@ function renderStrip() {
     h.appendChild(chip);
   }
   const name = el("span", "fname", t.name);
-  name.style.color = t.color;
+  /* the header's name is text too; its chip carries the colour and opens the editor */
   if (selTpl !== "source") {
     name.title = "Edit name and colour…";
     name.style.cursor = "pointer";

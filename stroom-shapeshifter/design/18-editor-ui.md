@@ -1227,3 +1227,40 @@ disagree with it: §5.6's conditionals now render their branches as **nested car
 where the prototype drilled down into containers breadcrumb-style. The model is a card list under
 either rendering, so it can be switched without touching the trace, the paths, or the
 editors.
+
+## 10. The model since the mockup — 2026-09-17
+
+The mockups were last touched on 2026-09-09 (`ad18b87a5b`). Two hundred commits later the
+engine's compiled graph has changed a great deal and the editor sees none of it; the
+*model* — what the editor renders and stores — has changed in seven places, found by
+diffing the config package rather than reading commit titles. Recorded here with what the
+mockup showed, what the model says now, and what was done about it in
+`18b-event-xml-trace-editor.html` the same day. (`18-trace-editor.html` is the earlier
+mockup, kept for its history; the colour changes below were applied to both, the rework to
+18b only.)
+
+| what changed | the mockup had | the model now has | in the mockup |
+|---|---|---|---|
+| **The match vocabulary** (design 38, D52) | a third workbench tab, *progressive steps*: a step builder (tag, take-until/while, numeric reads, library refs, repeat/choice/peek) and a project library of "stored combinators" | the **pattern tree** — `tag`, `take_while`, `take_until`, `take`, a `regex` leaf, `ref` to the standard library, `sequence`/`choice`/`optional`/`repeat`/`peek`/`not`, `label` on any node, `as` (a binary cast) on a labelled one — and the **match sequence**, `parts` of pattern / `take` / `seek` / `read` (design 39). No project library; `ref` names the regex module's standard entries. A regex **explodes** into the tree (`PatternExplode`, identical plan); the printer (tree → regex) is the UI's to build | the tab is **pattern tree**: a nested node editor over that vocabulary, an *explode into the tree* button on the regex tab, the tree rendered back as a regex live (a mockup printer, so the sample evaluator runs it), labels as the groups. The library pane lists the standard library, read-only. The match chip says `tree` |
+| **Declarations, scope, collections** (design 35) | "Groups (names editable — these are the capture declarations)": the pattern's groups *were* the declarations | a template has `declarations` — `scalar`, `list`, `map` (with entries), `set` — declared once; captures bind a pattern's **label** or group *into* a declared name; scope flows to child templates; plain assignment to a list is a compile error | the heading is **Labels** and says a capture binds a label to a declaration. A declarations editor on the template is **not built** — the next piece of workbench work |
+| **Counters as functions** (design 35) | `depth` among the guard variables; `$var` everywhere | `matchCount()`, `index()`, `position()`, `last()`, `groupKey()`, `group()`, `groupSize()` — functions, not reserved names | not changed; see the standing divergence below |
+| **Body vocabulary** (design 35 phase 4, designs 38 and 41) | `key`, `key-get`, `value-map`, `entry`, `sequence`, `count`/`sum`/`min`/`max`/`avg`/`distinct-values` | those folded into collection functions and the `get` accessor; `append`/`insert`/`put`/`remove`/`clear` added; `decode` added (byte codecs, and `xml_entities`/`json_string`) | not changed: the mockup's card kinds are `text`, `value-of`, `apply-templates`, the conditionals; the add-instruction picker is the next thing to align |
+| **Capture sources** (designs 38, 42) | `group`, `select`, `key-value`, `step`, `field` | `step` and `field` gone, `label` added; `field` returns with design 42 | — |
+| **Encoding settled first** (design 32) | a free-text encoding field | `auto` is sniffed once before compile, UTF-8 the default; a byte-order mark contradicting the declaration is a run message | the field's help text, when the source pane is built |
+| **Native records** (design 42, ruled, unbuilt) | — | a third kind of match — a format arm (`json`, `xml`, `avro`, `protobuf`, `parquet`) with a `select` route and derived fields — and `record` beneath it; dispatch over collection values; a frame for a native record may have **no byte span** | not yet: the workbench needs a third editor, and the crumb and the output attribution need to cope with a frame without bytes |
+
+**The standing divergence.** The mockup's card literals use an invented expression syntax
+— `$status < 400`, `escape-xml($user)`, ternaries — that the model has never had: a body is
+ops with `select` references and always was. It predates every change above. The sample
+configurations should be re-expressed as the ops they would be, which is a rewrite of the
+sample data rather than of the editor, and is owed.
+
+**Also on 2026-09-17, on the owner's reading of the mockups:** instruction-kind names and
+the cards' coloured left border lost their colours (the kind's colour and the 3px edge said
+the same thing twice, in a palette that competed with the template swatches); the
+breadcrumb's names and the template header's name are text, not swatches (a name painted in
+its template's colour reads as a signal once you have navigated, with nothing beside it to
+compare against). What still carries colour is what has a comparison beside it: the chips
+that identify a template among its siblings, the output pane's attribution of a region to
+the card or child that wrote it, and a capture's hue shared by its name, its chip and its
+group in the pattern.
