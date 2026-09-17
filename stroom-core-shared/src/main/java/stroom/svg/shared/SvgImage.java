@@ -1249,6 +1249,14 @@ public enum SvgImage {
             "g>\n" +
             ""),
 
+    DOCUMENT_SHAPESHIFTER("document/Shapeshifter.svg", "svg-image__document-shapeshifter", "" +
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1792\" height=\"1792\" viewBox=\"0 0 " +
+            "1792 1792\" version=\"1.1\"><!-- A shape mid-shift: a square fused into a circle. -" +
+            "-><path style=\"fill:var(--icon-colour__black)\" d=\"M 128,384 H 896 V 1408 H 128 Z" +
+            "\"/><circle style=\"fill:var(--icon-colour__black)\" cx=\"1216\" cy=\"896\" r=\"512\"/></" +
+            "svg> \n" +
+            ""),
+
     DOCUMENT_SIGMA_RULE("document/SigmaRule.svg", "svg-image__document-sigma-rule", "" +
             "<!-- Created with Inkscape (http://www.inkscape.org/) --><svg width=\"94.138962mm" +
             "\" height=\"110.23809mm\" viewBox=\"0 0 94.138962 110.23809\" version=\"1.1\" id=\"svg5\"" +

@@ -179,7 +179,7 @@ public class DocumentTypeRegistry {
             DocumentTypeGroup.TRANSFORMATION,
             "Shapeshifter",
             "Shapeshifter",
-            SvgImage.DOCUMENT_TEXT_CONVERTER);
+            SvgImage.DOCUMENT_SHAPESHIFTER);
     public static final DocumentType VIEW_DOCUMENT_TYPE = new DocumentType(
             DocumentTypeGroup.INDEXING,
             "View",

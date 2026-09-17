@@ -107,6 +107,8 @@ import stroom.security.client.gin.SecurityGinjector;
 import stroom.security.client.gin.SecurityModule;
 import stroom.security.identity.client.gin.ChangePasswordGinjector;
 import stroom.security.identity.client.gin.ChangePasswordModule;
+import stroom.shapeshifter.client.gin.ShapeshifterGinjector;
+import stroom.shapeshifter.client.gin.ShapeshifterModule;
 import stroom.statistics.impl.sql.client.gin.StatisticsGinjector;
 import stroom.statistics.impl.sql.client.gin.StatisticsModule;
 import stroom.task.client.gin.TaskGinjector;
@@ -159,6 +161,7 @@ import com.gwtplatform.mvp.client.proxy.PlaceManager;
         PluginsModule.class,
         PolicyModule.class,
         PopupModule.class,
+        ShapeshifterModule.class,
         UserPreferencesModule.class,
         QueryModule.class,
         ScriptModule.class,
@@ -209,6 +212,7 @@ public interface AppGinjectorUser extends
         PluginsGinjector,
         PopupGinjector,
         QueryGinjector,
+        ShapeshifterGinjector,
         UserPreferencesGinjector,
         ScriptGinjector,
         SecurityGinjector,

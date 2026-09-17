@@ -308,7 +308,10 @@ shippable.
 - **A1 — the plugin.** `Shapeshifter.gwt.xml`, `ShapeshifterPlugin`, `ShapeshifterModule`,
   `ShapeshifterGinjector`, `App.gwt.xml` and `AppGinjectorUser` wiring, an icon of its own,
   `ShapeshifterPresenter` with Source (Ace JSON), Documentation and Permissions. The document
-  opens; stepping works with JSON in the code pane. A day.
+  opens; stepping works with JSON in the code pane. **Built 2026-09-17**, in
+  `stroom-core-client/…/shapeshifter/client` on the TextConverter groove; the icon is a
+  square fused into a circle (`document/Shapeshifter.svg`, `SvgImage.DOCUMENT_SHAPESHIFTER`;
+  the first cut, a square-to-circle outline, read as a letter D at 16px and went).
 - **A2 — the model on the client and the forms.** `ShapeshifterConfig.gwt.xml` inherited by
   `App.gwt.xml`; the config module's JSON text parser and printer; `validate`,
   `patternInfo`, `explode`, `print`; the Design tab with `TemplatePanelPresenter`,
