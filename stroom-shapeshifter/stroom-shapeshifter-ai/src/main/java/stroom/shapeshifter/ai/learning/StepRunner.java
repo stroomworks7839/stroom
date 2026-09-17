@@ -1,0 +1,60 @@
+/*
+ * Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.shapeshifter.ai.learning;
+
+import java.util.Optional;
+
+/**
+ * Runs one kind of pipeline element headlessly, for the dialogue to try a candidate configuration before
+ * anything is written to a store (design §7.3 rule 1). One runner per element type the stage can use.
+ * <p>
+ * This is the stand-in for the headless harness of design §12 item 2 until that is extracted from the
+ * stepper. A runner is the element's behaviour with its Stroom plumbing removed, not the element itself.
+ */
+public interface StepRunner {
+
+    /**
+     * @return The pipeline element type this runs, e.g. {@code DSParser}. Matches the document's allowed
+     * elements and the type recorded in a fragment.
+     */
+    String elementType();
+
+    /**
+     * @return The id the element takes in a fragment, e.g. {@code dsParser}.
+     */
+    String elementId();
+
+    /**
+     * @return The document type the element consumes and the element property that references it, or
+     * empty for an element that takes no configuration and is a run-only step.
+     */
+    Optional<Configured> configured();
+
+    /**
+     * @param configuration The candidate configuration text, or null for a run-only element.
+     * @param input         What the element is to process.
+     */
+    StepResult run(String configuration, String input);
+
+    /**
+     * @param documentType The document type consumed, e.g. {@code TextConverter}.
+     * @param propertyName The element property that references the document, e.g. {@code textConverter}.
+     */
+    record Configured(String documentType, String propertyName) {
+
+    }
+}

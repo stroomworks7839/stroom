@@ -1,0 +1,59 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:l="urn:import:stroom.item.client"
+             xmlns:v="urn:import:stroom.widget.valuespinner.client">
+    <g:FlowPanel styleName="max form-padding form">
+        <form:FormGroup identity="shapeshifterLearningModel"
+                        label="Model"
+                        helpText="The OpenAI-compatible model the stage calls.">
+            <g:SimplePanel ui:field="model"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiLearningKey"
+                        label="Learning key"
+                        helpText="The fields a learned rule binds on and the model is shown, in order: Feed, Type, a receipt header such as Format or System, or Shape Signature. A shape is one value of this key. Feed and Type by default; add Shape Signature where one feed carries several kinds of record. A stream that lacks a value for a key field is not learned.">
+            <g:SimplePanel ui:field="learningKey" width="400px" height="160px" styleName="dashboard-panel dock-container-vertical"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiRelearnThreshold"
+                        label="Relearn threshold (%)"
+                        helpText="When a bound shape's rolling per-record score falls below this, the shape is relearned while its current rule keeps serving.">
+            <v:ValueSpinner ui:field="relearnThreshold" width="80px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiAllowedElements"
+                        label="Allowed elements"
+                        helpText="Pipeline element types, one per line, that the model may choose between when asked which chain of elements fits. With a single entry the chain question is skipped.">
+            <g:TextArea ui:field="allowedElements" width="400px" height="80px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiInstructions"
+                        label="Instructions"
+                        helpText="Free-text instructions added to every question put to the model.">
+            <g:TextArea ui:field="instructions" width="400px" height="120px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiMaxAttempts"
+                        label="Maximum candidates"
+                        helpText="How many candidate chains an attempt may try, re-asking the failing element with feedback, before the shape is given up on.">
+            <v:ValueSpinner ui:field="maxAttempts" width="80px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiAttemptBudgetMs"
+                        label="Attempt budget (ms)"
+                        helpText="Wall-clock budget for a whole attempt, every question included. Mandatory; there is no unlimited setting.">
+            <v:ValueSpinner ui:field="attemptBudgetMs" width="120px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiTokenBudget"
+                        label="Token budget"
+                        helpText="Token budget for a whole attempt. Zero means unlimited.">
+            <v:ValueSpinner ui:field="tokenBudget" width="120px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiSampleRedaction"
+                        label="Sample redaction"
+                        helpText="Whether the samples and headers sent to the model are reduced to token classes or sent as they are.">
+            <l:SelectionBox ui:field="sampleRedaction"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiSampleSizeLimit"
+                        label="Sample size limit (bytes)"
+                        helpText="The largest sample sent to the model.">
+            <v:ValueSpinner ui:field="sampleSizeLimit" width="120px"/>
+        </form:FormGroup>
+    </g:FlowPanel>
+</ui:UiBinder>

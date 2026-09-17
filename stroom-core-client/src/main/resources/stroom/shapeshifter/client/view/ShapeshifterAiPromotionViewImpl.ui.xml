@@ -1,0 +1,39 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:l="urn:import:stroom.item.client"
+             xmlns:v="urn:import:stroom.widget.valuespinner.client">
+    <g:FlowPanel styleName="max form-padding form">
+        <form:FormGroup identity="shapeshifterAiPromotionMode"
+                        label="Promotion mode"
+                        helpText="Automatic: a candidate that passes the gate goes live. Review: it is appended as a draft rule the router skips, and streams of its shape wait in the ledger until a person approves it.">
+            <l:SelectionBox ui:field="promotionMode"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiPromotionFloor"
+                        label="Promotion floor (%)"
+                        helpText="The weighted score a candidate must reach on the held-out sample before it can be promoted. It must also not regress against the incumbent on any previously accepted record.">
+            <v:ValueSpinner ui:field="promotionFloor" width="80px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiHeldOutFraction"
+                        label="Held-out fraction (%)"
+                        helpText="The share of a shape's records withheld from the model and used only to judge promotion.">
+            <v:ValueSpinner ui:field="heldOutFraction" width="80px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiMinRecordsPerShape"
+                        label="Minimum records per shape"
+                        helpText="Records a shape must have accumulated before promotion is judged; below this a candidate that clears the floor is bound provisionally and waits for more.">
+            <v:ValueSpinner ui:field="minRecordsPerShape" width="80px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiRegressionCap"
+                        label="Regression records per rule"
+                        helpText="The most previously accepted records retained per rule for the regression check.">
+            <v:ValueSpinner ui:field="regressionCap" width="80px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiRegressionRetentionDays"
+                        label="Regression retention (days)"
+                        helpText="How long regression records are kept, never longer than the source feed's own retention. Zero follows the feed's.">
+            <v:ValueSpinner ui:field="regressionRetentionDays" width="80px"/>
+        </form:FormGroup>
+    </g:FlowPanel>
+</ui:UiBinder>

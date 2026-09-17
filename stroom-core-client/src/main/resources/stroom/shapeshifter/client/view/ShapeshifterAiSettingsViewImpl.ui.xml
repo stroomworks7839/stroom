@@ -1,0 +1,24 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:l="urn:import:stroom.item.client"
+             xmlns:v="urn:import:stroom.widget.valuespinner.client">
+    <g:FlowPanel styleName="max form-padding form">
+        <form:FormGroup identity="shapeshifterAiExecutionMode"
+                        label="Execution mode"
+                        helpText="Deferred learning sentinels the stream and runs the attempt as a separate task; inline learning runs within the processing pipeline and fixes the current stream.">
+            <l:SelectionBox ui:field="executionMode"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiLearningMode"
+                        label="Learning mode"
+                        helpText="Whether the stage may call the model at all. Disabled by default; Shapeshifter AI is opt-in per document. Disabled still selects among the variants already bound.">
+            <l:SelectionBox ui:field="learningMode"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiErrorModeAfter"
+                        label="Error mode after"
+                        helpText="Abandoned attempts or sentinelled streams in a row on one feed before that feed enters error mode: no routing, no learning, a fatal error stream per input until an operator resets it.">
+            <v:ValueSpinner ui:field="errorModeAfter" width="80px"/>
+        </form:FormGroup>
+    </g:FlowPanel>
+</ui:UiBinder>

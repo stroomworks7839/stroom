@@ -1,0 +1,98 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:l="urn:import:stroom.item.client"
+             xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view">
+    <g:FlowPanel styleName="max form-padding form">
+        <form:FormGroup identity="scorerType"
+                        label="Scorer"
+                        helpText="Compile: the configuration compiles at all. Input coverage: the share of input the parser consumed rather than discarded. Yield: output records per unit of input, against an expected ratio. Schema conformance: the share of records that validate, per record. Extraction quality: typed-element ratio, Unknown rate and required-field coverage. Business rules: XPath assertions over each record. Error load: diagnostics per record. Event classification: records whose type is recognised.">
+            <l:SelectionBox ui:field="type"/>
+        </form:FormGroup>
+        <form:FormGroup identity="scorerWeight"
+                        label="Weight"
+                        helpText="How much this score contributes to the weighted total. Zero for a scorer that is a gate only.">
+            <g:DoubleBox ui:field="weight" width="120px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="scorerThreshold"
+                        label="Threshold"
+                        helpText="The score, from 0 to 1, below which the attempt fails this scorer.">
+            <g:DoubleBox ui:field="threshold" width="120px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="scorerGate"
+                        label="Gate"
+                        helpText="A gate must reach its threshold on its own, whatever the weighted total says. Schema conformance is a gate, not something to maximise.">
+            <tickbox:CustomCheckBox ui:field="gate"/>
+        </form:FormGroup>
+
+        <g:DeckPanel ui:field="parameters">
+            <!-- 0: no parameters -->
+            <g:FlowPanel/>
+            <!-- 1: yield -->
+            <g:FlowPanel>
+                <form:FormGroup identity="yieldExpectedRatio"
+                                label="Expected ratio"
+                                helpText="Output records expected per unit of input. One per input record for a transformation; an extraction stage sets what its data yields.">
+                    <g:DoubleBox ui:field="expectedRatio" width="120px"/>
+                </form:FormGroup>
+                <form:FormGroup identity="yieldBasis"
+                                label="Per"
+                                helpText="What output records are counted against: input records for a transformation stage, lines or bytes for an extraction stage.">
+                    <l:SelectionBox ui:field="basis"/>
+                </form:FormGroup>
+            </g:FlowPanel>
+            <!-- 2: schema conformance -->
+            <g:FlowPanel>
+                <form:FormGroup identity="schemaGroup"
+                                label="Schema group"
+                                helpText="The XML schema group each record is validated against, e.g. EVENTS for event-logging.">
+                    <g:TextBox ui:field="schemaGroup" width="300px"/>
+                </form:FormGroup>
+            </g:FlowPanel>
+            <!-- 3: extraction quality -->
+            <g:FlowPanel>
+                <form:FormGroup identity="qualityAllowUnknownEventDetail"
+                                label="Allow Unknown event detail"
+                                helpText="Whether records classified as Unknown are tolerated. They never count toward a passing score either way.">
+                    <tickbox:CustomCheckBox ui:field="allowUnknownEventDetail"/>
+                </form:FormGroup>
+                <form:FormGroup identity="qualityRequiredFields"
+                                label="Required fields"
+                                helpText="XPaths, one per line, that every record must populate, e.g. /Event/EventSource/User/Id.">
+                    <g:TextArea ui:field="requiredFields" width="500px" height="100px"/>
+                </form:FormGroup>
+            </g:FlowPanel>
+            <!-- 4: business rules -->
+            <g:FlowPanel styleName="max">
+                <form:FormGroup identity="rulesAssertions"
+                                label="Assertions"
+                                helpText="XPaths every record must satisfy."
+                                addStyleNames="dock-max">
+                    <g:SimplePanel ui:field="assertions" styleName="max" height="200px"/>
+                </form:FormGroup>
+                <form:FormGroup identity="rulesIncludeTransformMessages"
+                                label="Count transform messages"
+                                helpText="A warning or error the transform raises itself with xsl:message about a record counts as a failed rule for that record.">
+                    <tickbox:CustomCheckBox ui:field="includeTransformMessages"/>
+                </form:FormGroup>
+            </g:FlowPanel>
+            <!-- 5: error load -->
+            <g:FlowPanel>
+                <form:FormGroup identity="errorLoadMinimumSeverity"
+                                label="Count from"
+                                helpText="Diagnostics at this severity and above count against a record.">
+                    <l:SelectionBox ui:field="minimumSeverity"/>
+                </form:FormGroup>
+            </g:FlowPanel>
+            <!-- 6: event classification -->
+            <g:FlowPanel>
+                <form:FormGroup identity="classificationRecognisedTypes"
+                                label="Recognised types"
+                                helpText="TypeId values, one per line, that count as classified. Leave empty to count any type other than Unknown.">
+                    <g:TextArea ui:field="recognisedTypes" width="500px" height="100px"/>
+                </form:FormGroup>
+            </g:FlowPanel>
+        </g:DeckPanel>
+    </g:FlowPanel>
+</ui:UiBinder>

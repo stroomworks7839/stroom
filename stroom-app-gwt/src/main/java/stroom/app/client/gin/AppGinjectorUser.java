@@ -107,6 +107,8 @@ import stroom.security.client.gin.SecurityGinjector;
 import stroom.security.client.gin.SecurityModule;
 import stroom.security.identity.client.gin.ChangePasswordGinjector;
 import stroom.security.identity.client.gin.ChangePasswordModule;
+import stroom.shapeshifter.client.gin.ShapeshifterAiGinjector;
+import stroom.shapeshifter.client.gin.ShapeshifterAiModule;
 import stroom.statistics.impl.sql.client.gin.StatisticsGinjector;
 import stroom.statistics.impl.sql.client.gin.StatisticsModule;
 import stroom.task.client.gin.TaskGinjector;
@@ -154,6 +156,7 @@ import com.gwtplatform.mvp.client.proxy.PlaceManager;
         KafkaConfigModule.class,
         MonitoringModule.class,
         OpenAIModelModule.class,
+        ShapeshifterAiModule.class,
         PathwaysModule.class,
         PipelineModule.class,
         PluginsModule.class,
@@ -204,6 +207,7 @@ public interface AppGinjectorUser extends
         KafkaConfigGinjector,
         MonitoringGinjector,
         OpenAIModelGinjector,
+        ShapeshifterAiGinjector,
         PathwaysGinjector,
         PipelineGinjector,
         PluginsGinjector,
