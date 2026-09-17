@@ -38,6 +38,9 @@ dependencies {
     // checked by an independent writer (design 38 §4). Test scope only: the engine itself
     // never sees it, as it never sees Saxon in the XSLT catalogue.
     testImplementation libs.avro
+    // Likewise protobuf-java (design 40 §6): the incumbent that reads the protobuf fixture's
+    // messages generically from its descriptor, and the writer of the amplified corpus.
+    testImplementation libs.protobuf.java
 
     testImplementation libs.bundles.common.test.implementation
     testRuntimeOnly libs.bundles.common.test.runtime

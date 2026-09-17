@@ -1,4 +1,4 @@
-# Design 40 — XML and JSON parsed to events: the engine against the parsers
+# Design 40 — XML, JSON and the binary formats: the engine against the parsers and libraries
 
 *Proposed and built 2026-09-17, on the owner's question: "do we have tests for basic
 comparison of XML parsing to SAX events with no transform, against a specific XML parser
@@ -114,3 +114,35 @@ gap on both. §3's census target stands, with a second row to read it on; nothin
 matching is in question. The bound on the claim stands too — one shape, not a JSON parser —
 and so does the point of design 36: a parser that reads all JSON was never the job; not
 being an order of magnitude behind one on the structure we emit is.
+
+## 6. The binary formats, against the Java libraries that own them — 2026-09-17
+
+*On the owner's challenge to the Avro and protobuf statements: the Avro number was a fresh
+measurement but against the Rust crate, which is not the library a Java system would use;
+the protobuf statement had no measurement behind it at all. Both are corrected here.*
+`BinaryParseBenchmark` (engine bench package, run by name; `2026-09-17-1052-6345f8f723-binaryparse.json`): the same
+container and the same message stream, about 263 KB each, through the Java libraries reading
+generically — `GenericDatumReader`, `DynamicMessage` from the fixture's own descriptor — and
+through the engine with its output taken out (every match, read, capture and dispatch kept)
+and as written. `ProtobufMessages` writes the corpus from the descriptor and is the oracle,
+as `AvroContainers` is; `ProtobufAmplifiedTest` holds the engine to it, the proto3
+omitted-false case included.
+
+| ~263 KB | Java library, generic, nothing written | engine, parse only | engine, with output |
+|---|---|---|---|
+| Avro, 12,762 users | 991 ops/s (1.01 ms) | **1,668 ops/s (0.60 ms)** | 424 |
+| Protobuf, ~20,000 events | 175 ops/s (5.7 ms) | **154 ops/s (6.5 ms)** | 133 |
+
+**Avro holds, against the right library:** the engine's parse is 1.7× the Java library's
+generic reader (and 2.4× the Rust crate's, the earlier reading). Both libraries read
+generically; a schema-specific or generated-class reader would be faster and is unmeasured.
+
+**Protobuf does not:** the engine is 12% *slower* than `DynamicMessage`, which is the
+library's slowest, reflective route, and a generated message class would be several times
+faster than that. The configuration says why: each field is a template whose first part is a
+one-byte tag as a *pattern* — a regex call to match a single byte — before its read. So the
+honest standing is "correct, and on a par with the slowest library route", not "no library
+needed". Two remedies, both design 42's: a one-byte literal in a match sequence should not
+cost a regex call (a `tag` verb, or `read` of a byte with a test — an engine change, small);
+or the native seam, for the formats where a library is the only route (Parquet) or clearly
+the better one.

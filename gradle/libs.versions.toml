@@ -24,6 +24,7 @@ poi = "5.4.1"
 simple-java-mail = "8.8.0"
 swagger = "2.2.42"
 
+protobuf = "4.31.1"
 woodstox = "7.1.0"
 
 [libraries]
@@ -187,6 +188,7 @@ wiremock = { module = "org.wiremock:wiremock-jetty12", version = "3.13.2" }
 ws-rs-api = { module = "jakarta.ws.rs:jakarta.ws.rs-api" } # version controlled by dropwizard-dependencies
 ws-rs-api-gwt = { module = "javax.ws.rs:javax.ws.rs-api", version = "2.1.1" } # For GWT compilation
 xerces = { module = "xerces:xercesImpl", version = "2.12.2" }
+protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
 woodstox-core = { module = "com.fasterxml.woodstox:woodstox-core", version.ref = "woodstox" }
 zero-allocation-hashing = { module = "net.openhft:zero-allocation-hashing", version = "2026.0" }
 zxcvbn = { module = "com.nulab-inc:zxcvbn", version = "1.9.0" }
