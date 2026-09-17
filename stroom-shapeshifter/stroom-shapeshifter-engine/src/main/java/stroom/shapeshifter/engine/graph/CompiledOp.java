@@ -16,12 +16,12 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.Severity;
-import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.Declaration;
-import stroom.shapeshifter.engine.config.Dispatch;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
+import stroom.shapeshifter.config.Cast;
+import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.Dispatch;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.OutputNode.ApplyDirective;
+import stroom.shapeshifter.config.Severity;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.value.Dates;
 import stroom.shapeshifter.engine.value.TypedValue;

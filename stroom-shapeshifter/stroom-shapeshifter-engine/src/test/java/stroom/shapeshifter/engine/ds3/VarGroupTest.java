@@ -16,10 +16,10 @@
 
 package stroom.shapeshifter.engine.ds3;
 
-import stroom.shapeshifter.engine.config.CaptureBinding;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.config.CaptureBinding;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.engine.fixture.EngineHarness;
 
 import org.junit.jupiter.api.Test;

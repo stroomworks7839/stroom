@@ -18,7 +18,7 @@ package stroom.shapeshifter.pipeline.function;
 
 import stroom.dictionary.api.WordListProvider;
 import stroom.docref.DocRef;
-import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.config.Severity;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;

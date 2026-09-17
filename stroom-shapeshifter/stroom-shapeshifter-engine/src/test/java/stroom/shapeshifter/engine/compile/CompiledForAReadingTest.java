@@ -16,10 +16,10 @@
 
 package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.text.Encoding;
 

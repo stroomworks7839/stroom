@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.config.Declaration;
+import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
 import stroom.shapeshifter.engine.value.TypedValue;

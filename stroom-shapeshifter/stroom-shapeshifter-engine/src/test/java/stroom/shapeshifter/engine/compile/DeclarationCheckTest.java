@@ -16,16 +16,16 @@
 
 package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.config.CaptureBinding;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.RefExpression;
+import stroom.shapeshifter.config.Template;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.config.CaptureBinding;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Declaration;
-import stroom.shapeshifter.engine.config.MatchExpression;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.ProjectReader;
-import stroom.shapeshifter.engine.config.RefExpression;
-import stroom.shapeshifter.engine.config.Template;
 
 import org.junit.jupiter.api.Test;
 
@@ -58,14 +58,14 @@ class DeclarationCheckTest {
                                    final List<Declaration> onLine,
                                    final List<OutputNode> body) {
         final Template line = new Template(
-                UUID.randomUUID(), "line", "doc", false, null, List.of(), onLine,
+                UUID.randomUUID().toString(), "line", "doc", false, null, List.of(), onLine,
                 new MatchExpression.Regex("([^\n]*)\n", null, 0),
                 new Template.MatchLimits(0, -1, null),
                 List.of(new CaptureBinding("seed", new CaptureBinding.CaptureSource.Group(1), null)),
                 body,
                 null, false);
         final Template source = new Template(
-                UUID.randomUUID(), "source", null, false, null, List.of(), onSource,
+                UUID.randomUUID().toString(), "source", null, false, null, List.of(), onSource,
                 new MatchExpression.Source(),
                 new Template.MatchLimits(0, -1, null), List.of(),
                 List.of(new OutputNode.ApplyTemplates(new OutputNode.ApplyDirective(
@@ -135,7 +135,7 @@ class DeclarationCheckTest {
     void parameterIsADeclarationInPlace() {
         final Template.ParamDecl depth = new Template.ParamDecl("depth", "0");
         final Template line = new Template(
-                UUID.randomUUID(), "line", "doc", false, null, List.of(depth), List.of(scalar("seed")),
+                UUID.randomUUID().toString(), "line", "doc", false, null, List.of(depth), List.of(scalar("seed")),
                 new MatchExpression.Regex("([^\n]*)\n", null, 0),
                 new Template.MatchLimits(0, -1, null),
                 List.of(new CaptureBinding("seed", new CaptureBinding.CaptureSource.Group(1), null)),
@@ -170,7 +170,7 @@ class DeclarationCheckTest {
                 new RefExpression(List.of(new RefExpression.RefPart.Capture(null, 1, null))),
                 new RefExpression(List.of(new RefExpression.RefPart.Capture(null, 1, null)))), null);
         final Template line = new Template(
-                UUID.randomUUID(), "line", "doc", false, null, List.of(),
+                UUID.randomUUID().toString(), "line", "doc", false, null, List.of(),
                 List.of(new Declaration("pairs", Declaration.Type.MAP)),
                 new MatchExpression.Regex("([^\n]*)\n", null, 0),
                 new Template.MatchLimits(0, -1, null),

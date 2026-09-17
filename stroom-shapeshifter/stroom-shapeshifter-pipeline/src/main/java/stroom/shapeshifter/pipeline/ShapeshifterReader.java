@@ -231,7 +231,7 @@ public class ShapeshifterReader extends AbstractParser {
             sink.end();
         } catch (final OutputSink.StructureException e) {
             messages = new ArrayList<>(messages);
-            messages.add(new Message(stroom.shapeshifter.engine.Severity.FATAL,
+            messages.add(new Message(stroom.shapeshifter.config.Severity.FATAL,
                     "Output structure: " + e.getMessage()));
         }
         return messages;
@@ -260,7 +260,7 @@ public class ShapeshifterReader extends AbstractParser {
             return;
         }
         if (!feed.equals(configuration)) {
-            report(new Message(stroom.shapeshifter.engine.Severity.WARNING,
+            report(new Message(stroom.shapeshifter.config.Severity.WARNING,
                     "The feed is declared " + feed.name() + " but the configuration reads its bytes as "
                     + configuration.name() + " (source.encoding); the configuration is used"));
         }
@@ -489,7 +489,7 @@ public class ShapeshifterReader extends AbstractParser {
         }
     }
 
-    private static Severity severity(final stroom.shapeshifter.engine.Severity severity) {
+    private static Severity severity(final stroom.shapeshifter.config.Severity severity) {
         return switch (severity) {
             case INFO -> Severity.INFO;
             case WARNING -> Severity.WARNING;

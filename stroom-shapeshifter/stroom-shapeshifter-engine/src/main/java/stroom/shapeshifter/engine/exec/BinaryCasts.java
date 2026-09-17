@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.config.BinaryCast;
+import stroom.shapeshifter.config.BinaryCast;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 /**

@@ -17,7 +17,7 @@
 package stroom.shapeshifter.engine.value;
 
 
-import stroom.shapeshifter.engine.config.Codec;
+import stroom.shapeshifter.config.Codec;
 
 import org.junit.jupiter.api.Test;
 

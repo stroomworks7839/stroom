@@ -16,11 +16,11 @@
 
 package stroom.shapeshifter.engine.value;
 
+import stroom.shapeshifter.config.Cast;
+import stroom.shapeshifter.config.Condition;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.Condition;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.match.MatchResult;
 
@@ -140,8 +140,8 @@ class CompareSpineTest {
     }
 
 
-    private static stroom.shapeshifter.engine.config.RefExpression readGuardRef() {
-        return new stroom.shapeshifter.engine.config.RefExpression(java.util.List.of());
+    private static stroom.shapeshifter.config.RefExpression readGuardRef() {
+        return new stroom.shapeshifter.config.RefExpression(java.util.List.of());
     }
 
     // -----------------------------------------------------------------------------------
@@ -165,22 +165,22 @@ class CompareSpineTest {
      * which is the absence every case here is about.
      */
     private static boolean evaluate(final Condition condition) {
-        final stroom.shapeshifter.engine.config.Template guarded =
-                new stroom.shapeshifter.engine.config.Template(
-                        java.util.UUID.randomUUID(), "guarded", "doc", false, condition,
+        final stroom.shapeshifter.config.Template guarded =
+                new stroom.shapeshifter.config.Template(
+                        java.util.UUID.randomUUID().toString(), "guarded", "doc", false, condition,
                         java.util.List.of(),
-                        java.util.List.of(new stroom.shapeshifter.engine.config.Declaration("missing",
-                                stroom.shapeshifter.engine.config.Declaration.Type.SCALAR)),
-                        new stroom.shapeshifter.engine.config.MatchExpression.Regex(".*", null, 0),
-                        new stroom.shapeshifter.engine.config.Template.MatchLimits(0, -1, null),
-                        java.util.List.of(new stroom.shapeshifter.engine.config.CaptureBinding(
+                        java.util.List.of(new stroom.shapeshifter.config.Declaration("missing",
+                                stroom.shapeshifter.config.Declaration.Type.SCALAR)),
+                        new stroom.shapeshifter.config.MatchExpression.Regex(".*", null, 0),
+                        new stroom.shapeshifter.config.Template.MatchLimits(0, -1, null),
+                        java.util.List.of(new stroom.shapeshifter.config.CaptureBinding(
                                 "missing",
-                                new stroom.shapeshifter.engine.config.CaptureBinding
+                                new stroom.shapeshifter.config.CaptureBinding
                                         .CaptureSource.Group(1), null)),
                         java.util.List.of(), null, false);
-        final stroom.shapeshifter.engine.config.Project project =
-                new stroom.shapeshifter.engine.config.Project("t", 5,
-                        stroom.shapeshifter.engine.config.Project.SourceConfig.defaults(),
+        final stroom.shapeshifter.config.Project project =
+                new stroom.shapeshifter.config.Project("t", 5,
+                        stroom.shapeshifter.config.Project.SourceConfig.defaults(),
                         java.util.List.of(guarded));
         final stroom.shapeshifter.engine.graph.CompiledProject compiled =
                 stroom.shapeshifter.engine.Shapeshifter.compile(project);

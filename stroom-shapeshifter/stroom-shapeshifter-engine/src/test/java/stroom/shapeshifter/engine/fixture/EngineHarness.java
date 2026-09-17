@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.engine.fixture;
 
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.ds3.Ds3Migration;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 
@@ -107,7 +107,7 @@ public final class EngineHarness {
     }
 
     /** The goldens spell severities the way the Rust engine's message dump does. */
-    private static String name(final stroom.shapeshifter.engine.Severity severity) {
+    private static String name(final stroom.shapeshifter.config.Severity severity) {
         final String name = severity.name();
         return name.charAt(0) + name.substring(1).toLowerCase(java.util.Locale.ROOT);
     }

@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.config.Dispatch;
+import stroom.shapeshifter.config.Dispatch;
 
 /**
  * How a run begins and ends, settled once when the project compiles.

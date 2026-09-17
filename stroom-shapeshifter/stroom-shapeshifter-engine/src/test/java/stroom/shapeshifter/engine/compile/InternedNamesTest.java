@@ -17,8 +17,8 @@
 package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.engine.Message;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.config.ProjectReader;
 import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
 import stroom.shapeshifter.engine.output.XmlByteSink;
@@ -114,7 +114,7 @@ class InternedNamesTest {
                 Shapeshifter.compile(ProjectReader.read(json(name))),
                 new ByteArrayInputStream("match me\n".getBytes(StandardCharsets.UTF_8)),
                 new XmlByteSink(out));
-        assertThat(messages).noneMatch(m -> m.severity().ordinal() >= stroom.shapeshifter.engine
+        assertThat(messages).noneMatch(m -> m.severity().ordinal() >= stroom.shapeshifter.config
                 .Severity.ERROR.ordinal());
         return out.toString(StandardCharsets.UTF_8);
     }

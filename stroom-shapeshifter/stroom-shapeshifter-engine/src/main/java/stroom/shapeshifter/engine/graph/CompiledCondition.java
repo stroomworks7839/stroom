@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.regex.BytePattern;
 
 /**

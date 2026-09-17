@@ -16,7 +16,8 @@
 
 package stroom.shapeshifter.engine;
 
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.config.Severity;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.DynamicTest;

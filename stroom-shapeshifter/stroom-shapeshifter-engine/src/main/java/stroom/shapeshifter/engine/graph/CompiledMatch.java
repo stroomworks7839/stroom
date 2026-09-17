@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.config.BinaryCast;
+import stroom.shapeshifter.config.BinaryCast;
 import stroom.shapeshifter.regex.Anchoring;
 import stroom.shapeshifter.regex.ByteMatcher;
 import stroom.shapeshifter.regex.BytePattern;
@@ -25,7 +25,7 @@ import stroom.shapeshifter.regex.LeadingAnchor;
 /**
  * A match expression with everything it needs already worked out.
  *
- * <p>The authored {@link stroom.shapeshifter.engine.config.MatchExpression} says what to match;
+ * <p>The authored {@link stroom.shapeshifter.config.MatchExpression} says what to match;
  * this says how, with patterns compiled and delimiters already encoded. The match loop should
  * not be deciding anything a compiler could have decided once.
  */

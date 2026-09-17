@@ -16,14 +16,14 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.config.Cast;
+import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.OutputNode.ApplyDirective;
+import stroom.shapeshifter.config.Severity;
 import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.OutputSink;
-import stroom.shapeshifter.engine.Severity;
-import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.Declaration;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;

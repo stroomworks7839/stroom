@@ -66,9 +66,13 @@ A pattern outside the dialect is rejected with the reason — never matched appr
 
 - `stroom-shapeshifter-regex` — the matching library: everything described above.
   Zero dependencies, enforced; usable standalone.
-- `stroom-shapeshifter-engine` — the layers above matching (D12): configurations, templates,
-  transforms and the output side, ported from the Rust prototype (D33). Depends on the regex
-  module; the reverse is forbidden by the zero-dependency check.
+- `stroom-shapeshifter-config` — what a configuration *is*: the model, a plain tree of records
+  and sealed interfaces, and its JSON mapping over a tree of its own. Shared with the GWT
+  client (design 43), so JDK only and Java 17, both enforced — a release-17 compile and a GWT
+  compile of the module are part of its `check`.
+- `stroom-shapeshifter-engine` — the layers above matching (D12): reading, compiling and
+  running configurations, and the output side, ported from the Rust prototype (D33). Depends
+  on the config and regex modules; the reverse is forbidden by their zero-dependency checks.
   [Its README](stroom-shapeshifter-engine/README.md) is the way in.
 - `stroom-shapeshifter-pipeline` — the thin adapter that puts the engine into a Stroom
   pipeline (D10, designs 21 to 24), keeping Stroom's types out of both library modules.

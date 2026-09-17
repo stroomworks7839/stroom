@@ -16,9 +16,9 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.Template;
 
 import java.util.List;
 

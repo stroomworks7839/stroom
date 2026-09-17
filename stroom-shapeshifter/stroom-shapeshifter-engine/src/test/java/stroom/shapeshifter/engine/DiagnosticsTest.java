@@ -16,8 +16,9 @@
 
 package stroom.shapeshifter.engine;
 
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Severity;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 

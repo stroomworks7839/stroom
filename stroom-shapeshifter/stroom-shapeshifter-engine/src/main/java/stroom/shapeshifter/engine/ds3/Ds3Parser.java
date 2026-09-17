@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.ds3;
 
-import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.config.ConfigException;
 
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;

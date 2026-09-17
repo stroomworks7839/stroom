@@ -33,8 +33,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class StreamingMemoryTest {
 
-    private static final UUID ROOT = UUID.randomUUID();
-    private static final UUID CHILD = UUID.randomUUID();
+    private static final String ROOT = UUID.randomUUID().toString();
+    private static final String CHILD = UUID.randomUUID().toString();
 
     @Test
     void openMatchesFallBackToTheEnclosingOneOnTheEventPathAndDoNotAccumulate() {

@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.config.EngineVars;
+import stroom.shapeshifter.config.EngineVars;
 
 /**
  * Which of a variable's values a reference means, compiled (design 30 phase 5).

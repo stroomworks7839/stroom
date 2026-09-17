@@ -16,9 +16,9 @@
 
 package stroom.shapeshifter.engine.exec;
 
+import stroom.shapeshifter.config.Severity;
 import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.Severity;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;

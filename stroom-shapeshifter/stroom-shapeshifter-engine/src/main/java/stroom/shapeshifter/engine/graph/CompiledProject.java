@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.engine.graph;
 
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.text.Encoding;
 

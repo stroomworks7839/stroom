@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 

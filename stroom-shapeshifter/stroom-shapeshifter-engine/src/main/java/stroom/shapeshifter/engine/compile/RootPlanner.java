@@ -16,10 +16,10 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.Dispatch;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
-import stroom.shapeshifter.engine.config.Project;
+import stroom.shapeshifter.config.Dispatch;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.OutputNode.ApplyDirective;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.engine.graph.CompiledMatch;
 import stroom.shapeshifter.engine.graph.CompiledOp;
 import stroom.shapeshifter.engine.graph.CompiledTemplate;

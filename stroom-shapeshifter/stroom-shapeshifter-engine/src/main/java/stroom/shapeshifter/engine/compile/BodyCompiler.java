@@ -16,16 +16,16 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.Codec;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Declaration;
-import stroom.shapeshifter.engine.config.Dispatch;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.RefExpression;
-import stroom.shapeshifter.engine.config.RefExpression.RefPart;
-import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.config.Cast;
+import stroom.shapeshifter.config.Codec;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.Dispatch;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.RefExpression;
+import stroom.shapeshifter.config.RefExpression.RefPart;
+import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
 import stroom.shapeshifter.engine.function.Kind;
 import stroom.shapeshifter.engine.function.Signature;

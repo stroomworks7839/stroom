@@ -59,7 +59,7 @@ import stroom.pipeline.writer.XMLWriter;
 import stroom.pipeline.xmlschema.XmlSchemaCache;
 import stroom.pipeline.xmlschema.XmlSchemaStore;
 import stroom.security.api.SecurityContext;
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.pipeline.ShapeshifterFilter;
 import stroom.shapeshifter.pipeline.ShapeshifterFunctionModule;

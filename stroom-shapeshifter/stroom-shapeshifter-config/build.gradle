@@ -1,0 +1,85 @@
+/*
+ * Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+ext.moduleName = 'stroom.shapeshifter.config'
+
+dependencies {
+    testImplementation libs.bundles.common.test.implementation
+    testRuntimeOnly libs.bundles.common.test.runtime
+}
+
+// The model and its JSON mapping are shared with the GWT client (design 43), and GWT 2.13
+// compiles Java 17 at most: no switch patterns, no Jackson, no UUID, nothing the JDK
+// emulation lacks. Compiling at release 17 makes the language half of that promise a
+// build failure rather than a discovery at GWT-compile time; the emulation half is the
+// GWT compile itself. The engine's compiler, which switches over these types with
+// patterns, is unaffected — a sealed record family compiled at 17 is still sealed for it.
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+}
+
+// The same promise the regex module makes, for the same reason with one more: a runtime
+// dependency here would have to be GWT-compilable too, which almost nothing is.
+tasks.register('verifyZeroDependencies') {
+    group = 'verification'
+    description = 'Fails if stroom-shapeshifter-config acquires any runtime dependency'
+    final def artifacts = provider {
+        configurations.runtimeClasspath.files.collect { it.name }
+    }
+    doLast {
+        if (!artifacts.get().isEmpty()) {
+            throw new GradleException(
+                    "stroom-shapeshifter-config must have an empty runtime classpath; found: "
+                    + artifacts.get())
+        }
+    }
+}
+tasks.named('check') { dependsOn 'verifyZeroDependencies' }
+
+// The emulation half of the promise: compile the module with GWT itself, from a spike entry
+// point (src/gwtSpike) that reaches the whole mapping. Release 17 catches the language; only
+// the GWT compiler catches a JDK method the emulation lacks, or a construct it mishandles —
+// two of which it found on the first run (design 43 §2). Wired into check so the promise is
+// enforced rather than hoped. Nothing here goes into the app's own GWT build, which inherits
+// the module through ShapeshifterConfig.gwt.xml in the ordinary way.
+configurations {
+    gwtSpike
+}
+dependencies {
+    gwtSpike libs.gwt.dev
+    gwtSpike libs.gwt.user
+}
+tasks.register('verifyGwtCompiles', JavaExec) {
+    group = 'verification'
+    description = 'Compiles the config module with GWT from a spike entry point'
+    dependsOn compileJava
+    final def war = layout.buildDirectory.dir('gwt-spike/war')
+    final def work = layout.buildDirectory.dir('gwt-spike/work')
+    inputs.files(sourceSets.main.allSource)
+    inputs.dir('src/gwtSpike/java')
+    outputs.dir(war)
+    classpath = configurations.gwtSpike + files(sourceSets.main.java.srcDirs) +
+            files(sourceSets.main.resources.srcDirs) + files('src/gwtSpike/java')
+    mainClass = 'com.google.gwt.dev.Compiler'
+    maxHeapSize = '2g'
+    args = ['-sourceLevel', '17', '-strict', '-logLevel', 'ERROR', '-localWorkers', '2',
+            '-war', war.get().asFile.path, '-workDir', work.get().asFile.path,
+            'stroom.shapeshifter.spike.Spike']
+    doFirst {
+        work.get().asFile.mkdirs()
+    }
+}
+tasks.named('check') { dependsOn 'verifyGwtCompiles' }

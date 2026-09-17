@@ -10,8 +10,8 @@ as Saxon does.
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.compile.CompiledProject;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.ProjectReader;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 
 final Project project = ProjectReader.read(Files.readString(config));
@@ -46,8 +46,7 @@ match, and the choice re-opens. Content a match skips, and content nothing can m
 reported rather than lost, gated by the dispatching container's `ignore_errors`.
 
 ```
-config/      the authored model — plain records, no framework annotations
-config/json  the wire format: one reader-and-writer class per family, over shared primitives
+ProjectReader  the text edge: JSON text in and out, Jackson adapted to the config module's tree
 ds3/         reading Data Splitter v3 configurations and converting them
 compile/     the passes: patterns interned and compiled, references checked, the graph built
 value/       what a match captures and a body computes with — depends on nothing above the model

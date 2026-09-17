@@ -1560,3 +1560,21 @@ mode deciding what a dispatched value must be.
 **Consequences:** design 42 phases 0–5 as written, JSON first and Parquet second; the
 design 35 collections become interfaces; the `field` capture source returns; the `select`
 grammar is fixed by design 42 and grows only by a ruling.
+
+---
+
+## D58 — The configuration model is one module, shared with the client
+
+*Ruled by the owner, 2026-09-17, on design 43 Q1: "yes create a new module for the config to
+start with", after asking whether the config had to be switch patterns.* The model and its
+JSON mapping live in `stroom-shapeshifter-config`, JDK only and Java 17, and the GWT client
+edits the engine's own `Project` rather than a façade or a DTO of it. What made it possible:
+the model never used Java 21; only the JSON writers did, and those became `instanceof`
+chains. What the module gives up: switch patterns, Jackson types, `UUID` (ids are text), and
+any runtime dependency — enforced by a release-17 compile, a GWT compile of the module from a
+spike entry point, and the regex module's zero-dependency check, all in its `check`.
+
+**Consequences:** design 18 Q4's partial editor holds a whole `Project`, so nothing it does
+not show is lost; undo is a stack of projects; `JsonNumber` carries a literal's spelling, so
+the client needs the module's own JSON text parser rather than `JSON.parse`; the engine's
+compiler keeps Java 21, switching over a sealed family the config module compiled at 17.

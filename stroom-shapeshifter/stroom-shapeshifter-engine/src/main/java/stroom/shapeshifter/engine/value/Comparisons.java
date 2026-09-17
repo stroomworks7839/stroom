@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.value;
 
-import stroom.shapeshifter.engine.config.Cast;
+import stroom.shapeshifter.config.Cast;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;

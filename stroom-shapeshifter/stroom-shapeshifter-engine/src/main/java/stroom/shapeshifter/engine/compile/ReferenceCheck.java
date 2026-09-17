@@ -16,19 +16,19 @@
 
 package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.config.CaptureBinding;
+import stroom.shapeshifter.config.Cast;
+import stroom.shapeshifter.config.Condition;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.EngineVars;
+import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.RefExpression;
+import stroom.shapeshifter.config.Severity;
+import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.Severity;
-import stroom.shapeshifter.engine.config.CaptureBinding;
-import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.Condition;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Declaration;
-import stroom.shapeshifter.engine.config.EngineVars;
-import stroom.shapeshifter.engine.config.MatchExpression;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.RefExpression;
-import stroom.shapeshifter.engine.config.Template;
 
 import java.util.ArrayList;
 import java.util.HashMap;

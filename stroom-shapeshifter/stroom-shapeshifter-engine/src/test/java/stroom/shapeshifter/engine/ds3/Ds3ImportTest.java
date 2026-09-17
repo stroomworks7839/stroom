@@ -16,21 +16,20 @@
 
 package stroom.shapeshifter.engine.ds3;
 
-import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.EngineVars;
-import stroom.shapeshifter.engine.config.MatchExpression;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
-import stroom.shapeshifter.engine.config.RefExpression.RefPart;
-import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.config.CaptureBinding.CaptureSource;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.EngineVars;
+import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.RefExpression.MatchIndex;
+import stroom.shapeshifter.config.RefExpression.RefPart;
+import stroom.shapeshifter.config.Template;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -213,9 +212,9 @@ class Ds3ImportTest {
                   </split>
                 </dataSplitter>
                 """;
-        final List<UUID> first = Ds3Migration.importXml(xml).templates().stream()
+        final List<String> first = Ds3Migration.importXml(xml).templates().stream()
                 .map(Template::id).toList();
-        final List<UUID> second = Ds3Migration.importXml(xml).templates().stream()
+        final List<String> second = Ds3Migration.importXml(xml).templates().stream()
                 .map(Template::id).toList();
         assertThat(first).isEqualTo(second);
         assertThat(first).doesNotHaveDuplicates();

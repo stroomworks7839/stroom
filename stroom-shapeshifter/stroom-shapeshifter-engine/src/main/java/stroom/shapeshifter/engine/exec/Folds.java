@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.RefExpression;
+import stroom.shapeshifter.config.Cast;
+import stroom.shapeshifter.config.RefExpression;
 import stroom.shapeshifter.engine.value.Comparisons;
 import stroom.shapeshifter.engine.value.Transforms;
 import stroom.shapeshifter.engine.value.TypedValue;

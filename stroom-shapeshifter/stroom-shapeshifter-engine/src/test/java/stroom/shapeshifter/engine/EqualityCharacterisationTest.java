@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine;
 
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.TypedValue;

@@ -16,24 +16,24 @@
 
 package stroom.shapeshifter.engine.ds3;
 
-import stroom.shapeshifter.engine.config.CaptureBinding;
-import stroom.shapeshifter.engine.config.CaptureBinding.CaptureSource;
-import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.Condition;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Declaration;
-import stroom.shapeshifter.engine.config.EngineVars;
-import stroom.shapeshifter.engine.config.MatchExpression;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.OutputNode.ApplyDirective;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.Project.SourceConfig;
-import stroom.shapeshifter.engine.config.RefExpression;
-import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
-import stroom.shapeshifter.engine.config.RefExpression.RefPart;
-import stroom.shapeshifter.engine.config.Template;
-import stroom.shapeshifter.engine.config.Template.MatchLimits;
-import stroom.shapeshifter.engine.config.Template.RegexFlags;
+import stroom.shapeshifter.config.CaptureBinding;
+import stroom.shapeshifter.config.CaptureBinding.CaptureSource;
+import stroom.shapeshifter.config.Cast;
+import stroom.shapeshifter.config.Condition;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.EngineVars;
+import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.OutputNode.ApplyDirective;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.Project.SourceConfig;
+import stroom.shapeshifter.config.RefExpression;
+import stroom.shapeshifter.config.RefExpression.MatchIndex;
+import stroom.shapeshifter.config.RefExpression.RefPart;
+import stroom.shapeshifter.config.Template;
+import stroom.shapeshifter.config.Template.MatchLimits;
+import stroom.shapeshifter.config.Template.RegexFlags;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -206,7 +206,7 @@ public final class Ds3Migration {
     /** The document template: the {@code records:2} wrapper, written once around everything. */
     private static Template envelope(final List<Declaration> declarations) {
         return new Template(
-                UUID.nameUUIDFromBytes("ds3:envelope".getBytes(StandardCharsets.UTF_8)),
+                UUID.nameUUIDFromBytes("ds3:envelope".getBytes(StandardCharsets.UTF_8)).toString(),
                 "envelope",
                 null,
                 false,
@@ -667,15 +667,15 @@ public final class Ds3Migration {
      * records what a template did. A node with no id gets one from its position in the tree
      * ({@code dataSplitter/split[0]/regex[1]}), which is just as stable.
      */
-    private static UUID identifier(final Ds3Config node, final String path) {
+    private static String identifier(final Ds3Config node, final String path) {
         final String id = identifierText(node);
         if (id == null) {
-            return UUID.nameUUIDFromBytes(("ds3:" + path).getBytes(StandardCharsets.UTF_8));
+            return UUID.nameUUIDFromBytes(("ds3:" + path).getBytes(StandardCharsets.UTF_8)).toString();
         }
         try {
-            return UUID.fromString(id);
+            return UUID.fromString(id).toString();
         } catch (final IllegalArgumentException e) {
-            return UUID.nameUUIDFromBytes(id.getBytes(StandardCharsets.UTF_8));
+            return UUID.nameUUIDFromBytes(id.getBytes(StandardCharsets.UTF_8)).toString();
         }
     }
 

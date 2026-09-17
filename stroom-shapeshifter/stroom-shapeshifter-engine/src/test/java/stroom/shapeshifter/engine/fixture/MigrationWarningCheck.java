@@ -1,7 +1,7 @@
 package stroom.shapeshifter.engine.fixture;
 
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.config.ProjectReader;
 
 import org.junit.jupiter.api.Test;
 

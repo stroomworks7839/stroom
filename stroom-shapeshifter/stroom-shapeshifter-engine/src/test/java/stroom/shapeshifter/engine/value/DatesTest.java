@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.value;
 
-import stroom.shapeshifter.engine.config.ConfigException;
+import stroom.shapeshifter.config.ConfigException;
 
 import org.junit.jupiter.api.Test;
 

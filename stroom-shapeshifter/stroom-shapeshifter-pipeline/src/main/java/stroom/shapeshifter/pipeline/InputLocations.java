@@ -24,7 +24,6 @@ import org.xml.sax.Locator;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
-import java.util.UUID;
 
 /**
  * Where in the <i>input</i> each part of the output came from — the locator work D10 owed and
@@ -46,7 +45,7 @@ import java.util.UUID;
  */
 final class InputLocations implements Instrument {
 
-    private record Open(UUID templateId, int matchIndex, long inputOffset) {
+    private record Open(String templateId, int matchIndex, long inputOffset) {
 
     }
 
@@ -76,7 +75,7 @@ final class InputLocations implements Instrument {
     // -----------------------------------------------------------------------------------
 
     @Override
-    public void onMatch(final UUID templateId,
+    public void onMatch(final String templateId,
                         final String templateName,
                         final long inputOffset,
                         final int inputLength,
@@ -86,7 +85,7 @@ final class InputLocations implements Instrument {
     }
 
     @Override
-    public void onOutput(final UUID templateId,
+    public void onOutput(final String templateId,
                          final int matchIndex,
                          final long outputOffset,
                          final long outputLength,

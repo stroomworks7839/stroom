@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.Condition;
+import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.engine.graph.CompiledCondition;
 import stroom.shapeshifter.engine.graph.CompiledOperand;
 import stroom.shapeshifter.engine.match.PatternKey;

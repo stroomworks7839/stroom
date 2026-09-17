@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Declaration;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.engine.graph.Names;
 import stroom.shapeshifter.engine.graph.VarName;
 

@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.pipeline.function;
 
-import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.config.Severity;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.Kind;

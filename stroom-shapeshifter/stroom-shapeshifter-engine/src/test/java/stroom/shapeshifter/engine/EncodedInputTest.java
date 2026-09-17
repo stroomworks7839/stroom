@@ -16,8 +16,9 @@
 
 package stroom.shapeshifter.engine;
 
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Severity;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.output.ByteSink;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 import stroom.shapeshifter.engine.text.Encoding;
@@ -30,7 +31,6 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -586,7 +586,7 @@ class EncodedInputTest {
         private final List<TypedValue> bound = new ArrayList<>();
 
         @Override
-        public void onCapture(final UUID templateId, final String name, final TypedValue value,
+        public void onCapture(final String templateId, final String name, final TypedValue value,
                               final int matchIndex) {
             bound.add(value);
         }

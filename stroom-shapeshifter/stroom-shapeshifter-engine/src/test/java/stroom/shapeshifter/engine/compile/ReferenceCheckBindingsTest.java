@@ -16,15 +16,15 @@
 
 package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.config.CaptureBinding;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.RefExpression;
+import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.engine.Shapeshifter;
-import stroom.shapeshifter.engine.config.CaptureBinding;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Declaration;
-import stroom.shapeshifter.engine.config.MatchExpression;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.RefExpression;
-import stroom.shapeshifter.engine.config.Template;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
@@ -137,14 +137,14 @@ class ReferenceCheckBindingsTest {
         final OutputNode read = new OutputNode.ValueOf(new RefExpression(
                 List.of(new RefExpression.RefPart.Capture(name, group, null))));
         final Template line = new Template(
-                UUID.randomUUID(), "line", "doc", false, null, List.of(), declared("seed", name),
+                UUID.randomUUID().toString(), "line", "doc", false, null, List.of(), declared("seed", name),
                 new MatchExpression.Regex("([^\n]*)\n", null, 0),
                 new Template.MatchLimits(0, -1, null),
                 List.of(new CaptureBinding("seed", new CaptureBinding.CaptureSource.Group(1), null)),
                 List.of(read),
                 null, false);
         final Template source = new Template(
-                UUID.randomUUID(), "source", null, false, null, List.of(), List.of(),
+                UUID.randomUUID().toString(), "source", null, false, null, List.of(), List.of(),
                 new MatchExpression.Source(),
                 new Template.MatchLimits(0, -1, null), List.of(),
                 List.of(new OutputNode.ApplyTemplates(new OutputNode.ApplyDirective(
@@ -158,7 +158,7 @@ class ReferenceCheckBindingsTest {
     /** The binder writes the name; the instruction after it reads the same name back. */
     private static Project project(final OutputNode binder, final String bound) {
         final Template line = new Template(
-                UUID.randomUUID(), "line", "doc", false, null, List.of(),
+                UUID.randomUUID().toString(), "line", "doc", false, null, List.of(),
                 // tokenize fills a list with the pieces; every other binder binds one value
                 declared(binder instanceof OutputNode.Tokenize ? Declaration.Type.LIST : Declaration.Type.SCALAR,
                         "seed", bound),
@@ -171,7 +171,7 @@ class ReferenceCheckBindingsTest {
                         : ref(bound))),
                 null, false);
         final Template source = new Template(
-                UUID.randomUUID(), "source", null, false, null, List.of(), List.of(),
+                UUID.randomUUID().toString(), "source", null, false, null, List.of(), List.of(),
                 new MatchExpression.Source(),
                 new Template.MatchLimits(0, -1, null), List.of(),
                 List.of(new OutputNode.ApplyTemplates(new OutputNode.ApplyDirective(

@@ -27,7 +27,7 @@ import stroom.pipeline.refdata.store.RefDataValueProxy;
 import stroom.pipeline.refdata.store.RefStreamDefinition;
 import stroom.pipeline.refdata.store.StringValue;
 import stroom.pipeline.shared.data.PipelineReference;
-import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.config.Severity;
 import stroom.shapeshifter.engine.function.Arguments;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;

@@ -16,9 +16,9 @@
 
 package stroom.shapeshifter.engine;
 
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.engine.compile.Compiler;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Project;
 import stroom.shapeshifter.engine.exec.Run;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 import stroom.shapeshifter.engine.function.RunMode;

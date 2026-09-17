@@ -96,6 +96,7 @@ class TestShapeshifterLookup extends AbstractProcessIntegrationTest {
                "match": {"regex": {"pattern": "Date,Time,[^\\n]*\\n"}}, "body": []},
               {"id": "00000000-0000-0000-0000-000000000003", "name": "row", "mode": "rows",
                "match": {"regex": {"pattern": "([^,\\n]*),([^,\\n]*),([^,\\n]*),([^,\\n]*),[^\\n]*\\n"}},
+               "declarations": [{"name": "when", "type": "scalar"}],
                "body": [
                  {"value-of": {"parts": [{"capture": {"group": 4}}]}}, {"text": " "},
                  {"call": {"function": "format-date", "name": "when", "select": [

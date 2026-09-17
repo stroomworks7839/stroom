@@ -16,9 +16,9 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.config.Cast;
-import stroom.shapeshifter.engine.config.EngineVars;
-import stroom.shapeshifter.engine.config.RefExpression;
+import stroom.shapeshifter.config.Cast;
+import stroom.shapeshifter.config.EngineVars;
+import stroom.shapeshifter.config.RefExpression;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 /**

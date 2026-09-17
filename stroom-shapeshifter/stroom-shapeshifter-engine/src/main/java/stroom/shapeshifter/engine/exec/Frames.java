@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.exec;
 
-import stroom.shapeshifter.engine.config.EngineVars;
+import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.util.Arrays;

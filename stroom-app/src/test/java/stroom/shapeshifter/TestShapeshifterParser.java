@@ -30,7 +30,7 @@ import stroom.pipeline.shared.data.PipelineData;
 import stroom.pipeline.shared.data.PipelineDataBuilder;
 import stroom.pipeline.shared.data.PipelineDataUtil;
 import stroom.pipeline.state.RecordCount;
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.ds3.Ds3Migration;
 import stroom.shapeshifter.pipeline.ShapeshifterSerialiser;
 import stroom.shapeshifter.pipeline.ShapeshifterStore;

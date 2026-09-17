@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine;
 
+import stroom.shapeshifter.config.Severity;
+
 import java.util.Locale;
 
 /**

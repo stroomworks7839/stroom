@@ -23,7 +23,7 @@ import java.util.Set;
  * A parsed Data Splitter v3 configuration.
  *
  * <p>DS3 is a small language — seven elements and nothing else — and this is its tree, kept
- * separate from {@link stroom.shapeshifter.engine.config.Project} because the two say different
+ * separate from {@link stroom.shapeshifter.config.Project} because the two say different
  * things. DS3 describes a <i>nesting</i>: an expression contains groups, groups contain
  * expressions and data. The template model describes a <i>dispatch</i>. Converting between them
  * is {@link Ds3Migration}'s job, and it is easier to read with the two shapes named separately.

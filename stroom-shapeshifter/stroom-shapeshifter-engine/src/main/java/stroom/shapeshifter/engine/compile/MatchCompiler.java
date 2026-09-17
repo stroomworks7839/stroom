@@ -16,12 +16,12 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.Condition;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.MatchExpression;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.PatternNode;
-import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.config.Condition;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.PatternNode;
+import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.engine.graph.CompiledMatch;
 import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.text.Encoding;

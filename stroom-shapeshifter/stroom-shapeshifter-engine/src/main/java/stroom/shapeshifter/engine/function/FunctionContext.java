@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.function;
 
-import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.config.Severity;
 
 import java.util.Map;
 

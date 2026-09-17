@@ -17,7 +17,7 @@
 package stroom.shapeshifter.pipeline;
 
 import stroom.pipeline.xml.converter.ParserFactory;
-import stroom.shapeshifter.engine.config.Project;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 
 import org.xml.sax.XMLReader;

@@ -23,6 +23,7 @@ dependencies {
     // for the parser contract (xml.converter.AbstractParser, ParserFactory) and on the engine
     // to run configurations; nothing depends on it yet.
     implementation project(':stroom-pipeline')
+    implementation project(':stroom-shapeshifter:stroom-shapeshifter-config')
     implementation project(':stroom-shapeshifter:stroom-shapeshifter-engine')
     // ErrorHandlerAdaptor's Severity and ElementId, and the hardened SAXParserFactory every
     // Stroom parser is built from.

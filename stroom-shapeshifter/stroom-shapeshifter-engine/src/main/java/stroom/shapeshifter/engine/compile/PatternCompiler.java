@@ -16,10 +16,10 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.BinaryCast;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.PatternNode;
-import stroom.shapeshifter.engine.config.Template.RegexFlags;
+import stroom.shapeshifter.config.BinaryCast;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.PatternNode;
+import stroom.shapeshifter.config.Template.RegexFlags;
 import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.text.RegexEncodings;

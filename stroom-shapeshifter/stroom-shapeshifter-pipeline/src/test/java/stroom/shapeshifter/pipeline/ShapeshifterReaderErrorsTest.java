@@ -17,8 +17,8 @@
 package stroom.shapeshifter.pipeline;
 
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.ds3.Ds3Migration;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;

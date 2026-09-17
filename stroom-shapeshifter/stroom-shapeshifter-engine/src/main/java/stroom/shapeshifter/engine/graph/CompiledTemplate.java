@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.graph;
 
-import stroom.shapeshifter.engine.config.Template;
+import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.engine.value.TypedValue;
 

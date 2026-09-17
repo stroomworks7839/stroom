@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.match;
 
-import stroom.shapeshifter.engine.config.Template.RegexFlags;
+import stroom.shapeshifter.config.Template.RegexFlags;
 import stroom.shapeshifter.regex.Encoding;
 import stroom.shapeshifter.regex.Flag;
 

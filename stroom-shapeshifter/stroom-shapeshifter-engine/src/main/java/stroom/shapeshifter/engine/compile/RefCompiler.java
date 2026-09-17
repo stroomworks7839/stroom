@@ -16,10 +16,10 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.RefExpression;
-import stroom.shapeshifter.engine.config.RefExpression.MatchIndex;
-import stroom.shapeshifter.engine.config.RefExpression.RefPart;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.RefExpression;
+import stroom.shapeshifter.config.RefExpression.MatchIndex;
+import stroom.shapeshifter.config.RefExpression.RefPart;
 import stroom.shapeshifter.engine.graph.CompiledIndex;
 import stroom.shapeshifter.engine.graph.CompiledRef;
 import stroom.shapeshifter.engine.value.TypedValue;

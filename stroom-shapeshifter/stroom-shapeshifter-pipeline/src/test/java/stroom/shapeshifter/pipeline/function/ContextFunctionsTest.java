@@ -33,7 +33,7 @@ import stroom.pipeline.state.MetaHolder;
 import stroom.pipeline.state.PipelineHolder;
 import stroom.pipeline.state.SearchIdHolder;
 import stroom.security.api.UserIdentity;
-import stroom.shapeshifter.engine.Severity;
+import stroom.shapeshifter.config.Severity;
 import stroom.shapeshifter.engine.function.FunctionCall;
 import stroom.shapeshifter.engine.function.FunctionContext;
 import stroom.shapeshifter.engine.function.FunctionDefinition;
@@ -352,7 +352,7 @@ class ContextFunctionsTest {
         final java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
         final List<stroom.shapeshifter.engine.Message> messages = stroom.shapeshifter.engine.Shapeshifter.run(
                 stroom.shapeshifter.engine.Shapeshifter.compile(
-                        stroom.shapeshifter.engine.config.ProjectReader.read(json),
+                        stroom.shapeshifter.engine.ProjectReader.read(json),
                         stroom.shapeshifter.engine.function.FunctionRegistry.of(new LogFunction())),
                 new java.io.ByteArrayInputStream("a\nb\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
                 new XmlByteSink(output),

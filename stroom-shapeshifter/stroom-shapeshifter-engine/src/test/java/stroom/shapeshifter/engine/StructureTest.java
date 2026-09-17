@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.engine;
 
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.fixture.EngineHarness;
 import stroom.shapeshifter.engine.fixture.EngineHarness.Outcome;
 import stroom.shapeshifter.engine.output.SaxEventSink;

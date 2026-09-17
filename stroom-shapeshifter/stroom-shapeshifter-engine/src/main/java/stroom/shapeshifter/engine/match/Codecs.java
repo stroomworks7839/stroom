@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.match;
 
-import stroom.shapeshifter.engine.config.Codec;
+import stroom.shapeshifter.config.Codec;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

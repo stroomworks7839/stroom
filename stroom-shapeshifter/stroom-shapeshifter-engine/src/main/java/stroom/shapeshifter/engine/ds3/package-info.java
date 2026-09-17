@@ -28,7 +28,7 @@
  * dispatch attribute owns that decision now (E18/E20). Beyond that the import is strict rather
  * than lossy: an unknown attribute, a document element other than {@code <dataSplitter>}, or a
  * root child that is not an expression is a
- * {@link stroom.shapeshifter.engine.config.ConfigException}, because a configuration imported
+ * {@link stroom.shapeshifter.config.ConfigException}, because a configuration imported
  * with pieces silently dropped would be the quietly-wrong kind of success.
  */
 package stroom.shapeshifter.engine.ds3;

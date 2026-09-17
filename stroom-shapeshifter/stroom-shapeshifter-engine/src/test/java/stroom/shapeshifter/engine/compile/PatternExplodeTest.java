@@ -16,15 +16,15 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.Condition;
-import stroom.shapeshifter.engine.config.MatchExpression;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.PatternExplode;
-import stroom.shapeshifter.engine.config.PatternNode;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.ProjectReader;
-import stroom.shapeshifter.engine.config.Template;
-import stroom.shapeshifter.engine.config.Template.RegexFlags;
+import stroom.shapeshifter.config.Condition;
+import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.PatternNode;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.Template;
+import stroom.shapeshifter.config.Template.RegexFlags;
+import stroom.shapeshifter.engine.PatternExplode;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.fixture.FixtureLedger;
 import stroom.shapeshifter.engine.fixture.FixtureLedger.Fixture;
 import stroom.shapeshifter.engine.match.PatternKey;
@@ -124,7 +124,7 @@ class PatternExplodeTest {
         if (value instanceof final Collection<?> items) {
             items.forEach(item -> collect(item, where, encoding, found));
         } else if (value.getClass().isRecord()
-                   && value.getClass().getPackageName().startsWith("stroom.shapeshifter.engine")) {
+                   && value.getClass().getPackageName().startsWith("stroom.shapeshifter.config")) {
             for (final RecordComponent component : value.getClass().getRecordComponents()) {
                 try {
                     collect(component.getAccessor().invoke(value), where, encoding, found);
@@ -199,7 +199,7 @@ class PatternExplodeTest {
         final PatternNode tree = PatternExplode.explode(
                 "^(?<level>ERROR|WARN|INFO) +(?<msg>.*?)(?=\\n|$)", new RegexFlags(false, true));
         final String json = ProjectReader.write(new Project("t", 5, Project.SourceConfig.defaults(), List.of(
-                new Template(java.util.UUID.randomUUID(), "t", null, false, null, List.of(), List.of(),
+                new Template(java.util.UUID.randomUUID().toString(), "t", null, false, null, List.of(), List.of(),
                         new MatchExpression.Pattern(tree), Template.MatchLimits.unlimited(), List.of(), List.of(),
                         null, false))));
         assertThat(ProjectReader.read(json).templates().getFirst().match())

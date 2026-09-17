@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine;
 
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.output.SaxEventSink;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 import stroom.shapeshifter.engine.value.TypedValue;
@@ -28,7 +28,6 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -42,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class InstrumentTest {
 
-    private record Match(UUID template, String name, long offset, int length, int index, int depth) {
+    private record Match(String template, String name, long offset, int length, int index, int depth) {
 
     }
 
@@ -69,24 +68,24 @@ class InstrumentTest {
         private int attempts;
 
         @Override
-        public void onMatch(final UUID templateId, final String templateName, final long inputOffset,
+        public void onMatch(final String templateId, final String templateName, final long inputOffset,
                             final int inputLength, final int matchIndex, final int depth) {
             matches.add(new Match(templateId, templateName, inputOffset, inputLength, matchIndex, depth));
         }
 
         @Override
-        public void onCapture(final UUID templateId, final String name, final TypedValue value,
+        public void onCapture(final String templateId, final String name, final TypedValue value,
                               final int matchIndex) {
             captures.add(new Capture(name, value.asString(), matchIndex));
         }
 
         @Override
-        public void onMatchContent(final UUID templateId, final byte[] content) {
+        public void onMatchContent(final String templateId, final byte[] content) {
             unlocatable.add(content);
         }
 
         @Override
-        public void onOutput(final UUID templateId, final int matchIndex, final long outputOffset,
+        public void onOutput(final String templateId, final int matchIndex, final long outputOffset,
                              final long outputLength, final OutputSink.Unit unit) {
             outputs.add(new Output(matchIndex, outputOffset, outputLength));
             unitOutputs.add(new UnitOutput(matchIndex, outputOffset, outputLength, unit));
@@ -99,7 +98,7 @@ class InstrumentTest {
         }
 
         @Override
-        public void stopTiming(final UUID templateId, final long token, final boolean matched) {
+        public void stopTiming(final String templateId, final long token, final boolean matched) {
             assertThat(token).as("the token the engine hands back must be the one it was given").isPositive();
         }
     }

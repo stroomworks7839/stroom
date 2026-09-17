@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.pipeline;
 
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.ProjectReader;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.engine.ProjectReader;
 
 import org.junit.jupiter.api.Test;
 import org.xml.sax.XMLReader;

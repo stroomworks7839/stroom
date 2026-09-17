@@ -18,7 +18,6 @@ package stroom.shapeshifter.engine;
 
 import stroom.shapeshifter.engine.value.TypedValue;
 
-import java.util.UUID;
 
 /**
  * A way to watch a run without changing it.
@@ -66,7 +65,7 @@ public interface Instrument {
      * @param matchIndex   which match this is for that template, counting from one
      * @param depth        how deep in the dispatch this happened
      */
-    default void onMatch(final UUID templateId,
+    default void onMatch(final String templateId,
                          final String templateName,
                          final long inputOffset,
                          final int inputLength,
@@ -85,7 +84,7 @@ public interface Instrument {
      *                   binding declared (§9); a binding that bound nothing is not reported
      * @param matchIndex which match it belongs to
      */
-    default void onCapture(final UUID templateId,
+    default void onCapture(final String templateId,
                            final String name,
                            final TypedValue value,
                            final int matchIndex) {
@@ -96,7 +95,7 @@ public interface Instrument {
      *
      * <p>Reported separately because there is no offset that would let a caller find them.
      */
-    default void onMatchContent(final UUID templateId, final byte[] content) {
+    default void onMatchContent(final String templateId, final byte[] content) {
     }
 
     /**
@@ -118,7 +117,7 @@ public interface Instrument {
      * @param token      whatever {@link #startTiming} returned
      * @param matched    whether the attempt succeeded
      */
-    default void stopTiming(final UUID templateId, final long token, final boolean matched) {
+    default void stopTiming(final String templateId, final long token, final boolean matched) {
     }
 
     /**
@@ -138,7 +137,7 @@ public interface Instrument {
      * @param outputLength how much it wrote
      * @param unit         what offset and length count
      */
-    default void onOutput(final UUID templateId,
+    default void onOutput(final String templateId,
                           final int matchIndex,
                           final long outputOffset,
                           final long outputLength,

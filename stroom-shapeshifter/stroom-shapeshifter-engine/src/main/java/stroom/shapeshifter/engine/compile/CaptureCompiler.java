@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.engine.compile;
 
-import stroom.shapeshifter.engine.config.CaptureBinding;
+import stroom.shapeshifter.config.CaptureBinding;
 import stroom.shapeshifter.engine.graph.CompiledCapture;
 
 import java.util.ArrayList;

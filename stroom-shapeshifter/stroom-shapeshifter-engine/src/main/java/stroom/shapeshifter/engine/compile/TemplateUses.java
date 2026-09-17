@@ -16,13 +16,13 @@
 
 package stroom.shapeshifter.engine.compile;
 
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Dispatch;
+import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.Severity;
+import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.engine.Message;
-import stroom.shapeshifter.engine.Severity;
-import stroom.shapeshifter.engine.config.ConfigException;
-import stroom.shapeshifter.engine.config.Dispatch;
-import stroom.shapeshifter.engine.config.OutputNode;
-import stroom.shapeshifter.engine.config.Project;
-import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.graph.CompiledMatch;
 import stroom.shapeshifter.engine.graph.CompiledTemplate;
 import stroom.shapeshifter.regex.LeadingAnchor;

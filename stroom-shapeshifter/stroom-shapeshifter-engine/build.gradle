@@ -23,9 +23,14 @@ dependencies {
     // standalone library, and this module is where everything above matching lives (D12).
     implementation project(':stroom-shapeshifter:stroom-shapeshifter-regex')
 
-    // The config format is a serde document with ~40 externally-tagged variants; Jackson binds
-    // it (D33). Reading sits behind a ProjectReader seam, so a JDK-only reader stays reachable
-    // if this module ever needs the regex module's standalone-library promise.
+    // The model and its JSON mapping (design 43): shared with the GWT client, so it lives in
+    // its own JDK-only, Java 17 module. `api` because the engine's public surface — Project,
+    // Template, Message severities — is made of it.
+    api project(':stroom-shapeshifter:stroom-shapeshifter-config')
+
+    // The config format is a serde document with ~40 externally-tagged variants (D33). The
+    // mapping itself is Jackson-free in the config module; Jackson is only the text edge
+    // here, behind ProjectReader, adapted to the config module's own JSON tree.
     implementation libs.jackson.databind
 
     // JMH benchmarks live in src/test/java, see stroom.shapeshifter.engine.bench — the same
