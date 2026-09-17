@@ -563,6 +563,41 @@ gain on the binary rows against a possible four on the flagship row is not a kee
 evidence; the cuts are held off the line until an evening reading separates them from the
 box.
 
+### Closed — 2026-09-17, on the overnight reading of points 59 and 60
+
+**What it set out to do, and did.** One composition library: the step interpreter and its
+twenty-four-record vocabulary are gone (phase 4, 3,200 lines), the pattern tree and the
+match sequence compile to the regex library (phase 3), two real binary formats parse with no
+library and pass byte for byte against outputs a native crate produced (§4), the regex
+library gained the two lookaround combinators, the encoding on its composition path and the
+explode (§6, D53), and every regex in the corpus explodes into the tree and back to its own
+plan (phase 1a). The UI has one vocabulary to edit, store and compile.
+
+**What it cost, and what it won — measured, not expected.** §7 expected `progressive_text`
+to fall to a regex row's cost and `progressive` to gain the interpreter's overhead. Point 53
+read the opposite, and the census said why: the tree had landed on the backtracking tier
+through a lookahead the lowering wrote (fixed at 59, +24%), and the binary path pays a regex
+call's fixed cost per one-byte field, which no earlier row could expose and §7 never priced.
+At point 60 `progressive_text` stands **+14.6% above the interpreter's last point**; the
+synthetic binary row is retired (D54) at half the interpreter's speed on five-byte records,
+and `avro_users` — the honest binary row — runs at 246 ops/s, within a third of the native
+crate's decode on the same file (§7's first reading) and three times the prototype. The
+rows nothing here touched are up 3–9% against 52, which is design 37's, not this design's.
+
+**What it changed in how expectations are written.** An expectation that swaps a mechanism
+must price the new one on its own smallest unit, not only the old one on its largest; and a
+tree's tier is a fact to read before its row is, since the coverage table (§3) had no column
+for it. Both are in the method now.
+
+**Rulings it produced:** D52 (backtracking within a match), D53 (the explode as the
+library's third addition), D54 (`progressive` retired), D55 (a scan-until-literal op,
+narrowed the same night to "unsound under D52, not built").
+
+**Left where it belongs:** the printer (§3a), when the UI needs it; the project-level
+`patterns` library, when the UI asks; the `decode` transform's output tagged UTF-8 whatever
+the payload; Parquet (D33); `progressive`'s fixture, parity-gated and runnable by name.
+Everything else that is open points at the editor (design 18).
+
 ## 8. Phases
 
 1. **Read.** The five synthetic fixtures and the twenty `StepsTest` cases against backtracking
@@ -581,10 +616,9 @@ box.
 4. **The interpreter deleted** with the `progressive` form; the census's two largest methods
    gone. Done 2026-09-16.
 5. **Measured**: gate two, the `progressive` row re-founded on the Avro container, and the
-   design's record. The Avro row and the prototype's number 2026-09-16; the evening reading
-   the same night, the census after it and the `take_until` fusion (above). Owed: the
-   `progressive` retirement ruling, the scan-until-literal ruling, the parts cuts' evening
-   reading, and the closing record.
+   design's record. Done 2026-09-17: the Avro row and the prototype's number, the evening
+   reading, the census, the fusion (59), the parts cuts (60), D54 and D55, and the closing
+   record above.
 
 **Sequencing against design 37** (ruled 2026-09-16): point 52's evening reading first, since it
 says whether dispatcher splits pay on this engine; then phases 1 and 2 here, which touch
