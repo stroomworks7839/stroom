@@ -24,6 +24,11 @@ dependencies {
     testImplementation project(':stroom-shapeshifter:stroom-shapeshifter-engine')
     testImplementation project(':stroom-shapeshifter:stroom-shapeshifter-regex')
     testImplementation libs.saxon.he
+    // The second XML parser in the parse head-to-head (design 40): a StAX implementation the
+    // JDK's own SAX parser is not, so the comparison has two independent incumbents.
+    testImplementation libs.woodstox.core
+    // The incumbent in the JSON parse head-to-head (design 40 §5): Jackson's streaming parser.
+    testImplementation libs.jackson.core
 
     testImplementation libs.jmh.core
     testAnnotationProcessor libs.jmh.generator.annprocess
@@ -51,7 +56,7 @@ tasks.register('jmh', JavaExec) {
     // The catalogue and the baseline. A case's alternative shapes (CaseShapesBenchmark,
     // design 37 phase 8) are fixtures, parity-gated on every test run, and measured only when
     // asked for by name: the shapes are a question about configuration, not the engine.
-    args = ['stroom.shapeshifter.xmlbench.(CaseCatalogue|XmlBaseline)Benchmark.*']
+    args = ['stroom.shapeshifter.xmlbench.(CaseCatalogue|XmlBaseline|XmlParse|JsonParse)Benchmark.*']
 
     doFirst {
         final def results = file("${project.projectDir}/../design/benchmarks")
