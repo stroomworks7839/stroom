@@ -55,10 +55,11 @@ public sealed interface MatchExpression {
     }
 
     /**
-     * A match as a sequence of parts (design 38 §3b): patterns, and the two framing verbs a
-     * binary format needs — take this many bytes, seek to here — with the amounts coming from
-     * labels already matched or from variables. Run in order by the level; nothing backtracks
-     * across parts. A one-part sequence is a {@link Pattern}.
+     * A match as a sequence of parts (design 38 §3b): patterns, and the three framing verbs a
+     * binary format needs — take this many bytes, seek to here, read a value here (design 39,
+     * D56) — with the amounts coming from labels already matched or from variables. Run in
+     * order by the level; nothing backtracks across parts. A one-part sequence is a
+     * {@link Pattern}.
      */
     record Parts(List<MatchPart> parts) implements MatchExpression {
 
@@ -82,9 +83,27 @@ public sealed interface MatchExpression {
 
         }
 
-        /** Move the cursor by {@code length} bytes — or, when {@code absolute}, to {@code length} from the start. */
+        /**
+         * Move the cursor by {@code length} bytes — or, when {@code absolute}, to {@code length}
+         * from the start.
+         */
         record Seek(Length length, boolean absolute) implements MatchPart {
 
+        }
+
+        /**
+         * Read a value at the cursor: the cast says how many bytes and what they mean, the
+         * value is bound to {@code label} when there is one, and the cursor moves past it
+         * (design 39, D56). No pattern runs: a varint, a fixed-width number, a flag or a
+         * position is byte arithmetic where it lies.
+         */
+        record Read(BinaryCast as, String label) implements MatchPart {
+
+            public Read {
+                if (as == null) {
+                    throw new ConfigException("A read needs a cast: what the bytes at the cursor mean");
+                }
+            }
         }
     }
 

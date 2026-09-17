@@ -170,7 +170,9 @@ class EveryVariantTest {
                         new MatchExpression.MatchPart.Take(new MatchExpression.Length.Label("len"), "body"),
                         new MatchExpression.MatchPart.Take(new MatchExpression.Length.Literal(4), null),
                         new MatchExpression.MatchPart.Seek(new MatchExpression.Length.Var("skip"), false),
-                        new MatchExpression.MatchPart.Seek(new MatchExpression.Length.Literal(8), true))))) {
+                        new MatchExpression.MatchPart.Seek(new MatchExpression.Length.Literal(8), true),
+                        new MatchExpression.MatchPart.Read(BinaryCast.ZIGZAG, "count"),
+                        new MatchExpression.MatchPart.Read(BinaryCast.UINT8, null))))) {
             templates.add(new Template(ID, "carrier", null, false, null, List.of(), List.of(), match,
                     MatchLimits.unlimited(), List.of(), List.of(), null, false));
         }

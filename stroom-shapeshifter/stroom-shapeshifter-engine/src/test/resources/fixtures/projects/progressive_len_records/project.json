@@ -13,19 +13,9 @@
    "match": {
     "parts": [
      {
-      "pattern": {
-       "sequence": [
-        {
-         "take_while": "[\\x80-\\xff]",
-         "min": 0
-        },
-        {
-         "take_while": "[\\x00-\\x7f]",
-         "max": 1
-        }
-       ],
-       "label": "len",
-       "as": "varint"
+      "read": {
+       "as": "varint",
+       "label": "len"
       }
      },
      {

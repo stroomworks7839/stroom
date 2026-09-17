@@ -187,8 +187,17 @@ final class PatternJson {
                 }
                 yield new MatchPart.Seek(readLength(body, "seek"), false);
             }
+            case "read" -> {
+                final JsonNode body = tagged.body();
+                if (body.isObject()) {
+                    JsonFields.checkFields(body, "read", "as", "label");
+                    yield new MatchPart.Read(readCast(JsonFields.text(body, "as", "read")),
+                            JsonFields.optionalText(body, "label"));
+                }
+                yield new MatchPart.Read(readCast(JsonFields.text(body, "read")), null);
+            }
             default -> throw new ConfigException("Unknown match part '" + tagged.name()
-                                                 + "'; a part is pattern, take or seek");
+                                                 + "'; a part is pattern, take, seek or read");
         };
     }
 
@@ -205,6 +214,14 @@ final class PatternJson {
             }
         }
         throw new ConfigException("A " + what + " length is a number, {\"label\": name} or {\"var\": name}");
+    }
+
+    private static BinaryCast readCast(final String label) {
+        final BinaryCast cast = BinaryCast.of(label);
+        if (cast == null) {
+            throw new ConfigException("Unknown cast '" + label + "'");
+        }
+        return cast;
     }
 
     static JsonNode writePart(final MatchPart part) {
@@ -227,6 +244,15 @@ final class PatternJson {
                 body.set("length", writeLength(seek.length()));
                 body.put("absolute", true);
                 yield JsonFields.wrap("seek", body);
+            }
+            case final MatchPart.Read read -> {
+                if (read.label() == null) {
+                    yield JsonFields.wrap("read", JsonFields.NODES.stringNode(read.as().label()));
+                }
+                final ObjectNode body = JsonFields.NODES.objectNode();
+                body.put("as", read.as().label());
+                body.put("label", read.label());
+                yield JsonFields.wrap("read", body);
             }
         };
     }

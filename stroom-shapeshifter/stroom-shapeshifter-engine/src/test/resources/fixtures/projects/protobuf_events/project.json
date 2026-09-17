@@ -36,19 +36,9 @@
    "match": {
     "parts": [
      {
-      "pattern": {
-       "sequence": [
-        {
-         "take_while": "[\\x80-\\xff]",
-         "min": 0
-        },
-        {
-         "take_while": "[\\x00-\\x7f]",
-         "max": 1
-        }
-       ],
-       "label": "len",
-       "as": "varint"
+      "read": {
+       "as": "varint",
+       "label": "len"
       }
      },
      {
@@ -188,19 +178,9 @@
       }
      },
      {
-      "pattern": {
-       "sequence": [
-        {
-         "take_while": "[\\x80-\\xff]",
-         "min": 0
-        },
-        {
-         "take_while": "[\\x00-\\x7f]",
-         "max": 1
-        }
-       ],
-       "label": "v",
-       "as": "varint"
+      "read": {
+       "as": "varint",
+       "label": "v"
       }
      }
     ]
@@ -239,19 +219,9 @@
       }
      },
      {
-      "pattern": {
-       "sequence": [
-        {
-         "take_while": "[\\x80-\\xff]",
-         "min": 0
-        },
-        {
-         "take_while": "[\\x00-\\x7f]",
-         "max": 1
-        }
-       ],
-       "label": "klen",
-       "as": "varint"
+      "read": {
+       "as": "varint",
+       "label": "klen"
       }
      },
      {
@@ -294,16 +264,13 @@
     "parts": [
      {
       "pattern": {
-       "sequence": [
-        {
-         "tag": "\u0018"
-        },
-        {
-         "take": 1,
-         "label": "v",
-         "as": "bool8"
-        }
-       ]
+       "tag": "\u0018"
+      }
+     },
+     {
+      "read": {
+       "as": "bool8",
+       "label": "v"
       }
      }
     ]

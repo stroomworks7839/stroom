@@ -176,7 +176,7 @@ final class MatchCompiler {
 
     /**
      * A match sequence (design 38 §3b): each pattern part compiled as a pattern, its labels
-     * renumbered after the parts before it; a take is one group of its own; a length names a
+     * renumbered after the parts before it; a take or a read is one group of its own; a length names a
      * label matched by an earlier part, a variable, or a number.
      */
     private CompiledMatch compileParts(final Template template,
@@ -213,6 +213,14 @@ final class MatchCompiler {
                 }
                 case final MatchExpression.MatchPart.Seek seek -> compiled.add(new CompiledMatch.CompiledPart.Seek(
                         length(seek.length(), labels, names, template), seek.absolute()));
+                case final MatchExpression.MatchPart.Read read -> {
+                    groups++;
+                    if (read.label() != null && labels.put(read.label(), groups) != null) {
+                        throw new ConfigException("Template '" + template.name() + "' uses label '"
+                                                  + read.label() + "' in two parts of its match");
+                    }
+                    compiled.add(new CompiledMatch.CompiledPart.Read(read.as(), groups));
+                }
             }
         }
         names.labels(labels);

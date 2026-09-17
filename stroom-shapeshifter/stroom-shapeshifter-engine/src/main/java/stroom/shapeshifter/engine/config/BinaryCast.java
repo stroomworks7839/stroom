@@ -44,6 +44,21 @@ public enum BinaryCast {
     /** The group's offset from the start of the match. */
     POSITION;
 
+    /**
+     * The bytes a read of this cast consumes: the fixed widths their own, {@link #POSITION}
+     * none, and −1 for a varint, whose width is the bytes up to the one without its high bit.
+     */
+    public int width() {
+        return switch (this) {
+            case UINT8, INT8, BOOL8 -> 1;
+            case UINT16LE, UINT16BE, INT16LE, INT16BE -> 2;
+            case UINT32LE, UINT32BE, INT32LE, INT32BE, FLOAT32LE, FLOAT32BE -> 4;
+            case INT64LE, INT64BE, FLOAT64LE, FLOAT64BE -> 8;
+            case VARINT, ZIGZAG -> -1;
+            case POSITION -> 0;
+        };
+    }
+
     /** The spelling in a configuration: lower case, as written above. */
     public String label() {
         return name().toLowerCase(Locale.ROOT);

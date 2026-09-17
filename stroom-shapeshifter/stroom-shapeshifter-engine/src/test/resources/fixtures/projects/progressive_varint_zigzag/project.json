@@ -11,20 +11,14 @@
    "id": "08951c36-151b-5763-a5ba-ed80bc0360e4",
    "name": "root",
    "match": {
-    "pattern": {
-     "sequence": [
-      {
-       "take_while": "[\\x80-\\xff]",
-       "min": 0
-      },
-      {
-       "take_while": "[\\x00-\\x7f]",
-       "max": 1
+    "parts": [
+     {
+      "read": {
+       "as": "zigzag",
+       "label": "v"
       }
-     ],
-     "label": "v",
-     "as": "zigzag"
-    }
+     }
+    ]
    },
    "match_limits": {
     "min_match": 0,

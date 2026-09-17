@@ -22,9 +22,11 @@ import stroom.shapeshifter.engine.value.TypedValue;
 /**
  * A labelled run of bytes as the value its cast names (design 38 §3): the reading the old
  * {@code ReadNumeric}, {@code ReadVarint} and {@code Tell} steps did inside the matcher, done
- * once when a match binds its groups. The bytes are read as matched — a slice's range over its
- * array — and nothing is copied. A run of the wrong width for a fixed-width cast, or a varint
- * that never terminates, is absent rather than a wrong number.
+ * once when a match binds its groups — or, for a {@code read} part (design 39, D56), at the
+ * cursor as the sequence runs, with the width the cast's own and no pattern in between. The
+ * bytes are read where they lie — a slice's range over its array — and nothing is copied. A
+ * run of the wrong width for a fixed-width cast, or a varint that never terminates, is absent
+ * rather than a wrong number when a pattern bound it, and fails the match when a read did.
  */
 final class BinaryCasts {
 
@@ -55,6 +57,44 @@ final class BinaryCasts {
         } else {
             return null;
         }
+        return apply(cast, a, from, n);
+    }
+
+    /**
+     * A read at the cursor (design 39, D56): the cast's width measured from the bytes where
+     * they lie — a varint's by its high bits, the rest fixed — and its value made from them
+     * into {@code into[group]}. Returns the cursor after it, or −1 when the bytes do not reach:
+     * a truncated record, which fails the match as a short take does.
+     */
+    static int read(final BinaryCast cast, final byte[] a, final int cursor, final int from, final int to,
+                    final TypedValue[] into, final int group) {
+        final int width;
+        if (cast == BinaryCast.POSITION) {
+            into[group] = new TypedValue.Integer(cursor - from);
+            return cursor;
+        }
+        if (cast == BinaryCast.VARINT || cast == BinaryCast.ZIGZAG) {
+            // Up to ten bytes, the last without its high bit; a run that never ends, or ends
+            // past the region, is a truncated record and fails the match.
+            int i = cursor;
+            while (i < to && i - cursor < 10 && (a[i] & 0x80) != 0) {
+                i++;
+            }
+            if (i >= to || i - cursor >= 10) {
+                return -1;
+            }
+            width = i - cursor + 1;
+        } else {
+            width = cast.width();
+            if (cursor + width > to) {
+                return -1;
+            }
+        }
+        into[group] = apply(cast, a, cursor, width);
+        return cursor + width;
+    }
+
+    private static TypedValue apply(final BinaryCast cast, final byte[] a, final int from, final int n) {
         // The casts the real formats read — a varint in both signs, a byte, a flag, a double —
         // in a dispatcher under the JIT's hot-method size, so a cast inlines where a match
         // binds it; the fixed widths are behind one call (design 38 §8, the census of the

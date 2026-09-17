@@ -241,6 +241,10 @@ oracle.
 
 ## 3b. Framing: a template's match is a sequence of parts
 
+*Amended by design 39 (D56, 2026-09-17): a third verb, `read` — a cast at the cursor — joins
+`take` and `seek`, after this design's closing reading priced a regex call per binary field.
+The line this section draws stays: three framing verbs and no program.*
+
 A binary parse is a sequence: fixed-width fields, one of which says how long the next thing
 is; take that many bytes; perhaps skip to an offset a table gave; again for the next part. The
 fixed-width fields are regular and a raw-mode pattern with binary casts reads them. What is

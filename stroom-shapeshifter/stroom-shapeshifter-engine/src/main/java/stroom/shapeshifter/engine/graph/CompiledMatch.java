@@ -68,9 +68,9 @@ public sealed interface CompiledMatch {
     }
 
     /**
-     * A match sequence (design 38 §3b): patterns and the two framing verbs, run in order by the
-     * level with no backtracking across parts. Groups number across the parts in order — a
-     * pattern's after its own group 0 dropped, a take's as one — after the whole sequence's
+     * A match sequence (design 38 §3b): patterns and the three framing verbs, run in order by
+     * the level with no backtracking across parts. Groups number across the parts in order — a
+     * pattern's after its own group 0 dropped, a take's or a read's as one — after the whole sequence's
      * group 0.
      */
     record Parts(CompiledPart[] parts, int groupCount) implements CompiledMatch {
@@ -91,6 +91,11 @@ public sealed interface CompiledMatch {
         }
 
         record Seek(CompiledLength length, boolean absolute) implements CompiledPart {
+
+        }
+
+        /** Read a value at the cursor as the sequence's group {@code group}, by the cast's own width (design 39). */
+        record Read(BinaryCast cast, int group) implements CompiledPart {
 
         }
     }

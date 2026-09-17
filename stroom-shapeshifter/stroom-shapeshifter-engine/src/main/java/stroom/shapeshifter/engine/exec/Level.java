@@ -678,7 +678,7 @@ final class Level {
             case final CompiledMatch.Regex regex ->
                     regexMatch(regex, data, from, to, atCursor, effective(compiledTemplate), source);
             case final CompiledMatch.Pattern pattern ->
-                    patternMatch(pattern, data, from, to, atCursor, effective(compiledTemplate), source);
+                    patternMatch(pattern, data, from, to, atCursor, effective(compiledTemplate), source, 0);
             case final CompiledMatch.Parts parts ->
                     partsMatch(parts, data, from, to, effective(compiledTemplate), source);
             case final CompiledMatch.All ignored -> new MatchResult(
@@ -731,6 +731,10 @@ final class Level {
      * A pattern tree's match is the regex's (design 38 §5); what it adds is the casts on its
      * labelled groups, applied once to the groups the match bound. A cast that does not read —
      * the wrong width, a varint that never ends — leaves the group absent.
+     *
+     * @param positionBase what a {@code position} cast counts from: zero for a template's own
+     *                     pattern, and the part's offset in a match sequence, so a position is
+     *                     always from the start of the match, whichever part it sits in
      */
     private static MatchResult patternMatch(final CompiledMatch.Pattern pattern,
                                             final byte[] data,
@@ -738,7 +742,8 @@ final class Level {
                                             final int to,
                                             final boolean atCursor,
                                             final Encoding encoding,
-                                            final ByteSource source) {
+                                            final ByteSource source,
+                                            final int positionBase) {
         final MatchResult match = regexMatch(pattern.regex(), data, from, to, atCursor, encoding, source);
         if (match == null || !pattern.anyCast()) {
             return match;
@@ -749,7 +754,7 @@ final class Level {
         for (int i = 1; i < groups.length; i++) {
             final BinaryCast cast = pattern.cast(i);
             if (cast != null && matcher.matchedGroup(i)) {
-                groups[i] = BinaryCasts.apply(cast, groups[i], matcher.start(i) - start);
+                groups[i] = BinaryCasts.apply(cast, groups[i], positionBase + matcher.start(i) - start);
             }
         }
         return match;
@@ -758,7 +763,8 @@ final class Level {
     /**
      * A match sequence (design 38 §3b), run part by part from the cursor: a pattern matches
      * anchored where the last part ended and contributes its groups; a take consumes a length
-     * of bytes as one group; a seek moves the cursor. A length is a number, a group already
+     * of bytes as one group; a seek moves the cursor; a read binds a value by its cast's width
+     * (design 39). A length is a number, a group already
      * bound read as an integer, or a variable. Fewer bytes than a take or a seek asks for fails
      * the match, which is what a truncated record should do. Nothing backtracks across parts.
      */
@@ -773,7 +779,8 @@ final class Level {
         for (final CompiledMatch.CompiledPart part : parts.parts()) {
             switch (part) {
                 case final CompiledMatch.CompiledPart.Pattern pattern -> {
-                    final MatchResult one = patternMatch(pattern.pattern(), data, cursor, to, true, encoding, source);
+                    final MatchResult one = patternMatch(pattern.pattern(), data, cursor, to, true, encoding, source,
+                            cursor - from);
                     if (one == null) {
                         return null;
                     }
@@ -781,18 +788,25 @@ final class Level {
                     System.arraycopy(own, 1, groups, pattern.groupOffset() + 1, own.length - 1);
                     cursor += one.advance();
                 }
+                // The verbs are behind calls: the loop is a dispatcher, kept under the JIT's
+                // hot-method size so it inlines into the match (design 38 §8's census of this
+                // path), and each verb is a small method that inlines into it where it is hot.
                 case final CompiledMatch.CompiledPart.Take take -> {
-                    final int length = length(take.length(), groups);
-                    if (length < 0 || cursor + length > to) {
+                    cursor = take(take, groups, cursor, to, encoding, source);
+                    if (cursor < 0) {
                         return null;
                     }
-                    groups[take.group()] = source.slice(cursor, cursor + length, encoding);
-                    cursor += length;
                 }
                 case final CompiledMatch.CompiledPart.Seek seek -> {
-                    // Behind a call: the loop is a dispatcher, kept under the JIT's hot-method
-                    // size so it inlines into the match (design 38 §8's census of this path).
                     cursor = seek(seek, groups, cursor, from, to);
+                    if (cursor < 0) {
+                        return null;
+                    }
+                }
+                // A value at the cursor, by the cast's own width, with no pattern run (design
+                // 39, D56): the bytes are read where they lie.
+                case final CompiledMatch.CompiledPart.Read read -> {
+                    cursor = BinaryCasts.read(read.cast(), data, cursor, from, to, groups, read.group());
                     if (cursor < 0) {
                         return null;
                     }
@@ -801,6 +815,21 @@ final class Level {
         }
         groups[0] = source.slice(from, cursor, encoding);
         return new MatchResult(groups, cursor - from, 0);
+    }
+
+    /** The cursor after a take, its bytes as the part's group, or -1 when they do not reach. */
+    private int take(final CompiledMatch.CompiledPart.Take take,
+                     final TypedValue[] groups,
+                     final int cursor,
+                     final int to,
+                     final Encoding encoding,
+                     final ByteSource source) {
+        final int length = length(take.length(), groups);
+        if (length < 0 || cursor + length > to) {
+            return -1;
+        }
+        groups[take.group()] = source.slice(cursor, cursor + length, encoding);
+        return cursor + length;
     }
 
     /** The cursor after a seek, or -1 when it cannot be made. */

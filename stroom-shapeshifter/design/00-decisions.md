@@ -1513,3 +1513,21 @@ one-pass analysis is right to keep the shape off tier 0. The interpreter's old s
 shape *was* PEG commitment; D52 gave it up knowingly, and this is what it cost. The
 library's budget stays at three (D53); the recommendation that opened this ruling was wrong
 and is recorded as such.
+
+---
+
+## D56 — Reads come back to the match sequence as a verb; the program does not
+
+*Ruled by the owner, 2026-09-17, on design 38's closing reading.* The match sequence gains
+`read`: a binary cast applied at the cursor, its width the cast's own, its value bound to a
+label, the cursor moved past it. A varint, a fixed-width number, a flag, a position — the
+reads a binary format is made of — cost byte arithmetic where design 38 had them cost a
+regex call each, which the census priced as most of the binary path's time.
+
+**What does not come back:** choice, repeat, a conditional part, a result list — anything
+that decides or programs. Design 38 §7's line stands: three framing verbs (take, seek, read)
+and no fourth. The regex library is not touched.
+
+**Consequences:** design 39, phase 1 built the same day; the fixtures using varint patterns
+rewritten to `read` and byte-identical; the value a `read` binds pinned identical to the
+cast a labelled pattern node gives; `avro_users` the reading.

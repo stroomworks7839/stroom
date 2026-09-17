@@ -167,6 +167,51 @@ class PatternTreeTest {
     // The match sequence
     // -----------------------------------------------------------------------------------
 
+    /**
+     * A read binds what the cast would have bound from a pattern's labelled take: the same
+     * table, the same value, with no pattern run (design 39, D56). Varints in both signs, a
+     * fixed width, a flag, a position; an unlabelled read consumes and binds nothing.
+     */
+    @Test
+    void readBindsTheCastsValueWithoutAPattern() {
+        final String reads = """
+                {"parts": [{"read": {"as": "varint", "label": "u"}}, {"read": {"as": "zigzag", "label": "z"}},
+                           {"read": {"as": "uint16be", "label": "w"}}, {"read": "uint8"},
+                           {"read": {"as": "bool8", "label": "b"}}, {"read": {"as": "position", "label": "p"}},
+                           {"read": {"as": "float64le", "label": "d"}}]}""";
+        final String patterns = """
+                {"parts": [{"pattern": {"sequence": [{"take_while": "[\\\\x80-\\\\xff]", "min": 0},
+                                                     {"take_while": "[\\\\x00-\\\\x7f]", "max": 1}],
+                                        "label": "u", "as": "varint"}},
+                           {"pattern": {"sequence": [{"take_while": "[\\\\x80-\\\\xff]", "min": 0},
+                                                     {"take_while": "[\\\\x00-\\\\x7f]", "max": 1}],
+                                        "label": "z", "as": "zigzag"}},
+                           {"pattern": {"sequence": [{"take": 2, "label": "w", "as": "uint16be"}, {"take": 1},
+                                                     {"take": 1, "label": "b", "as": "bool8"},
+                                                     {"sequence": [], "label": "p", "as": "position"},
+                                                     {"take": 8, "label": "d", "as": "float64le"}]}}]}""";
+        final String hex = "ac02" + "c701" + "0102" + "ff" + "01" + "0000000000002240";
+        final String[] parts = {label("u"), text(","), label("z"), text(","), label("w"), text(","), label("b"),
+                text(","), label("p"), text(","), label("d")};
+        assertThat(raw(reads, hex, parts)).isEqualTo("[300,-100,258,true,8,9]");
+        assertThat(raw(patterns, hex, parts)).as("the same values from the pattern's casts")
+                .isEqualTo(raw(reads, hex, parts));
+    }
+
+    @Test
+    void truncatedReadFailsTheMatch() {
+        assertThat(raw("""
+                {"parts": [{"read": {"as": "uint32le", "label": "n"}}]}""", "010203", label("n")))
+                .as("three bytes for a four-byte read").isEqualTo("");
+        assertThat(raw("""
+                {"parts": [{"read": {"as": "varint", "label": "n"}}]}""", "8080", label("n")))
+                .as("a varint that never ends").isEqualTo("");
+    }
+
+    private static String text(final String value) {
+        return "{\"text\": \"" + value + "\"}";
+    }
+
     @Test
     void takeUsesAnEarlierLabelsValue() {
         final String match = """
