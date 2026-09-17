@@ -142,3 +142,34 @@ One commit: the codecs, the three engine cuts, the sink, the pins, the two parse
 configurations moved onto `decode`, the JSON corpus with its `\\n`. Expected against 61:
 `apache_httpd` up a point, every other default row flat, `regex_lines` flat at fidelity —
 and the parse rows as §3 reads, which are xmlbench's to re-read.
+
+## 6. Protobuf, the same day: a bare tag is a byte compare, and a value is captured
+
+Design 40 §6 read the engine 12% behind protobuf-java's `DynamicMessage` on the protobuf
+stream and named the cause: each field's one-byte tag was a pattern part — a regex call to
+match a byte — and a template that did not apply cost one to find out.
+
+**Engine: a bare `tag` part compiles to a byte compare.** `MatchCompiler.compileParts` spots
+a pattern part that is one literal — a `tag`, or a `Labelled(Tag)` with no cast — and emits
+`CompiledPart.Literal(bytes, group)`; `Level.partsMatch` compares the bytes at the cursor and
+binds the label's group if there is one. The model is untouched: the configuration says
+`{"pattern": {"tag": "\b"}}` as before, round-trips as before, the UI sees the same tree
+— this is the graph making a "how" decision the compiler is entitled to, as it already does
+for a one-character `take_until`. The parts loop was restructured so every verb yields the
+cursor or −1 and the loop has one failure test: 282 bytes with five verbs, under the
+hot-method size. Pinned in `PatternTreeTest`: a literal part binds what the tag pattern
+bound, fails where it failed, and a labelled sequence is still a pattern. Parse only, at
+fidelity: 154 → 181 ops/s — an eighth off, not the third guessed, which the profile then
+explained.
+
+**Fixture: captures, not variables.** The field templates bound their values with a
+`variable` op — a frame pushed, a body run into a buffer, the integer `id` rendered to text
+(`String.encode` was 4% of the profile on its own) and bound as bytes. The engine's idiom for
+"bind this typed value to this name" is a capture — `{"name": "id", "select": {"label":
+"v"}}` — no frame, no rendering, no buffer. The `variable` form was this design's author's,
+from phase 3 before the read verb existed. Parity holds byte for byte.
+
+At fidelity (`2026-09-17-1105-dcc563c71d-binaryparse2.json`): **protobuf parse only 154 → 355 ops/s — 2.1× `DynamicMessage`
+where it started 12% behind**; with output 133 → 231. What the profile has left is the
+engine's per-match machinery — a group-0 slice per parts match that nothing reads, `Body.body`
+and the dispatch — which is design 37's, not this design's.

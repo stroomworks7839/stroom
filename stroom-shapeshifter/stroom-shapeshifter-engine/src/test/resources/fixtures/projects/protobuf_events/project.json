@@ -185,28 +185,17 @@
      }
     ]
    },
-   "body": [
+   "body": [],
+   "encoding": "raw",
+   "mode": "fields",
+   "captures": [
     {
-     "variable": {
-      "name": "id",
-      "body": [
-       {
-        "value-of": {
-         "parts": [
-          {
-           "capture": {
-            "label": "v"
-           }
-          }
-         ]
-        }
-       }
-      ]
+     "name": "id",
+     "select": {
+      "label": "v"
      }
     }
-   ],
-   "encoding": "raw",
-   "mode": "fields"
+   ]
   },
   {
    "id": "00000000-0000-0000-0000-000000000004",
@@ -234,28 +223,17 @@
      }
     ]
    },
-   "body": [
+   "body": [],
+   "encoding": "raw",
+   "mode": "fields",
+   "captures": [
     {
-     "variable": {
-      "name": "kind",
-      "body": [
-       {
-        "value-of": {
-         "parts": [
-          {
-           "capture": {
-            "label": "v"
-           }
-          }
-         ]
-        }
-       }
-      ]
+     "name": "kind",
+     "select": {
+      "label": "v"
      }
     }
-   ],
-   "encoding": "raw",
-   "mode": "fields"
+   ]
   },
   {
    "id": "00000000-0000-0000-0000-000000000005",
@@ -275,28 +253,17 @@
      }
     ]
    },
-   "body": [
+   "body": [],
+   "encoding": "raw",
+   "mode": "fields",
+   "captures": [
     {
-     "variable": {
-      "name": "ok",
-      "body": [
-       {
-        "value-of": {
-         "parts": [
-          {
-           "capture": {
-            "label": "v"
-           }
-          }
-         ]
-        }
-       }
-      ]
+     "name": "ok",
+     "select": {
+      "label": "v"
      }
     }
-   ],
-   "encoding": "raw",
-   "mode": "fields"
+   ]
   }
  ]
 }

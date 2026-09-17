@@ -141,8 +141,9 @@ generically; a schema-specific or generated-class reader would be faster and is 
 library's slowest, reflective route, and a generated message class would be several times
 faster than that. The configuration says why: each field is a template whose first part is a
 one-byte tag as a *pattern* — a regex call to match a single byte — before its read. So the
-honest standing is "correct, and on a par with the slowest library route", not "no library
-needed". Two remedies, both design 42's: a one-byte literal in a match sequence should not
-cost a regex call (a `tag` verb, or `read` of a byte with a test — an engine change, small);
-or the native seam, for the formats where a library is the only route (Parquet) or clearly
-the better one.
+honest standing was "correct, and on a par with the slowest library route", not "no library
+needed". *Answered the same day in design 41 §6*: a bare tag is now a byte compare in the
+graph, and the fixture binds its values by capture rather than by variable; **parse only
+355 ops/s, 2.1× `DynamicMessage`**, with output 231. A generated message class would still
+be faster than the library's dynamic route, and is unmeasured. The native seam remains the
+question for Parquet, where a library is the only route.

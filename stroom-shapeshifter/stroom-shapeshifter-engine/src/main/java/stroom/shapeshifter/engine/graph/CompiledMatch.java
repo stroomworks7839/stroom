@@ -85,6 +85,17 @@ public sealed interface CompiledMatch {
 
         }
 
+        /**
+         * A pattern part that is one literal — a bare {@code tag}, labelled or not — compiled
+         * to the bytes it must find at the cursor and nothing else: no pattern, no matcher, a
+         * byte compare (design 41 §6). The protobuf fixture's fields each begin with a one-byte
+         * tag, and each cost a regex call to read it; a template that does not apply cost one
+         * to find out. {@code group} is the label's group, or 0 for none.
+         */
+        record Literal(byte[] bytes, int group) implements CompiledPart {
+
+        }
+
         /** Consume a length of bytes as the sequence's group {@code group}. */
         record Take(CompiledLength length, int group) implements CompiledPart {
 

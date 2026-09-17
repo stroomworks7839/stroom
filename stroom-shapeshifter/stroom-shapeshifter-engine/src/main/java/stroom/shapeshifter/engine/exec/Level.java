@@ -777,44 +777,71 @@ final class Level {
         final TypedValue[] groups = new TypedValue[parts.groupCount() + 1];
         int cursor = from;
         for (final CompiledMatch.CompiledPart part : parts.parts()) {
-            switch (part) {
-                case final CompiledMatch.CompiledPart.Pattern pattern -> {
-                    final MatchResult one = patternMatch(pattern.pattern(), data, cursor, to, true, encoding, source,
-                            cursor - from);
-                    if (one == null) {
-                        return null;
-                    }
-                    final TypedValue[] own = one.groups();
-                    System.arraycopy(own, 1, groups, pattern.groupOffset() + 1, own.length - 1);
-                    cursor += one.advance();
-                }
-                // The verbs are behind calls: the loop is a dispatcher, kept under the JIT's
-                // hot-method size so it inlines into the match (design 38 §8's census of this
-                // path), and each verb is a small method that inlines into it where it is hot.
-                case final CompiledMatch.CompiledPart.Take take -> {
-                    cursor = take(take, groups, cursor, to, encoding, source);
-                    if (cursor < 0) {
-                        return null;
-                    }
-                }
-                case final CompiledMatch.CompiledPart.Seek seek -> {
-                    cursor = seek(seek, groups, cursor, from, to);
-                    if (cursor < 0) {
-                        return null;
-                    }
-                }
+            // The verbs are behind calls, and every arm yields the cursor after it or -1: the
+            // loop is a dispatcher with one failure test, kept under the JIT's hot-method size
+            // so it inlines into the match (design 38 §8's census of this path), and each verb
+            // is a small method that inlines into it where it is hot.
+            cursor = switch (part) {
+                case final CompiledMatch.CompiledPart.Pattern pattern ->
+                        patternPart(pattern, data, cursor, from, to, groups, encoding, source);
+                case final CompiledMatch.CompiledPart.Take take -> take(take, groups, cursor, to, encoding, source);
+                case final CompiledMatch.CompiledPart.Seek seek -> seek(seek, groups, cursor, from, to);
+                // A literal at the cursor: the bytes compared where they lie (design 41 §6).
+                case final CompiledMatch.CompiledPart.Literal literal ->
+                        literal(literal, data, cursor, to, groups, encoding, source);
                 // A value at the cursor, by the cast's own width, with no pattern run (design
                 // 39, D56): the bytes are read where they lie.
-                case final CompiledMatch.CompiledPart.Read read -> {
-                    cursor = BinaryCasts.read(read.cast(), data, cursor, from, to, groups, read.group());
-                    if (cursor < 0) {
-                        return null;
-                    }
-                }
+                case final CompiledMatch.CompiledPart.Read read ->
+                        BinaryCasts.read(read.cast(), data, cursor, from, to, groups, read.group());
+            };
+            if (cursor < 0) {
+                return null;
             }
         }
         groups[0] = source.slice(from, cursor, encoding);
         return new MatchResult(groups, cursor - from, 0);
+    }
+
+    /** The cursor after a pattern part, its groups copied into the sequence's after its offset, or -1. */
+    private static int patternPart(final CompiledMatch.CompiledPart.Pattern pattern,
+                                   final byte[] data,
+                                   final int cursor,
+                                   final int from,
+                                   final int to,
+                                   final TypedValue[] groups,
+                                   final Encoding encoding,
+                                   final ByteSource source) {
+        final MatchResult one = patternMatch(pattern.pattern(), data, cursor, to, true, encoding, source,
+                cursor - from);
+        if (one == null) {
+            return -1;
+        }
+        final TypedValue[] own = one.groups();
+        System.arraycopy(own, 1, groups, pattern.groupOffset() + 1, own.length - 1);
+        return cursor + one.advance();
+    }
+
+    /** The cursor after a literal that is there, its bytes as the label's group if it has one, or -1. */
+    private static int literal(final CompiledMatch.CompiledPart.Literal literal,
+                               final byte[] data,
+                               final int cursor,
+                               final int to,
+                               final TypedValue[] groups,
+                               final Encoding encoding,
+                               final ByteSource source) {
+        final byte[] bytes = literal.bytes();
+        if (cursor + bytes.length > to) {
+            return -1;
+        }
+        for (int i = 0; i < bytes.length; i++) {
+            if (data[cursor + i] != bytes[i]) {
+                return -1;
+            }
+        }
+        if (literal.group() != 0) {
+            groups[literal.group()] = source.slice(cursor, cursor + bytes.length, encoding);
+        }
+        return cursor + bytes.length;
     }
 
     /** The cursor after a take, its bytes as the part's group, or -1 when they do not reach. */

@@ -198,6 +198,26 @@ class PatternTreeTest {
                 .isEqualTo(raw(reads, hex, parts));
     }
 
+    /**
+     * A bare tag part compiles to a byte compare, not a pattern (design 41 §6); it must bind
+     * exactly what the pattern did — nothing, or its label — and fail exactly where it did.
+     */
+    @Test
+    void bareTagPartBindsAndFailsAsThePatternDid() {
+        final String tags = """
+                {"parts": [{"pattern": {"tag": "ab"}}, {"pattern": {"tag": "c", "label": "t"}},
+                           {"read": {"as": "uint8", "label": "n"}}]}""";
+        assertThat(raw(tags, "61626307", label("t"), text(","), label("n"))).isEqualTo("[c,7]");
+        assertThat(raw(tags, "616263", label("t"))).as("the read fails past the tags").isEqualTo("");
+        assertThat(raw(tags, "616463", label("t"))).as("a tag that is not there").isEqualTo("");
+        assertThat(raw(tags, "6162", label("t"))).as("a tag past the end").isEqualTo("");
+        final String labelledOnly = """
+                {"parts": [{"pattern": {"sequence": [{"tag": "ab"}], "label": "s"}},
+                           {"pattern": {"tag": "c", "label": "t"}}]}""";
+        assertThat(raw(labelledOnly, "616263", label("s"), label("t"))).as("a labelled sequence is still a pattern")
+                .isEqualTo("[abc]");
+    }
+
     @Test
     void truncatedReadFailsTheMatch() {
         assertThat(raw("""

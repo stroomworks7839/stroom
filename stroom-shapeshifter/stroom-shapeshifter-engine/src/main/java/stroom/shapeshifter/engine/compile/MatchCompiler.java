@@ -20,6 +20,7 @@ import stroom.shapeshifter.engine.config.Condition;
 import stroom.shapeshifter.engine.config.ConfigException;
 import stroom.shapeshifter.engine.config.MatchExpression;
 import stroom.shapeshifter.engine.config.OutputNode;
+import stroom.shapeshifter.engine.config.PatternNode;
 import stroom.shapeshifter.engine.config.Template;
 import stroom.shapeshifter.engine.graph.CompiledMatch;
 import stroom.shapeshifter.engine.match.PatternKey;
@@ -189,6 +190,22 @@ final class MatchCompiler {
         for (final MatchExpression.MatchPart part : parts.parts()) {
             switch (part) {
                 case final MatchExpression.MatchPart.Pattern pattern -> {
+                    // A bare tag is a byte compare, not a pattern (design 41 §6): the model says
+                    // "this literal here", and the graph need not run a matcher to know it.
+                    final PatternNode.Tag tag = bareTag(pattern.node());
+                    if (tag != null) {
+                        int group = 0;
+                        if (pattern.node() instanceof final PatternNode.Labelled labelled) {
+                            groups++;
+                            group = groups;
+                            if (labels.put(labelled.label(), groups) != null) {
+                                throw new ConfigException("Template '" + template.name() + "' uses label '"
+                                                          + labelled.label() + "' in two parts of its match");
+                            }
+                        }
+                        compiled.add(new CompiledMatch.CompiledPart.Literal(encode(tag.text(), matchEncoding), group));
+                        continue;
+                    }
                     final PatternCompiler.Compiled one = PatternCompiler.compile(pattern.node(), matchEncoding,
                             template.name());
                     final int offset = groups;
@@ -225,6 +242,18 @@ final class MatchCompiler {
         }
         names.labels(labels);
         return new CompiledMatch.Parts(compiled.toArray(new CompiledMatch.CompiledPart[0]), groups);
+    }
+
+    /** The node as a tag with nothing else — bare, or labelled with no cast — else null. */
+    private static PatternNode.Tag bareTag(final PatternNode node) {
+        if (node instanceof final PatternNode.Tag tag && !tag.text().isEmpty()) {
+            return tag;
+        }
+        if (node instanceof final PatternNode.Labelled labelled && labelled.as() == null
+            && labelled.body() instanceof final PatternNode.Tag tag && !tag.text().isEmpty()) {
+            return tag;
+        }
+        return null;
     }
 
     private static CompiledMatch.CompiledLength length(final MatchExpression.Length length,
