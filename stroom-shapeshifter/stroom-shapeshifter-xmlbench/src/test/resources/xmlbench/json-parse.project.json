@@ -84,7 +84,7 @@
    "mode": "field",
    "match": {
     "regex": {
-     "pattern": "\"([^\"]*)\":\"((?:[^\"\\\\]|\\\\.)*)\"",
+     "pattern": "[{,]\"([^\"]*)\":\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"",
      "flags": {
       "case_insensitive": false,
       "dot_all": false
@@ -152,7 +152,7 @@
    "mode": "field",
    "match": {
     "regex": {
-     "pattern": "\"([^\"]*)\":([^,}\"]+)",
+     "pattern": "[{,]\"([^\"]*)\":([^,}\"]+)",
      "flags": {
       "case_insensitive": false,
       "dot_all": false
@@ -216,7 +216,7 @@
    "consume": true,
    "match": {
     "regex": {
-     "pattern": "[{},\\n]+",
+     "pattern": "}\\n",
      "flags": {
       "case_insensitive": false,
       "dot_all": false

@@ -97,6 +97,31 @@ What the profile says is left, in order: the matching (a third: the plan runner 
 job, plus `regexMatch` binding its groups); the match's results (half the allocation);
 `String` creation for attribute values, which SAX requires; the sink at about a tenth.
 
+## 3a. The JSON row: two shapes, no engine change — the same day
+
+*On the owner's "any further thoughts on the JSON issue?"* JSON emitted the same structure
+as XML per record — seven elements, two attributes each — and took 1.8× as long, so the
+difference was in the dispatches, not the sink. Two things in the configuration, measured in
+one process at 100,000 records:
+
+| JSON configuration | ms/op |
+|---|---|
+| as committed at point 62 | 181 |
+| separators folded into the field patterns — `[{,]"name":…` — so a field is one dispatch, not a field, a separator consume and (for a number) a failed attempt at the string template first | 148 |
+| + the escape-aware run in unrolled-loop form — `[^"\\]*(?:\\.[^"\\]*)*` rather than `(?:[^"\\]\|\\.)*` — the same language, but a scan instruction per run and a branch per *escape* where the other form was a branch per *character* | **102** |
+
+XML's row is 106 for the same output. Parity holds; adopted as the committed configuration.
+At full fidelity (`2026-09-17-1017-a38255c678-jsonparse41.json`): **1,849 → 1,273 ms at a million records — 111 MiB/s
+from bytes, 119 from a string** — against Jackson's 836. Six times behind rather than
+eleven, and now for the same reason XML is two behind Woodstox: the match path per field.
+
+Two lessons for anyone writing a configuration, and they belong in the editor's guidance:
+one dispatch per thing, so fold what separates things into the pattern that matches them;
+and write a run that may contain escapes in the unrolled form, because the plan compiler
+scans a class run and branches a repeated alternation. The second is something the library
+could do itself — rewrite a repeat of "a class or an escape" into the unrolled loop at
+normalisation — and is noted here for D53's ledger of what the library is not asked for.
+
 ## 4. The engine's own rows
 
 Three of the cuts sit under every configuration — `Body.inputs` under every transform,
