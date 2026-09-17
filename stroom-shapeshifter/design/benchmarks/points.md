@@ -1,13 +1,14 @@
-## What is owed — points 61 and 62, for an evening run
+## What is owed — points 61 to 63, for an evening run
 
 Point 61 against 60, `full`: `avro_users` up by more than half, everything else flat.
 Point 62 against 61: `apache_httpd` up a point, the rest flat — and `regex_lines` the
-verdict on the daytime artefact, which 61's and 62's daytime reads both showed. Then the retired row by name, at 52 (the
+verdict on the daytime artefact, which 61's and 62's daytime reads both showed. Point 63
+against 62: flat, `avro_users` perhaps up a little. Then the retired row by name, at 52 (the
 interpreter), 60, 61 and 62 — the reading design 39 §5 asked for, the retirement's cost and
 its recovery on the same synthetic job:
 
 ```
-engine-bench-points.sh full 523ed9c6ee 78146122f3 7ce7c28c1f
+engine-bench-points.sh full 523ed9c6ee 78146122f3 7ce7c28c1f 0cf5aa6093
 engine-bench-points.sh quick c710946def 523ed9c6ee 78146122f3   # then progressive by name, see below
 ```
 
@@ -16,7 +17,7 @@ three shas with the benchmark's own annotations, on the same evening, and record
 in 61's row. The script has no by-name mode; the commands are
 
 ```
-for sha in c710946def 523ed9c6ee 78146122f3 7ce7c28c1f; do (cd /home/dev1/engine-bench/wt-$sha && \
+for sha in c710946def 523ed9c6ee 78146122f3 7ce7c28c1f 0cf5aa6093; do (cd /home/dev1/engine-bench/wt-$sha && \
   taskset -c 4-15 java -cp "$(./gradlew --offline -q -I /home/dev1/bin/printcp.gradle \
   :stroom-shapeshifter:stroom-shapeshifter-engine:printTestCp | tr -d '\n' | sed 's/.*CPSTART//; s/CPEND.*//')" \
   org.openjdk.jmh.Main 'stroom.shapeshifter.engine.bench.EngineBenchmark.run' -p workload=progressive \
@@ -69,6 +70,7 @@ keeping, and so is one that did not.
 | 7 | `50203a9d46` | 2026-09-09 | Design 29 phase 5, the sinks and the prologue | The refusals no longer described before they are refused, the namespace scope shared until an element declares, the qualified name split once, and the prologue settled at compile time. `win_sec_xml` is its row and **cannot see it**: that row is about 40% regex and no sink frame appears in a sampled profile at all. A point so the arc is complete, not because this row is expected to move. |
 | 8 | `23fc4bc52f` | 2026-09-09 | Design 30's first delivery: the graph stops carrying its linking scaffolding | Two maps off `CompiledProject`, read once at link time and never again. **Nothing reads them at run time, so nothing should move.** It is a point because a change that should move nothing and does is worth knowing about — the constructor does less and the linker does more, so the compile rows are where to look, if anywhere. |
 | 9 | `8d0fd1cd65` | 2026-09-09 | Design 30: conditions compiled, the pattern map off the graph | A `matches` test holds its `BytePattern` instead of hashing the pattern's text per evaluation, and `Conditions.evaluate` stops taking the map — so it is no longer threaded into every guard evaluation on every template on every record. **624 evaluations per operation on `apache_httpd` and none anywhere else**, invisible in a sampled profile, so the run rows should not move. Compilation now walks the condition trees, so the compile rows are where a change would show. |
+| 63 | `0cf5aa6093` | 2026-09-17 | Design 41 §6: a bare `tag` part compiles to a byte compare; the parts loop restructured to one failure test | **Nothing on the default rows should move: the only default row with a match sequence is `avro_users`, whose tags are per file and per block, not per record — and its loop is smaller (282 bytes, five verbs) so it may read up a little.** The claim is the by-name protobuf row (design 41 §6: 154 → 355 parse-only), not this ledger's. Every text row is untouched. |
 | 62 | `7ce7c28c1f` | 2026-09-17 | Design 41: the structure path cut — text codecs on `decode`, `replaceLiteral` on bytes, one inputs list under every transform, the SAX sink keeping its buffer, list and elements | **The engine rows should barely move: `apache_httpd` up a point (68k transforms per op, each now without its own list), everything else flat.** The claim is xmlbench's, not this ledger's — the XML parse row from 159 to 270 MiB/s — and the row to watch here is `regex_lines`, which the daytime interleave read −5.3, −0.9, −6.2 on a change it does not execute, for the fourth time in two days against two full-fidelity readings that said flat or up. If it reads flat tonight the daytime artefact is established; if it reads down, something about `Body` or `Level` changing moves that row by layout and it gets a census of its own. |
 | 61 | `78146122f3` | 2026-09-17 | Design 39: reads in the match sequence — a cast at the cursor, no pattern per binary field (D56) | **`avro_users` is the claim, large: nine reads and one take per user where there were nine regex calls, and the daytime read is +62, +84, +70 — 246 to about 420 ops/s.** Every other default row cannot move: no text row has a read. `regex_lines` read −3.4, −4.2, −4.8 by day, the third daytime interleave in two days to read that row down about four per cent on a change to `Level` that the row never calls, after the one full-fidelity reading (60 against 59) read it up 5.7 — so its reading here is the verdict on whether that is an artefact of the live-tree comparison or a real layout effect. `progressive` is read by name against the interpreter's 470 at 52 (below). |
 | 60 | `523ed9c6ee` | 2026-09-16 | Design 38: the parts path cut on its census — `partsMatch` 347 → 309, `BinaryCasts.apply` 739 → 263, `length` unboxed | **The binary rows are the claim, small — `progressive` +1.8 and `avro_users` +2.7 medians in a clean daytime read — and `regex_lines` is the risk: down in five of seven daytime rounds across two interleaves, on a row that calls none of the three methods, with no mechanism found.** Read against 59: if `regex_lines` is down again this reverts as one commit, and the finding is that a change to `Level` moves that row by layout alone; if it reads flat, the daytime loss was the box and the cuts keep for their two per cent. *Read overnight, against 59:* `regex_lines` **+5.7** — the daytime loss was the box, not the code, and a change to `Level` does not move that row by layout; `avro_users` +0.8, inside its interval, so the two per cent the daytime read promised the binary rows did not materialise at full fidelity; `progressive` has no row from here (D54). **Keeps** on "nothing pays and the methods are the better shape", not on a gain. |
