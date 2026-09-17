@@ -1,0 +1,252 @@
+# Scenarios: the supervisor's executable specification
+
+*Drafted 2026-09-17. Companion to `01-intelligence-in-the-pipeline.md`, whose section numbers and
+rulings (A1–A29) this document cites. Status: proposed; §7 lists what is owed a decision. Brought
+into line with design 01's A23–A29 and its 2026-09-17 revisions the same evening.*
+
+## 1. Why scenarios, and what one is
+
+Design 01 describes a stage that routes a stream, learns a fragment when it must, scores what it
+learned, promotes it or gives up, and rewrites its routing table. None of that yet runs end to end:
+the Shapeshifter AI document, the A21 dialogue, two step runners, the fragment writer, the scorer SPI
+with three scorers, `Router`, `Quarantine`, `RegressionSet` and `Stage` exist (§6.1); the remaining
+scorers, the supervisor element, the runtime tables, durable attempts and the Supervisor view do not
+(design 01 §12). The order those are built in matters less than the thing that decides whether they are right.
+
+A **scenario** is that thing. It is a complete, deterministic run of one stage over given input with
+a simulated model, asserting on everything the design says should happen. Scenarios are written
+before the machinery, and each piece of machinery is built to make the next scenario pass. When the
+supervisor element finally exists, the same scenarios run against it inside a real pipeline. The
+scenarios are the specification; the design prose is the rationale.
+
+One scenario has four parts:
+
+| Part | What it is | Where it comes from |
+|---|---|---|
+| **Document** | A `ShapeshifterAiDoc`, built with the builder, exactly as an operator would configure it — scorers with weights and parameters, promotion floor, allowed elements, routing table as it stands before the run | `ShapeshifterAiDoc.builder()` in the scenario; nothing hand-written in JSON |
+| **Input** | One or more streams: the data, plus the metadata a stream carries — feed, type and the receipt headers (`Format`, `System`, …) that A22 can route on and that the learning key (A29) may include | The `TestDS3` corpus for extraction; XML records for transformation; hand-written where the corpus has no case |
+| **Script** | The simulated model: an ordered list of *expected question → reply*. Every question the dialogue asks is checked against the next expectation, and the reply is what the script says. A question the script did not expect, or a script with lines left over, fails the scenario | Replies are real Data Splitter and XSLT documents in test resources, including deliberately bad ones |
+| **Expectation** | What must be true afterwards: the questions asked and in what order; what each carried; the fragment written; the output produced; the score of every scorer; whether promotion happened; the routing table after; what was sentinelled and what the ledger holds; the transcript that would be audited | Assertions in the scenario |
+
+The script is what makes a scenario deterministic and what makes it a specification: it says not only
+what the model answers but *what the supervisor must have asked* to get there. A scenario in which the
+transform question fails to carry the parser's real output (A21 step 2) fails at the script, before
+any output is compared.
+
+## 2. Two tiers, one set of scenarios
+
+The same scenarios run in two places, because "the learning loop is right" and "the learning loop is
+wired into a Stroom pipeline correctly" are different claims with different costs.
+
+**Tier 1 — the stage in the module.** `stroom-shapeshifter-ai`'s own tests: no database, no node,
+in-memory document stores, the step runners in place of `PipelineFactory`. Runs in seconds. This is
+where the dialogue, scorers, promotion gate, routing decision and quarantine are specified and where
+almost every scenario lives. It is honest about one thing: the fragment is run by the step runners,
+which drive the Data Splitter and Saxon directly, so an element outside `DSParser`/`XSLTFilter` and
+any Stroom-specific behaviour of those elements (XSLT functions, reference data, `xsltNamePattern`)
+is out of reach here.
+
+**Tier 2 — the stage in a pipeline.** In `stroom-app`, extending `AbstractProcessIntegrationTest` as
+`TestXMLTransformer` does: a real database, real stores with explorer nodes, the real
+`PipelineFactory` building a pipeline that holds the supervisor element, real `SchemaFilter` against
+the event-logging content pack, output to a real stream. Runs in minutes. This is where the claims
+Tier 1 cannot make are made: that the learned fragment merges and runs as a pipeline; that the
+supervisor element routes, captures and emits; that bindings land in output-stream metadata (§7.3
+rule 3); that the sentinel is a real error stream and the ledger a real row (A26). A handful of scenarios run here —
+the happy path, one failure, one promotion — not the catalogue.
+
+The scenario definitions — the script DSL, the simulated model, the document builders, the input and
+reply resources — live in the module's `testFixtures` source set (Gradle `java-test-fixtures`, which
+`stroom-query-language` already uses), so both tiers consume one definition and cannot drift.
+
+## 3. The simulated model
+
+```java
+Script.of()
+    .expect(chain().allowing("DSParser", "XSLTFilter").withKey("Format", "CSV"))
+        .reply("DSParser -> XSLTFilter")
+    .expect(configuration("DSParser").withInput(sample))
+        .reply(fenced(corpus("001_csv_with_header").configuration()))
+    .expect(configuration("XSLTFilter").withInput(corpus("001_csv_with_header").expectedRecords()))
+        .reply(fenced(resource("csv-logon.xsl")))
+```
+
+An expectation is a predicate over the `Question` plus a description; a mismatch fails with both the
+expectation and the actual question printed. `Script` implements `Advisor`. It records the transcript
+it saw, so a scenario can also assert on the whole conversation afterwards — what feedback the third
+question carried, that the chain question was not re-asked.
+
+Multi-round scenarios are just longer scripts. The model's second answer is scripted knowing the
+first will fail, and the expectation on the second question asserts *why* it was re-asked: the
+feedback must name the compile error, or the scorer that lost the marks, or the assertion that
+failed. That is the design's promise in §10 — feedback goes to the step that failed, with the
+diagnostics — turned into a check.
+
+The script is deliberately dumb. It does not look at the question to decide what to say; it says the
+next line. Anything cleverer would be a model, and the point is that the test's outcome is fixed by
+its author.
+
+## 4. What a run does
+
+A Tier 1 run is one call, `Stage.run(policy, streams)`, over machinery that mostly does not exist
+yet. Spelling it out fixes what has to be built:
+
+1. **Route.** For each stream, compute its learning-key value — feed and type by default, with the
+   shape signature of the stage's *input* where the document's key includes it (A29) — and evaluate
+   the routing table's selectors in order against the stream's meta fields, headers and signature
+   (A22). A match binds the fragment. A match on a reserved rule, or a shape the ledger records as
+   given up, is a sentinel. No match is an unknown shape: the variants already bound for the same
+   feed and type are tried first (design 01 §6), and one that clears the floor is bound
+   *provisionally* and handles the stream with no question asked; only if none fits, and
+   `learningMode` is `AUTOMATIC`, does the stage learn — with `DISABLED` it is a sentinel.
+2. **Learn.** Split the shape's records into a learning sample and a held-out sample (A14). Run the
+   A21 dialogue over the learning sample. Score each candidate with the document's scorer set.
+   Feedback to the failing step carries the scorer's diagnostics. Stop at the candidate limit
+   (`maxAttempts`) or at a candidate whose gates all pass and whose weighted total meets every
+   threshold. A bound shape whose rolling per-record score has fallen below `relearnThreshold`
+   learns the same way, its incumbent serving meanwhile (A29). In `DEFERRED` mode the attempt is
+   recorded `AWAITING_MODEL` and the stream sentinelled; the worker runs the dialogue later (A28).
+3. **Judge.** Score the candidate on the held-out sample. Promote if the weighted total reaches the
+   floor (A15), every gate passes, and — where an incumbent is bound — the candidate is not worse
+   than it on the held-out sample nor on the regression set (A18). Otherwise keep the incumbent, or
+   give the shape up if there is none. Where the shape has too few records for a held-out split, a
+   candidate that clears the floor on what there is is bound *provisionally* — it handles the stream
+   and waits for held-out records (A5, design 01 §6) — rather than left unbound.
+4. **Write.** On promotion: write the fragment and its documents (new documents, §7.3 rule 1), append
+   a rule whose selector is the document's learning key (A29) to the routing table unless a pinned
+   rule already covers the selector — as a *draft* in review mode (A25) — record the promotion time and score, add the accepted records to the
+   regression set, and release the shape: clear its ledger entry and request reprocessing of the
+   inputs it named (A12, as §5.2 restates it — nothing was held; a draft releases nothing until
+   Approve). Save the document.
+5. **Emit.** Run the bound fragment over the stream and produce output, with the bindings that
+   produced it — provisional or not — recorded alongside (§7.3 rule 3); or, for a shape the stage
+   will not process, write the sentinel: an `ERROR` naming the shape, the candidate scores and the
+   reason, and a ledger row (A4 as restated).
+
+In Tier 1 the streams, sentinels, ledger, reprocess requests and regression set are in-memory
+records that the scenario inspects. In Tier 2 they are what the supervisor element does inside a
+pipeline: error streams, rows in the A26 tables, and real reprocess filters.
+
+## 5. The scenario catalogue
+
+Ordered by what each needs built; each one is unlocked by the machinery the previous one forced.
+"Corpus" is `stroom-pipeline`'s `TestDS3`.
+
+| # | Scenario | Given | Script | Then | Needs |
+|---|---|---|---|---|---|
+| 1 | **Learns a CSV feed** | Document: default; scorers Compile (gate), Input coverage, Yield. Stream: corpus 001, `Format: CSV` | chain, DS3, XSLT — all right first time | 3 questions in order; transform question carries the parser output; fragment `Source → DSParser → XSLTFilter`; output equals golden events; routing table gains a `Feed AND Type` rule (the default learning key, A29); nothing sentinelled | Scorecard, yield scorer, routing decision, held-out split, promotion, table write |
+| 2 | **Header names the parser** | Stream `Format: JSON` with a JSON body; learning key `Feed AND Type AND Format`; allowed elements include `JSONParser` | chain reply `JSONParser -> XSLTFilter` | chain question carried the `Format` value, because it is in the key and shown means bound (A29); no configuration question for the parser; fragment has `JSONParser` with no document; the learned rule binds on `Format` too | `JSONParser` step runner |
+| 3 | **Compile failure, then success** | as 1 | DS3 = corpus `008_invalid_xml_FAIL`, then corpus 001 | 4 questions; 3rd is DSParser again with the compile diagnostic and the previous configuration; chain not re-asked | already built (`TestDialogue`); re-homed as a scenario |
+| 4 | **Discarded input, then coverage fixed** | scorers add Input coverage threshold 0.9 | a DS3 that drops the header line and half the fields, then a full one | re-ask carries coverage score and the uncovered ranges; second passes | coverage as a scorer with feedback, not only a measurement |
+| 5 | **Degenerate transform is refused** (§8.3, A16) | scorers add Schema conformance (gate) and Extraction quality (gate, required `EventSource/User/Id`) | XSLT that emits the skeleton + `Unknown` + every field as `Data`, then a real one | first candidate validates (schema gate passes) but fails extraction quality with typed-element ratio and `Unknown` rate in the feedback; second promoted | schema-conformance scorer over event-logging pack; extraction-quality scorer |
+| 6 | **Business rule** | scorers add Business rules: "interactive events name the user" | XSLT that omits `User/Id` on logons, then one that includes it | feedback names the assertion; second promoted | business-rules scorer |
+| 7 | **Below the floor is not promoted** | `promotionFloor` 0.95; Yield threshold 0.5 | XSLT that drops every other record (yield 0.5) three times | abandoned at the candidate limit; shape given up — sentinel and ledger row; routing table unchanged; transcript has 5 questions; the last feedback shows yield 0.5 against expected 1.0 | ledger; abandonment path |
+| 8 | **Not a regression** (A15, A18) | routing table already binds v1 (score 0.90); regression set holds 10 accepted records | a v2 that scores 0.97 on the learning sample but 0.85 on held-out | v1 kept; v2's documents not written; transcript audited | held-out judgement; regression set |
+| 9 | **A better candidate replaces the incumbent** | as 8 | a v2 that scores higher on held-out and on the regression set | rule rebound to v2; v1's documents untouched; promotion time and score updated | table rewrite semantics |
+| 10 | **Pinned rule is never rebound** | as 9 with the rule pinned | as 9 | v2 written? no — no learning is attempted for a pinned, matched rule | pin honoured at routing |
+| 11 | **Given-up shape does not consult the model** | shape given up by scenario 7 | *empty script* | stream sentinelled; zero questions | ledger consulted before learning |
+| 12 | **Learning mode disabled** | `learningMode: DISABLED`, no matching rule, no bound variant for the feed and type | *empty script* | sentinel; zero questions | §11 opt-in |
+| 13 | **Promotion releases the quarantine** (A12) | a shape in the ledger with two input streams recorded against it; then a run that learns it | as 1 | the ledger entry is cleared and a reprocess request names exactly those two inputs; nothing was held — the earlier runs produced error streams naming the shape | ledger; release as a reprocess request (Tier 1 records the request; Tier 2 creates the filter) |
+| 14 | **Too few records to judge** (A14) | `minRecordsPerShape` 10; stream of 3 records | as 1 | learned; the candidate clears the floor on the 3 records so it is bound *provisionally* and handles the stream, with the binding marked provisional in the output; not promoted; attempt `PROVISIONAL`; a later stream of 10 records supplies the held-out split and promotes it | provisional binding (A5, design 01 §6) |
+| 15 | **Every budget question** | `maxAttempts` 1 | one bad reply | abandoned after one question, reason names the step | already built |
+| 16 | **Model reply is not a document / not a chain** | | prose, then a document | refused with feedback | already built (`TestDialogue`); re-homed |
+| 17 | **Fragment with a destination is refused** | routing table hand-edited to a full pipeline | — | the save fails naming the element | already built (`TestFragmentCheckImpl`); Tier 2 makes it real |
+| 18 | **(Tier 2) Learns a CSV feed in a pipeline** | as 1, but the document, feed and streams are real content and the supervisor element sits in a real pipeline | as 1 | output stream equals golden; bindings in the output stream's meta; fragment opens in the explorer under the feed's folder | supervisor element, `PipelineFactory` harness (§12 items 1, 2, 4), bindings metadata (item 7) |
+| 19 | **(Tier 2) Degenerate transform in a pipeline** | as 5 | as 5 | as 5, with the real `SchemaFilter` doing the validating | as 18 |
+| 20 | **(Tier 2) Sentinel is an error stream and a ledger row** | as 7 | as 7 | no output stream; an error stream with one `ERROR` naming the shape, the candidate scores and the reason; a `shapeshifter_ledger` row naming the input's meta id; nothing held anywhere | as 18, the A26 tables |
+| 21 | **Two supervised stages: extract, then transform** (design 01 §3's own picture) | Two documents, both with the signature in their learning key. *Extraction*, at the source so its variants replay per stream (A1 revised): allowed `DSParser`/`JSONParser`/`XMLParser`, scorers Compile (gate), Input coverage, Yield per line. *Transformation*, after the parser so per record: allowed `XSLTFilter` only, scorers Compile (gate), Schema conformance (gate), Extraction quality (gate), Yield per record. Stream: corpus 001 with `Format: CSV` | stage 1: chain, DS3. Stage 2: XSLT only — no chain question, one allowed element | Stage 2's input is stage 1's `records:2` output with the headers carried through; stage 2's signature is the XML element skeleton of its input record, stage 1's the text one (computed on each stage's input, design 01 §4); stage 2 learns on a seeded shuffle of the records and is judged on the held-out records, rebuilt as `records:2` documents; each document's routing table gains its own rule; the final output equals the golden events. A second stream binds stage 1 without learning while stage 2 is still learning, and a stage-2 abandonment gives the record shape up without re-asking stage 1 | records split and rebuild; a stages runner; for the full form, the stage-2 scorers of scenarios 5–6; the structural form runs with Compile + Yield alone |
+| 22 | **Review mode: a draft waits, Approve promotes** (A25) | document `promotionMode: REVIEW`, otherwise as 1 | as 1 | rule appended as a draft; a second stream of the shape is *not* bound, produces an ERROR naming the draft rule, fragment and shape, and enters the ledger with no question asked; Approve — from the Routing tab or the Supervisor view (A28) — makes the rule active, sets promotion time, and issues a reprocess request for the ledger's inputs; Reject leaves the shape given up with the reason recorded | `promotionMode`, `draft`, router skipping drafts, the ledger, approve/reject operations |
+| 23 | **Error mode after a streak** (A24) | document `errorModeAfter: 2`; two streams of different shapes | two abandoned attempts | after the second, the feed is in error mode; a third stream produces a fatal error stream and *no question*; reset from the Supervisor view's status strip closes it and the third stream learns normally | `shapeshifter_feed_state`, fatal error output, reset (A24, A28); half-open retry as a variant |
+| 24 | **AI review flags a dishonest transform** (A23) | scorers add AI review (sample rate 1000/1000, threshold 0.7); a promoted fragment that swaps logon and logoff | judge replies scoring 0.2 with a critique | the sampling job writes a finding; the shape is marked for relearning; the next attempt's question carries the critique as feedback; promotion was never blocked by the judge alone | `AI_REVIEW` scorer, the sampling job, `Critique` question, relearn trigger |
+| 25 | **An existing binding fits a new shape** (design 01 §6) | key includes the signature; a rule binds v1 for shape X; a stream of shape Y arrives | *empty script* | v1 is run over Y and clears the floor; Y bound to v1 provisionally, zero questions; once Y has `minRecordsPerShape`, promoted with held-out satisfied by construction | bound-variant trial before any call |
+| 26 | **A reserved rule gives the shape up** (design 01 §3) | first rule `Feed = f` with no fragment | *empty script* | sentinel with reason *reserved*; ledger row; zero questions | reserved-rule routing |
+| 27 | **A falling score triggers relearning** (A29) | default key; a rule bound; `relearnThreshold` 0.8; a stream in which a second record kind fails schema conformance for 30% of records | *empty*, then as 1 | no new shape; the failing records go to the error stream and not the ledger; the shape's rolling score falls below 0.8 and it is marked for relearning; the next stream starts an attempt while the incumbent still serves it; the promoted candidate replaces the rule | rolling score on the shape row; relearn trigger |
+| 28 | **A provisional rule is retracted** (design 01 §6) | scenario 14 after its provisional binding; then 10 records that the candidate scores below the floor on | as 1, then *empty* | the rule is retracted, the shape is unknown again, and a reprocess request names the streams that carried the provisional binding, as-current | retraction path |
+| 29 | **Disabled still selects** (design 01 §11.1) | `learningMode: DISABLED`; as 25 | *empty script* | Y bound to v1 provisionally and later promoted; the model never asked | selection without a model |
+| 30 | **Deferred: the worker learns later** (A5, A28) | `executionMode: DEFERRED`; unknown shape, nothing fits | as 1, but answered by the worker | the stream is sentinelled and an attempt recorded `AWAITING_MODEL` with zero questions asked in the task; the worker advances the attempt against the script; promotion issues a reprocess request for the ledger's inputs | durable attempts; the worker |
+| 31 | **A person answers a turn** (A28) | as 3 | the model's bad DS3, then a person's good one | the attempt pauses after the failed candidate; a person's *edit and re-run* replaces the DSParser answer and the dialogue resumes from that turn; the transcript records who answered each turn; promoted | resumable dialogue; per-turn answerer |
+| 32 | **(Tier 2) The processor waits** (A27) | a filter depending on the document; scenario 23's feed in error mode | — | no tasks are created for that feed while `shapeshifter_feed_state` says `ERROR`; another feed under the same document is processed; reset resumes task creation from where it stopped | A27 in `ProcessorTaskCreatorImpl` |
+
+Scenarios 3, 15, 16 and 17 exist today as unit tests of one component; they become scenarios so
+that the catalogue is the one place the behaviour is stated.
+
+## 6. What the catalogue forces, in order
+
+Each item is the smallest thing that lets the next scenario pass. The design's §12 list is the
+superset; this is its test-driven ordering.
+
+1. **`Scorecard`** — the document's `ScorerSetting`s applied to one candidate's output: per-scorer score in
+   [0, 1] with its diagnostics, gate outcomes, weighted total, and the *first* failing step to feed
+   back to. Weights and thresholds come from the settings; the scorers are an SPI keyed by
+   `ScorerType`. Compile and input coverage wrap what exists.
+2. **Scorers** in catalogue order: yield (record count against `YieldParameters`); schema
+   conformance (a `SchemaFilter` over the event-logging pack, per record, as the calibration tests
+   stand the Data Splitter schema up today); extraction quality (XPath over the output: typed ratio,
+   `Unknown` rate, required fields); business rules (XPath assertions plus captured `xsl:message`s);
+   error load; event classification.
+3. **`Dialogue` scores.** A step passes when its scorecard passes, not merely when it compiles;
+   feedback carries the scorecard's diagnostics. Budgets enforced under a clock the scenario controls.
+4. **Learning key** — `Feed AND Type` by default, and a provisional shape-signature normalisation
+   for documents that put the signature in the key (A29), so that routing and the ledger have a
+   key. A6 is open and needs real feeds; scenarios need only that the same record shape yields the
+   same signature and a different one does not. Token classes for text, element skeleton for XML,
+   as §5 says.
+5. **`Stage`** — route, learn, judge, write, emit (§4 above), over in-memory streams, quarantine and
+   regression set. This is the supervisor's logic without the pipeline element around it, and it is
+   what the element will delegate to.
+6. **Tier 1 scenarios 1–17, 21–29 and 31.** Scenario 21 needs nothing scenario 2 does and can follow
+   scenario 1 directly: the records split, a stages runner, and — for its full form — the stage-2
+   scorers that scenarios 5 and 6 force. Its structural form, with Compile and Yield alone, proves
+   the chaining and the record-unit split before those scorers exist.
+7. **§12 items 1, 2, 4, 7** — the `stroom-pipeline` harness, the supervisor element, bindings
+   metadata — and **Tier 2 scenarios 18–20**.
+8. **Durable attempts and the worker** (A28, §12 item 15) — scenario 30 — then the A26 tables under
+   scenario 20 and A27 under scenario 32 (§12 items 8 and 16).
+
+Redaction (A17) is not on this list: a scripted model does not care whether the sample is redacted,
+so scenarios do not force it. It stays on §12's list as item 6's neighbour and gets its own test.
+
+## 6.1 Where it stands
+
+Built 2026-09-17, the first slice: the `Scorer` SPI with `Scorecard`, `Verdict` and the compile,
+input-coverage and yield scorers; the dialogue judging each step by scorecard rather than by compile
+alone; a provisional `ShapeSignature`; `Router` over `ExpressionMatcher`; `Quarantine` and
+`RegressionSet` as interfaces with in-memory implementations; `FragmentRunner`, which runs a written
+fragment back through the step runners; and `Stage` — route, learn, judge, write, emit. The fixtures
+of §3 exist as `Script`, `QuestionMatcher` and `Scenarios` in the module's `testFixtures`.
+
+Scenario 1 passes, twice over: the learning run, and a second stream of the same shape bound by the
+learned rule with the script never consulted and the written fragment producing the same translation.
+Writing it found two things worth recording. The corpus's CSV case has six records, not the ten a
+default document waits for, so the scenario lowers `minRecordsPerShape`; and its golden splitter reads
+the header into a variable, which coverage counts as discarded — design 01 §9.1's finding, met again
+— so the coverage threshold sits at 0.8, and the script's own check caught it: the transform question
+never came because the splitter was being re-asked with the coverage feedback.
+
+Later on 2026-09-17 the document and the UI were brought up to the day's rulings (design 01 §12 items
+17 and 18): scenario 1 now asserts a `Feed AND Type` rule with a `uuid`, the chain question carries
+the key's values (`Feed`, `Type`) rather than a fixed header list, and the fixture's `shape()` is
+`chain()`. The `Stage` still learns on every unknown shape, sentinels on `DISABLED` before trying bound
+variants, writes no provisional rule and knows nothing of reserved rules or drafts — scenarios 14 and
+25–29 are the next slice.
+
+## 7. Decisions taken
+
+Ruled 2026-09-17, each as recommended:
+
+- **The held-out split is a seeded shuffle**, the seed supplied by the `Stage`'s caller and fixed in
+  scenarios; a node draws one per learning round. An order-based split would let sorted input game
+  the gate. Where the input is raw text and records do not yet exist, the learning sample is a
+  prefix and the held-out judgement is the whole stream — design 01 §4's probe prefix — because
+  lines cannot be shuffled without knowing where records begin.
+- **Tier 2 starts now with a hand-glued pipeline**: a fragment the module wrote, spliced into a
+  pipeline by hand in an `AbstractProcessIntegrationTest` and run through `PipelineFactory`. The
+  cheapest proof that A20's fragments are real pipelines; it does not wait on §12 items 1–2.
+- **Quarantine and regression set are interfaces the `Stage` is given** — `Quarantine`,
+  `RegressionSet` — with in-memory implementations for scenarios and stream-backed ones in Tier 2.
+- **First slice: `Scorecard`, the scorers scenario 1 needs, and scenario 1 end to end in Tier 1.**
+- **Shape signature normalisation** is a strategy the document does not yet expose, provisional per
+  design 01 §5 and revisited under A6 with real feeds; scenarios depend only on same-shape-same-key.
+- **The 2026-09-17 rulings in design 01 §14** — provisional bindings, the learning key, the relearn
+  trigger, reserved rules, durable attempts and the Supervisor view, the per-feed processor gate —
+  are taken as read here; scenarios 25–32 are their statement as tests.

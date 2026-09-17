@@ -4,21 +4,10 @@
 Shapeshifter Intelligence and Shapeshifter Engine. This design keeps only Intelligence, drops the
 Engine entirely, and re-targets the whole mechanism at Stroom's existing Data Splitter and XSLT.*
 
-*Twelve questions were put to the owner over two rounds on 2026-09-11 and ruled the same day, and a
-further ruling on the regression set (A18) followed on 2026-09-14; §13 lists them. Two were ruled
-against the recommendation — promotion is automatic (A9), and AI writes
-extraction configs as well as transforms (A8) — and the sections below say what each of those
-obliges in return. The design was then checked against the repository's own DS3 and translation test
-corpus and against the event schema; §2.1 and §8 carry what that found, including one finding that
-changes the scoring model outright. The extraction half of the §9 evaluation was built and first run
-on 2026-09-16; §9.1 records what it found, including one proposed ruling (A19). The policy document
-type was built the same day, and building it showed the routing table's unit of selection was a
-hand-rolled copy of `PipelineData`; A20 proposes making a variant a pipeline fragment instead, and
-A21 follows from it: an attempt becomes a dialogue that settles the fragment's shape before asking
-for any document. A22 asks what selects a branch and answers: an expression over the stream's
-metadata, as receive rules already do, with the content-derived shape as one field among them. On
-2026-09-17 the owner added three: a model that occasionally judges single records for honesty
-(A23), what perpetual failure looks like (A24), and a per-policy human-review mode (A25).*
+*Every decision the design rests on is a numbered ruling, A1–A29; §13 lists them with their status
+and §14 records when each arrived. Two were ruled against the recommendation — promotion is
+automatic (A9), and AI writes extraction configs as well as transforms (A8) — and the sections below
+say what each of those obliges in return.*
 
 The source design puts Intelligence outside Stroom: its own database, its own UI, its own
 configuration, reaching into the pipeline to take data and hand it back. That was the right shape
@@ -39,7 +28,7 @@ machinery headless and puts the loop where the data already is.
 | Processor selection from feed attributes | **Kept**, §3, §7 | Promoted from name-matching to an explicit, versioned routing table. |
 | Circuit breaker, retry limits, rate limiting | **Kept and load-bearing**, §11 | Ruled A9, promotion is automatic, so these stop being prudence and become the only control. |
 | Immutable versioning of configurations | **Kept and hardened**, §7 | Becomes append-only *variants*, because Stroom documents have no readable version history. |
-| AI mode per phase (automatic / assisted / disabled) | **Reduced to automatic / disabled**, §7 | Ruled A9. There is no human-approval mode; the guards in §7.4 replace it. |
+| AI mode per phase (automatic / assisted / disabled) | **Recast as promotion mode**, §7.4, §11 | Ruled A9: promotion is automatic and the guards in §7.4 are the primary control. A25 adds a per-document *review* mode beside it as an option, not a replacement; there is no assisted mode. |
 | Shapeshifter Engine, node graph, visual editor | **Discarded** | Out of scope by instruction. The subject is DS3 and XSLT. |
 | Pattern library | **Discarded** | An Engine feature. |
 | Intelligence's own central database and UI | **Discarded**, §3 | Ruled A3: configuration is a Stroom document type. Duplicating permissions, import/export and audit outside Stroom content management buys nothing and costs all three. |
@@ -48,7 +37,7 @@ machinery headless and puts the loop where the data already is.
 
 The source design's three architectural claims that survive unchanged are worth stating plainly,
 because everything below serves them: AI configures the engine rather than running the transforms;
-the system must work with AI switched off; and the vast majority of data must never touch AI at all.
+the system must work with Shapeshifter AI switched off; and the vast majority of data must never touch AI at all.
 
 ---
 
@@ -63,7 +52,7 @@ is smaller than the source design assumes, but it is in an awkward place.
 | Run a pipeline without committing output | `PipelineFactory.create(data, terminator, controller, stopAfter)` replaces **every** `DestinationProvider` with an `OutputRecorder` when a controller is present | `factory/PipelineFactory.java:115`, `insertRecorder` ~`:655` |
 | Run an *unsaved* XSLT or DS3 config | `SupportsCodeInjection.setInjectedCode(...)`, fed from `PipelineStepRequest.getCode()` keyed by element id | `SupportsCodeInjection.java:23`; injection at `PipelineFactory.java:403-412` |
 | Capture output in memory | `OutputRecorder` (bytes), `SAXEventRecorder` (replayable Saxon TinyTree), `TestAppender` (caller-supplied stream) | `writer/OutputRecorder.java:32`, `filter/SAXEventRecorder.java:51` |
-| Re-run one interior element over stored upstream events | `PipelineFactory.createFrom(...)` with `MidPipelineScope.ELEMENT_ONLY` / `ELEMENT_AND_DESCENDANTS`, driven by `ReprocessDriver` | `PipelineFactory.java:187-280`, `stepping/capture/ReprocessDriver.java:88` |
+| Re-run one interior element over stored upstream events | `PipelineFactory.createFrom(...)` with `MidPipelineScope.ELEMENT_ONLY` / `ELEMENT_AND_DESCENDANTS`, driven by `ReprocessDriver` | `PipelineFactory.java:187-280`, `stepping/capture/ReprocessDriver.java:89` |
 | Keep several candidate results side by side | `ElementFingerprinter` content-addresses captured IO by the element's effective config | `stepping/fingerprint/ElementFingerprinter.java:70` |
 | Spill intermediate results to disk | `StepDataStore`, `{temp}/{session}/{metaId}/{part}/{elementId}/{fingerprint}.dat` | `stepping/store/StepDataStore.java:67` |
 | Nested pipeline inside a running pipeline | Reference data loading already does it, synchronously, via a child task context | `refdata/ReferenceData.java:616` → `ReferenceDataLoadTaskHandler.java:186` |
@@ -79,7 +68,9 @@ Two things are absent, and both shape the design.
 
 **Code injection is gated on stepping.** `PipelineFactory.setProperty` consults the injected-code map
 only when a `SteppingController` is present. There is no headless route to "run this element with
-that configuration". This is the single change on which the whole design rests; §12 lists it first.
+that configuration". This is the change on which running a fragment through `PipelineFactory`
+rests — the harness of §9.1 drives the Data Splitter and Saxon directly and does not need it — and
+§12 lists it first.
 
 **Stroom documents have no readable history.** `AbstractDoc` carries a `version` UUID and
 `DBPersistence` does a genuine `UPDATE ... WHERE version = ?` with `DataChangedException` on a stale
@@ -95,8 +86,8 @@ argues it is also the material that can test the design's central premise before
 
 | Corpus | Contents | Use |
 |---|---|---|
-| `stroom-pipeline/src/test/resources/TestDS3/` | 19 cases as `.ds3.xml` + `.in` + `.out.xml` triples; four `_FAIL` cases add `.err`. Harness `TestDS3.java` discovers stems by globbing and diffs against the golden. | Extraction-stage ground truth |
-| `stroom-shapeshifter-engine/src/test/resources/fixtures/legacy/` | The same 19 plus `020_escaped_values`, `021_trimmed_values`, `022_empty_input`, each with a `.messages` file of normalised diagnostics | Extraction-stage ground truth, with error text |
+| `stroom-pipeline/src/test/resources/TestDS3/` | 19 cases as `.ds3.xml` + `.in` + `.out.xml` triples; three `_FAIL` cases, two of them with `.err`. Harness `TestDS3.java` discovers stems by globbing and diffs against the golden. | Extraction-stage ground truth |
+| `stroom-shapeshifter/stroom-shapeshifter-engine/src/test/resources/fixtures/legacy/` (in the engine checkout, not this repository) | The same 19 plus `020_escaped_values`, `021_trimmed_values`, `022_empty_input`, all but one with a `.messages` file of normalised diagnostics | Extraction-stage ground truth, with error text |
 | `stroom-core/src/test/resources/samples/config` | 50 Pipelines, 27 XSLTs, 6 TextConverters, 51 Feeds, serialised as content | Transformation-stage ground truth |
 | `samples/input/*.in`, `samples/output/*.out` | 80 inputs, 79 goldens, matched by feed name | End-to-end ground truth |
 | `stroom-app/.../TranslationTest.java` | Imports the whole sample config, creates a processor filter per pipeline, runs every feed, diffs against goldens **and** validates against the schema | The ready-made harness |
@@ -134,21 +125,21 @@ flowchart TB
         Src["Source"] --> S1["Supervisor\n(extraction stage)"]
         S1 --> S2["Supervisor\n(transformation stage)"]
         S2 --> Good["Schema XML\n→ downstream"]
-        S2 -.->|"quarantined"| Bad["Quarantine\nappender"]
+        S2 -.->|"given up"| Bad["Error stream\n+ ledger row"]
     end
 
     subgraph Content["Stroom content"]
-        Policy["AI Transform Policy\n(new doc type)"]
-        Routing["Routing table\n(in the policy doc)"]
+        Doc["Shapeshifter AI\n(new doc type)"]
+        Routing["Routing table\n(in the document doc)"]
         Variants["Transform variants\n(pipeline fragments)"]
     end
 
     Scoring["Scoring service"]
     AI["stroom-ai\nAiService"]
 
-    S1 -.-> Policy
-    S2 -.-> Policy
-    Policy --> Routing
+    S1 -.-> Doc
+    S2 -.-> Doc
+    Doc --> Routing
     Routing --> Variants
     S1 <--> Scoring
     S2 <--> Scoring
@@ -163,22 +154,22 @@ flowchart TB
 ```
 
 **A transform variant** is the unit of selection: a **pipeline fragment** — an ordinary Pipeline
-document whose element chain starts at the implicit `Source` and ends at a filter, with no writer or
-destination. `Source → DSParser(tc-syslog)` is a variant. `Source → XSLTFilter(xslt-syslog-v3)` is a
+document whose element chain starts at the implicit `Source` and ends before any writer or
+destination — at a parser or a filter. `Source → DSParser(tc-syslog)` is a variant. `Source → XSLTFilter(xslt-syslog-v3)` is a
 variant. `Source → DSParser(tc-syslog) → XSLTFilter(xslt-syslog-v3)` is also one. This single
 abstraction covers every case asked for: switching between JSON, XML and DS3 parsing is a stage whose
-candidates are fragments containing a `JSONParser`, an `XMLParser` or a `DSParser`; supervising XSLT
+variants are fragments containing a `JSONParser`, an `XMLParser` or a `DSParser`; supervising XSLT
 alone is a stage of single-filter fragments; combining the two is a stage whose fragments hold both.
 A variant is not a new document type — it is a `DocRef` to a Pipeline in the routing table.
 
-The first cut of the policy document encoded a variant as an ordered list of `(element type,
+The first cut of the Shapeshifter AI document encoded a variant as an ordered list of `(element type,
 configuration DocRef)` pairs. That is a poorer copy of `PipelineData`, which already expresses
 elements, their properties and the links between them, and which the supervisor was going to
 synthesise anyway. A fragment is strictly more expressive — several filters, element properties such
 as splitter options or XSLT parameters, a `RecordOutputFilter` to drop bad records — and it is
 something an operator can open in the pipeline editor, step, and diff against the variant it
 replaced. Its dependencies on the configuration documents it references are remapped on import by the
-pipeline store, so the policy depends only on its model and on fragments. `parentPipeline` gives a
+pipeline store, so the document depends only on its model and on fragments. `parentPipeline` gives a
 fragment a template to inherit from, so a structural change common to every variant of a stage is
 made once, in the template. The supervisor must reject a fragment that contains a destination.
 
@@ -192,18 +183,20 @@ referenced from the routing table by `DocRef`. This takes A10 to its conclusion 
 generic over every element, so A10's initial set becomes a statement about what the AI is asked to
 write rather than about what the routing table can hold.*
 
-**The supervisor element** is one new pipeline element, parameterised entirely by its policy. It
+**The supervisor element** is one new pipeline element, parameterised entirely by its Shapeshifter AI document. It
 takes its input, runs a variant as a nested sub-pipeline, captures the output, scores it, and decides
 what to do next. It builds the nested pipeline by merging the fragment's `PipelineData` with its own
 capture filter at the tail — the same substitution the stepper makes — and runs it inside a child task
 context, exactly as reference data loading already does.
 
-**The policy document** is the new Stroom document type (ruled A3). One policy describes one stage:
-its replay unit, its candidate pool and how to select from it, its scorers with their weights and
-thresholds, its AI instructions, its retry and budget limits, its redaction setting and its execution
-mode. Policies are ordinary content: permissioned, importable, exportable. Because a policy is
-referenced by a pipeline element property, the same policy can be shared by many pipelines, which is
-what the source design wanted its scoring-profile library for.
+**The Shapeshifter AI document** is the new Stroom document type (ruled A3). One document describes one stage:
+its learning key, its variants and how to select among them, its scorers with their weights and
+thresholds, its AI instructions, its candidate limit and budgets, its redaction setting, its
+execution mode and its promotion mode. These are ordinary content: permissioned, importable, exportable. Because a document is
+referenced by a pipeline element property, the same document can be shared by many pipelines, which is
+what the source design wanted its scoring-profile library for. The document holds configuration
+only: what the stage has learned, given up or is waiting on is runtime state and is never written to
+the document — §11.4 says where it lives.
 
 **The routing table** maps a selector to a variant. As first drawn, a selector was `(feed, stream
 type, record shape signature)` with wildcards, resolved most-specific-first. That uses two of the
@@ -211,8 +204,8 @@ stream's metadata fields and ignores the rest, and the rest is often the better 
 carries an attribute map — the receipt headers `Content-Type`, `Compression`, `System`,
 `Environment`, `File` and whatever else the sender set — that `stroom:meta()` already exposes to
 XSLT through `MetaDataHolder`. `Content-Type: application/json` names the parser outright, before
-a byte has been sniffed; a `System` header separates two senders sharing one feed. Content-derived
-shape is the fallback for when the sender said nothing.
+a byte has been sniffed; a `System` header separates two senders sharing one feed. The content-derived
+signature is the fallback field for when the sender said nothing.
 
 **Proposed ruling A22.** *A routing rule's selector is an `ExpressionOperator` over the stream's
 metadata — the `MetaFields` and the attribute map — with the record shape signature (§5) as one more
@@ -221,7 +214,7 @@ door. Rules are ordered, and order is specificity: the first rule whose expressi
 variant, exactly as `ReceiveDataRule` works, so no most-specific-first resolution has to be invented.
 Feed and stream type become expression terms rather than columns.*
 
-It lives inside the policy document, and §7 explains why that placement is what makes
+It lives inside the Shapeshifter AI document, and §7 explains why that placement is what makes
 reproducibility tractable. The shape remains the unit of learning, validation and quarantine (§5);
 A22 changes only how a selector is written, not what a shape is for. The routing-table editor, when
 it comes, is the receive-rules expression editor reused rather than a bespoke one.
@@ -230,29 +223,52 @@ Three decisions taken with A22 on 2026-09-16, each the option that keeps the tab
 
 - **No matching rule means an unknown shape, and the stage learns.** The table grows by learning;
   there is no catch-all to write and no dispatcher. A rule bound to nothing is a rule the operator
-  has reserved, not a fall-through.
-- **A learned rule's selector is exactly `Feed AND Type AND Shape Signature`** — the three terms the
-  variant was validated on under A14 and A15, and nothing wider. Adding the headers seen on the
-  learning stream would be narrower still but brittle: one sender omitting a header is a new shape
-  and a new call. Binding on shape alone would let a promotion on one feed apply to another that
-  §7.4 never validated. Operators widen a learned rule by hand.
-- **The shape question sees an allow-list of headers, not the attribute map.** `Format`, `Schema`,
-  `Compression`, `System`, `Environment` and `RemoteFile` say what the data is and where it came from;
-  sender-set headers are excluded because they carry hostnames, paths and tokens. Header values go
-  through the same A17 redaction as the sample. `RoutingRule.learnedSelector` and `Sample` carry
-  the first two of these; the third waits on redaction being built.
+  has reserved: when it is the first match the shape is given up by operator decision — no variant,
+  no attempt, a sentinel with reason *reserved* — not a fall-through (ruled 2026-09-17).
+- **A learned rule's selector is exactly the document's learning key, and nothing wider.** As first
+  decided the key was fixed at `Feed AND Type AND Shape Signature`. The owner ruled on 2026-09-17
+  that most bindings will switch on feed and type alone, and that which fields take part is the
+  document's to choose (A29): the learning key, defined in §5, defaults to `Feed AND Type`, with the
+  signature added where one feed carries several record kinds. The key is the terms the variant is validated on under A14
+  and A15, so it is what the learned rule binds on. Binding on fewer terms than the key would let a
+  promotion validated on one feed apply to another that §7.4 never saw; binding on more would be
+  brittle, since a sender omitting a header is then a new shape and a new call. Operators widen a
+  learned rule by hand.
+- **The chain question sees the learning key's values, not the attribute map.** Every field in the
+  key is shown to the model and bound in the rule — one list, ruled so on 2026-09-17, so what the
+  model was told and what the rule requires cannot drift apart. Attribute-map fields such as `Format`, `Schema`, `System` or
+  `Environment` say what the data is and where it came from and are the ones worth adding;
+  sender-set headers carry hostnames, paths and tokens and should not be chosen. Header values go
+  through the same A17 redaction as the sample. `RoutingRule.learnedSelector` currently hard-codes
+  the three original terms and `Sample` carries a fixed header list; both take the document's key
+  under A29, and redacting the values waits on redaction being built.
 
-The routing table has its editor: a Routing tab on the policy, built the same day, that is the
+The routing table has its editor: a Routing tab on the document, built the same day, that is the
 receive-rules screen re-pointed — an ordered grid (selector, fragment as an openable document link,
 score, promotion time, pin) with add/edit/copy/delete/move, and an edit dialog holding the standard
 expression editor over `RoutingFields` and the standard document picker. The picker cannot tell a
-fragment from a full pipeline, so the policy store refuses to save a rule whose pipeline, merged
+fragment from a full pipeline, so the Shapeshifter AI store refuses to save a rule whose pipeline, merged
 across its inheritance stack, contains a writer or destination, naming the element. The scorer set
 has the same treatment on a Scoring tab: one row per scorer with its weight, threshold, gate flag and
-parameters (§8.4), each scorer at most once. The rest of the policy is split by what it governs:
-Settings (replay unit, execution mode, AI mode), Learning (model, allowed elements, instructions,
-attempts, budgets, redaction) and Promotion (floor, held-out fraction, minimum records, regression
-set) — six tabs, plus Documentation and Permissions, each a plain form.
+parameters (§8.4), each scorer at most once. The rest of the document is split by what it governs:
+Settings (execution mode; learning mode, `AUTOMATIC` or `DISABLED`, the latter being the AI-off
+degradation §11 requires), Learning (model, learning key, relearn threshold, allowed elements,
+instructions, candidate limit, budgets, redaction) and Promotion (promotion mode (A25), floor,
+held-out fraction, minimum records, regression-stream cap and retention) — five tabs, plus
+Documentation and Permissions, each a plain form. Replay unit is not a setting: it is a property of
+the chosen fragment (§4). The document *stores* configuration only. The one piece of runtime state
+shown on it is the draft rules on the Routing tab, read from the A26 tables; error mode, attempts,
+dialogues and outcomes are viewed across every document in the Supervisor view of A28 (§11.6).
+
+**Five words, used strictly.** A *variant* is a pipeline fragment written for a stage (A20), whether
+or not a rule yet binds it. A *shape* is one value of the document's learning key (§5); the A21
+question that chooses an element chain is the *chain* question, not a shape question. An *attempt*
+is one learning episode for one shape — the A21 dialogue, made durable by A28 — and a *candidate* is
+one whole chain tried within it: re-asking a failing element yields a new candidate that keeps the
+elements that passed, so the candidate limit (`maxAttempts` as built) counts chains and the
+per-attempt budget bounds the whole attempt. Code still says `Attempted` and `Question.Shape` where
+it means a candidate and the chain question. A *sentinel* is the error-stream entry and ledger row
+written for a stream, or record range, of a shape the stage will not process (§5.1).
 
 **The scoring service** is an SPI with built-in scorers wrapping validators Stroom already has; §8.
 
@@ -279,8 +295,25 @@ Stages divide into two kinds:
 
 So the design does not need to buffer whole streams, and should not.
 
-**Ruling A1.** *Every stage declares its replay unit, `STREAM` or `RECORD`. A `RECORD` stage must be
-positioned after a parser, enforced at pipeline build time rather than discovered at run time.*
+**Ruling A1** (revised 2026-09-17)**.** *Every variant has a replay unit, `STREAM` or `RECORD`,
+derived from its fragment at build time — `STREAM` if the chain contains a parser, `RECORD`
+otherwise — not declared on the document, since under A21 the model chooses the chain per shape. The
+stage's position fixes which unit its variants may have — a stage fed by the source hosts `STREAM`
+variants, a stage fed by a parser hosts `RECORD` ones — and that is enforced at pipeline build time
+against the document's allowed-element list: a stage after a parser may not allow parsers, and a stage
+at the source must.*
+
+A1 declares what is *re-run*; it does not declare what is *scored*. Under A20 a single fragment may
+span both kinds — `Source → DSParser → XSLTFilter` replays the stream, because nothing upstream of
+the parser can be replayed by the record — and A21 scores after each element that has a scorer.
+Scoring granularity therefore follows the chain, not the replay unit: stream-level after a parser
+(compile, coverage, yield), per record after a filter (schema conformance, anti-degeneracy, business
+rules). Where the learning key includes the shape signature (A29), the signature is computed on the
+stage's *input*, because routing happens before any variant runs: the token-class skeleton of the
+raw line at a stage fed by the source, the element skeleton of the record at a stage fed by a parser. The sentinel of a given-up
+shape is per record range where a stream carries several shapes and per stream otherwise (§5.2), so
+a combined fragment can quarantine per record even though it replays per stream. Settled
+2026-09-17.
 
 ### 4.1 Extraction learns too, and needs a second signal
 
@@ -312,6 +345,24 @@ lean on worked examples — the corpus in §2.1 is exactly that — rather than 
 A record that has defeated the system must not defeat it again, at cost, every time a record of the
 same shape arrives in a later stream.
 
+**The learning key** is the ordered list of fields a document learns and binds on — `Feed AND Type` by default,
+any of the stream's metadata or attribute-map fields, and optionally the shape signature (A29, §3). A
+**shape**, everywhere this document uses the word, is one value of that key: with the default key a
+shape is a feed-and-type, and one feed carrying five kinds of record is one shape handled by one
+variant that must cope with all five. Adding the signature to the key is what makes those five
+shapes, and five variants, and the finer the key the more the machinery below has to do. The coarser
+the key, the more a bound rule must be watched, because a new kind of record inside a bound shape is
+not an unknown shape — it is a failing record under a rule that was working: its per-record scores
+feed a rolling score for the shape, and when that falls below the document's relearn threshold the
+shape is marked for relearning — the same trigger shape A23 uses for its review score, driven here
+by the deterministic scorers, with the rolling score a column on the shape row (A26). The failing
+record itself does not enter the loop and is not sentinelled: the fragment's `RecordOutputFilter`
+drops it into the error stream, as any bad record is dropped today, and it counts toward the rolling
+score. Only an unknown shape, or a bound shape marked for relearning, starts an attempt; while a
+relearn attempt runs the incumbent rule keeps serving, in both modes, and nothing is sentinelled.
+Ruled
+2026-09-17, with the relearn threshold a Learning setting on the document.
+
 **A shape signature** is a hash of a record's structure with its values removed. For a transformation
 stage it is the element and attribute skeleton — names and nesting, no text. For an extraction stage,
 operating on raw text, it is the token-class skeleton of a line: runs of digits, letters, punctuation
@@ -319,28 +370,29 @@ and whitespace reduced to classes, so two syslog lines differing only in hostnam
 a signature. Signatures are cheap, stable under value variation and sensitive to structural
 variation, which is the discrimination wanted. The exact normalisation is unsettled (A6).
 
-Shapes drive four things:
+Shapes — key values — drive four things:
 
-1. **Routing.** A variant can be bound to a shape, not just a feed or a header (A22). One feed
-   carrying five kinds of record is handled by five transforms without anyone writing a dispatcher.
+1. **Routing.** A rule binds a variant to a shape (A22). With the signature in the key, one feed
+   carrying five kinds of record is handled by five variants without anyone writing a dispatcher;
+   with the default key, by one.
 2. **Learning economy.** The AI is consulted about a *shape*, once, not about every record having it.
    The first record of a new shape may cost a call; the ten million after it cost nothing. This is
    how "minimal AI usage" is achieved rather than merely asserted.
 3. **Validation.** A shape is the unit over which the held-out split of §7.4 is taken.
-4. **Quarantine.** A shape that has exhausted its retry budget is recorded as given-up for that
-   `(feed, stage)`. Later records of that shape skip the loop and are emitted as sentinels without
-   consulting AI. The record is a ledger of inputs, not a store of records; §5.2 says why.
+4. **Quarantine.** A shape whose attempt was abandoned is recorded as given-up for that
+   `(doc, shape)`. Later streams of that shape skip the loop and are sentinelled without
+   consulting AI. What is recorded is a ledger of inputs, not a store of records; §5.2 says why.
 
 ### 5.1 Where the sentinel comes from
 
-The instruction suggested the final AI attempt should produce a transform emitting a `<BAD_RECORD>`
+The owner's original brief suggested the final AI candidate should produce a transform emitting a `<BAD_RECORD>`
 output. The instinct is right — the give-up outcome must be durable, surviving into future streams
 without re-deciding — but the mechanism should be inverted, for two reasons.
 
 **The sentinel must not depend on the AI.** If the give-up path is AI-authored, the one path that
 exists specifically to handle "the AI could not do this" is written by the thing that could not do
 it. A malformed give-up template is unfixable by the mechanism that produced it. The supervisor knows
-the record failed, its shape, the attempt count and the scoring detail, and can emit a sentinel
+the shape failed, the candidate count and the scoring detail, and can emit a sentinel
 deterministically and identically across every feed, stage and model.
 
 **The sentinel must not enter the main output.** A `<BAD_RECORD>` element is not valid against the
@@ -348,12 +400,16 @@ event schema — §8.2 shows how strict that schema is. Putting it in the main o
 downstream validator rejects the stream or validation is relaxed, and relaxing it to accommodate
 known-bad data destroys the signal everything else depends on.
 
-**Ruling A4.** *The supervisor emits the sentinel, not the AI. Quarantined and exhausted records fork
-to a separate quarantine branch carrying the raw record, its shape signature, every attempt's score,
-and the reason for give-up. The main branch receives only records that passed.*
+**Ruling A4** (restated 2026-09-17 with §5.2)**.** *The supervisor emits the sentinel, not the AI. A
+stream, or record range, of a given-up shape never enters the main output: the supervisor writes an
+`ERROR` to the error stream naming the shape, the attempt's candidate scores and the reason for
+give-up, and records the input in the ledger of §5.2. The main output receives only what passed.*
+
+Throughout this document a **sentinel** is that pair — the error-stream entry and the ledger row.
+It is not a record held anywhere; §5.2 says why nothing can be.
 
 This turns "flag for manual review" — a phrase in the source design with no mechanism behind it —
-into queryable data, and gives the dashboard its most useful view for free: the quarantine stream
+into queryable data, and gives the dashboard its most useful view for free: the ledger
 grouped by shape, ordered by how much data each shape is costing.
 
 ### 5.2 Leaving the quarantine
@@ -378,7 +434,7 @@ and pipeline deleted when a reprocess task runs, which is the idempotency the pa
 for, already built.
 
 So the quarantine is a **ledger**, not a store: which input streams, and which record ranges within
-them, were emitted as sentinels for which `(feed, stage, shape)`, and why. A stream of a given-up
+them, were emitted as sentinels for which `(doc, shape)`, and why. A stream of a given-up
 shape produces an error stream saying so — one `ERROR` per input stream, or per record range where
 the shape is one of several, naming the shape and the reason — and the ledger records it. A12's
 release is then the creation of a reprocess filter for the inputs the ledger names; Stroom does the
@@ -394,32 +450,51 @@ would not survive.
 
 ## 6. Inline and deferred learning
 
-An LLM call takes seconds to minutes, and the instruction places it inside a processing task, holding
+An LLM call takes seconds to minutes, and the owner's brief places it inside a processing task, holding
 a task slot and a volume handle while it waits. Stroom's AI service has no timeout beyond the model
 document's HTTP configuration (defaulting to ten minutes), no retry policy, no rate limiting and no
 concurrency ceiling. A feed producing unfamiliar records at volume would convert a processing queue
 into a queue blocked on an HTTP endpoint.
 
-The original draft ruled deferred learning the default on exactly that reasoning. **Ruling A13
-(on-premises hosting) weakens it.** With an OpenAI-compatible endpoint inside the deployment, the
-latency argument is much reduced, and inline learning — which fixes the current stream rather than
-the next one — becomes genuinely attractive.
+The original draft ruled deferred learning the default on exactly that reasoning, and a later
+revision made inline the default where the model was on-premises (A13), on the grounds that the
+latency argument is weaker there. Ruled 2026-09-17: the mode does not depend on where the model is.
+Latency is the operator's to judge per document, and where the data goes is A17's concern, not this
+section's.
 
 | | **Inline** | **Deferred** |
 |---|---|---|
-| On failure | Call AI, apply, rescore, loop to the retry limit, then emit | Quarantine, emit the sentinel, raise a learning request, continue |
+| On an unknown shape | Try the existing bindings (below); if none fits, run the attempt in the task: call AI, apply, rescore, loop to the candidate limit, then emit | Try the existing bindings (below); if none fits, sentinel the stream, record an attempt in `AWAITING_MODEL` (A28), continue |
 | Latency impact | Task blocks for the loop | None |
 | When a fix takes effect | Immediately, for the current stream | For later streams; quarantined data reprocessed per A12 |
-| Correct for | On-premises model, backfills, onboarding, moderate volume | Hosted endpoints, high volume, any model outside the deployment |
+| Correct for | Backfills, onboarding, moderate volume, a fast endpoint | High volume, a slow or shared endpoint |
 
-**Ruling A5 (revised, and owed confirmation).** *Inline is permitted as the default **only** where the
-configured model is on-premises and the stage carries a wall-clock budget for the whole loop. Any
-stage pointing at an endpoint outside the deployment is deferred, without exception. The budget is
-mandatory in both modes: exceeding it quarantines the record and converts the remaining attempts into
-a deferred learning request, so the loop degrades rather than blocks.*
+**Ruling A5.** *Execution mode is a document setting, `INLINE` or `DEFERRED`, deferred by default. Every
+attempt carries a wall-clock and token budget for the whole dialogue, mandatory in both modes: an
+inline attempt that exceeds it sentinels the stream and continues as a deferred attempt, so the loop
+degrades rather than blocks. Nothing in the mode depends on the model's location.*
 
-This revision follows from A13, which was ruled after the original deferred-by-default position was
-written. It should be confirmed rather than assumed.
+**Before any call, the existing bindings are tried.** A new shape is new to the routing table, not
+necessarily to the variants already in it: a splitter written for one syslog shape will often consume
+its neighbour. So the first step for an unknown shape costs no model call, in both modes: each variant the
+document's table binds for the same feed and type — not the whole table — is run over the records of
+the shape, and one that clears the floor
+(A15) handles the current stream and is written to the table as a *provisional* rule — the document's
+learning key, per §3 — with the bindings of §7.3 rule 3 recording it as such. Held-out validation (A14)
+is satisfied by construction, because no model was shown these records for this variant; the rule
+promotes as soon as the shape has the minimum records the document asks for, and the regression stream
+(A18) is appended then. Only when no bound variant clears the floor does the stage ask the model, and a fresh candidate
+that clears the floor is treated the same way: it handles the current stream and is bound as a
+provisional rule. The difference is that the model *was* shown these records, so A14 is not yet met
+and cannot be until later records of the shape arrive; the candidate waits on them to promote, and
+until then every stream it produces carries a provisional binding. A shape that never reaches the
+minimum stays provisional: the Supervisor view lists provisional rules by age and records seen, and
+a person may approve one (ruled 2026-09-17). That is output from a variant
+tuned to exactly the records it was shown, caught by A14 and A18 later rather than now — accepted
+2026-09-17 as the price of inline learning fixing the first stream at all. A provisional rule that
+then fails the gate is retracted: the shape returns to unknown, and the streams that carry the
+retracted binding are reprocessed as-current (§7.3) — the release A12 performs on promotion, applied
+on retraction.
 
 ---
 
@@ -448,17 +523,21 @@ Stroom real history, diff and revert. This is the most valuable item on the list
 worth existing — but it is a change to Stroom's content foundations, it benefits far more than this
 feature, and making this design depend on it would make this design hostage to it (A7).
 
-**Branch the pipeline.** Give each variant its own pipeline document and route streams to pipelines.
-Coherent, and what the question anticipated. Rejected because what varies is not the pipeline's
-*structure* — the element graph is identical across variants — but which configuration document one
-element resolves. Branching pipelines to express that multiplies the structural definition by the
-number of behavioural variants, so every genuine structural change must then be applied N times.
-Stroom's own `xsltNamePattern` makes the opposite choice, varying the document and not the pipeline,
-and makes it correctly. This rejection stands for the *production* pipeline, which stays single and
-holds the supervisor element. A20 branches only the supervised segment, as a fragment, and the
-fragment's `parentPipeline` is what keeps a common structural change to one edit.
+**Branch the whole pipeline.** Give each variant its own complete pipeline document — source to
+destination — and route streams to pipelines. Coherent, and what the question anticipated. Rejected
+because everything outside the supervised segment — the source, the destinations, the elements before
+and after the stage — is identical across variants, and branching the whole pipeline copies all of it
+per variant, so every genuine change to the common part must then be applied N times. Stroom's own
+`xsltNamePattern` makes the narrower choice, varying only what differs, and makes it correctly. What
+*does* differ between variants is the supervised segment itself: under A21 the chain question may
+choose a different element chain, not merely a different document, so a variant is more than a
+document reference. A20 therefore branches exactly that segment, as a fragment, and no more: the
+production pipeline stays single and holds the supervisor element, and a fragment's `parentPipeline`
+keeps a structural change common to every variant of a stage to one edit.
 
 ### 7.3 The model
+
+*Ruled A2.*
 
 Three rules, and one does all the work.
 
@@ -469,10 +548,13 @@ Three rules, and one does all the work.
    but it can give us document X3, and for this purpose they are the same thing.
 2. **The routing table is the only mutable part.** Improvement is expressed by rebinding a selector
    to a newer variant, never by editing content. The routing table is small, is a single document,
-   and is the natural home for effective-dating, score history and pinning.
+   and is the natural home for score history and for *pinning*: a pinned rule is exempt from automatic
+   rebinding and retraction, so an operator can freeze a binding they trust; a person's retract in the
+   Supervisor view refuses a pinned rule until it is unpinned.
 3. **Every output stream records the bindings that produced it** — the selector that matched, the
    fragment's `DocRef` and `version` UUID and those of every configuration document it references,
-   the policy and its version, the scores and the attempt count — in the output stream's metadata.
+   the document and its version, the scores, the candidate count and whether the binding was
+   provisional — in the output stream's metadata.
 
 Reprocessing then becomes a choice rather than an accident:
 
@@ -492,7 +574,8 @@ way, which is defensible but transfers the entire burden of safety onto what "im
 conditions, all required:
 
 1. **Held-out validation (A14).** The score that decides promotion is measured on records of the
-   shape that the model **was not shown**. Without this, the cheapest way to satisfy any scorer is a
+   shape that the model **was not shown**. Until it can be, a variant that cleared the floor runs
+   under a *provisional* binding (§6), and provisional output is marked as such in its bindings. Without this, the cheapest way to satisfy any scorer is a
    transform that handles exactly the examples in the prompt, and a gradient-following process will
    find it. Where a shape has too few records to split, promotion waits for more rather than
    proceeding on the training set.
@@ -500,48 +583,52 @@ conditions, all required:
    incumbent. Without it a feed that starts badly ratchets upward forever without becoming correct.
 3. **No regression (A15).** The candidate must not score worse than the incumbent on the same
    held-out records. Without it an "improvement" can silently downgrade a feed that was already good.
+   Where the shape has no incumbent this condition is vacuous and conditions 2 and 5 carry the weight.
 4. **Anti-degeneracy (A16).** The candidate must not have gamed the schema; §8.3. This is a
    promotion condition and not merely a scorer, because the degenerate output is *schema-valid* and
    would otherwise pass every other test here.
 5. **Cumulative regression (A18).** The candidate must not score lower than the recorded score on
-   any input the selector has previously been promoted against. Condition 3 compares against the
-   incumbent on *today's* held-out sample only, so a candidate that fixes shape X can silently break
-   shape Y that was fixed three promotions ago and is absent from the current sample. This condition
-   closes that gap by making the regression check cumulative over the selector's whole history.
+   any input the rule has previously been promoted against. Condition 3 compares against the
+   incumbent on *today's* held-out sample only, so a candidate that fixes one kind of record can silently break
+   another that was fixed three promotions ago and is absent from the current sample. This condition
+   closes that gap by making the regression check cumulative over the rule's whole history.
 
 **The regression set.** Every promotion appends the records it was validated on — input, the
 promoted variant's output, the per-record scores, and the bindings — to a **regression stream** for
-the selector, capped per shape. Three properties are deliberate:
+the rule — keyed on the rule's `uuid` (A26), so a rule an operator widens keeps its history — capped
+in records. Three properties are deliberate:
 
 - *Score-not-lower, not byte-equal.* The stored output cleared the floor; it is not a golden. A
   better variant will legitimately produce *different* output, so a byte diff against it is the wrong
   test. The candidate is re-scored on the stored inputs and must not fall below the stored score; the
   diff is kept as an informational signal, not a gate.
-- *A stream, not part of the policy document.* A stream per selector gets retention, permissions and
-  search for free and keeps the policy document small. It is also the natural mirror of the
-  quarantine stream in §5: quarantine records what the selector cannot yet do, the regression stream
-  records what it must keep doing.
+- *A stream, not part of the Shapeshifter AI document.* A stream per rule gets retention, permissions and
+  search for free and keeps the Shapeshifter AI document small. It is also the natural mirror of the
+  ledger in §5: the ledger records what the rule cannot yet do, the regression stream records what
+  it must keep doing.
 - *It is the harness of §9, made permanent.* The regression set has exactly the `(input, expected
   output)` shape of `TestDS3` and `TranslationTest`, so the same inverted-corpus harness runs it, and
   the corpus of accepted behaviour grows with every promotion rather than being fixed at whatever the
   repository shipped with.
 
-**Ruling A18.** *Every promotion appends its validation records to a per-selector regression stream.
+**Ruling A18.** *Every promotion appends its validation records to a per-rule regression stream.
 A candidate is promoted only if its score on the full regression stream is not lower than the
-recorded score for any record in it. The stream is capped per shape and carries the feed's data
-classification; its retention is a policy setting, not the source stream's.*
+recorded score for any record in it. The stream is capped in records and carries the feed's data
+classification; its retention is a document setting (`regressionRetentionDays`), capped by the source
+feed's retention so the copy never outlives the data it was taken from — settled 2026-09-17.*
 
-Because no human sees the change, the circuit breaker in §11 is not prudence but the control itself:
+Because in automatic mode no human sees the change (in review mode the gate's promotion becomes a
+draft, A25), the circuit breaker in §11 is not prudence but the control itself:
 consecutive-failure detection, score-regression rejection, rate limiting, spend limiting, and a
 global off switch. Every promotion is an audited event recording the before and after documents, the
 held-out scores and the model that produced it.
 
 ### 7.5 The cost, stated honestly
 
-Append-only produces a lot of documents: a feed with thirty shapes each improved four times is a
-hundred and twenty XSLT documents and, under A20, as many fragments, and the explorer is not designed
+Append-only produces a lot of documents: a signature-keyed feed with thirty shapes each improved four
+times is a hundred and twenty XSLT documents and, under A20, as many fragments, and the explorer is not designed
 for that. Mitigations: variants
-live in a dedicated folder per feed, hidden from the default explorer view, and the routing table is
+live in a dedicated folder per document, hidden from the default explorer view, and the routing table is
 the UI through which they are actually browsed. This is real work, but it is bounded and
 presentational, where the alternatives are architectural.
 
@@ -551,10 +638,10 @@ presentational, where the alternatives are architectural.
 
 The source design lists five scoring factors. All map onto machinery that exists; the contribution
 here is to run them in a harness that *collects* judgements instead of failing the stream, and to add
-two the source design lacks — one because extraction now learns (A11), and one because the event
-schema turns out to be gameable.
+three the source design lacks — one because extraction now learns (A11), one because the event
+schema turns out to be gameable (A16), and one advisory judge of faithfulness (A23).
 
-### 8.1 The compile gate is attempt zero
+### 8.1 The compile gate comes first
 
 Before a candidate runs it must compile: Saxon must accept the XSLT, and a DS3 configuration must
 pass the `data-splitter-v3.0` schema that `DS3ParserFactory` already validates against — the
@@ -566,7 +653,7 @@ merely that something is.
 
 ### 8.2 The schema is a strong signal
 
-Checked against `event-logging-v3.0.0.xsd`: 3,178 lines, 195 complex types, 128 enumerations.
+Checked against `event-logging-v3.0.0.xsd`: 3,178 lines, 98 complex types, 128 enumerations.
 Effectively everything is `xs:sequence`, so **element order is enforced**. There is exactly one
 wildcard in the whole schema and it is not reachable from the mandatory event skeleton. Datetimes are
 pattern-constrained to millisecond precision with a trailing `Z`; MAC addresses, IP addresses, ports
@@ -605,17 +692,17 @@ is what an optimising process finds first — and under A9 a variant that scores
 no human looking at it. The source design's scoring model, which treats schema conformance as the
 principal signal, would walk directly into it.
 
-**Ruling A16.** *Schema conformance is a gate, not a maximand. A separate extraction-quality scorer
+**Proposed ruling A16.** *Schema conformance is a gate, not a maximand. A separate extraction-quality scorer
 measures how much of the output is typed: the ratio of schema-named elements to `Data` elements, the
 proportion of records whose `EventDetail` names a real branch rather than `Unknown`, and coverage of
-the fields the policy declares required. `Unknown` is permitted only where the policy explicitly
+the fields the document declares required. `Unknown` is permitted only where the document explicitly
 allows it, and never counts toward a passing score. A candidate failing this check cannot be
 promoted regardless of its schema score.*
 
-The schema's own annotations are a useful source of the policy's required-field list — it states, for
+The schema's own annotations are a useful source of the document's required-field list — it states, for
 instance, that all interactive events must provide the user's Id, a rule the XSD itself does not
 enforce because `User` is optional everywhere. Statements like that should be lifted into both the
-required-field policy and the model prompt.
+required-field list and the model prompt.
 
 ### 8.4 The scorer set
 
@@ -631,20 +718,20 @@ required-field policy and the model prompt.
 | Event classification | Records assigned a recognised type, and the distribution | XPath over the captured tree |
 | AI review *(advisory)* | Does this output faithfully represent this input, judged by a model on a sample of single records | `stroom-ai`; see A23 |
 
-Scores are recorded per record; the stream figure is derived, never primary. `FullPipelineTest`
+Scores are recorded per record; the stream figure is derived, never primary. `FullPipelineTest` (in the engine checkout)
 already demonstrates this shape working — 200 records of which 59 are deliberately invalid, counted
 by severity with the bad ones dropped by the record output filter.
 
-Each scorer a policy applies carries a weight, a threshold and a gate flag, and the parameters its
-signal needs, which the policy document holds as one class per scorer (`ScorerParameters`, built
-2026-09-16 with its editor on the policy's Scoring tab):
+Each scorer a document applies carries a weight, a threshold and a gate flag, and the parameters its
+signal needs, which the Shapeshifter AI document holds as one class per scorer (`ScorerParameters`, built
+2026-09-16 with its editor on the document's Scoring tab):
 
 | Scorer | Parameters |
 |---|---|
 | Compile, Input coverage | none |
 | Yield | expected ratio; basis — input records, lines or bytes |
 | Schema conformance | schema group, `EVENTS` by default |
-| Extraction quality | whether `Unknown` is tolerated; the required-field XPaths (both moved here from the policy's general settings, where the first cut had put them) |
+| Extraction quality | whether `Unknown` is tolerated; the required-field XPaths (both moved here from the document's general settings, where the first cut had put them) |
 | Business rules | named XPath assertions; whether the transform's own `xsl:message` warnings count as failed rules |
 | Error load | the severity counted from, `ERROR` by default |
 | Event classification | the recognised `TypeId` values; empty means anything but `Unknown` |
@@ -656,8 +743,9 @@ signal the deterministic scorers cannot see: a datetime mapped to the wrong fiel
 a logoff. It is advisory and a trigger, never a gate: a model judging a model's output can be wrong
 in the same direction as the transform it judges, so the anti-degeneracy scorer of A16 remains the
 safety mechanism. When a shape's rolling review score falls below the scorer's threshold the shape is
-marked for relearning, and the judge's critique is the feedback of the next attempt — a fourth
-question of the A21 dialogue, `Critique`, which a scripted model answers like any other. Its
+marked for relearning, and the judge's critique is the feedback of the next candidate — a third
+kind of question in the A21 dialogue, `Critique`, beside Chain and Configuration, which a scripted
+model answers like any other. Its
 findings are written as an audit stream. It is budgeted per hour, separately from learning's
 per-attempt budgets, so that honesty-checking and learning cannot starve each other.*
 
@@ -689,7 +777,7 @@ This yields three things that are otherwise guesswork:
    confirm the scorer set rejects it. If the anti-degeneracy scorer cannot catch a deliberately
    degenerate transform, it will not catch an accidentally degenerate one.
 
-A fourth use is negative and equally valuable: the corpus's four `_FAIL` cases, plus the `.messages`
+A fourth use is negative and equally valuable: the corpus's three `_FAIL` cases, plus the `.messages`
 files in the shapeshifter fixtures, give real diagnostic text for the feedback loop, so the prompt's
 error-reporting format can be designed against real messages rather than imagined ones.
 
@@ -702,7 +790,7 @@ The extraction half of this section exists, in `stroom-shapeshifter-ai`, and was
 2026-09-16. The transformation half waits on the `TranslationTest` stack and the event-logging content
 pack and is not started.
 
-**What was built.** Three main-source pieces, each the smallest thing the design names:
+**What was built.** At first run, three main-source pieces, each the smallest thing the design names:
 `DataSplitterCompiler` is the compile gate of §8.1 — configuration text in, a runnable parser or the
 diagnostics out, nothing persisted on the way; `DataSplitterRunner` is the extraction replay unit of §4,
 running a compiled configuration over one input and capturing the records document, the input span of
@@ -712,11 +800,13 @@ refused. The test sources hold the corpus loader, an in-memory schema store stan
 (the Data Splitter schema arrives from the `core-xml-schemas` pack, as §2.1 said it must), and four
 evaluations: calibration, the compile gate on model-shaped mistakes, the degeneracy probe, and the
 inversion itself. The inversion runs only when `SHAPESHIFTER_AI_BASE_URL` and `SHAPESHIFTER_AI_MODEL`
-name an OpenAI-compatible endpoint, and has not yet been run against one. The scorer SPI of §3 is not
-built; the measurements it will wrap are.
+name an OpenAI-compatible endpoint, and has not yet been run against one. The scorer SPI of §3 was built the
+next day — `Scorer`, `Scorecard`, `Verdict`, with compile, coverage and yield scorers — as were
+`Stage`, `Router`, `Quarantine`, `RegressionSet`, `ShapeSignature` and `FragmentRunner` behind it;
+§12 marks what remains.
 
 **Calibration held.** All sixteen golden configurations compile, reproduce their expected output
-byte-for-byte and raise no diagnostic; all four failing cases are rejected at compile or raise errors
+byte-for-byte and raise no diagnostic; all three failing cases are rejected at compile or raise errors
 when run. Coverage for the goldens:
 
 | Case | Records | Char coverage | Line coverage | Why not 1.0 |
@@ -730,7 +820,7 @@ when run. Coverage for the goldens:
 Two things follow. Coverage as measured is *record* coverage: text a configuration consumes into a `var`
 and uses later reads as uncovered, which is wrong in principle and, on a real feed where the header is
 one line in thousands, negligible in practice — but it means the coverage floor cannot sit near 1.0,
-and case 019 shows why a floor is a policy number and not a constant. And the `ignoreErrors` goldens
+and case 019 shows why a floor is a setting on the document and not a constant. And the `ignoreErrors` goldens
 score low *correctly*: a known-good configuration that discards a third of its input is, for A11's
 purposes, a third-failure, and the calibration expectation for coverage is "at the top for the input's
 matchable content", not "at the top".
@@ -749,7 +839,7 @@ records and full coverage — two hand-written degenerate configurations:
 So `ignoreErrors` is the single lever by which a generated splitter silences both guards, and it has no
 legitimate use in a configuration that is supposed to consume its input.
 
-**Ruling A19 (proposed).** *A generated extraction configuration may not set `ignoreErrors`. Its
+**Proposed ruling A19.** *A generated extraction configuration may not set `ignoreErrors`. Its
 presence rejects the candidate at the compile gate, before it runs. The prompt says so as well, but the
 gate is what enforces it.*
 
@@ -759,7 +849,7 @@ namespace URI='data-splitter:3': file://data-splitter-v3.0.xsd"*; a schema viola
 *"Attribute 'delimiter' must appear on element 'split'"*; an unclosed element with the parser's own
 message. All three are usable as feedback unmodified, as §8.2 found for the event schema. The
 schemaLocation requirement is not obvious and belongs in the prompt (§10), since a model that omits it
-burns an attempt learning it.
+burns a candidate learning it.
 
 **One implementation note that will recur.** Schema validation behind the Data Splitter reports through
 a pipeline-scoped `ErrorReceiverProxy`, not through the error handler handed to `configure`. Without
@@ -781,10 +871,10 @@ What is missing matters, and this design must supply it:
 
 | Gap | Consequence here | Required |
 |---|---|---|
-| No structured or JSON output; `chat` returns free text | The response must be parsed to recover a configuration | Extract from a fenced code block with a strict grammar; refuse anything ambiguous. Extraction failure is a failed attempt with feedback, not an error. |
-| `chat(model, systemPrompt, message)` is one-shot; there is no message history | An attempt is a dialogue (A21), and every turn after the first needs the turns before it | Add a multi-turn call taking the transcript. `getChatModel()` already exposes langchain4j's `ChatModel`, which takes a message list, so this is a thin addition; the `AiChat`/`AiChatMessage` store can hold the transcript for audit. |
-| No retry on transient failure | A dropped connection burns an improvement attempt | Separate *transport* retries from *improvement* attempts. A 503 is not a failed attempt. |
-| No rate limiting or concurrency ceiling | A bad feed at volume becomes unbounded spend | Per-feed and global token and call budgets, enforced before the call. |
+| No structured or JSON output; `chat` returns free text | The response must be parsed to recover a configuration | Extract from a fenced code block with a strict grammar; refuse anything ambiguous. Extraction failure is a failed candidate with feedback, not an error. |
+| `chat(model, systemPrompt, message)` is one-shot; there is no message history | An attempt is a dialogue (A21), and every turn after the first needs the turns before it | Add a multi-turn call taking the transcript. `getChatModel()` already exposes langchain4j's `ChatModel`, which takes a message list, so this is a thin addition. The transcript itself lives in the attempt tables of A28, not in the `AiChat`/`AiChatMessage` store, which is a chat feature and too thin for typed questions with runs and scores attached; `stroom-ai` logs each raw exchange for audit and nothing more. |
+| No retry on transient failure | A dropped connection burns a candidate | Separate *transport* retries from *candidates*. A 503 is not a failed candidate. |
+| No rate limiting or concurrency ceiling | A bad feed at volume becomes unbounded spend | Per-document and global token and call budgets, enforced before the call. |
 | No token or cost accounting | No way to see or cap spend | Read `tokenUsage()` and record per feed, stage and shape. |
 | `chat()` emits no audit event — only REST callers are logged | AI-authored changes to a security product's transforms would be untraceable | Log every invocation through `DocumentEventLog` with the prompt, model, target document and outcome. Non-negotiable, and doubly so under A9. |
 | Response cache keyed on `(modelUuid, systemPrompt, message)` | **A retry with an unchanged prompt returns the cached failure** | Bypass the cache explicitly on retries rather than relying on the prompt having varied. |
@@ -792,11 +882,12 @@ What is missing matters, and this design must supply it:
 **The prompt contract.** An attempt is not one request but a **dialogue of typed questions, asked
 in chain order, each answered by running the fragment as far as it has been built**:
 
-1. **Shape.** Given the redacted sample (A17), the stream's metadata (A22 — `Content-Type` and its
-   kin answer half of this question before the sample is read) and the policy's allowed elements,
+1. **Chain.** Given the redacted sample (A17), the values of the learning key (A29 — where the key
+   includes a `Format` or `Schema` header it answers half of this question before the sample is
+   read) and the document's allowed elements,
    which chain of elements fits? The answer is drawn from a vocabulary of element type names and
    nothing else, so it is validated by lookup, and the supervisor builds the fragment skeleton from it
-   (A20). The model never writes pipeline structure. When the policy allows exactly one element the
+   (A20). The model never writes pipeline structure. When the document allows exactly one element the
    question is not asked — a single-purpose stage costs no extra call.
 2. **Configuration, one element at a time.** For each element in the chain that takes a document,
    ask for that document, then **run the fragment up to and including that element** before asking
@@ -811,27 +902,30 @@ in chain order, each answered by running the fragment as far as it has been buil
    passed. Retrying the whole chain for a fault in its last element wastes the budget and, worse,
    re-rolls the part that worked.
 
-Every question carries the stage's objective and policy instructions; the sample; the transcript of
+Every question carries the stage's objective and the document's instructions; the sample; the transcript of
 the attempt so far; the current document for that step, if any, with the output it produced, the
 scores with the specific failures that lost marks, and compiler diagnostics if it did not compile.
 For transformation, it also carries the schema's named failure modes (§8.2) and the required-field
 list (§8.3). For extraction, it carries the mandatory `xsi:schemaLocation` and the `ignoreErrors`
 prohibition, both of which §9.1 found the compile gate enforcing. The response to a configuration
-question must be a single document of the declared type and nothing else. Prior attempts and their
-failures accumulate across the loop — without that, the second attempt commonly repeats the first.
-The attempt's wall-clock and token budgets (A5, §3) bound the whole dialogue, not each question.
+question must be a single document of the declared type and nothing else. Prior candidates and their
+failures accumulate across the attempt — without that, the second candidate commonly repeats the
+first. The attempt's wall-clock and token budgets (A5) bound the whole dialogue, not each question
+or candidate.
 
 Running a prefix of the chain is the headless harness of §12 item 2 invoked on a partial fragment; it
 is not additional machinery, but it is a requirement the harness must be built to.
 
-**Proposed ruling A21.** *An attempt is a dialogue: a shape question, then one configuration question
+**Proposed ruling A21.** *An attempt is a dialogue: a chain question, then one configuration question
 per document-bearing element in chain order, each asked with the real output of the elements before
-it, with feedback returned to the step that failed. The policy carries the allowed-element list from
-which the shape is chosen; A10's initial set is its default. Depends on A20.*
+it, with feedback returned to the step that failed; a `Critique` question where A23 has one to
+offer; and a closing promotion turn, answered by the §7.4 gate — *provisional* where A14 cannot yet be
+met (§6) — or, in review mode, by a person (A25, A28). The document carries the allowed-element list from which the chain is chosen; A10's initial set
+is its default. Depends on A20.*
 
 The dialogue was built on 2026-09-16 as `Dialogue` in `stroom.shapeshifter.ai.learning`, behind an
-`Advisor` seam that a node will implement over `stroom-ai` and that `TestDialogue` implements with
-canned replies. Against the corpus's CSV case it settles the shape, asks for the splitter, runs it, asks
+`Advisor` seam that a node will implement over `stroom-ai` and that `CannedAdvisor` implements for
+`TestDialogue`. Against the corpus's CSV case it settles the chain, asks for the splitter, runs it, asks
 for the stylesheet with the real `records:2` output, runs that, and hands a chain to `FragmentWriter`,
 which writes the two configuration documents and the fragment into real stores. The step runners drive
 the Data Splitter and Saxon directly; the fragment is not yet run through `PipelineFactory`, which is
@@ -839,12 +933,24 @@ the Data Splitter and Saxon directly; the fragment is not yet run through `Pipel
 (§7.5), so that learned content has a node in the tree and the folder's permissions; a document
 created straight through its store would have neither.
 
+**The dialogue is resumable, and that is what makes it supervisable.** As built, `Dialogue` runs to
+completion in one call. A28 makes an attempt a persisted state machine instead: it stops at each
+question, the attempt and its turns so far are rows (A26's module), and it continues when the next
+answer arrives — from the model, driven by a job, or from a person. The `Advisor` seam already
+abstracts who answers; A28 adds that the answerer may change between turns, and that any turn's
+answer may be replaced and the dialogue re-run from there. Inline mode is the state machine driven
+synchronously within the task to its end; deferred mode is the same machine left at its first
+question for the job to pick up; review mode is the same machine whose promotion turn is answered
+by a person rather than by the §7.4 gate alone.
+
 ---
 
-## 11. Safety
+## 11. Safety and runtime state
 
 Three risks absent from the source design, all consequences of putting AI inside a security-audit
 product rather than a general data tool.
+
+### 11.1 Three risks, and the controls
 
 **AI-authored XSLT is executable code.** It runs inside Stroom with the full `stroom:` extension
 function library: reference data lookup, `http-call`, `fetch-json`, and `ask-ai` itself. An XSLT is
@@ -858,75 +964,82 @@ platform ingesting logs whose contents are an organisation's most sensitive mate
 whether the feature can be switched on at all.
 
 **Ruling A17.** *Samples are value-redacted by default — reduced to token classes — with raw samples
-permitted only by explicit per-feed override. The model needs shape far more than it needs values.
+permitted only by explicit per-document override. The model needs shape far more than it needs values.
 Samples are size-capped in all cases. Combined with A13, the default posture is redacted data to an
-in-deployment endpoint; the per-feed override exists for the cases where literal values carry the
+in-deployment endpoint; the override exists for the cases where literal values carry the
 parsing clue, such as delimiters, keywords and field markers.*
 
 A17 governs what reaches the *model*. The regression stream of A18 is a separate exposure: it is a
 persistent copy of real, unredacted log samples living outside the source stream's lifecycle, because
-a regression set of redacted inputs would test nothing. It therefore needs its own retention rule and
-inherits the feed's classification; deleting or shortening a feed's retention must reach its
-regression streams too, or the feature quietly becomes a place where data outlives its policy.
+a regression set of redacted inputs would test nothing. It therefore inherits the feed's
+classification and has its own retention — a document setting capped by the source feed's retention
+(A18) — so that shortening a feed's retention shortens its regression streams too and the feature
+never becomes a place where data outlives its policy.
 
-AI must be **opt-in per feed**, never globally on, and the system must remain usable with AI disabled
-entirely — in which case it degrades to automatic variant *selection* and scoring, which is
-independently worth having and is the mode in which the source design's "manual fallback" principle
-is honoured.
+Shapeshifter AI must be **opt-in**, never globally on, and the unit of opt-in is the document: a supervisor element
+names one document, every rule the stage learns is written into that document's routing table under
+its learning key (§3), and the document's learning mode, promotion mode (A25) and budgets
+govern every feed that reaches it. There is no separate setting for new shapes — a new shape is what
+the document's Learning and Promotion settings *are* for — and no global one. A feed that wants
+different treatment goes through a pipeline whose supervisor references a different Shapeshifter AI document;
+documents are cheap and sharable, so that is one document, not a matrix of per-feed overrides. The
+system must remain usable with Shapeshifter AI's model calls disabled (`LearningMode.DISABLED`) — in which case it degrades
+to automatic variant *selection* and scoring: the bound-variant trial of §6 still runs, a variant that
+clears the floor is still bound provisionally and still promotes through the gate, and only the model
+is never asked. That is independently worth having and is the mode in which the source design's
+"manual fallback" principle is honoured.
 
 **Concurrent learning about the same shape.** Several nodes will meet the same unfamiliar shape
 simultaneously, and without coordination each calls the model and each creates a variant. A lease per
-`(feed, stage, shape)` is required before a learning request is actioned; losers wait for the
-winner's outcome.
+`(doc, shape)` is required before an attempt is started; losers wait for the winner's outcome.
 
 The circuit breaker is kept as the source design specifies — consecutive-failure detection,
-score-regression rejection, per-feed rate limiting, global off switch — with a **spend** breaker
+score-regression rejection, per-document rate limiting, global off switch — with a **spend** breaker
 added, since cost is not otherwise visible and a feed quietly burning budget produces no other
 symptom. Under A9 these are the only thing standing between a generated transform and production.
 
-**Perpetual failure.** The quarantine of §5 handles failure per *shape*: a sentinel goes out, the
-rest of the stream flows. It does not handle the stage failing wholesale — every shape new, every
+### 11.2 Error mode
+
+**Perpetual failure.** The quarantine of §5 handles failure per *shape*: a sentinel goes out and,
+where the key includes the signature, the rest of the stream flows. It does not handle the stage failing wholesale — every shape new, every
 attempt abandoned, every stream burning model calls — and nothing upstream can be told to stop:
 the processor keeps handing streams over, and disabling its filter from inside a pipeline element
 is the wrong lever. What the breaker's open state should do is what a pipeline already does when a
 stream cannot be processed: write a fatal error stream and move on.
 
-**Proposed ruling A24.** *The circuit breaker's open state is an* error mode *per (policy, feed),
-entered when a streak of given-up shapes or abandoned attempts crosses a policy threshold, or the
+**Proposed ruling A24.** *The circuit breaker's open state is an* error mode *per (doc, feed),
+entered when a streak of abandoned attempts or sentinelled streams crosses a document threshold, or the
 spend breaker trips. While it is open the supervisor does no routing, learning or fragment runs; it
 writes a fatal error stream for each input stream, naming the reason, and returns. Error mode sits
 above the per-shape sentinel, which continues to serve shapes that fail alone. It is left by an
-operator's reset from the policy's Status panel, which shows which feeds are in error mode and why;
+operator's reset from the Supervisor view (A28), whose per-document status strip shows which feeds are
+in error mode and why;
 optionally, after a configured period, one stream is processed normally and its success closes the
-breaker while its failure re-opens it. The state is cluster state, not the document, as §3 says of
-all runtime state.*
+breaker while its failure re-opens it. The state is a row in `shapeshifter_feed_state` (A26), not the document, as §3 says of all
+runtime state.*
 
-**The lever that makes waiting free: the processor waits.** Both A24 and A25 accept that nothing
-upstream can be told to stop, and pay for it in error streams and reprocessing. That is not quite
-true, and the price is higher than it looks: error mode as A24 describes it stops the *model* being
-called, but every stream still costs a task, a run to the short-circuit and an error stream written
-to disk, and review mode costs the same for a feed that is perfectly healthy, for every stream, until
-a person clicks Approve. Task creation
-already waits on *feed dependencies*: `ProcessorTaskCreatorImpl.getMaxMetaId` computes the highest
-stream id a filter may create tasks up to from its `QueryData.feedDependencies`, and an empty answer
-means "nothing yet". A **dependency on the AI transform policy document** would be a second
-condition in the same place: a filter names the policy it depends on, as it names the feeds it
-depends on, and creates no tasks while the policy's *recorded state* — what the A26 tables say of
-it — is `AWAITING_REVIEW` or `ERROR`. It is the document's state that gates, not a feed's: the same
-state the policy's Status panel shows, read from the same rows. Streams accumulate at the tracker,
-nothing is written, nothing is reprocessed; an approval or a reset clears the state and task
-creation resumes from where it stopped. This is cleaner than errors and a ledger for everything the
-gate can see, and the ledger remains for what it cannot — a single unknown shape inside a stream
-the filter has already released.
+### 11.3 Human review
 
-**Proposed ruling A27.** *A processor filter may depend on an AI transform policy document as it
-depends on feeds, and creates no tasks while that document's recorded state is `AWAITING_REVIEW` or
-`ERROR`. This is the intended mechanism for the wholesale states, not an optimisation of the error
-path: without it error mode and review mode still cost a task, a run and an error stream per input
-stream, and a waiting system that keeps processing is not waiting. It is sequenced after the rest
-because it changes `stroom-processor`, which the owner wants left alone until the stage itself is
-proven; until it lands, the error-and-reprocess path of A24 and A25 is the behaviour, correct but
-not free, and the ledger remains afterwards for the per-shape case the gate cannot see.*
+**Human review.** A9 ruled promotion automatic and §7.4 supplies the guards that make that
+workable. Some feeds will want a person to look before a learned transform goes live all the same
+— not as the primary control, which stays the guards, but as an option a cautious feed can take.
+
+**Proposed ruling A25.** *Promotion mode is per document:* automatic*, as A9 ruled, or* review*. In
+review mode the stage learns, judges and writes exactly as in automatic mode, but the rule it
+appends to the routing table is a* draft*: the router does not bind it, and a stream of the shape
+produces an error stream —* Awaiting review: draft rule N on document P binds fragment F for shape S
+*— and a ledger entry, as an unknown shape's would (§5.2). The document's Routing tab shows the draft
+with its fragment openable and steppable against the erroring stream, and* Approve *or* Reject*;
+the Supervisor view of A28 shows the same draft among every other pending decision.
+Approve is the promotion — time, score, and the A12 release, which is a reprocess filter for the
+inputs the ledger names, so nothing is lost while waiting and nothing was held. Reject discards the
+rule, records the reason, and leaves the shape given up until an operator says otherwise, so the
+model is not re-asked the same question daily. The toggle lives on the document, which is the unit of
+opt-in this section names; there is no global switch. A third mode — process with the draft and
+flag the output — is noted as a follow-up for feeds that would rather have unreviewed data than none;
+it is the automatic path plus a marker, and needs nothing reworked to add.*
+
+### 11.4 Runtime state
 
 **Where runtime state lives.** §3 says runtime state is not in the document, and §5.2 says the
 quarantine is a ledger. Both need a home that every node can read on the hot path — the given-up
@@ -940,42 +1053,96 @@ provider of its own, the DAO implemented over them in the impl module.
 
 | Table | One row per | Holds |
 |---|---|---|
-| `shapeshifter_shape` | `(policy, feed, shape signature)` | status — learning, bound, awaiting review, given up — with reason and attempts; the `uuid` of the routing rule for the shape, draft or active; the learning lease of §11 (node, expiry); the rolling AI-review score of A23 |
+| `shapeshifter_shape` | `(doc, learning-key value)` — feed and type by default, the signature where the key includes it | status — unknown, learning, provisional, bound, awaiting review, given up — with reason and the attempt that set it; the `uuid` of the routing rule for the shape, draft or active; the learning lease of §11.1 (node, expiry); the rolling per-record score of §5 and the rolling AI-review score of A23 |
 | `shapeshifter_ledger` | sentinelled input | the shape, the input stream's meta id, the record range where the shape was one of several, when and why |
-| `shapeshifter_feed_state` | `(policy, feed)` | the failure streak and error-mode state of A24: since when, why, last reset and by whom |
+| `shapeshifter_feed_state` | `(doc, feed)` | the failure streak and error-mode state of A24: since when, why, last reset and by whom |
 
 *The given-up check is one indexed lookup; a sentinel is one ledger insert; release selects the
 ledger's meta ids, creates a reprocess filter for them through `ProcessorFilterService`, deletes the
 rows and sets the shape bound. A scheduled job prunes ledger rows whose input retention has since
-deleted, and shape rows nothing references after a policy-set age, so the tables do not outlive the
+deleted, and shape rows nothing references after a an age set on the document, so the tables do not outlive the
 data they point at. Routing rules gain a `uuid`, assigned on creation, so that approval, the shape
 row and the bindings of §7.3 rule 3 can name a rule stably; a rule read without one is given one.
 A23's findings — input, output, score, critique — stay a stream, for retention and reading; only
-the rolling score is a column.*
+the rolling scores are columns.*
 
-**Human review.** A9 ruled promotion automatic and §7.4 supplies the guards that make that
-workable. Some feeds will want a person to look before a learned transform goes live all the same
-— not as the primary control, which stays the guards, but as an option a cautious feed can take.
+### 11.5 The processor waits
 
-**Proposed ruling A25.** *Promotion mode is per policy:* automatic*, as A9 ruled, or* review*. In
-review mode the stage learns, judges and writes exactly as in automatic mode, but the rule it
-appends to the routing table is a* draft*: the router does not bind it, and a stream of the shape
-produces an error stream —* Awaiting review: draft rule N on policy P binds fragment F for shape S
-*— and a ledger entry, as an unknown shape's would (§5.2). The policy's Routing tab shows the draft
-with its fragment openable and steppable against the erroring stream, and* Approve *or* Reject*.
-Approve is the promotion — time, score, and the A12 release, which is a reprocess filter for the
-inputs the ledger names, so nothing is lost while waiting and nothing was held. Reject discards the
-rule, records the reason, and leaves the shape given up until an operator says otherwise, so the
-model is not re-asked the same question daily. The toggle lives on the policy, and so is opt-in per
-feed as this section requires; there is no global switch. A third mode — process with the draft and
-flag the output — is noted as a follow-up for feeds that would rather have unreviewed data than none;
-it is the automatic path plus a marker, and needs nothing reworked to add.*
+**The lever that makes waiting free: the processor waits.** Both A24 and A25 accept that nothing
+upstream can be told to stop, and pay for it in error streams and reprocessing. That is not quite
+true, and the price is higher than it looks: error mode as A24 describes it stops the *model* being
+called, but every stream still costs a task, a run to the short-circuit and an error stream written
+to disk, and review mode costs the same for a feed that is perfectly healthy, for every stream, until
+a person clicks Approve. Task creation
+already waits on *feed dependencies*: `ProcessorTaskCreatorImpl.getMaxMetaId` computes the highest
+stream id a filter may create tasks up to from its `QueryData.feedDependencies`, and an empty answer
+means "nothing yet". A **dependency on the Shapeshifter AI document** would be a second
+condition in the same place: a filter names the document it depends on, as it names the feeds it
+depends on, and creates no tasks for a feed while that feed's *recorded state under the document* —
+the `shapeshifter_feed_state` row of A26 — is `ERROR`, or while a shape of that feed is
+`AWAITING_REVIEW`. The gate is per (doc, feed), as error mode is: one feed's breaker holds only
+that feed's streams, and a shared document does not stall its healthy feeds. With the signature in the
+key the gate is still per feed, so one shape awaiting review holds the feed's healthy shapes too —
+accepted, since waiting was the point and per-shape flow is what the ledger path gives. It is the
+same state the
+Supervisor view shows, read from the same rows. Streams accumulate at the tracker,
+nothing is written, nothing is reprocessed; an approval or a reset clears the state and task
+creation resumes from where it stopped. This is cleaner than errors and a ledger for everything the
+gate can see, and the ledger remains for what it cannot — with the signature in the key, a single
+unknown shape inside a stream the filter has already released.
+
+**Proposed ruling A27.** *A processor filter may depend on an Shapeshifter AI document as it
+depends on feeds, and creates no tasks for a feed while that feed's recorded state under the document
+is `ERROR` or has a shape `AWAITING_REVIEW`; the gate is per (doc, feed). This is the intended mechanism for the wholesale states, not an optimisation of the error
+path: without it error mode and review mode still cost a task, a run and an error stream per input
+stream, and a waiting system that keeps processing is not waiting. It is sequenced after the rest
+because it changes `stroom-processor`, which the owner wants left alone until the stage itself is
+proven; until it lands, the error-and-reprocess path of A24 and A25 is the behaviour, correct but
+not free, and the ledger remains afterwards for the per-shape case the gate cannot see.*
+
+### 11.6 The Supervisor view
+
+**One place to see it all.** The owner asked on 2026-09-17 for a single table of every Shapeshifter AI
+interaction — pending ones a person can decide or alter, completed ones showing the conversation and
+the decision reached — as a supervisory overview of the whole process, in every mode. It is a better
+idea than it first looks, because it collapses three loose ends into one mechanism. Under A21 an
+attempt is already a dialogue of typed questions, each answered, run and scored, so a person does not
+edit free text: they replace the answer to one question — the splitter, the stylesheet, the element
+chain — and the step re-runs. A25's drafts, A26's shape statuses, A23's findings and A24's error
+mode are all things awaiting a decision or recording one. The one thing the overview needs that does
+not yet exist is for the dialogue to be **durable and resumable** (§10), and that single change is
+also the deferred worker §6 was missing, and also the answer to "can a person start learning rather
+than merely approve it" — they raise an attempt for a given-up shape from the same screen, so no
+on-request learning mode is needed.
+
+**Proposed ruling A28.** *Every attempt is a durable, resumable record — its dialogue, each turn's
+question, answer, run output and scores, and its outcome — and the same record whichever mode
+produced it. A* Supervisor view*, top-level beside Processors and Jobs rather than a tab on one
+document, lists attempts across all documents, filterable by document, feed, shape, execution mode,
+promotion mode and status:* `IN_PROGRESS`*,* `AWAITING_MODEL`*,* `AWAITING_REVIEW`*,* `PROVISIONAL`*,*
+`PROMOTED`*,* `REJECTED`*,* `ABANDONED`*,* `ERROR`*. One row per attempt: when, where, mode, candidates used, tokens
+and cost, the decision and who or what made it. A row opens to the dialogue turn by turn — question,
+answer, captured output, the scores that lost marks — with* answer instead *and* edit and re-run
+from here *per turn, and* approve*,* reject*,* retract *(an automatic promotion undone — the routing
+rebind §7.3 already allows and audits)*, widen selector *and* re-learn *per attempt. Automatic
+attempts appear in the same rows, differing only in who answered; A9 is untouched. A person cannot
+pause an in-flight automatic attempt — an inline one is bounded by its budget, a deferred one by
+the job — but can retract its result.
+The deferred worker is the job that advances attempts in* `AWAITING_MODEL`*; review mode is an
+attempt whose promotion turn awaits a person. Storage is two more tables in the A26 module,*
+`shapeshifter_attempt` *and* `shapeshifter_turn`*, specific to this feature and unrelated to
+`stroom-ai`'s chat store; they are the single source of the view's table and detail, and every state
+and interaction the design names is recorded there. The view also carries a per-document status
+strip: feeds in error mode with reason and reset (A24), and provisional rules by age and records
+seen, which a person may approve (§6). The raw exchange with the model is additionally
+logged through `stroom-ai`'s audit as §10 requires.*
 
 ---
 
 ## 12. What has to change in Stroom
 
-In dependency order.
+In dependency order, except that 17 and 18 extend item 3 and are listed last only because they
+arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or the client.
 
 1. **Decouple code injection from stepping.** `PipelineFactory.setProperty` consults the injected-code
    map only when a `SteppingController` is present (`PipelineFactory.java:403-412`). Introduce a
@@ -991,36 +1158,59 @@ In dependency order.
    store, serialiser and resource implementation; one `DocumentStoreBinder.create(...).bind(...)`,
    which registers the explorer handler, import/export and content indexing together; and on the
    client the plugin, presenter, view, gin module, ginjector, `AppGinjectorUser` entries and an
-   `App.gwt.xml` inherit.
+   `App.gwt.xml` inherit. *Built 2026-09-16, with the five-tab editor of §3.*
 4. **The supervisor element**, merging the fragment's `PipelineData` with a capture filter and running
-   it in a child task context, following `ReferenceDataLoadTaskHandler`.
+   it in a child task context, following `ReferenceDataLoadTaskHandler`. *`Stage`, `Router`,
+   `Quarantine` and `FragmentRunner` hold the element's logic, built; the pipeline element and the
+   child-task run are not.*
 5. **The scorer set of §8.4**, including the input-coverage scorer (A11) and the anti-degeneracy
-   scorer (A16), which have no existing equivalent.
+   scorer (A16), which have no existing equivalent. *The SPI and the compile, coverage and yield scorers are built; schema
+   conformance, anti-degeneracy, business rules, error load, classification and AI review are not.*
 6. **Additions to `stroom-ai`:** a multi-turn chat call with message history (A21); transport
    retries, budgets and rate limiting, token accounting, audit logging of invocations — the whole
    transcript, not each call in isolation — and explicit cache bypass.
 7. **Output stream metadata for bindings** (§7.3 rule 3), and a reprocessing mode that honours it.
-8. **A regression stream type per selector** (A18), appended at promotion and re-scored by the
-   promotion gate; retention tied to the feed's classification rather than the source stream.
-9. **A restricted XSLT function library** for AI-authored transforms (§11).
-10. **Content-pack prerequisite checks** — the event and data-splitter schemas are downloaded content,
-   not in-repo; the feature should refuse to start rather than silently score everything zero.
-11. **Error mode** (A24): per-(policy, feed) breaker state in cluster state, the fatal error stream
-   written while open, a Status panel on the policy with reset, and the optional half-open retry.
-12. **Review mode** (A25): `promotionMode` on the policy, `draft` on a routing rule, the router
-   skipping drafts, Approve and Reject on the Routing tab, and rejection recorded against the shape.
-13. **The runtime-state schema** (A26): a `stroom-shapeshifter-ai-impl-db` module in the pattern of
+8. **The runtime-state schema** (A26): a `stroom-shapeshifter-ai-impl-db` module in the pattern of
    `stroom-ai-impl-db` — Flyway migration, jOOQ codegen, its own connection provider — holding the
-   three tables of §11's "where runtime state lives"; the DAO in the impl module; the error stream
+   three tables of §11.4; the DAO in the impl module; the error stream
    text for a given-up and for a draft shape; release as the creation of a reprocess filter for the
    ledger's inputs; a scheduled prune job; and a `uuid` on `RoutingRule`.
-14. **A policy dependency on processor filters** (A27): a filter naming the AI transform policy it
-   depends on, and task creation waiting while the policy's recorded state (A26) is
-   `AWAITING_REVIEW` or `ERROR`, in `ProcessorTaskCreatorImpl.getMaxMetaId` beside feed
+9. **A regression stream per rule** (A18), appended at promotion and re-scored by the
+   promotion gate; retention a document setting capped by the source feed's retention (A18).
+10. **A restricted XSLT function library** for AI-authored transforms (§11).
+11. **Content-pack prerequisite checks** — the event and data-splitter schemas are downloaded content,
+   not in-repo; the feature should refuse to start rather than silently score everything zero.
+12. **Error mode** (A24): per-(doc, feed) breaker state in `shapeshifter_feed_state` (A26), the fatal error stream
+   written while open, a per-document status strip with reset in the Supervisor view, and the optional
+   half-open retry.
+13. **Review mode** (A25): `promotionMode` on the document, `draft` on a routing rule (authoritative; the
+   shape's `awaiting review` status mirrors it), the router skipping drafts, Approve and Reject on the Routing tab, and rejection recorded against the shape.
+14. **The AI review job** (A23): sampling of emitted records under an hourly budget, the audit
+   stream of findings, the rolling score per shape, the relearn trigger and the `Critique` question.
+15. **Durable attempts and the Supervisor view** (A28): `shapeshifter_attempt` and
+   `shapeshifter_turn` in the A26 module; `Dialogue` recast as a persisted state machine that stops
+   at each question and resumes on any answerer; the job that advances attempts awaiting the model —
+   which is deferred mode's worker; the cross-document Supervisor view with its list, detail, per-turn
+   *answer instead* and *edit and re-run*, and per-attempt approve, reject, retract, widen and
+   re-learn; and the REST resource behind it. Sequenced after item 8, which it extends, and before
+   the processor change, since it is what makes deferred and review modes usable rather than merely correct.
+16. **A document dependency on processor filters** (A27): a filter naming the Shapeshifter AI document it
+   depends on, and task creation for a feed waiting while its recorded state under the document (A26) is
+   `ERROR` or has a shape `AWAITING_REVIEW`, in `ProcessorTaskCreatorImpl.getMaxMetaId` beside feed
    dependencies. Sequenced last because it changes `stroom-processor`; the intended mechanism, not
    an optimisation.
-15. **The AI review job** (A23): sampling of emitted records under an hourly budget, the audit
-   stream of findings, the rolling score per shape, the relearn trigger and the `Critique` question.
+
+17. **The learning key** (A29): `learningKey` and `relearnThreshold` on the document's Learning tab;
+   `RoutingRule.learnedSelector` and `Sample` generalised from the fixed three terms to the key; the
+   rolling per-record score on the shape row and the relearn trigger. Extends item 3. *The document,
+   tab, selector and sample are built 2026-09-17, with `promotionMode` (A25), `errorModeAfter` (A24)
+   and `uuid`, `draft` and `provisional` on the rule (A26, A25, A5), the store naming every rule on
+   save and validating the key, and a State column on the Routing tab; the rolling score, the
+   relearn trigger and the Stage's use of any of it are not.*
+18. **Replay unit off the document** (A1 revised): remove `replayUnit` from `ShapeshifterAiDoc` and
+   the Settings tab; derive it from the fragment at build time and check the allowed-element list
+   against the stage's position. Extends item 3. *Removed 2026-09-17; the derivation and the check
+   wait on the supervisor element.*
 
 Items 1 and 2 are changes to `stroom-pipeline` that benefit the stepper too, and should be proposed
 on that basis rather than as private to this feature.
@@ -1034,15 +1224,15 @@ behaviour of the finished stage is stated as tests.
 
 | | Question | Status |
 |---|---|---|
-| A1 | Replay unit per stage; per-record scoring where records exist | **Ruled** |
+| A1 | Replay unit per variant, derived from its fragment; scoring granularity follows the chain (§4) | **Ruled**; revised 2026-09-17 — the unit is the fragment's, not the document's |
 | A2 | Write-back model — branch rather than mutate; §7.3 as proposed | **Ruled** |
 | A3 | Stage configuration is a Stroom document type, not a separate database | **Ruled** |
-| A4 | The supervisor emits the sentinel; quarantine is a forked branch | **Ruled** |
-| A5 | Deferred vs inline default | **Revised, §6** — owed confirmation, since A13 postdates the original position |
+| A4 | The supervisor emits the sentinel; a sentinel is an error-stream entry plus a ledger row | **Ruled**; restated 2026-09-17 with §5.2 |
+| A5 | Execution mode is a document setting, deferred by default, with a mandatory per-attempt budget; independent of where the model is; existing bindings are tried before any model call | **Ruled** 2026-09-17; a candidate that clears the floor handles the current stream under a provisional binding until A14 can be met |
 | A6 | Shape signature normalisation | **Open** — needs real feeds |
 | A7 | Whether to propose document version history over `doc_data_snapshot` separately | **Open** |
 | A8 | AI writes extraction configs, not selection-only | **Ruled** against the recommendation; A11 is the compensating guard |
-| A9 | Promotion is automatic on score improvement; no human gate | **Ruled** against the recommendation; §7.4 is the compensating guard. A25 adds a per-policy review mode as an option, not a replacement |
+| A9 | Promotion is automatic on score improvement; no human gate | **Ruled** against the recommendation; §7.4 is the compensating guard. A25 adds a per-document review mode as an option, not a replacement |
 | A10 | Variant model generic over element types; DS3/XSLT/JSON/XML initially | **Ruled**; A20 proposes the unit that carries it |
 | A11 | Extraction scored on yield **and input coverage** | **Ruled** |
 | A12 | Promotion automatically releases the matching quarantine | **Ruled**; restated 2026-09-17 — the quarantine is a ledger of inputs, release is a reprocess filter, nothing is held (§5.2) |
@@ -1050,17 +1240,24 @@ behaviour of the finished stage is stated as tests.
 | A14 | Promotion measured on a held-out sample the model never saw | **Ruled** |
 | A15 | Absolute floor **and** no regression against the incumbent | **Ruled** |
 | A16 | Anti-degeneracy scorer; schema conformance is a gate, not a maximand | **Proposed, §8.3** — arises from the schema review and is owed a ruling |
-| A17 | Redacted samples by default, raw by per-feed override | **Ruled** |
-| A18 | Per-selector regression stream; promotion must not regress on any previously-accepted record | **Ruled** 2026-09-14 |
+| A17 | Redacted samples by default, raw by override — per feed as first ruled, per document since opt-in became per document (§11) | **Ruled**; scope restated 2026-09-17 |
+| A18 | Per-rule regression stream; promotion must not regress on any previously-accepted record; retention a document setting capped by the feed's | **Ruled** 2026-09-14; retention settled 2026-09-17 |
 | A19 | Generated extraction configurations may not set `ignoreErrors`; rejected at the compile gate | **Proposed, §9.1** — arises from the degeneracy probe and is owed a ruling |
-| A20 | A variant is a pipeline fragment — a Pipeline document with no destination — not a list of element/document pairs | **Proposed, §3** — arises from building the policy document and is owed a ruling |
-| A21 | An attempt is a dialogue: shape first, then one configuration per element in chain order, each with the real output of the elements before it; feedback to the failing step; the policy carries the allowed-element list | **Proposed, §10** — depends on A20 and is owed a ruling |
-| A22 | A routing selector is an expression over stream metadata and the attribute map, with the shape signature as a field; rules are ordered and first match binds | **Proposed, §3** — arises from asking what selects a branch, and is owed a ruling |
-| A23 | An AI review scorer samples single records asynchronously; advisory and a relearn trigger, never a gate; its critique feeds the next attempt | **Proposed, §8.4** — the owner's, 2026-09-17 |
-| A24 | The circuit breaker's open state is an error mode per policy and feed: fatal error streams, no model calls, operator reset with optional half-open retry | **Proposed, §11** — the owner's, 2026-09-17 |
-| A25 | Promotion mode per policy, automatic or review; a reviewed rule is a draft the router skips, its shape erroring into the ledger until Approve promotes it and reprocesses | **Proposed, §11** — the owner's, 2026-09-17; an option beside A9, not a revision of it |
-| A26 | Runtime state — shape status and lease, the ledger, feed error-mode state — is three tables in a `stroom-shapeshifter-ai-impl-db` module; routing rules get a `uuid`; a job prunes | **Proposed, §11** — the owner's, 2026-09-17 |
-| A27 | Processor filters may depend on a policy document and create no tasks while its recorded state is `AWAITING_REVIEW` or `ERROR`; the intended mechanism for waiting, sequenced last because it touches `stroom-processor` | **Proposed, §11** — the owner's, 2026-09-17 |
+| A20 | A variant is a pipeline fragment — a Pipeline document with no destination — not a list of element/document pairs | **Proposed, §3** — arises from building the Shapeshifter AI document and is owed a ruling |
+| A21 | An attempt is a dialogue: chain first, then one configuration per element in chain order, each with the real output of the elements before it; feedback to the failing step; a `Critique` question and a closing promotion turn; the document carries the allowed-element list | **Proposed, §10** — depends on A20 and is owed a ruling |
+| A22 | A routing selector is an expression over stream metadata and the attribute map, with the shape signature as a field; rules are ordered and first match binds | **Proposed, §3** — arises from asking what selects a branch, and is owed a ruling; A29 makes the learned rule's terms a document setting |
+| A23 | An AI review scorer samples single records asynchronously; advisory and a relearn trigger, never a gate; its critique feeds the next candidate | **Proposed, §8.4** — the owner's, 2026-09-17 |
+| A24 | The circuit breaker's open state is an error mode per document and feed: fatal error streams, no model calls, operator reset with optional half-open retry | **Proposed, §11.2** — the owner's, 2026-09-17 |
+| A25 | Promotion mode per document, automatic or review; a reviewed rule is a draft the router skips, its shape erroring into the ledger until Approve promotes it and reprocesses | **Proposed, §11.3** — the owner's, 2026-09-17; an option beside A9, not a revision of it |
+| A26 | Runtime state — shape status (unknown, learning, provisional, bound, awaiting review, given up), lease and rolling scores, the ledger, feed error-mode state — is three tables in a `stroom-shapeshifter-ai-impl-db` module; routing rules get a `uuid`; a job prunes | **Proposed, §11.4** — the owner's, 2026-09-17 |
+| A27 | Processor filters may depend on a Shapeshifter AI document and create no tasks for a feed while its feed-state row is `ERROR` or a shape of it is `AWAITING_REVIEW`; per (doc, feed); the intended mechanism for waiting, sequenced last because it touches `stroom-processor` | **Proposed, §11.5** — the owner's, 2026-09-17 |
+| A28 | Every attempt is a durable, resumable record in its own tables; a cross-document Supervisor view lists all attempts in every mode, with pending ones decidable and any turn amendable; the job advancing attempts awaiting the model is deferred mode's worker | **Proposed, §11.6** — the owner's, 2026-09-17; makes A25 and deferred A5 usable |
+| A29 | The learning key — the fields a learned rule binds on and the chain question sees — is a document setting, default `Feed AND Type`, with attribute-map fields and the shape signature choosable; a shape is one value of the key; shown means bound; a bound shape whose rolling per-record score falls below the document's relearn threshold is relearned | **Ruled** 2026-09-17 — the owner's; replaces the fixed `Feed AND Type AND Shape Signature` of the first A22 decisions |
+
+Where a row says *revised*, *restated* or *settled* 2026-09-17, the change was put to the owner as a
+recommendation with alternatives and taken by them that day: the text is the editor's, the decision
+the owner's. A16 and A19 are still proposed, and §7.4 and the closing paragraph below lean on them;
+they are the two rulings most worth giving next.
 
 Two rulings went against the recommendation, A8 and A9, and both traded a human control for an
 automated one. Each is workable, and each is only workable with the guard that replaces it: A8
@@ -1070,3 +1267,76 @@ depends on held-out validation (A14), the floor-and-no-regression pair (A15) and
 check (A16) to catch transforms that satisfy the scorer without doing the work. Those guards are not
 refinements. Under automatic promotion they are the entire safety mechanism, and §9 exists so that
 they can be tested against the corpus before anything depends on them.
+
+---
+
+## 14. Revision history
+
+**2026-09-11.** Reframed from `full-design.md`. Two rounds of questions to the owner, ruled the same
+day: A1–A5, A8–A15 and A17 ruled; A6 and A7 left open. The design checked against the repository's
+DS3 and translation test corpus and against the event schema; §2.1 and §8 carry what that found,
+including the degeneracy trap (§8.3) that changes the scoring model and proposes A16.
+
+**2026-09-14.** A18, the regression set, ruled.
+
+**2026-09-16.**
+- The extraction half of the §9 evaluation built and first run; §9.1 records what it found and
+  proposes A19.
+- The Shapeshifter AI document type and its editor built. Building it showed the routing table's unit of
+  selection was a hand-rolled copy of `PipelineData`; A20 proposes a pipeline fragment instead.
+- A21 follows: an attempt is a dialogue that settles the fragment's chain before asking for any
+  document. Built as `Dialogue`.
+- A22 asks what selects a branch and answers: an expression over the stream's metadata, as receive
+  rules already do, with the content-derived signature as one field among them.
+
+**2026-09-17.**
+- The owner added A23 (an AI reviewer of single records), A24 (error mode), A25 (per-document review
+  mode), A26 (runtime state in tables) and A27 (a processor-filter dependency on the document).
+- A12 and A4 restated: the quarantine is a ledger and nothing is held (§5.2).
+- A5 ruled: execution mode is a document setting independent of model location; existing bindings are
+  tried before any call; a candidate that clears the floor runs under a provisional binding until
+  A14 can be met (§6, §7.4). Scoring granularity follows the chain (§4). Opt-in is per document (§11).
+- A28 proposed: durable, resumable attempts in their own tables and a cross-document Supervisor view
+  over every Shapeshifter AI interaction, pending or decided (§10, §11).
+- A29 ruled: the learning key is a document setting, `Feed AND Type` by default; shown means bound; a
+  bound shape relearns when its rolling score falls below the document threshold (§3, §5).
+- Two consistency passes, the second after an independent review: §1, §3, §5.1, §7.2, §11 and §12
+  brought into line with A20–A29; *attempt* split into attempt and candidate (§3); replay unit made a
+  property of the fragment (A1 revised); a failing record under a bound rule stated not to enter the
+  loop (§5); per-feed settings made per document (A17, budgets, rate limits); A27's gate made per
+  (doc, feed); regression streams keyed on the rule `uuid` with retention capped by the feed's
+  (A18); *pin* defined and effective-dating dropped (§7.3); §12 reordered and marked built/pending.
+- Third pass after a second independent review, four decisions taken on recommendation: the A21
+  question is *Chain*, not *Shape*; a reserved rule that matches gives the shape up; the Status panel
+  moves to the Supervisor view; a provisional rule that never reaches the minimum stays provisional
+  and is surfaced by age. Also: a variant is any fragment written for a stage; a candidate is a whole
+  chain; the signature for routing is computed on the stage's input; replay unit is fixed by stage
+  position against the allowed-element list; the incumbent keeps serving during relearning;
+  bound-variant trials are limited to the same feed and type; `DISABLED` still selects and promotes;
+  §11 split into subsections; §12 gains items for A29 and the A1 revision and marks what is built.
+- The document type renamed from *AI Transform Policy* to **Shapeshifter AI** (`ShapeshifterAiDoc`,
+  type string `ShapeshifterAi`, package `stroom.shapeshifter.ai.doc`) at the owner's request, and
+  "policy" dropped from the prose in favour of "the (Shapeshifter AI) document": one feature name,
+  and no collision with Stroom's other AI features.
+- `AiMode` renamed `LearningMode` (the Shapeshifter AI document's *learning mode*, `AUTOMATIC` or
+  `DISABLED`): it says whether the stage may call the model, and "AI mode" collided with Stroom's other
+  AI settings.
+- The model and UI brought up to the day's rulings (§12 items 17 and 18): `learningKey`,
+  `relearnThreshold`, `promotionMode`, `errorModeAfter` and `regressionCap` (per rule) on the
+  document, `replayUnit` removed; `uuid`, `draft` and `provisional` on `RoutingRule` and
+  `learnedSelector` over the key; the Learning, Promotion, Settings tabs and the Routing grid's State
+  column; the store names rules and validates the key on save. `Question.Shape` is `Question.Chain`.
+  Four decisions taken on recommendation: a stream lacking a key field is refused rather than bound
+  wider (§3); the learning key is edited as an ordered picker (`LearningKeyPresenter`: add from the
+  fields not yet in the key, remove, move) rather than typed; `errorModeAfter` is one counter over
+  abandoned attempts and sentinelled streams alike; Approve and Reject land with the ledger, not as
+  flag-only buttons.
+- Audit of everything built, before the first commit: a code review found eight defects and seven
+  were fixed — a stream lacking a key field is now sentinelled before any question or document
+  (§3); the XML shape signature is the first record's skeleton, not the whole stream's, so a stream's
+  signature no longer varies with its record count (§5); `FragmentRunner` runs the merged inheritance
+  stack, as `FragmentCheckImpl` judges it; the Data Splitter compiler hands the pipeline-scoped error
+  receiver back rather than clearing it; a blank stream and a refused chain reply no longer lose their
+  diagnostics; the Routing tab edits rules by position, so a copied rule cannot be mistaken for its
+  original. Accepted as documented behaviour: a selector naming a header the stream lacks does not
+  match, even under `NOT`. A GWT draft compile validated the UI templates.
