@@ -1,0 +1,19 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:l="urn:import:stroom.item.client">
+    <g:FlowPanel styleName="max form dock-container-vertical">
+        <form:FormGroup identity="shapeshifterDeclarationName" label="Name">
+            <g:TextBox ui:field="name" addStyleNames="w-100"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterDeclarationType" label="Type"
+                        helpText="scalar holds one value; list, map and set hold many and are read through the collection functions.">
+            <l:SelectionBox ui:field="type" addStyleNames="w-100"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterDeclarationEntries" label="Entries"
+                        helpText="A map's fixed entries, one per line as from = to.">
+            <g:TextArea ui:field="entries" addStyleNames="w-100 shapeshifter-entries" visibleLines="8"/>
+        </form:FormGroup>
+    </g:FlowPanel>
+</ui:UiBinder>

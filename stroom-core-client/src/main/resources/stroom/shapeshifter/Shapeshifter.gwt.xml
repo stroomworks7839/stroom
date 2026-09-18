@@ -3,6 +3,8 @@
 <module>
   <!-- Inherit the core Web Toolkit stuff. -->
   <inherits name='com.google.gwt.user.User' />
+  <!-- The project model and its JSON mapping, the engine's own, which the Design tab edits (design 43 §2). -->
+  <inherits name='stroom.shapeshifter.ShapeshifterConfig' />
 
   <source path="client" />
   <source path="shared" />

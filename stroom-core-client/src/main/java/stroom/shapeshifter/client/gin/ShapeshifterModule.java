@@ -18,7 +18,36 @@ package stroom.shapeshifter.client.gin;
 
 import stroom.core.client.gin.PluginModule;
 import stroom.shapeshifter.client.ShapeshifterPlugin;
+import stroom.shapeshifter.client.presenter.CaptureEditPresenter;
+import stroom.shapeshifter.client.presenter.CaptureEditPresenter.CaptureEditView;
+import stroom.shapeshifter.client.presenter.CapturesPresenter;
+import stroom.shapeshifter.client.presenter.DeclarationEditPresenter;
+import stroom.shapeshifter.client.presenter.DeclarationEditPresenter.DeclarationEditView;
+import stroom.shapeshifter.client.presenter.DeclarationsPresenter;
+import stroom.shapeshifter.client.presenter.MatchEditorPresenter;
+import stroom.shapeshifter.client.presenter.MatchStructurePresenter;
+import stroom.shapeshifter.client.presenter.MatchStructurePresenter.MatchStructureView;
+import stroom.shapeshifter.client.presenter.MessagesPresenter;
+import stroom.shapeshifter.client.presenter.RegexTabPresenter;
+import stroom.shapeshifter.client.presenter.RegexTabPresenter.RegexTabView;
+import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter;
+import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter.ShapeshifterDesignView;
 import stroom.shapeshifter.client.presenter.ShapeshifterPresenter;
+import stroom.shapeshifter.client.presenter.SourceConfigPresenter;
+import stroom.shapeshifter.client.presenter.SourceConfigPresenter.SourceConfigView;
+import stroom.shapeshifter.client.presenter.TemplateEditPresenter;
+import stroom.shapeshifter.client.presenter.TemplateEditPresenter.TemplateEditView;
+import stroom.shapeshifter.client.presenter.TemplatePanelPresenter;
+import stroom.shapeshifter.client.presenter.TemplateWorkbenchPresenter;
+import stroom.shapeshifter.client.presenter.TemplateWorkbenchPresenter.TemplateWorkbenchView;
+import stroom.shapeshifter.client.view.CaptureEditViewImpl;
+import stroom.shapeshifter.client.view.DeclarationEditViewImpl;
+import stroom.shapeshifter.client.view.MatchStructureViewImpl;
+import stroom.shapeshifter.client.view.RegexTabViewImpl;
+import stroom.shapeshifter.client.view.ShapeshifterDesignViewImpl;
+import stroom.shapeshifter.client.view.SourceConfigViewImpl;
+import stroom.shapeshifter.client.view.TemplateEditViewImpl;
+import stroom.shapeshifter.client.view.TemplateWorkbenchViewImpl;
 
 public class ShapeshifterModule extends PluginModule {
 
@@ -26,5 +55,37 @@ public class ShapeshifterModule extends PluginModule {
     protected void configure() {
         bindPlugin(ShapeshifterPlugin.class);
         bind(ShapeshifterPresenter.class);
+
+        // The Design tab's presenter tree (design 43 §4). Grids and the tabbed match editor use
+        // the shared PagerView and LinkTabPanelView; the forms have views of their own.
+        bindPresenterWidget(ShapeshifterDesignPresenter.class,
+                ShapeshifterDesignView.class,
+                ShapeshifterDesignViewImpl.class);
+        bind(TemplatePanelPresenter.class);
+        bindPresenterWidget(TemplateEditPresenter.class,
+                TemplateEditView.class,
+                TemplateEditViewImpl.class);
+        bindPresenterWidget(SourceConfigPresenter.class,
+                SourceConfigView.class,
+                SourceConfigViewImpl.class);
+        bindPresenterWidget(TemplateWorkbenchPresenter.class,
+                TemplateWorkbenchView.class,
+                TemplateWorkbenchViewImpl.class);
+        bind(MatchEditorPresenter.class);
+        bindPresenterWidget(RegexTabPresenter.class,
+                RegexTabView.class,
+                RegexTabViewImpl.class);
+        bindPresenterWidget(MatchStructurePresenter.class,
+                MatchStructureView.class,
+                MatchStructureViewImpl.class);
+        bind(DeclarationsPresenter.class);
+        bindPresenterWidget(DeclarationEditPresenter.class,
+                DeclarationEditView.class,
+                DeclarationEditViewImpl.class);
+        bind(CapturesPresenter.class);
+        bindPresenterWidget(CaptureEditPresenter.class,
+                CaptureEditView.class,
+                CaptureEditViewImpl.class);
+        bind(MessagesPresenter.class);
     }
 }

@@ -59,4 +59,33 @@ public interface ShapeshifterResource extends RestResource, DirectRestService, F
             summary = "Create a Shapeshifter doc",
             operationId = "createShapeshifter")
     ShapeshifterDoc create(@Parameter(description = "name", required = true) String name);
+
+    @POST
+    @Path("/validate")
+    @Operation(
+            summary = "Read and compile a project's text without running it, returning the engine's messages",
+            operationId = "validateShapeshifter")
+    ShapeshifterValidation validate(@Parameter(description = "project", required = true) String project);
+
+    @POST
+    @Path("/patternInfo")
+    @Operation(
+            summary = "What the engine says about a regex: validity, groups, how it would run",
+            operationId = "shapeshifterPatternInfo")
+    ShapeshifterPatternInfo patternInfo(
+            @Parameter(description = "request", required = true) ShapeshifterPatternRequest request);
+
+    @POST
+    @Path("/explode")
+    @Operation(
+            summary = "A regex as the pattern tree it is, in the tree's wire form",
+            operationId = "shapeshifterExplode")
+    ShapeshifterText explode(@Parameter(description = "request", required = true) ShapeshifterPatternRequest request);
+
+    @POST
+    @Path("/print")
+    @Operation(
+            summary = "A pattern tree, given in its wire form, as the regex it means",
+            operationId = "shapeshifterPrint")
+    ShapeshifterText print(@Parameter(description = "request", required = true) ShapeshifterPatternRequest request);
 }

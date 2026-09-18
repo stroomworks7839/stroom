@@ -1,0 +1,21 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+    <g:ThinSplitLayoutPanel ui:field="layout" styleName="max default-min-sizes shapeshifter-structure">
+        <g:west size="360">
+            <g:ScrollPanel styleName="max">
+                <g:FlowPanel styleName="shapeshifter-structure-pane">
+                    <g:FlowPanel ui:field="regexRow" styleName="shapeshifter-regex-row">
+                        <g:Label styleName="shapeshifter-kind" text="as regex"/>
+                        <g:Label ui:field="regex" styleName="shapeshifter-pattern-text"/>
+                    </g:FlowPanel>
+                    <g:Label ui:field="error" styleName="shapeshifter-error"/>
+                    <g:HTML ui:field="structure"/>
+                </g:FlowPanel>
+            </g:ScrollPanel>
+        </g:west>
+        <g:center>
+            <g:SimplePanel ui:field="editor" styleName="max"/>
+        </g:center>
+    </g:ThinSplitLayoutPanel>
+</ui:UiBinder>

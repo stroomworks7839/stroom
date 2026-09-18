@@ -317,6 +317,32 @@ shippable.
   `patternInfo`, `explode`, `print`; the Design tab with `TemplatePanelPresenter`,
   `MatchEditorPresenter` (regex, pattern tree, parts), `DeclarationsPresenter`,
   `CapturesPresenter`, `MessagesPresenter`; Design/Source sync over one `Project`.
+  **Built 2026-09-17/18.** Server: `JsonText` (the config module's own parser and printer —
+  `ProjectReader` prints through it now, so both sides of the wire read the same),
+  `PatternPrint` pinned by explode∘print over the 298-regex corpus, the four endpoints on
+  `ShapeshifterResource` with `ShapeshifterValidation`/`PatternInfo`/`PatternRequest`/
+  `Text`/`Message` as the wire types, `explain` on the engine's `PatternInfo`. Client, in
+  `stroom-core-client/…/shapeshifter/client`: `ShapeshifterDesignPresenter` as the root and
+  `ProjectHost` — the one way an edit lands, a replacement `Project`, published to the
+  document presenter as a value change; the panel with its toolbar (add, edit, remove, up and
+  down — order is dispatch priority) and a topmost *project* row that opens
+  `SourceConfigPresenter`, the source panel Q5 promised; the workbench with the match editor
+  tabbed **Regex** (pattern, flags, advance, the engine's groups and plan live) / **Pattern
+  tree** / **Parts** / **Other** (the kinds without a form, as their wire form), a tab change
+  converting through `explode` and `print` where the engine can and refusing where it cannot;
+  `DeclarationsPresenter` and `CapturesPresenter` as grids with dialogs, a capture's
+  `select` and `key-value` sources edited as their wire form and read by the one reader;
+  `MessagesPresenter` fed by `validate` on a debounce, the Source tab's syntax error as its
+  first row. An empty document opens as an empty version-5 project. Verified by the GWT draft
+  compile, the config module's `check`, the engine and pipeline suites, and a JVM test of the
+  client's text edge (`ProjectTextTest`).
+  *Left for the next piece of workbench work, deliberately:* the pattern-tree tab renders the
+  tree and edits its wire form — the nested node editor of design 18 §10 grows from that
+  renderer; the regex tab's groups are shown, not yet the capture-declaration editor of
+  18 §5.6; guard and limits (`GuardAndLimitsPresenter`) and template colour overrides (18
+  §5.6, editor metadata in the doc) are unbuilt; the Source tab's format action is Ace's
+  formatter, not yet the `validate` round trip; modes are typed, not chosen from a mode
+  editor; undo is phase B with the trace.
 - **B — the trace.** Design 18 §7's engine asks; `TraceModel`; `preview`;
   `SampleSourcePresenter`; the navigator's four presenters; `BodyPresenter`; undo; profiling.
 - **C — stepping.** `SteppingEditor` + registry + `DefaultSteppingEditor` extraction in

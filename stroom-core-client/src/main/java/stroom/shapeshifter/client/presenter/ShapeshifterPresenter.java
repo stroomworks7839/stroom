@@ -24,8 +24,10 @@ import stroom.entity.client.presenter.LinkTabPanelView;
 import stroom.entity.client.presenter.MarkdownEditPresenter;
 import stroom.entity.client.presenter.MarkdownTabProvider;
 import stroom.security.client.presenter.DocumentUserPermissionsTabProvider;
+import stroom.shapeshifter.config.ConfigException;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.shared.ShapeshifterDoc;
-import stroom.util.shared.NullSafe;
+import stroom.util.client.DelayedUpdate;
 import stroom.widget.tab.client.presenter.TabData;
 import stroom.widget.tab.client.presenter.TabDataImpl;
 
@@ -36,38 +38,74 @@ import edu.ycp.cs.dh.acegwt.client.ace.AceEditorMode;
 import javax.inject.Provider;
 
 /**
- * The Shapeshifter document: its project JSON in an editor, its description, its permissions.
+ * The Shapeshifter document: Design, Source, Documentation, Permissions (design 43 §3).
  *
- * <p>Phase A1 of design 43: the Source tab is the whole editing surface, and the same text is
- * what a pipeline step injects when the document is edited in stepping. The Design tab — the
- * forms over the engine's own model — arrives in A2 and edits the same {@code data}.
+ * <p>Design and Source edit one model. Both tabs write {@code data}, so this presenter owns the
+ * text and the {@link Project} parsed from it, and the two tabs are views of them: the Source tab
+ * is the text, re-parsed on a debounce as it is typed — a syntax error leaves the previous
+ * project on the Design tab under a banner saying so; the Design tab edits the project, and
+ * every edit is printed back to the text. {@code onWrite} from either is the text.
  */
 public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, ShapeshifterDoc> {
 
+    private static final TabData DESIGN = new TabDataImpl("Design");
     private static final TabData SOURCE = new TabDataImpl("Source");
     private static final TabData DOCUMENTATION = new TabDataImpl("Documentation");
     private static final TabData PERMISSIONS = new TabDataImpl("Permissions");
 
+    private final DelayedUpdate parseSource;
+
+    private String text;
+    private Project project;
+    private String sourceError;
+    private ShapeshifterDesignPresenter design;
+    private EditorPresenter source;
+    private boolean syncing;
+
     @Inject
     public ShapeshifterPresenter(final EventBus eventBus,
                                  final LinkTabPanelView view,
+                                 final Provider<ShapeshifterDesignPresenter> designPresenterProvider,
                                  final Provider<EditorPresenter> editorPresenterProvider,
                                  final Provider<MarkdownEditPresenter> markdownEditPresenterProvider,
                                  final DocumentUserPermissionsTabProvider<ShapeshifterDoc>
                                          documentUserPermissionsTabProvider) {
         super(eventBus, view);
+        parseSource = new DelayedUpdate(300, this::parseSource);
 
+        addTab(DESIGN, new AbstractTabProvider<ShapeshifterDoc, ShapeshifterDesignPresenter>(eventBus) {
+            @Override
+            public ShapeshifterDesignPresenter createPresenter() {
+                design = designPresenterProvider.get();
+                registerHandler(design.addValueChangeHandler(event -> onDesignEdit(event.getValue())));
+                return design;
+            }
+
+            @Override
+            public void onRead(final ShapeshifterDesignPresenter presenter,
+                               final DocRef docRef,
+                               final ShapeshifterDoc document,
+                               final boolean readOnly) {
+                readText(document.getData());
+                presenter.read(project, sourceError, readOnly);
+            }
+
+            @Override
+            public ShapeshifterDoc onWrite(final ShapeshifterDesignPresenter presenter,
+                                           final ShapeshifterDoc document) {
+                return document.copy().data(text).build();
+            }
+        });
         addTab(SOURCE, new AbstractTabProvider<ShapeshifterDoc, EditorPresenter>(eventBus) {
             @Override
             public EditorPresenter createPresenter() {
-                final EditorPresenter editorPresenter = editorPresenterProvider.get();
-                editorPresenter.setMode(AceEditorMode.JSON);
-                editorPresenter.setReadOnly(isReadOnly());
-                editorPresenter.getFormatAction().setAvailable(!isReadOnly());
-                NullSafe.consume(getEntity(), ShapeshifterDoc::getData, editorPresenter::setText);
-                registerHandler(editorPresenter.addValueChangeHandler(event -> onChange()));
-                registerHandler(editorPresenter.addFormatHandler(event -> onChange()));
-                return editorPresenter;
+                source = editorPresenterProvider.get();
+                source.setMode(AceEditorMode.JSON);
+                source.setReadOnly(isReadOnly());
+                source.getFormatAction().setAvailable(!isReadOnly());
+                registerHandler(source.addValueChangeHandler(event -> onSourceEdit()));
+                registerHandler(source.addFormatHandler(event -> onSourceEdit()));
+                return source;
             }
 
             @Override
@@ -75,14 +113,20 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
                                final DocRef docRef,
                                final ShapeshifterDoc document,
                                final boolean readOnly) {
-                presenter.setText(document.getData());
+                readText(document.getData());
+                syncing = true;
+                try {
+                    presenter.setText(text);
+                } finally {
+                    syncing = false;
+                }
                 presenter.setReadOnly(readOnly);
                 presenter.getFormatAction().setAvailable(!readOnly);
             }
 
             @Override
             public ShapeshifterDoc onWrite(final EditorPresenter presenter, final ShapeshifterDoc document) {
-                return document.copy().data(presenter.getText()).build();
+                return document.copy().data(text).build();
             }
         });
         addTab(DOCUMENTATION, new MarkdownTabProvider<ShapeshifterDoc>(eventBus, markdownEditPresenterProvider) {
@@ -102,7 +146,80 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
             }
         });
         addTab(PERMISSIONS, documentUserPermissionsTabProvider);
-        selectTab(SOURCE);
+        selectTab(DESIGN);
+    }
+
+    /** The document's text as read: parse it once, whichever tab asked. */
+    private void readText(final String data) {
+        final String read = data == null
+                ? ""
+                : data;
+        if (read.equals(text) && (project != null || sourceError != null)) {
+            return;
+        }
+        text = read;
+        parse();
+    }
+
+    private void parse() {
+        if (text.trim().isEmpty()) {
+            // A new document: the Design tab starts from an empty project rather than a syntax
+            // error, and the first edit writes it out.
+            project = ProjectText.empty(docRef == null
+                    ? null
+                    : docRef.getName());
+            sourceError = null;
+            return;
+        }
+        try {
+            project = ProjectText.parse(text);
+            sourceError = null;
+        } catch (final ConfigException e) {
+            sourceError = e.getMessage();
+        }
+    }
+
+    private void onSourceEdit() {
+        if (syncing || source == null) {
+            return;
+        }
+        final String edited = source.getText();
+        if (edited.equals(text)) {
+            return;
+        }
+        text = edited;
+        onChange();
+        parseSource.update();
+    }
+
+    private void parseSource() {
+        final boolean had = sourceError == null;
+        parse();
+        if (design != null) {
+            // A text that no longer parses keeps the previous project on the Design tab, read-only,
+            // under the banner; one that parses again replaces it.
+            design.read(sourceError == null
+                    ? project
+                    : null, sourceError, isReadOnly());
+        }
+        if (had != (sourceError == null)) {
+            onChange();
+        }
+    }
+
+    private void onDesignEdit(final Project edited) {
+        project = edited;
+        sourceError = null;
+        text = ProjectText.print(edited);
+        onChange();
+        if (source != null) {
+            syncing = true;
+            try {
+                source.setText(text);
+            } finally {
+                syncing = false;
+            }
+        }
     }
 
     @Override

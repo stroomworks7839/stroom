@@ -332,6 +332,6 @@ class FunctionsTest {
         final String json = lines(call("nth", GROUP1 + "," + LITERAL_X, "n"));
         final Project project = ProjectReader.read(json);
         assertThat(ProjectReader.read(ProjectReader.writePretty(project))).isEqualTo(project);
-        assertThat(ProjectReader.writePretty(project)).contains("\"call\"").contains("\"function\" : \"nth\"");
+        assertThat(ProjectReader.writePretty(project)).contains("\"call\"").contains("\"function\": \"nth\"");
     }
 }

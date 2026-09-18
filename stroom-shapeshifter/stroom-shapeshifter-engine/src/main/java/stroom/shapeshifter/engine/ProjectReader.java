@@ -24,15 +24,13 @@ import stroom.shapeshifter.config.json.JsonNull;
 import stroom.shapeshifter.config.json.JsonNumber;
 import stroom.shapeshifter.config.json.JsonObject;
 import stroom.shapeshifter.config.json.JsonString;
+import stroom.shapeshifter.config.json.JsonText;
 import stroom.shapeshifter.config.json.JsonValue;
 import stroom.shapeshifter.config.json.ProjectJson;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.JsonNodeFactory;
-import tools.jackson.databind.node.ObjectNode;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -41,15 +39,15 @@ import java.util.Map;
  * Turns configuration documents into {@link Project}s, and back.
  *
  * <p>Everything that reads a configuration goes through here, so that what a configuration is
- * stored as stays one decision in one place. Today that is JSON text via Jackson (D33), which
- * is the engine's text edge only: the mapping itself is the config module's, written against
- * its own {@link JsonValue} tree so that the GWT client can share it (design 43 §2), and this
- * class adapts Jackson's tree to that one in each direction.
+ * stored as stays one decision in one place. Today that is JSON text (D33). The mapping is
+ * the config module's, written against its own {@link JsonValue} tree so that the GWT client
+ * can share it (design 43 §2); this class parses with Jackson and adapts its tree, and prints
+ * with the config module's {@link JsonText} so that a project printed here and one printed in
+ * the client read the same.
  */
 public final class ProjectReader {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
     private ProjectReader() {
     }
@@ -78,12 +76,12 @@ public final class ProjectReader {
 
     /** Write a configuration as compact JSON. */
     public static String write(final Project project) {
-        return MAPPER.writeValueAsString(toNode(ProjectJson.writeProject(project)));
+        return JsonText.print(ProjectJson.writeProject(project));
     }
 
     /** Write a configuration as indented JSON, for a human or a diff. */
     public static String writePretty(final Project project) {
-        return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(toNode(ProjectJson.writeProject(project)));
+        return JsonText.printPretty(ProjectJson.writeProject(project));
     }
 
     /** Jackson's tree as the config module's. Numbers keep their literal text, so whole stays whole. */
@@ -113,33 +111,5 @@ public final class ProjectReader {
             return JsonBoolean.of(node.asBoolean());
         }
         throw new ConfigException("Unexpected JSON node type: " + node.getNodeType());
-    }
-
-    /** The config module's tree as Jackson's, for printing. */
-    static JsonNode toNode(final JsonValue value) {
-        if (value instanceof JsonObject object) {
-            final ObjectNode node = NODES.objectNode();
-            for (final Map.Entry<String, JsonValue> entry : object.entries()) {
-                node.set(entry.getKey(), toNode(entry.getValue()));
-            }
-            return node;
-        }
-        if (value instanceof JsonArray array) {
-            final ArrayNode node = NODES.arrayNode(array.size());
-            array.elements().forEach(child -> node.add(toNode(child)));
-            return node;
-        }
-        if (value instanceof JsonString string) {
-            return NODES.stringNode(string.value());
-        }
-        if (value instanceof JsonNumber number) {
-            return number.isIntegralNumber()
-                    ? NODES.numberNode(number.asLong())
-                    : NODES.numberNode(number.asDouble());
-        }
-        if (value instanceof JsonBoolean bool) {
-            return NODES.booleanNode(bool.value());
-        }
-        return NODES.nullNode();
     }
 }

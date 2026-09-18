@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.engine;
 
+import stroom.shapeshifter.config.Template.RegexFlags;
+import stroom.shapeshifter.engine.match.PatternKey;
 import stroom.shapeshifter.regex.BytePattern;
 import stroom.shapeshifter.regex.Encoding;
 import stroom.shapeshifter.regex.Flag;
@@ -84,5 +86,18 @@ public record PatternInfo(boolean valid, String error, List<Group> groups) {
             groups.add(new Group(i, names.get(i)));
         }
         return new PatternInfo(true, null, groups);
+    }
+
+    /**
+     * The engine's own account of how it would run a pattern under a template's flags — which
+     * tier, which plan — as {@code BytePattern.explain()} gives it, for the editor's pattern
+     * lint (design 18 §7). A pattern the flags make invalid answers with the refusal.
+     */
+    public static String explain(final String pattern, final RegexFlags flags) {
+        try {
+            return BytePattern.compile(pattern, PatternKey.flags(flags)).explain();
+        } catch (final PatternCompileException e) {
+            return e.getMessage();
+        }
     }
 }

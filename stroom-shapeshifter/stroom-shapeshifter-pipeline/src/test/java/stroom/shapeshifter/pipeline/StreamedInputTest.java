@@ -59,7 +59,7 @@ class StreamedInputTest {
     private static final int SMALL_WINDOW = 4096;
 
     private static String withWindow(final String projectJson, final int window) {
-        return projectJson.replaceFirst("\"buffer_size\" : \\d+", "\"buffer_size\" : " + window);
+        return projectJson.replaceFirst("\"buffer_size\": \\d+", "\"buffer_size\": " + window);
     }
 
     private static String migrated001(final int window) throws Exception {
@@ -215,8 +215,8 @@ class StreamedInputTest {
     @Test
     void feedAndConfigurationEncodingsThatDisagreeAreReportedOnce() throws Exception {
         final String json = migrated001(SMALL_WINDOW)
-                .replaceFirst("\"encoding\" : \"auto\"", "\"encoding\" : \"utf-8\"");
-        assertThat(json).contains("\"encoding\" : \"utf-8\"");
+                .replaceFirst("\"encoding\": \"auto\"", "\"encoding\": \"utf-8\"");
+        assertThat(json).contains("\"encoding\": \"utf-8\"");
         final LoggingErrorReceiver receiver = new LoggingErrorReceiver();
         final InputSource declaredOtherwise = new InputSource(new ByteArrayInputStream(manyRecords(3)));
         declaredOtherwise.setEncoding("windows-1252");

@@ -16,8 +16,11 @@
 
 package stroom.shapeshifter.config.json;
 
+import stroom.shapeshifter.config.CaptureBinding;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Project.SourceConfig;
 import stroom.shapeshifter.config.Template;
@@ -59,6 +62,34 @@ public final class ProjectJson {
         node.put("source", writeSource(project.source()));
         node.put("templates", JsonFields.array(project.templates(), ProjectJson::writeTemplate));
         return node;
+    }
+
+    // The parts of a template the editor exchanges on their own (design 43 §5): a pattern tree
+    // as a template's {@code pattern} match holds it, a match expression, a capture binding.
+    // Each is the same reading the whole project gets, so the editor and the reader agree.
+
+    public static PatternNode readPatternNode(final JsonValue node) {
+        return PatternJson.readNode(node);
+    }
+
+    public static JsonObject writePatternNode(final PatternNode node) {
+        return PatternJson.writeNode(node);
+    }
+
+    public static MatchExpression readMatch(final JsonValue node) {
+        return MatchJson.readMatch(node);
+    }
+
+    public static JsonValue writeMatch(final MatchExpression match) {
+        return MatchJson.writeMatch(match);
+    }
+
+    public static CaptureBinding readCapture(final JsonValue node) {
+        return ReferenceJson.readCapture(node);
+    }
+
+    public static JsonObject writeCapture(final CaptureBinding capture) {
+        return ReferenceJson.writeCapture(capture);
     }
 
     private static SourceConfig readSource(final JsonValue node) {

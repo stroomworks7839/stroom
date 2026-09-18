@@ -1,0 +1,43 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view"
+             xmlns:l="urn:import:stroom.item.client">
+    <g:ScrollPanel styleName="max">
+        <g:FlowPanel styleName="form dock-container-vertical shapeshifter-source">
+            <g:Label styleName="shapeshifter-title" text="Source — the document"/>
+            <g:Label ui:field="error" styleName="shapeshifter-error"/>
+            <form:FormGroup identity="shapeshifterProjectName" label="Project name">
+                <g:TextBox ui:field="name" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup identity="shapeshifterProjectVersion" label="Version"
+                            helpText="The format version the project is written to. Dispatch defaults to strict from version 4.">
+                <g:TextBox ui:field="version"/>
+            </form:FormGroup>
+            <form:FormGroup identity="shapeshifterEncoding" label="Encoding"
+                            helpText="auto sniffs once before compiling; UTF-8 is the default. A byte-order mark contradicting a declared encoding is a run message.">
+                <g:TextBox ui:field="encoding"/>
+            </form:FormGroup>
+            <form:FormGroup identity="shapeshifterDispatch" label="Dispatch"
+                            helpText="How templates are chosen among the candidates in a mode. Blank takes the version's default.">
+                <l:SelectionBox ui:field="dispatch"/>
+            </form:FormGroup>
+            <form:FormGroup identity="shapeshifterBufferSize" label="Buffer size"
+                            helpText="Bytes read ahead when a match can span reads.">
+                <g:TextBox ui:field="bufferSize"/>
+            </form:FormGroup>
+            <form:FormGroup identity="shapeshifterMaxSequenceEntries" label="Max sequence entries"
+                            helpText="The most entries a list, map or set declaration holds.">
+                <g:TextBox ui:field="maxSequenceEntries"/>
+            </form:FormGroup>
+            <form:FormGroup identity="shapeshifterIgnoreErrors" label="Ignore errors">
+                <tickbox:CustomCheckBox ui:field="ignoreErrors"/>
+            </form:FormGroup>
+            <form:FormGroup identity="shapeshifterStrictValues" label="Strict values"
+                            helpText="A cast that fails is an error rather than an empty value.">
+                <tickbox:CustomCheckBox ui:field="strictValues"/>
+            </form:FormGroup>
+        </g:FlowPanel>
+    </g:ScrollPanel>
+</ui:UiBinder>

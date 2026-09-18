@@ -1,0 +1,25 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+    <g:ThinSplitLayoutPanel styleName="max default-min-sizes shapeshifter-workbench">
+        <g:north size="28">
+            <g:FlowPanel styleName="shapeshifter-workbench-header">
+                <g:Label ui:field="name" styleName="shapeshifter-workbench-name"/>
+                <g:Label ui:field="detail" styleName="shapeshifter-workbench-detail"/>
+            </g:FlowPanel>
+        </g:north>
+        <g:south size="180">
+            <g:ThinSplitLayoutPanel styleName="max default-min-sizes">
+                <g:west size="380">
+                    <g:SimplePanel ui:field="declarations" styleName="max"/>
+                </g:west>
+                <g:center>
+                    <g:SimplePanel ui:field="captures" styleName="max"/>
+                </g:center>
+            </g:ThinSplitLayoutPanel>
+        </g:south>
+        <g:center>
+            <g:SimplePanel ui:field="matchEditor" styleName="max"/>
+        </g:center>
+    </g:ThinSplitLayoutPanel>
+</ui:UiBinder>

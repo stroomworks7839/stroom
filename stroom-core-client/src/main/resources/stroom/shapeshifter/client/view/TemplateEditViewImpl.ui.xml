@@ -1,0 +1,22 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view">
+    <g:FlowPanel styleName="max form dock-container-vertical">
+        <form:FormGroup identity="shapeshifterTemplateName" label="Name">
+            <g:TextBox ui:field="name" addStyleNames="w-100"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterTemplateMode" label="Mode"
+                        helpText="The mode this template is dispatched in. Order within a mode is dispatch priority.">
+            <g:FlowPanel>
+                <g:TextBox ui:field="mode" addStyleNames="w-100"/>
+                <g:Label ui:field="modes" styleName="shapeshifter-hint"/>
+            </g:FlowPanel>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterTemplateConsume" label="Consume"
+                        helpText="Whether a match consumes its bytes, so the next template starts after it.">
+            <tickbox:CustomCheckBox ui:field="consume"/>
+        </form:FormGroup>
+    </g:FlowPanel>
+</ui:UiBinder>

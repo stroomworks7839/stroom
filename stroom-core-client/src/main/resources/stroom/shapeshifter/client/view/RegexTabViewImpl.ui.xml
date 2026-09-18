@@ -1,0 +1,37 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:button="urn:import:stroom.widget.button.client"
+             xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view">
+    <g:ScrollPanel styleName="max">
+        <g:FlowPanel styleName="form dock-container-vertical shapeshifter-regex">
+            <form:FormGroup identity="shapeshifterPattern" label="Pattern">
+                <g:TextArea ui:field="pattern" addStyleNames="w-100 shapeshifter-pattern" visibleLines="3"/>
+            </form:FormGroup>
+            <g:FlowPanel styleName="shapeshifter-row">
+                <form:FormGroup identity="shapeshifterCaseInsensitive" label="Case insensitive">
+                    <tickbox:CustomCheckBox ui:field="caseInsensitive"/>
+                </form:FormGroup>
+                <form:FormGroup identity="shapeshifterDotAll" label="Dot matches newline">
+                    <tickbox:CustomCheckBox ui:field="dotAll"/>
+                </form:FormGroup>
+                <form:FormGroup identity="shapeshifterAdvance" label="Advance"
+                                helpText="Bytes to step past after a match that consumed nothing; 0 lets the engine decide.">
+                    <g:TextBox ui:field="advance" addStyleNames="shapeshifter-short"/>
+                </form:FormGroup>
+                <button:Button ui:field="explode" text="Explode into tree"
+                               title="Rewrite this regex as the pattern tree it is, and edit it there"/>
+            </g:FlowPanel>
+            <g:Label ui:field="error" styleName="shapeshifter-error"/>
+            <form:FormGroup identity="shapeshifterGroups" label="Groups"
+                            helpText="The pattern's capture groups as the engine numbers them. A capture binds a group or a label to a declaration.">
+                <g:HTML ui:field="groups"/>
+            </form:FormGroup>
+            <form:FormGroup identity="shapeshifterExplain" label="How it runs"
+                            helpText="The engine's own account of the plan it would run for this pattern.">
+                <g:Label ui:field="explain" styleName="shapeshifter-explain"/>
+            </form:FormGroup>
+        </g:FlowPanel>
+    </g:ScrollPanel>
+</ui:UiBinder>

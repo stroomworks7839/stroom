@@ -54,7 +54,8 @@ public final class PatternExplode {
         return node(Matchers.explode(pattern, set));
     }
 
-    private static PatternNode node(final Matcher matcher) {
+    /** The tree a composition is — the same mapping, for the library's own definitions. */
+    static PatternNode node(final Matcher matcher) {
         return switch (matcher) {
             case final Matcher.Tag tag -> new PatternNode.Tag(tag.text());
             case final Matcher.Characters characters -> new PatternNode.TakeWhile(characters.classExpression(),

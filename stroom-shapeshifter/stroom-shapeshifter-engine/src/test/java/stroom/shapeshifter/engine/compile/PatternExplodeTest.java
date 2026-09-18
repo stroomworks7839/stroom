@@ -24,6 +24,7 @@ import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.RegexFlags;
 import stroom.shapeshifter.engine.PatternExplode;
+import stroom.shapeshifter.engine.PatternPrint;
 import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.fixture.FixtureLedger;
 import stroom.shapeshifter.engine.fixture.FixtureLedger.Fixture;
@@ -142,6 +143,14 @@ class PatternExplodeTest {
         final BytePattern exploded = PatternCompiler.compile(tree, regex.encoding(), regex.where()).pattern();
         assertThat(planOf(exploded)).as("%s explodes as %s", regex.pattern(), tree).isEqualTo(planOf(written));
         assertThat(exploded.groupCount()).isEqualTo(written.groupCount());
+        // And back: the tree printed as a regex (design 43 §5) is the same plan again, with the
+        // same groups under the same numbers and names.
+        final String printed = PatternPrint.print(tree, regex.flags());
+        final BytePattern reprinted = BytePattern.compile(printed, PatternKey.flags(regex.flags()),
+                RegexEncodings.forMatch(regex.encoding()));
+        assertThat(planOf(reprinted)).as("%s prints as %s", regex.pattern(), printed).isEqualTo(planOf(written));
+        assertThat(reprinted.groupCount()).isEqualTo(written.groupCount());
+        assertThat(reprinted.groupNames()).isEqualTo(written.groupNames());
         for (int group = 1; group <= written.groupCount(); group++) {
             final String name = written.groupNames().get(group);
             if (name != null) {

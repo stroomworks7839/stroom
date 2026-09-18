@@ -1,0 +1,33 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:l="urn:import:stroom.item.client">
+    <g:FlowPanel styleName="max form dock-container-vertical">
+        <form:FormGroup identity="shapeshifterCaptureName" label="Binds into"
+                        helpText="The declaration the captured value is assigned to.">
+            <g:FlowPanel>
+                <g:TextBox ui:field="name" addStyleNames="w-100"/>
+                <g:Label ui:field="declared" styleName="shapeshifter-hint"/>
+            </g:FlowPanel>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterCaptureKind" label="From"
+                        helpText="A regex group by number, a pattern-tree label by name, or a reference over the values in scope.">
+            <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>
+        </form:FormGroup>
+        <form:FormGroup ui:field="groupGroup" identity="shapeshifterCaptureGroup" label="Group">
+            <g:TextBox ui:field="group" addStyleNames="shapeshifter-short"/>
+        </form:FormGroup>
+        <form:FormGroup ui:field="labelGroup" identity="shapeshifterCaptureLabel" label="Label">
+            <g:TextBox ui:field="label" addStyleNames="w-100"/>
+        </form:FormGroup>
+        <form:FormGroup ui:field="selectGroup" identity="shapeshifterCaptureSelect" label="Reference"
+                        helpText="The reference's wire form: {&quot;parts&quot;: [...]}, or for key-value {&quot;key_ref&quot;: ..., &quot;value_ref&quot;: ...}.">
+            <g:TextArea ui:field="select" addStyleNames="w-100 shapeshifter-entries" visibleLines="6"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterCaptureCast" label="As"
+                        helpText="The typed reading of the captured text.">
+            <l:SelectionBox ui:field="cast" addStyleNames="w-100"/>
+        </form:FormGroup>
+    </g:FlowPanel>
+</ui:UiBinder>
