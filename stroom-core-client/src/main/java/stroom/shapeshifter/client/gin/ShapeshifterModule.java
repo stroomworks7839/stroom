@@ -28,6 +28,10 @@ import stroom.shapeshifter.client.presenter.MatchEditorPresenter;
 import stroom.shapeshifter.client.presenter.MatchStructurePresenter;
 import stroom.shapeshifter.client.presenter.MatchStructurePresenter.MatchStructureView;
 import stroom.shapeshifter.client.presenter.MessagesPresenter;
+import stroom.shapeshifter.client.presenter.PatternNodeEditPresenter;
+import stroom.shapeshifter.client.presenter.PatternNodeEditPresenter.PatternNodeEditView;
+import stroom.shapeshifter.client.presenter.PatternTreePresenter;
+import stroom.shapeshifter.client.presenter.PatternTreePresenter.PatternTreeView;
 import stroom.shapeshifter.client.presenter.RegexTabPresenter;
 import stroom.shapeshifter.client.presenter.RegexTabPresenter.RegexTabView;
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter;
@@ -43,6 +47,8 @@ import stroom.shapeshifter.client.presenter.TemplateWorkbenchPresenter.TemplateW
 import stroom.shapeshifter.client.view.CaptureEditViewImpl;
 import stroom.shapeshifter.client.view.DeclarationEditViewImpl;
 import stroom.shapeshifter.client.view.MatchStructureViewImpl;
+import stroom.shapeshifter.client.view.PatternNodeEditViewImpl;
+import stroom.shapeshifter.client.view.PatternTreeViewImpl;
 import stroom.shapeshifter.client.view.RegexTabViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterDesignViewImpl;
 import stroom.shapeshifter.client.view.SourceConfigViewImpl;
@@ -78,6 +84,12 @@ public class ShapeshifterModule extends PluginModule {
         bindPresenterWidget(MatchStructurePresenter.class,
                 MatchStructureView.class,
                 MatchStructureViewImpl.class);
+        bindPresenterWidget(PatternTreePresenter.class,
+                PatternTreeView.class,
+                PatternTreeViewImpl.class);
+        bindPresenterWidget(PatternNodeEditPresenter.class,
+                PatternNodeEditView.class,
+                PatternNodeEditViewImpl.class);
         bind(DeclarationsPresenter.class);
         bindPresenterWidget(DeclarationEditPresenter.class,
                 DeclarationEditView.class,

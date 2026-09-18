@@ -212,7 +212,8 @@ model's wire form; never a doc ref, so the unsaved document can be checked):
 | `validate` | project text | messages with paths, canonical text | `ProjectReader` + the compiler, no run |
 | `patternInfo` | pattern, flags | validity, error, groups and labels, explain, ambiguities | `PatternInfo.inspect`, `BytePattern.explain()` |
 | `explode` | pattern | pattern tree JSON | `PatternExplode` |
-| `print` | pattern tree JSON | regex text | `PatternPrint` — the inverse, **to be built in the engine** (§8 Q2) |
+| `print` | pattern tree JSON | regex text | `PatternPrint` — the inverse (§8 Q2), built |
+| `library` | — | the standard library: name and the regex each entry means | `PatternPrint.library()` over `Matchers.standardLibrary()` |
 | `preview` | project text, `SourceLocation` | `TraceModel`, output text, messages, timings | `Shapeshifter.run` with a recording `Instrument` |
 
 `preview` reads the sample from the stream store by `SourceLocation` (meta, part, record)
@@ -336,9 +337,18 @@ shippable.
   first row. An empty document opens as an empty version-5 project. Verified by the GWT draft
   compile, the config module's `check`, the engine and pipeline suites, and a JVM test of the
   client's text edge (`ProjectTextTest`).
-  *Left for the next piece of workbench work, deliberately:* the pattern-tree tab renders the
-  tree and edits its wire form — the nested node editor of design 18 §10 grows from that
-  renderer; the regex tab's groups are shown, not yet the capture-declaration editor of
+  **The tree tab as a node editor, 2026-09-18:** `PatternTreePresenter` renders the tree as
+  nested rows — click selects, double-click edits — with a toolbar acting on the selection
+  (add child, add after, wrap, edit, remove, unwrap, up, down), every action a rewrite through
+  `PatternNodes` (path-addressed, immutable, labels kept, a single-body container never left
+  empty) landing on the host as a replacement match; `PatternNodeEditPresenter` is the one
+  dialog for a node's kind and fields, label and cast, keeping what a node holds across a
+  change of kind where the new kind can hold it; the regex the tree means is printed live,
+  and the standard library a `ref` can name is listed read-only beside it and offered in the
+  dialog, from a new `library` endpoint (`PatternPrint.library()`). The wire form stays
+  editable in the right-hand pane.
+  *Left for the next piece of workbench work, deliberately:* the regex tab's groups are shown,
+  not yet the capture-declaration editor of
   18 §5.6; guard and limits (`GuardAndLimitsPresenter`) and template colour overrides (18
   §5.6, editor metadata in the doc) are unbuilt; the Source tab's format action is Ace's
   formatter, not yet the `validate` round trip; modes are typed, not chosen from a mode

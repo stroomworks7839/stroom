@@ -1,0 +1,52 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view"
+             xmlns:l="urn:import:stroom.item.client">
+    <g:ScrollPanel styleName="max">
+        <g:FlowPanel styleName="form dock-container-vertical">
+            <form:FormGroup identity="shapeshifterNodeKind" label="Kind"
+                            helpText="tag, take_while, take_until, take_through, take, any, regex and ref consume bytes; sequence, choice, optional, repeat, peek and not compose other nodes.">
+                <g:FlowPanel>
+                    <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>
+                    <g:Label ui:field="childrenNote" styleName="shapeshifter-hint"/>
+                </g:FlowPanel>
+            </form:FormGroup>
+            <form:FormGroup ui:field="textGroup" identity="shapeshifterNodeText" label="Text">
+                <g:TextBox ui:field="text" addStyleNames="w-100 shapeshifter-pattern"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="countGroup" identity="shapeshifterNodeCount" label="Bytes">
+                <g:TextBox ui:field="count" addStyleNames="shapeshifter-short"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="minGroup" identity="shapeshifterNodeMin" label="Min">
+                <g:TextBox ui:field="min" addStyleNames="shapeshifter-short"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="maxGroup" identity="shapeshifterNodeMax" label="Max"
+                            helpText="Blank for no upper bound.">
+                <g:TextBox ui:field="max" addStyleNames="shapeshifter-short"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="greedyGroup" identity="shapeshifterNodeGreedy" label="Greedy">
+                <tickbox:CustomCheckBox ui:field="greedy"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="caseInsensitiveGroup" identity="shapeshifterNodeCaseInsensitive"
+                            label="Case insensitive">
+                <tickbox:CustomCheckBox ui:field="caseInsensitive"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="dotAllGroup" identity="shapeshifterNodeDotAll" label="Dot matches newline">
+                <tickbox:CustomCheckBox ui:field="dotAll"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="refGroup" identity="shapeshifterNodeRef" label="Library pattern">
+                <l:SelectionBox ui:field="ref" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup identity="shapeshifterNodeLabel" label="Label"
+                            helpText="Names what this node matched, for a capture to bind. Blank for none.">
+                <g:TextBox ui:field="label" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup identity="shapeshifterNodeCast" label="As"
+                            helpText="A binary reading of the labelled bytes.">
+                <l:SelectionBox ui:field="cast" addStyleNames="w-100"/>
+            </form:FormGroup>
+        </g:FlowPanel>
+    </g:ScrollPanel>
+</ui:UiBinder>

@@ -128,10 +128,45 @@
     word-break: break-all;
 }
 
+.shapeshifter-node > .shapeshifter-node-text {
+    border-radius: 3px;
+    padding: 0 3px;
+}
+
+.shapeshifter-tree--editable .shapeshifter-node > .shapeshifter-node-text {
+    cursor: pointer;
+}
+
+.shapeshifter-library-title {
+    padding-top: 10px;
+}
+
+.shapeshifter-library {
+    border-collapse: collapse;
+}
+
+.shapeshifter-library td {
+    padding: 1px 8px 1px 0;
+    vertical-align: top;
+}
+
+.shapeshifter-library-name {
+    white-space: nowrap;
+}
+
 .shapeshifter-node--labelled > .shapeshifter-node-text {
     background-color: rgba(78, 121, 167, 0.15);
     border-radius: 3px;
     padding: 0 3px;
+}
+
+/* Hover and selection beat the label tint: declared after it on purpose. */
+.shapeshifter-tree--editable .shapeshifter-node > .shapeshifter-node-text:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.shapeshifter-node--selected > .shapeshifter-node-text {
+    background-color: var(--row__background-color--selected);
 }
 
 .shapeshifter-parts {

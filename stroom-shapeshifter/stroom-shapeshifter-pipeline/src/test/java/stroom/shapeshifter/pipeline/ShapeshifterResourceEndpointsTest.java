@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.pipeline;
 
+import stroom.shapeshifter.shared.ShapeshifterLibrary;
 import stroom.shapeshifter.shared.ShapeshifterPatternInfo;
 import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
 import stroom.shapeshifter.shared.ShapeshifterText;
@@ -98,5 +99,20 @@ class ShapeshifterResourceEndpointsTest {
         assertThat(tree.getText()).contains("\"sequence\"").contains("\"label\": \"level\"");
         final ShapeshifterText printed = resource.print(new ShapeshifterPatternRequest(tree.getText(), false, false));
         assertThat(printed.getText()).isEqualTo("^(?<level>ERROR|WARN) +(?<msg>.*)$");
+    }
+
+    @Test
+    void libraryListsTheStandardEntriesAsRegexes() {
+        final ShapeshifterLibrary library = resource.library();
+        assertThat(library.getEntries()).extracting(ShapeshifterLibrary.Entry::getName)
+                .startsWith("digits", "word", "identifier").contains("ipv4", "csvField");
+        assertThat(library.getEntries().get(0).getRegex()).isEqualTo("[0-9]+");
+        // Every entry prints to something the engine will compile back: print is the inverse of
+        // explode, and a ref prints as its definition.
+        for (final ShapeshifterLibrary.Entry entry : library.getEntries()) {
+            final String tree = "{\"ref\": \"" + entry.getName() + "\"}";
+            assertThat(resource.print(new ShapeshifterPatternRequest(tree, false, false)).getText())
+                    .isEqualTo(entry.getRegex());
+        }
     }
 }

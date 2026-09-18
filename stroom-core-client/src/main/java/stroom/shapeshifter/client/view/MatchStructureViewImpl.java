@@ -21,7 +21,6 @@ import stroom.shapeshifter.client.presenter.MatchStructurePresenter.MatchStructu
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
-import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.SimplePanel;
@@ -37,10 +36,6 @@ public class MatchStructureViewImpl extends ViewImpl implements MatchStructureVi
 
     @UiField
     ThinSplitLayoutPanel layout;
-    @UiField
-    FlowPanel regexRow;
-    @UiField
-    Label regex;
     @UiField
     Label error;
     @UiField
@@ -67,18 +62,6 @@ public class MatchStructureViewImpl extends ViewImpl implements MatchStructureVi
     @Override
     public void setStructure(final SafeHtml html) {
         structure.setHTML(html);
-    }
-
-    @Override
-    public void setRegexVisible(final boolean visible) {
-        regexRow.setVisible(visible);
-    }
-
-    @Override
-    public void setRegex(final String text) {
-        regex.setText(text == null
-                ? ""
-                : text);
     }
 
     @Override

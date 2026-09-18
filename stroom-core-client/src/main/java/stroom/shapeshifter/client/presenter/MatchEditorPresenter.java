@@ -55,7 +55,7 @@ public class MatchEditorPresenter extends MyPresenterWidget<LinkTabPanelView> {
 
     private final RestFactory restFactory;
     private final RegexTabPresenter regexTab;
-    private final MatchStructurePresenter treeTab;
+    private final PatternTreePresenter treeTab;
     private final MatchStructurePresenter partsTab;
     private final MatchStructurePresenter otherTab;
 
@@ -68,14 +68,14 @@ public class MatchEditorPresenter extends MyPresenterWidget<LinkTabPanelView> {
                                 final LinkTabPanelView view,
                                 final RestFactory restFactory,
                                 final RegexTabPresenter regexTab,
+                                final PatternTreePresenter treeTab,
                                 final Provider<MatchStructurePresenter> structureProvider) {
         super(eventBus, view);
         this.restFactory = restFactory;
         this.regexTab = regexTab;
-        this.treeTab = structureProvider.get();
+        this.treeTab = treeTab;
         this.partsTab = structureProvider.get();
         this.otherTab = structureProvider.get();
-        treeTab.setMode(MatchStructurePresenter.Mode.TREE);
         partsTab.setMode(MatchStructurePresenter.Mode.PARTS);
         otherTab.setMode(MatchStructurePresenter.Mode.ANY);
         regexTab.setOnExplode(() -> convert(TREE));

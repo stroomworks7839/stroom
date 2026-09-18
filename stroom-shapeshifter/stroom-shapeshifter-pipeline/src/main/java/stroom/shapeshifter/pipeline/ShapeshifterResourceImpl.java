@@ -35,6 +35,7 @@ import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.shared.ShapeshifterDoc;
+import stroom.shapeshifter.shared.ShapeshifterLibrary;
 import stroom.shapeshifter.shared.ShapeshifterMessage;
 import stroom.shapeshifter.shared.ShapeshifterPatternInfo;
 import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
@@ -48,6 +49,7 @@ import jakarta.inject.Provider;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @AutoLogged
 class ShapeshifterResourceImpl implements ShapeshifterResource {
@@ -129,6 +131,16 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
     public ShapeshifterText explode(final ShapeshifterPatternRequest request) {
         final PatternNode tree = PatternExplode.explode(request.getPattern(), flags(request));
         return new ShapeshifterText(JsonText.printPretty(ProjectJson.writePatternNode(tree)));
+    }
+
+    @AutoLogged(OperationType.UNLOGGED)
+    @Override
+    public ShapeshifterLibrary library() {
+        final List<ShapeshifterLibrary.Entry> entries = new ArrayList<>();
+        for (final Map.Entry<String, String> entry : PatternPrint.library().entrySet()) {
+            entries.add(new ShapeshifterLibrary.Entry(entry.getKey(), entry.getValue()));
+        }
+        return new ShapeshifterLibrary(entries);
     }
 
     @AutoLogged(OperationType.UNLOGGED)

@@ -82,6 +82,13 @@ public interface ShapeshifterResource extends RestResource, DirectRestService, F
             operationId = "shapeshifterExplode")
     ShapeshifterText explode(@Parameter(description = "request", required = true) ShapeshifterPatternRequest request);
 
+    @GET
+    @Path("/library")
+    @Operation(
+            summary = "The standard library a pattern tree's ref names, each entry as the regex it means",
+            operationId = "shapeshifterLibrary")
+    ShapeshifterLibrary library();
+
     @POST
     @Path("/print")
     @Operation(

@@ -19,9 +19,12 @@ package stroom.shapeshifter.engine;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Template.RegexFlags;
 import stroom.shapeshifter.regex.comb.Matcher;
+import stroom.shapeshifter.regex.comb.MatcherLibrary;
 import stroom.shapeshifter.regex.comb.Matchers;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A pattern tree written back as the regex it means — {@link PatternExplode}'s inverse, so the
@@ -46,6 +49,19 @@ public final class PatternPrint {
         final StringBuilder out = new StringBuilder();
         new Printer(flags == null ? RegexFlags.none() : flags).print(node, out, Context.TOP);
         return out.toString();
+    }
+
+    /**
+     * The standard library as the editor lists it: each name with the regex its definition
+     * means, in definition order. What a {@code ref} node can name, and nothing else can.
+     */
+    public static Map<String, String> library() {
+        final Map<String, String> entries = new LinkedHashMap<>();
+        final MatcherLibrary library = Matchers.standardLibrary();
+        for (final String name : library.names()) {
+            entries.put(name, print(PatternExplode.node(library.get(name)), RegexFlags.none()));
+        }
+        return entries;
     }
 
     /** Where a node is printed, which decides whether it needs a group around it. */

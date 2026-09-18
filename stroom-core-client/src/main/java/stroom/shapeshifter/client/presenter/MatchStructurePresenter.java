@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.client.presenter;
 
-import stroom.dispatch.client.RestFactory;
 import stroom.editor.client.presenter.EditorPresenter;
 import stroom.shapeshifter.client.presenter.MatchStructurePresenter.MatchStructureView;
 import stroom.shapeshifter.config.ConfigException;
@@ -24,11 +23,8 @@ import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.MatchExpression.MatchPart;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Template;
-import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
-import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.util.client.DelayedUpdate;
 
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -38,29 +34,21 @@ import com.gwtplatform.mvp.client.View;
 import edu.ycp.cs.dh.acegwt.client.ace.AceEditorMode;
 
 /**
- * The structured match kinds — the pattern tree, the match sequence of parts, and any other kind
- * as its wire form — each as a rendering of its structure above an editor of its JSON, the same
- * form the Source tab holds. Edits commit on a debounce when the text reads as the kind the tab
- * edits; while it does not, the error is shown and the model keeps the last good value. The tree
- * tab also prints the tree back as the regex it means, live, through {@code print} (design 43 §5).
- *
- * <p>A nested node editor over the vocabulary is design 18 §10's ask for this tab; this is its
- * first cut — the structure rendered, the wire form edited — and the renderer is where the node
- * editor grows.
+ * The match kinds edited as their wire form — the match sequence of parts, and any other kind
+ * the workbench has no form for — each as a rendering of its structure above an editor of its
+ * JSON, the same form the Source tab holds. Edits commit on a debounce when the text reads as
+ * the kind the tab edits; while it does not, the error is shown and the model keeps the last
+ * good value. The pattern tree has its own editor, {@link PatternTreePresenter}.
  */
 public class MatchStructurePresenter
         extends MyPresenterWidget<MatchStructureView>
         implements MatchEditorPresenter.MatchTab {
 
-    private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
-
     public enum Mode {
-        TREE,
         PARTS,
         ANY
     }
 
-    private final RestFactory restFactory;
     private final EditorPresenter editor;
     private final DelayedUpdate commit;
 
@@ -69,15 +57,12 @@ public class MatchStructurePresenter
     private String templateId;
     /** The canonical text of the match last handed to, or received from, the host. */
     private String committed;
-    private String printed;
 
     @Inject
     public MatchStructurePresenter(final EventBus eventBus,
                                    final MatchStructureView view,
-                                   final RestFactory restFactory,
                                    final Provider<EditorPresenter> editorProvider) {
         super(eventBus, view);
-        this.restFactory = restFactory;
         this.editor = editorProvider.get();
         this.commit = new DelayedUpdate(400, this::commit);
         editor.setMode(AceEditorMode.JSON);
@@ -93,7 +78,6 @@ public class MatchStructurePresenter
 
     public void setMode(final Mode mode) {
         this.mode = mode;
-        getView().setRegexVisible(mode == Mode.TREE);
     }
 
     public void setHost(final ProjectHost host) {
@@ -128,11 +112,7 @@ public class MatchStructurePresenter
 
     /** The match in the form this tab edits, or null when it is not of that kind. */
     private String print(final MatchExpression match) {
-        if (mode == Mode.TREE) {
-            return match instanceof MatchExpression.Pattern pattern
-                    ? ProjectText.printPatternNode(pattern.node())
-                    : null;
-        } else if (mode == Mode.PARTS) {
+        if (mode == Mode.PARTS) {
             return match instanceof MatchExpression.Parts
                     ? ProjectText.printMatch(match)
                     : null;
@@ -141,9 +121,6 @@ public class MatchStructurePresenter
     }
 
     private MatchExpression parse(final String text) {
-        if (mode == Mode.TREE) {
-            return new MatchExpression.Pattern(ProjectText.parsePatternNode(text));
-        }
         final MatchExpression match = ProjectText.parseMatch(text);
         if (mode == Mode.PARTS && !(match instanceof MatchExpression.Parts)) {
             throw new ConfigException("The parts tab edits a match sequence: {\"parts\": [...]}");
@@ -177,7 +154,6 @@ public class MatchStructurePresenter
             sb.appendHtmlConstant("<ul class=\"shapeshifter-tree\">");
             renderNode(sb, pattern.node());
             sb.appendHtmlConstant("</ul>");
-            printRegex(pattern.node());
         } else if (match instanceof MatchExpression.Parts parts) {
             sb.appendHtmlConstant("<ol class=\"shapeshifter-parts\">");
             for (final MatchPart part : parts.parts()) {
@@ -222,39 +198,11 @@ public class MatchStructurePresenter
         sb.appendHtmlConstant("</li>");
     }
 
-    private void printRegex(final PatternNode node) {
-        final String text = ProjectText.printPatternNode(node);
-        if (text.equals(printed)) {
-            return;
-        }
-        printed = text;
-        restFactory
-                .create(RESOURCE)
-                .method(res -> res.print(new ShapeshifterPatternRequest(text, false, false)))
-                .onSuccess(result -> {
-                    if (text.equals(printed)) {
-                        getView().setRegex(result.getText());
-                    }
-                })
-                .onFailure(error -> {
-                    if (text.equals(printed)) {
-                        getView().setRegex("— " + error.getMessage());
-                    }
-                })
-                .taskMonitorFactory(this)
-                .exec();
-    }
-
     public interface MatchStructureView extends View {
 
         void setEditor(View view);
 
         void setStructure(com.google.gwt.safehtml.shared.SafeHtml html);
-
-        void setRegexVisible(boolean visible);
-
-        /** The regex the tree means, as the engine prints it. */
-        void setRegex(String regex);
 
         void setError(String error);
     }
