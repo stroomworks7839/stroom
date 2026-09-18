@@ -653,7 +653,7 @@ final class Level {
         // Declared before the captures bind, so a template capturing a name it declares — a
         // recursive walk keeping each level's own — binds this execution's, not the outer one's.
         enter(candidate);
-        bindCaptures(candidate, match, matchCount, frameId);
+        bindCaptures(candidate, match, matchCount, frameId, content);
         final long before = out.sink().position();
         body.body(candidate.body(), match, matchCount, content, out,
                 locateBase, ignoreErrors, depth);
@@ -1017,7 +1017,8 @@ final class Level {
     private void bindCaptures(final CompiledTemplate compiledTemplate,
                               final MatchResult match,
                               final int matchCount,
-                              final long frameId) {
+                              final long frameId,
+                              final TypedValue content) {
         // This method is kept whole, and so above the JIT's hot-method size, on purpose: inlined
         // into the level's match loop it crowds the regex match itself out of that compilation
         // ("already compiled into a big method"), which read regex_lines 20% down when the
@@ -1049,9 +1050,21 @@ final class Level {
                         throw new IllegalStateException("key-value bound above");
             };
             final TypedValue value = cast(read, capture.as());
-            if (value != null) {
+            if (value != null && instrument != Instrument.NONE) {
+                // Placed when the group and the content are ranges of one array - a slice's
+                // array is the level's, a copy's is its own - and the group lies within the
+                // content (a delimiter's group 0 holds the delimiter its field does not).
+                final int at = read instanceof final TypedValue.Bytes bytes
+                        && content instanceof final TypedValue.Bytes range
+                        && bytes.readArray() == range.readArray()
+                        && bytes.readOffset() >= range.readOffset()
+                        && bytes.readOffset() + bytes.readLength() <= range.readOffset() + range.readLength()
+                        ? bytes.readOffset() - range.readOffset()
+                        : Instrument.NOT_A_SLICE;
                 instrument.onCapture(frameId, compiledTemplate.template().id(), capture.name().name(), value,
-                        matchCount);
+                        matchCount, at, at == Instrument.NOT_A_SLICE
+                                ? 0
+                                : ((TypedValue.Bytes) read).readLength());
             }
             // A capture is a value source (design 35 §4): it assigns the scalar it names, or puts
             // at this match's position in the list it names. An unmatched capture — or a cast

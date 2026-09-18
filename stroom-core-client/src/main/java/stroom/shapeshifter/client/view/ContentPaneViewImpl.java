@@ -18,15 +18,13 @@ package stroom.shapeshifter.client.view;
 
 import stroom.shapeshifter.client.presenter.ContentPanePresenter.ContentPaneView;
 import stroom.shapeshifter.client.presenter.ContentPanePresenter.Loose;
-import stroom.shapeshifter.client.presenter.ContentPanePresenter.Span;
 import stroom.shapeshifter.client.presenter.ContentPaneUiHandlers;
+import stroom.shapeshifter.client.presenter.Mark;
 
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.EventTarget;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.KeyCodes;
-import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
-import com.google.gwt.safehtml.shared.SafeHtmlUtils;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Button;
@@ -41,15 +39,10 @@ import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 import java.util.List;
 
 /**
- * The content as one HTML block: text escaped, each child match a span carrying its frame id
- * and its template's colour as a CSS variable, so the stylesheet decides how a match looks. A
- * click anywhere finds the innermost span above it and descends. Nesting is not drawn — only
- * the cursor's own children are marked — so the spans never overlap and can be emitted in
- * order.
+ * The content as one HTML block ({@link Marks}); a click anywhere finds the innermost match
+ * span above it and descends.
  */
 public class ContentPaneViewImpl extends ViewWithUiHandlers<ContentPaneUiHandlers> implements ContentPaneView {
-
-    private static final String FRAME_ATTR = "data-frame";
 
     private final Widget widget;
 
@@ -90,7 +83,7 @@ public class ContentPaneViewImpl extends ViewWithUiHandlers<ContentPaneUiHandler
             }
             Element at = Element.as(target);
             while (at != null && at != content.getElement()) {
-                final String id = at.getAttribute(FRAME_ATTR);
+                final String id = at.getAttribute(Marks.FRAME_ATTR);
                 if (id != null && !id.isEmpty()) {
                     getUiHandlers().onDescend(Long.parseLong(id));
                     return;
@@ -120,32 +113,9 @@ public class ContentPaneViewImpl extends ViewWithUiHandlers<ContentPaneUiHandler
     }
 
     @Override
-    public void showContent(final String text, final List<Span> spans, final List<Loose> looseMatches,
+    public void showContent(final String text, final List<Mark> marks, final List<Loose> looseMatches,
                             final String noteText) {
-        final SafeHtmlBuilder html = new SafeHtmlBuilder();
-        int at = 0;
-        for (final Span span : spans) {
-            final int start = Math.max(at, Math.min(span.getStart(), text.length()));
-            final int end = Math.max(start, Math.min(span.getEnd(), text.length()));
-            if (span.getStart() < at) {
-                // Overlaps the previous span: nested content is not drawn at this level.
-                continue;
-            }
-            html.appendEscaped(text.substring(at, start));
-            if (span.getFrameId() < 0) {
-                html.appendHtmlConstant("<span class=\"ss-gap\" title=\""
-                        + SafeHtmlUtils.htmlEscape(span.getTitle()) + "\"></span>");
-            } else {
-                html.appendHtmlConstant("<span class=\"ss-m\" " + FRAME_ATTR + "=\"" + span.getFrameId()
-                        + "\" style=\"--hue:" + Colours.safe(span.getColour()) + "\" title=\""
-                        + SafeHtmlUtils.htmlEscape(span.getTitle()) + "\">");
-                html.appendEscaped(text.substring(start, end));
-                html.appendHtmlConstant("</span>");
-            }
-            at = end;
-        }
-        html.appendEscaped(text.substring(at));
-        content.setHTML(html.toSafeHtml());
+        content.setHTML(Marks.render(text, marks));
         loose.clear();
         for (final Loose match : looseMatches) {
             final FlowPanel row = new FlowPanel();

@@ -941,8 +941,7 @@
     font-size: 13px;
 }
 
-.ss-m,
-.ss-o {
+.ss-m {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     border-radius: 2px;
@@ -954,8 +953,7 @@
     border-bottom: 2px solid var(--hue);
 }
 
-.ss-m:hover,
-.ss-o:hover {
+.ss-m:hover {
     outline-color: var(--hue);
 }
 
@@ -1072,6 +1070,24 @@
     font-size: 13px;
 }
 
+/* With a cursor below the document, only what it wrote is at full strength. */
 .ss-o-dim {
     opacity: .45;
+}
+
+/* The capture tint: the text itself in the capture's hue, a dotted rule under it for the
+   captures whitespace makes invisible (the mockup's one permanent mark). */
+.ss-cap {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    color: var(--hue);
+    border-radius: 2px;
+    border-bottom: 1px dotted color-mix(in srgb, var(--hue) 50%, transparent);
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    transition: outline-color .15s ease-out;
+}
+
+.ss-cap:hover {
+    outline-color: var(--hue);
 }

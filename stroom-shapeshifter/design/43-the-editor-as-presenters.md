@@ -464,8 +464,14 @@ shippable.
   with the cursor's span lit and the rest dimmed, the children's spans in their hues, event-
   counted output plain with a note). The panel's rows read the timings — a count, or *0 ·
   tried n* — and the strip's header says *no matches · tried n places* or *n matches · µs*.
-  Not yet: capture spans in the content (the trace carries values, not extents), the body
-  cards' annotations, the guard's verdict, the stream picker, undo, the keyboard moves.
+  **The capture tint, 2026-09-18:** design 18 §7's ask 7 answered — `onCapture` carries the
+  capture's offset and length in its frame's content where the bytes are a slice of it (a
+  watched whole-buffer run slices its root for it; the unwatched path is unchanged), `TraceChars`
+  converts them, and the content pane paints every capture of the cursor and of every sliced
+  frame beneath it in its hue, nested inside the match spans — `Mark` and the `Marks` emitter
+  (outer first, straddlers clipped, pinned by `MarksTest`) serve the content and output panes
+  both. Not yet: the body cards' annotations, the guard's verdict, the stream picker, undo,
+  the keyboard moves, and pointing from a variables row to its span.
 - **C — stepping.** `SteppingEditor` + registry + `DefaultSteppingEditor` extraction in
   `stroom-core-client`; `SteppingDetail` + `detail` through the store in `stroom-pipeline`;
   the recorder in both elements; `ShapeshifterSteppingEditor`.

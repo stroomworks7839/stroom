@@ -587,7 +587,8 @@ class EncodedInputTest {
 
         @Override
         public void onCapture(final long frameId, final String templateId, final String name,
-                              final TypedValue value, final int matchIndex) {
+                              final TypedValue value, final int matchIndex, final int contentOffset,
+                              final int contentLength) {
             bound.add(value);
         }
     }

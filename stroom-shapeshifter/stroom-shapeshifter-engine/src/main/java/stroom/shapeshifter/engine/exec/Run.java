@@ -71,6 +71,8 @@ public final class Run {
      * naming anything else the graph was not compiled for is warned about ({@link #applyMark}).
      */
     private final Encoding encoding;
+    /** Whether the run is watched: a watched root slices its groups so the trace can place captures. */
+    private final boolean watched;
 
     private Run(final CompiledProject compiled,
                 final OutputSink sink,
@@ -84,6 +86,7 @@ public final class Run {
         this.functions = new FunctionRuntime(compiled.functions(), mode, services, messages);
         this.body = new Body(compiled, instrument, messages, functions, encoding);
         this.level = body.level();
+        this.watched = instrument != Instrument.NONE;
     }
 
     /**
@@ -237,9 +240,13 @@ public final class Run {
                     continue;
                 }
                 // A chunk is read once and never reused, but it is the root: the root copies
-                // (design 37 §5), and whether it need not is phase 3d's question.
+                // (design 37 §5), and whether it need not is phase 3d's question. A watched run
+                // slices: the trace places a capture by its group's offset in the content's
+                // array (design 18 §5.3), which a copy has not got, and the chunk permits it.
                 level.dispatch(roots, chunk, from, chunk.length, out, read,
-                        rootIgnoreErrors, 0, rootDispatch, encoding, new ByteSource.Copying(chunk));
+                        rootIgnoreErrors, 0, rootDispatch, encoding, watched
+                                ? new ByteSource.Slicing(chunk)
+                                : new ByteSource.Copying(chunk));
                 read += chunk.length - from;
             }
         } else {

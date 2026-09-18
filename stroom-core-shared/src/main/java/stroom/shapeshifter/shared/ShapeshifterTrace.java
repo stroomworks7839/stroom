@@ -233,6 +233,11 @@ public class ShapeshifterTrace {
         }
     }
 
+    /**
+     * A capture as bound in a frame, with where its bytes lie in the frame's content when they
+     * are a slice of it - the tint the content pane paints (design 18 §5.3) - or
+     * {@link #NOT_A_SLICE} for a value read from a variable or a key-value pair.
+     */
     @JsonInclude(Include.NON_NULL)
     public static class Capture {
 
@@ -244,16 +249,32 @@ public class ShapeshifterTrace {
         private final String value;
         @JsonProperty
         private final String type;
+        @JsonProperty
+        private final int contentOffset;
+        @JsonProperty
+        private final int contentLength;
 
         @JsonCreator
         public Capture(@JsonProperty("frameId") final long frameId,
                        @JsonProperty("name") final String name,
                        @JsonProperty("value") final String value,
-                       @JsonProperty("type") final String type) {
+                       @JsonProperty("type") final String type,
+                       @JsonProperty("contentOffset") final int contentOffset,
+                       @JsonProperty("contentLength") final int contentLength) {
             this.frameId = frameId;
             this.name = name;
             this.value = value;
             this.type = type;
+            this.contentOffset = contentOffset;
+            this.contentLength = contentLength;
+        }
+
+        public int getContentOffset() {
+            return contentOffset;
+        }
+
+        public int getContentLength() {
+            return contentLength;
         }
 
         public long getFrameId() {

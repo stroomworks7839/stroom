@@ -1132,6 +1132,14 @@ kept in full; `preview` runs a supplied sample whole and returns the trace with 
 (5). `patternInfo` and the lint (4, 6) had landed with A2. Pinned in `InstrumentTest` and the
 endpoint test.*
 
+*Answered 2026-09-18, later the same day (7, the capture's place): `onCapture` reports where
+the captured bytes lie in the frame's content when the group and the content are ranges of one
+array — free at every depth below the root, where a group is a slice of the level's array —
+and `NOT_A_SLICE` otherwise. The streaming root copies its groups (design 37 §5) and so cannot
+place them; a **watched** whole-buffer run slices its root instead, since the chunk is read
+once, and the uninstrumented path is byte-for-byte what it was. So the preview places every
+capture and the stepping mount will place all but the root's until the window is revisited.*
+
 1. **G1**: pin `Instrument` event-ordering as contract, or add parent identity to
    `onMatch`. Either way the preview wire format carries explicit parent ids.
 2. **G2**: frame content delivered for every frame — `onMatchContent` generalised to the
@@ -1146,6 +1154,8 @@ endpoint test.*
 5. Value types on the wire: captures should carry their doc-17 type (string, number,
    instant…) so the variable panes can badge them without guessing.
 6. Nice-to-have: `BytePattern.explain()`/`ambiguities()` surfaced as pattern-editor lint.
+7. The capture tint (Q15, §5.3) needs each capture's extent in its frame's content, not
+   only its value: `onCapture` with an offset and a length where the bytes are a slice.
 
 ## 8. Wireframes
 

@@ -49,6 +49,10 @@ class InstrumentTest {
 
     }
 
+    private record Placed(long frame, String name, int contentOffset, int contentLength) {
+
+    }
+
     private record Output(int index, long offset, long length) {
 
     }
@@ -67,6 +71,7 @@ class InstrumentTest {
         private final List<byte[]> unlocatable = new ArrayList<>();
         private final List<Frame> frames = new ArrayList<>();
         private final List<Long> captureFrames = new ArrayList<>();
+        private final List<Placed> placed = new ArrayList<>();
         private final List<Long> contentFrames = new ArrayList<>();
         private final List<Long> closed = new ArrayList<>();
         private final List<Attempt> tried = new ArrayList<>();
@@ -83,9 +88,11 @@ class InstrumentTest {
 
         @Override
         public void onCapture(final long frameId, final String templateId, final String name,
-                              final TypedValue value, final int matchIndex) {
+                              final TypedValue value, final int matchIndex, final int contentOffset,
+                              final int contentLength) {
             captures.add(new Capture(name, value.asString(), matchIndex));
             captureFrames.add(frameId);
+            placed.add(new Placed(frameId, name, contentOffset, contentLength));
         }
 
         @Override
@@ -419,6 +426,56 @@ class InstrumentTest {
         // And an attempt inside a row is placed in that row's content, with the row as parent.
         assertThat(recorder.tried).filteredOn(a -> a.parent() == 4L)
                 .extracting(Attempt::contentOffset).contains(0);
+    }
+
+    private static final String PLACED = """
+            {
+              "name": "placed", "version": 3,
+              "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+              "templates": [
+                {"id": "00000000-0000-0000-0000-000000000001", "name": "row",
+                 "match": {"regex": {"pattern": "(?<k>[a-z]+)=(?<v>[^\\n]*)\\n"}},
+                 "declarations": [{"name": "k", "type": "scalar"}, {"name": "v", "type": "scalar"}],
+                 "captures": [{"name": "k", "select": {"group": 1}}, {"name": "v", "select": {"group": 2}}],
+                 "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 2}}]},
+                                               "mode": "word"}}]},
+                {"id": "00000000-0000-0000-0000-000000000002", "name": "word", "mode": "word",
+                 "match": {"regex": {"pattern": "[a-z]+"}},
+                 "declarations": [{"name": "w", "type": "scalar"}],
+                 "captures": [{"name": "w", "select": {"group": 0}}],
+                 "body": [{"value-of": {"parts": [{"capture": {"group": 0}}]}}]}
+              ]
+            }
+            """;
+
+    @Test
+    void capturesArePlacedInTheirFramesContentWhereTheContentIsSliced() {
+        // Whole-buffer and watched: the root slices, so the root's captures are placed in the
+        // row - "k" at 0, "v" at 4 - and each word's, at depth one, in its own content: at 0.
+        final Recorder recorder = new Recorder();
+        Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read(PLACED)),
+                "abc=de fg\n".getBytes(StandardCharsets.UTF_8),
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
+        assertThat(recorder.placed).containsExactly(
+                new Placed(1, "k", 0, 3),
+                new Placed(1, "v", 4, 5),
+                new Placed(2, "w", 0, 2),
+                new Placed(3, "w", 0, 2));
+    }
+
+    @Test
+    void streamedRootCapturesAreNotPlacedButTheirChildrensAre() {
+        // The streaming window copies its groups (design 37 §5): a root capture has no place
+        // the trace can vouch for; a word inside the value is a slice of it, and is placed.
+        final Recorder recorder = new Recorder();
+        Shapeshifter.run(Shapeshifter.compile(ProjectReader.read(PLACED)),
+                new ByteArrayInputStream("abc=de fg\n".getBytes(StandardCharsets.UTF_8)),
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
+        assertThat(recorder.placed).containsExactly(
+                new Placed(1, "k", Instrument.NOT_A_SLICE, 0),
+                new Placed(1, "v", Instrument.NOT_A_SLICE, 0),
+                new Placed(2, "w", 0, 2),
+                new Placed(3, "w", 0, 2));
     }
 
     @Test

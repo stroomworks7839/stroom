@@ -17,7 +17,9 @@
 package stroom.shapeshifter.client.presenter;
 
 import stroom.shapeshifter.client.presenter.ContentPanePresenter.ContentPaneView;
+import stroom.shapeshifter.client.presenter.Mark.Kind;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Attempt;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Capture;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
 
 import com.google.inject.Inject;
@@ -33,9 +35,11 @@ import java.util.TreeSet;
 
 /**
  * The content pane (design 18 §5.1, §5.3): the cursor frame's content, with the matches its
- * body dispatched marked in their templates' colours; a click descends into the match under
- * it. Content a match holds that is not a slice of this frame's — a value from a variable — is
- * listed under the text, since it has no place in it.
+ * body dispatched marked in their templates' colours — a click descends into the match under
+ * it — and every capture bound in it or beneath it tinted in its hue, at every depth, so an IP
+ * or a timestamp is coloured from the document frame down and the pane shows real work
+ * happening deeper. Content a match holds that is not a slice of this frame's — a value from a
+ * variable — is listed under the text, since it has no place in it.
  *
  * <p>Before a run, and whenever asked for, the pane is the sample's editor (design 18 Q2's first
  * door): a box to paste into and a Run.
@@ -106,7 +110,7 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
         }
         final long cursor = host.cursor();
         final String content = trace.content(cursor);
-        final List<Span> spans = new ArrayList<>();
+        final List<Mark> marks = new ArrayList<>();
         final List<Loose> loose = new ArrayList<>();
         for (final Frame child : trace.children(cursor)) {
             final String colour = host.colour(child.getTemplateId());
@@ -114,10 +118,11 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
             if (child.getContentOffset() < 0) {
                 loose.add(new Loose(child.getId(), trace.label(child.getId()), colour, trace.content(child.getId())));
             } else {
-                spans.add(new Span(child.getId(), child.getContentOffset(),
+                marks.add(new Mark(Kind.MATCH, child.getId(), child.getContentOffset(),
                         child.getContentOffset() + child.getContentLength(), colour, title));
             }
         }
+        captureMarks(trace, cursor, 0, marks);
         // Where the dispatch tried and nothing matched: the gaps, marked so an unmatched line is a
         // thing to see, not an absence to infer (design 18 §5.3). One mark per place, however
         // many templates were tried there, and none inside a match.
@@ -133,54 +138,47 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
             }
         }
         for (final int at : tried) {
-            spans.add(new Span(-1, at, at, null, "no template matched here"));
+            marks.add(new Mark(Kind.GAP, -1, at, at, null, "no template matched here"));
         }
-        spans.sort((a, b) -> a.getStart() != b.getStart()
-                ? Integer.compare(a.getStart(), b.getStart())
-                : Integer.compare(b.getEnd(), a.getEnd()));
+        marks.sort(Mark.OUTER_FIRST);
         getView().showContent(content.length() > RENDER_CAP
                 ? content.substring(0, RENDER_CAP)
-                : content, spans, loose, content.length() > RENDER_CAP
+                : content, marks, loose, content.length() > RENDER_CAP
                 ? "showing the first " + RENDER_CAP + " of " + content.length() + " characters"
                 : null);
     }
 
-    /** A marked run of the content: a child match, or (frame id -1, zero length) a failed attempt's place. */
-    public static final class Span {
-
-        private final long frameId;
-        private final int start;
-        private final int end;
-        private final String colour;
-        private final String title;
-
-        public Span(final long frameId, final int start, final int end, final String colour, final String title) {
-            this.frameId = frameId;
-            this.start = start;
-            this.end = end;
-            this.colour = colour;
-            this.title = title;
+    /**
+     * The captures of a frame and of every frame beneath it that is a slice of it, placed in the
+     * cursor's content: a frame's offset in the cursor is its parent's plus its own. A frame
+     * whose content is no slice ends the descent, since nothing under it has a place here.
+     */
+    private void captureMarks(final TraceModel trace, final long frameId, final int base, final List<Mark> marks) {
+        int hue = 0;
+        for (final Capture capture : trace.captures(frameId)) {
+            final String colour = RegexTabPresenter.hue(hue++);
+            if (capture.getContentOffset() >= 0) {
+                final Frame frame = trace.frame(frameId);
+                marks.add(new Mark(Kind.CAPTURE, frameId, base + capture.getContentOffset(),
+                        base + capture.getContentOffset() + capture.getContentLength(), colour,
+                        "$" + capture.getName() + " = " + shortValue(capture.getValue()) + (frame == null
+                                ? ""
+                                : " — " + frame.getTemplateName() + " #" + frame.getMatchIndex())));
+            }
         }
-
-        public long getFrameId() {
-            return frameId;
+        for (final Frame child : trace.children(frameId)) {
+            if (child.getContentOffset() >= 0) {
+                captureMarks(trace, child.getId(), base + child.getContentOffset(), marks);
+            }
         }
+    }
 
-        public int getStart() {
-            return start;
-        }
-
-        public int getEnd() {
-            return end;
-        }
-
-        public String getColour() {
-            return colour;
-        }
-
-        public String getTitle() {
-            return title;
-        }
+    private static String shortValue(final String value) {
+        return value == null
+                ? "—"
+                : value.length() > 80
+                        ? value.substring(0, 77) + "…"
+                        : value;
     }
 
     /** A child match whose content is not a slice of this frame's. */
@@ -222,7 +220,7 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
 
         void showEmpty(String text);
 
-        /** The content with its spans (sorted by start, outer first), the loose matches, and a note or null. */
-        void showContent(String content, List<Span> spans, List<Loose> loose, String note);
+        /** The content with its marks (outer first), the loose matches, and a note or null. */
+        void showContent(String content, List<Mark> marks, List<Loose> loose, String note);
     }
 }

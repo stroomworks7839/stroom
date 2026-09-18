@@ -62,7 +62,8 @@ public final class TraceRecorder implements Instrument {
     }
 
     /** A capture bound in a frame, with its value's doc-17 type as the variable pane badges it. */
-    public record Capture(long frameId, String name, String value, String type, int matchIndex) {
+    public record Capture(long frameId, String name, String value, String type, int matchIndex,
+                          int contentOffset, int contentLength) {
 
     }
 
@@ -108,8 +109,10 @@ public final class TraceRecorder implements Instrument {
 
     @Override
     public void onCapture(final long frameId, final String templateId, final String name,
-                          final TypedValue value, final int matchIndex) {
-        captures.add(new Capture(frameId, name, value.asString(), typeOf(value), matchIndex));
+                          final TypedValue value, final int matchIndex, final int contentOffset,
+                          final int contentLength) {
+        captures.add(new Capture(frameId, name, value.asString(), typeOf(value), matchIndex, contentOffset,
+                contentLength));
     }
 
     @Override

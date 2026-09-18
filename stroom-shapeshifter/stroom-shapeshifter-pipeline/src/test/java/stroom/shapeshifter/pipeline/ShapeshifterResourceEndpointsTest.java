@@ -163,6 +163,13 @@ class ShapeshifterResourceEndpointsTest {
         assertThat(trace.getInput().substring(trace.getFrames().get(1).getContentOffset()))
                 .startsWith("cd");
         assertThat(trace.getAttempts()).extracting(ShapeshifterTrace.Attempt::getContentOffset).contains(0, 2);
+        // The captures are placed in their frames' content, in characters: "who" is "cd", at 0
+        // in the second row; the first row's "é" is one character long.
+        final ShapeshifterTrace.Capture who = trace.getCaptures().get(1);
+        assertThat(who.getName()).isEqualTo("who");
+        assertThat(who.getContentOffset()).isEqualTo(0);
+        assertThat(who.getContentLength()).isEqualTo(2);
+        assertThat(trace.getCaptures().get(0).getContentLength()).isEqualTo(1);
         for (final ShapeshifterTrace.OutputSpan span : trace.getOutputs()) {
             assertThat(trace.getOutput().substring((int) span.getOffset(), (int) (span.getOffset() + span.getLength())))
                     .isNotEmpty();

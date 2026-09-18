@@ -176,16 +176,8 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
         // The client holds strings: every offset crosses the wire in characters (TraceChars).
         final TraceChars chars = new TraceChars(recorder, input, out.toByteArray());
         return new ShapeshifterTrace(true, sample, out.toString(StandardCharsets.UTF_8), chars.frames(),
-                captures(recorder), chars.outputs(), chars.attempts(), recorder.attemptsSeen(),
+                chars.captures(), chars.outputs(), chars.attempts(), recorder.attemptsSeen(),
                 timings(recorder), messages, runNanos);
-    }
-
-    private static List<ShapeshifterTrace.Capture> captures(final TraceRecorder recorder) {
-        final List<ShapeshifterTrace.Capture> captures = new ArrayList<>(recorder.captures().size());
-        for (final TraceRecorder.Capture c : recorder.captures()) {
-            captures.add(new ShapeshifterTrace.Capture(c.frameId(), c.name(), c.value(), c.type()));
-        }
-        return captures;
     }
 
     private static List<ShapeshifterTrace.Timing> timings(final TraceRecorder recorder) {

@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.shapeshifter.client.presenter.Mark.Kind;
 import stroom.shapeshifter.client.presenter.OutputPanePresenter.OutputPaneView;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
 import stroom.shapeshifter.shared.ShapeshifterTrace.OutputSpan;
@@ -30,10 +31,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The output pane (design 18 §5.4): the whole output, with what the cursor frame wrote marked
- * and what each of its child matches wrote marked in the child's colour — a click on a child's
- * span descends, as in the content pane. Output counted in events rather than characters (an
- * XML sink) has no character spans; the pane shows the text plain and says so.
+ * The output pane (design 18 §5.4): the whole output, with what the cursor frame wrote at full
+ * strength and the rest dimmed, and what each of its child matches wrote marked in the child's
+ * colour — a click on a child's span descends, as in the content pane. Output counted in events
+ * rather than characters (an XML sink) has no character spans; the pane shows the text plain
+ * and says so.
  */
 public class OutputPanePresenter extends MyPresenterWidget<OutputPaneView> implements OutputUiHandlers {
 
@@ -67,12 +69,16 @@ public class OutputPanePresenter extends MyPresenterWidget<OutputPaneView> imple
                 ? ""
                 : trace.trace().getOutput();
         final long cursor = host.cursor();
-        final List<ContentPanePresenter.Span> spans = new ArrayList<>();
+        final List<Mark> marks = new ArrayList<>();
         boolean events = false;
         final OutputSpan own = trace.output(cursor);
         if (own != null && !"EVENTS".equals(own.getUnit())) {
-            spans.add(new ContentPanePresenter.Span(-1, (int) own.getOffset(),
-                    (int) (own.getOffset() + own.getLength()), null, "written by " + trace.label(cursor)));
+            final int from = (int) own.getOffset();
+            final int to = (int) (own.getOffset() + own.getLength());
+            marks.add(new Mark(Kind.OWN, cursor, from, to, null, "written by " + trace.label(cursor)));
+            // Dimmed as marks of its own: an opacity on the pane could not be undone inside it.
+            marks.add(new Mark(Kind.DIM, cursor, 0, from, null, null));
+            marks.add(new Mark(Kind.DIM, cursor, to, output.length(), null, null));
         }
         for (final Frame child : trace.children(cursor)) {
             final OutputSpan span = trace.output(child.getId());
@@ -83,12 +89,12 @@ public class OutputPanePresenter extends MyPresenterWidget<OutputPaneView> imple
                 events = true;
                 continue;
             }
-            spans.add(new ContentPanePresenter.Span(child.getId(), (int) span.getOffset(),
+            marks.add(new Mark(Kind.MATCH, child.getId(), (int) span.getOffset(),
                     (int) (span.getOffset() + span.getLength()), host.colour(child.getTemplateId()),
                     child.getTemplateName() + " #" + child.getMatchIndex() + " — click to descend"));
         }
-        spans.sort((a, b) -> Integer.compare(a.getStart(), b.getStart()));
-        getView().showOutput(output, spans, events
+        marks.sort(Mark.OUTER_FIRST);
+        getView().showOutput(output, marks, events
                 ? "this output is counted in events, so its spans cannot be marked"
                 : null);
     }
@@ -97,7 +103,7 @@ public class OutputPanePresenter extends MyPresenterWidget<OutputPaneView> imple
 
         void showEmpty(String text);
 
-        /** The output, the cursor's own span first (frame id -1) and the children's after, and a note or null. */
-        void showOutput(String output, List<ContentPanePresenter.Span> spans, String note);
+        /** The output with its marks, outer first - the cursor's own extent, the children's - and a note or null. */
+        void showOutput(String output, List<Mark> marks, String note);
     }
 }

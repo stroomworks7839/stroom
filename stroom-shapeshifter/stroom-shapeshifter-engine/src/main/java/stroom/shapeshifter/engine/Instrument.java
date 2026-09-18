@@ -116,12 +116,20 @@ public interface Instrument {
      *                   {@code utf-8}, E43), a typed value a cast produced, or the kind the
      *                   binding declared (§9); a binding that bound nothing is not reported
      * @param matchIndex which match it belongs to
+     * @param contentOffset where the captured bytes lie in the frame's content, or
+     *                      {@link #NOT_A_SLICE}: a capture read from a variable, a key-value
+     *                      pair, or a group the frame's content does not hold as a slice (the
+     *                      streaming root copies its groups, so its captures are not placed;
+     *                      a whole-buffer run that is watched slices, so they are)
+     * @param contentLength the captured bytes' length, when placed
      */
     default void onCapture(final long frameId,
                            final String templateId,
                            final String name,
                            final TypedValue value,
-                           final int matchIndex) {
+                           final int matchIndex,
+                           final int contentOffset,
+                           final int contentLength) {
     }
 
     /**

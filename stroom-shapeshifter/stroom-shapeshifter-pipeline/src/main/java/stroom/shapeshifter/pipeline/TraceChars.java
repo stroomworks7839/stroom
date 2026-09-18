@@ -136,6 +136,23 @@ final class TraceChars {
         return out;
     }
 
+    List<ShapeshifterTrace.Capture> captures() {
+        final List<ShapeshifterTrace.Capture> out = new ArrayList<>(recorder.captures().size());
+        for (final TraceRecorder.Capture c : recorder.captures()) {
+            final boolean placed = c.contentOffset() != Instrument.NOT_A_SLICE;
+            final int[] chars = placed
+                    ? charsOf(c.frameId())
+                    : null;
+            final int from = placed
+                    ? at(chars, c.contentOffset())
+                    : ShapeshifterTrace.NOT_A_SLICE;
+            out.add(new ShapeshifterTrace.Capture(c.frameId(), c.name(), c.value(), c.type(), from, placed
+                    ? at(chars, c.contentOffset() + c.contentLength()) - from
+                    : 0));
+        }
+        return out;
+    }
+
     List<ShapeshifterTrace.OutputSpan> outputs() {
         final List<ShapeshifterTrace.OutputSpan> out = new ArrayList<>(recorder.outputs().size());
         for (final TraceRecorder.OutputSpan o : recorder.outputs()) {
