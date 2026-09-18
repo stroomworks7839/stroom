@@ -32,6 +32,8 @@ import stroom.shapeshifter.client.presenter.PatternNodeEditPresenter;
 import stroom.shapeshifter.client.presenter.PatternNodeEditPresenter.PatternNodeEditView;
 import stroom.shapeshifter.client.presenter.PatternTreePresenter;
 import stroom.shapeshifter.client.presenter.PatternTreePresenter.PatternTreeView;
+import stroom.shapeshifter.client.presenter.PatternWorkbenchPresenter;
+import stroom.shapeshifter.client.presenter.PatternWorkbenchPresenter.PatternWorkbenchView;
 import stroom.shapeshifter.client.presenter.RegexTabPresenter;
 import stroom.shapeshifter.client.presenter.RegexTabPresenter.RegexTabView;
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter;
@@ -42,18 +44,24 @@ import stroom.shapeshifter.client.presenter.SourceConfigPresenter.SourceConfigVi
 import stroom.shapeshifter.client.presenter.TemplateEditPresenter;
 import stroom.shapeshifter.client.presenter.TemplateEditPresenter.TemplateEditView;
 import stroom.shapeshifter.client.presenter.TemplatePanelPresenter;
-import stroom.shapeshifter.client.presenter.TemplateWorkbenchPresenter;
-import stroom.shapeshifter.client.presenter.TemplateWorkbenchPresenter.TemplateWorkbenchView;
+import stroom.shapeshifter.client.presenter.TemplatePanelPresenter.TemplatePanelView;
+import stroom.shapeshifter.client.presenter.TemplateStripPresenter;
+import stroom.shapeshifter.client.presenter.TemplateStripPresenter.TemplateStripView;
+import stroom.shapeshifter.client.presenter.TracePanePresenter;
+import stroom.shapeshifter.client.presenter.TracePanePresenter.TracePaneView;
 import stroom.shapeshifter.client.view.CaptureEditViewImpl;
 import stroom.shapeshifter.client.view.DeclarationEditViewImpl;
 import stroom.shapeshifter.client.view.MatchStructureViewImpl;
 import stroom.shapeshifter.client.view.PatternNodeEditViewImpl;
 import stroom.shapeshifter.client.view.PatternTreeViewImpl;
+import stroom.shapeshifter.client.view.PatternWorkbenchViewImpl;
 import stroom.shapeshifter.client.view.RegexTabViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterDesignViewImpl;
 import stroom.shapeshifter.client.view.SourceConfigViewImpl;
 import stroom.shapeshifter.client.view.TemplateEditViewImpl;
-import stroom.shapeshifter.client.view.TemplateWorkbenchViewImpl;
+import stroom.shapeshifter.client.view.TemplatePanelViewImpl;
+import stroom.shapeshifter.client.view.TemplateStripViewImpl;
+import stroom.shapeshifter.client.view.TracePaneViewImpl;
 
 public class ShapeshifterModule extends PluginModule {
 
@@ -67,16 +75,24 @@ public class ShapeshifterModule extends PluginModule {
         bindPresenterWidget(ShapeshifterDesignPresenter.class,
                 ShapeshifterDesignView.class,
                 ShapeshifterDesignViewImpl.class);
-        bind(TemplatePanelPresenter.class);
+        bindPresenterWidget(TemplatePanelPresenter.class,
+                TemplatePanelView.class,
+                TemplatePanelViewImpl.class);
+        bindPresenterWidget(TracePanePresenter.class,
+                TracePaneView.class,
+                TracePaneViewImpl.class);
+        bindPresenterWidget(PatternWorkbenchPresenter.class,
+                PatternWorkbenchView.class,
+                PatternWorkbenchViewImpl.class);
         bindPresenterWidget(TemplateEditPresenter.class,
                 TemplateEditView.class,
                 TemplateEditViewImpl.class);
         bindPresenterWidget(SourceConfigPresenter.class,
                 SourceConfigView.class,
                 SourceConfigViewImpl.class);
-        bindPresenterWidget(TemplateWorkbenchPresenter.class,
-                TemplateWorkbenchView.class,
-                TemplateWorkbenchViewImpl.class);
+        bindPresenterWidget(TemplateStripPresenter.class,
+                TemplateStripView.class,
+                TemplateStripViewImpl.class);
         bind(MatchEditorPresenter.class);
         bindPresenterWidget(RegexTabPresenter.class,
                 RegexTabView.class,

@@ -30,6 +30,7 @@ import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.event.shared.LegacyHandlerWrapper;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 import com.gwtplatform.mvp.client.View;
@@ -42,25 +43,31 @@ import java.util.List;
  * the children, tells the document presenter (a {@link ValueChangeEvent} of the new project), and
  * asks the engine what it thinks of it on a debounce.
  *
- * <p>Selection is one object — the selected template's id, or null for the source, the document
- * itself — owned here and pushed to the workbench; the template panel is its only author today.
+ * <p>The frame is the mockup's (43 §4.1): the template panel; the breadcrumb, input and
+ * variables cells over the strip and output cells — the trace cells present with their empty
+ * states until phase B — and the pattern workbench opening in place of the crumb, input,
+ * variables and strip when a match chip is clicked.
+ *
+ * <p>Selection is one object — the selected template's id, or null for the project — owned here
+ * and pushed to the strip and the open workbench; the template panel is its only author today.
  */
 public class ShapeshifterDesignPresenter
         extends MyPresenterWidget<ShapeshifterDesignView>
-        implements ProjectHost, HasValueChangeHandlers<Project> {
+        implements ProjectHost, HasValueChangeHandlers<Project>, TemplateStripPresenter.Listener {
 
     private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
 
     private final RestFactory restFactory;
     private final TemplatePanelPresenter templatePanel;
-    private final TemplateWorkbenchPresenter workbench;
-    private final SourceConfigPresenter sourceConfig;
+    private final TemplateStripPresenter strip;
+    private final PatternWorkbenchPresenter workbench;
     private final MessagesPresenter messages;
     private final DelayedUpdate validate;
 
     private Project project;
     private String sourceError;
     private boolean readOnly = true;
+    private boolean workbenchOpen;
     private List<ShapeshifterMessage> lastMessages;
 
     @Inject
@@ -68,28 +75,43 @@ public class ShapeshifterDesignPresenter
                                        final ShapeshifterDesignView view,
                                        final RestFactory restFactory,
                                        final TemplatePanelPresenter templatePanel,
-                                       final TemplateWorkbenchPresenter workbench,
-                                       final SourceConfigPresenter sourceConfig,
-                                       final MessagesPresenter messages) {
+                                       final TemplateStripPresenter strip,
+                                       final PatternWorkbenchPresenter workbench,
+                                       final MessagesPresenter messages,
+                                       final Provider<TracePanePresenter> paneProvider) {
         super(eventBus, view);
         this.restFactory = restFactory;
         this.templatePanel = templatePanel;
+        this.strip = strip;
         this.workbench = workbench;
-        this.sourceConfig = sourceConfig;
         this.messages = messages;
         this.validate = new DelayedUpdate(400, this::validate);
         templatePanel.setHost(this);
+        strip.setHost(this);
+        strip.setListener(this);
         workbench.setHost(this);
-        sourceConfig.setHost(this);
+        workbench.setOnClose(this::closeWorkbench);
         view.setTemplatePanel(templatePanel.getView());
+        view.setStrip(strip.getView());
+        view.setWorkbench(workbench.getView());
         view.setMessages(messages.getView());
-        view.setCentre(sourceConfig.getView());
+        // Design 18 §5.7: the empty states are the front door - each cell says how data arrives.
+        view.setCrumb(paneProvider.get().as(null,
+                "No run yet — the breadcrumb follows a run: pick a sample stream, or step a record through a pipeline.")
+                .getView());
+        view.setInput(paneProvider.get().as("Input",
+                "The selected match's content, with its captures tinted, after a run.").getView());
+        view.setVariables(paneProvider.get().as("Variables",
+                "Every name in scope at the selected frame, innermost first, after a run.").getView());
+        view.setOutput(paneProvider.get().as("Output",
+                "What the selected frame wrote, attributed to the instruction that wrote it, after a run.")
+                .getView());
     }
 
     @Override
     protected void onBind() {
         super.onBind();
-        registerHandler(templatePanel.addSelectionHandler(event -> onSelect(templatePanel.getSelectedTemplateId())));
+        registerHandler(templatePanel.addValueChangeHandler(event -> onSelect(event.getValue())));
     }
 
     /**
@@ -102,7 +124,9 @@ public class ShapeshifterDesignPresenter
         if (project != null) {
             this.project = project;
         }
-        getView().setBanner(sourceError);
+        getView().setBanner(sourceError == null
+                ? null
+                : "The Source tab does not parse, so this tab shows the last good project read-only: " + sourceError);
         refresh();
         if (project != null) {
             validate.update();
@@ -138,12 +162,40 @@ public class ShapeshifterDesignPresenter
     }
 
     private void onSelect(final String templateId) {
-        if (templateId == null || template(templateId) == null) {
-            sourceConfig.refresh();
-            getView().setCentre(sourceConfig.getView());
-        } else {
-            workbench.setTemplate(templateId);
-            getView().setCentre(workbench.getView());
+        final String id = template(templateId) == null
+                ? null
+                : templateId;
+        strip.setTemplate(id);
+        if (workbenchOpen) {
+            // The workbench follows the selection (design 18 §5.6: retargeted in place); the
+            // document has no match to edit, so selecting it closes the workbench.
+            if (id == null) {
+                closeWorkbench();
+            } else {
+                workbench.setTemplate(id);
+            }
+        }
+    }
+
+    @Override
+    public void editIdentity() {
+        templatePanel.editSelected();
+    }
+
+    @Override
+    public void openWorkbench(final String templateId) {
+        if (template(templateId) == null) {
+            return;
+        }
+        workbenchOpen = true;
+        workbench.setTemplate(templateId);
+        getView().showWorkbench(true);
+    }
+
+    private void closeWorkbench() {
+        if (workbenchOpen) {
+            workbenchOpen = false;
+            getView().showWorkbench(false);
         }
     }
 
@@ -172,7 +224,20 @@ public class ShapeshifterDesignPresenter
 
         void setTemplatePanel(View view);
 
-        void setCentre(View view);
+        void setCrumb(View view);
+
+        void setInput(View view);
+
+        void setVariables(View view);
+
+        void setOutput(View view);
+
+        void setStrip(View view);
+
+        void setWorkbench(View view);
+
+        /** The workbench in place of the crumb, input, variables and strip; or those back. */
+        void showWorkbench(boolean open);
 
         void setMessages(View view);
 

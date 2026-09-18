@@ -44,7 +44,8 @@ public class MessagesPresenter extends MyPresenterWidget<PagerView> {
         dataGrid = new MyDataGrid<>(this);
         dataGrid.setTableName("Messages");
         view.setDataWidget(dataGrid);
-        view.setPagerVisible(false);
+        // The toolbar shares the pager's bar, so paging is hidden by style rather than the bar by API.
+        view.asWidget().addStyleName("shapeshifter-no-paging");
 
         final Column<ShapeshifterMessage, String> severity = DataGridUtil
                 .textColumnBuilder(ShapeshifterMessage::getSeverity)

@@ -39,9 +39,26 @@ public class ShapeshifterDesignViewImpl extends ViewImpl implements Shapeshifter
     @UiField
     SimplePanel templatePanel;
     @UiField
-    SimplePanel centre;
-    @UiField
     SimplePanel messages;
+    @UiField
+    ThinSplitLayoutPanel rows;
+    @UiField
+    ThinSplitLayoutPanel topRow;
+    @UiField
+    SimplePanel crumb;
+    @UiField
+    SimplePanel input;
+    @UiField
+    SimplePanel variables;
+    @UiField
+    ThinSplitLayoutPanel bottomRow;
+    @UiField
+    SimplePanel strip;
+    @UiField
+    SimplePanel output;
+
+    private Widget stripWidget;
+    private Widget workbenchWidget;
 
     @Inject
     public ShapeshifterDesignViewImpl(final Binder binder) {
@@ -60,10 +77,45 @@ public class ShapeshifterDesignViewImpl extends ViewImpl implements Shapeshifter
     }
 
     @Override
-    public void setCentre(final View view) {
-        if (centre.getWidget() != view.asWidget()) {
-            centre.setWidget(view.asWidget());
-        }
+    public void setCrumb(final View view) {
+        crumb.setWidget(view.asWidget());
+    }
+
+    @Override
+    public void setInput(final View view) {
+        input.setWidget(view.asWidget());
+    }
+
+    @Override
+    public void setVariables(final View view) {
+        variables.setWidget(view.asWidget());
+    }
+
+    @Override
+    public void setOutput(final View view) {
+        output.setWidget(view.asWidget());
+    }
+
+    @Override
+    public void setStrip(final View view) {
+        stripWidget = view.asWidget();
+        strip.setWidget(stripWidget);
+    }
+
+    @Override
+    public void setWorkbench(final View view) {
+        workbenchWidget = view.asWidget();
+    }
+
+    @Override
+    public void showWorkbench(final boolean open) {
+        // In place of the crumb, input, variables and strip (design 18 section 5.6): the top row
+        // goes, and the strip cell holds the workbench; the panel and the output pane stay.
+        rows.setWidgetHidden(topRow, open);
+        strip.setWidget(open
+                ? workbenchWidget
+                : stripWidget);
+        rows.onResize();
     }
 
     @Override

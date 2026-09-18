@@ -17,39 +17,40 @@
 package stroom.shapeshifter.client.presenter;
 
 import stroom.alert.client.event.ConfirmEvent;
-import stroom.data.grid.client.MyDataGrid;
-import stroom.data.grid.client.PagerView;
+import stroom.shapeshifter.client.presenter.TemplatePanelPresenter.TemplatePanelView;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
+import stroom.svg.client.Preset;
 import stroom.svg.client.SvgPresets;
-import stroom.util.client.DataGridUtil;
 import stroom.widget.button.client.ButtonView;
 import stroom.widget.util.client.MouseUtil;
-import stroom.widget.util.client.MultiSelectEvent;
-import stroom.widget.util.client.MultiSelectionModelImpl;
-import stroom.widget.util.client.SelectionType;
 
+import com.google.gwt.event.logical.shared.HasValueChangeHandlers;
+import com.google.gwt.event.logical.shared.ValueChangeEvent;
+import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.event.shared.HandlerRegistration;
-import com.google.gwt.user.cellview.client.Column;
+import com.google.gwt.event.shared.LegacyHandlerWrapper;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
+import com.gwtplatform.mvp.client.HasUiHandlers;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
+import com.gwtplatform.mvp.client.View;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
- * The template panel (design 18 §5.6): the project itself as the topmost row — its name, its source
- * settings behind it — then
- * the templates in project order, which is dispatch order (D34's ordered choice), so the up and
- * down buttons are semantics. Managed through the toolbar acting on the selection: add, edit and
- * remove open or confirm through {@link TemplateEditPresenter}. Each row carries its swatch,
- * assigned stably from the palette by position; mode and match kind beside the name.
+ * The template panel (design 18 §5.6, 43 §4.1): the project itself as the topmost row, then
+ * the templates grouped by mode in project order — which is dispatch order, so up and down
+ * are semantics — each row a swatch, a name and, once there is a trace, its match count and
+ * heat. Managed through the toolbar over the list, acting on the selection; the selection is
+ * published as a value change of the selected template's id, null for the project.
  */
-public class TemplatePanelPresenter extends MyPresenterWidget<PagerView> {
+public class TemplatePanelPresenter
+        extends MyPresenterWidget<TemplatePanelView>
+        implements TemplatePanelUiHandlers, HasValueChangeHandlers<String> {
 
-    private final MyDataGrid<Row> dataGrid;
-    private final MultiSelectionModelImpl<Row> selectionModel;
     private final TemplateEditPresenter editPresenter;
     private final ButtonView addButton;
     private final ButtonView editButton;
@@ -58,41 +59,20 @@ public class TemplatePanelPresenter extends MyPresenterWidget<PagerView> {
     private final ButtonView downButton;
 
     private ProjectHost host;
+    private String selected;
 
     @Inject
     public TemplatePanelPresenter(final EventBus eventBus,
-                                  final PagerView view,
+                                  final TemplatePanelView view,
                                   final TemplateEditPresenter editPresenter) {
         super(eventBus, view);
         this.editPresenter = editPresenter;
-        dataGrid = new MyDataGrid<>(this);
-        dataGrid.setTableName("Templates");
-        selectionModel = dataGrid.addDefaultSelectionModel(false);
-        view.setDataWidget(dataGrid);
-        view.setPagerVisible(false);
-
+        view.setUiHandlers(this);
         addButton = view.addButton(SvgPresets.ADD.title("Add template"));
         editButton = view.addButton(SvgPresets.EDIT.title("Edit template"));
         removeButton = view.addButton(SvgPresets.DELETE.title("Remove template"));
         upButton = view.addButton(SvgPresets.UP.title("Move up: earlier in dispatch order"));
         downButton = view.addButton(SvgPresets.DOWN.title("Move down: later in dispatch order"));
-
-        final Column<Row, String> swatch = DataGridUtil
-                .colourSwatchColumnBuilder((Row row) -> row.colour)
-                .build();
-        dataGrid.addColumn(swatch, "", 24);
-        final Column<Row, String> name = DataGridUtil
-                .textColumnBuilder((Row row) -> row.name)
-                .build();
-        dataGrid.addAutoResizableColumn(name, "Template", 120);
-        final Column<Row, String> mode = DataGridUtil
-                .textColumnBuilder((Row row) -> row.mode)
-                .build();
-        dataGrid.addResizableColumn(mode, "Mode", 70);
-        final Column<Row, String> kind = DataGridUtil
-                .textColumnBuilder((Row row) -> row.kind)
-                .build();
-        dataGrid.addResizableColumn(kind, "Match", 60);
         enableButtons();
     }
 
@@ -110,7 +90,7 @@ public class TemplatePanelPresenter extends MyPresenterWidget<PagerView> {
         }));
         registerHandler(editButton.addClickHandler(event -> {
             if (MouseUtil.isPrimary(event)) {
-                onEdit();
+                editSelected();
             }
         }));
         registerHandler(removeButton.addClickHandler(event -> {
@@ -128,71 +108,100 @@ public class TemplatePanelPresenter extends MyPresenterWidget<PagerView> {
                 onMove(1);
             }
         }));
-        registerHandler(selectionModel.addSelectionHandler(event -> {
-            enableButtons();
-            if (event.getSelectionType().isDoubleSelect()) {
-                onEdit();
-            }
-        }));
     }
 
-    public HandlerRegistration addSelectionHandler(final MultiSelectEvent.Handler handler) {
-        return selectionModel.addSelectionHandler(handler);
+    @Override
+    public HandlerRegistration addValueChangeHandler(final ValueChangeHandler<String> handler) {
+        return new LegacyHandlerWrapper(addHandlerToSource(ValueChangeEvent.getType(), handler));
     }
 
-    /** The selected template's id, or null when the source row (or nothing) is selected. */
+    /** The selected template's id, or null when the project row (or nothing) is selected. */
     public String getSelectedTemplateId() {
-        final Row row = selectionModel.getSelected();
-        return row == null
-                ? null
-                : row.id;
+        return selected;
+    }
+
+    @Override
+    public void onSelect(final String id) {
+        select(id, true);
+    }
+
+    @Override
+    public void onOpen(final String id) {
+        select(id, true);
+        editSelected();
+    }
+
+    private void select(final String id, final boolean fire) {
+        final boolean changed = !Objects.equals(id, selected);
+        selected = id;
+        getView().setSelected(id);
+        enableButtons();
+        if (fire && changed) {
+            ValueChangeEvent.fire(this, id);
+        }
     }
 
     /** Re-read the rows from the host's project, keeping the selection by id where it survives. */
     public void refresh() {
         final Project project = host.getProject();
-        final String selected = getSelectedTemplateId();
-        final List<Row> rows = new ArrayList<>();
-        Row reselect = null;
-        rows.add(new Row(null, project == null
+        final List<TemplateRowData> rows = new ArrayList<>();
+        rows.add(new TemplateRowData(null, project == null
                 ? "project"
-                : project.name(), "", "project", "transparent"));
+                : project.name(), null, "transparent", "doc", false));
+        boolean survives = selected == null;
         if (project != null) {
-            int i = 0;
+            // Grouped by mode - the root group first, then modes as they first appear - and in
+            // project order within a group, which is the order dispatch tries them in.
+            final List<String> modes = new ArrayList<>();
+            modes.add(null);
             for (final Template template : project.templates()) {
-                final Row row = new Row(template.id(), template.name(),
-                        template.mode() == null
-                                ? ""
-                                : template.mode(),
-                        Templates.kind(template.match()), Templates.colour(i++));
-                if (row.id.equals(selected)) {
-                    reselect = row;
+                if (!modes.contains(template.mode())) {
+                    modes.add(template.mode());
                 }
-                rows.add(row);
+            }
+            for (final String mode : modes) {
+                int i = 0;
+                for (final Template template : project.templates()) {
+                    if (Objects.equals(template.mode(), mode)) {
+                        rows.add(new TemplateRowData(template.id(), template.name(), template.mode(),
+                                Templates.colour(i), Templates.kind(template.match()), false));
+                        survives |= template.id().equals(selected);
+                    }
+                    i++;
+                }
             }
         }
-        dataGrid.setRowData(0, rows);
-        dataGrid.setRowCount(rows.size(), true);
-        if (reselect != null) {
-            selectionModel.setSelected(reselect, new SelectionType(), false);
-        } else if (selected != null) {
-            selectionModel.clear(false);
+        getView().setRows(rows);
+        if (!survives) {
+            selected = null;
         }
+        getView().setSelected(selected);
         enableButtons();
     }
 
     private void enableButtons() {
         final boolean editable = host != null && !host.isReadOnly();
-        final Row row = selectionModel.getSelected();
-        final boolean template = row != null && row.id != null;
+        final boolean template = selected != null && host != null && host.template(selected) != null;
         addButton.setEnabled(editable);
         editButton.setEnabled(editable && template);
         removeButton.setEnabled(editable && template);
         final int index = template
-                ? indexOf(row.id)
+                ? indexOf(selected)
                 : -1;
-        upButton.setEnabled(editable && index > 0);
-        downButton.setEnabled(editable && index >= 0 && index < host.getProject().templates().size() - 1);
+        upButton.setEnabled(editable && index >= 0 && neighbour(index, -1) >= 0);
+        downButton.setEnabled(editable && index >= 0 && neighbour(index, 1) >= 0);
+    }
+
+    /** The index of the nearest template in the same mode in a direction, or -1: what up and down swap with. */
+    private int neighbour(final int index, final int by) {
+        final List<Template> templates = host.getProject().templates();
+        final String mode = templates.get(index).mode();
+        for (int i = index + by; i >= 0 && i < templates.size(); i += by) {
+            if (Objects.equals(templates.get(i).mode(), mode)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private int indexOf(final String id) {
@@ -209,19 +218,16 @@ public class TemplatePanelPresenter extends MyPresenterWidget<PagerView> {
         if (host.isReadOnly()) {
             return;
         }
-        final Row row = selectionModel.getSelected();
-        final Template selected = row == null
+        final Template current = host.template(selected);
+        editPresenter.read(host.getProject(), Templates.create("", current == null
                 ? null
-                : host.template(row.id);
-        editPresenter.read(host.getProject(), Templates.create("", selected == null
-                ? null
-                : selected.mode(), true));
+                : current.mode(), true));
         editPresenter.show("New Template", e -> {
             if (e.isOk()) {
                 final Template template = editPresenter.write();
                 if (template != null) {
                     host.replace(host.withTemplate(template));
-                    select(template.id());
+                    select(template.id(), true);
                     e.hide();
                 }
             } else {
@@ -230,8 +236,9 @@ public class TemplatePanelPresenter extends MyPresenterWidget<PagerView> {
         });
     }
 
-    private void onEdit() {
-        final Template existing = host.template(getSelectedTemplateId());
+    /** Open the selected template's name, mode and consume for editing; the strip's header calls this too. */
+    public void editSelected() {
+        final Template existing = host.template(selected);
         if (existing == null || host.isReadOnly()) {
             return;
         }
@@ -250,7 +257,7 @@ public class TemplatePanelPresenter extends MyPresenterWidget<PagerView> {
     }
 
     private void onRemove() {
-        final Template existing = host.template(getSelectedTemplateId());
+        final Template existing = host.template(selected);
         if (existing == null || host.isReadOnly()) {
             return;
         }
@@ -261,68 +268,40 @@ public class TemplatePanelPresenter extends MyPresenterWidget<PagerView> {
                 final Project project = host.getProject();
                 final List<Template> templates = new ArrayList<>(project.templates());
                 templates.removeIf(t -> t.id().equals(existing.id()));
-                selectionModel.clear(false);
+                selected = null;
                 host.replace(new Project(project.name(), project.version(), project.source(), templates));
             }
         });
     }
 
     private void onMove(final int by) {
-        final String id = getSelectedTemplateId();
-        final int index = id == null
+        final int index = selected == null
                 ? -1
-                : indexOf(id);
+                : indexOf(selected);
         final Project project = host.getProject();
         if (index < 0 || host.isReadOnly()) {
             return;
         }
-        final int to = index + by;
-        if (to < 0 || to >= project.templates().size()) {
+        final int to = neighbour(index, by);
+        if (to < 0) {
             return;
         }
+        // Swap with the neighbour in the same mode: dispatch order within the mode changes, and
+        // nothing about the other modes does.
         final List<Template> templates = new ArrayList<>(project.templates());
-        final Template moved = templates.remove(index);
-        templates.add(to, moved);
+        final Template moved = templates.get(index);
+        templates.set(index, templates.get(to));
+        templates.set(to, moved);
         host.replace(new Project(project.name(), project.version(), project.source(), templates));
-        select(id);
     }
 
-    private void select(final String id) {
-        for (final Row row : dataGrid.getVisibleItems()) {
-            if (id.equals(row.id)) {
-                selectionModel.setSelected(row);
-                return;
-            }
-        }
-    }
+    public interface TemplatePanelView extends View, HasUiHandlers<TemplatePanelUiHandlers> {
 
-    /** One row: the source (id null) or a template. */
-    private static final class Row {
+        ButtonView addButton(Preset preset);
 
-        private final String id;
-        private final String name;
-        private final String mode;
-        private final String kind;
-        private final String colour;
+        /** The rows in order; the view groups them under mode headers as they come. */
+        void setRows(List<TemplateRowData> rows);
 
-        private Row(final String id, final String name, final String mode, final String kind, final String colour) {
-            this.id = id;
-            this.name = name;
-            this.mode = mode;
-            this.kind = kind;
-            this.colour = colour;
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            return o instanceof Row && java.util.Objects.equals(((Row) o).id, id);
-        }
-
-        @Override
-        public int hashCode() {
-            return id == null
-                    ? 0
-                    : id.hashCode();
-        }
+        void setSelected(String id);
     }
 }

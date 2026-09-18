@@ -64,7 +64,8 @@ public class CapturesPresenter extends MyPresenterWidget<PagerView> {
         dataGrid.setTableName("Captures");
         selectionModel = dataGrid.addDefaultSelectionModel(false);
         view.setDataWidget(dataGrid);
-        view.setPagerVisible(false);
+        // The toolbar shares the pager's bar, so paging is hidden by style rather than the bar by API.
+        view.asWidget().addStyleName("shapeshifter-no-paging");
         addButton = view.addButton(SvgPresets.ADD.title("Add capture"));
         editButton = view.addButton(SvgPresets.EDIT.title("Edit capture"));
         removeButton = view.addButton(SvgPresets.DELETE.title("Remove capture"));

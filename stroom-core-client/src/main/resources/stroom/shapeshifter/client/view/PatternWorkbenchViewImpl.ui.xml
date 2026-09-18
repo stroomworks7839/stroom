@@ -1,0 +1,18 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:b="urn:import:stroom.widget.button.client">
+    <g:ThinSplitLayoutPanel styleName="max default-min-sizes ss-wb">
+        <g:north size="34">
+            <g:FlowPanel styleName="ss-wb-title">
+                <g:Label text="Pattern workbench —"/>
+                <g:Label ui:field="subject" styleName="mono"/>
+                <g:Label styleName="ss-spacer"/>
+                <b:ButtonPanel ui:field="buttons"/>
+            </g:FlowPanel>
+        </g:north>
+        <g:center>
+            <g:SimplePanel ui:field="editor" styleName="max"/>
+        </g:center>
+    </g:ThinSplitLayoutPanel>
+</ui:UiBinder>

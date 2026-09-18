@@ -16,34 +16,26 @@
 
 package stroom.shapeshifter.client.view;
 
-import stroom.shapeshifter.client.presenter.TemplateWorkbenchPresenter.TemplateWorkbenchView;
+import stroom.shapeshifter.client.presenter.TracePanePresenter.TracePaneView;
 
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Label;
-import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
-import com.gwtplatform.mvp.client.View;
 import com.gwtplatform.mvp.client.ViewImpl;
 
-public class TemplateWorkbenchViewImpl extends ViewImpl implements TemplateWorkbenchView {
+public class TracePaneViewImpl extends ViewImpl implements TracePaneView {
 
     private final Widget widget;
 
     @UiField
-    Label name;
+    Label title;
     @UiField
-    Label detail;
-    @UiField
-    SimplePanel matchEditor;
-    @UiField
-    SimplePanel declarations;
-    @UiField
-    SimplePanel captures;
+    Label empty;
 
     @Inject
-    public TemplateWorkbenchViewImpl(final Binder binder) {
+    public TracePaneViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
     }
 
@@ -53,27 +45,19 @@ public class TemplateWorkbenchViewImpl extends ViewImpl implements TemplateWorkb
     }
 
     @Override
-    public void setHeader(final String nameText, final String detailText) {
-        name.setText(nameText);
-        detail.setText(detailText);
+    public void setTitle(final String text) {
+        title.setText(text == null
+                ? ""
+                : text);
+        title.setVisible(text != null);
     }
 
     @Override
-    public void setMatchEditor(final View view) {
-        matchEditor.setWidget(view.asWidget());
+    public void setEmpty(final String text) {
+        empty.setText(text);
     }
 
-    @Override
-    public void setDeclarations(final View view) {
-        declarations.setWidget(view.asWidget());
-    }
-
-    @Override
-    public void setCaptures(final View view) {
-        captures.setWidget(view.asWidget());
-    }
-
-    public interface Binder extends UiBinder<Widget, TemplateWorkbenchViewImpl> {
+    public interface Binder extends UiBinder<Widget, TracePaneViewImpl> {
 
     }
 }

@@ -177,3 +177,273 @@
 .shapeshifter-parts > li {
     padding: 2px 0;
 }
+
+/* Grids whose lists are short and whole: the toolbar keeps the pager's bar, the paging goes. */
+.shapeshifter-no-paging .pager-paging {
+    display: none;
+}
+
+.shapeshifter-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    margin: 2px auto;
+    border: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+/* ------------------------------------------------------------------------------------------
+   The mockup's own surfaces (design 43 §4.1), lifted from 18b-event-xml-trace-editor.html
+   under an ss- prefix and written against Stroom's theme variables as the mockup was.
+   ------------------------------------------------------------------------------------------ */
+
+.ss-design {
+    --ss-muted: #6f7a80;
+}
+
+.stroom-theme-dark .ss-design {
+    --ss-muted: #9aa4a8;
+}
+
+.ss-design .mono,
+.ss-strip-name,
+.ss-match-pattern,
+.ss-wb-title .mono {
+    font-family: var(--monospace-font-family);
+}
+
+.ss-spacer {
+    flex: 1;
+}
+
+.ss-clickable {
+    cursor: pointer;
+}
+
+/* A pane: a quiet uppercase title over a scrolling body. */
+.ss-panel {
+    background-color: var(--page__background-color);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ss-panel-title {
+    flex: none;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ss-muted);
+    margin: 0;
+    padding: 7px 10px 5px;
+}
+
+.ss-panel-head {
+    flex: none;
+    padding: 0 6px 6px;
+}
+
+.ss-panel-body {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+.ss-none {
+    color: var(--ss-muted);
+    font-style: italic;
+    padding: 2px 12px;
+    font-size: 12.5px;
+}
+
+/* The template panel's list. */
+.ss-mode-head {
+    font-size: 11px;
+    color: var(--ss-muted);
+    padding: 8px 10px 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ss-tpl-row {
+    padding: 4px 10px 5px;
+    cursor: pointer;
+    outline: none;
+}
+
+.ss-tpl-row:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.ss-tpl-row:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--focus-border);
+}
+
+.ss-tpl-row--sel {
+    background-color: var(--row__background-color--selected);
+    color: var(--text-color--selected);
+}
+
+.ss-tpl-row--sel:hover {
+    background-color: var(--row__background-color--selected--hovered);
+}
+
+.ss-tpl-row--zero {
+    opacity: .65;
+}
+
+.ss-tpl-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ss-tpl-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ss-tpl-count {
+    color: var(--ss-muted);
+    font-size: 12px;
+}
+
+.ss-tpl-row--sel .ss-tpl-count {
+    color: inherit;
+}
+
+.ss-chip {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex: none;
+}
+
+.ss-chip--outline {
+    border: 1px solid var(--ss-muted);
+    box-sizing: border-box;
+}
+
+.ss-chip--editable {
+    cursor: pointer;
+}
+
+/* The template strip: identity line, then the match line and what follows. */
+.ss-strip {
+    background-color: var(--page__background-color);
+}
+
+.ss-strip-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 12px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.ss-strip-ptitle {
+    padding: 0;
+}
+
+.ss-strip-name {
+    font-weight: 700;
+}
+
+.ss-strip-name-editable {
+    cursor: pointer;
+}
+
+.ss-strip-mode,
+.ss-strip-note {
+    color: var(--ss-muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ss-strip-body {
+    padding: 6px 0 10px;
+}
+
+.ss-strip-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 12px;
+    font-size: 12.5px;
+    min-width: 0;
+}
+
+.ss-strip-k {
+    color: var(--ss-muted);
+    min-width: 44px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-weight: 600;
+}
+
+.ss-match-chip {
+    border: 1px solid var(--control__border-color);
+    border-radius: 5px;
+    background-color: var(--control__background-color);
+    padding: 4px 10px;
+    cursor: pointer;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    outline: none;
+}
+
+.ss-match-chip:hover,
+.ss-match-chip:focus-visible {
+    border-color: var(--focus-border);
+}
+
+.ss-match-chip-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.ss-match-kind {
+    font-weight: 600;
+    color: var(--ss-muted);
+    font-size: 12px;
+}
+
+.ss-match-pattern {
+    font-size: 12.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 480px;
+}
+
+.ss-match-wb {
+    color: var(--link__text-color);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.ss-strip-content {
+    padding: 0 4px;
+}
+
+/* The pattern workbench: a title row over the match editor's tabs. */
+.ss-wb-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    color: var(--heading-color);
+    white-space: nowrap;
+}

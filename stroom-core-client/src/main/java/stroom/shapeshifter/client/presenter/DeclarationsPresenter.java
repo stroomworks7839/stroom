@@ -63,7 +63,8 @@ public class DeclarationsPresenter extends MyPresenterWidget<PagerView> {
         dataGrid.setTableName("Declarations");
         selectionModel = dataGrid.addDefaultSelectionModel(false);
         view.setDataWidget(dataGrid);
-        view.setPagerVisible(false);
+        // The toolbar shares the pager's bar, so paging is hidden by style rather than the bar by API.
+        view.asWidget().addStyleName("shapeshifter-no-paging");
         addButton = view.addButton(SvgPresets.ADD.title("Add declaration"));
         editButton = view.addButton(SvgPresets.EDIT.title("Edit declaration"));
         removeButton = view.addButton(SvgPresets.DELETE.title("Remove declaration"));

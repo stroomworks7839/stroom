@@ -1,0 +1,12 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:b="urn:import:stroom.widget.button.client">
+    <g:FlowPanel styleName="max ss-panel">
+        <g:Label styleName="ss-panel-title" text="Templates"/>
+        <b:ButtonPanel ui:field="toolbar" addStyleNames="ss-panel-head"/>
+        <g:ScrollPanel styleName="ss-panel-body">
+            <g:FlowPanel ui:field="list" styleName="ss-tpl-list"/>
+        </g:ScrollPanel>
+    </g:FlowPanel>
+</ui:UiBinder>

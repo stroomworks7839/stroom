@@ -202,6 +202,45 @@ the model is immutable records, so every edit is a new `Project` handed to the r
 keeps the previous one: undo/redo (Q10) is a stack of projects, the debounced auto-run (Q6)
 has one place to hook, and live commit with Escape revert (Q12) is a pop.
 
+### 4.1 Stock or new: the widget inventory — 2026-09-18
+
+A2's first cut used Stroom's stock grids and form groups for every surface, and on the
+screen that read as stock Stroom — pager bars, column headers, help buttons — not as the
+mockup. The owner asked which widgets and layouts can be stock and which are new, and for
+the new ones to be built the standard GWT way. Surveyed against `18b-event-xml-trace-editor.html`'s
+markup, render functions and 290 selectors; "new view" is a `ViewImpl` with its own `ui.xml`
+and row `Composite`s, "new renderer" is `SafeHtmlTemplates` with delegated events for content
+too dense for widgets (the tree editor already works this way). Presenters, binders and the
+theme variables throughout; the mockup's CSS is written against Stroom's variables and lifts
+nearly verbatim under an `ss-` prefix.
+
+| surface | stock | new |
+|---|---|---|
+| splitters, the frame | `ThinSplitLayoutPanel`, nested | — |
+| header, Run, toolbars, dialogs, tabs, menus, Ace editors, messages grid | yes | — |
+| template panel list: rows with chip, name, count, heat track; mode headers | — | view + `TemplateRow` |
+| template strip header and match line (chip opens the workbench; guard and limits summary) | — | view |
+| breadcrumb, input pane, output pane | — | renderer (B) |
+| variables pane | — | view, row composites (B) |
+| body cards, add line, add menu, per-kind editors, drag | — | view (B) |
+| workbench: sample and live matches | — | renderer, needs a `match` endpoint (B) |
+| workbench regex tab: pattern map, groups panel, details | — | renderer + view (groups panel is the capture editor) |
+| workbench tree tab | built | restyle rows |
+| guard clauses, limits | — | view, inline rows |
+| add/edit template dialog | `FormGroup`s | `ColourPalette` composite |
+| mode editor dialog body | — | view |
+| declarations, captures | grids without paging, until the strip has a home for them | — |
+
+**The frame is the larger gap.** The mockup is a quadrant — panel · (crumb / input | variables)
+over (strip | output) — and the workbench replaces the crumb, input, variables and strip cells
+in place when opened from the match chip. A2 had no trace, so it put the workbench where the
+strip goes and had no other cells; phase B would then have had to re-lay the tab out. Ruled:
+adopt the frame now, every cell present, the trace cells showing design 18 §5.7's empty
+states until B fills them, the workbench opening in place. With nested split panels the two
+rows' vertical splitters are independent where the mockup ties them to one line; the
+workbench takes the top row's space as well as the strip's, so the output pane grows to full
+height while it is open — both accepted.
+
 ## 5. Endpoints and wire types
 
 Additions to `ShapeshifterResource`, all `POST`, all taking the project as JSON text (the

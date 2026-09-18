@@ -1,18 +1,45 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui">
-    <g:ThinSplitLayoutPanel ui:field="layout" styleName="max default-min-sizes shapeshifter-design">
+    <!-- Design 43 section 4.1: the mockup's quadrant - panel, then (crumb / input | variables)
+         over (strip | output) - as nested split panels; the workbench replaces the top row and
+         the strip cell in place, leaving the panel and the output pane where they are. -->
+    <g:ThinSplitLayoutPanel ui:field="layout" styleName="max default-min-sizes ss-design">
         <g:north size="26">
             <g:Label ui:field="banner" styleName="shapeshifter-banner"/>
         </g:north>
-        <g:south size="140">
+        <g:south size="110">
             <g:SimplePanel ui:field="messages" styleName="max"/>
         </g:south>
-        <g:west size="260">
+        <g:west size="220">
             <g:SimplePanel ui:field="templatePanel" styleName="max"/>
         </g:west>
         <g:center>
-            <g:SimplePanel ui:field="centre" styleName="max"/>
+            <g:ThinSplitLayoutPanel ui:field="rows" vSplits="0.5" styleName="max default-min-sizes">
+                <g:north size="300">
+                    <g:ThinSplitLayoutPanel ui:field="topRow" hSplits="0.38" styleName="max default-min-sizes">
+                        <g:north size="30">
+                            <g:SimplePanel ui:field="crumb" styleName="max"/>
+                        </g:north>
+                        <g:east size="320">
+                            <g:SimplePanel ui:field="variables" styleName="max"/>
+                        </g:east>
+                        <g:center>
+                            <g:SimplePanel ui:field="input" styleName="max"/>
+                        </g:center>
+                    </g:ThinSplitLayoutPanel>
+                </g:north>
+                <g:center>
+                    <g:ThinSplitLayoutPanel ui:field="bottomRow" hSplits="0.38" styleName="max default-min-sizes">
+                        <g:east size="320">
+                            <g:SimplePanel ui:field="output" styleName="max"/>
+                        </g:east>
+                        <g:center>
+                            <g:SimplePanel ui:field="strip" styleName="max"/>
+                        </g:center>
+                    </g:ThinSplitLayoutPanel>
+                </g:center>
+            </g:ThinSplitLayoutPanel>
         </g:center>
     </g:ThinSplitLayoutPanel>
 </ui:UiBinder>
