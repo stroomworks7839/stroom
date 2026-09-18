@@ -2,9 +2,12 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui">
     <g:FlowPanel styleName="max ss-panel">
-        <g:Label ui:field="title" styleName="ss-panel-title"/>
+        <g:Label styleName="ss-panel-title" text="Variables"/>
         <g:ScrollPanel styleName="ss-panel-body">
-            <g:Label ui:field="empty" styleName="ss-none"/>
+            <g:FlowPanel>
+                <g:Label ui:field="empty" styleName="ss-none"/>
+                <g:FlowPanel ui:field="body"/>
+            </g:FlowPanel>
         </g:ScrollPanel>
     </g:FlowPanel>
 </ui:UiBinder>

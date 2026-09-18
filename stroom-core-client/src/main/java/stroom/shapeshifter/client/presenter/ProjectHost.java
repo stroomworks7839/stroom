@@ -42,6 +42,28 @@ public interface ProjectHost {
     /** Choose a template's colour, or null for the palette's; presentation, so the run is never stale for it. */
     void setColour(String templateId, String colour);
 
+    // ---- the run and the trace (design 18 §5; phase B) ----
+
+    /** The sample the project runs over, or null while none has been supplied (design 18 Q2). */
+    String getSample();
+
+    /** Supply a sample and run. */
+    void setSample(String sample);
+
+    /** Run the project over the sample now; the trace arrives asynchronously. */
+    void run();
+
+    /** The last run's trace, or null before the first run. */
+    TraceModel trace();
+
+    /** Whether the project has changed since the trace was made. */
+    boolean isStale();
+
+    /** The selected frame — the cursor — as a frame id; {@link TraceModel#ROOT} for the document. */
+    long cursor();
+
+    void setCursor(long frameId);
+
     /** The template with this id in the current project, or null. */
     default Template template(final String id) {
         final Project project = getProject();

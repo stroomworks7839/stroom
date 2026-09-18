@@ -1,0 +1,17 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:b="urn:import:stroom.widget.button.client">
+    <g:FlowPanel styleName="max ss-crumb">
+        <g:FlowPanel ui:field="segments" styleName="ss-crumb-segs"/>
+        <g:Label ui:field="state" styleName="ss-crumb-state"/>
+        <g:Label styleName="ss-spacer"/>
+        <g:FlowPanel ui:field="stepper" styleName="ss-crumb-step">
+            <g:Label ui:field="stepperLabel" styleName="ss-crumb-lbl"/>
+            <g:Anchor ui:field="stepPrev" text="◀" styleName="ss-crumb-arrow"/>
+            <g:Label ui:field="stepperIndex" styleName="ss-crumb-idx"/>
+            <g:Anchor ui:field="stepNext" text="▶" styleName="ss-crumb-arrow"/>
+        </g:FlowPanel>
+        <b:ButtonPanel ui:field="buttons"/>
+    </g:FlowPanel>
+</ui:UiBinder>

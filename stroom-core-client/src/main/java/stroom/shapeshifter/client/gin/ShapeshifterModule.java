@@ -20,11 +20,15 @@ import stroom.core.client.gin.PluginModule;
 import stroom.shapeshifter.client.ShapeshifterPlugin;
 import stroom.shapeshifter.client.presenter.BodyPresenter;
 import stroom.shapeshifter.client.presenter.BodyPresenter.BodyView;
+import stroom.shapeshifter.client.presenter.BreadcrumbPresenter;
+import stroom.shapeshifter.client.presenter.BreadcrumbPresenter.BreadcrumbView;
 import stroom.shapeshifter.client.presenter.CaptureEditPresenter;
 import stroom.shapeshifter.client.presenter.CaptureEditPresenter.CaptureEditView;
 import stroom.shapeshifter.client.presenter.CapturesPresenter;
 import stroom.shapeshifter.client.presenter.ConditionEditPresenter;
 import stroom.shapeshifter.client.presenter.ConditionEditPresenter.ConditionEditView;
+import stroom.shapeshifter.client.presenter.ContentPanePresenter;
+import stroom.shapeshifter.client.presenter.ContentPanePresenter.ContentPaneView;
 import stroom.shapeshifter.client.presenter.DeclarationEditPresenter;
 import stroom.shapeshifter.client.presenter.DeclarationEditPresenter.DeclarationEditView;
 import stroom.shapeshifter.client.presenter.DeclarationsPresenter;
@@ -38,6 +42,8 @@ import stroom.shapeshifter.client.presenter.ModeEditorPresenter;
 import stroom.shapeshifter.client.presenter.ModeEditorPresenter.ModeEditorView;
 import stroom.shapeshifter.client.presenter.OtherMatchPresenter;
 import stroom.shapeshifter.client.presenter.OtherMatchPresenter.OtherMatchView;
+import stroom.shapeshifter.client.presenter.OutputPanePresenter;
+import stroom.shapeshifter.client.presenter.OutputPanePresenter.OutputPaneView;
 import stroom.shapeshifter.client.presenter.PartEditPresenter;
 import stroom.shapeshifter.client.presenter.PartEditPresenter.PartEditView;
 import stroom.shapeshifter.client.presenter.PartsPresenter;
@@ -61,16 +67,19 @@ import stroom.shapeshifter.client.presenter.TemplatePanelPresenter;
 import stroom.shapeshifter.client.presenter.TemplatePanelPresenter.TemplatePanelView;
 import stroom.shapeshifter.client.presenter.TemplateStripPresenter;
 import stroom.shapeshifter.client.presenter.TemplateStripPresenter.TemplateStripView;
-import stroom.shapeshifter.client.presenter.TracePanePresenter;
-import stroom.shapeshifter.client.presenter.TracePanePresenter.TracePaneView;
+import stroom.shapeshifter.client.presenter.VariablesPanePresenter;
+import stroom.shapeshifter.client.presenter.VariablesPanePresenter.VariablesPaneView;
 import stroom.shapeshifter.client.view.BodyViewImpl;
+import stroom.shapeshifter.client.view.BreadcrumbViewImpl;
 import stroom.shapeshifter.client.view.CaptureEditViewImpl;
 import stroom.shapeshifter.client.view.ConditionEditViewImpl;
+import stroom.shapeshifter.client.view.ContentPaneViewImpl;
 import stroom.shapeshifter.client.view.DeclarationEditViewImpl;
 import stroom.shapeshifter.client.view.GuardAndLimitsViewImpl;
 import stroom.shapeshifter.client.view.InstructionEditViewImpl;
 import stroom.shapeshifter.client.view.ModeEditorViewImpl;
 import stroom.shapeshifter.client.view.OtherMatchViewImpl;
+import stroom.shapeshifter.client.view.OutputPaneViewImpl;
 import stroom.shapeshifter.client.view.PartEditViewImpl;
 import stroom.shapeshifter.client.view.PartsViewImpl;
 import stroom.shapeshifter.client.view.PatternNodeEditViewImpl;
@@ -82,7 +91,7 @@ import stroom.shapeshifter.client.view.SourceConfigViewImpl;
 import stroom.shapeshifter.client.view.TemplateEditViewImpl;
 import stroom.shapeshifter.client.view.TemplatePanelViewImpl;
 import stroom.shapeshifter.client.view.TemplateStripViewImpl;
-import stroom.shapeshifter.client.view.TracePaneViewImpl;
+import stroom.shapeshifter.client.view.VariablesPaneViewImpl;
 
 public class ShapeshifterModule extends PluginModule {
 
@@ -99,9 +108,18 @@ public class ShapeshifterModule extends PluginModule {
         bindPresenterWidget(TemplatePanelPresenter.class,
                 TemplatePanelView.class,
                 TemplatePanelViewImpl.class);
-        bindPresenterWidget(TracePanePresenter.class,
-                TracePaneView.class,
-                TracePaneViewImpl.class);
+        bindPresenterWidget(BreadcrumbPresenter.class,
+                BreadcrumbView.class,
+                BreadcrumbViewImpl.class);
+        bindPresenterWidget(ContentPanePresenter.class,
+                ContentPaneView.class,
+                ContentPaneViewImpl.class);
+        bindPresenterWidget(VariablesPanePresenter.class,
+                VariablesPaneView.class,
+                VariablesPaneViewImpl.class);
+        bindPresenterWidget(OutputPanePresenter.class,
+                OutputPaneView.class,
+                OutputPaneViewImpl.class);
         bindPresenterWidget(PatternWorkbenchPresenter.class,
                 PatternWorkbenchView.class,
                 PatternWorkbenchViewImpl.class);

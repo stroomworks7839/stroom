@@ -28,6 +28,10 @@ import java.util.List;
  * capture with its type, every output span in the sink's currency, the attempts with where they
  * were tried, per-template timing always, the messages, the input and the output. The same shape
  * in the document mount and the stepping mount.
+ *
+ * <p>Every offset and length is in <b>characters</b> of the text it is an offset into - the
+ * input, a frame's content, the output - converted on the server from the engine's bytes; an
+ * output span in {@code EVENTS} counts event ordinals, as its unit says.
  */
 @JsonInclude(Include.NON_NULL)
 public class ShapeshifterTrace {
@@ -145,7 +149,7 @@ public class ShapeshifterTrace {
         private final int matchIndex;
         @JsonProperty
         private final int depth;
-        /** Where the match begins in the input, or -1 when it has no place there. */
+        /** Where the match begins in the input, in characters, or -1 when it has no place there. */
         @JsonProperty
         private final long inputOffset;
         @JsonProperty

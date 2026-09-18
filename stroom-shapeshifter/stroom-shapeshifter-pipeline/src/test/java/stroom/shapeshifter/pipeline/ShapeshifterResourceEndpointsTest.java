@@ -150,4 +150,24 @@ class ShapeshifterResourceEndpointsTest {
         assertThat(trace.getMessages()).isNotEmpty();
         assertThat(trace.getInput()).isEqualTo("abc");
     }
+
+    @Test
+    void previewOffsetsAreCharactersNotBytes() {
+        // "é" is two bytes and one character: the first row ("é" and its newline) is two
+        // characters long, not three bytes, and the second row begins at character 2, not byte 3.
+        final ShapeshifterTrace trace = resource.preview(new ShapeshifterPreviewRequest(PROJECT_UTF8, "é\ncd\n"));
+        assertThat(trace.isCompiled()).as(trace.getMessages().toString()).isTrue();
+        assertThat(trace.getFrames().get(1).getContentOffset()).isEqualTo(2);
+        assertThat(trace.getFrames().get(1).getInputOffset()).isEqualTo(2);
+        assertThat(trace.getFrames().get(0).getContentLength()).isEqualTo(2);
+        assertThat(trace.getInput().substring(trace.getFrames().get(1).getContentOffset()))
+                .startsWith("cd");
+        assertThat(trace.getAttempts()).extracting(ShapeshifterTrace.Attempt::getContentOffset).contains(0, 2);
+        for (final ShapeshifterTrace.OutputSpan span : trace.getOutputs()) {
+            assertThat(trace.getOutput().substring((int) span.getOffset(), (int) (span.getOffset() + span.getLength())))
+                    .isNotEmpty();
+        }
+    }
+
+    private static final String PROJECT_UTF8 = PROJECT.replace("[a-z]+", "[^\\\\n]+");
 }

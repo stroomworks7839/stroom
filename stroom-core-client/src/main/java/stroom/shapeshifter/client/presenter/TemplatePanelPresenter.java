@@ -20,6 +20,7 @@ import stroom.alert.client.event.ConfirmEvent;
 import stroom.shapeshifter.client.presenter.TemplatePanelPresenter.TemplatePanelView;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
 import stroom.svg.client.Preset;
 import stroom.svg.client.SvgPresets;
 import stroom.widget.button.client.ButtonView;
@@ -142,6 +143,11 @@ public class TemplatePanelPresenter
         editSelected();
     }
 
+    /** Select a template, or the project for null, as if clicked: the root follows through the event. */
+    public void select(final String id) {
+        select(id, true);
+    }
+
     private void select(final String id, final boolean fire) {
         final boolean changed = !Objects.equals(id, selected);
         selected = id;
@@ -170,11 +176,12 @@ public class TemplatePanelPresenter
                     modes.add(template.mode());
                 }
             }
+            final TraceModel trace = host.trace();
             for (final String mode : modes) {
                 for (final Template template : project.templates()) {
                     if (Objects.equals(template.mode(), mode)) {
                         rows.add(new TemplateRowData(template.id(), template.name(), template.mode(),
-                                host.colour(template.id()), Templates.kind(template.match()), false));
+                                host.colour(template.id()), count(trace, template), zero(trace, template)));
                         survives |= template.id().equals(selected);
                     }
                 }
@@ -186,6 +193,33 @@ public class TemplatePanelPresenter
         }
         getView().setSelected(selected);
         enableButtons();
+    }
+
+    /**
+     * The row's right-hand word: the kind of match until there is a trace; then the match count,
+     * or how many places were tried for none (design 18 §5.5 - a zero is a fact about the
+     * sample, not a blank).
+     */
+    private static String count(final TraceModel trace, final Template template) {
+        final Timing timing = trace == null
+                ? null
+                : trace.timing(template.id());
+        if (trace == null) {
+            return Templates.kind(template.match());
+        }
+        if (timing == null || timing.getAttempts() == 0) {
+            return "not tried";
+        }
+        return timing.getMatched() > 0
+                ? String.valueOf(timing.getMatched())
+                : "0 · tried " + timing.getAttempts();
+    }
+
+    private static boolean zero(final TraceModel trace, final Template template) {
+        final Timing timing = trace == null
+                ? null
+                : trace.timing(template.id());
+        return trace != null && (timing == null || timing.getMatched() == 0);
     }
 
     private void enableButtons() {

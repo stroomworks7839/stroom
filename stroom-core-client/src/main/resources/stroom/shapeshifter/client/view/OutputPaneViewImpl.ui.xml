@@ -1,0 +1,14 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+    <g:FlowPanel styleName="max ss-panel">
+        <g:Label styleName="ss-panel-title" text="Output"/>
+        <g:Label ui:field="note" styleName="ss-note"/>
+        <g:ScrollPanel styleName="ss-panel-body">
+            <g:FlowPanel>
+                <g:Label ui:field="empty" styleName="ss-none"/>
+                <g:HTML ui:field="output" styleName="ss-out-box mono"/>
+            </g:FlowPanel>
+        </g:ScrollPanel>
+    </g:FlowPanel>
+</ui:UiBinder>

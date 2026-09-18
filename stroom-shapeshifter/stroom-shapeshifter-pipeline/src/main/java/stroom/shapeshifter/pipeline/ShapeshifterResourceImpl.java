@@ -27,7 +27,6 @@ import stroom.shapeshifter.config.Severity;
 import stroom.shapeshifter.config.Template.RegexFlags;
 import stroom.shapeshifter.config.json.JsonText;
 import stroom.shapeshifter.config.json.ProjectJson;
-import stroom.shapeshifter.engine.Instrument;
 import stroom.shapeshifter.engine.Message;
 import stroom.shapeshifter.engine.PatternExplode;
 import stroom.shapeshifter.engine.PatternInfo;
@@ -167,30 +166,18 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
         }
         final TraceRecorder recorder = new TraceRecorder();
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        final byte[] input = sample.getBytes(StandardCharsets.UTF_8);
         final long started = System.nanoTime();
-        final List<Message> runMessages = Shapeshifter.runWhole(compiled, sample.getBytes(StandardCharsets.UTF_8),
-                new XmlByteSink(out), recorder);
+        final List<Message> runMessages = Shapeshifter.runWhole(compiled, input, new XmlByteSink(out), recorder);
         final long runNanos = System.nanoTime() - started;
         for (final Message m : runMessages) {
             messages.add(message(m.severity(), m.text()));
         }
-        return new ShapeshifterTrace(true, sample, out.toString(StandardCharsets.UTF_8), frames(recorder),
-                captures(recorder), outputs(recorder), attempts(recorder), recorder.attemptsSeen(),
+        // The client holds strings: every offset crosses the wire in characters (TraceChars).
+        final TraceChars chars = new TraceChars(recorder, input, out.toByteArray());
+        return new ShapeshifterTrace(true, sample, out.toString(StandardCharsets.UTF_8), chars.frames(),
+                captures(recorder), chars.outputs(), chars.attempts(), recorder.attemptsSeen(),
                 timings(recorder), messages, runNanos);
-    }
-
-    private static List<ShapeshifterTrace.Frame> frames(final TraceRecorder recorder) {
-        final List<ShapeshifterTrace.Frame> frames = new ArrayList<>(recorder.frames().size());
-        for (final TraceRecorder.Frame f : recorder.frames()) {
-            final byte[] content = recorder.contents().get(f.id());
-            frames.add(new ShapeshifterTrace.Frame(f.id(), f.parentId(), f.templateId(), f.templateName(),
-                    f.matchIndex(), f.depth(), f.inputOffset() >= Instrument.UNLOCATABLE
-                    ? -1
-                    : f.inputOffset(), f.inputLength(), f.contentOffset(), f.contentLength(), content == null
-                    ? null
-                    : new String(content, StandardCharsets.UTF_8)));
-        }
-        return frames;
     }
 
     private static List<ShapeshifterTrace.Capture> captures(final TraceRecorder recorder) {
@@ -199,25 +186,6 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
             captures.add(new ShapeshifterTrace.Capture(c.frameId(), c.name(), c.value(), c.type()));
         }
         return captures;
-    }
-
-    private static List<ShapeshifterTrace.OutputSpan> outputs(final TraceRecorder recorder) {
-        final List<ShapeshifterTrace.OutputSpan> outputs = new ArrayList<>(recorder.outputs().size());
-        for (final TraceRecorder.OutputSpan o : recorder.outputs()) {
-            outputs.add(new ShapeshifterTrace.OutputSpan(o.frameId(), o.offset(), o.length(), o.unit().name()));
-        }
-        return outputs;
-    }
-
-    private static List<ShapeshifterTrace.Attempt> attempts(final TraceRecorder recorder) {
-        final List<ShapeshifterTrace.Attempt> attempts = new ArrayList<>(recorder.attempts().size());
-        for (final TraceRecorder.Attempt a : recorder.attempts()) {
-            attempts.add(new ShapeshifterTrace.Attempt(a.parentFrameId(), a.templateId(), a.matched(),
-                    a.inputOffset() >= Instrument.UNLOCATABLE
-                            ? -1
-                            : a.inputOffset(), a.contentOffset(), a.nanos()));
-        }
-        return attempts;
     }
 
     private static List<ShapeshifterTrace.Timing> timings(final TraceRecorder recorder) {

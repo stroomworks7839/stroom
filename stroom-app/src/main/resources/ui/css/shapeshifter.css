@@ -795,3 +795,283 @@
     display: inline-block;
     padding: 2px 0 4px 10px;
 }
+
+/* ---- phase B: the trace cells (design 18 §5.1-§5.4) ---- */
+
+/* The breadcrumb: a row of segments, the run's state, then the whole-input stepper and the buttons. */
+.ss-crumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 6px 0 10px;
+    border-bottom: 1px solid var(--border-color);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.ss-crumb-segs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.ss-crumb-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.ss-crumb a,
+.ss-crumb a:visited {
+    color: inherit;
+    text-decoration: none;
+}
+
+.ss-crumb-name {
+    font-weight: 600;
+    cursor: pointer;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border-bottom: 2px solid transparent;
+    outline: 1px solid transparent;
+    transition: background-color .15s ease-out, outline-color .15s ease-out;
+}
+
+.ss-crumb-name:hover {
+    background-color: var(--row__background-color--hovered);
+    outline-color: var(--blue-300);
+}
+
+.ss-crumb-name--current {
+    cursor: default;
+}
+
+.ss-crumb-sep,
+.ss-crumb-idx,
+.ss-crumb-lbl {
+    color: var(--ss-muted);
+    font-size: 12px;
+}
+
+.ss-crumb-lbl {
+    font-size: 11.5px;
+}
+
+.ss-crumb-arrow {
+    padding: 0 3px;
+    font-size: 11px;
+    color: var(--ss-muted);
+    cursor: pointer;
+    visibility: hidden;
+}
+
+.ss-crumb-seg:hover .ss-crumb-arrow,
+.ss-crumb-step .ss-crumb-arrow {
+    visibility: visible;
+}
+
+.ss-crumb-arrow:hover {
+    color: var(--blue-300);
+}
+
+.ss-crumb-arrow--off {
+    opacity: .35;
+    pointer-events: none;
+}
+
+.ss-crumb-state {
+    color: var(--ss-muted);
+    font-size: 12.5px;
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ss-crumb-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 10px;
+    border-left: 1px solid var(--border-color);
+}
+
+/* The sample editor: the content pane's front door. */
+.ss-sample {
+    display: flex;
+    flex-direction: column;
+}
+
+.ss-hint,
+.ss-note {
+    color: var(--ss-muted);
+    font-size: 12px;
+    padding: 0 10px 6px;
+    flex: none;
+}
+
+.ss-sample-text {
+    flex: 1;
+    min-height: 0;
+    margin: 0 10px;
+    resize: none;
+    font-size: 13px;
+}
+
+.ss-sample-buttons {
+    flex: none;
+    display: flex;
+    gap: 6px;
+    padding: 8px 10px;
+}
+
+/* The content pane: the value, marked. A match is a coloured underline and a faint wash of
+   its template's hue; pointing at it outlines it in the same hue (the mockup's one vocabulary). */
+.ss-reader {
+    display: flex;
+    flex-direction: column;
+}
+
+.ss-content-box {
+    padding: 8px 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 2.1;
+    font-size: 13px;
+}
+
+.ss-m,
+.ss-o {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    border-radius: 2px;
+    cursor: pointer;
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    transition: outline-color .15s ease-out;
+    background-color: color-mix(in srgb, var(--hue) 14%, transparent);
+    border-bottom: 2px solid var(--hue);
+}
+
+.ss-m:hover,
+.ss-o:hover {
+    outline-color: var(--hue);
+}
+
+.ss-gap {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    vertical-align: text-bottom;
+    background-color: var(--red-200, #d9534f);
+    border-radius: 1px;
+    margin: 0 1px;
+}
+
+.ss-loose-list {
+    padding: 4px 12px 8px;
+}
+
+.ss-loose {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    padding: 2px 6px;
+    border-left: 3px solid var(--hue);
+    cursor: pointer;
+    font-size: 12.5px;
+}
+
+.ss-loose:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.ss-loose-label {
+    color: var(--ss-muted);
+    white-space: nowrap;
+}
+
+.ss-loose-value {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* The variables pane. */
+.ss-var-section {
+    padding: 2px 0 6px;
+}
+
+.ss-var-heading {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ss-muted);
+    padding: 8px 12px 4px;
+    font-weight: 600;
+}
+
+.ss-var-heading--link,
+.ss-var-heading--link:visited {
+    color: var(--ss-muted);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.ss-var-heading--link:hover {
+    color: var(--blue-300);
+}
+
+.ss-var-row {
+    display: grid;
+    grid-template-columns: 14px minmax(64px, auto) auto 1fr;
+    align-items: baseline;
+    gap: 8px;
+    padding: 3px 12px;
+    font-size: 13px;
+}
+
+.ss-var-row:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.ss-swatch--small {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    align-self: center;
+}
+
+.ss-var-name {
+    font-weight: 600;
+}
+
+.ss-type {
+    font-size: 10.5px;
+    color: var(--ss-muted);
+    background: rgba(127, 127, 127, .12);
+    border: 1px solid var(--control__border-color);
+    border-radius: 3px;
+    padding: 0 5px;
+    white-space: nowrap;
+}
+
+.ss-var-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The output pane: what the cursor wrote, the rest dimmed. */
+.ss-out-box {
+    padding: 8px 12px;
+    white-space: pre;
+    line-height: 1.7;
+    font-size: 13px;
+}
+
+.ss-o-dim {
+    opacity: .45;
+}

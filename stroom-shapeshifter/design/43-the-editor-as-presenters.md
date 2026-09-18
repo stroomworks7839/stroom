@@ -441,6 +441,31 @@ shippable.
   `TraceRecorder`, `ShapeshifterTrace` as the wire model — `Frame`, `Capture` with its type,
   `OutputSpan` with its unit, `Attempt`, `Timing` — and `preview` over a supplied sample.
   `BodyPresenter` landed with A2 (§4.2) as the editor; what B adds to it is the annotations.
+  **Client side, first cut, 2026-09-18:** the server converts every offset to characters
+  before the wire (`TraceChars` in the pipeline module — UTF-8 continuation bytes dropped,
+  a frame's bytes found as the input, a slice of its parent's or its own), so the client works
+  in strings and never in bytes. `TraceModel` is the navigator's reading of a trace: frames
+  by id with the document as frame zero, children by parent, matches by template, captures,
+  output span and attempts by frame, timings by template, and `content(frameId)` by slicing
+  the parent's content all the way up. The root owns the sample, the trace and the **cursor**
+  (the selected frame): `ProjectHost` gains `getSample`/`setSample`/`run`/`trace`/`isStale`/
+  `cursor`/`setCursor`; selecting a frame selects its template, so the strip shows what the
+  cursor is an instance of. The sample arrives through the content pane's empty state — a
+  box to paste into, Run, Ctrl+Enter (design 18 Q2's first door; the stream picker is still to
+  come) — and every edit runs the project again on a 600 ms debounce (Q6), one request in
+  flight at a time, the crumb saying *stale · running…* meanwhile; without a sample the edit
+  validates as before. The four cells are real presenters now: `BreadcrumbPresenter` (the
+  cursor's ancestry, a sibling stepper on every segment, the whole-input stepper at the end
+  labelled with the template, the sample and run buttons), `ContentPanePresenter` (the
+  cursor's content as one HTML block, each child match a span in its template's hue that
+  descends on click, failed attempts as gap marks, matches whose content is not a slice listed
+  beneath), `VariablesPanePresenter` (this match's captures with their types, then each
+  ancestor's under a heading that is a click to it), `OutputPanePresenter` (the whole output
+  with the cursor's span lit and the rest dimmed, the children's spans in their hues, event-
+  counted output plain with a note). The panel's rows read the timings — a count, or *0 ·
+  tried n* — and the strip's header says *no matches · tried n places* or *n matches · µs*.
+  Not yet: capture spans in the content (the trace carries values, not extents), the body
+  cards' annotations, the guard's verdict, the stream picker, undo, the keyboard moves.
 - **C — stepping.** `SteppingEditor` + registry + `DefaultSteppingEditor` extraction in
   `stroom-core-client`; `SteppingDetail` + `detail` through the store in `stroom-pipeline`;
   the recorder in both elements; `ShapeshifterSteppingEditor`.

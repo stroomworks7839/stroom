@@ -16,12 +16,15 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.alert.client.event.AlertEvent;
 import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter.ShapeshifterDesignView;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.shared.ShapeshifterMessage;
+import stroom.shapeshifter.shared.ShapeshifterPreviewRequest;
 import stroom.shapeshifter.shared.ShapeshifterResource;
+import stroom.shapeshifter.shared.ShapeshifterTrace;
 import stroom.util.client.DelayedUpdate;
 
 import com.google.gwt.core.client.GWT;
@@ -31,7 +34,6 @@ import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.event.shared.LegacyHandlerWrapper;
 import com.google.inject.Inject;
-import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 import com.gwtplatform.mvp.client.View;
@@ -48,12 +50,18 @@ import java.util.Objects;
  * asks the engine what it thinks of it on a debounce.
  *
  * <p>The frame is the mockup's (43 §4.1): the template panel; the breadcrumb, input and
- * variables cells over the strip and output cells — the trace cells present with their empty
- * states until phase B — and the pattern workbench opening in place of the crumb, input,
- * variables and strip when a match chip is clicked.
+ * variables cells over the strip and output cells, and the pattern workbench opening in place
+ * of the crumb, input, variables and strip when a match chip is clicked.
  *
- * <p>Selection is one object — the selected template's id, or null for the project — owned here
- * and pushed to the strip and the open workbench; the template panel is its only author today.
+ * <p>Selection is two things owned here: the selected template's id, or null for the project,
+ * pushed to the strip and the open workbench; and the cursor — the selected frame of the last
+ * run's trace (design 18 §5.1) — which the crumb, the input, variables and output panes follow.
+ * Selecting a frame selects its template, so the strip shows the definition the cursor is an
+ * instance of.
+ *
+ * <p>The run (phase B): a sample is pasted into the input pane's empty state (design 18 Q2's
+ * first door), and every edit runs the project over it again on a short debounce (Q6), so the
+ * trace is never far behind the definition; between the edit and the answer it is stale.
  */
 public class ShapeshifterDesignPresenter
         extends MyPresenterWidget<ShapeshifterDesignView>
@@ -66,7 +74,12 @@ public class ShapeshifterDesignPresenter
     private final TemplateStripPresenter strip;
     private final PatternWorkbenchPresenter workbench;
     private final MessagesPresenter messages;
+    private final BreadcrumbPresenter crumb;
+    private final ContentPanePresenter input;
+    private final VariablesPanePresenter variables;
+    private final OutputPanePresenter output;
     private final DelayedUpdate validate;
+    private final DelayedUpdate rerun;
 
     private Project project;
     private final Map<String, String> colours = new HashMap<>();
@@ -74,6 +87,13 @@ public class ShapeshifterDesignPresenter
     private boolean readOnly = true;
     private boolean workbenchOpen;
     private List<ShapeshifterMessage> lastMessages;
+
+    private String sample;
+    private TraceModel trace;
+    private long cursor = TraceModel.ROOT;
+    private boolean stale;
+    private boolean running;
+    private boolean runAgain;
 
     @Inject
     public ShapeshifterDesignPresenter(final EventBus eventBus,
@@ -83,34 +103,40 @@ public class ShapeshifterDesignPresenter
                                        final TemplateStripPresenter strip,
                                        final PatternWorkbenchPresenter workbench,
                                        final MessagesPresenter messages,
-                                       final Provider<TracePanePresenter> paneProvider) {
+                                       final BreadcrumbPresenter crumb,
+                                       final ContentPanePresenter input,
+                                       final VariablesPanePresenter variables,
+                                       final OutputPanePresenter output) {
         super(eventBus, view);
         this.restFactory = restFactory;
         this.templatePanel = templatePanel;
         this.strip = strip;
         this.workbench = workbench;
         this.messages = messages;
+        this.crumb = crumb;
+        this.input = input;
+        this.variables = variables;
+        this.output = output;
         this.validate = new DelayedUpdate(400, this::validate);
+        this.rerun = new DelayedUpdate(600, this::run);
         templatePanel.setHost(this);
         strip.setHost(this);
         strip.setListener(this);
         workbench.setHost(this);
         workbench.setOnClose(this::closeWorkbench);
+        crumb.setHost(this);
+        crumb.setOnSample(input::editSample);
+        input.setHost(this);
+        variables.setHost(this);
+        output.setHost(this);
         view.setTemplatePanel(templatePanel.getView());
         view.setStrip(strip.getView());
         view.setWorkbench(workbench.getView());
         view.setMessages(messages.getView());
-        // Design 18 §5.7: the empty states are the front door - each cell says how data arrives.
-        view.setCrumb(paneProvider.get().as(null,
-                "No run yet — the breadcrumb follows a run: pick a sample stream, or step a record through a pipeline.")
-                .getView());
-        view.setInput(paneProvider.get().as("Input",
-                "The selected match's content, with its captures tinted, after a run.").getView());
-        view.setVariables(paneProvider.get().as("Variables",
-                "Every name in scope at the selected frame, innermost first, after a run.").getView());
-        view.setOutput(paneProvider.get().as("Output",
-                "What the selected frame wrote, attributed to the instruction that wrote it, after a run.")
-                .getView());
+        view.setCrumb(crumb.getView());
+        view.setInput(input.getView());
+        view.setVariables(variables.getView());
+        view.setOutput(output.getView());
     }
 
     @Override
@@ -139,9 +165,20 @@ public class ShapeshifterDesignPresenter
                 : "The Source tab does not parse, so this tab shows the last good project read-only: " + sourceError);
         refresh();
         if (project != null) {
-            validate.update();
+            check();
         } else {
             messages.setMessages(sourceError, lastMessages);
+        }
+    }
+
+    /** The engine's opinion of the project: a run when there is a sample, a validation otherwise. */
+    private void check() {
+        if (sample != null) {
+            stale = true;
+            refreshTrace();
+            rerun.update();
+        } else {
+            validate.update();
         }
     }
 
@@ -210,12 +247,118 @@ public class ShapeshifterDesignPresenter
         project = next;
         refresh();
         ValueChangeEvent.fire(this, next);
-        validate.update();
+        check();
     }
 
     private void refresh() {
         templatePanel.refresh();
         onSelect(templatePanel.getSelectedTemplateId());
+    }
+
+    // ---- the run and the cursor ----
+
+    @Override
+    public String getSample() {
+        return sample;
+    }
+
+    @Override
+    public void setSample(final String sample) {
+        this.sample = sample == null || sample.isEmpty()
+                ? null
+                : sample;
+        if (this.sample == null) {
+            trace = null;
+            cursor = TraceModel.ROOT;
+            stale = false;
+            refreshTrace();
+            validate.update();
+        } else {
+            run();
+        }
+    }
+
+    @Override
+    public void run() {
+        if (project == null || sample == null) {
+            return;
+        }
+        if (running) {
+            // One answer at a time; the edit that arrived meanwhile runs when this one lands.
+            runAgain = true;
+            return;
+        }
+        running = true;
+        stale = true;
+        crumb.refresh();
+        final ShapeshifterPreviewRequest request = new ShapeshifterPreviewRequest(ProjectText.print(project), sample);
+        restFactory
+                .create(RESOURCE)
+                .method(res -> res.preview(request))
+                .onSuccess(result -> {
+                    running = false;
+                    trace = new TraceModel(result);
+                    stale = false;
+                    lastMessages = result.getMessages();
+                    messages.setMessages(sourceError, lastMessages);
+                    if (!trace.has(cursor)) {
+                        cursor = TraceModel.ROOT;
+                    }
+                    refreshTrace();
+                    if (runAgain) {
+                        runAgain = false;
+                        run();
+                    }
+                })
+                .onFailure(error -> {
+                    // No trace to be stale against; the crumb and the pane say the run failed.
+                    running = false;
+                    runAgain = false;
+                    stale = false;
+                    AlertEvent.fireError(this, "The run failed: " + error.getMessage(), null);
+                    refreshTrace();
+                })
+                .taskMonitorFactory(this)
+                .exec();
+    }
+
+    @Override
+    public TraceModel trace() {
+        return trace;
+    }
+
+    @Override
+    public boolean isStale() {
+        return stale || running;
+    }
+
+    @Override
+    public long cursor() {
+        return cursor;
+    }
+
+    @Override
+    public void setCursor(final long frameId) {
+        if (trace == null || !trace.has(frameId)) {
+            return;
+        }
+        cursor = frameId;
+        // A frame selects its template (design 18 §5.1): the strip shows what the cursor is an instance of.
+        final ShapeshifterTrace.Frame frame = trace.frame(frameId);
+        templatePanel.select(frame == null
+                ? null
+                : frame.getTemplateId());
+        refreshTrace();
+    }
+
+    /** Everything that reads the trace or the cursor, after either changes. */
+    private void refreshTrace() {
+        templatePanel.refresh();
+        strip.setTemplate(strip.getTemplateId());
+        crumb.refresh();
+        input.refresh();
+        variables.refresh();
+        output.refresh();
     }
 
     private void onSelect(final String templateId) {

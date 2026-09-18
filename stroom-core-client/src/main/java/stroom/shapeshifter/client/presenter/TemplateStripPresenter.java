@@ -24,6 +24,7 @@ import stroom.shapeshifter.config.OutputNode.Holder;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.MatchLimits;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
 
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
@@ -101,7 +102,8 @@ public class TemplateStripPresenter
         }
         getView().setHeader("template", host.colour(template.id()), template.name(), template.mode() == null
                 ? "root"
-                : "mode " + template.mode(), "dispatched from " + dispatchedFrom(project, template));
+                : "mode " + template.mode(),
+                "dispatched from " + dispatchedFrom(project, template) + runNote(template));
         getView().setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
                 guardSummary(template.guard()) + " · " + limitsSummary(template.matchLimits()));
         getView().setMatchVisible(true);
@@ -110,6 +112,26 @@ public class TemplateStripPresenter
         declarations.setTemplate(id);
         captures.setTemplate(id);
         getView().setDetailsVisible(true);
+    }
+
+    /** After a run, what it made of this template: how many matches, or where it was tried for none. */
+    private String runNote(final Template template) {
+        final TraceModel trace = host.trace();
+        final Timing timing = trace == null
+                ? null
+                : trace.timing(template.id());
+        if (trace == null) {
+            return "";
+        }
+        if (timing == null || timing.getAttempts() == 0) {
+            return " · not tried in this run";
+        }
+        if (timing.getMatched() == 0) {
+            return " · no matches · tried " + timing.getAttempts() + " places";
+        }
+        return " · " + timing.getMatched() + " match" + (timing.getMatched() == 1
+                ? ""
+                : "es") + " · " + (timing.getNanos() / 1000) + " µs";
     }
 
     public String getTemplateId() {
