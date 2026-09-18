@@ -65,6 +65,7 @@ class TestScenariosBindingBeforeLearning {
                 .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingFields.FORMAT))
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
+                .promotionFloor(0.85)
                 .scorers(List.of(
                         new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
                         new ScorerSetting(ScorerType.INPUT_COVERAGE, 1.0, 0.8, false, null),
@@ -74,7 +75,7 @@ class TestScenariosBindingBeforeLearning {
     }
 
     private static Input stream(final String format) {
-        return new Input("DOOR-ACCESS", "Raw Events", Map.of("Format", format), CSV.input());
+        return new Input(1L, "DOOR-ACCESS", "Raw Events", Map.of("Format", format), CSV.input());
     }
 
     /**
@@ -129,7 +130,7 @@ class TestScenariosBindingBeforeLearning {
         assertThat(silent.asked()).isEmpty();
 
         // A stream nothing bound can handle is a sentinel: the model is never asked.
-        final Input unlike = new Input("DOOR-ACCESS", "Raw Events", Map.of("Format", "JSON"),
+        final Input unlike = new Input(2L, "DOOR-ACCESS", "Raw Events", Map.of("Format", "JSON"),
                 "{\"not\": \"csv\"}\n");
         final StageRun sentinel = scenarios.stage(silent).run(fits.doc(), unlike);
         assertThat(sentinel.decision()).isInstanceOf(Sentinel.class);
@@ -167,13 +168,13 @@ class TestScenariosBindingBeforeLearning {
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
 
-        // Six records against a minimum of ten: the candidate clears the floor, so it is bound and serves
-        // this stream, but provisionally — A14 cannot yet be met.
+        // Seven lines — six records and a header — against a minimum of ten: the candidate clears the
+        // floor, so it is bound and serves this stream, but provisionally — A14 cannot yet be met.
         final StageRun first = scenarios.stage(script).run(doc, stream("CSV"));
         script.verifyExhausted();
         assertThat(first.decision()).isInstanceOf(Provisional.class);
         final Provisional provisional = (Provisional) first.decision();
-        assertThat(provisional.records()).isEqualTo(6);
+        assertThat(provisional.records()).isEqualTo(7);
         assertThat(provisional.required()).isEqualTo(10);
         assertThat(provisional.rule().isProvisional()).isTrue();
         assertThat(provisional.rule().getPromotedTimeMs()).isNull();
@@ -193,7 +194,7 @@ class TestScenariosBindingBeforeLearning {
         }
         final Script silent = Script.of();
         final StageRun second = scenarios.stage(silent).run(first.doc(),
-                new Input("DOOR-ACCESS", "Raw Events", Map.of("Format", "CSV"), twelve.toString()));
+                new Input(2L, "DOOR-ACCESS", "Raw Events", Map.of("Format", "CSV"), twelve.toString()));
 
         assertThat(silent.asked()).isEmpty();
         assertThat(second.decision()).isInstanceOf(Promoted.class);

@@ -47,10 +47,14 @@ public final class ShapeSignature {
     private static final Pattern MARKUP = Pattern.compile("^\\s*<(\\?|!|[A-Za-z_])");
 
     public static String of(final String data) {
-        final String skeleton = MARKUP.matcher(data).find()
+        final String skeleton = isMarkup(data)
                 ? xmlSkeleton(data)
                 : textSkeleton(data);
         return digest(skeleton);
+    }
+
+    static boolean isMarkup(final String data) {
+        return MARKUP.matcher(data).find();
     }
 
     static String textSkeleton(final String data) {

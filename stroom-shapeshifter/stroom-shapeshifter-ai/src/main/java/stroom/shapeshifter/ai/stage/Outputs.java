@@ -16,19 +16,19 @@
 
 package stroom.shapeshifter.ai.stage;
 
-import java.util.Optional;
+import java.util.List;
 
 /**
- * The shapes a stage has given up on (design 01 §5, item 4), keyed by document and shape (A26): later
- * streams of a given-up shape are sentinelled without consulting the model. Promotion of a variant
- * covering the shape releases it (A12). In-memory in scenarios; the {@code shapeshifter_shape} row in
- * a node.
+ * The bindings every output carries (design 01 §7.3 rule 3), as far as the stage needs to look back at
+ * them: retracting a rule means finding the inputs whose outputs it produced. In-memory in scenarios; in
+ * a node the bindings are the output stream's attributes and this is a meta search over them.
  */
-public interface Quarantine {
+public interface Outputs {
 
-    Optional<String> reasonGivenUp(String docUuid, String shape);
+    void emitted(long inputId, Bindings bindings);
 
-    void giveUp(String docUuid, String shape, String reason);
-
-    void release(String docUuid, String shape);
+    /**
+     * @return The ids of the inputs whose output the rule produced, oldest first.
+     */
+    List<Long> boundBy(String ruleUuid);
 }

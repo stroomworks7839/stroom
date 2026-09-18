@@ -56,7 +56,10 @@ public final class Scenarios {
     private static final DataSplitterFixture DATA_SPLITTER = new DataSplitterFixture();
 
     public final ContentStores stores = new ContentStores();
-    public final InMemoryQuarantine quarantine = new InMemoryQuarantine();
+    public final InMemoryShapes shapes = new InMemoryShapes();
+    public final InMemoryLedger ledger = new InMemoryLedger();
+    public final InMemoryOutputs outputs = new InMemoryOutputs();
+    public final InMemoryReprocessing reprocessing = new InMemoryReprocessing();
     public final InMemoryRegressionSet regressionSet = new InMemoryRegressionSet();
 
     public List<StepRunner> runners() {
@@ -76,7 +79,10 @@ public final class Scenarios {
                 stores.writer(),
                 new FragmentRunner(stores.pipelines, stores.stackLoader, stores.textConverters, stores.xslts,
                         runners),
-                quarantine,
+                shapes,
+                ledger,
+                outputs,
+                reprocessing,
                 regressionSet,
                 Clock.fixed(NOW, ZoneOffset.UTC),
                 SEED);

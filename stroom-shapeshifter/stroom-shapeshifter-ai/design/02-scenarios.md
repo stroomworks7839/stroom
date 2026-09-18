@@ -235,9 +235,47 @@ type before any question (`Router.compatible` reads the selector's top-level `Fe
 a candidate that clears the floor is bound provisionally when the shape has too few records, and a
 provisional rule is promoted in place the first time a stream brings enough; a matching reserved rule
 gives the shape up; a matching draft is sentinelled naming it; `DISABLED` still selects. Scenarios 14,
-25, 26 and 29 pass, and the routing half of 22. Not yet: retraction of a provisional rule (28), the
-rolling score and relearning (27), the ledger's inputs and release as a reprocess request (13),
-Approve/Reject (22), and everything from scenario 30 on.
+25, 26 and 29 pass, and the routing half of 22.
+
+The third slice, 2026-09-18, is what happens to a binding after it is made — scenarios 28, 27 and 13 —
+and the runtime state it needs, given to the `Stage` as the seams of A26: `Shapes` (the shape row:
+given up, marked for relearning, rolling score), `Ledger` (sentinelled inputs), `Outputs` (the bindings
+each output carries, §7.3 rule 3, as a `Bindings` record on every `StageRun`) and `Reprocessing`
+(requests, as-current). Every sentinel now writes a ledger row (A4), including a given-up shape's own
+stream; binding a shape takes its inputs off the ledger and requests them (A12); a provisional rule
+that fails the gate is retracted — out of the table, the shape unknown again, the inputs whose output it
+produced requested, the failing stream sentinelled — and the next stream of the shape learns afresh. A
+promoted rule's score over each stream it serves feeds the shape's rolling score, and once that is
+below `relearnThreshold` the next stream is relearned while the incumbent serves it: the candidate
+replaces the incumbent's fragment under the same rule when it clears the floor, is no worse than the
+incumbent on that stream (A15) and no worse on any record the rule was accepted on (A18); otherwise the
+incumbent is kept and nothing is written. Four things were decided in the writing and are worth the
+owner's eye:
+
+- **A chain's score is the product of its steps' totals**, not their mean. The mean let a perfect
+  transform lift a split that discarded a seventh of the input to 0.93; a record must survive every
+  step, and the product says so. The scenario documents' floors sit at 0.85 in consequence, below the
+  6/7 that the corpus's header-discarding splitter scores — §9.1's finding, met a third time.
+- **The records a stream brings are counted on the input** — its non-blank lines, or its records where
+  it is already XML — not on the output, so that a variant which extracts nothing from ten records is
+  judged on ten and retracted, not excused as too few to judge. Scenario 14's six records are seven
+  lines.
+- **The rolling score is a running mean whose memory is capped at `minRecordsPerShape` records** — the
+  two columns a shape row can hold — so a shape that has been good for a year is judged on what it has
+  done lately, and is not acted on until a memory's worth has been seen. Relearning waits for a stream
+  that brings `minRecordsPerShape` records, so the candidate meets A14 as a fresh one must; it spends
+  the mark whatever the outcome, so a shape that cannot be fixed is relearned again only after another
+  memory's worth of records has fallen below the threshold. A pinned rule is served and nothing else. The
+  scenario drives the score with input coverage, since the schema-conformance scorer the catalogue
+  names is scenario 5's; the trigger does not care which scorer moved it.
+- **A provisional binding releases the ledger too**, not only a promotion: the ledger's inputs are the
+  very records the provisional rule is waiting on to meet A14, and if it is wrong about them its
+  outputs are retracted and requested again. A draft still releases nothing until Approve.
+
+Also: a fragment step that produced output with errors is now followed, as a pipeline would follow it,
+the errors being the failing records' (design 01 §5); only a step that produced nothing stops the chain.
+Not yet: Approve/Reject on top of the ledger (22), the relearn question carrying the incumbent's
+shortfall as feedback, and everything from scenario 30 on.
 
 ## 7. Decisions taken
 

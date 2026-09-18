@@ -21,6 +21,7 @@ import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.scoring.Judgement;
+import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
@@ -64,6 +65,9 @@ class TestScenario01LearnsACsvFeed {
                 .learningMode(LearningMode.AUTOMATIC)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
+                // The golden splitter reads the header line into a variable, which coverage counts as
+                // discarded — design 01 §9.1's finding — so the split scores 6/7 and the floor sits below it.
+                .promotionFloor(0.85)
                 .scorers(List.of(
                         new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
                         new ScorerSetting(ScorerType.INPUT_COVERAGE, 1.0, 0.8, false, null),
@@ -74,7 +78,7 @@ class TestScenario01LearnsACsvFeed {
 
     private static Input input() {
         return new Input(
-                "DOOR-ACCESS", "Raw Events", Map.of("Format", "CSV", "System", "Door Access"), CSV.input());
+                1L, "DOOR-ACCESS", "Raw Events", Map.of("Format", "CSV", "System", "Door Access"), CSV.input());
     }
 
     @Test
@@ -106,7 +110,12 @@ class TestScenario01LearnsACsvFeed {
         final Promoted promoted = (Promoted) run.decision();
         assertThat(run.output()).isEqualTo(EXPECTED_EVENTS);
         assertThat(run.transcript()).hasSize(3);
-        assertThat(scenarios.quarantine.isEmpty()).isTrue();
+        assertThat(scenarios.shapes.reasonGivenUp(run.doc().getUuid(), run.shape().id())).isEmpty();
+        assertThat(scenarios.ledger.isEmpty()).isTrue();
+        assertThat(run.bindings())
+                .describedAs("design 01 §7.3 rule 3: the output records what produced it")
+                .isEqualTo(new Bindings(run.doc().getUuid(), promoted.rule().getUuid(),
+                        promoted.rule().getPipeline(), false, promoted.score()));
 
         // Scored over the whole stream: coverage and yield on the split, yield on the transform.
         assertThat(run.verdicts()).hasSize(2);
@@ -156,7 +165,8 @@ class TestScenario01LearnsACsvFeed {
         final ShapeshifterAiDoc keyedOnSystem = policy().copy()
                 .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingFields.SYSTEM))
                 .build();
-        final Input noSystemHeader = new Input("DOOR-ACCESS", "Raw Events", Map.of("Format", "CSV"), CSV.input());
+        final Input noSystemHeader = new Input(1L, "DOOR-ACCESS", "Raw Events", Map.of("Format", "CSV"),
+                CSV.input());
 
         final StageRun run = scenarios.stage(silent).run(keyedOnSystem, noSystemHeader);
 

@@ -29,6 +29,7 @@ import java.util.List;
  *                       happened, otherwise as given.
  * @param decision       What was decided.
  * @param shape          The stream's shape under the document's learning key, as the ledger keys it.
+ * @param bindings       What produced the output (design 01 §7.3 rule 3); null when there is none.
  * @param output         What the bound or promoted fragment produced over the whole stream; null for a
  *                       sentinel or a given-up shape.
  * @param verdicts       The scorecard's verdicts on the fragment over the whole stream, one per step, in
@@ -38,6 +39,7 @@ import java.util.List;
 public record StageRun(ShapeshifterAiDoc doc,
                        Decision decision,
                        Shape shape,
+                       Bindings bindings,
                        String output,
                        List<Verdict> verdicts,
                        List<Exchange> transcript) {

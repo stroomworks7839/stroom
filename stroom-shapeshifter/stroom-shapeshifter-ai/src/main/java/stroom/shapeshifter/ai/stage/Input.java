@@ -25,12 +25,13 @@ import java.util.Map;
 /**
  * One stream as the stage receives it: the metadata a selector may match on (A22) and the data.
  *
+ * @param id         What names the stream in the ledger and a reprocess request: its meta id in a node.
  * @param feed       The feed name.
  * @param type       The stream type, e.g. {@code Raw Events}.
  * @param attributes The stream's attribute map — the receipt headers.
  * @param data       The stream's content.
  */
-public record Input(String feed, String type, Map<String, String> attributes, String data) {
+public record Input(long id, String feed, String type, Map<String, String> attributes, String data) {
 
     public Input {
         attributes = Map.copyOf(attributes);

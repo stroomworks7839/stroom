@@ -38,9 +38,29 @@ public sealed interface Decision {
     }
 
     /**
-     * A fragment was learned but the incumbent was kept: the candidate did not beat it (A15, A18).
+     * A bound shape marked for relearning (A29) was relearned while the incumbent served the stream, and
+     * the candidate beat it: the rule is rebound to the new fragment (design 01 §7.3 rule 2) for the
+     * streams that follow. Same rule, same {@code uuid}; the regression set grows.
      */
-    record Kept(RoutingRule incumbent, double candidateScore) implements Decision {
+    record Rebound(RoutingRule incumbent, RoutingRule rule, double score) implements Decision {
+
+    }
+
+    /**
+     * A bound shape marked for relearning was relearned while the incumbent served the stream, and the
+     * incumbent was kept: no candidate passed, or the candidate did not beat it on this stream or on the
+     * regression set (A15, A18). Nothing was written.
+     */
+    record Kept(RoutingRule incumbent, String reason) implements Decision {
+
+    }
+
+    /**
+     * A provisional rule failed the gate once the shape brought enough records to judge it (design 01 §6):
+     * the rule is gone from the table, the shape is unknown again, the inputs whose output it produced
+     * are requested for reprocessing as-current, and this stream is sentinelled.
+     */
+    record Retracted(RoutingRule rule, double score, String reason) implements Decision {
 
     }
 

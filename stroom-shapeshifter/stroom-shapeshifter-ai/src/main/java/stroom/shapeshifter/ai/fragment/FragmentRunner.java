@@ -74,8 +74,10 @@ public final class FragmentRunner {
     }
 
     /**
-     * @return One attempted step per element, in chain order. A step that fails leaves the later ones
-     * unrun; the caller sees that from the last step's result.
+     * @return One attempted step per element, in chain order. A step that produced nothing leaves the
+     * later ones unrun; the caller sees that from the last step's result. A step that produced output
+     * and raised errors on the way is followed, as a pipeline would follow it: the errors are records
+     * that failed, dropped to the error stream, and the scorers count what got through (design 01 §5).
      */
     public List<Attempted> run(final DocRef fragment, final String input) {
         final PipelineDataMerger merged = merge(fragment);
@@ -111,7 +113,7 @@ public final class FragmentRunner {
                     .orElse(null);
             final Attempted step = new Attempted(element.getType(), current, runner.run(configuration, current));
             steps.add(step);
-            if (!step.result().passed()) {
+            if (step.result().output() == null) {
                 break;
             }
             current = step.result().output();
