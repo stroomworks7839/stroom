@@ -17,6 +17,9 @@
 package stroom.shapeshifter.ai.stage;
 
 import stroom.shapeshifter.shared.RoutingRule;
+import stroom.util.shared.StoredError;
+
+import java.util.List;
 
 /**
  * What the stage decided about one stream, in the terms of design 02 §4.
@@ -84,9 +87,15 @@ public sealed interface Decision {
     }
 
     /**
-     * No fragment passed within the budget; the shape is recorded as given up.
+     * No fragment passed within the budget; the shape is recorded as given up. The diagnostics are the last
+     * candidate's — what the sentinel names beside the reason (design 02 §4 step 5), and what a person
+     * reads to see why the model could not.
      */
-    record GivenUp(String reason) implements Decision {
+    record GivenUp(String reason, List<StoredError> diagnostics) implements Decision {
+
+        public GivenUp {
+            diagnostics = List.copyOf(diagnostics);
+        }
 
     }
 

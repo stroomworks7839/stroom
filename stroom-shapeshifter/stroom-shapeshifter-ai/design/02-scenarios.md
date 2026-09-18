@@ -376,7 +376,121 @@ candidate worse than the incumbent on the held-out stream (A15) and one worse on
 accepted on (A18), each kept without a document written. The Tier 2 scorer set is the same six, the
 schema-conformance scorer taking the node's `SchemaFilter` and so the node's whole schema store.
 
-Not yet: scenario 20 (needs the A26 tables for its ledger row), everything from scenario 30 on.
+The seventh slice, 2026-09-18, is the harness for the **live smoke** — the scenarios' machinery driven
+by a real model, to learn what no script can say: whether the questions as put draw replies the grammar
+accepts, whether the feedback steers a second candidate to a passing one within the candidate limit,
+whether the prefix and the thresholds are workable, and what an attempt costs in tokens and seconds.
+Three pieces:
+
+- **`QuestionText`** (main) renders each typed question as design 01 §10's prompt contract says it
+  must be put: the system text carries the stage's objective and the document's `instructions`; the
+  chain question the key's values, the allowed elements with a line each, the sample and the
+  {@code A -> B} grammar; a configuration question the element and document type, the real input the
+  element will receive, the previous configuration on a re-ask, what fell short, and the one-fenced-block
+  grammar — with §9.1's `schemaLocation` and `ignoreErrors` rules for extraction and §8.2's failure
+  modes and §8.3's trap for transformation. A node's advisor over `stroom-ai` (§12 item 6) will use the
+  same text, so the harness measures the prompt the node will send.
+- **`LiveAdvisor`** (test fixtures) is the `Advisor` seam over an OpenAI-compatible endpoint, configured
+  from the environment as `TestExtractionReconstruction` already is — `SHAPESHIFTER_AI_BASE_URL`,
+  `SHAPESHIFTER_LEARNING_MODEL`, `SHAPESHIFTER_AI_API_KEY` — putting each question after the system text
+  and the attempt's transcript so far, and counting tokens and time. Samples go unredacted (A17 is not
+  built): the endpoint must be one the data may be sent to.
+- **`TestLiveScenarios`** runs five scenarios with it and writes a report and every transcript under
+  the module's `build/live`: scenario 1 (the corpus's CSV with its header); a headerless CSV against the
+  full scorer set (does the first transform mean something, or is it steered out of the degeneracy
+  trap?); two record kinds in one stream at coverage 0.9; scenario 27 live (learn, fall, relearn); and
+  the corpus's `123 [abc] text` shape. It is opt-in — enabled only when the environment names an
+  endpoint — and it is a report, not a verdict: it fails only if the harness itself breaks, and a run's
+  own failure is recorded and the others go on. Run it with
+  `SHAPESHIFTER_AI_BASE_URL=… SHAPESHIFTER_LEARNING_MODEL=… ./gradlew :stroom-shapeshifter:stroom-shapeshifter-ai:test --tests '*TestLiveScenarios*'`;
+  what the first run found belongs here, beside §9.1's account of the extraction harness.
+
+One thing to know: the document's `instructions` reach the model through the advisor's construction,
+not through the `Question`, since the seam carries no document; the node's advisor will be built per
+stage with the document in hand, and A28's persisted turns should record the system text with the rest.
+
+### 6.2 What the first live run found
+
+Run 2026-09-18 against `claude-sonnet-5` through Anthropic's OpenAI-compatible endpoint, three times,
+75 questions and about 435k tokens in all. The transcripts are kept beside the module's build output
+(`build/live-runs/`); the numbers below are from the reports.
+
+| Run | Questions as put | 01 header CSV | 02 headerless, full scorers | 03 two record kinds | 04 scenario 27 | 05 regex corpus |
+|---|---|---|---|---|---|---|
+| 1 | as first written, 3 candidates | given up at the splitter | given up at the splitter | given up at the splitter | given up at the splitter | given up at the transform |
+| 2 | + a worked Data Splitter example, 3 candidates | **promoted 0.857** | **promoted 1.0** | given up at the transform | promoted 1.0; marked; relearn kept | **promoted 0.938** |
+| 3 | the same, 5 candidates | promoted 0.857 | promoted 1.0 | given up at the transform | promoted 1.0; marked; **rebound 0.981** | promoted 1.0 |
+
+- **The grammar holds.** Seventy-five replies, every one a single fenced block or an `A -> B` chain
+  exactly as asked; the reply parsers were never exercised in refusal. The endpoint refused
+  `temperature` for this model, so the advisor sends it only when asked to.
+- **Design 01 §4.1 was right about extraction.** Without a worked example the model does not know the
+  Data Splitter's structure — it wraps the `data` elements in a `group` inside the `regex`, or drops the
+  group's `value` — and the compile gate's `cvc-complex-type` messages teach it one constraint per
+  candidate, so it thrashes and is abandoned: five out of five. With one worked example in the question
+  (a four-field CSV, the shape the design calls the strict one), five out of five compiled first time,
+  including a two-`regex` splitter for the stream with alarm lines that the example only hinted at.
+  Diagnostics are the wrong teacher for extraction; the example is the right one.
+- **Transformation converges by the schema's feedback, one constraint per candidate**, and the number
+  of candidates is what decides it. A door-access CSV against the full scorer set — schema gate,
+  extraction quality with two required fields, a business rule — was promoted at 1.0 on the first
+  stylesheet (run 02). Where the model needed rarer branches it climbed: the corpus's `123 [abc] text`
+  shape wanted `Other` (not a 3.0.0 branch), then had `Description` before `Action`, and passed on the
+  third or fourth stylesheet. **Scenario 27 ran live end to end** at five candidates: learned at 1.0,
+  served the alarm stream and fell to a rolling 0.7, was marked, relearned with the incumbent serving,
+  and rebound at 0.981 — the whole loop, with a real model, once.
+- **The one failure left is a ladder.** For the alarm lines the model chose `EventSource/Door` — the
+  right element for a badge reader — and `EventDetail/Alert`, also right. `Door` in 3.0.0 has a long
+  mandatory sequence (`Name, Description, Location, SingleEntry, RemoveAll, …`), and the validator
+  names one missing child per candidate; the model added one per turn and could not finish in five.
+  `Device`, with `Name` alone, would have passed at once. The fix is to the feedback, not the model:
+  when conformance reports *the content of element X is not complete*, carry X's whole content model
+  from the XSD — its children in order with what is required — so that a candidate can finish in one
+  step. §8.2 already has the schema's post-processed messages as feedback; this is the next enrichment,
+  and the operator's part is that `instructions` and the required-field list agree with each other and
+  with what the schema makes cheap (the run's instructions said *device*, its required field said
+  `Device/Name`, and the model still, reasonably, chose `Door`).
+- **Cost and time.** A promoted first-time attempt was 6k tokens and 14 seconds; a relearn with five
+  candidates 94k tokens and just over three minutes; the failed ladder 77k. On this endpoint a question
+  took 5–30 seconds. The candidate limit's default of 3 is right for a simple feed and one short for a
+  feed with a rarer branch; five let scenario 27 through. Deferred mode (A5) is the mode for anything
+  that is not a backfill, as the design said.
+- **Two things the harness itself learnt.** A given-up decision now carries the last candidate's
+  diagnostics — the transcript could not say *why* the third attempt failed, and neither could the
+  sentinel (§4 step 5). And Gradle does not count an environment variable as a test input, so a second
+  live run must be `cleanTest test --tests '*TestLiveScenarios*'` or it reports the last one.
+
+**What the run settles about the questions, round by round.** The *chain* question is right as
+written — key values, a line per allowed element, the sample, the `A -> B` grammar — and needs nothing.
+The *splitter* question is rules, a worked example, the real input, and only on a re-ask the diagnostics:
+the example is what teaches, the diagnostics only correct. The *transform* question must name the target
+schema's branches and their order up front, must carry the real `records:2` output (every stylesheet's
+XPaths were right), and on a re-ask should carry the content model of the element that failed, which it
+does not yet. Feedback steers well when it is specific to the thing that fell short — coverage's
+uncovered lines, the rule's name, *required field X present in 0 of 16* — and one rung at a time when it
+is the validator's alone. The candidate limit's default should be five, with the attempt budget (A5) as
+the real bound.
+
+**And about the scorers.** Coverage did its teaching in the first round of every extraction. Schema
+conformance as a gate is the transform's workhorse and the scorer whose feedback most wants enriching.
+Extraction quality earned its place as the A16 gate: in run 2's two-kind stream it was what failed
+(0.67 against 0.7) when the schema passed — §8.3's trap, met live — and its required-field line is what
+steered the model toward the fields the operator wanted. It also showed that the operator's
+`instructions` and required-field list must agree with each other and with what the schema makes cheap;
+the Learning and Scoring tabs should say so. The business rule fired once and was fixed in one turn.
+Yield never mattered here — no candidate dropped records — which is what it is for elsewhere.
+
+What this does not yet say: how the extraction stage fares on the corpus's other shapes (the
+reconstruction test of §9.1 measures that, and has not been re-run with the worked example), what a
+cheaper or a stronger model does (the same three runs, one line of environment away — a small model is
+the cost curve at volume), and whether a person's `instructions` can carry the schema hint the feedback
+should. Follow-ups, in order of value: the content-model hint in conformance feedback; the default
+candidate limit to five; `QuestionText` as the node advisor's prompt (design 01 §12 item 6 — it is in
+main for that reason); the reconstruction test re-run with the new extraction question; a small-model
+run.
+
+Not yet: the content-model hint in conformance feedback; scenario 20 (needs the A26 tables for its
+ledger row); everything from scenario 30 on.
 
 ## 7. Decisions taken
 

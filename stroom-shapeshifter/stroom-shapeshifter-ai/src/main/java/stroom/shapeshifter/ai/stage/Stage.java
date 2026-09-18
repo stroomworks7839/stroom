@@ -181,8 +181,8 @@ public final class Stage {
         // Learn on a prefix, judge on the whole stream.
         final Outcome outcome = learn(doc, input, attributes, scorecard);
         if (outcome instanceof final Abandoned abandoned) {
-            return givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(), List.of(),
-                    outcome.transcript());
+            return givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(), abandoned.diagnostics(),
+                    List.of(), outcome.transcript());
         }
         final Learned learned = (Learned) outcome;
 
@@ -192,6 +192,7 @@ public final class Stage {
         if (!judged.clearsFloor(doc)) {
             return givenUp(doc, shape, input, "Below the promotion floor",
                     "Candidate scored " + judged.score() + " against a floor of " + doc.getPromotionFloor(),
+                    judged.verdicts().stream().flatMap(verdict -> verdict.feedback().stream()).toList(),
                     judged.verdicts(), learned.transcript());
         }
         final DocRef fragment = write(doc, shape, learned);
@@ -602,11 +603,12 @@ public final class Stage {
                              final Input input,
                              final String decision,
                              final String reason,
+                             final List<StoredError> diagnostics,
                              final List<Verdict> verdicts,
                              final List<Exchange> transcript) {
         shapes.giveUp(doc.getUuid(), shape.id(), reason);
         ledger.sentinelled(doc.getUuid(), shape.id(), input.id(), reason);
-        return new StageRun(doc, new GivenUp(decision), shape, null, null, verdicts, transcript);
+        return new StageRun(doc, new GivenUp(decision, diagnostics), shape, null, null, verdicts, transcript);
     }
 
     /**

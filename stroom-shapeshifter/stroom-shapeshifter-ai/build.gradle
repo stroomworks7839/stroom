@@ -70,6 +70,9 @@ dependencies {
     testFixturesImplementation libs.guice
     testFixturesImplementation libs.jakarta.inject
     testFixturesImplementation libs.junit.jupiter.api
+    testFixturesImplementation libs.langchain4j
+    testFixturesImplementation libs.langchain4j.open.ai
+    testFixturesImplementation libs.slf4j.api
 
     testImplementation project(':stroom-docstore:stroom-docstore-impl')
     testImplementation project(':stroom-docstore:stroom-docstore-impl-memory')

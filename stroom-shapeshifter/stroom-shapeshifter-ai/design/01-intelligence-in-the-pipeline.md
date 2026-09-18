@@ -903,7 +903,8 @@ in chain order, each answered by running the fragment as far as it has been buil
    re-rolls the part that worked.
 
 Every question carries the stage's objective and the document's instructions; the sample; the transcript of
-the attempt so far; the current document for that step, if any, with the output it produced, the
+the attempt so far; for extraction, a worked example (the first live run, design 02 §6.2, found this the one
+thing without which no splitter compiled); the current document for that step, if any, with the output it produced, the
 scores with the specific failures that lost marks, and compiler diagnostics if it did not compile.
 For transformation, it also carries the schema's named failure modes (§8.2) and the required-field
 list (§8.3). For extraction, it carries the mandatory `xsi:schemaLocation` and the `ignoreErrors`
@@ -1429,3 +1430,10 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   the A16 gate, business rules — and scenarios 4–10 and 19 passing. Writing them found the 3.0.0 schema
   stricter than the catalogue's flawed candidates assumed (§8.2's list stands: a dropped `User` or
   `Device` fails conformance before anything else can judge it); design 02 §6.1 records the rest.
+- The first live run, against `claude-sonnet-5` through an OpenAI-compatible endpoint: design 02 §6.2.
+  Three findings bear on this document. §4.1's prediction held exactly — extraction is taught by a
+  worked example, not by diagnostics (0 of 5 splitters compiled without one, 5 of 5 with). §10's prompt
+  contract is now text, `QuestionText`, and the grammar held over 75 replies. And §8.2's feedback wants
+  one enrichment: when conformance reports an element's content incomplete, the element's whole content
+  model from the XSD, since the validator otherwise names one missing child per candidate and a model
+  climbs that ladder one rung a turn. Scenario 27 — learn, fall, relearn, rebind — ran live end to end.
